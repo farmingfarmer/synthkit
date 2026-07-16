@@ -32,6 +32,10 @@ def _backend(name: str, model: str = ""):
     if name == "anthropic":
         from .compiler import AnthropicBackend
         return AnthropicBackend(model=model or "claude-sonnet-4-6")
+    if name == "hf":
+        from .compiler import HFLocalBackend
+        return HFLocalBackend(
+            model_id=model or "Qwen/Qwen2.5-1.5B-Instruct")
     if name == "bedrock":
         from .compiler import BedrockBackend
         if not model:

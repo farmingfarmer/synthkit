@@ -306,6 +306,42 @@ def main():
     check("absence is ground truth too",
           0 < with_allergy < 50)
 
+    # HFLocalBackend contract via injected fake pipelines — the
+    # in-process open-source path, validated without torch.
+    from synthkit.compiler import BackendError, HFLocalBackend
+
+    class ChatPipe:
+        def __call__(self, messages, **kw):
+            assert isinstance(messages, list)
+            assert messages[0]["role"] == "system"
+            return [{"generated_text":
+                     [{"role": "assistant",
+                       "content": "chat-shaped output"}]}]
+
+    class LegacyPipe:
+        def __call__(self, arg, **kw):
+            if isinstance(arg, list):
+                raise TypeError("no chat templates here")
+            return [{"generated_text": "legacy string output"}]
+
+    hf = HFLocalBackend(pipeline=ChatPipe())
+    check("hf-local handles chat-template pipelines",
+          hf.complete("p", system="s") == "chat-shaped output"
+          and hf.name.startswith("hf-local/"))
+    hf = HFLocalBackend(pipeline=LegacyPipe())
+    check("hf-local falls back to plain-prompt pipelines",
+          hf.complete("p", system="s") == "legacy string output")
+
+    class BrokenPipe:
+        def __call__(self, *a, **kw):
+            return [{}]
+
+    try:
+        HFLocalBackend(pipeline=BrokenPipe()).complete("p")
+        check("hf-local raises BackendError on bad shapes", False)
+    except BackendError:
+        check("hf-local raises BackendError on bad shapes", True)
+
     print("\nAll {} checks passed.".format(PASS))
 
 

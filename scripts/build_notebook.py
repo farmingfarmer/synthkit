@@ -159,7 +159,34 @@ def build() -> dict:
              "_s2, _b2, _d2, _m = load_corpus(run_dir)\n"
              "assert _d2 == documents\n"
              "print(\"corpus verified ->\", run_dir)"),
-        md("## 6. Bedrock (gated) — realistic prose"),
+        md("## 6. In-notebook open-source LLM (gated)",
+           "",
+           "Generation INSIDE this notebook's process — no server,",
+           "no service. First run downloads weights from the",
+           "Hugging Face hub (~1-3GB; use a local/S3 path as",
+           "`model_id` in air-gapped environments). The 0.5B model",
+           "runs on CPU instances; prefer a GPU instance for 1.5B+.",
+           "The verifier + retry + fallback wrap it like any",
+           "backend — a weak model degrades measurably, never",
+           "breaks the corpus."),
+        code("RUN_LOCAL_LLM = False\n"
+             "LOCAL_MODEL_ID = \"Qwen/Qwen2.5-0.5B-Instruct\"\n"
+             "if RUN_LOCAL_LLM:\n"
+             "    import sys as _sys\n"
+             "    !{_sys.executable} -m pip install -q transformers "
+             "torch accelerate\n"
+             "    hf_backend = HFLocalBackend(model_id=LOCAL_MODEL_ID)\n"
+             "    hf_docs, hf_rr = render_corpus(spec, blueprints,\n"
+             "                                   hf_backend)\n"
+             "    print(hf_rr.format_text())\n"
+             "    print(evaluate(\n"
+             "        blueprints, hf_docs,\n"
+             "        FunctionExtractor(regex_extract,\n"
+             "                          \"regex-naive\"),\n"
+             "        reference_rules()).format_text())\n"
+             "else:\n"
+             "    print(\"RUN_LOCAL_LLM is False — skipped.\")"),
+        md("## 7. Bedrock (gated) — realistic prose"),
         code("if RUN_BEDROCK:\n"
              "    backend = BedrockBackend(\n"
              "        model_id=BEDROCK_MODEL_ID,\n"
@@ -174,7 +201,7 @@ def build() -> dict:
              "        reference_rules()).format_text())\n"
              "else:\n"
              "    print(\"RUN_BEDROCK is False — skipped.\")"),
-        md("## 7. Self-validation",
+        md("## 8. Self-validation",
            "",
            "A compact assertion suite over the inlined library —",
            "the notebook proves itself on every full run."),

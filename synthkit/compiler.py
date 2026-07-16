@@ -117,6 +117,85 @@ class AnthropicBackend(LLMBackend):
             raise BackendError("anthropic call failed: {}".format(e))
 
 
+class HFLocalBackend(LLMBackend):
+    """IN-PROCESS open-source model via Hugging Face transformers —
+    generation happens inside the notebook's own Python process, no
+    external server or service.
+
+        pip install transformers torch accelerate
+
+    Weights download from the Hugging Face hub on first use (or pass
+    a local path / S3-synced directory as model_id for air-gapped
+    environments). Small instruct models are the sweet spot for
+    synthkit's short verified renders:
+
+        HFLocalBackend("Qwen/Qwen2.5-1.5B-Instruct")   # ~3GB
+        HFLocalBackend("Qwen/Qwen2.5-0.5B-Instruct")   # ~1GB, CPU-ok
+
+    The renderer's verifier + retry + fallback wrap this like any
+    backend: a weak model degrades measurably, never breaks the
+    corpus. `pipeline` is injectable for tests.
+    """
+
+    def __init__(self, model_id: str = "Qwen/Qwen2.5-1.5B-Instruct",
+                 device_map: str = "auto",
+                 pipeline: Any = None):
+        self.model_id = model_id
+        self.name = "hf-local/" + model_id
+        self._device_map = device_map
+        self._pipe = pipeline
+
+    def _ensure_pipe(self) -> Any:
+        if self._pipe is None:
+            try:
+                from transformers import pipeline as hf_pipeline
+            except ImportError:
+                raise BackendError(
+                    "transformers is not installed — run: pip "
+                    "install transformers torch accelerate")
+            try:
+                self._pipe = hf_pipeline(
+                    "text-generation", model=self.model_id,
+                    device_map=self._device_map)
+            except Exception as e:
+                raise BackendError(
+                    "could not load {}: {}".format(self.model_id, e))
+        return self._pipe
+
+    def complete(self, prompt: str, *, system: str = "",
+                 max_tokens: int = 2000,
+                 temperature: float = 0.3) -> str:
+        pipe = self._ensure_pipe()
+        messages = []
+        if system:
+            messages.append({"role": "system", "content": system})
+        messages.append({"role": "user", "content": prompt})
+        kwargs = {"max_new_tokens": max_tokens,
+                  "do_sample": temperature > 0,
+                  "temperature": max(temperature, 0.01),
+                  "return_full_text": False}
+        try:
+            out = pipe(messages, **kwargs)
+        except (TypeError, ValueError):
+            text_in = (system + "\n\n" + prompt) if system else prompt
+            try:
+                out = pipe(text_in, **kwargs)
+            except Exception as e:
+                raise BackendError("hf-local generation failed: "
+                                   "{}".format(e))
+        except Exception as e:
+            raise BackendError("hf-local generation failed: "
+                               "{}".format(e))
+        try:
+            text = out[0]["generated_text"]
+            if isinstance(text, list):
+                text = text[-1].get("content", "")
+            return str(text)
+        except (KeyError, IndexError, TypeError, AttributeError) as e:
+            raise BackendError(
+                "hf-local returned an unexpected shape: {}".format(e))
+
+
 class BedrockBackend(LLMBackend):
     """AWS Bedrock via boto3 (the Keck deployment path).
     Anthropic-on-Bedrock message format."""
