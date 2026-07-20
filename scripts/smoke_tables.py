@@ -51,6 +51,8 @@ def check(label, cond):
 
 
 def reference_table(rows=200, seed=7) -> TableSpec:
+    """Schema-authoring example; must stay equal to the library
+    copy in synthkit.examples (parity-checked below)."""
     return TableSpec(
         title="Encounter billing extract",
         rows=rows,
@@ -149,6 +151,11 @@ def main():
     spec = reference_table()
     spec.validate()
     check("reference table spec validates", True)
+    from synthkit.examples import reference_table as lib_table
+    check("library reference table matches the inline schema "
+          "example",
+          lib_table(rows=200, master_seed=7).to_json()
+          == spec.to_json())
     spec2 = TableSpec.from_json(spec.to_json())
     check("table spec JSON round-trips exactly",
           spec2.to_json() == spec.to_json())
@@ -342,6 +349,35 @@ def main():
           and result.failed_conditions == ["overall.fix_rate"]
           and "FAILED" in result.finding()
           and "HOLDS" in result.finding())
+
+    # ---------- table compiler: assisted, never trusted ----------
+    from synthkit.compiler import compile_table_spec
+
+    class CannedBackend:
+        def __init__(self, payloads):
+            self.payloads = list(payloads)
+            self.prompts = []
+
+        def complete(self, prompt, *, system="", max_tokens=3000,
+                     temperature=0.3):
+            self.prompts.append(prompt)
+            return self.payloads.pop(0)
+
+    good = reference_table(rows=50).to_json()
+    broken = reference_table(rows=0).to_json()
+    backend = CannedBackend([broken, good])
+    result = compile_table_spec("fifty billing rows", backend)
+    check("table compiler repairs via a problems-fed second round",
+          result.ok
+          and result.spec.rows == 50
+          and "rows must be >= 1" in backend.prompts[1])
+    backend = CannedBackend([broken, broken])
+    result = compile_table_spec("fifty billing rows", backend)
+    check("unrepaired table compile hands the human a draft plus "
+          "problems",
+          not result.ok
+          and result.spec is not None
+          and "rows must be >= 1" in result.problems)
 
     shutil.rmtree(tmp)
     print("\nAll {} checks passed.".format(PASS))

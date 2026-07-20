@@ -155,6 +155,28 @@ def cmd_experiment(args) -> int:
     return 0 if result.passed else 1
 
 
+def cmd_table_compile(args) -> int:
+    from .compiler import compile_table_spec
+    description = args.description
+    if args.file:
+        description = Path(args.file).read_text(encoding="utf-8")
+    if not description:
+        print("provide -d/--description or -f/--file",
+              file=sys.stderr)
+        return 2
+    backend = _backend(args.backend, args.model)
+    result = compile_table_spec(description, backend, retries=1)
+    out = Path(args.out)
+    out.write_text(result.raw_json, encoding="utf-8")
+    if result.ok:
+        print("compiled OK -> {}".format(out))
+        print("review the spec before rendering.")
+        return 0
+    print("compiled with problems -> {} (draft saved)".format(out))
+    print("PROBLEMS:\n{}".format(result.problems))
+    return 1
+
+
 def cmd_table_plan(args) -> int:
     from .tableplan import plan_table
     from .tablespec import TableSpec, TableSpecError
@@ -256,6 +278,15 @@ def main(argv=None) -> int:
     p.add_argument("--extractor", default="",
                    help="dotted path; default: the naive regex")
     p.set_defaults(fn=cmd_experiment)
+
+    p = sub.add_parser("table-compile",
+                       help="plain English -> TableSpec JSON")
+    p.add_argument("-d", "--description", default="")
+    p.add_argument("-f", "--file", default="")
+    p.add_argument("-o", "--out", default="table_spec.json")
+    p.add_argument("--backend", default="ollama")
+    p.add_argument("--model", default="")
+    p.set_defaults(fn=cmd_table_compile)
 
     p = sub.add_parser("table-plan",
                        help="validate a table spec, print stats")

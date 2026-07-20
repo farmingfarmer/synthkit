@@ -210,3 +210,82 @@ def allergy_bar_experiment(backend=None, size: int = 16,
         rules=reference_rules(),
         backend=backend,
     )
+
+
+# ===================================================================
+# The reference TABLE and a naive cleaner (tabular counterparts of
+# reference_spec and regex_extract).
+# ===================================================================
+
+def reference_table(rows: int = 200, master_seed: int = 7):
+    """Encounter billing extract: bimodal stays, cost derived from
+    stay, discharge after visit, and every mess tier including
+    format-valid wrong values."""
+    from .tablespec import ColumnMess, ColumnSpec, TableSpec
+    return TableSpec(
+        title="Encounter billing extract",
+        rows=rows,
+        master_seed=master_seed,
+        duplicate_rate=0.1,
+        columns=[
+            ColumnSpec("patient_id", "str_id",
+                       {"kind": "sequence", "prefix": "PT-",
+                        "start": 5000}),
+            ColumnSpec("patient_name", "person_name", {},
+                       ColumnMess(case_rate=0.3, space_rate=0.2)),
+            ColumnSpec("age", "int",
+                       {"kind": "normal", "mean": 58, "std": 18,
+                        "min": 0, "max": 105},
+                       ColumnMess(missing_rate=0.15)),
+            ColumnSpec("department", "category",
+                       {"kind": "categorical",
+                        "choices": ["cardiology", "oncology",
+                                    "orthopedics", "emergency"],
+                        "weights": [5, 2, 2, 1]},
+                       ColumnMess(typo_rate=0.2)),
+            ColumnSpec("los_days", "int",
+                       {"kind": "mixture",
+                        "components": [
+                            {"kind": "uniform", "min": 1,
+                             "max": 4},
+                            {"kind": "normal", "mean": 18,
+                             "std": 5, "min": 8, "max": 45},
+                        ],
+                        "weights": [0.7, 0.3]}),
+            ColumnSpec("total_cost", "float",
+                       {"kind": "lognormal", "mu": 7.5,
+                        "sigma": 0.8, "min": 50},
+                       ColumnMess(outlier_rate=0.05,
+                                  outlier_factor=100.0,
+                                  wrong_rate=0.1)),
+            ColumnSpec("visit_date", "date",
+                       {"kind": "date_range",
+                        "start": "2026-01-01",
+                        "end": "2026-06-30"},
+                       ColumnMess(format_rate=0.4,
+                                  wrong_rate=0.08)),
+            ColumnSpec("discharge_date", "date",
+                       {"kind": "date_range",
+                        "start": "2026-01-01",
+                        "end": "2026-06-30"}),
+            ColumnSpec("active", "bool",
+                       {"kind": "bernoulli", "p": 0.7},
+                       ColumnMess(format_rate=0.3)),
+        ],
+        rules=[
+            {"kind": "date_after", "earlier": "visit_date",
+             "later": "discharge_date", "min_days": 1,
+             "max_days": 45},
+            {"kind": "derived", "target": "total_cost",
+             "source": "los_days", "factor": 1150.0,
+             "noise_sigma": 0.2},
+        ],
+    )
+
+
+def strip_cleaner(rows):
+    """The naive tabular cleaner: strips whitespace, nothing else.
+    Fixes exactly the `space` op; misses everything; detects no
+    wrong values — the honest baseline for cleaning demos."""
+    return [{k: str(v).strip() for k, v in row.items()}
+            for row in rows]

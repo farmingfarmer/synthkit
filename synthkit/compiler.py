@@ -355,3 +355,88 @@ def compile_spec(description: str, backend: LLMBackend,
         draft = None
     return CompileResult(spec=draft, raw_json=last_raw,
                          problems=last_problems)
+
+
+# ===================================================================
+# Table compilation — same law as documents: LLM-assisted, never
+# LLM-trusted. Draft -> total validation -> problems-fed repair
+# round(s) -> human review. Returns CompileResult; `spec` holds a
+# TableSpec when parseable (validated when ok).
+# ===================================================================
+
+_TABLE_COMPILER_SYSTEM = (
+    "You translate plain-English descriptions of tabular datasets "
+    "into synthkit TableSpec JSON. Respond ONLY with a JSON "
+    "object, no prose, no markdown fences.\n\n"
+    "Schema:\n"
+    '{"title": str, "rows": int, "master_seed": int, '
+    '"duplicate_rate": float 0-0.5,\n'
+    ' "columns": [{"name": str, '
+    '"ctype": "int|float|category|str_id|person_name|date|bool", '
+    '"distribution": {"kind": ...}, "mess": {...}}],\n'
+    ' "rules": [...]}\n\n'
+    "Distribution kinds: uniform{min,max} normal{mean,std,min?,"
+    "max?} lognormal{mu,sigma,min?,max?} beta{alpha,beta,scale?} "
+    'categorical{choices,[weights]} date_range{start,end ISO} '
+    "sequence{prefix,start} bernoulli{p} "
+    "mixture{components:[dists],weights}.\n"
+    "Mess rates (per column, all optional, 0-1): missing_rate, "
+    "typo_rate, format_rate, outlier_rate (+outlier_factor), "
+    "case_rate, space_rate, wrong_rate (format-valid wrong "
+    "values a cleaner must DETECT).\n"
+    "Rules: {kind:date_after, earlier, later, min_days, max_days} "
+    "and {kind:derived, target, source, factor, noise_sigma?}.\n"
+    "Choose sensible values for anything unspecified; keep rows "
+    "<= 500 unless asked."
+)
+
+
+def compile_table_spec(description: str, backend: LLMBackend,
+                       retries: int = 1) -> CompileResult:
+    """Plain English -> validated TableSpec (or draft + problems).
+    Mirrors compile_spec exactly: one repair round fed the full
+    problem list, then the human takes over."""
+    from .tablespec import TableSpec, TableSpecError
+    prompt = ("Dataset description:\n\n{}\n\n"
+              "=== END DESCRIPTION ===\n"
+              "Now output ONLY the TableSpec JSON object, starting "
+              "with '{{'.".format(description.strip()))
+    last_raw = ""
+    last_problems = "no output produced"
+    for attempt in range(retries + 1):
+        raw = backend.complete(prompt,
+                               system=_TABLE_COMPILER_SYSTEM,
+                               max_tokens=3000, temperature=0.3)
+        json_str = _extract_json(raw)
+        if json_str is None:
+            last_raw = raw or ""
+            last_problems = "no JSON object in output"
+        else:
+            last_raw = json_str
+            try:
+                spec = TableSpec.from_json(json_str)
+            except (json.JSONDecodeError, TypeError, KeyError) as e:
+                last_problems = ("JSON did not fit the schema: {}"
+                                 .format(e))
+            else:
+                try:
+                    spec.validate()
+                    return CompileResult(spec=spec,
+                                         raw_json=json_str,
+                                         problems=None)
+                except TableSpecError as e:
+                    last_problems = str(e)
+        if attempt < retries:
+            prompt = (
+                "Dataset description:\n\n{}\n\n"
+                "Your previous TableSpec had these problems:\n{}"
+                "\n\nOutput the CORRECTED TableSpec JSON only, "
+                "starting with '{{'.".format(
+                    description.strip(), last_problems)
+            )
+    try:
+        draft = TableSpec.from_json(last_raw)
+    except Exception:
+        draft = None
+    return CompileResult(spec=draft, raw_json=last_raw,
+                         problems=last_problems)

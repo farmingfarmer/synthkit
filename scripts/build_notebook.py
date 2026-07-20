@@ -37,8 +37,15 @@ MODULES = [
                      "against planted truth"),
     ("harness.py", "The Harness — hypotheses become measured "
                    "experiments"),
-    ("examples.py", "Examples — the reference vertical and a "
-                    "naive real extractor"),
+    ("tablespec.py", "TableSpec — arbitrary tabular datasets with "
+                     "planted mess"),
+    ("tableplan.py", "Table planning — clean truth, deterministic "
+                     "mess, the ledger"),
+    ("tableeval.py", "Cleaning evaluation — exact, cell-level, "
+                     "sliced by mess type"),
+    ("examples.py", "Examples — reference document vertical, "
+                    "reference table, naive extractor and "
+                    "cleaner"),
 ]
 
 _REL_IMPORT_RE = re.compile(r"^\s*from\s+\.[\w.]*\s+import\b")
@@ -232,6 +239,14 @@ def build() -> dict:
              "                blueprints[0].notes[0],\n"
              "                spec.unstructured_fields[0])\n"
              "assert v.ok, \"verifier\"\n"
+             "tbp = plan_table(reference_table(rows=40))\n"
+             "tbp2 = plan_table(reference_table(rows=40))\n"
+             "assert tbp.dirty_rows == tbp2.dirty_rows, \"table "
+             "determinism\"\n"
+             "trep = evaluate_cleaning(\n"
+             "    tbp, strip_cleaner(tbp.dirty_rows), \"strip\")\n"
+             "assert trep.ops[\"space\"].fix_rate == 1.0\n"
+             "assert trep.overcorrection_rate == 0.0\n"
              "print(\"SELF-VALIDATION: all assertions passed.\")"),
     ]
     return {"cells": cells,

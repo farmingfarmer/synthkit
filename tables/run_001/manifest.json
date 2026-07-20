@@ -1,0 +1,284 @@
+{
+  "synthkit_table_manifest": 1,
+  "spec": {
+    "title": "Encounter billing extract",
+    "columns": [
+      {
+        "name": "patient_id",
+        "ctype": "str_id",
+        "distribution": {
+          "kind": "sequence",
+          "prefix": "PT-",
+          "start": 5000
+        },
+        "mess": {
+          "missing_rate": 0.0,
+          "missing_tokens": [
+            "",
+            "NULL",
+            "N/A",
+            "?"
+          ],
+          "typo_rate": 0.0,
+          "format_rate": 0.0,
+          "outlier_rate": 0.0,
+          "outlier_factor": 10.0,
+          "case_rate": 0.0,
+          "space_rate": 0.0,
+          "wrong_rate": 0.0
+        }
+      },
+      {
+        "name": "patient_name",
+        "ctype": "person_name",
+        "distribution": {},
+        "mess": {
+          "missing_rate": 0.0,
+          "missing_tokens": [
+            "",
+            "NULL",
+            "N/A",
+            "?"
+          ],
+          "typo_rate": 0.0,
+          "format_rate": 0.0,
+          "outlier_rate": 0.0,
+          "outlier_factor": 10.0,
+          "case_rate": 0.3,
+          "space_rate": 0.2,
+          "wrong_rate": 0.0
+        }
+      },
+      {
+        "name": "age",
+        "ctype": "int",
+        "distribution": {
+          "kind": "normal",
+          "mean": 58,
+          "std": 18,
+          "min": 0,
+          "max": 105
+        },
+        "mess": {
+          "missing_rate": 0.15,
+          "missing_tokens": [
+            "",
+            "NULL",
+            "N/A",
+            "?"
+          ],
+          "typo_rate": 0.0,
+          "format_rate": 0.0,
+          "outlier_rate": 0.0,
+          "outlier_factor": 10.0,
+          "case_rate": 0.0,
+          "space_rate": 0.0,
+          "wrong_rate": 0.0
+        }
+      },
+      {
+        "name": "department",
+        "ctype": "category",
+        "distribution": {
+          "kind": "categorical",
+          "choices": [
+            "cardiology",
+            "oncology",
+            "orthopedics",
+            "emergency"
+          ],
+          "weights": [
+            5,
+            2,
+            2,
+            1
+          ]
+        },
+        "mess": {
+          "missing_rate": 0.0,
+          "missing_tokens": [
+            "",
+            "NULL",
+            "N/A",
+            "?"
+          ],
+          "typo_rate": 0.2,
+          "format_rate": 0.0,
+          "outlier_rate": 0.0,
+          "outlier_factor": 10.0,
+          "case_rate": 0.0,
+          "space_rate": 0.0,
+          "wrong_rate": 0.0
+        }
+      },
+      {
+        "name": "los_days",
+        "ctype": "int",
+        "distribution": {
+          "kind": "mixture",
+          "components": [
+            {
+              "kind": "uniform",
+              "min": 1,
+              "max": 4
+            },
+            {
+              "kind": "normal",
+              "mean": 18,
+              "std": 5,
+              "min": 8,
+              "max": 45
+            }
+          ],
+          "weights": [
+            0.7,
+            0.3
+          ]
+        },
+        "mess": {
+          "missing_rate": 0.0,
+          "missing_tokens": [
+            "",
+            "NULL",
+            "N/A",
+            "?"
+          ],
+          "typo_rate": 0.0,
+          "format_rate": 0.0,
+          "outlier_rate": 0.0,
+          "outlier_factor": 10.0,
+          "case_rate": 0.0,
+          "space_rate": 0.0,
+          "wrong_rate": 0.0
+        }
+      },
+      {
+        "name": "total_cost",
+        "ctype": "float",
+        "distribution": {
+          "kind": "lognormal",
+          "mu": 7.5,
+          "sigma": 0.8,
+          "min": 50
+        },
+        "mess": {
+          "missing_rate": 0.0,
+          "missing_tokens": [
+            "",
+            "NULL",
+            "N/A",
+            "?"
+          ],
+          "typo_rate": 0.0,
+          "format_rate": 0.0,
+          "outlier_rate": 0.05,
+          "outlier_factor": 100.0,
+          "case_rate": 0.0,
+          "space_rate": 0.0,
+          "wrong_rate": 0.1
+        }
+      },
+      {
+        "name": "visit_date",
+        "ctype": "date",
+        "distribution": {
+          "kind": "date_range",
+          "start": "2026-01-01",
+          "end": "2026-06-30"
+        },
+        "mess": {
+          "missing_rate": 0.0,
+          "missing_tokens": [
+            "",
+            "NULL",
+            "N/A",
+            "?"
+          ],
+          "typo_rate": 0.0,
+          "format_rate": 0.4,
+          "outlier_rate": 0.0,
+          "outlier_factor": 10.0,
+          "case_rate": 0.0,
+          "space_rate": 0.0,
+          "wrong_rate": 0.08
+        }
+      },
+      {
+        "name": "discharge_date",
+        "ctype": "date",
+        "distribution": {
+          "kind": "date_range",
+          "start": "2026-01-01",
+          "end": "2026-06-30"
+        },
+        "mess": {
+          "missing_rate": 0.0,
+          "missing_tokens": [
+            "",
+            "NULL",
+            "N/A",
+            "?"
+          ],
+          "typo_rate": 0.0,
+          "format_rate": 0.0,
+          "outlier_rate": 0.0,
+          "outlier_factor": 10.0,
+          "case_rate": 0.0,
+          "space_rate": 0.0,
+          "wrong_rate": 0.0
+        }
+      },
+      {
+        "name": "active",
+        "ctype": "bool",
+        "distribution": {
+          "kind": "bernoulli",
+          "p": 0.7
+        },
+        "mess": {
+          "missing_rate": 0.0,
+          "missing_tokens": [
+            "",
+            "NULL",
+            "N/A",
+            "?"
+          ],
+          "typo_rate": 0.0,
+          "format_rate": 0.3,
+          "outlier_rate": 0.0,
+          "outlier_factor": 10.0,
+          "case_rate": 0.0,
+          "space_rate": 0.0,
+          "wrong_rate": 0.0
+        }
+      }
+    ],
+    "rows": 100,
+    "master_seed": 7,
+    "duplicate_rate": 0.1,
+    "rules": [
+      {
+        "kind": "date_after",
+        "earlier": "visit_date",
+        "later": "discharge_date",
+        "min_days": 1,
+        "max_days": 45
+      },
+      {
+        "kind": "derived",
+        "target": "total_cost",
+        "source": "los_days",
+        "factor": 1150.0,
+        "noise_sigma": 0.2
+      }
+    ]
+  },
+  "rows": 100,
+  "dirty_rows": 110,
+  "mess_cells": 159,
+  "hashes": {
+    "dirty.csv": "b19378f4cfb8237f999fe76ea748e3c38c013a02a687a2d486bf4b1dff428453",
+    "clean.csv": "d869084a34c81f6d7bf40aa97cb4edd602e1c26857f080729b59b4a3295b6edf",
+    "ledger.json": "6cf47bf6f887af6268a167e2753f5d83778fc0a0cbe7b4021b115191635eb09b"
+  }
+}
