@@ -308,3 +308,85 @@ def run_table_experiment(exp: TableExperiment
         failed_conditions=failed, report=report)
     result.measured_descriptions = descriptions
     return result
+
+
+# ===================================================================
+# Prediction evaluation — scored against the ceiling.
+# ===================================================================
+
+@dataclass
+class PredictionReport:
+    solver_name: str
+    outcome: str
+    n: int
+    n_pos: int
+    auroc: float
+    ceiling_auroc: float
+    brier_score: float
+    accuracy: float
+    f1: float
+
+    @property
+    def auroc_gap(self) -> float:
+        return self.ceiling_auroc - self.auroc
+
+    def format_text(self) -> str:
+        return (
+            "PREDICTION EVALUATION: {} on `{}` ({} row(s), {} "
+            "positive)\n"
+            "  AUROC:   {:.3f}   (ceiling {:.3f} — gap {:.3f})\n"
+            "  Brier:   {:.4f}\n"
+            "  acc@0.5: {:.1%}   F1: {:.3f}".format(
+                self.solver_name, self.outcome, self.n,
+                self.n_pos, self.auroc, self.ceiling_auroc,
+                self.auroc_gap, self.brier_score, self.accuracy,
+                self.f1))
+
+
+def evaluate_prediction(bp: TableBlueprint, outcome: str,
+                        scores: List[float],
+                        solver_name: str = "solver",
+                        ) -> PredictionReport:
+    from .mlmetrics import (at_threshold, auroc, brier,
+                            ceiling_auroc)
+    if outcome not in bp.true_probs:
+        raise ValueError(
+            "outcome `{}` not generated in this table (have: {})"
+            .format(outcome, sorted(bp.true_probs)))
+    n = len(bp.clean_rows)
+    if len(scores) != n:
+        raise ValueError(
+            "need one score per ORIGINAL row ({}) in order, "
+            "got {}".format(n, len(scores)))
+    labels = [1 if bp.clean_rows[r][outcome] == "True" else 0
+              for r in range(n)]
+    thresh = at_threshold(scores, labels)
+    return PredictionReport(
+        solver_name=solver_name,
+        outcome=outcome,
+        n=n,
+        n_pos=sum(labels),
+        auroc=auroc(scores, labels),
+        ceiling_auroc=ceiling_auroc(
+            bp.true_probs[outcome], labels),
+        brier_score=brier(
+            [min(max(s, 0.0), 1.0) for s in scores], labels),
+        accuracy=thresh["accuracy"],
+        f1=thresh["f1"],
+    )
+
+
+def resolve_prediction_metric(report: PredictionReport,
+                              path: str) -> float:
+    try:
+        return {
+            "predict.auroc": report.auroc,
+            "predict.ceiling_auroc": report.ceiling_auroc,
+            "predict.auroc_gap": report.auroc_gap,
+            "predict.brier": report.brier_score,
+            "predict.accuracy": report.accuracy,
+            "predict.f1": report.f1,
+        }[path]
+    except KeyError:
+        raise MetricError(
+            "unknown prediction metric: {}".format(path))

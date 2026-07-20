@@ -106,6 +106,16 @@ def _gen_clean(col: ColumnSpec, row: int, master: int) -> Any:
     raise ValueError("unhandled distribution: {}".format(kind))
 
 
+def _feature(key: str, vals: Dict[str, Any]) -> float:
+    if "=" in key:
+        col, want = key.split("=", 1)
+        return 1.0 if str(vals[col]) == want else 0.0
+    v = vals[key]
+    if isinstance(v, bool):
+        return 1.0 if v else 0.0
+    return float(v)
+
+
 def _apply_rules(spec: TableSpec, row: int,
                  vals: Dict[str, Any]) -> None:
     """Cross-column rules, in declared order, overwriting the
@@ -245,6 +255,10 @@ class TableBlueprint:
     dirty_rows: List[Dict[str, str]]
     ledger: List[CellMess]
     duplicate_of: Dict[int, int] = field(default_factory=dict)
+    # outcome name -> per-ORIGINAL-row true probabilities (the
+    # generating model's P(y=1|x); ceiling metrics live on these)
+    true_probs: Dict[str, List[float]] = field(
+        default_factory=dict)
     # dirty row index -> source clean row index (for appended dups)
 
     def ledger_index(self) -> Dict[Tuple[int, str], CellMess]:
@@ -265,10 +279,31 @@ def plan_table(spec: TableSpec) -> TableBlueprint:
         clean_rows.append({k: clean_str(v)
                            for k, v in vals.items()})
 
+    # Outcomes: labels from CLEAN values (truth reflects reality;
+    # mess on features is what makes prediction hard).
+    true_probs: Dict[str, List[float]] = {}
+    for oc in spec.outcomes:
+        name = oc["name"]
+        probs: List[float] = []
+        for r in range(spec.rows):
+            z = float(oc["intercept"])
+            for key, w in oc["coefficients"].items():
+                z += float(w) * _feature(key, clean_vals[r])
+            prob = 1.0 / (1.0 + math.exp(-z))
+            probs.append(prob)
+            label = _cell_rng(spec.master_seed, r, name,
+                              "outcome").random() < prob
+            clean_vals[r][name] = label
+            clean_rows[r][name] = clean_str(label)
+        true_probs[name] = probs
+    outcome_names = [oc["name"] for oc in spec.outcomes]
+    columns = columns + outcome_names
+
     dirty_rows: List[Dict[str, str]] = []
     ledger: List[CellMess] = []
     for r in range(spec.rows):
-        row_out: Dict[str, str] = {}
+        row_out: Dict[str, str] = {
+            name: clean_rows[r][name] for name in outcome_names}
         for col in spec.columns:
             cval = clean_vals[r][col.name]
             cstr = clean_rows[r][col.name]
@@ -362,6 +397,7 @@ def plan_table(spec: TableSpec) -> TableBlueprint:
         dirty_rows=dirty_rows,
         ledger=ledger,
         duplicate_of=duplicate_of,
+        true_probs=true_probs,
     )
 
 
@@ -398,7 +434,9 @@ def write_table(run_dir: Path, spec: TableSpec,
         "ledger.json": json.dumps(
             {"ledger": [asdict(m) for m in bp.ledger],
              "duplicate_of": {str(k): v for k, v
-                              in bp.duplicate_of.items()}},
+                              in bp.duplicate_of.items()},
+             "true_probs": {k: [round(x, 6) for x in v]
+                            for k, v in bp.true_probs.items()}},
             indent=2),
     }
     hashes = {}
@@ -450,5 +488,8 @@ def load_table(run_dir: Path
         ledger=[CellMess(**m) for m in raw["ledger"]],
         duplicate_of={int(k): v for k, v
                       in raw["duplicate_of"].items()},
+        true_probs=raw.get("true_probs", {}),
     )
+    bp.columns = (bp.columns
+                  + [oc["name"] for oc in spec.outcomes])
     return spec, bp

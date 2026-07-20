@@ -114,6 +114,15 @@ class TableSpec:
     #  {"kind":"derived","target":"total_cost","source":"los_days",
     #   "factor":1200,"noise_sigma":0.15}  (multiplicative noise)
     rules: List[Dict[str, Any]] = field(default_factory=list)
+    # Generated labels with PLANTED SIGNAL: a logistic model over
+    # this table's own columns. Every row gets a true probability,
+    # which makes ceiling metrics computable.
+    #  {"name":"readmitted","kind":"logistic","intercept":-2.0,
+    #   "coefficients":{"age":0.03,"los_days":0.1,
+    #                   "department=oncology":0.8,"active":-0.4}}
+    # Coefficient keys: numeric column, bool column (0/1), or
+    # "column=value" indicator for categoricals.
+    outcomes: List[Dict[str, Any]] = field(default_factory=list)
 
     # ---------------- validation (total) ----------------
     def validate(self) -> None:
@@ -222,6 +231,42 @@ class TableSpec:
                 if rule.get("target") == rule.get("source"):
                     problems.append("{}: target and source must "
                                     "differ".format(rtag))
+        for i, oc in enumerate(self.outcomes):
+            otag = "outcome #{}".format(i + 1)
+            name = oc.get("name", "")
+            if not str(name).strip():
+                problems.append("{}: requires a name".format(otag))
+            elif name in names:
+                problems.append("{}: name `{}` collides with a "
+                                "column".format(otag, name))
+            if oc.get("kind") != "logistic":
+                problems.append("{}: kind must be `logistic`"
+                                .format(otag))
+            if "intercept" not in oc:
+                problems.append("{}: requires `intercept`"
+                                .format(otag))
+            coeffs = oc.get("coefficients") or {}
+            if not coeffs:
+                problems.append("{}: requires non-empty "
+                                "`coefficients`".format(otag))
+            for key in coeffs:
+                base = key.split("=", 1)[0]
+                if base not in names:
+                    problems.append(
+                        "{}: coefficient `{}` names no column"
+                        .format(otag, key))
+                    continue
+                ctype = ctypes[base]
+                if "=" in key and ctype != "category":
+                    problems.append(
+                        "{}: indicator `{}` needs a category "
+                        "column".format(otag, key))
+                if "=" not in key and ctype not in (
+                        "int", "float", "bool"):
+                    problems.append(
+                        "{}: coefficient `{}` needs a numeric or "
+                        "bool column (use `{}=value` for "
+                        "categories)".format(otag, key, base))
         if problems:
             raise TableSpecError("\n".join(problems))
 
@@ -301,6 +346,7 @@ class TableSpec:
             master_seed=d.get("master_seed", 42),
             duplicate_rate=d.get("duplicate_rate", 0.0),
             rules=d.get("rules", []),
+            outcomes=d.get("outcomes", []),
             columns=[
                 ColumnSpec(
                     name=c["name"],
