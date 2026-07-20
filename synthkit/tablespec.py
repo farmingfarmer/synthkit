@@ -164,7 +164,8 @@ class TableSpec:
             if m.wrong_rate > 0 and col.ctype == "str_id":
                 problems.append("{}: wrong_rate is not supported "
                                 "on str_id columns".format(tag))
-        names = {c.name for c in self.columns}
+        ctypes = {c.name: c.ctype for c in self.columns}
+        names = set(ctypes)
         for i, rule in enumerate(self.rules):
             rtag = "rule #{}".format(i + 1)
             kind = rule.get("kind")
@@ -174,10 +175,16 @@ class TableSpec:
                 continue
             if kind == "date_after":
                 for key in ("earlier", "later"):
-                    if rule.get(key) not in names:
+                    col = rule.get(key)
+                    if col not in names:
                         problems.append(
                             "{}: `{}` must name a column".format(
                                 rtag, key))
+                    elif ctypes[col] != "date":
+                        problems.append(
+                            "{}: `{}` column `{}` must have type "
+                            "date (it is {})".format(
+                                rtag, key, col, ctypes[col]))
                 if rule.get("earlier") == rule.get("later"):
                     problems.append("{}: earlier and later must "
                                     "differ".format(rtag))
@@ -186,15 +193,28 @@ class TableSpec:
                         problems.append("{}: requires `{}`".format(
                             rtag, key))
             if kind == "derived":
-                for key in ("target", "source", "factor"):
-                    if key == "factor":
-                        if key not in rule:
-                            problems.append("{}: requires "
-                                            "`factor`".format(rtag))
-                    elif rule.get(key) not in names:
+                # A validated spec MUST plan: derived multiplies,
+                # so both ends must be numeric — a live compile
+                # authored derived over date columns, passed the
+                # old checks, and crashed at plan time. The message
+                # teaches the repair round which rule to use
+                # instead.
+                for key in ("target", "source"):
+                    col = rule.get(key)
+                    if col not in names:
                         problems.append(
                             "{}: `{}` must name a column".format(
                                 rtag, key))
+                    elif ctypes[col] not in ("int", "float"):
+                        problems.append(
+                            "{}: `derived` requires numeric "
+                            "columns, but `{}` column `{}` has "
+                            "type {} — for date ordering use "
+                            "kind `date_after` instead".format(
+                                rtag, key, col, ctypes[col]))
+                if "factor" not in rule:
+                    problems.append("{}: requires `factor`"
+                                    .format(rtag))
                 if rule.get("target") == rule.get("source"):
                     problems.append("{}: target and source must "
                                     "differ".format(rtag))

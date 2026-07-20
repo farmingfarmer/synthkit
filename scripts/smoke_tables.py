@@ -130,6 +130,8 @@ def main():
         {"kind": "date_after", "earlier": "ghost",
          "later": "ghost"},
         {"kind": "teleport"},
+        {"kind": "derived", "target": "d", "source": "m",
+         "factor": 2.0},
     ])
     try:
         bad.validate()
@@ -144,6 +146,8 @@ def main():
               and "weights length" in msg
               and "must name a column" in msg
               and "unknown kind `teleport`" in msg
+              and "`derived` requires numeric columns" in msg
+              and "use kind `date_after` instead" in msg
               and "component #1" in msg
               and "requires param `choices`" in msg
               and "mixture weights must match" in msg)

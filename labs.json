@@ -1,0 +1,42 @@
+{
+  "title": "Lab Results Extract",
+  "rows": 300,
+  "master_seed": 42,
+  "duplicate_rate": 0.05,
+  "columns": [
+    {
+      "name": "patient_id",
+      "ctype": "str_id",
+      "distribution": {"kind": "sequence", "prefix": "PID", "start": 1},
+      "mess": {}
+    },
+    {
+      "name": "ordering_department",
+      "ctype": "category",
+      "distribution": {"kind": "categorical", "choices": ["Internal Medicine", "Cardiology", "Radiology", "Emergency", "Oncology"], "weights": [0.5, 0.15, 0.15, 0.1, 0.1]},
+      "mess": {}
+    },
+    {
+      "name": "collection_date",
+      "ctype": "date",
+      "distribution": {"kind": "date_range", "start": "2023-01-01", "end": "2023-12-31"},
+      "mess": {"wrong_rate": 0.05}
+    },
+    {
+      "name": "result_date",
+      "ctype": "date",
+      "distribution": {"kind": "date_range", "start": "2023-01-01", "end": "2023-12-31"},
+      "mess": {"wrong_rate": 0.05}
+    },
+    {
+      "name": "potassium_value",
+      "ctype": "float",
+      "distribution": {"kind": "normal", "mean": 4.1, "std": 0.5},
+      "mess": {"missing_rate": 0.1}
+    }
+  ],
+  "rules": [
+    {"kind": "date_after", "earlier": "collection_date", "later": "result_date", "min_days": 0, "max_days": 3},
+    {"kind": "derived", "target": "result_date", "source": "collection_date", "factor": 1, "noise_sigma": 0.5}
+  ]
+}
