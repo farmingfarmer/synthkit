@@ -6,3 +6,5 @@ corpus/
 *.egg-info/
 corpus/
 tables/
+gui_runs/
+campaigns/
