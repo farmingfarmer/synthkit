@@ -231,6 +231,61 @@ def cmd_table_evaluate(args) -> int:
     return 0
 
 
+def _parse_bars(raw: str):
+    bars = {}
+    for part in (raw or "").split(","):
+        part = part.strip()
+        if not part:
+            continue
+        key, _, val = part.partition("=")
+        bars[key.strip()] = float(val)
+    return bars
+
+
+def cmd_campaign_compile(args) -> int:
+    from .campaign import CampaignError, compile_campaign, \
+        write_campaign
+    raw = Path(args.spec).read_text(encoding="utf-8")
+    if args.goal in ("clean", "predict"):
+        from .tablespec import TableSpec
+        base = TableSpec.from_json(raw)
+    else:
+        from .spec import DataSpec
+        base = DataSpec.from_json(raw)
+    try:
+        camp = compile_campaign(args.goal, base,
+                                bars=_parse_bars(args.bars),
+                                outcome=args.outcome)
+    except CampaignError as e:
+        print("campaign invalid: {}".format(e), file=sys.stderr)
+        return 1
+    run_dir = write_campaign(Path(args.out), camp)
+    print("campaign [{}] -> {} ({} tier(s))".format(
+        camp.goal, run_dir, len(camp.tiers)))
+    for i, tier in enumerate(camp.tiers):
+        print("  tier {} `{}`: {}".format(i + 1, tier.name,
+                                          tier.notes))
+    return 0
+
+
+def cmd_campaign_run(args) -> int:
+    from .campaign import load_campaign, run_campaign, \
+        write_campaign
+    camp = load_campaign(Path(args.campaign_dir))
+    if ":" not in args.solver:
+        print("solver must be 'package.module:function'",
+              file=sys.stderr)
+        return 2
+    mod_name, fn_name = args.solver.split(":", 1)
+    fn = getattr(importlib.import_module(mod_name), fn_name)
+    result = run_campaign(camp, fn,
+                          solver_name=args.name or args.solver)
+    write_campaign(Path(args.campaign_dir), camp, result)
+    print(result.format_text())
+    return 0 if result.highest_passed == len(
+        result.tier_results) else 1
+
+
 def main(argv=None) -> int:
     ap = argparse.ArgumentParser(prog="synthkit")
     sub = ap.add_subparsers(dest="cmd", required=True)
@@ -306,6 +361,25 @@ def main(argv=None) -> int:
                    help="dotted path 'pkg.mod:function'")
     p.add_argument("--json-out", default="")
     p.set_defaults(fn=cmd_table_evaluate)
+
+    p = sub.add_parser("campaign-compile",
+                       help="goal + base spec -> tier ladder")
+    p.add_argument("--goal", required=True,
+                   choices=["clean", "predict", "extract"])
+    p.add_argument("--spec", required=True)
+    p.add_argument("--outcome", default="")
+    p.add_argument("--bars", default="",
+                   help="k=v pairs, e.g. fix_rate=0.9,auroc=0.7")
+    p.add_argument("-o", "--out", default="campaigns/run_001")
+    p.set_defaults(fn=cmd_campaign_compile)
+
+    p = sub.add_parser("campaign-run",
+                       help="run a solver up the ladder")
+    p.add_argument("campaign_dir")
+    p.add_argument("--solver", required=True,
+                   help="dotted path 'pkg.mod:function'")
+    p.add_argument("--name", default="")
+    p.set_defaults(fn=cmd_campaign_run)
 
     args = ap.parse_args(argv)
     return args.fn(args)

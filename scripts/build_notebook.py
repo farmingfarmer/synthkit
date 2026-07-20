@@ -43,6 +43,10 @@ MODULES = [
                      "mess, the ledger"),
     ("tableeval.py", "Cleaning evaluation — exact, cell-level, "
                      "sliced by mess type"),
+    ("mlmetrics.py", "ML metrics — stdlib AUROC, Brier, and the "
+                     "ceiling"),
+    ("campaign.py", "Campaigns — a stated goal becomes a tier "
+                    "ladder"),
     ("examples.py", "Examples — reference document vertical, "
                     "reference table, naive extractor and "
                     "cleaner"),
@@ -247,6 +251,13 @@ def build() -> dict:
              "    tbp, strip_cleaner(tbp.dirty_rows), \"strip\")\n"
              "assert trep.ops[\"space\"].fix_rate == 1.0\n"
              "assert trep.overcorrection_rate == 0.0\n"
+             "camp = compile_campaign(\"clean\", "
+             "reference_table(rows=30))\n"
+             "assert len(camp.tiers) == 3\n"
+             "t1 = TableSpec.from_json(camp.tiers[0].spec_json)\n"
+             "assert all(c.mess.wrong_rate == 0.0 "
+             "for c in t1.columns)\n"
+             "assert auroc([0.1, 0.9], [0, 1]) == 1.0\n"
              "print(\"SELF-VALIDATION: all assertions passed.\")"),
     ]
     return {"cells": cells,

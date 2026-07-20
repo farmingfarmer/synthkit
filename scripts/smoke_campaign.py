@@ -17,8 +17,11 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 from synthkit.campaign import (
     Campaign,
     CampaignError,
+    CampaignIntegrityError,
     compile_campaign,
+    load_campaign,
     run_campaign,
+    write_campaign,
 )
 from synthkit.examples import (
     reference_spec,
@@ -296,6 +299,65 @@ def main():
           "extractor hits the trap wall",
           ext_result.highest_passed <= 1
           and "CAMPAIGN" in ext_result.format_text())
+
+    # ---------- persistence ----------
+    import shutil as _sh
+    import tempfile as _tf
+    tmp2 = Path(_tf.mkdtemp(prefix="synthkit_camp_"))
+    run_dir = write_campaign(tmp2 / "c1", camp, ext_result)
+    camp_l = load_campaign(run_dir)
+    check("campaigns round-trip with tiers, specs, conditions",
+          camp_l.goal == camp.goal
+          and len(camp_l.tiers) == 3
+          and camp_l.tiers[2].conditions
+          == camp.tiers[2].conditions
+          and camp_l.tiers[0].spec_json is not None)
+    import json as _j
+    saved = _j.loads((run_dir / "result.json").read_text())
+    check("campaign results persist with the full ladder",
+          saved["highest_passed"] == ext_result.highest_passed
+          and len(saved["tiers"]) == 3)
+    victim = run_dir / "campaign.json"
+    victim.write_text(victim.read_text() + " ", encoding="utf-8")
+    try:
+        load_campaign(run_dir)
+        check("tampered campaign refuses to load", False)
+    except CampaignIntegrityError as e:
+        check("tampered campaign refuses to load",
+              "campaign.json" in str(e))
+
+    # ---------- CLI end-to-end ----------
+    import contextlib
+    import io as _io
+    from synthkit.cli import main as cli
+    spec_path = tmp2 / "base_table.json"
+    spec_path.write_text(reference_table(rows=60).to_json(),
+                         encoding="utf-8")
+
+    def run_cli(argv):
+        out = _io.StringIO()
+        with contextlib.redirect_stdout(out):
+            try:
+                rc = cli(argv)
+            except SystemExit as e:
+                rc = int(e.code or 0)
+        return rc, out.getvalue()
+
+    rc, out = run_cli(["campaign-compile", "--goal", "clean",
+                       "--spec", str(spec_path),
+                       "--bars", "fix_rate=0.9,detect_rate=0.5",
+                       "-o", str(tmp2 / "c2")])
+    check("campaign-compile CLI writes the ladder",
+          rc == 0 and "3 tier(s)" in out
+          and (tmp2 / "c2" / "manifest.json").is_file())
+    rc, out = run_cli(["campaign-run", str(tmp2 / "c2"),
+                       "--solver",
+                       "synthkit.examples:strip_cleaner"])
+    check("campaign-run CLI walks the ladder, persists the "
+          "result, exits nonzero on failure",
+          rc == 1 and "CAMPAIGN [clean]" in out
+          and (tmp2 / "c2" / "result.json").is_file())
+    _sh.rmtree(tmp2)
 
     # ---------- campaign errors ----------
     try:

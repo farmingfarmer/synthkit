@@ -253,6 +253,84 @@ def compile_campaign(goal: str, base_spec: Any,
 
 
 # ===================================================================
+# Persistence — campaigns and results as auditable artifacts
+# ===================================================================
+
+class CampaignIntegrityError(RuntimeError):
+    pass
+
+
+def _sha(text: str) -> str:
+    import hashlib
+    return hashlib.sha256(text.encode("utf-8")).hexdigest()
+
+
+def write_campaign(run_dir, campaign: Campaign,
+                   result: Optional[CampaignResult] = None):
+    from pathlib import Path as _P
+    run_dir = _P(run_dir)
+    run_dir.mkdir(parents=True, exist_ok=True)
+    artifacts = {
+        "campaign.json": json.dumps({
+            "goal": campaign.goal,
+            "title": campaign.title,
+            "outcome": campaign.outcome,
+            "tiers": [{"name": t.name,
+                       "spec": json.loads(t.spec_json),
+                       "conditions": t.conditions,
+                       "notes": t.notes}
+                      for t in campaign.tiers],
+        }, indent=2),
+    }
+    if result is not None:
+        artifacts["result.json"] = json.dumps({
+            "highest_passed": result.highest_passed,
+            "tiers": [{"tier": tr.tier, "passed": tr.passed,
+                       "measured": tr.measured,
+                       "failed_conditions": tr.failed_conditions,
+                       "evidence": tr.evidence}
+                      for tr in result.tier_results],
+            "text": result.format_text(),
+        }, indent=2)
+    hashes = {}
+    for name, text in artifacts.items():
+        (run_dir / name).write_text(text, encoding="utf-8")
+        hashes[name] = _sha(text)
+    (run_dir / "manifest.json").write_text(json.dumps({
+        "synthkit_campaign_manifest": 1,
+        "hashes": hashes,
+    }, indent=2), encoding="utf-8")
+    return run_dir
+
+
+def load_campaign(run_dir) -> Campaign:
+    from pathlib import Path as _P
+    run_dir = _P(run_dir)
+    manifest = json.loads(
+        (run_dir / "manifest.json").read_text(encoding="utf-8"))
+    bad = []
+    for name, expected in sorted(manifest["hashes"].items()):
+        text = (run_dir / name).read_text(encoding="utf-8")
+        if _sha(text) != expected:
+            bad.append(name)
+    if bad:
+        raise CampaignIntegrityError(
+            "campaign integrity failed for: {}".format(
+                ", ".join(bad)))
+    d = json.loads(
+        (run_dir / "campaign.json").read_text(encoding="utf-8"))
+    return Campaign(
+        goal=d["goal"], title=d["title"],
+        outcome=d.get("outcome", ""),
+        tiers=[Tier(name=t["name"],
+                    spec_json=json.dumps(t["spec"]),
+                    conditions=t["conditions"],
+                    notes=t.get("notes", ""))
+               for t in d["tiers"]],
+    )
+
+
+# ===================================================================
 # Running
 # ===================================================================
 
