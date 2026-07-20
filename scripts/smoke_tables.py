@@ -126,12 +126,17 @@ def main():
                    {"kind": "mixture",
                     "components": [{"kind": "categorical"}],
                     "weights": [1, 2]}),
+        ColumnSpec("charges", "float", {"kind": "derived"}),
+        ColumnSpec("flag", "bool", {"kind": "bernoulli",
+                                    "p": 0.2}),
     ], rules=[
         {"kind": "date_after", "earlier": "ghost",
          "later": "ghost"},
         {"kind": "teleport"},
         {"kind": "derived", "target": "d", "source": "m",
          "factor": 2.0},
+        {"kind": "derived", "target": "flag", "source": "m",
+         "factor": 1.0},
     ])
     try:
         bad.validate()
@@ -148,7 +153,9 @@ def main():
               and "unknown kind `teleport`" in msg
               and "top-level `duplicate_rate` field" in msg
               and "`derived` requires numeric columns" in msg
-              and "use kind `date_after` instead" in msg
+              and "is a RULE kind, not a distribution" in msg
+              and "`outcomes` array (kind logistic)" in msg
+              and "indicator" in msg
               and "component #1" in msg
               and "requires param `choices`" in msg
               and "mixture weights must match" in msg)

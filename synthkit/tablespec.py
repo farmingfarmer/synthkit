@@ -151,8 +151,18 @@ class TableSpec:
             if col.ctype == "person_name":
                 pass  # synthesized; distribution optional
             elif kind not in DIST_KINDS:
-                problems.append("{}: unknown distribution `{}`"
-                                .format(tag, kind))
+                if kind in RULE_KINDS:
+                    problems.append(
+                        "{}: `{}` is a RULE kind, not a "
+                        "distribution — give this column a "
+                        "normal distribution for its type and "
+                        "add a top-level rule referencing it"
+                        .format(tag, kind))
+                else:
+                    problems.append(
+                        "{}: unknown distribution `{}` — valid "
+                        "kinds: {}".format(
+                            tag, kind, ", ".join(DIST_KINDS)))
             elif kind not in _TYPE_DISTS[col.ctype]:
                 problems.append(
                     "{}: distribution `{}` invalid for type `{}`"
@@ -219,12 +229,22 @@ class TableSpec:
                             "{}: `{}` must name a column".format(
                                 rtag, key))
                     elif ctypes[col] not in ("int", "float"):
+                        hint = ("for date ordering use kind "
+                                "`date_after` instead"
+                                if ctypes[col] == "date" else
+                                "a generated label belongs in "
+                                "the top-level `outcomes` array "
+                                "(kind logistic), not in rules"
+                                if ctypes[col] == "bool" else
+                                "use a `column=value` indicator "
+                                "coefficient in `outcomes` for "
+                                "category influence")
                         problems.append(
                             "{}: `derived` requires numeric "
                             "columns, but `{}` column `{}` has "
-                            "type {} — for date ordering use "
-                            "kind `date_after` instead".format(
-                                rtag, key, col, ctypes[col]))
+                            "type {} — {}".format(
+                                rtag, key, col, ctypes[col],
+                                hint))
                 if "factor" not in rule:
                     problems.append("{}: requires `factor`"
                                     .format(rtag))
