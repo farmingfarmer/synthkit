@@ -286,6 +286,32 @@ def cmd_campaign_run(args) -> int:
         result.tier_results) else 1
 
 
+def cmd_showdown(args) -> int:
+    from .autosolver import run_showdown
+    from .campaign import load_campaign
+    camp = load_campaign(Path(args.campaign_dir))
+    if ":" not in args.solver:
+        print("solver must be 'package.module:function'",
+              file=sys.stderr)
+        return 2
+    mod_name, fn_name = args.solver.split(":", 1)
+    fn = getattr(importlib.import_module(mod_name), fn_name)
+    result = run_showdown(camp, fn,
+                          vendor_name=args.name or args.solver)
+    print(result.format_text())
+    if args.json_out:
+        import json as _json
+        Path(args.json_out).write_text(_json.dumps({
+            "vendor": result.vendor_name,
+            "tiers": [{"tier": t.tier, "ceiling": t.ceiling,
+                       "baseline": t.baseline_auroc,
+                       "vendor": t.vendor_auroc,
+                       "passed": t.vendor_passed}
+                      for t in result.tiers],
+        }, indent=2), encoding="utf-8")
+    return 0
+
+
 def main(argv=None) -> int:
     ap = argparse.ArgumentParser(prog="synthkit")
     sub = ap.add_subparsers(dest="cmd", required=True)
@@ -372,6 +398,16 @@ def main(argv=None) -> int:
                    help="k=v pairs, e.g. fix_rate=0.9,auroc=0.7")
     p.add_argument("-o", "--out", default="campaigns/run_001")
     p.set_defaults(fn=cmd_campaign_compile)
+
+    p = sub.add_parser("showdown",
+                       help="vendor vs the synthkit baseline up "
+                            "a predict ladder")
+    p.add_argument("campaign_dir")
+    p.add_argument("--solver", required=True,
+                   help="dotted path 'pkg.mod:function'")
+    p.add_argument("--name", default="")
+    p.add_argument("--json-out", default="")
+    p.set_defaults(fn=cmd_showdown)
 
     p = sub.add_parser("campaign-run",
                        help="run a solver up the ladder")

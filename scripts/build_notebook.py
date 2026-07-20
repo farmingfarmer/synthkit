@@ -47,6 +47,8 @@ MODULES = [
                      "ceiling"),
     ("campaign.py", "Campaigns — a stated goal becomes a tier "
                     "ladder"),
+    ("autosolver.py", "The autosolver — synthkit competes on its "
+                      "own data"),
     ("examples.py", "Examples — reference document vertical, "
                     "reference table, naive extractor and "
                     "cleaner"),
@@ -258,6 +260,11 @@ def build() -> dict:
              "assert all(c.mess.wrong_rate == 0.0 "
              "for c in t1.columns)\n"
              "assert auroc([0.1, 0.9], [0, 1]) == 1.0\n"
+             "enc = FeatureEncoder().fit("
+             "[{\"a\": \"$1,200\"}, {\"a\": \"90\"}])\n"
+             "assert enc.columns[0].kind == \"numeric\"\n"
+             "cleaned = autoclean(tbp.dirty_rows)\n"
+             "assert len(cleaned) == len(tbp.dirty_rows)\n"
              "print(\"SELF-VALIDATION: all assertions passed.\")"),
     ]
     return {"cells": cells,
