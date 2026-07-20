@@ -146,6 +146,7 @@ def main():
               and "weights length" in msg
               and "must name a column" in msg
               and "unknown kind `teleport`" in msg
+              and "top-level `duplicate_rate` field" in msg
               and "`derived` requires numeric columns" in msg
               and "use kind `date_after` instead" in msg
               and "component #1" in msg

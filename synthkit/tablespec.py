@@ -170,8 +170,12 @@ class TableSpec:
             rtag = "rule #{}".format(i + 1)
             kind = rule.get("kind")
             if kind not in RULE_KINDS:
-                problems.append("{}: unknown kind `{}`".format(
-                    rtag, kind))
+                problems.append(
+                    "{}: unknown kind `{}` — valid rule kinds are "
+                    "date_after and derived; row duplication is "
+                    "the top-level `duplicate_rate` field, not a "
+                    "rule; per-column mess lives in each column's "
+                    "`mess` object".format(rtag, kind))
                 continue
             if kind == "date_after":
                 for key in ("earlier", "later"):
