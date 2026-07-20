@@ -202,13 +202,31 @@ def api_campaign_run(payload: dict) -> dict:
     from .campaign import load_campaign, run_campaign, \
         write_campaign
     camp = load_campaign(Path(payload["campaign_dir"]))
-    solver = _solver(payload["solver"])
+    extractor = None
+    if payload["solver"] == "llm_extract":
+        if camp.goal != "extract":
+            return {"error": "llm_extract runs on extract "
+                             "campaigns only"}
+        from .llmvendor import LLMExtractor
+        from .spec import DataSpec
+        spec = DataSpec.from_json(camp.tiers[0].spec_json)
+        extractor = LLMExtractor(
+            _backend(payload.get("backend", "ollama"),
+                     payload.get("model", "")),
+            spec, samples=int(payload.get("samples", 1)),
+            name="llm-vendor")
+        solver = extractor
+    else:
+        solver = _solver(payload["solver"])
     result = run_campaign(camp, solver,
                           solver_name=payload["solver"])
     write_campaign(Path(payload["campaign_dir"]), camp, result)
+    text = result.format_text()
+    if extractor is not None:
+        text += "\n" + extractor.stats_line()
     return {"highest_passed": result.highest_passed,
             "tiers": len(result.tier_results),
-            "text": result.format_text()}
+            "text": text}
 
 
 def api_showdown(payload: dict) -> dict:
@@ -489,7 +507,9 @@ table.preview th{background:var(--chip);
     <label for="solver">solver</label>
     <select id="solver"><option>autoclean</option>
       <option>strip_cleaner</option><option>autosolver</option>
-      <option>regex_extract</option></select>
+      <option>regex_extract</option>
+      <option value="llm_extract">llm_extract (ollama as the
+      vendor)</option></select>
     <button class="act" onclick="campaignRun()">Run ladder</button>
     <pre class="out" id="campaign-out"></pre>
   </div>

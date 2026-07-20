@@ -272,16 +272,34 @@ def cmd_campaign_run(args) -> int:
     from .campaign import load_campaign, run_campaign, \
         write_campaign
     camp = load_campaign(Path(args.campaign_dir))
-    if ":" not in args.solver:
-        print("solver must be 'package.module:function'",
-              file=sys.stderr)
+    extractor = None
+    if args.llm:
+        if camp.goal != "extract":
+            print("--llm runs an LLM vendor on extract "
+                  "campaigns only", file=sys.stderr)
+            return 2
+        from .llmvendor import LLMExtractor
+        from .spec import DataSpec
+        spec = DataSpec.from_json(camp.tiers[0].spec_json)
+        extractor = LLMExtractor(
+            _backend(args.llm_backend, args.llm_model), spec,
+            samples=args.llm_samples,
+            name=args.name or "llm-vendor")
+        solver = extractor
+    elif ":" in args.solver:
+        mod_name, fn_name = args.solver.split(":", 1)
+        solver = getattr(importlib.import_module(mod_name),
+                         fn_name)
+    else:
+        print("solver must be 'package.module:function' "
+              "(or pass --llm)", file=sys.stderr)
         return 2
-    mod_name, fn_name = args.solver.split(":", 1)
-    fn = getattr(importlib.import_module(mod_name), fn_name)
-    result = run_campaign(camp, fn,
+    result = run_campaign(camp, solver,
                           solver_name=args.name or args.solver)
     write_campaign(Path(args.campaign_dir), camp, result)
     print(result.format_text())
+    if extractor is not None:
+        print(extractor.stats_line())
     return 0 if result.highest_passed == len(
         result.tier_results) else 1
 
@@ -425,8 +443,14 @@ def main(argv=None) -> int:
     p = sub.add_parser("campaign-run",
                        help="run a solver up the ladder")
     p.add_argument("campaign_dir")
-    p.add_argument("--solver", required=True,
+    p.add_argument("--solver", default="",
                    help="dotted path 'pkg.mod:function'")
+    p.add_argument("--llm", action="store_true",
+                   help="run an LLM as the vendor "
+                        "(extract campaigns)")
+    p.add_argument("--llm-backend", default="ollama")
+    p.add_argument("--llm-model", default="")
+    p.add_argument("--llm-samples", type=int, default=1)
     p.add_argument("--name", default="")
     p.set_defaults(fn=cmd_campaign_run)
 
