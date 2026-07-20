@@ -44,11 +44,16 @@ MISSING_TOKENS = ["", "NULL", "N/A", "?"]
 COLUMN_TYPES = ("int", "float", "category", "str_id",
                 "person_name", "date", "bool")
 DIST_KINDS = ("uniform", "normal", "lognormal", "beta",
-              "categorical", "date_range", "sequence", "bernoulli")
+              "categorical", "date_range", "sequence", "bernoulli",
+              "mixture")
+
+RULE_KINDS = ("date_after", "derived")
 
 _TYPE_DISTS = {
-    "int": {"uniform", "normal", "lognormal", "sequence"},
-    "float": {"uniform", "normal", "lognormal", "beta"},
+    "int": {"uniform", "normal", "lognormal", "sequence",
+            "mixture"},
+    "float": {"uniform", "normal", "lognormal", "beta",
+              "mixture"},
     "category": {"categorical"},
     "str_id": {"sequence"},
     "person_name": {"categorical"},   # ignored; names synthesized
@@ -72,11 +77,17 @@ class ColumnMess:
     outlier_factor: float = 10.0
     case_rate: float = 0.0
     space_rate: float = 0.0
+    # The plausible-lie tier: the cell stays FORMAT-VALID but
+    # carries a wrong value (date shifted, digits transposed,
+    # category swapped, bool flipped). Normalizers cannot fix
+    # these; real data-quality tools must DETECT them.
+    wrong_rate: float = 0.0
 
     def any_active(self) -> bool:
         return any(r > 0 for r in (
             self.missing_rate, self.typo_rate, self.format_rate,
-            self.outlier_rate, self.case_rate, self.space_rate))
+            self.outlier_rate, self.case_rate, self.space_rate,
+            self.wrong_rate))
 
 
 @dataclass
@@ -97,6 +108,12 @@ class TableSpec:
     rows: int = 100
     master_seed: int = 42
     duplicate_rate: float = 0.0
+    # Cross-column rules, applied in order over generated columns:
+    #  {"kind":"date_after","earlier":"admit","later":"discharge",
+    #   "min_days":1,"max_days":30}
+    #  {"kind":"derived","target":"total_cost","source":"los_days",
+    #   "factor":1200,"noise_sigma":0.15}  (multiplicative noise)
+    rules: List[Dict[str, Any]] = field(default_factory=list)
 
     # ---------------- validation (total) ----------------
     def validate(self) -> None:
@@ -144,6 +161,43 @@ class TableSpec:
                     "int", "float"):
                 problems.append("{}: outlier_rate needs a numeric "
                                 "column".format(tag))
+            if m.wrong_rate > 0 and col.ctype == "str_id":
+                problems.append("{}: wrong_rate is not supported "
+                                "on str_id columns".format(tag))
+        names = {c.name for c in self.columns}
+        for i, rule in enumerate(self.rules):
+            rtag = "rule #{}".format(i + 1)
+            kind = rule.get("kind")
+            if kind not in RULE_KINDS:
+                problems.append("{}: unknown kind `{}`".format(
+                    rtag, kind))
+                continue
+            if kind == "date_after":
+                for key in ("earlier", "later"):
+                    if rule.get(key) not in names:
+                        problems.append(
+                            "{}: `{}` must name a column".format(
+                                rtag, key))
+                if rule.get("earlier") == rule.get("later"):
+                    problems.append("{}: earlier and later must "
+                                    "differ".format(rtag))
+                for key in ("min_days", "max_days"):
+                    if key not in rule:
+                        problems.append("{}: requires `{}`".format(
+                            rtag, key))
+            if kind == "derived":
+                for key in ("target", "source", "factor"):
+                    if key == "factor":
+                        if key not in rule:
+                            problems.append("{}: requires "
+                                            "`factor`".format(rtag))
+                    elif rule.get(key) not in names:
+                        problems.append(
+                            "{}: `{}` must name a column".format(
+                                rtag, key))
+                if rule.get("target") == rule.get("source"):
+                    problems.append("{}: target and source must "
+                                    "differ".format(rtag))
         if problems:
             raise TableSpecError("\n".join(problems))
 
@@ -186,6 +240,27 @@ class TableSpec:
             need("p")
             if "p" in p and not (0.0 <= p["p"] <= 1.0):
                 out.append("{}: p must be in [0, 1]".format(tag))
+        elif kind == "mixture":
+            comps = p.get("components") or []
+            weights = p.get("weights") or []
+            if not comps:
+                out.append("{}: mixture requires components"
+                           .format(tag))
+            if len(weights) != len(comps):
+                out.append("{}: mixture weights must match "
+                           "components".format(tag))
+            for j, comp in enumerate(comps):
+                ck = comp.get("kind")
+                if ck not in DIST_KINDS or ck == "mixture":
+                    out.append("{}: component #{} has invalid "
+                               "kind `{}`".format(tag, j + 1, ck))
+                else:
+                    sub = ColumnSpec(name=col.name,
+                                     ctype=col.ctype,
+                                     distribution=comp)
+                    out.extend(TableSpec._check_params(
+                        "{} component #{}".format(tag, j + 1),
+                        sub))
         return out
 
     # ---------------- JSON ----------------
@@ -201,6 +276,7 @@ class TableSpec:
             rows=d.get("rows", 100),
             master_seed=d.get("master_seed", 42),
             duplicate_rate=d.get("duplicate_rate", 0.0),
+            rules=d.get("rules", []),
             columns=[
                 ColumnSpec(
                     name=c["name"],

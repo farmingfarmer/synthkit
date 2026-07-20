@@ -70,6 +70,9 @@ class CleaningReport:
     dup_total: int
     dup_flagged: int
     dup_false_flags: int
+    wrong_total: int = 0
+    wrong_detected: int = 0
+    suspect_false: int = 0
 
     @property
     def fix_rate(self) -> float:
@@ -80,6 +83,11 @@ class CleaningReport:
     def overcorrection_rate(self) -> float:
         return self.overcorrected / self.clean_cells \
             if self.clean_cells else 0.0
+
+    @property
+    def wrong_detect_rate(self) -> float:
+        return self.wrong_detected / self.wrong_total \
+            if self.wrong_total else 0.0
 
     @property
     def dup_flag_rate(self) -> float:
@@ -97,6 +105,12 @@ class CleaningReport:
             "damaged".format(self.overcorrection_rate,
                              self.clean_cells),
         ]
+        if self.wrong_total:
+            lines.append(
+                "  wrong-value detection: {:.1%} ({}/{}, {} false "
+                "suspicion(s))".format(
+                    self.wrong_detect_rate, self.wrong_detected,
+                    self.wrong_total, self.suspect_false))
         if self.dup_total:
             lines.append(
                 "  duplicates flagged: {:.1%} ({}/{}, {} false "
@@ -172,6 +186,13 @@ def evaluate_cleaning(bp: TableBlueprint,
 
     dup_total = len(bp.duplicate_of)
     dup_flagged = dup_false = 0
+    # Wrong-value detection: the cleaner may emit a `_suspect`
+    # column per row listing comma-separated column names it
+    # believes carry wrong values. Fixing a plausible lie is
+    # usually impossible; FLAGGING it is the measurable skill.
+    wrong_cells = {(m.row, m.column) for m in bp.ledger
+                   if m.op == "wrong"}
+    wrong_detected = suspect_false = 0
     for idx, row in enumerate(cleaned_rows):
         flagged = str(row.get("_duplicate", "")).strip().lower() \
             in ("1", "true", "yes", "y")
@@ -180,6 +201,14 @@ def evaluate_cleaning(bp: TableBlueprint,
                 dup_flagged += 1
         elif flagged:
             dup_false += 1
+        suspects = [s.strip() for s in
+                    str(row.get("_suspect", "")).split(",")
+                    if s.strip()]
+        for col in suspects:
+            if (idx, col) in wrong_cells:
+                wrong_detected += 1
+            elif idx < n_originals:
+                suspect_false += 1
 
     return CleaningReport(
         cleaner_name=cleaner_name,
@@ -194,6 +223,9 @@ def evaluate_cleaning(bp: TableBlueprint,
         dup_total=dup_total,
         dup_flagged=dup_flagged,
         dup_false_flags=dup_false,
+        wrong_total=len(wrong_cells),
+        wrong_detected=wrong_detected,
+        suspect_false=suspect_false,
     )
 
 
@@ -215,6 +247,11 @@ def resolve_table_metric(report: CleaningReport,
                     }[parts[2]]
         if parts[0] == "columns":
             return report.columns[parts[1]].cell_accuracy
+        if parts[0] == "wrong":
+            return {"detect_rate": report.wrong_detect_rate,
+                    "false_suspects":
+                        float(report.suspect_false),
+                    "total": float(report.wrong_total)}[parts[1]]
         if parts[0] == "duplicates":
             return {"flag_rate": report.dup_flag_rate,
                     "false_flags":

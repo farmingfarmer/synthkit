@@ -155,6 +155,60 @@ def cmd_experiment(args) -> int:
     return 0 if result.passed else 1
 
 
+def cmd_table_plan(args) -> int:
+    from .tableplan import plan_table
+    from .tablespec import TableSpec, TableSpecError
+    spec = TableSpec.from_json(
+        Path(args.spec).read_text(encoding="utf-8"))
+    try:
+        bp = plan_table(spec)
+    except TableSpecError as e:
+        print("spec invalid:\n{}".format(e), file=sys.stderr)
+        return 1
+    ops = {}
+    for m in bp.ledger:
+        ops[m.op] = ops.get(m.op, 0) + 1
+    print(json.dumps({
+        "rows": len(bp.clean_rows),
+        "dirty_rows": len(bp.dirty_rows),
+        "columns": bp.columns,
+        "mess_by_op": ops,
+    }, indent=2))
+    return 0
+
+
+def cmd_table_render(args) -> int:
+    from .tableplan import plan_table, write_table
+    from .tablespec import TableSpec
+    spec = TableSpec.from_json(
+        Path(args.spec).read_text(encoding="utf-8"))
+    bp = plan_table(spec)
+    run_dir = write_table(Path(args.out), spec, bp)
+    print("table -> {} ({} dirty row(s), {} mess cell(s))".format(
+        run_dir, len(bp.dirty_rows),
+        len([m for m in bp.ledger if m.op != "duplicate"])))
+    return 0
+
+
+def cmd_table_evaluate(args) -> int:
+    from .tableeval import evaluate_cleaning
+    from .tableplan import load_table
+    _spec, bp = load_table(Path(args.run_dir))
+    if ":" not in args.cleaner:
+        print("cleaner must be 'package.module:function'",
+              file=sys.stderr)
+        return 2
+    mod_name, fn_name = args.cleaner.split(":", 1)
+    fn = getattr(importlib.import_module(mod_name), fn_name)
+    cleaned = fn([dict(r) for r in bp.dirty_rows])
+    report = evaluate_cleaning(bp, cleaned, args.cleaner)
+    print(report.format_text())
+    if args.json_out:
+        Path(args.json_out).write_text(report.to_json(),
+                                       encoding="utf-8")
+    return 0
+
+
 def main(argv=None) -> int:
     ap = argparse.ArgumentParser(prog="synthkit")
     sub = ap.add_subparsers(dest="cmd", required=True)
@@ -202,6 +256,25 @@ def main(argv=None) -> int:
     p.add_argument("--extractor", default="",
                    help="dotted path; default: the naive regex")
     p.set_defaults(fn=cmd_experiment)
+
+    p = sub.add_parser("table-plan",
+                       help="validate a table spec, print stats")
+    p.add_argument("spec")
+    p.set_defaults(fn=cmd_table_plan)
+
+    p = sub.add_parser("table-render",
+                       help="table spec -> dirty/clean/ledger run")
+    p.add_argument("spec")
+    p.add_argument("-o", "--out", default="tables/run_001")
+    p.set_defaults(fn=cmd_table_render)
+
+    p = sub.add_parser("table-evaluate",
+                       help="table run + cleaner -> sliced report")
+    p.add_argument("run_dir")
+    p.add_argument("--cleaner", required=True,
+                   help="dotted path 'pkg.mod:function'")
+    p.add_argument("--json-out", default="")
+    p.set_defaults(fn=cmd_table_evaluate)
 
     args = ap.parse_args(argv)
     return args.fn(args)

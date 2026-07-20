@@ -94,7 +94,48 @@ def _gen_clean(col: ColumnSpec, row: int, master: int) -> Any:
         return (start + timedelta(days=rng.randint(0, span)))
     if kind == "bernoulli":
         return rng.random() < float(p["p"])
+    if kind == "mixture":
+        pick = _cell_rng(master, row, col.name, "mixture_pick")
+        comps = p["components"]
+        weights = p["weights"]
+        comp = pick.choices(list(range(len(comps))),
+                            weights=weights, k=1)[0]
+        sub = ColumnSpec(name=col.name, ctype=col.ctype,
+                         distribution=comps[comp])
+        return _gen_clean(sub, row, master)
     raise ValueError("unhandled distribution: {}".format(kind))
+
+
+def _apply_rules(spec: TableSpec, row: int,
+                 vals: Dict[str, Any]) -> None:
+    """Cross-column rules, in declared order, overwriting the
+    target's base value. Seeds key on the TARGET column name, so
+    the column-independence law survives: adding an unrelated
+    column changes nothing, and a rule target depends only on its
+    sources plus its own seed."""
+    for i, rule in enumerate(spec.rules):
+        kind = rule["kind"]
+        if kind == "date_after":
+            earlier = vals[rule["earlier"]]
+            rng = _cell_rng(spec.master_seed, row,
+                            rule["later"], "rule{}".format(i))
+            delta = rng.randint(int(rule["min_days"]),
+                                int(rule["max_days"]))
+            vals[rule["later"]] = earlier + timedelta(days=delta)
+        elif kind == "derived":
+            source = vals[rule["source"]]
+            base = float(source) * float(rule["factor"])
+            sigma = float(rule.get("noise_sigma", 0.0))
+            if sigma > 0:
+                rng = _cell_rng(spec.master_seed, row,
+                                rule["target"],
+                                "rule{}".format(i))
+                base *= rng.lognormvariate(0.0, sigma)
+            target_col = next(c for c in spec.columns
+                              if c.name == rule["target"])
+            vals[rule["target"]] = (int(round(base))
+                                    if target_col.ctype == "int"
+                                    else round(base, 4))
 
 
 def clean_str(value: Any) -> str:
@@ -149,6 +190,43 @@ def _case_drift(text: str, rng: random.Random) -> str:
     return rng.choice((text.upper(), text.lower(), text.title()))
 
 
+def _wrong_value(col: ColumnSpec, value: Any,
+                 rng: random.Random) -> str:
+    """A FORMAT-VALID lie: stays parseable in the column's normal
+    form so no normalizer can fix it — only detection helps."""
+    if isinstance(value, date):
+        shift = rng.choice((-1, 1)) * rng.randint(7, 90)
+        return (value + timedelta(days=shift)).isoformat()
+    if isinstance(value, bool):
+        return clean_str(not value)
+    if isinstance(value, int):
+        s = str(abs(value))
+        if len(s) >= 2:
+            i = rng.randrange(len(s) - 1)
+            s = s[:i] + s[i + 1] + s[i] + s[i + 2:]
+            out = int(s) * (1 if value >= 0 else -1)
+            if out != value:
+                return str(out)
+        return str(value + rng.choice((-1, 1))
+                   * max(1, abs(value) // 3))
+    if isinstance(value, float):
+        return clean_str(round(
+            value * rng.uniform(1.25, 2.5)
+            * rng.choice((1, 1, -1 if value < 0 else 1)), 4))
+    if col.dist_kind() == "categorical":
+        choices = [c for c in col.distribution["choices"]
+                   if c != value]
+        if choices:
+            return str(rng.choice(choices))
+    if col.ctype == "person_name":
+        for _ in range(4):
+            cand = "{} {}".format(rng.choice(_FIRST),
+                                  rng.choice(_LAST))
+            if cand != value:
+                return cand
+    return clean_str(value)
+
+
 @dataclass
 class CellMess:
     row: int
@@ -182,6 +260,7 @@ def plan_table(spec: TableSpec) -> TableBlueprint:
     for r in range(spec.rows):
         vals = {c.name: _gen_clean(c, r, spec.master_seed)
                 for c in spec.columns}
+        _apply_rules(spec, r, vals)
         clean_vals.append(vals)
         clean_rows.append({k: clean_str(v)
                            for k, v in vals.items()})
@@ -198,8 +277,18 @@ def plan_table(spec: TableSpec) -> TableBlueprint:
             m = col.mess
             # Ops are mutually exclusive per cell, priority order;
             # each op draws its own seeded RNG so toggling one rate
-            # never shifts another's draws.
-            if m.missing_rate > 0 and _cell_rng(
+            # never shifts another's draws. `wrong` is first: a
+            # plausible lie is the deepest corruption and must not
+            # be masked by surface mess.
+            if m.wrong_rate > 0 and _cell_rng(
+                    spec.master_seed, r, col.name,
+                    "wrong").random() < m.wrong_rate:
+                cand = _wrong_value(col, cval, _cell_rng(
+                    spec.master_seed, r, col.name, "wrong_pick"))
+                if cand != cstr:
+                    dirty = cand
+                    op_applied = "wrong"
+            elif m.missing_rate > 0 and _cell_rng(
                     spec.master_seed, r, col.name,
                     "missing").random() < m.missing_rate:
                 rng = _cell_rng(spec.master_seed, r, col.name,

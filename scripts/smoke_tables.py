@@ -72,19 +72,42 @@ def reference_table(rows=200, seed=7) -> TableSpec:
                                     "orthopedics", "emergency"],
                         "weights": [5, 2, 2, 1]},
                        ColumnMess(typo_rate=0.2)),
+            ColumnSpec("los_days", "int",
+                       {"kind": "mixture",
+                        "components": [
+                            {"kind": "uniform", "min": 1,
+                             "max": 4},
+                            {"kind": "normal", "mean": 18,
+                             "std": 5, "min": 8, "max": 45},
+                        ],
+                        "weights": [0.7, 0.3]}),
             ColumnSpec("total_cost", "float",
                        {"kind": "lognormal", "mu": 7.5,
                         "sigma": 0.8, "min": 50},
                        ColumnMess(outlier_rate=0.05,
-                                  outlier_factor=100.0)),
+                                  outlier_factor=100.0,
+                                  wrong_rate=0.1)),
             ColumnSpec("visit_date", "date",
                        {"kind": "date_range",
                         "start": "2026-01-01",
                         "end": "2026-06-30"},
-                       ColumnMess(format_rate=0.4)),
+                       ColumnMess(format_rate=0.4,
+                                  wrong_rate=0.08)),
+            ColumnSpec("discharge_date", "date",
+                       {"kind": "date_range",
+                        "start": "2026-01-01",
+                        "end": "2026-06-30"}),
             ColumnSpec("active", "bool",
                        {"kind": "bernoulli", "p": 0.7},
                        ColumnMess(format_rate=0.3)),
+        ],
+        rules=[
+            {"kind": "date_after", "earlier": "visit_date",
+             "later": "discharge_date", "min_days": 1,
+             "max_days": 45},
+            {"kind": "derived", "target": "total_cost",
+             "source": "los_days", "factor": 1150.0,
+             "noise_sigma": 0.2},
         ],
     )
 
@@ -97,6 +120,14 @@ def main():
         ColumnSpec("d", "category",
                    {"kind": "categorical",
                     "choices": ["a", "b"], "weights": [1]}),
+        ColumnSpec("m", "float",
+                   {"kind": "mixture",
+                    "components": [{"kind": "categorical"}],
+                    "weights": [1, 2]}),
+    ], rules=[
+        {"kind": "date_after", "earlier": "ghost",
+         "later": "ghost"},
+        {"kind": "teleport"},
     ])
     try:
         bad.validate()
@@ -108,7 +139,12 @@ def main():
               and "duplicate name" in msg
               and "invalid for type" in msg
               and "unknown type" in msg
-              and "weights length" in msg)
+              and "weights length" in msg
+              and "must name a column" in msg
+              and "unknown kind `teleport`" in msg
+              and "component #1" in msg
+              and "requires param `choices`" in msg
+              and "mixture weights must match" in msg)
 
     spec = reference_table()
     spec.validate()
@@ -164,6 +200,37 @@ def main():
     check("weighted categorical skews as weighted",
           dept.count("cardiology") > dept.count("emergency") * 2)
 
+    # ---------- rules ----------
+    from datetime import date as _date
+    ordered = all(
+        _date.fromisoformat(r["discharge_date"])
+        > _date.fromisoformat(r["visit_date"])
+        for r in bp.clean_rows)
+    check("date_after rule holds in every clean row", ordered)
+    import math
+    ratios = [float(r["total_cost"]) / (int(r["los_days"]) * 1150.0)
+              for r in bp.clean_rows]
+    check("derived rule correlates cost with stay (noisy but "
+          "bounded)",
+          all(0.4 < x < 2.6 for x in ratios)
+          and 0.85 < sum(ratios) / len(ratios) < 1.2)
+
+    # ---------- mixture ----------
+    los = sorted(int(r["los_days"]) for r in bp.clean_rows)
+    short = sum(1 for v in los if v <= 5)
+    check("mixture produces the bimodal split",
+          0.55 < short / len(los) < 0.85
+          and max(los) > 10)
+
+    # ---------- wrong values: plausible lies ----------
+    wrongs = [m for m in bp.ledger if m.op == "wrong"]
+    check("wrong values planted and format-valid",
+          len(wrongs) > 15
+          and all(m.dirty != m.clean for m in wrongs)
+          and all(
+              _date.fromisoformat(m.dirty) is not None
+              for m in wrongs if m.column == "visit_date"))
+
     # ---------- IO round trip + integrity ----------
     tmp = Path(tempfile.mkdtemp(prefix="synthkit_tbl_"))
     run = write_table(tmp / "t1", spec, bp)
@@ -185,12 +252,18 @@ def main():
 
     # ---------- cleaners ----------
     def perfect(rows):
+        wrong_by_row = {}
+        for m in bp.ledger:
+            if m.op == "wrong":
+                wrong_by_row.setdefault(m.row, []).append(m.column)
         out = []
         for i, _row in enumerate(rows):
             src = bp.duplicate_of.get(i, i)
             row = dict(bp.clean_rows[src])
             if i in bp.duplicate_of:
                 row["_duplicate"] = "true"
+            if i in wrong_by_row:
+                row["_suspect"] = ",".join(wrong_by_row[i])
             out.append(row)
         return out
 
@@ -201,6 +274,9 @@ def main():
           and rep.overcorrection_rate == 0.0
           and rep.dup_flag_rate == 1.0
           and rep.dup_false_flags == 0)
+    check("perfect cleaner detects every planted wrong value",
+          rep.wrong_detect_rate == 1.0
+          and rep.suspect_false == 0)
 
     def whitespace_only(rows):
         return [{k: v.strip() for k, v in row.items()}
@@ -214,6 +290,14 @@ def main():
           and rep.ops["format"].fix_rate == 0.0
           and 0.0 < rep.fix_rate < 0.5
           and rep.overcorrection_rate == 0.0)
+    check("naive cleaner detects zero wrong values — the honest "
+          "gap",
+          rep.wrong_detect_rate == 0.0
+          and rep.ops.get("wrong") is not None
+          and rep.ops["wrong"].fix_rate == 0.0)
+    check("wrong metrics resolve for the harness",
+          resolve_table_metric(rep, "wrong.detect_rate") == 0.0
+          and resolve_table_metric(rep, "wrong.total") > 15)
 
     def destructive(rows):
         return [{k: v.strip().upper() for k, v in row.items()}
@@ -222,7 +306,7 @@ def main():
     rep_d = evaluate_cleaning(bp, destructive(bp.dirty_rows),
                               "uppercaser")
     check("destructive cleaner caught overcorrecting clean cells",
-          rep_d.overcorrection_rate > 0.3)
+          rep_d.overcorrection_rate > 0.2)
     text = rep_d.format_text()
     check("cleaning report carries the sliced money lines",
           "FIX RATE BY MESS TYPE" in text
@@ -232,7 +316,7 @@ def main():
     # ---------- metrics + experiment ----------
     check("table metrics resolve by dotted path",
           resolve_table_metric(rep_d,
-                               "overall.overcorrection_rate") > 0.3
+                               "overall.overcorrection_rate") > 0.2
           and 0.0 <= resolve_table_metric(
               rep_d, "ops.typo.fix_rate") <= 1.0)
     try:
