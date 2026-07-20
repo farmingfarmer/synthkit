@@ -312,6 +312,12 @@ def cmd_showdown(args) -> int:
     return 0
 
 
+def cmd_gui(args) -> int:
+    from .gui import run_gui
+    run_gui(port=args.port, open_browser=not args.no_browser)
+    return 0
+
+
 def main(argv=None) -> int:
     ap = argparse.ArgumentParser(prog="synthkit")
     sub = ap.add_subparsers(dest="cmd", required=True)
@@ -398,6 +404,13 @@ def main(argv=None) -> int:
                    help="k=v pairs, e.g. fix_rate=0.9,auroc=0.7")
     p.add_argument("-o", "--out", default="campaigns/run_001")
     p.set_defaults(fn=cmd_campaign_compile)
+
+    p = sub.add_parser("gui",
+                       help="launch the calibration bench "
+                            "(local web UI)")
+    p.add_argument("--port", type=int, default=8377)
+    p.add_argument("--no-browser", action="store_true")
+    p.set_defaults(fn=cmd_gui)
 
     p = sub.add_parser("showdown",
                        help="vendor vs the synthkit baseline up "
