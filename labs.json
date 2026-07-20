@@ -1,13 +1,93 @@
-{"title": "Lab Results Extract", "rows": 300, "master_seed": 42, "duplicate_rate": 0.05,
- "columns": [
-    {"name": "patient_id", "ctype": "str_id", "distribution": {"kind": "sequence", "prefix": "P", "start": 1}, "mess": {"missing_rate": 0.02, "typo_rate": 0.01}},
-    {"name": "ordering_department", "ctype": "category", "distribution": {"kind": "categorical", "choices": ["Internal Medicine", "Cardiology", "Neurology", "Oncology", "Pediatrics"], "weights": [0.5, 0.15, 0.1, 0.1, 0.15]}, "mess": {"typo_rate": 0.01, "case_rate": 0.05}},
-    {"name": "collection_date", "ctype": "date", "distribution": {"kind": "date_range", "start": "2023-01-01", "end": "2023-12-31"}, "mess": {"wrong_rate": 0.05}},
-    {"name": "result_date", "ctype": "date", "distribution": {"kind": "date_range", "start": "2023-01-01", "end": "2023-12-31"}, "mess": {"wrong_rate": 0.05}},
-    {"name": "potassium", "ctype": "float", "distribution": {"kind": "normal", "mean": 4.1, "std": 0.5}, "mess": {"missing_rate": 0.1, "outlier_rate": 0.02, "outlier_factor": 2}}
+{
+  "title": "Lab Results Extract",
+  "rows": 300,
+  "master_seed": 42,
+  "duplicate_rate": 0.05,
+  "columns": [
+    {
+      "name": "patient_id",
+      "ctype": "str_id",
+      "distribution": {
+        "kind": "sequence",
+        "prefix": "P",
+        "start": 1
+      },
+      "mess": {
+        "missing_rate": 0.02,
+        "typo_rate": 0.01
+      }
+    },
+    {
+      "name": "ordering_department",
+      "ctype": "category",
+      "distribution": {
+        "kind": "categorical",
+        "choices": [
+          "Internal Medicine",
+          "Cardiology",
+          "Neurology",
+          "Oncology",
+          "Pediatrics"
+        ],
+        "weights": [
+          0.5,
+          0.15,
+          0.1,
+          0.1,
+          0.15
+        ]
+      },
+      "mess": {
+        "typo_rate": 0.01,
+        "case_rate": 0.05
+      }
+    },
+    {
+      "name": "collection_date",
+      "ctype": "date",
+      "distribution": {
+        "kind": "date_range",
+        "start": "2023-01-01",
+        "end": "2023-12-31"
+      },
+      "mess": {
+        "wrong_rate": 0.05
+      }
+    },
+    {
+      "name": "result_date",
+      "ctype": "date",
+      "distribution": {
+        "kind": "date_range",
+        "start": "2023-01-01",
+        "end": "2023-12-31"
+      },
+      "mess": {
+        "wrong_rate": 0.05
+      }
+    },
+    {
+      "name": "potassium",
+      "ctype": "float",
+      "distribution": {
+        "kind": "normal",
+        "mean": 4.1,
+        "std": 0.5
+      },
+      "mess": {
+        "missing_rate": 0.1,
+        "outlier_rate": 0.02,
+        "outlier_factor": 2
+      }
+    }
   ],
- "rules": [
-    {"kind": "date_after", "earlier": "collection_date", "later": "result_date", "min_days": 0, "max_days": 3},
-    {"kind": "duplicate_rows", "rate": 0.05}
+  "rules": [
+    {
+      "kind": "date_after",
+      "earlier": "collection_date",
+      "later": "result_date",
+      "min_days": 0,
+      "max_days": 3
+    }
   ]
 }
