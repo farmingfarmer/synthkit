@@ -1,0 +1,9 @@
+cd ~/dev/synthkit
+mkdir -p docs
+# paste the spec from station 02 into encounter.json (pbpaste if it's on your clipboard)
+pbpaste > encounter.json
+printf '# Compiler live benchmark\n\nFour runs: 6 problems -> 2 -> 2 -> 0.\nEvery failure became a feature, a teaching message, or a gate.\n\n' > docs/benchmark_prompt.md
+# then paste the English paragraph into that file too
+git add -A
+git commit -m "encounter benchmark: the paragraph, the spec, and the 0.678 ceiling"
+git push
