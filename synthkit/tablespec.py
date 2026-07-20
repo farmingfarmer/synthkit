@@ -285,6 +285,19 @@ class TableSpec:
                 if "factor" not in rule:
                     problems.append("{}: requires `factor`"
                                     .format(rtag))
+                sigma = rule.get("noise_sigma", 0.0)
+                if not (0.0 <= float(sigma) <= 3.0):
+                    problems.append(
+                        "{}: noise_sigma={} is not a noise "
+                        "level — it is the sigma of "
+                        "MULTIPLICATIVE lognormal noise, where "
+                        "0.15 means roughly ±15% scatter and "
+                        "anything above ~1 is extreme. Scale "
+                        "belongs in `factor`; keep noise_sigma "
+                        "in [0, 3]. (A live compile put a "
+                        "dollar amount here and produced 10^150-"
+                        "dollar hospital stays.)".format(
+                            rtag, sigma))
                 if rule.get("target") == rule.get("source"):
                     problems.append("{}: target and source must "
                                     "differ".format(rtag))

@@ -141,6 +141,8 @@ def main():
          "days_from": "ghost"},
         {"kind": "date_after", "earlier": "m", "later": "ruled",
          "min_days": 1, "max_days": 3},
+        {"kind": "derived", "target": "charges", "source": "m",
+         "factor": 1.0, "noise_sigma": 2100},
     ])
     try:
         bad.validate()
@@ -163,6 +165,8 @@ def main():
               and "`days_from` must name a column" in msg
               and "needs a distribution (or a rule" in msg
               and "you may omit its distribution entirely" in msg
+              and "MULTIPLICATIVE lognormal noise" in msg
+              and "Scale belongs in `factor`" in msg
               and "component #1" in msg
               and "requires param `choices`" in msg
               and "mixture weights must match" in msg)
