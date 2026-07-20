@@ -59,6 +59,8 @@ def _gen_clean(col: ColumnSpec, row: int, master: int) -> Any:
     kind = col.dist_kind()
     if col.ctype == "person_name":
         return "{} {}".format(rng.choice(_FIRST), rng.choice(_LAST))
+    if not kind:
+        return None    # rule-produced; the rules pass fills it
     if kind == "sequence":
         return "{}{}".format(p["prefix"], int(p["start"]) + row)
     if kind == "uniform":

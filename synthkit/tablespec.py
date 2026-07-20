@@ -135,6 +135,12 @@ class TableSpec:
             problems.append("duplicate_rate must be in [0, 0.5]")
         if not self.columns:
             problems.append("at least one column is required")
+        rule_targets = set()
+        for rule in self.rules:
+            if rule.get("kind") == "date_after":
+                rule_targets.add(rule.get("later"))
+            elif rule.get("kind") == "derived":
+                rule_targets.add(rule.get("target"))
         seen = set()
         for col in self.columns:
             tag = "column `{}`".format(col.name or "?")
@@ -150,6 +156,20 @@ class TableSpec:
             kind = col.dist_kind()
             if col.ctype == "person_name":
                 pass  # synthesized; distribution optional
+            elif not col.distribution:
+                # Rule-produced columns need no distribution —
+                # requiring a throwaway one made a live compile
+                # invent placeholders.
+                if col.name not in rule_targets:
+                    problems.append(
+                        "{}: needs a distribution (or a rule "
+                        "that produces it)".format(tag))
+            elif kind in DIST_KINDS and kind not in                     _TYPE_DISTS.get(col.ctype, set())                     and col.name in rule_targets:
+                problems.append(
+                    "{}: distribution `{}` invalid for type "
+                    "`{}` — this column is produced by a rule, "
+                    "so you may omit its distribution entirely"
+                    .format(tag, kind, col.ctype))
             elif kind not in DIST_KINDS:
                 if kind in RULE_KINDS:
                     problems.append(

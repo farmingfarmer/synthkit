@@ -95,10 +95,7 @@ def reference_table(rows=200, seed=7) -> TableSpec:
                         "end": "2026-06-30"},
                        ColumnMess(format_rate=0.4,
                                   wrong_rate=0.08)),
-            ColumnSpec("discharge_date", "date",
-                       {"kind": "date_range",
-                        "start": "2026-01-01",
-                        "end": "2026-06-30"}),
+            ColumnSpec("discharge_date", "date"),
             ColumnSpec("active", "bool",
                        {"kind": "bernoulli", "p": 0.7},
                        ColumnMess(format_rate=0.3)),
@@ -127,6 +124,9 @@ def main():
                     "components": [{"kind": "categorical"}],
                     "weights": [1, 2]}),
         ColumnSpec("charges", "float", {"kind": "derived"}),
+        ColumnSpec("orphan", "float"),
+        ColumnSpec("ruled", "date", {"kind": "normal",
+                                     "mean": 1, "std": 1}),
         ColumnSpec("flag", "bool", {"kind": "bernoulli",
                                     "p": 0.2}),
     ], rules=[
@@ -139,6 +139,8 @@ def main():
          "factor": 1.0},
         {"kind": "date_after", "earlier": "d", "later": "d",
          "days_from": "ghost"},
+        {"kind": "date_after", "earlier": "m", "later": "ruled",
+         "min_days": 1, "max_days": 3},
     ])
     try:
         bad.validate()
@@ -159,6 +161,8 @@ def main():
               and "`outcomes` array (kind logistic)" in msg
               and "indicator" in msg
               and "`days_from` must name a column" in msg
+              and "needs a distribution (or a rule" in msg
+              and "you may omit its distribution entirely" in msg
               and "component #1" in msg
               and "requires param `choices`" in msg
               and "mixture weights must match" in msg)
