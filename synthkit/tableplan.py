@@ -127,10 +127,20 @@ def _apply_rules(spec: TableSpec, row: int,
         kind = rule["kind"]
         if kind == "date_after":
             earlier = vals[rule["earlier"]]
-            rng = _cell_rng(spec.master_seed, row,
-                            rule["later"], "rule{}".format(i))
-            delta = rng.randint(int(rule["min_days"]),
-                                int(rule["max_days"]))
+            days_from = rule.get("days_from")
+            if days_from is not None:
+                # The gap IS another column's value — dates and
+                # durations stay consistent, the way a real table
+                # would be. (A live compile wanted exactly this
+                # and the schema could not say it.)
+                delta = max(int(round(
+                    float(vals[days_from]))), 0)
+            else:
+                rng = _cell_rng(spec.master_seed, row,
+                                rule["later"],
+                                "rule{}".format(i))
+                delta = rng.randint(int(rule["min_days"]),
+                                    int(rule["max_days"]))
             vals[rule["later"]] = earlier + timedelta(days=delta)
         elif kind == "derived":
             source = vals[rule["source"]]

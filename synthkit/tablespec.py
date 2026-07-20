@@ -211,10 +211,25 @@ class TableSpec:
                 if rule.get("earlier") == rule.get("later"):
                     problems.append("{}: earlier and later must "
                                     "differ".format(rtag))
-                for key in ("min_days", "max_days"):
-                    if key not in rule:
-                        problems.append("{}: requires `{}`".format(
-                            rtag, key))
+                days_from = rule.get("days_from")
+                if days_from is not None:
+                    if days_from not in names:
+                        problems.append(
+                            "{}: `days_from` must name a column"
+                            .format(rtag))
+                    elif ctypes[days_from] not in ("int",
+                                                   "float"):
+                        problems.append(
+                            "{}: `days_from` column `{}` must be "
+                            "numeric".format(rtag, days_from))
+                else:
+                    for key in ("min_days", "max_days"):
+                        if key not in rule:
+                            problems.append(
+                                "{}: requires `{}` (or "
+                                "`days_from` naming a numeric "
+                                "column to drive the gap)".format(
+                                    rtag, key))
             if kind == "derived":
                 # A validated spec MUST plan: derived multiplies,
                 # so both ends must be numeric — a live compile
@@ -230,7 +245,9 @@ class TableSpec:
                                 rtag, key))
                     elif ctypes[col] not in ("int", "float"):
                         hint = ("for date ordering use kind "
-                                "`date_after` instead"
+                                "`date_after` — with `days_from` "
+                                "naming a numeric column if the "
+                                "gap should track that column"
                                 if ctypes[col] == "date" else
                                 "a generated label belongs in "
                                 "the top-level `outcomes` array "

@@ -274,8 +274,8 @@ def reference_table(rows: int = 200, master_seed: int = 7):
         ],
         rules=[
             {"kind": "date_after", "earlier": "visit_date",
-             "later": "discharge_date", "min_days": 1,
-             "max_days": 45},
+             "later": "discharge_date",
+             "days_from": "los_days"},
             {"kind": "derived", "target": "total_cost",
              "source": "los_days", "factor": 1150.0,
              "noise_sigma": 0.2},

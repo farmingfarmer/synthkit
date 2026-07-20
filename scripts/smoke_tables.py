@@ -105,8 +105,8 @@ def reference_table(rows=200, seed=7) -> TableSpec:
         ],
         rules=[
             {"kind": "date_after", "earlier": "visit_date",
-             "later": "discharge_date", "min_days": 1,
-             "max_days": 45},
+             "later": "discharge_date",
+             "days_from": "los_days"},
             {"kind": "derived", "target": "total_cost",
              "source": "los_days", "factor": 1150.0,
              "noise_sigma": 0.2},
@@ -137,6 +137,8 @@ def main():
          "factor": 2.0},
         {"kind": "derived", "target": "flag", "source": "m",
          "factor": 1.0},
+        {"kind": "date_after", "earlier": "d", "later": "d",
+         "days_from": "ghost"},
     ])
     try:
         bad.validate()
@@ -156,6 +158,7 @@ def main():
               and "is a RULE kind, not a distribution" in msg
               and "`outcomes` array (kind logistic)" in msg
               and "indicator" in msg
+              and "`days_from` must name a column" in msg
               and "component #1" in msg
               and "requires param `choices`" in msg
               and "mixture weights must match" in msg)
@@ -221,11 +224,13 @@ def main():
 
     # ---------- rules ----------
     from datetime import date as _date
-    ordered = all(
-        _date.fromisoformat(r["discharge_date"])
-        > _date.fromisoformat(r["visit_date"])
+    consistent = all(
+        (_date.fromisoformat(r["discharge_date"])
+         - _date.fromisoformat(r["visit_date"])).days
+        == int(r["los_days"])
         for r in bp.clean_rows)
-    check("date_after rule holds in every clean row", ordered)
+    check("date gap tracks los_days exactly in every clean row "
+          "(days_from)", consistent)
     import math
     ratios = [float(r["total_cost"]) / (int(r["los_days"]) * 1150.0)
               for r in bp.clean_rows]
