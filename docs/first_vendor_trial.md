@@ -38,3 +38,12 @@ dominates llama8b: recall, discipline, hardened residual.
 yesterday, 1/3 today (tier2 0.105 vs 0.053) - temp-0.2
 sampling variance flips bar-edge verdicts. Fixed: vendor
 evaluation now temperature-0 by default (V1.3).
+
+TEMP-0 + INTERVALS (S6): control-t0 reproduces precision run
+exactly (0.263/0.226) - determinism confirmed. Control failures
+now marked DECISIVE (CIs entirely above bar even at n=19/31):
+the 26% finding was always solid. Hardened passes marked
+INCONCLUSIVE (CIs straddle 0.10) with prescriptions n~86/~185.
+Resolution run queued at 250 docs/tier per the instrument's own
+prescription. The tool now distinguishes what it knows from what
+it doesn't, and prices the difference in generatable documents.
