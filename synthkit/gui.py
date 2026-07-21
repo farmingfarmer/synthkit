@@ -122,6 +122,19 @@ def api_compile(payload: dict) -> dict:
             "problems": result.problems or ""}
 
 
+def api_lint(payload: dict) -> dict:
+    from .lint import lint_table
+    from .tablespec import TableSpec
+    if payload.get("kind") != "table":
+        return {"error": "semantic lint covers table specs "
+                         "(document lint is on the roadmap)"}
+    spec = TableSpec.from_json(payload["spec"])
+    report = lint_table(spec,
+                        description=payload.get(
+                            "description", ""))
+    return {"ok": report.ok, "text": report.format_text()}
+
+
 def api_plan(payload: dict) -> dict:
     spec = _load_spec(payload["kind"], payload["spec"])
     if payload["kind"] == "table":
@@ -252,6 +265,7 @@ _ROUTES = {
     "/api/presets": lambda payload: api_presets(),
     "/api/validate": api_validate,
     "/api/compile": api_compile,
+    "/api/lint": api_lint,
     "/api/plan": api_plan,
     "/api/render": api_render,
     "/api/campaign-compile": api_campaign_compile,
@@ -476,6 +490,7 @@ table.preview th{background:var(--chip);
       placeholder="No spec yet — describe one or load a preset."></textarea>
     <button class="act" onclick="validateSpec()">Validate</button>
     <button class="act ghost" onclick="planSpec()">Plan (dry run)</button>
+    <button class="act ghost" onclick="lintSpec()">Semantic lint</button>
     <pre class="out" id="spec-out"></pre>
   </div>
 </section>
@@ -621,6 +636,12 @@ function guessKind(){
     document.getElementById('spec').value);
     return d.columns?'table':'document';}catch(e){
     return 'table';}}
+async function lintSpec(){
+  const d=await api('/api/lint',{kind:guessKind(),
+    spec:document.getElementById('spec').value,
+    description:document.getElementById('english').value});
+  out('spec-out',d.error?d.error:d.text,
+    d.error?'bad':(d.ok?'ok':''));}
 async function planSpec(){
   const d=await api('/api/plan',{kind:guessKind(),
     spec:document.getElementById('spec').value});

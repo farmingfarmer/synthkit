@@ -402,7 +402,10 @@ _TABLE_COMPILER_SYSTEM = (
     "{column: weight, \"column=value\": weight}} — numeric/bool "
     "columns by name, categories via indicator "
     "\"column=value\". Tune intercept for the requested "
-    "prevalence (more negative = rarer).\n"
+    "prevalence (more negative = rarer), and when the "
+    "description states a rate ('around 15-20 percent') also "
+    "set \"target_prevalence\": [0.15, 0.20] so the linter "
+    "can enforce it.\n"
     "Choose sensible values for anything unspecified; keep rows "
     "<= 500 unless asked."
 )

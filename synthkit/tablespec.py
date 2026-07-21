@@ -315,6 +315,19 @@ class TableSpec:
             if "intercept" not in oc:
                 problems.append("{}: requires `intercept`"
                                 .format(otag))
+            target = oc.get("target_prevalence")
+            if target is not None:
+                bad = (not isinstance(target, (list, tuple))
+                       or len(target) != 2)
+                if not bad:
+                    lo, hi = target
+                    bad = not (0.0 < float(lo) <= float(hi)
+                               < 1.0)
+                if bad:
+                    problems.append(
+                        "{}: target_prevalence must be "
+                        "[lo, hi] with 0 < lo <= hi < 1"
+                        .format(otag))
             coeffs = oc.get("coefficients") or {}
             if not coeffs:
                 problems.append("{}: requires non-empty "

@@ -170,11 +170,27 @@ def cmd_table_compile(args) -> int:
     out.write_text(result.raw_json, encoding="utf-8")
     if result.ok:
         print("compiled OK -> {}".format(out))
+        from .lint import lint_table
+        print(lint_table(result.spec,
+                         description=description).format_text())
         print("review the spec before rendering.")
         return 0
     print("compiled with problems -> {} (draft saved)".format(out))
     print("PROBLEMS:\n{}".format(result.problems))
     return 1
+
+
+def cmd_table_lint(args) -> int:
+    from .lint import lint_table
+    from .tablespec import TableSpec
+    spec = TableSpec.from_json(
+        Path(args.spec).read_text(encoding="utf-8"))
+    description = args.description
+    if args.file:
+        description = Path(args.file).read_text(encoding="utf-8")
+    report = lint_table(spec, description=description)
+    print(report.format_text())
+    return 0 if report.ok else 1
 
 
 def cmd_table_plan(args) -> int:
@@ -397,6 +413,14 @@ def main(argv=None) -> int:
     p.add_argument("--backend", default="ollama")
     p.add_argument("--model", default="")
     p.set_defaults(fn=cmd_table_compile)
+
+    p = sub.add_parser("table-lint",
+                       help="semantic lint: does the spec mean "
+                            "what you meant?")
+    p.add_argument("spec")
+    p.add_argument("-d", "--description", default="")
+    p.add_argument("-f", "--file", default="")
+    p.set_defaults(fn=cmd_table_lint)
 
     p = sub.add_parser("table-plan",
                        help="validate a table spec, print stats")
