@@ -47,3 +47,17 @@ INCONCLUSIVE (CIs straddle 0.10) with prescriptions n~86/~185.
 Resolution run queued at 250 docs/tier per the instrument's own
 prescription. The tool now distinguishes what it knows from what
 it doesn't, and prices the difference in generatable documents.
+
+RESOLUTION RUN (250 docs/tier, 750 calls, temp 0, per the
+instrument's own prescription): hardened trap fp 0.037/0.037,
+CIs [0.016-0.084]/[0.018-0.074] - DECISIVE below the 0.10 bar
+at both tiers. Recall 1.000 [0.992-1.000] n=459 - decisively
+perfect. Residual is ~4% (the small-n ~6% was itself noise-high,
+as its intervals warned). 0 malformed in 1,662 total calls.
+
+VERDICT, final: mistral-small3.1 + status intervention clears
+the clinical extraction bar decisively. Study complete:
+characterize (26%, decisive) -> mechanism (partly systematic) ->
+intervene (named, committed) -> replicate (endemic, transfers) ->
+harden the instrument (temp-0, intervals) -> confirm at
+prescribed n. Every number reproducible from spec + seed.
