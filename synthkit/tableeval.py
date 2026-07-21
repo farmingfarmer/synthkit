@@ -262,6 +262,36 @@ def resolve_table_metric(report: CleaningReport,
     raise MetricError("unknown metric family: {}".format(path))
 
 
+def resolve_table_counts(report: CleaningReport, path: str):
+    """(k, n) behind a proportion metric, for interval-aware
+    verdicts. None for non-proportion paths."""
+    parts = path.split(".")
+    if parts[0] == "overall":
+        if parts[1] == "fix_rate":
+            return (report.fixed, report.mess_cells)
+        if parts[1] == "overcorrection_rate":
+            return (report.overcorrected, report.clean_cells)
+    if parts[0] == "ops" and parts[2] == "fix_rate" \
+            and parts[1] in report.ops:
+        sc = report.ops[parts[1]]
+        return (sc.fixed, sc.total)
+    if parts[0] == "wrong" and parts[1] == "detect_rate":
+        return (report.wrong_detected, report.wrong_total)
+    if parts[0] == "duplicates" and parts[1] == "flag_rate":
+        return (report.dup_flagged, report.dup_total)
+    return None
+
+
+def resolve_prediction_counts(report: "PredictionReport",
+                              path: str):
+    """AUROC metrics resolve to ("auroc", value, n_pos, n_neg);
+    others None."""
+    if path in ("predict.auroc",):
+        return ("auroc", report.auroc, report.n_pos,
+                report.n - report.n_pos)
+    return None
+
+
 @dataclass
 class TableExperiment:
     name: str

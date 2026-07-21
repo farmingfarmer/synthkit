@@ -413,7 +413,16 @@ def run_campaign(campaign: Campaign,
                           tier_results=results)
 
 
-def _judge(conditions: List[str], resolver) -> TierResult:
+def _judge(conditions: List[str], resolver,
+           counts_resolver=None) -> TierResult:
+    """Point-estimate pass/fail gates the ladder (compat), but
+    each evidence line carries the interval and a three-way
+    reading: DECISIVE when the whole CI sits on one side of the
+    bar, INCONCLUSIVE otherwise — with a PRESCRIPTION for how
+    much data would resolve it. Synthkit can generate that data,
+    so the prescription is executable."""
+    from .mlmetrics import (auroc_interval, required_n,
+                            wilson_interval)
     measured: Dict[str, float] = {}
     failed: List[str] = []
     lines: List[str] = []
@@ -421,7 +430,35 @@ def _judge(conditions: List[str], resolver) -> TierResult:
         cond = Condition.parse(raw)
         value = resolver(cond.metric)
         measured[cond.metric] = round(value, 4)
-        lines.append(cond.describe(value))
+        line = cond.describe(value)
+        counts = (counts_resolver(cond.metric)
+                  if counts_resolver else None)
+        interval = None
+        n_label = ""
+        prescription = None
+        if isinstance(counts, tuple) and len(counts) == 2:
+            k, n = counts
+            if n > 0:
+                interval = wilson_interval(k, n)
+                n_label = "n={}".format(n)
+                prescription = required_n(value, cond.threshold)
+        elif isinstance(counts, tuple) and counts \
+                and counts[0] == "auroc":
+            _tag, a, n_pos, n_neg = counts
+            if n_pos > 0 and n_neg > 0:
+                interval = auroc_interval(a, n_pos, n_neg)
+                n_label = "n={}+/{}-".format(n_pos, n_neg)
+        if interval is not None:
+            lo, hi = interval
+            bar = cond.threshold
+            decisive = hi < bar or lo > bar
+            note = "DECISIVE" if decisive else "INCONCLUSIVE"
+            extra = ""
+            if not decisive and prescription is not None:
+                extra = "; n~{} to resolve".format(prescription)
+            line += "  [ci {:.3f}-{:.3f} {}: {}{}]".format(
+                lo, hi, n_label, note, extra)
+        lines.append(line)
         if not cond.holds(value):
             failed.append(cond.metric)
     return TierResult(tier="", passed=not failed,
@@ -436,10 +473,12 @@ def _run_clean_tier(campaign, tier, solver,
     from .tableplan import plan_table
     spec = TableSpec.from_json(tier.spec_json)
     bp = plan_table(spec)
+    from .tableeval import resolve_table_counts
     cleaned = solver([dict(r) for r in bp.dirty_rows])
     report = evaluate_cleaning(bp, cleaned, solver_name)
     tr = _judge(tier.conditions,
-                lambda m: resolve_table_metric(report, m))
+                lambda m: resolve_table_metric(report, m),
+                lambda m: resolve_table_counts(report, m))
     tr.tier = tier.name
     return tr
 
@@ -467,10 +506,12 @@ def _run_predict_tier(campaign, tier, solver, solver_name,
         {k: v for k, v in row.items() if k != outcome}
         for row in test_bp.dirty_rows[:n_test]]
     scores = solver(train_rows, train_labels, test_rows)
+    from .tableeval import resolve_prediction_counts
     report = evaluate_prediction(test_bp, outcome, list(scores),
                                  solver_name)
     tr = _judge(tier.conditions,
-                lambda m: resolve_prediction_metric(report, m))
+                lambda m: resolve_prediction_metric(report, m),
+                lambda m: resolve_prediction_counts(report, m))
     tr.tier = tier.name
     # The ceiling is always reported, condition or not — it is
     # the number that gives every other number its meaning.
@@ -493,11 +534,12 @@ def _run_extract_tier(campaign, tier, solver,
     blueprints = plan_corpus(spec)
     documents, _render_report = render_corpus(
         spec, blueprints, StubBackend())
-    from .evaluator import FunctionExtractor
+    from .evaluator import FunctionExtractor, resolve_eval_counts
     extractor = (solver if hasattr(solver, "extract")
                  else FunctionExtractor(solver, solver_name))
     report = evaluate(blueprints, documents, extractor)
     tr = _judge(tier.conditions,
-                lambda m: resolve_metric(report, m))
+                lambda m: resolve_metric(report, m),
+                lambda m: resolve_eval_counts(report, m))
     tr.tier = tier.name
     return tr

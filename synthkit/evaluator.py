@@ -315,3 +315,23 @@ def evaluate(
         unmatched_extractions=unmatched,
         total_extractions=total,
     )
+
+
+def resolve_eval_counts(report: EvalReport, path: str):
+    """(k, n) behind extraction proportion metrics."""
+    if path == "overall_recall":
+        planted = sum(e.planted for e in report.elements.values())
+        found = sum(e.found for e in report.elements.values())
+        return (found, planted)
+    parts = path.split(".")
+    if parts[0] == "elements" and len(parts) == 3 \
+            and parts[1] in report.elements \
+            and parts[2] == "recall":
+        sc = report.elements[parts[1]]
+        return (sc.found, sc.planted)
+    if parts[0] == "distractors" and len(parts) == 3 \
+            and parts[1] in report.distractors \
+            and parts[2] == "fp_rate":
+        sc = report.distractors[parts[1]]
+        return (sc.false_positives, sc.planted)
+    return None
