@@ -23,6 +23,12 @@ LLMs actually behave in the field:
 "voted_out"} — the reliability half of a vendor verdict that
 recall numbers alone do not show.
 
+Temperature defaults to 0: a live 2x2 bake-off showed
+temperature-0.2 sampling variance of +/-0.03-0.05 flipping
+bar-edge verdicts between identical runs on frozen documents. A
+measurement instrument should not carry its own noise floor;
+raise temperature only when studying variance itself.
+
 Python 3.8 compatible. Stdlib only.
 """
 from __future__ import annotations
@@ -69,7 +75,7 @@ class LLMExtractor(ExtractorAdapter):
 
     def __init__(self, backend, spec: DataSpec,
                  samples: int = 1, name: str = "llm-vendor",
-                 temperature: float = 0.2,
+                 temperature: float = 0.0,
                  max_tokens: int = 1200,
                  extra_system: str = ""):
         """`extra_system` is the INTERVENTION seam: additional
