@@ -6,3 +6,11 @@ Voted x3:      recall 1.000 all tiers; trap fp 0.30 / 0.143;
 Reading: recall solved; discontinued-med confusion ~15-25%
 per distractor, partly systematic (survives voting); n=10
 denominators too small - see precision run.
+
+Precision run (40 docs/tier, 120 calls): trap fp 0.263 / 0.258 -
+tiers CONVERGE at ~26% per distractor, density-independent.
+Revision: no pressure effect; each discontinued med is an
+independent ~26% misread. Recall 1.000 across all 312 docs of
+the day. 0 malformed in 312 calls.
+Character sheet: recall solved; medication-status discrimination
+is the deficit, in the clinically dangerous direction.
