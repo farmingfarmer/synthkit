@@ -70,7 +70,13 @@ class LLMExtractor(ExtractorAdapter):
     def __init__(self, backend, spec: DataSpec,
                  samples: int = 1, name: str = "llm-vendor",
                  temperature: float = 0.2,
-                 max_tokens: int = 1200):
+                 max_tokens: int = 1200,
+                 extra_system: str = ""):
+        """`extra_system` is the INTERVENTION seam: additional
+        system-prompt instructions appended after the element
+        list, for measuring what prompt-hardening buys against a
+        characterized failure mode. The base prompt stays blind;
+        interventions are explicit, named, and diffable."""
         if samples < 1:
             raise ValueError("samples must be >= 1")
         self.backend = backend
@@ -78,7 +84,10 @@ class LLMExtractor(ExtractorAdapter):
         self.name = name
         self.temperature = temperature
         self.max_tokens = max_tokens
+        self.extra_system = extra_system.strip()
         self.system, self.task = self._prompts(spec)
+        if self.extra_system:
+            self.system += "\n\n" + self.extra_system
         self.stats: Dict[str, int] = {
             "calls": 0, "malformed": 0, "empty": 0,
             "voted_out": 0}

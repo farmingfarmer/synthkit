@@ -281,10 +281,14 @@ def cmd_campaign_run(args) -> int:
         from .llmvendor import LLMExtractor
         from .spec import DataSpec
         spec = DataSpec.from_json(camp.tiers[0].spec_json)
+        extra = args.llm_extra_system
+        if extra.startswith("@"):
+            extra = Path(extra[1:]).read_text(encoding="utf-8")
         extractor = LLMExtractor(
             _backend(args.llm_backend, args.llm_model), spec,
             samples=args.llm_samples,
-            name=args.name or "llm-vendor")
+            name=args.name or "llm-vendor",
+            extra_system=extra)
         solver = extractor
     elif ":" in args.solver:
         mod_name, fn_name = args.solver.split(":", 1)
@@ -451,6 +455,10 @@ def main(argv=None) -> int:
     p.add_argument("--llm-backend", default="ollama")
     p.add_argument("--llm-model", default="")
     p.add_argument("--llm-samples", type=int, default=1)
+    p.add_argument("--llm-extra-system", default="",
+                   help="intervention text appended to the "
+                        "vendor system prompt (@file to read "
+                        "from a file)")
     p.add_argument("--name", default="")
     p.set_defaults(fn=cmd_campaign_run)
 

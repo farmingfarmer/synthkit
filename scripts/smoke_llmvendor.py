@@ -74,6 +74,21 @@ def main():
     check("the document text travels in the task prompt",
           "some note text" in backend.prompts[0])
 
+    # ---------- the intervention seam ----------
+    backend = Canned(['[]'])
+    ex = LLMExtractor(backend, spec, name="hardened",
+                      extra_system="A medication described as "
+                                   "discontinued is NOT current.")
+    ex.extract("d0", "note")
+    check("extra_system lands in the vendor prompt after the "
+          "elements",
+          "discontinued is NOT current" in backend.systems[0]
+          and backend.systems[0].index("allergy_flag")
+          < backend.systems[0].index("NOT current"))
+    check("the BASE prompt stays blind — intervention is "
+          "explicit, never default",
+          "discontinued" not in system.lower())
+
     # ---------- JSON salvage ----------
     check("bare arrays parse",
           _find_json_array('[{"a": 1}]') == [{"a": 1}])
@@ -196,6 +211,21 @@ def main():
     try:
         rc, out, _e = run_cli(["campaign-run", str(tmp / "c1"),
                                "--llm", "--name", "mute-llm"])
+        captured = []
+
+        class Spy(Canned):
+            def complete(self, prompt, **kw):
+                captured.append(kw.get("system", ""))
+                return super().complete(prompt, **kw)
+
+        cli_mod._backend = lambda n, m: Spy(['[]'])
+        (tmp / "fix.txt").write_text(
+            "STATUS RULE: stopped means not current.",
+            encoding="utf-8")
+        rc2, out2, _e2 = run_cli(
+            ["campaign-run", str(tmp / "c1"), "--llm",
+             "--llm-extra-system", "@" + str(tmp / "fix.txt"),
+             "--name", "hardened-llm"])
     finally:
         cli_mod._backend = real_backend
     check("CLI --llm runs the vendor ladder and prints "
@@ -203,6 +233,9 @@ def main():
           rc == 1
           and "CAMPAIGN [extract]" in out
           and "vendor reliability:" in out)
+    check("CLI @file intervention reaches every vendor call",
+          rc2 == 1 and captured
+          and all("STATUS RULE" in s for s in captured))
     rc, _out, err = run_cli(["campaign-run", str(tmp / "c1")])
     check("campaign-run without a solver or --llm is refused "
           "with directions",

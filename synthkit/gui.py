@@ -214,7 +214,8 @@ def api_campaign_run(payload: dict) -> dict:
             _backend(payload.get("backend", "ollama"),
                      payload.get("model", "")),
             spec, samples=int(payload.get("samples", 1)),
-            name="llm-vendor")
+            name="llm-vendor",
+            extra_system=payload.get("extra_system", ""))
         solver = extractor
     else:
         solver = _solver(payload["solver"])
