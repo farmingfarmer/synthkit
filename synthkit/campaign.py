@@ -266,7 +266,12 @@ def _sha(text: str) -> str:
 
 
 def write_campaign(run_dir, campaign: Campaign,
-                   result: Optional[CampaignResult] = None):
+                   result: Optional[CampaignResult] = None,
+                   result_name: str = ""):
+    """Results are APPEND-ONLY study records: each run lands in
+    results/trial_NNN_<name>.json (a live bake-off clobbered its
+    control arm before this existed). result.json remains the
+    latest, for compatibility."""
     from pathlib import Path as _P
     run_dir = _P(run_dir)
     run_dir.mkdir(parents=True, exist_ok=True)
@@ -283,7 +288,8 @@ def write_campaign(run_dir, campaign: Campaign,
         }, indent=2),
     }
     if result is not None:
-        artifacts["result.json"] = json.dumps({
+        payload = json.dumps({
+            "solver": result_name or "unnamed",
             "highest_passed": result.highest_passed,
             "tiers": [{"tier": tr.tier, "passed": tr.passed,
                        "measured": tr.measured,
@@ -292,6 +298,14 @@ def write_campaign(run_dir, campaign: Campaign,
                       for tr in result.tier_results],
             "text": result.format_text(),
         }, indent=2)
+        artifacts["result.json"] = payload
+        results_dir = run_dir / "results"
+        results_dir.mkdir(exist_ok=True)
+        n = len(list(results_dir.glob("trial_*.json"))) + 1
+        safe = "".join(c if c.isalnum() or c in "-_" else "-"
+                       for c in (result_name or "unnamed"))[:40]
+        (results_dir / "trial_{:03d}_{}.json".format(
+            n, safe)).write_text(payload, encoding="utf-8")
     hashes = {}
     for name, text in artifacts.items():
         (run_dir / name).write_text(text, encoding="utf-8")
@@ -301,6 +315,43 @@ def write_campaign(run_dir, campaign: Campaign,
         "hashes": hashes,
     }, indent=2), encoding="utf-8")
     return run_dir
+
+
+def read_trials(run_dir) -> List[dict]:
+    from pathlib import Path as _P
+    results_dir = _P(run_dir) / "results"
+    trials = []
+    if results_dir.is_dir():
+        for path in sorted(results_dir.glob("trial_*.json")):
+            trials.append(json.loads(
+                path.read_text(encoding="utf-8")))
+    return trials
+
+
+def format_trials(run_dir) -> str:
+    trials = read_trials(run_dir)
+    if not trials:
+        return "no trials recorded yet"
+    tier_names = [t["tier"] for t in trials[0]["tiers"]]
+    lines = ["TRIALS ({} arm(s)):".format(len(trials))]
+    header = "  {:<24}".format("arm") + "".join(
+        "{:<20}".format(n[:18]) for n in tier_names) + "cleared"
+    lines.append(header)
+    for tr in trials:
+        cells = []
+        for tier in tr["tiers"]:
+            mark = "PASS" if tier["passed"] else "FAIL"
+            fails = tier["failed_conditions"]
+            if fails:
+                key = fails[0]
+                val = tier["measured"].get(key)
+                mark += " {}={}".format(
+                    key.split(".")[-1], val)
+            cells.append("{:<20}".format(mark[:18]))
+        lines.append("  {:<24}{}{}/{}".format(
+            tr["solver"][:22], "".join(cells),
+            tr["highest_passed"], len(tr["tiers"])))
+    return "\n".join(lines)
 
 
 def load_campaign(run_dir) -> Campaign:

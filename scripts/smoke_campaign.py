@@ -317,6 +317,21 @@ def main():
     check("campaign results persist with the full ladder",
           saved["highest_passed"] == ext_result.highest_passed
           and len(saved["tiers"]) == 3)
+    # ---------- append-only trials ----------
+    from synthkit.campaign import format_trials, read_trials
+    write_campaign(run_dir, camp, ext_result,
+                   result_name="second-arm")
+    trials = read_trials(run_dir)
+    check("trial history is append-only, never clobbered",
+          len(trials) == 2
+          and trials[0]["solver"] == "unnamed"
+          and trials[1]["solver"] == "second-arm")
+    table = format_trials(run_dir)
+    check("the trials table compares arms per tier",
+          "2 arm(s)" in table
+          and "second-arm" in table
+          and "cleared" in table)
+
     victim = run_dir / "campaign.json"
     victim.write_text(victim.read_text() + " ", encoding="utf-8")
     try:

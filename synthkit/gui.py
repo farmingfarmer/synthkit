@@ -221,7 +221,9 @@ def api_campaign_run(payload: dict) -> dict:
         solver = _solver(payload["solver"])
     result = run_campaign(camp, solver,
                           solver_name=payload["solver"])
-    write_campaign(Path(payload["campaign_dir"]), camp, result)
+    write_campaign(Path(payload["campaign_dir"]), camp, result,
+                   result_name=payload.get("name")
+                   or payload["solver"])
     text = result.format_text()
     if extractor is not None:
         text += "\n" + extractor.stats_line()

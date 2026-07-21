@@ -298,9 +298,10 @@ def cmd_campaign_run(args) -> int:
         print("solver must be 'package.module:function' "
               "(or pass --llm)", file=sys.stderr)
         return 2
-    result = run_campaign(camp, solver,
-                          solver_name=args.name or args.solver)
-    write_campaign(Path(args.campaign_dir), camp, result)
+    arm = args.name or args.solver or "llm-vendor"
+    result = run_campaign(camp, solver, solver_name=arm)
+    write_campaign(Path(args.campaign_dir), camp, result,
+                   result_name=arm)
     print(result.format_text())
     if extractor is not None:
         print(extractor.stats_line())
@@ -443,6 +444,14 @@ def main(argv=None) -> int:
     p.add_argument("--name", default="")
     p.add_argument("--json-out", default="")
     p.set_defaults(fn=cmd_showdown)
+
+    p = sub.add_parser("trials",
+                       help="compare recorded arms of a campaign")
+    p.add_argument("campaign_dir")
+    p.set_defaults(fn=lambda a: (
+        print(__import__("synthkit.campaign",
+                         fromlist=["format_trials"])
+              .format_trials(Path(a.campaign_dir))) or 0))
 
     p = sub.add_parser("campaign-run",
                        help="run a solver up the ladder")
