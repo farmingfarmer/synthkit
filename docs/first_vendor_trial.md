@@ -23,3 +23,18 @@ status discipline is teachable by prompt. Residual ~6% is the
 honest floor for prompt-only hardening on mistral-small.
 Full arc: characterize -> hypothesize -> treat -> re-measure,
 all on frozen data. This is the product's working demonstration.
+
+2x2 BAKE-OFF (frozen campaign, 480 calls, temp 0.2):
+  arm               tier2-fp  tier3-fp  recall     cleared
+  mistral-control    0.263     0.226    1.000       1/3
+  mistral-hardened   0.105     0.032    1.000       1/3*
+  llama8b-control    0.316     0.323    0.957-0.986 1/3
+  llama8b-hardened   0.105     0.129    1.000       1/3
+Findings: (1) status confusion is ENDEMIC to small models
+(26-32% both controls), not mistral-specific. (2) The same
+treatment transfers: 2.5-5x reduction on both. (3) Mistral
+dominates llama8b: recall, discipline, hardened residual.
+(4) *Verdict instability: mistral-hardened cleared 3/3
+yesterday, 1/3 today (tier2 0.105 vs 0.053) - temp-0.2
+sampling variance flips bar-edge verdicts. Fixed: vendor
+evaluation now temperature-0 by default (V1.3).
