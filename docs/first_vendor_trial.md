@@ -14,3 +14,12 @@ independent ~26% misread. Recall 1.000 across all 312 docs of
 the day. 0 malformed in 312 calls.
 Character sheet: recall solved; medication-status discrimination
 is the deficit, in the clinically dangerous direction.
+
+INTERVENTION (docs/intervention_status.txt, same 120 docs):
+trap fp 0.263/0.258 -> 0.053/0.065. Four-to-five-fold reduction.
+Recall held 1.000; 0 malformed; tiers converge again.
+Reading: the 26% was an instruction gap, not representational -
+status discipline is teachable by prompt. Residual ~6% is the
+honest floor for prompt-only hardening on mistral-small.
+Full arc: characterize -> hypothesize -> treat -> re-measure,
+all on frozen data. This is the product's working demonstration.
