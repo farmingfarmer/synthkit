@@ -28,6 +28,24 @@ BACKEND_FACTORY = None  # tests may inject: fn(name, model) -> backend
 _FINGERPRINT = None
 
 
+def build_info() -> dict:
+    """version · built date · fingerprint — the legible answer to
+    'am I on the latest?'. Compare against `synthkit version` in
+    a terminal: the CLI reads the same disk, so a match means
+    the bench serves what is installed."""
+    import datetime
+    from . import __version__
+    pkg = Path(__file__).parent
+    newest = max(path.stat().st_mtime
+                 for path in pkg.glob("*.py"))
+    return {
+        "version": __version__,
+        "built": datetime.date.fromtimestamp(
+            newest).isoformat(),
+        "fingerprint": build_fingerprint(),
+    }
+
+
 def build_fingerprint() -> str:
     """Short sha over every module's bytes — the bench wears it
     in the wordmark so 'am I on the latest?' is a glance, not a
@@ -365,8 +383,7 @@ class _Handler(BaseHTTPRequestHandler):
                 api_presets()).encode("utf-8"))
         elif self.path == "/api/version":
             self._send(200, json.dumps(
-                {"fingerprint": build_fingerprint()}
-            ).encode("utf-8"))
+                build_info()).encode("utf-8"))
         else:
             self._send(404, b'{"error": "not found"}')
 
@@ -511,8 +528,10 @@ table.preview th{background:var(--chip);
 </style></head><body>
 <div class="frame">
 <nav>
-  <div class="wordmark">SYNTHKIT<small>calibration bench
-    &middot; <span id="fp">...</span></small></div>
+  <div class="wordmark">SYNTHKIT<small>calibration bench<br>
+    <span id="fp" title="version &middot; built &middot; build
+    fingerprint; compare with `synthkit version`">loading
+    build...</span></small></div>
   <button class="station active" data-s="describe"><b>01</b> Describe</button>
   <button class="station" data-s="spec"><b>02</b> Spec</button>
   <button class="station" data-s="data"><b>03</b> Data</button>
@@ -796,6 +815,7 @@ async function showdown(){
   poll(d.job,'showdown-out',r=>out('showdown-out',r.text,''));}
 loadPresets();
 api('/api/version').then(d=>{
-  document.getElementById('fp').textContent=d.fingerprint;});
+  document.getElementById('fp').textContent=
+    'v'+d.version+' \u00b7 '+d.built+' \u00b7 '+d.fingerprint;});
 </script></body></html>
 """

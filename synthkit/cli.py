@@ -180,6 +180,16 @@ def cmd_table_compile(args) -> int:
     return 1
 
 
+def cmd_version(args) -> int:
+    from .gui import build_info
+    info = build_info()
+    print("synthkit v{version} \u00b7 built {built} \u00b7 "
+          "{fingerprint}".format(**info))
+    print("(the bench wordmark shows the same line; a match "
+          "means it serves this install)")
+    return 0
+
+
 def cmd_corpus_lint(args) -> int:
     from .lint import lint_corpus
     from .spec import DataSpec
@@ -442,6 +452,11 @@ def main(argv=None) -> int:
     p.add_argument("--backend", default="ollama")
     p.add_argument("--model", default="")
     p.set_defaults(fn=cmd_table_compile)
+
+    p = sub.add_parser("version",
+                       help="version, build date, and "
+                            "fingerprint of this install")
+    p.set_defaults(fn=cmd_version)
 
     p = sub.add_parser("corpus-lint",
                        help="semantic lint for document specs")

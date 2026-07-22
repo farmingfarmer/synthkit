@@ -179,10 +179,16 @@ def main():
 
         # ---------- D2: fingerprint + async jobs ----------
         status, raw = get("/api/version")
-        fp = json.loads(raw)["fingerprint"]
-        check("the bench wears a build fingerprint",
-              len(fp) == 8 and fp in gui.PAGE
-              or "id=\"fp\"" in html)
+        info = json.loads(raw)
+        check("the bench wears a legible build chip: version, "
+              "date, fingerprint",
+              len(info["fingerprint"]) == 8
+              and info["version"].count(".") == 2
+              and len(info["built"]) == 10
+              and 'id="fp"' in html)
+        from synthkit.gui import build_info
+        check("CLI and bench read the same build info",
+              build_info() == info)
         d = post("/api/campaign-run-async",
                  {"campaign_dir": str(tmp / "camp1"),
                   "solver": "autoclean"})
