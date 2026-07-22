@@ -357,7 +357,9 @@ class ShowdownTier:
 
     @property
     def verdict(self) -> str:
-        if self.vendor_auroc >= self.baseline_auroc:
+        if abs(self.vendor_auroc - self.baseline_auroc) < 1e-9:
+            return "vendor matches the baseline"
+        if self.vendor_auroc > self.baseline_auroc:
             return "vendor beats the baseline"
         return "vendor loses to a stdlib baseline"
 

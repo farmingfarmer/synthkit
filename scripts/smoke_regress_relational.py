@@ -220,6 +220,54 @@ def main():
     check("a mute flagger scores zero recall",
           rep_mute.recall == 0.0)
 
+    # ---------- fuzzy-join tiers ----------
+    hard = rel_spec(orphan_rate=0.06)
+    hard.links[0].orphan_style = "near"
+    hard.links[0].drift_rate = 0.10
+    rbp_h = plan_relational(hard)
+    enc_h = rbp_h.blueprints["encounters"]
+    keys_h = {r["patient_id"] for r in
+              rbp_h.blueprints["patients"].clean_rows}
+    near = rbp_h.link_ledger
+    check("near orphans are one transposition from a real key "
+          "and still absent from the key set",
+          near
+          and all(m.orphan_key not in keys_h
+                  and sorted(m.orphan_key)
+                  == sorted(m.true_key)
+                  for m in near))
+    dr = rbp_h.drift_ledger
+    check("drift plants mangled-but-VALID references, ledgered "
+          "with their truth",
+          len(dr) >= 8
+          and all(m.drifted.strip().upper()[:1]
+                  == m.true_key[:1].upper()
+                  and m.true_key in keys_h for m in dr))
+    dirty_h = [r["patient_ref"] for r in enc_h.dirty_rows]
+    naive_h = [fk not in keys_h for fk in dirty_h]
+    link_h = hard.links[0]
+    rep_h = evaluate_links(rbp_h, link_h, naive_h,
+                           "set-checker")
+    check("the precision trap bites: a set-membership checker "
+          "false-flags every drifted valid reference",
+          rep_h.recall == 1.0
+          and rep_h.drift_false_flagged == rep_h.drift_planted
+          and rep_h.precision < 0.75)
+    normalizing = [fk.strip().upper() not in
+                   {k.upper() for k in keys_h}
+                   for fk in dirty_h]
+    rep_n = evaluate_links(rbp_h, link_h, normalizing,
+                           "normalizing-checker")
+    check("a normalizing checker springs the trap: precision "
+          "restored, recall held",
+          rep_n.recall == 1.0 and rep_n.precision == 1.0
+          and "false-flagged" in rep_h.format_text())
+    rbp_h2 = plan_relational(hard)
+    check("fuzzy-join planning is deterministic",
+          [r["patient_ref"] for r in
+           rbp_h2.blueprints["encounters"].dirty_rows]
+          == dirty_h)
+
     tmp = Path(tempfile.mkdtemp(prefix="synthkit_rel_"))
     try:
         write_relational(tmp / "r1", rel_spec(), rbp)

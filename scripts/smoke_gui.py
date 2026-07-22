@@ -177,6 +177,34 @@ def main():
                       for k in d["tiers"][0])
               and "ceiling" in d["text"])
 
+        # ---------- D2: fingerprint + async jobs ----------
+        status, raw = get("/api/version")
+        fp = json.loads(raw)["fingerprint"]
+        check("the bench wears a build fingerprint",
+              len(fp) == 8 and fp in gui.PAGE
+              or "id=\"fp\"" in html)
+        d = post("/api/campaign-run-async",
+                 {"campaign_dir": str(tmp / "camp1"),
+                  "solver": "autoclean"})
+        job = d["job"]
+        import time as _time
+        result = None
+        for _ in range(60):
+            j = post("/api/job", {"id": job})
+            if j["status"] == "done":
+                result = j
+                break
+            _time.sleep(0.3)
+        check("async campaign jobs run to completion with "
+              "elapsed reporting",
+              result is not None
+              and "CAMPAIGN [clean]" in
+              result["result"]["text"]
+              and result["elapsed"] >= 0)
+        j = post("/api/job", {"id": "nonsense"})
+        check("unknown jobs answer with an error, not a crash",
+              "error" in j)
+
         # ---------- errors stay JSON ----------
         d = post("/api/campaign-run",
                  {"campaign_dir": str(tmp / "nowhere"),

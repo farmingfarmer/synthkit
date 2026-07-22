@@ -49,11 +49,22 @@ class RelationalIntegrityError(ValueError):
 
 @dataclass
 class Link:
+    """orphan_style:
+      'random' — fake keys far from any real one (a set-membership
+                 check catches them; the easy tier)
+      'near'   — fake keys one digit-transposition from a REAL key
+                 (still absent from the key set, but they defeat
+                 fuzzy matchers that 'repair' near-misses)
+    drift_rate — the PRECISION trap: valid references whose
+      formatting is mangled (case flips, stray whitespace); a
+      naive set-membership checker false-flags every one."""
     child: str
     parent: str
     parent_key: str
     fk_column: str
     orphan_rate: float = 0.0
+    orphan_style: str = "random"
+    drift_rate: float = 0.0
 
 
 @dataclass
@@ -72,7 +83,9 @@ class RelationalSpec:
             "links": [{"child": l.child, "parent": l.parent,
                        "parent_key": l.parent_key,
                        "fk_column": l.fk_column,
-                       "orphan_rate": l.orphan_rate}
+                       "orphan_rate": l.orphan_rate,
+                       "orphan_style": l.orphan_style,
+                       "drift_rate": l.drift_rate}
                       for l in self.links],
         }, indent=2)
 
@@ -88,7 +101,11 @@ class RelationalSpec:
                         parent_key=l["parent_key"],
                         fk_column=l["fk_column"],
                         orphan_rate=float(
-                            l.get("orphan_rate", 0.0)))
+                            l.get("orphan_rate", 0.0)),
+                        orphan_style=l.get("orphan_style",
+                                           "random"),
+                        drift_rate=float(
+                            l.get("drift_rate", 0.0)))
                    for l in d.get("links", [])],
         )
 
@@ -136,6 +153,14 @@ class RelationalSpec:
                 problems.append(
                     "{}: orphan_rate must be in [0, 0.5]"
                     .format(tag))
+            if link.orphan_style not in ("random", "near"):
+                problems.append(
+                    "{}: orphan_style must be `random` or "
+                    "`near`".format(tag))
+            if not (0.0 <= link.drift_rate <= 0.5):
+                problems.append(
+                    "{}: drift_rate must be in [0, 0.5]"
+                    .format(tag))
         if problems:
             raise RelationalSpecError(
                 "{} problem(s):\n".format(len(problems))
@@ -152,9 +177,19 @@ class OrphanMess:
 
 
 @dataclass
+class DriftMess:
+    child: str
+    row: int
+    fk_column: str
+    true_key: str
+    drifted: str
+
+
+@dataclass
 class RelationalBlueprint:
     blueprints: Dict[str, TableBlueprint]
     link_ledger: List[OrphanMess] = field(default_factory=list)
+    drift_ledger: List[DriftMess] = field(default_factory=list)
 
 
 def _table_seed(master_seed: int, name: str) -> int:
@@ -171,6 +206,7 @@ def plan_relational(spec: RelationalSpec) -> RelationalBlueprint:
         derived.master_seed = _table_seed(spec.master_seed, name)
         blueprints[name] = plan_table(derived)
     ledger: List[OrphanMess] = []
+    drift: List[DriftMess] = []
     for link in spec.links:
         parent_bp = blueprints[link.parent]
         child_bp = blueprints[link.child]
@@ -197,37 +233,80 @@ def plan_relational(spec: RelationalSpec) -> RelationalBlueprint:
             src_idx = i if i < n_clean else \
                 _dup_source(child_bp, i, n_clean)
             row[link.fk_column] = assignments[src_idx]
-        # Orphan injection on DIRTY only, seeded per row.
+        # Join mess on DIRTY only, seeded per row; orphan and
+        # drift are mutually exclusive per cell (orphan first —
+        # a broken reference is the deeper corruption).
         existing = set(parent_keys)
         for i in range(len(child_bp.dirty_rows)):
+            src_idx = i if i < n_clean else \
+                _dup_source(child_bp, i, n_clean)
+            true_key = assignments[src_idx]
             r = random.Random(_table_seed(
                 spec.master_seed,
                 "orphan:{}:{}:{}".format(
                     link.child, link.fk_column, i)))
             if r.random() < link.orphan_rate:
-                fake = None
-                for _attempt in range(20):
-                    cand = "{}{:0{}d}".format(
-                        prefix, r.randint(10 ** width,
-                                          2 * 10 ** width - 1),
-                        width)
-                    if cand not in existing:
-                        fake = cand
-                        break
+                fake = _make_orphan(link.orphan_style, true_key,
+                                    prefix, width, existing, r)
                 if fake is None:
                     continue
-                src_idx = i if i < n_clean else \
-                    _dup_source(child_bp, i, n_clean)
                 ledger.append(OrphanMess(
                     child=link.child, row=i,
                     fk_column=link.fk_column,
-                    true_key=assignments[src_idx],
-                    orphan_key=fake))
+                    true_key=true_key, orphan_key=fake))
                 child_bp.dirty_rows[i][link.fk_column] = fake
+                continue
+            rd = random.Random(_table_seed(
+                spec.master_seed,
+                "drift:{}:{}:{}".format(
+                    link.child, link.fk_column, i)))
+            if rd.random() < link.drift_rate:
+                mangled = _drift_key(true_key, rd)
+                if mangled == true_key:
+                    continue
+                drift.append(DriftMess(
+                    child=link.child, row=i,
+                    fk_column=link.fk_column,
+                    true_key=true_key, drifted=mangled))
+                child_bp.dirty_rows[i][link.fk_column] = mangled
         if link.fk_column not in child_bp.columns:
             child_bp.columns.append(link.fk_column)
     return RelationalBlueprint(blueprints=blueprints,
-                               link_ledger=ledger)
+                               link_ledger=ledger,
+                               drift_ledger=drift)
+
+
+def _make_orphan(style: str, true_key: str, prefix: str,
+                 width: int, existing, r) -> Optional[str]:
+    if style == "near":
+        digits = list(true_key[len(prefix):])
+        for _attempt in range(20):
+            if len(digits) < 2:
+                break
+            j = r.randint(0, len(digits) - 2)
+            swapped = list(digits)
+            swapped[j], swapped[j + 1] = \
+                swapped[j + 1], swapped[j]
+            cand = prefix + "".join(swapped)
+            if cand not in existing and cand != true_key:
+                return cand
+        return None
+    for _attempt in range(20):
+        cand = "{}{:0{}d}".format(
+            prefix, r.randint(10 ** width,
+                              2 * 10 ** width - 1), width)
+        if cand not in existing:
+            return cand
+    return None
+
+
+def _drift_key(key: str, r) -> str:
+    choice = r.randint(0, 2)
+    if choice == 0:
+        return key.lower()
+    if choice == 1:
+        return " " + key
+    return key + "  "
 
 
 def _dup_source(bp: TableBlueprint, dirty_idx: int,
@@ -247,6 +326,8 @@ class LinkReport:
     orphans_flagged: int
     false_flags: int
     n_rows: int
+    drift_planted: int = 0
+    drift_false_flagged: int = 0
 
     @property
     def recall(self) -> float:
@@ -259,10 +340,16 @@ class LinkReport:
         return self.orphans_flagged / total if total else 0.0
 
     def format_text(self) -> str:
-        return ("LINK {}: {} orphan(s) planted in {} rows — "
+        text = ("LINK {}: {} orphan(s) planted in {} rows — "
                 "recall {:.3f}, precision {:.3f}".format(
                     self.link, self.orphans_planted,
                     self.n_rows, self.recall, self.precision))
+        if self.drift_planted:
+            text += ("; {} drifted-but-VALID ref(s), {} "
+                     "false-flagged".format(
+                         self.drift_planted,
+                         self.drift_false_flagged))
+        return text
 
 
 def evaluate_links(rbp: RelationalBlueprint, link: Link,
@@ -279,6 +366,9 @@ def evaluate_links(rbp: RelationalBlueprint, link: Link,
     planted = {m.row for m in rbp.link_ledger
                if m.child == link.child
                and m.fk_column == link.fk_column}
+    drifted = {m.row for m in rbp.drift_ledger
+               if m.child == link.child
+               and m.fk_column == link.fk_column}
     flagged = {i for i, f in enumerate(flags) if f}
     return LinkReport(
         link="{}.{} -> {}.{}".format(
@@ -287,7 +377,9 @@ def evaluate_links(rbp: RelationalBlueprint, link: Link,
         orphans_planted=len(planted),
         orphans_flagged=len(planted & flagged),
         false_flags=len(flagged - planted),
-        n_rows=n)
+        n_rows=n,
+        drift_planted=len(drifted),
+        drift_false_flagged=len(drifted & flagged))
 
 
 def write_relational(run_dir, spec: RelationalSpec,
@@ -312,6 +404,11 @@ def write_relational(run_dir, spec: RelationalSpec,
                      "true_key": m.true_key,
                      "orphan_key": m.orphan_key}
                     for m in rbp.link_ledger],
+        "drift": [{"child": m.child, "row": m.row,
+                   "fk_column": m.fk_column,
+                   "true_key": m.true_key,
+                   "drifted": m.drifted}
+                  for m in rbp.drift_ledger],
     }, indent=2)
     (run_dir / "links.json").write_text(links_payload,
                                         encoding="utf-8")

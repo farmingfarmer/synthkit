@@ -25,6 +25,63 @@ from typing import Callable, Dict, Optional
 
 BACKEND_FACTORY = None  # tests may inject: fn(name, model) -> backend
 
+_FINGERPRINT = None
+
+
+def build_fingerprint() -> str:
+    """Short sha over every module's bytes — the bench wears it
+    in the wordmark so 'am I on the latest?' is a glance, not a
+    ritual."""
+    global _FINGERPRINT
+    if _FINGERPRINT is None:
+        import hashlib
+        h = hashlib.sha256()
+        pkg = Path(__file__).parent
+        for path in sorted(pkg.glob("*.py")):
+            h.update(path.read_bytes())
+        _FINGERPRINT = h.hexdigest()[:8]
+    return _FINGERPRINT
+
+
+_JOBS: Dict[str, dict] = {}
+
+
+def _start_job(fn, payload: dict) -> str:
+    import time
+    import uuid
+    job_id = uuid.uuid4().hex[:12]
+    _JOBS[job_id] = {"status": "running",
+                     "started": time.time()}
+
+    def work():
+        try:
+            result = fn(payload)
+            if "error" in result:
+                _JOBS[job_id].update(status="error",
+                                     error=result["error"])
+            else:
+                _JOBS[job_id].update(status="done",
+                                     result=result)
+        except Exception as e:
+            _JOBS[job_id].update(status="error", error=str(e))
+
+    threading.Thread(target=work, daemon=True).start()
+    return job_id
+
+
+def api_job(payload: dict) -> dict:
+    import time
+    job = _JOBS.get(payload.get("id", ""))
+    if job is None:
+        return {"error": "unknown job"}
+    out = {"status": job["status"],
+           "elapsed": round(time.time() - job["started"], 1)}
+    if job["status"] == "done":
+        out["result"] = job["result"]
+    elif job["status"] == "error":
+        out["error"] = job["error"]
+    return out
+
 
 def _backend(name: str, model: str):
     if BACKEND_FACTORY is not None:
@@ -125,15 +182,17 @@ def api_compile(payload: dict) -> dict:
 
 
 def api_lint(payload: dict) -> dict:
-    from .lint import lint_table
-    from .tablespec import TableSpec
-    if payload.get("kind") != "table":
-        return {"error": "semantic lint covers table specs "
-                         "(document lint is on the roadmap)"}
-    spec = TableSpec.from_json(payload["spec"])
-    report = lint_table(spec,
-                        description=payload.get(
-                            "description", ""))
+    from .lint import lint_corpus, lint_table
+    if payload.get("kind") == "table":
+        from .tablespec import TableSpec
+        report = lint_table(
+            TableSpec.from_json(payload["spec"]),
+            description=payload.get("description", ""))
+    else:
+        from .spec import DataSpec
+        report = lint_corpus(
+            DataSpec.from_json(payload["spec"]),
+            description=payload.get("description", ""))
     return {"ok": report.ok, "text": report.format_text()}
 
 
@@ -272,6 +331,11 @@ _ROUTES = {
     "/api/render": api_render,
     "/api/campaign-compile": api_campaign_compile,
     "/api/campaign-run": api_campaign_run,
+    "/api/campaign-run-async": lambda payload: {
+        "job": _start_job(api_campaign_run, payload)},
+    "/api/showdown-async": lambda payload: {
+        "job": _start_job(api_showdown, payload)},
+    "/api/job": api_job,
     "/api/showdown": api_showdown,
 }
 
@@ -299,6 +363,10 @@ class _Handler(BaseHTTPRequestHandler):
         elif self.path == "/api/presets":
             self._send(200, json.dumps(
                 api_presets()).encode("utf-8"))
+        elif self.path == "/api/version":
+            self._send(200, json.dumps(
+                {"fingerprint": build_fingerprint()}
+            ).encode("utf-8"))
         else:
             self._send(404, b'{"error": "not found"}')
 
@@ -443,7 +511,8 @@ table.preview th{background:var(--chip);
 </style></head><body>
 <div class="frame">
 <nav>
-  <div class="wordmark">SYNTHKIT<small>calibration bench</small></div>
+  <div class="wordmark">SYNTHKIT<small>calibration bench
+    &middot; <span id="fp">...</span></small></div>
   <button class="station active" data-s="describe"><b>01</b> Describe</button>
   <button class="station" data-s="spec"><b>02</b> Spec</button>
   <button class="station" data-s="data"><b>03</b> Data</button>
@@ -532,6 +601,13 @@ table.preview th{background:var(--chip);
       <option>regex_extract</option>
       <option value="llm_extract">llm_extract (ollama as the
       vendor)</option></select>
+    <div class="row2">
+      <div><label for="samples">llm samples (majority vote)</label>
+        <input id="samples" value="1"></div>
+      <div><label for="intervention">llm intervention
+        (extra system prompt)</label>
+        <input id="intervention" placeholder="optional"></div>
+    </div>
     <button class="act" onclick="campaignRun()">Run ladder</button>
     <pre class="out" id="campaign-out"></pre>
   </div>
@@ -688,25 +764,38 @@ async function campaignCompile(){
   out('campaign-out',d.title+'\n\n'+d.tiers.map((t,i)=>
     'tier '+(i+1)+' `'+t.name+'`: '+t.notes+'\n    '+
     t.conditions.join('\n    ')).join('\n'));}
+async function poll(jobId,outId,render){
+  const t=setInterval(async()=>{
+    const j=await api('/api/job',{id:jobId});
+    if(j.status==='running'){
+      out(outId,'working... '+j.elapsed+'s');}
+    else{clearInterval(t);
+      if(j.status==='error'){out(outId,j.error,'bad');}
+      else{render(j.result);}}},1500);}
 async function campaignRun(){
   if(!campaignDir){out('campaign-out',
     'Compile a ladder first.','bad');return;}
-  out('campaign-out','walking the ladder...');
-  const d=await api('/api/campaign-run',{
+  out('campaign-out','walking the ladder... 0s');
+  const d=await api('/api/campaign-run-async',{
     campaign_dir:campaignDir,
-    solver:document.getElementById('solver').value});
-  if(d.error){out('campaign-out',d.error,'bad');return;}
-  out('campaign-out',d.text,
-    d.highest_passed===d.tiers?'ok':'');}
+    solver:document.getElementById('solver').value,
+    samples:parseInt(document.getElementById(
+      'samples').value)||1,
+    extra_system:document.getElementById(
+      'intervention').value});
+  poll(d.job,'campaign-out',r=>out('campaign-out',r.text,
+    r.highest_passed===r.tiers?'ok':''));}
 async function showdown(){
   if(!campaignDir){out('showdown-out',
     'Compile a predict campaign at station 04 first.','bad');
     return;}
-  out('showdown-out','running both solvers up the ladder...');
-  const d=await api('/api/showdown',{campaign_dir:campaignDir,
+  out('showdown-out','running both solvers up the ladder... 0s');
+  const d=await api('/api/showdown-async',{
+    campaign_dir:campaignDir,
     solver:document.getElementById('vendor').value});
-  out('showdown-out',d.error?d.error:d.text,
-    d.error?'bad':'');}
+  poll(d.job,'showdown-out',r=>out('showdown-out',r.text,''));}
 loadPresets();
+api('/api/version').then(d=>{
+  document.getElementById('fp').textContent=d.fingerprint;});
 </script></body></html>
 """

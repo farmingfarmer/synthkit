@@ -239,3 +239,86 @@ def lint_table(spec: TableSpec, description: str = "",
                     "column sets {} — a mess clause was dropped"
                     .format(keyword, knob)))
     return report
+
+
+# ===================================================================
+# Corpus lint — the document side of "did you mean this?"
+# ===================================================================
+
+def lint_corpus(spec, description: str = "",
+                probe_docs: int = 30) -> LintReport:
+    """Plans a deterministic probe corpus and inspects what the
+    document spec actually plants."""
+    from .planner import plan_corpus
+    from .spec import DataSpec
+    assert isinstance(spec, DataSpec)
+    spec.validate()
+    probe = DataSpec.from_json(spec.to_json())
+    probe.corpus.size = min(spec.corpus.size, probe_docs)
+    blueprints = plan_corpus(probe)
+    n = len(blueprints)
+    report = LintReport(probe_rows=n)
+    add = report.findings.append
+
+    planted: dict = {}
+    distracted: dict = {}
+    styles: dict = {}
+    for bp in blueprints:
+        for note in bp.notes:
+            for el in note.elements:
+                planted[el.element_id] = planted.get(
+                    el.element_id, 0) + 1
+            for d in note.distractors:
+                distracted[d.distractor_id] = distracted.get(
+                    d.distractor_id, 0) + 1
+            for axis, val in note.style.items():
+                styles.setdefault(axis, set()).add(val)
+
+    element_ids = set()
+    distractor_ids = set()
+    for uf in spec.unstructured_fields:
+        for el in uf.target_elements:
+            element_ids.add(el.element_id)
+            if planted.get(el.element_id, 0) == 0:
+                add(LintFinding(
+                    "WARN", "D1-never-planted",
+                    "element `{}` was never planted across {} "
+                    "probe documents — its recall will divide "
+                    "by zero conceptually; check probability "
+                    "and difficulty".format(el.element_id, n)))
+        for dis in uf.distractors:
+            distractor_ids.add(dis.distractor_id)
+            if dis.density > 0 and distracted.get(
+                    dis.distractor_id, 0) == 0:
+                add(LintFinding(
+                    "WARN", "D2-toothless",
+                    "distractor `{}` has density {} but landed "
+                    "in zero probe documents — the trap is "
+                    "unloaded".format(dis.distractor_id,
+                                      dis.density)))
+
+    overlap = element_ids & distractor_ids
+    if overlap:
+        add(LintFinding(
+            "WARN", "D3-collision",
+            "ids used as BOTH element and distractor: {} — "
+            "scoring cannot tell reward from trap".format(
+                ", ".join(sorted(overlap)))))
+
+    for axis, vals in sorted(styles.items()):
+        if len(vals) == 1:
+            add(LintFinding(
+                "INFO", "D4-flat-style",
+                "style axis `{}` drew a single value across "
+                "the probe — the corpus will read uniformly"
+                .format(axis)))
+
+    if description:
+        text = description.lower()
+        if ("trap" in text or "distractor" in text) \
+                and not distractor_ids:
+            add(LintFinding(
+                "WARN", "D5-coverage",
+                "the description asks for traps/distractors "
+                "but the spec defines none"))
+    return report

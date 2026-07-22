@@ -149,6 +149,37 @@ def main():
           and lint_table(spec).format_text()
           == lint_table(spec).format_text())
 
+    # ---------- corpus lint ----------
+    from synthkit.examples import reference_spec
+    from synthkit.lint import lint_corpus
+    doc = reference_spec(size=12)
+    report = lint_corpus(doc)
+    check("the reference corpus lints clean", report.ok)
+    broken = reference_spec(size=12)
+    for uf in broken.unstructured_fields:
+        for el in uf.target_elements:
+            if el.element_id == "followup_appointment":
+                el.density = 0.001
+    report = lint_corpus(broken)
+    check("never-planted elements warn (D1)",
+          any(f.code == "D1-never-planted"
+              and "followup_appointment" in f.message
+              for f in report.findings))
+    toothless = reference_spec(size=12)
+    for uf in toothless.unstructured_fields:
+        for dis in uf.distractors:
+            dis.density = 0.001
+    report = lint_corpus(toothless, probe_docs=8)
+    check("unloaded traps warn (D2)",
+          any(f.code == "D2-toothless"
+              for f in report.findings))
+    report = lint_corpus(
+        reference_spec(size=12),
+        description="include distractor traps please")
+    check("trap-language with traps present stays quiet (D5)",
+          not any(f.code == "D5-coverage"
+                  for f in report.findings))
+
     # ---------- CLI + GUI wiring ----------
     import contextlib
     import io as _io

@@ -180,6 +180,19 @@ def cmd_table_compile(args) -> int:
     return 1
 
 
+def cmd_corpus_lint(args) -> int:
+    from .lint import lint_corpus
+    from .spec import DataSpec
+    spec = DataSpec.from_json(
+        Path(args.spec).read_text(encoding="utf-8"))
+    description = args.description
+    if args.file:
+        description = Path(args.file).read_text(encoding="utf-8")
+    report = lint_corpus(spec, description=description)
+    print(report.format_text())
+    return 0 if report.ok else 1
+
+
 def cmd_relational_render(args) -> int:
     from .relational import (RelationalSpec, plan_relational,
                              write_relational)
@@ -429,6 +442,13 @@ def main(argv=None) -> int:
     p.add_argument("--backend", default="ollama")
     p.add_argument("--model", default="")
     p.set_defaults(fn=cmd_table_compile)
+
+    p = sub.add_parser("corpus-lint",
+                       help="semantic lint for document specs")
+    p.add_argument("spec")
+    p.add_argument("-d", "--description", default="")
+    p.add_argument("-f", "--file", default="")
+    p.set_defaults(fn=cmd_corpus_lint)
 
     p = sub.add_parser("relational-render",
                        help="plan and write a multi-table run "
