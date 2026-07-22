@@ -140,6 +140,68 @@ def main():
           any(f.code == "L1-range" and f.level == "INFO"
               for f in report.findings))
 
+    # ---------- the wrappers (a live GUI run caught all
+    # three of these missing `regress` routes) ----------
+    import contextlib
+    import io as _io
+    import json as _json
+    import shutil as _shutil
+    import tempfile as _tempfile
+    import threading
+    import urllib.request
+    from synthkit.cli import main as cli
+    tmp = Path(_tempfile.mkdtemp(prefix="synthkit_rw_"))
+    (tmp / "cost.json").write_text(
+        cost_spec(rows=120).to_json(), encoding="utf-8")
+
+    out = _io.StringIO()
+    with contextlib.redirect_stdout(out):
+        try:
+            rc = cli(["campaign-compile", "--goal", "regress",
+                      "--spec", str(tmp / "cost.json"),
+                      "--outcome", "episode_cost",
+                      "--bars", "r2=0.5,gap_max=0.25",
+                      "-o", str(tmp / "rc")])
+        except SystemExit as e:
+            rc = int(e.code or 0)
+    check("CLI accepts and compiles regress campaigns "
+          "(argparse choices + spec routing)",
+          rc == 0 and (tmp / "rc" / "manifest.json").is_file())
+
+    import synthkit.gui as gui
+    server = gui.make_server(0)
+    threading.Thread(target=server.serve_forever,
+                     daemon=True).start()
+    base = "http://127.0.0.1:{}".format(server.server_port)
+
+    def post(path, payload):
+        req = urllib.request.Request(
+            base + path,
+            data=_json.dumps(payload).encode("utf-8"),
+            headers={"Content-Type": "application/json"})
+        with urllib.request.urlopen(req, timeout=120) as r:
+            return _json.loads(r.read().decode("utf-8"))
+
+    try:
+        d = post("/api/campaign-compile",
+                 {"goal": "regress",
+                  "spec": cost_spec(rows=120).to_json(),
+                  "bars": {"r2": 0.5, "gap_max": 0.25},
+                  "outcome": "episode_cost",
+                  "out": str(tmp / "gc")})
+        check("GUI routes regress to table specs over the wire",
+              "error" not in d and len(d["tiers"]) == 3)
+        d = post("/api/campaign-run",
+                 {"campaign_dir": str(tmp / "gc"),
+                  "solver": "autosolver_regress"})
+        check("GUI runs the regress ladder with the registry "
+              "baseline",
+              d.get("highest_passed") == 3
+              and "R^2" in d["text"])
+    finally:
+        server.shutdown()
+        _shutil.rmtree(tmp)
+
     # ================= relational =================
     def rel_spec(orphan_rate=0.08) -> RelationalSpec:
         patients = reference_table(rows=60, master_seed=1)

@@ -301,7 +301,7 @@ def cmd_campaign_compile(args) -> int:
     from .campaign import CampaignError, compile_campaign, \
         write_campaign
     raw = Path(args.spec).read_text(encoding="utf-8")
-    if args.goal in ("clean", "predict"):
+    if args.goal in ("clean", "predict", "regress"):
         from .tablespec import TableSpec
         base = TableSpec.from_json(raw)
     else:
@@ -502,7 +502,8 @@ def main(argv=None) -> int:
     p = sub.add_parser("campaign-compile",
                        help="goal + base spec -> tier ladder")
     p.add_argument("--goal", required=True,
-                   choices=["clean", "predict", "extract"])
+                   choices=["clean", "predict", "regress",
+                            "extract"])
     p.add_argument("--spec", required=True)
     p.add_argument("--outcome", default="")
     p.add_argument("--bars", default="",

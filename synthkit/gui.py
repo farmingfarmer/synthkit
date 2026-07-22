@@ -276,7 +276,8 @@ def api_render(payload: dict) -> dict:
 def api_campaign_compile(payload: dict) -> dict:
     from .campaign import compile_campaign, write_campaign
     spec = _load_spec(
-        "table" if payload["goal"] in ("clean", "predict")
+        "table" if payload["goal"] in ("clean", "predict",
+                       "regress")
         else "document", payload["spec"])
     camp = compile_campaign(payload["goal"], spec,
                             bars=payload.get("bars") or {},
