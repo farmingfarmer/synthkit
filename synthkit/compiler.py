@@ -196,42 +196,17 @@ class HFLocalBackend(LLMBackend):
                 "hf-local returned an unexpected shape: {}".format(e))
 
 
-class BedrockBackend(LLMBackend):
-    """AWS Bedrock via boto3 (the Keck deployment path).
-    Anthropic-on-Bedrock message format."""
+class BedrockBackend:
+    """Re-export shim: the real implementation lives in
+    synthkit.bedrock (modern Converse API, injectable client,
+    fully smoked without AWS)."""
 
     name = "bedrock"
 
-    def __init__(self, model_id: str, region: str = "us-west-2"):
-        self.model_id = model_id
-        self.region = region
-
-    def complete(self, prompt: str, *, system: str = "",
-                 max_tokens: int = 2000,
-                 temperature: float = 0.3) -> str:
-        try:
-            import boto3
-        except ImportError:
-            raise BackendError("boto3 not installed")
-        client = boto3.client("bedrock-runtime",
-                              region_name=self.region)
-        body = {
-            "anthropic_version": "bedrock-2023-05-31",
-            "max_tokens": max_tokens,
-            "temperature": temperature,
-            "messages": [{"role": "user", "content": prompt}],
-        }
-        if system:
-            body["system"] = system
-        try:
-            resp = client.invoke_model(
-                modelId=self.model_id,
-                body=json.dumps(body))
-            parsed = json.loads(resp["body"].read())
-            return "".join(
-                b.get("text", "") for b in parsed.get("content", []))
-        except Exception as e:
-            raise BackendError("bedrock call failed: {}".format(e))
+    def __new__(cls, model_id: str, region: str = "us-west-2",
+                client=None):
+        from .bedrock import BedrockBackend as Real
+        return Real(model_id, client=client, region=region)
 
 
 # ===================================================================
