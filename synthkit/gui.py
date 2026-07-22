@@ -38,12 +38,14 @@ def _backend(name: str, model: str):
 # ===================================================================
 
 def _solver(name: str) -> Callable:
-    from .autosolver import autoclean, autosolver
+    from .autosolver import (autoclean, autosolver,
+                             autosolver_regress)
     from .examples import regex_extract, strip_cleaner
     registry: Dict[str, Callable] = {
         "autoclean": autoclean,
         "strip_cleaner": strip_cleaner,
         "autosolver": autosolver(),
+        "autosolver_regress": autosolver_regress(),
         "regex_extract": regex_extract,
     }
     if name in registry:
@@ -515,7 +517,8 @@ table.preview th{background:var(--chip);
     <div class="row2">
       <div><label for="goal">goal</label>
         <select id="goal"><option>clean</option>
-        <option>predict</option><option>extract</option></select></div>
+        <option>predict</option><option>regress</option>
+        <option>extract</option></select></div>
       <div><label for="outcome">outcome (predict only)</label>
         <input id="outcome" placeholder="readmitted"></div>
     </div>
@@ -525,6 +528,7 @@ table.preview th{background:var(--chip);
     <label for="solver">solver</label>
     <select id="solver"><option>autoclean</option>
       <option>strip_cleaner</option><option>autosolver</option>
+      <option>autosolver_regress</option>
       <option>regex_extract</option>
       <option value="llm_extract">llm_extract (ollama as the
       vendor)</option></select>

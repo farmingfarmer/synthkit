@@ -91,7 +91,7 @@ def main():
     # ---------- outcome validation ----------
     bad = predict_table()
     bad.outcomes.append({
-        "name": "age", "kind": "linear",
+        "name": "age", "kind": "mystery",
         "coefficients": {"ghost": 1.0,
                          "patient_name": 2.0,
                          "age=old": 1.0}})
@@ -102,7 +102,7 @@ def main():
         msg = str(e)
         check("outcome validation reports every problem",
               "collides with a column" in msg
-              and "kind must be `logistic`" in msg
+              and "kind must be `logistic` or `linear`" in msg
               and "requires `intercept`" in msg
               and "names no column" in msg
               and "needs a numeric or bool column" in msg

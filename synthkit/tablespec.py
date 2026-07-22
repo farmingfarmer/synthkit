@@ -309,9 +309,30 @@ class TableSpec:
             elif name in names:
                 problems.append("{}: name `{}` collides with a "
                                 "column".format(otag, name))
-            if oc.get("kind") != "logistic":
-                problems.append("{}: kind must be `logistic`"
-                                .format(otag))
+            kind = oc.get("kind")
+            if kind == "linear":
+                sigma = oc.get("noise_sigma")
+                if sigma is None:
+                    problems.append(
+                        "{}: linear outcomes require "
+                        "`noise_sigma` — the additive gaussian "
+                        "noise IS the known irreducible error "
+                        "that sets the R^2 ceiling".format(otag))
+                elif float(sigma) < 0:
+                    problems.append(
+                        "{}: noise_sigma must be >= 0"
+                        .format(otag))
+                tr = oc.get("target_range")
+                if tr is not None and (
+                        not isinstance(tr, (list, tuple))
+                        or len(tr) != 2
+                        or float(tr[0]) > float(tr[1])):
+                    problems.append(
+                        "{}: target_range must be [lo, hi]"
+                        .format(otag))
+            elif kind != "logistic":
+                problems.append("{}: kind must be `logistic` "
+                                "or `linear`".format(otag))
             if "intercept" not in oc:
                 problems.append("{}: requires `intercept`"
                                 .format(otag))

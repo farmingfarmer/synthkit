@@ -49,6 +49,10 @@ MODULES = [
                     "ladder"),
     ("autosolver.py", "The autosolver — synthkit competes on its "
                       "own data"),
+    ("lint.py", "Semantic lint — does the spec mean what you "
+                "meant?"),
+    ("relational.py", "Relational tables — join mess with an "
+                      "answer key"),
     ("examples.py", "Examples — reference document vertical, "
                     "reference table, naive extractor and "
                     "cleaner"),

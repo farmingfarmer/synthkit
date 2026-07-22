@@ -108,6 +108,30 @@ def lint_table(spec: TableSpec, description: str = "",
     # ---- L1: outcome prevalence ----
     for oc in spec.outcomes:
         name = oc["name"]
+        if oc.get("kind") == "linear":
+            vals = [float(r[name]) for r in bp.clean_rows]
+            mean = sum(vals) / n
+            var = sum((v - mean) ** 2 for v in vals) / n
+            tr_ = oc.get("target_range")
+            if var < 1e-12:
+                add(LintFinding(
+                    "WARN", "L1-degenerate",
+                    "outcome `{}` has zero variance — no signal "
+                    "to regress".format(name)))
+            elif tr_ and not (float(tr_[0]) <= mean
+                              <= float(tr_[1])):
+                add(LintFinding(
+                    "WARN", "L1-range",
+                    "outcome `{}` realizes mean {:.2f} against "
+                    "the declared target range [{}, {}] — "
+                    "adjust the intercept".format(
+                        name, mean, tr_[0], tr_[1])))
+            else:
+                add(LintFinding(
+                    "INFO", "L1-range",
+                    "outcome `{}` realizes mean {:.2f}, sd "
+                    "{:.2f}".format(name, mean, var ** 0.5)))
+            continue
         rate = sum(1 for r in bp.clean_rows
                    if r[name] == "True") / n
         target = oc.get("target_prevalence")

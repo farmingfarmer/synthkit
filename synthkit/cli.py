@@ -180,6 +180,22 @@ def cmd_table_compile(args) -> int:
     return 1
 
 
+def cmd_relational_render(args) -> int:
+    from .relational import (RelationalSpec, plan_relational,
+                             write_relational)
+    spec = RelationalSpec.from_json(
+        Path(args.spec).read_text(encoding="utf-8"))
+    rbp = plan_relational(spec)
+    run_dir = write_relational(Path(args.out), spec, rbp)
+    print("relational -> {}".format(run_dir))
+    for name, bp in rbp.blueprints.items():
+        print("  {}: {} clean / {} dirty row(s)".format(
+            name, len(bp.clean_rows), len(bp.dirty_rows)))
+    print("  {} orphan(s) planted across {} link(s), ledgered"
+          .format(len(rbp.link_ledger), len(spec.links)))
+    return 0
+
+
 def cmd_table_lint(args) -> int:
     from .lint import lint_table
     from .tablespec import TableSpec
@@ -413,6 +429,13 @@ def main(argv=None) -> int:
     p.add_argument("--backend", default="ollama")
     p.add_argument("--model", default="")
     p.set_defaults(fn=cmd_table_compile)
+
+    p = sub.add_parser("relational-render",
+                       help="plan and write a multi-table run "
+                            "with join mess")
+    p.add_argument("spec")
+    p.add_argument("-o", "--out", required=True)
+    p.set_defaults(fn=cmd_relational_render)
 
     p = sub.add_parser("table-lint",
                        help="semantic lint: does the spec mean "

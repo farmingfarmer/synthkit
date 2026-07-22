@@ -405,7 +405,10 @@ _TABLE_COMPILER_SYSTEM = (
     "prevalence (more negative = rarer), and when the "
     "description states a rate ('around 15-20 percent') also "
     "set \"target_prevalence\": [0.15, 0.20] so the linter "
-    "can enforce it.\n"
+    "can enforce it. For CONTINUOUS generated targets use "
+    "kind \"linear\" with intercept, coefficients, and "
+    "noise_sigma (the irreducible error), plus optional "
+    "target_range [lo, hi] for the expected mean.\n"
     "Choose sensible values for anything unspecified; keep rows "
     "<= 500 unless asked."
 )

@@ -296,17 +296,30 @@ def plan_table(spec: TableSpec) -> TableBlueprint:
     true_probs: Dict[str, List[float]] = {}
     for oc in spec.outcomes:
         name = oc["name"]
+        kind = oc.get("kind", "logistic")
         probs: List[float] = []
         for r in range(spec.rows):
             z = float(oc["intercept"])
             for key, w in oc["coefficients"].items():
                 z += float(w) * _feature(key, clean_vals[r])
-            prob = 1.0 / (1.0 + math.exp(-z))
-            probs.append(prob)
-            label = _cell_rng(spec.master_seed, r, name,
-                              "outcome").random() < prob
-            clean_vals[r][name] = label
-            clean_rows[r][name] = clean_str(label)
+            rng = _cell_rng(spec.master_seed, r, name,
+                            "outcome")
+            if kind == "linear":
+                # The noiseless signal is the TRUTH; additive
+                # gaussian noise of known sigma is the
+                # irreducible error that sets the R^2 ceiling.
+                probs.append(z)
+                value = z + rng.gauss(0.0, float(
+                    oc.get("noise_sigma", 0.0)))
+                clean_vals[r][name] = round(value, 4)
+                clean_rows[r][name] = clean_str(
+                    round(value, 4))
+            else:
+                prob = 1.0 / (1.0 + math.exp(-z))
+                probs.append(prob)
+                label = rng.random() < prob
+                clean_vals[r][name] = label
+                clean_rows[r][name] = clean_str(label)
         true_probs[name] = probs
     outcome_names = [oc["name"] for oc in spec.outcomes]
     columns = columns + outcome_names

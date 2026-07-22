@@ -282,6 +282,79 @@ def resolve_table_counts(report: CleaningReport, path: str):
     return None
 
 
+@dataclass
+class RegressionReport:
+    """Continuous-outcome scoring against the planted signal.
+    ceiling_r2 = Var(signal) / Var(realized y): the fraction of
+    outcome variance that IS signal — no model can honestly
+    exceed it, because the rest is noise by construction."""
+    solver_name: str
+    outcome: str
+    n: int
+    r2: float
+    rmse: float
+    mae: float
+    ceiling_r2: float
+
+    @property
+    def r2_gap(self) -> float:
+        return round(self.ceiling_r2 - self.r2, 4)
+
+    def format_text(self) -> str:
+        return ("REGRESSION EVALUATION: {} on `{}` ({} row(s))\n"
+                "  R^2:   {:.3f}   (ceiling {:.3f} — gap {:.3f})"
+                "\n  RMSE:  {:.4f}   MAE: {:.4f}".format(
+                    self.solver_name, self.outcome, self.n,
+                    self.r2, self.ceiling_r2, self.r2_gap,
+                    self.rmse, self.mae))
+
+
+def evaluate_regression(bp, outcome: str,
+                        predictions: List[float],
+                        solver_name: str) -> RegressionReport:
+    if outcome not in bp.true_probs:
+        raise TableEvalError(
+            "`{}` is not a generated outcome of this table"
+            .format(outcome))
+    n = len(bp.clean_rows)
+    if len(predictions) != n:
+        raise TableEvalError(
+            "predictions must cover every clean row: got {} "
+            "for {} rows".format(len(predictions), n))
+    y = [float(r[outcome]) for r in bp.clean_rows]
+    signal = bp.true_probs[outcome]
+    mean_y = sum(y) / n
+    ss_tot = sum((v - mean_y) ** 2 for v in y) or 1e-12
+    ss_res = sum((yv - float(pv)) ** 2
+                 for yv, pv in zip(y, predictions))
+    mean_sig = sum(signal) / n
+    ss_sig = sum((s - mean_sig) ** 2 for s in signal)
+    rmse = (ss_res / n) ** 0.5
+    mae = sum(abs(yv - float(pv))
+              for yv, pv in zip(y, predictions)) / n
+    return RegressionReport(
+        solver_name=solver_name, outcome=outcome, n=n,
+        r2=round(1.0 - ss_res / ss_tot, 4),
+        rmse=round(rmse, 4), mae=round(mae, 4),
+        ceiling_r2=round(min(ss_sig / ss_tot, 1.0), 4))
+
+
+def resolve_regression_metric(report: RegressionReport,
+                              path: str) -> float:
+    mapping = {
+        "regress.r2": report.r2,
+        "regress.rmse": report.rmse,
+        "regress.mae": report.mae,
+        "regress.r2_gap": report.r2_gap,
+        "regress.ceiling_r2": report.ceiling_r2,
+    }
+    if path not in mapping:
+        raise TableEvalError(
+            "unknown regression metric `{}` — known: {}".format(
+                path, ", ".join(sorted(mapping))))
+    return mapping[path]
+
+
 def resolve_prediction_counts(report: "PredictionReport",
                               path: str):
     """AUROC metrics resolve to ("auroc", value, n_pos, n_neg);

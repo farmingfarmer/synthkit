@@ -195,6 +195,67 @@ class LogisticBaseline:
         return out
 
 
+class LinearBaseline:
+    """Ridge regression by full-batch gradient descent on the
+    same mess-tolerant encoder; labels standardized for training,
+    predictions returned in label units. Deterministic."""
+
+    def __init__(self, lr: float = 0.1, epochs: int = 400,
+                 l2: float = 1e-3):
+        self.lr = lr
+        self.epochs = epochs
+        self.l2 = l2
+        self.encoder = FeatureEncoder()
+        self.w: List[float] = []
+        self.b = 0.0
+        self.y_mean = 0.0
+        self.y_std = 1.0
+
+    def fit(self, rows, labels) -> "LinearBaseline":
+        self.encoder.fit(rows)
+        x = [self.encoder.encode(r) for r in rows]
+        n = len(x)
+        self.y_mean = sum(labels) / n
+        var = sum((v - self.y_mean) ** 2 for v in labels) / n
+        self.y_std = math.sqrt(var) or 1.0
+        y = [(v - self.y_mean) / self.y_std for v in labels]
+        d = len(x[0]) if x else 0
+        self.w = [0.0] * d
+        self.b = 0.0
+        for _ in range(self.epochs):
+            grad_w = [0.0] * d
+            grad_b = 0.0
+            for xi, yi in zip(x, y):
+                err = (self.b + sum(w * v for w, v
+                                    in zip(self.w, xi))) - yi
+                grad_b += err
+                for j, v in enumerate(xi):
+                    grad_w[j] += err * v
+            self.b -= self.lr * grad_b / n
+            for j in range(d):
+                self.w[j] -= self.lr * (
+                    grad_w[j] / n + self.l2 * self.w[j])
+        return self
+
+    def predict(self, rows) -> List[float]:
+        out = []
+        for r in rows:
+            xi = self.encoder.encode(r)
+            z = self.b + sum(w * v for w, v in zip(self.w, xi))
+            out.append(z * self.y_std + self.y_mean)
+        return out
+
+
+def autosolver_regress(**kwargs) -> Callable:
+    """The regress-campaign-contract baseline."""
+    def solve(train_rows, train_labels, test_rows):
+        model = LinearBaseline(**kwargs)
+        model.fit(train_rows, [float(v) for v in train_labels])
+        return model.predict(test_rows)
+    solve.__name__ = "synthkit-baseline-regress"
+    return solve
+
+
 def autosolver(**kwargs) -> Callable:
     """The campaign-contract solver: train on the blinded train
     split, score the test split."""

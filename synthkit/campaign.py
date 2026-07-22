@@ -30,7 +30,7 @@ from typing import Any, Callable, Dict, List, Optional
 from .harness import Condition
 from .tablespec import TableSpec
 
-GOALS = ("clean", "predict", "extract")
+GOALS = ("clean", "predict", "extract", "regress")
 
 
 class CampaignError(ValueError):
@@ -199,6 +199,45 @@ def compile_campaign(goal: str, base_spec: Any,
                  "condition is what still bites"),
         ]
         return Campaign(goal, "prediction of `{}`: {}".format(
+            outcome, base_spec.title), tiers, outcome=outcome)
+
+    if goal == "regress":
+        if not isinstance(base_spec, TableSpec):
+            raise CampaignError(
+                "regress campaigns need a TableSpec")
+        linear = [oc for oc in base_spec.outcomes
+                  if oc.get("name") == outcome
+                  and oc.get("kind") == "linear"]
+        if not outcome or not linear:
+            raise CampaignError(
+                "regress campaigns need `outcome` naming a "
+                "kind-linear generated outcome")
+        bar = bars.get("r2", 0.5)
+        gap = bars.get("gap_max", 0.2)
+        conds = ["regress.r2 >= {}".format(bar),
+                 "regress.r2_gap <= {}".format(gap)]
+        tiers = [
+            Tier("strong-signal",
+                 _scaled_table(base_spec, 0.5, False,
+                               signal_factor=1.5).to_json(),
+                 list(conds),
+                 "amplified coefficients, light feature mess"),
+            Tier("as-specified",
+                 _scaled_table(base_spec, 1.0, False,
+                               signal_factor=1.0).to_json(),
+                 list(conds),
+                 "signal and mess as declared"),
+            Tier("weak-signal",
+                 _scaled_table(base_spec, 1.25, False,
+                               signal_factor=0.6).to_json(),
+                 ["regress.r2 >= {}".format(
+                     round(bar - 0.15, 3)),
+                  "regress.r2_gap <= {}".format(gap)],
+                 "attenuated coefficients, messier features; "
+                 "the R^2 ceiling drops with the signal — the "
+                 "gap condition is what still bites"),
+        ]
+        return Campaign(goal, "regression of `{}`: {}".format(
             outcome, base_spec.title), tiers, outcome=outcome)
 
     # extract: documents
@@ -404,6 +443,10 @@ def run_campaign(campaign: Campaign,
             tr = _run_predict_tier(campaign, tier, solver,
                                    solver_name,
                                    train_seed_offset)
+        elif campaign.goal == "regress":
+            tr = _run_regress_tier(campaign, tier, solver,
+                                   solver_name,
+                                   train_seed_offset)
         else:
             tr = _run_extract_tier(campaign, tier, solver,
                                    solver_name)
@@ -518,6 +561,42 @@ def _run_predict_tier(campaign, tier, solver, solver_name,
     tr.measured["predict.auroc"] = round(report.auroc, 4)
     tr.measured["predict.ceiling_auroc"] = round(
         report.ceiling_auroc, 4)
+    tr.evidence += "\n" + report.format_text()
+    return tr
+
+
+def _run_regress_tier(campaign, tier, solver, solver_name,
+                      offset) -> TierResult:
+    """Same blinding law as predict: train on a shifted-seed
+    table, score on the tier table; labels are floats."""
+    from .tableeval import (evaluate_regression,
+                            resolve_regression_metric)
+    from .tableplan import plan_table
+    spec = TableSpec.from_json(tier.spec_json)
+    train_spec = TableSpec.from_json(tier.spec_json)
+    train_spec.master_seed += offset
+    train_bp = plan_table(train_spec)
+    test_bp = plan_table(spec)
+    outcome = campaign.outcome
+    n_train = len(train_bp.clean_rows)
+    train_rows = [
+        {k: v for k, v in row.items() if k != outcome}
+        for row in train_bp.dirty_rows[:n_train]]
+    train_labels = [
+        float(train_bp.clean_rows[r][outcome])
+        for r in range(n_train)]
+    n_test = len(test_bp.clean_rows)
+    test_rows = [
+        {k: v for k, v in row.items() if k != outcome}
+        for row in test_bp.dirty_rows[:n_test]]
+    preds = solver(train_rows, train_labels, test_rows)
+    report = evaluate_regression(test_bp, outcome, list(preds),
+                                 solver_name)
+    tr = _judge(tier.conditions,
+                lambda m: resolve_regression_metric(report, m))
+    tr.tier = tier.name
+    tr.measured["regress.r2"] = report.r2
+    tr.measured["regress.ceiling_r2"] = report.ceiling_r2
     tr.evidence += "\n" + report.format_text()
     return tr
 
