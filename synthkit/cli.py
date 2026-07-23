@@ -47,7 +47,19 @@ def _backend(name: str, model: str = ""):
     sys.exit(2)
 
 
+def _cwd_importable():
+    """Console entry points do not put the working directory on
+    sys.path, so `synthkit evaluate --extractor mymod:fn` could
+    never find mymod beside the spec. (Found live on the Mac the
+    first time a custom extractor met the installed command.)"""
+    import os
+    cwd = os.getcwd()
+    if cwd not in sys.path:
+        sys.path.insert(0, cwd)
+
+
 def _load_extractor(dotted: str):
+    _cwd_importable()
     from .evaluator import FunctionExtractor
     if ":" not in dotted:
         print("extractor must be 'package.module:function'",
@@ -347,6 +359,7 @@ def cmd_campaign_run(args) -> int:
         solver = extractor
     elif ":" in args.solver:
         mod_name, fn_name = args.solver.split(":", 1)
+        _cwd_importable()
         solver = getattr(importlib.import_module(mod_name),
                          fn_name)
     else:

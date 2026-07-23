@@ -136,6 +136,33 @@ def main():
         cli_mod._backend = orig
 
     shutil.rmtree(tmp)
+    # ---------- dotted imports from the working dir ----------
+    # Console entry points lack cwd on sys.path; emulate that and
+    # prove the loaders bootstrap it (live Mac catch).
+    import os as _os
+    tmp = tempfile.mkdtemp(prefix="synthkit_cwd_")
+    (Path(tmp) / "mymod.py").write_text(
+        "from synthkit.evaluator import Extraction\n"
+        "def fn(doc_id, text):\n"
+        "    return [Extraction(category='x', text='y')]\n",
+        encoding="utf-8")
+    prev_cwd = _os.getcwd()
+    prev_path = list(sys.path)
+    try:
+        _os.chdir(tmp)
+        sys.path[:] = [q for q in sys.path
+                       if q not in ("", ".", tmp)]
+        sys.modules.pop("mymod", None)
+        from synthkit.cli import _load_extractor
+        ex = _load_extractor("mymod:fn")
+        check("dotted extractors import from the working "
+              "directory even without cwd on sys.path",
+              ex.extract("d", "t")[0].category == "x")
+    finally:
+        _os.chdir(prev_cwd)
+        sys.path[:] = prev_path
+        sys.modules.pop("mymod", None)
+
     print("\nAll {} checks passed.".format(PASS))
 
 
