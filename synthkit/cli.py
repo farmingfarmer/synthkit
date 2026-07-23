@@ -396,7 +396,18 @@ def cmd_gui(args) -> int:
     return 0
 
 
+def _console_safe():
+    """Windows consoles may be cp1252/cp437; never let a
+    middle-dot crash a command."""
+    for stream in (sys.stdout, sys.stderr):
+        try:
+            stream.reconfigure(errors="replace")
+        except (AttributeError, ValueError):
+            pass
+
+
 def main(argv=None) -> int:
+    _console_safe()
     ap = argparse.ArgumentParser(prog="synthkit")
     sub = ap.add_subparsers(dest="cmd", required=True)
 

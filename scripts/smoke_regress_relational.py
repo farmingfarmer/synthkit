@@ -340,7 +340,7 @@ def main():
               and (tmp / "r1" / "encounters"
                    / "dirty.csv").is_file())
         victim = tmp / "r1" / "links.json"
-        victim.write_text(victim.read_text() + " ",
+        victim.write_text(victim.read_text(encoding="utf-8") + " ",
                           encoding="utf-8")
         try:
             load_relational(tmp / "r1")

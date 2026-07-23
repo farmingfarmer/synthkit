@@ -313,7 +313,7 @@ def main():
           == camp.tiers[2].conditions
           and camp_l.tiers[0].spec_json is not None)
     import json as _j
-    saved = _j.loads((run_dir / "result.json").read_text())
+    saved = _j.loads((run_dir / "result.json").read_text(encoding="utf-8"))
     check("campaign results persist with the full ladder",
           saved["highest_passed"] == ext_result.highest_passed
           and len(saved["tiers"]) == 3)
@@ -333,7 +333,7 @@ def main():
           and "cleared" in table)
 
     victim = run_dir / "campaign.json"
-    victim.write_text(victim.read_text() + " ", encoding="utf-8")
+    victim.write_text(victim.read_text(encoding="utf-8") + " ", encoding="utf-8")
     try:
         load_campaign(run_dir)
         check("tampered campaign refuses to load", False)

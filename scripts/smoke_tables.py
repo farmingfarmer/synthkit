@@ -274,7 +274,7 @@ def main():
           and len(bp_l.ledger) == len(bp.ledger)
           and bp_l.duplicate_of == bp.duplicate_of)
     victim = run / "clean.csv"
-    victim.write_text(victim.read_text() + "x", encoding="utf-8")
+    victim.write_text(victim.read_text(encoding="utf-8") + "x", encoding="utf-8")
     try:
         load_table(run)
         check("tampered table refuses to load", False)
