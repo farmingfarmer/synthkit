@@ -34,7 +34,8 @@ OUT = ROOT / "docs" / "system_map.html"
 # ---------------------------------------------------------------
 
 DOMAINS = [
- {"id": "spec", "label": "Spec Layer", "color": "#1B5FAA",
+ {"id": "spec",
+  "stage": 'English in', "note": 'a paragraph becomes a strict,\nhuman-reviewed contract', "label": "Spec Layer", "color": "#1B5FAA",
   "blurb": "Plain English becomes a strict, reviewable contract. "
            "The compiler is assisted-never-trusted: LLM drafts, "
            "validator teaches, human gates. Live benchmark: 6 "
@@ -80,7 +81,8 @@ DOMAINS = [
       "model at 26%."),
     ]},
   ]},
- {"id": "truth", "label": "Truth Planning", "color": "#6B3FA0",
+ {"id": "truth",
+  "stage": 'plant the truth', "note": 'clean data + ledgered mess,\ndeterministic to the cell', "label": "Truth Planning", "color": "#6B3FA0",
   "blurb": "Deterministic generation where the blueprint IS the "
            "ground truth. Cell-level seeds; every corruption "
            "ledgered; same spec, same data, forever.",
@@ -129,7 +131,8 @@ DOMAINS = [
       "demo, 1.00 after normalizing)."),
     ]},
   ]},
- {"id": "render", "label": "Rendering", "color": "#3D5A6C",
+ {"id": "render",
+  "stage": 'make artifacts', "note": 'csv / corpora under\nintegrity manifests', "label": "Rendering", "color": "#3D5A6C",
   "blurb": "Blueprints become artifacts under integrity "
            "manifests. Documents render via LLM with verify-"
            "and-retry; tables write dirty/clean/ledger; tamper "
@@ -153,7 +156,8 @@ DOMAINS = [
       "verifies before trusting."),
     ]},
   ]},
- {"id": "eval", "label": "Evaluation & Ceilings",
+ {"id": "eval",
+  "stage": 'score vs ceiling', "note": 'exact scoring against the\nledger and the possible', "label": "Evaluation & Ceilings",
   "color": "#B3541E",
   "blurb": "Scoring against the ledger, never heuristics — and "
            "against the CEILING: the best any solver could "
@@ -202,7 +206,8 @@ DOMAINS = [
       "Class-split confidence for AUROC lines."),
     ]},
   ]},
- {"id": "campaign", "label": "Campaigns & Verdicts",
+ {"id": "campaign",
+  "stage": 'verdict out', "note": 'tiered trials -> DECISIVE\nor a prescription', "label": "Campaigns & Verdicts",
   "color": "#A02F44",
   "blurb": "A goal becomes a three-tier ladder with bars. "
            "Verdicts are three-way: DECISIVE when the interval "
@@ -227,7 +232,8 @@ DOMAINS = [
       "clobbered its control arm; never again."),
     ]},
   ]},
- {"id": "solvers", "label": "Solvers & Vendors",
+ {"id": "solvers",
+  "stage": 'take the test', "note": 'baselines, cleaners, and\nany LLM in the vendor chair', "label": "Solvers & Vendors",
   "color": "#4C7A34",
   "blurb": "synthkit competes on its own data: mess-tolerant "
            "encoding, stdlib baselines, an honest reference "
@@ -265,7 +271,8 @@ DOMAINS = [
       "counts as malformed instead of crashing."),
     ]},
   ]},
- {"id": "gates", "label": "Quality Gates", "color": "#B7791F",
+ {"id": "gates",
+  "stage": '', "note": 'validation, semantic lint,\nstatistics — guarding every stage', "label": "Quality Gates", "color": "#B7791F",
   "blurb": "Three layers of gate: validation (lawful?), "
            "semantic lint (meant?), statistics (known?). Every "
            "check here was a human catch first.",
@@ -286,7 +293,8 @@ DOMAINS = [
       "coverage."),
     ]},
   ]},
- {"id": "iface", "label": "Interfaces & Backends",
+ {"id": "iface",
+  "stage": '', "note": 'CLI - bench - notebooks - Bedrock:\nthe doors into every stage', "label": "Interfaces & Backends",
   "color": "#0E6E64",
   "blurb": "One library, four doors: CLI, the calibration "
            "bench, self-contained notebooks, and pluggable LLM "
@@ -476,40 +484,89 @@ function setCrumbs(parts){
    :'<b>'+p.t+'</b>').join(' &nbsp;/&nbsp; ');}
 function hub(){
  setCrumbs([{t:'atlas'}]);
- const W=980,H=540,cx=W/2,cy=H/2;
+ const FLOW=['spec','truth','render','solvers','eval',
+  'campaign'];
+ const RAILS=['gates','iface'];
+ const byId={};DATA.domains.forEach((d,i)=>byId[d.id]=[d,i]);
+ const W=1060,H=600,y=250,x0=118,dx=(W-2*x0)/(FLOW.length-1);
  let s='<svg viewBox="0 0 '+W+' '+H+'" width="100%">';
- const n=DATA.domains.length;
- DATA.domains.forEach((d,i)=>{
-  const a=-Math.PI/2+i*2*Math.PI/n;
-  const x=cx+Math.cos(a)*330,y=cy+Math.sin(a)*195;
-  s+='<line x1="'+cx+'" y1="'+cy+'" x2="'+x+'" y2="'+y+
-   '" stroke="'+d.color+'" stroke-width="1.4" opacity=".35"/>';});
- DATA.domains.forEach((d,i)=>{
-  const a=-Math.PI/2+i*2*Math.PI/n;
-  const x=cx+Math.cos(a)*330,y=cy+Math.sin(a)*195;
+ s+='<defs><marker id="arr" viewBox="0 0 10 10" refX="9" '+
+  'refY="5" markerWidth="7" markerHeight="7" orient="auto">'+
+  '<path d="M0 0 L10 5 L0 10 z" fill="#8A97A3"/></marker>'+
+  '</defs>';
+ s+='<text x="'+(x0-84)+'" y="'+(y-26)+'" font-size="10" '+
+  'fill="#5C6B78">an English</text>'+
+  '<text x="'+(x0-84)+'" y="'+(y-13)+'" font-size="10" '+
+  'fill="#5C6B78">paragraph</text>'+
+  '<line x1="'+(x0-40)+'" y1="'+y+'" x2="'+(x0-56)+'" y2="'+y+
+  '" stroke="#8A97A3" stroke-width="1.6"/>'+
+  '<line x1="'+(x0-56)+'" y1="'+y+'" x2="'+(x0-44)+'" y2="'+y+
+  '" stroke="#8A97A3" stroke-width="1.6" '+
+  'marker-end="url(#arr)"/>';
+ for(let k=0;k<FLOW.length-1;k++){
+  const xa=x0+k*dx+46,xb=x0+(k+1)*dx-52;
+  s+='<line x1="'+xa+'" y1="'+y+'" x2="'+xb+'" y2="'+y+
+   '" stroke="#8A97A3" stroke-width="1.6" '+
+   'marker-end="url(#arr)"/>';}
+ const xe=x0+(FLOW.length-1)*dx;
+ s+='<line x1="'+(xe+46)+'" y1="'+y+'" x2="'+(xe+62)+'" y2="'+
+  y+'" stroke="#8A97A3" stroke-width="1.6" '+
+  'marker-end="url(#arr)"/>'+
+  '<text x="'+(xe+70)+'" y="'+(y-6)+'" font-size="10" '+
+  'fill="#5C6B78">a measured</text>'+
+  '<text x="'+(xe+70)+'" y="'+(y+7)+'" font-size="10" '+
+  'fill="#5C6B78">verdict</text>';
+ FLOW.forEach((id,k)=>{
+  const [d,i]=byId[id];const x=x0+k*dx;
+  const above=(k%2===0);
   s+='<g class="node" onclick="domain('+i+')">'+
    '<circle class="halo" cx="'+x+'" cy="'+y+
-   '" r="66" fill="'+d.color+'"/>'+
-   '<circle cx="'+x+'" cy="'+y+'" r="52" fill="'+d.color+'"/>'+
-   '<text x="'+x+'" y="'+(y-2)+'" text-anchor="middle" '+
-   'fill="#fff" font-size="11.5" font-weight="600">'+
-   d.label.split(' &amp; ')[0].split(' ').slice(0,2).join(' ')+
-   '</text>'+
+   '" r="56" fill="'+d.color+'"/>'+
+   '<circle cx="'+x+'" cy="'+y+'" r="44" fill="'+d.color+'"/>'+
+   '<text x="'+x+'" y="'+(y-1)+'" text-anchor="middle" '+
+   'fill="#fff" font-size="10.5" font-weight="600">'+
+   ('0'+(k+1))+'</text>'+
    '<text x="'+x+'" y="'+(y+13)+'" text-anchor="middle" '+
-   'fill="#fff" font-size="10" opacity=".9">'+
-   (d.modules.length)+' module'+
-   (d.modules.length>1?'s':'')+'</text></g>';});
- s+='<circle cx="'+cx+'" cy="'+cy+
-  '" r="64" fill="#17222C"/>'+
-  '<text x="'+cx+'" y="'+cy+'" text-anchor="middle" '+
-  'fill="#fff" font-size="14" font-weight="600" '+
-  'letter-spacing="2">SYNTHKIT</text>'+
-  '<text x="'+cx+'" y="'+(cy+17)+'" text-anchor="middle" '+
-  'fill="#9FB0BC" font-size="9">truth you planted</text></svg>';
- stage.innerHTML=s+'<div class="blurb">Eight domains, every '+
-  'node clickable. Colors persist as you descend: domain '+
-  '&rarr; modules &rarr; components &rarr; the actual source, '+
-  'extracted from the live files at build time.</div>';}
+   'fill="#fff" font-size="9" opacity=".95">'+
+   d.stage+'</text></g>';
+  const ly=above?y-118:y+82;
+  s+='<line x1="'+x+'" y1="'+(above?y-56:y+56)+'" x2="'+x+
+   '" y2="'+(above?ly+30:ly-12)+'" stroke="'+d.color+
+   '" stroke-width="1.2" opacity=".5"/>';
+  s+='<text x="'+x+'" y="'+ly+'" text-anchor="middle" '+
+   'font-size="11.5" font-weight="600" fill="#17222C">'+
+   d.label+'</text>';
+  d.note.split('\n').forEach((ln,q)=>{
+   s+='<text x="'+x+'" y="'+(ly+15+q*13)+
+    '" text-anchor="middle" font-size="9.5" '+
+    'fill="#5C6B78">'+ln+'</text>';});
+ });
+ RAILS.forEach((id,r)=>{
+  const [d,i]=byId[id];const ry=442+r*72;
+  s+='<g class="node" onclick="domain('+i+')">'+
+   '<rect class="halo" x="'+(x0-58)+'" y="'+(ry-26)+
+   '" width="'+(W-2*x0+116)+'" height="52" rx="8" fill="'+
+   d.color+'"/>'+
+   '<rect x="'+(x0-50)+'" y="'+(ry-20)+'" width="'+
+   (W-2*x0+100)+'" height="40" rx="5" fill="#fff" stroke="'+
+   d.color+'" stroke-width="2"/>'+
+   '<text x="'+(x0-34)+'" y="'+(ry+4)+'" font-size="11.5" '+
+   'font-weight="600" fill="'+d.color+'">'+d.label+'</text>'+
+   '<text x="'+(W-x0+34)+'" y="'+(ry+4)+'" font-size="9.5" '+
+   'text-anchor="end" fill="#5C6B78">'+
+   d.note.replace(/\n/g,' ')+'</text></g>';
+  for(let k=0;k<FLOW.length;k++){
+   const x=x0+k*dx;
+   s+='<line x1="'+x+'" y1="'+(ry-20)+'" x2="'+x+'" y2="'+
+    (r===0?y+140:ry-52+0)+'" stroke="'+d.color+
+    '" stroke-width="1" opacity=".18"/>';}
+ });
+ s+='</svg>';
+ stage.innerHTML=s+'<div class="blurb">The pipeline reads '+
+  'left to right: what happens to your paragraph. The two '+
+  'rails below guard and expose every stage. Every node is '+
+  'clickable: domain &rarr; modules &rarr; components &rarr; '+
+  'the actual source.</div>';}
 function domain(i){
  const d=DATA.domains[i];
  setCrumbs([{t:'atlas',go:'hub()'},{t:d.label}]);
