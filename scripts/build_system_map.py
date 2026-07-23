@@ -462,34 +462,41 @@ footer{margin-top:12px;font-family:var(--mono);font-size:11px;
  <span>rebuild: python scripts/build_system_map.py</span></footer>
 <script id="atlas" type="application/json">@@DATA@@</script>
 <script>
-const DATA=JSON.parse(document.getElementById('atlas').textContent);
-const stage=document.getElementById('stage');
-const crumbs=document.getElementById('crumbs');
-function esc(s){return s.replace(/&/g,'&amp;')
+var DATA=JSON.parse(document.getElementById('atlas').textContent);
+var stage=document.getElementById('stage');
+var crumbs=document.getElementById('crumbs');
+function esc(s){return String(s).replace(/&/g,'&amp;')
  .replace(/</g,'&lt;').replace(/>/g,'&gt;');}
 function hi(code){
- let s=esc(code);
- s=s.replace(/(&quot;{3}|'''|&quot;|')((?:\\.|(?!\1)[^\\\n])*)(\1)/g,
-   (m)=>'<span class="tok-s">'+m+'</span>');
+ var s=esc(code);
+ s=s.replace(/(&quot;|')((?:\\.|(?!\1)[^\\\n])*)(\1)/g,
+  function(m){return '<span class="tok-s">'+m+'</span>';});
  s=s.replace(/(^|\n)([ \t]*#[^\n]*)/g,
-   (m,a,b)=>a+'<span class="tok-c">'+b+'</span>');
+  function(m,a,b){return a+'<span class="tok-c">'+b+
+   '</span>';});
  s=s.replace(/\b(def|class|return|if|elif|else|for|while|try|except|finally|with|import|from|raise|yield|lambda|not|and|or|in|is|None|True|False|assert|continue|break|pass|global)\b/g,
-   '<span class="tok-k">$1</span>');
- s=s.replace(/\b(self|cls)\b/g,'<span class="tok-d">$1</span>');
+  '<span class="tok-k">$1</span>');
+ s=s.replace(/\b(self|cls)\b/g,
+  '<span class="tok-d">$1</span>');
  return s;}
 function setCrumbs(parts){
- crumbs.innerHTML=parts.map((p,i)=>
-  i<parts.length-1
-   ?'<a onclick="'+p.go+'">'+p.t+'</a>'
-   :'<b>'+p.t+'</b>').join(' &nbsp;/&nbsp; ');}
+ var out=[];
+ for(var i=0;i<parts.length;i++){
+  var p=parts[i];
+  if(i<parts.length-1){
+   out.push('<a data-act="'+p.act+'" data-i="'+
+    (p.i===undefined?'':p.i)+'">'+p.t+'</a>');}
+  else{out.push('<b>'+p.t+'</b>');}}
+ crumbs.innerHTML=out.join(' &nbsp;/&nbsp; ');}
 function hub(){
  setCrumbs([{t:'atlas'}]);
- const FLOW=['spec','truth','render','solvers','eval',
-  'campaign'];
- const RAILS=['gates','iface'];
- const byId={};DATA.domains.forEach((d,i)=>byId[d.id]=[d,i]);
- const W=1060,H=600,y=250,x0=118,dx=(W-2*x0)/(FLOW.length-1);
- let s='<svg viewBox="0 0 '+W+' '+H+'" width="100%">';
+ var FLOW=['spec','truth','render','solvers','eval','campaign'];
+ var RAILS=['gates','iface'];
+ var byId={};
+ for(var i=0;i<DATA.domains.length;i++){
+  byId[DATA.domains[i].id]=[DATA.domains[i],i];}
+ var W=1060,H=600,y=250,x0=118,dx=(W-2*x0)/(FLOW.length-1);
+ var s='<svg viewBox="0 0 '+W+' '+H+'" width="100%">';
  s+='<defs><marker id="arr" viewBox="0 0 10 10" refX="9" '+
   'refY="5" markerWidth="7" markerHeight="7" orient="auto">'+
   '<path d="M0 0 L10 5 L0 10 z" fill="#8A97A3"/></marker>'+
@@ -498,17 +505,16 @@ function hub(){
   'fill="#5C6B78">an English</text>'+
   '<text x="'+(x0-84)+'" y="'+(y-13)+'" font-size="10" '+
   'fill="#5C6B78">paragraph</text>'+
-  '<line x1="'+(x0-40)+'" y1="'+y+'" x2="'+(x0-56)+'" y2="'+y+
-  '" stroke="#8A97A3" stroke-width="1.6"/>'+
   '<line x1="'+(x0-56)+'" y1="'+y+'" x2="'+(x0-44)+'" y2="'+y+
   '" stroke="#8A97A3" stroke-width="1.6" '+
   'marker-end="url(#arr)"/>';
- for(let k=0;k<FLOW.length-1;k++){
-  const xa=x0+k*dx+46,xb=x0+(k+1)*dx-52;
+ var k;
+ for(k=0;k<FLOW.length-1;k++){
+  var xa=x0+k*dx+46,xb=x0+(k+1)*dx-52;
   s+='<line x1="'+xa+'" y1="'+y+'" x2="'+xb+'" y2="'+y+
    '" stroke="#8A97A3" stroke-width="1.6" '+
    'marker-end="url(#arr)"/>';}
- const xe=x0+(FLOW.length-1)*dx;
+ var xe=x0+(FLOW.length-1)*dx;
  s+='<line x1="'+(xe+46)+'" y1="'+y+'" x2="'+(xe+62)+'" y2="'+
   y+'" stroke="#8A97A3" stroke-width="1.6" '+
   'marker-end="url(#arr)"/>'+
@@ -516,70 +522,73 @@ function hub(){
   'fill="#5C6B78">a measured</text>'+
   '<text x="'+(xe+70)+'" y="'+(y+7)+'" font-size="10" '+
   'fill="#5C6B78">verdict</text>';
- FLOW.forEach((id,k)=>{
-  const [d,i]=byId[id];const x=x0+k*dx;
-  const above=(k%2===0);
-  s+='<g class="node" onclick="domain('+i+')">'+
+ for(k=0;k<FLOW.length;k++){
+  var pair=byId[FLOW[k]],d=pair[0],di=pair[1];
+  var x=x0+k*dx,above=(k%2===0);
+  s+='<g class="node" data-act="domain" data-i="'+di+'">'+
    '<circle class="halo" cx="'+x+'" cy="'+y+
    '" r="56" fill="'+d.color+'"/>'+
-   '<circle cx="'+x+'" cy="'+y+'" r="44" fill="'+d.color+'"/>'+
+   '<circle cx="'+x+'" cy="'+y+'" r="44" fill="'+d.color+
+   '"/>'+
    '<text x="'+x+'" y="'+(y-1)+'" text-anchor="middle" '+
-   'fill="#fff" font-size="10.5" font-weight="600">'+
-   ('0'+(k+1))+'</text>'+
+   'fill="#fff" font-size="10.5" font-weight="600">0'+
+   (k+1)+'</text>'+
    '<text x="'+x+'" y="'+(y+13)+'" text-anchor="middle" '+
-   'fill="#fff" font-size="9" opacity=".95">'+
-   d.stage+'</text></g>';
-  const ly=above?y-118:y+82;
+   'fill="#fff" font-size="9" opacity=".95">'+d.stage+
+   '</text></g>';
+  var ly=above?y-118:y+82;
   s+='<line x1="'+x+'" y1="'+(above?y-56:y+56)+'" x2="'+x+
    '" y2="'+(above?ly+30:ly-12)+'" stroke="'+d.color+
    '" stroke-width="1.2" opacity=".5"/>';
   s+='<text x="'+x+'" y="'+ly+'" text-anchor="middle" '+
    'font-size="11.5" font-weight="600" fill="#17222C">'+
    d.label+'</text>';
-  d.note.split('\n').forEach((ln,q)=>{
+  var noteLines=d.note.split('\n');
+  for(var q=0;q<noteLines.length;q++){
    s+='<text x="'+x+'" y="'+(ly+15+q*13)+
     '" text-anchor="middle" font-size="9.5" '+
-    'fill="#5C6B78">'+ln+'</text>';});
- });
- RAILS.forEach((id,r)=>{
-  const [d,i]=byId[id];const ry=442+r*72;
-  s+='<g class="node" onclick="domain('+i+')">'+
+    'fill="#5C6B78">'+noteLines[q]+'</text>';}}
+ for(var r=0;r<RAILS.length;r++){
+  var rp=byId[RAILS[r]],rd=rp[0],ri=rp[1];
+  var ry=442+r*72;
+  s+='<g class="node" data-act="domain" data-i="'+ri+'">'+
    '<rect class="halo" x="'+(x0-58)+'" y="'+(ry-26)+
    '" width="'+(W-2*x0+116)+'" height="52" rx="8" fill="'+
-   d.color+'"/>'+
+   rd.color+'"/>'+
    '<rect x="'+(x0-50)+'" y="'+(ry-20)+'" width="'+
    (W-2*x0+100)+'" height="40" rx="5" fill="#fff" stroke="'+
-   d.color+'" stroke-width="2"/>'+
+   rd.color+'" stroke-width="2"/>'+
    '<text x="'+(x0-34)+'" y="'+(ry+4)+'" font-size="11.5" '+
-   'font-weight="600" fill="'+d.color+'">'+d.label+'</text>'+
+   'font-weight="600" fill="'+rd.color+'">'+rd.label+
+   '</text>'+
    '<text x="'+(W-x0+34)+'" y="'+(ry+4)+'" font-size="9.5" '+
    'text-anchor="end" fill="#5C6B78">'+
-   d.note.replace(/\n/g,' ')+'</text></g>';
-  for(let k=0;k<FLOW.length;k++){
-   const x=x0+k*dx;
-   s+='<line x1="'+x+'" y1="'+(ry-20)+'" x2="'+x+'" y2="'+
-    (r===0?y+140:ry-52+0)+'" stroke="'+d.color+
-    '" stroke-width="1" opacity=".18"/>';}
- });
+   rd.note.replace(/\n/g,' ')+'</text></g>';
+  for(k=0;k<FLOW.length;k++){
+   var tx=x0+k*dx;
+   s+='<line x1="'+tx+'" y1="'+(ry-20)+'" x2="'+tx+'" y2="'+
+    (r===0?y+140:ry-52)+'" stroke="'+rd.color+
+    '" stroke-width="1" opacity=".18"/>';}}
  s+='</svg>';
  stage.innerHTML=s+'<div class="blurb">The pipeline reads '+
   'left to right: what happens to your paragraph. The two '+
   'rails below guard and expose every stage. Every node is '+
-  'clickable: domain &rarr; modules &rarr; components &rarr; '+
-  'the actual source.</div>';}
-function domain(i){
- const d=DATA.domains[i];
- setCrumbs([{t:'atlas',go:'hub()'},{t:d.label}]);
- const W=980,H=340,cx=180,cy=H/2;
- let s='<svg viewBox="0 0 '+W+' '+H+'" width="100%">';
- const n=d.modules.length;
- d.modules.forEach((m,j)=>{
-  const y=60+j*( (H-100)/Math.max(n-1,1) );
-  const x=560;
+  'clickable: domain &rarr; modules &rarr; components '+
+  '&rarr; the actual source.</div>';}
+function domainView(i){
+ var d=DATA.domains[i];
+ setCrumbs([{t:'atlas',act:'hub'},{t:d.label}]);
+ var W=980,H=340,cx=180,cy=H/2;
+ var s='<svg viewBox="0 0 '+W+' '+H+'" width="100%">';
+ var n=d.modules.length;
+ for(var j=0;j<n;j++){
+  var m=d.modules[j];
+  var y=60+j*((H-100)/Math.max(n-1,1)),x=560;
   s+='<path d="M '+(cx+58)+' '+cy+' C 380 '+cy+', 380 '+y+
    ', '+(x-96)+' '+y+'" stroke="'+d.color+
    '" stroke-width="1.4" fill="none" opacity=".4"/>';
-  s+='<g class="node" onclick="module('+i+','+j+')">'+
+  s+='<g class="node" data-act="module" data-i="'+i+
+   '" data-j="'+j+'">'+
    '<rect class="halo" x="'+(x-104)+'" y="'+(y-30)+
    '" width="208" height="60" rx="6" fill="'+d.color+'"/>'+
    '<rect x="'+(x-96)+'" y="'+(y-24)+'" width="192" '+
@@ -592,41 +601,59 @@ function domain(i){
    'fill="'+d.color+'" font-size="9.5">'+
    m.components.length+' component'+
    (m.components.length>1?'s':'')+' &middot; '+m.file+
-   '</text></g>';});
- s+='<circle cx="'+cx+'" cy="'+cy+'" r="58" fill="'+
-  d.color+'"/>'+
+   '</text></g>';}
+ s+='<circle cx="'+cx+'" cy="'+cy+'" r="58" fill="'+d.color+
+  '"/>'+
   '<text x="'+cx+'" y="'+(cy+4)+'" text-anchor="middle" '+
   'fill="#fff" font-size="11.5" font-weight="600">'+
   d.label+'</text></svg>';
  stage.innerHTML=s+'<div class="blurb">'+d.blurb+'</div>';}
-function module(i,j){
- const d=DATA.domains[i],m=d.modules[j];
- setCrumbs([{t:'atlas',go:'hub()'},
-  {t:d.label,go:'domain('+i+')'},{t:m.name}]);
- let chips='';
- m.components.forEach((c,k)=>{
-  chips+='<div class="chip" style="--accent:'+d.color+
-   '" id="chip'+k+'" onclick="show('+i+','+j+','+k+')">'+
-   '<b>'+esc(c.label)+'</b><small>'+c.file+' &middot; '+
-   esc(c.symbol)+'</small></div>';});
+function moduleView(i,j){
+ var d=DATA.domains[i],m=d.modules[j];
+ setCrumbs([{t:'atlas',act:'hub'},
+  {t:d.label,act:'domain',i:i},{t:m.name}]);
+ var chips='';
+ for(var k=0;k<m.components.length;k++){
+  var c=m.components[k];
+  chips+='<div class="chip" style="border-left-color:'+
+   d.color+'" data-act="show" data-i="'+i+'" data-j="'+j+
+   '" data-k="'+k+'" id="chip'+k+'">'+
+   '<b>'+esc(c.label)+'</b><small>'+c.file+
+   ' &middot; '+esc(c.symbol)+'</small></div>';}
  stage.innerHTML='<div class="explorer"><div>'+
   '<div class="blurb" style="margin:0 0 12px">'+m.blurb+
   '</div>'+chips+'</div><div id="codepane"></div></div>';
- show(i,j,0);}
-function show(i,j,k){
- const d=DATA.domains[i],c=d.modules[j].components[k];
- document.querySelectorAll('.chip').forEach((el,idx)=>
-  el.classList.toggle('active',idx===k));
+ showComp(i,j,0);}
+function showComp(i,j,k){
+ var d=DATA.domains[i],c=d.modules[j].components[k];
+ var chipEls=document.querySelectorAll('.chip');
+ for(var q=0;q<chipEls.length;q++){
+  chipEls[q].className=(q===k)?'chip active':'chip';}
  document.getElementById('codepane').innerHTML=
-  '<div class="codebox"><div class="codehead">'+
-  'synthkit/'+c.file+' &nbsp;&middot;&nbsp; <b>'+
-  esc(c.symbol)+'</b></div>'+
+  '<div class="codebox"><div class="codehead">synthkit/'+
+  c.file+' &nbsp;&middot;&nbsp; <b>'+esc(c.symbol)+
+  '</b></div>'+
   '<div class="compblurb">'+esc(c.blurb)+'</div>'+
   '<pre class="code">'+hi(c.code)+'</pre></div>';}
-window.domain=domain;window.module=module;
-window.show=show;window.hub=hub;
+function findAct(el){
+ while(el&&el!==document){
+  if(el.getAttribute&&el.getAttribute('data-act')){
+   return el;}
+  el=el.parentNode;}
+ return null;}
+document.addEventListener('click',function(ev){
+ var el=findAct(ev.target);
+ if(!el)return;
+ var act=el.getAttribute('data-act');
+ var i=parseInt(el.getAttribute('data-i')||'0',10);
+ var j=parseInt(el.getAttribute('data-j')||'0',10);
+ var k=parseInt(el.getAttribute('data-k')||'0',10);
+ if(act==='hub')hub();
+ else if(act==='domain')domainView(i);
+ else if(act==='module')moduleView(i,j);
+ else if(act==='show')showComp(i,j,k);});
 hub();
-</script></body></html>
+</script></script></body></html>
 """
 
 
