@@ -1,0 +1,177 @@
+{
+  "title": "Chest X-ray report extraction corpus",
+  "structured_fields": [
+    {
+      "name": "report_id",
+      "ftype": "id",
+      "distribution": {
+        "kind": "sequence",
+        "params": {
+          "prefix": "CXR-",
+          "start": 50000
+        }
+      },
+      "nullable_rate": 0.0
+    },
+    {
+      "name": "patient_name",
+      "ftype": "person_name",
+      "distribution": {
+        "kind": "categorical",
+        "params": {
+          "choices": [
+            "x"
+          ]
+        }
+      },
+      "nullable_rate": 0.0
+    },
+    {
+      "name": "study_date",
+      "ftype": "date",
+      "distribution": {
+        "kind": "date_range",
+        "params": {
+          "start": "2026-02-01",
+          "end": "2026-07-01"
+        }
+      },
+      "nullable_rate": 0.0
+    },
+    {
+      "name": "view_count",
+      "ftype": "int",
+      "distribution": {
+        "kind": "uniform",
+        "params": {
+          "low": 1,
+          "high": 2
+        }
+      },
+      "nullable_rate": 0.0
+    }
+  ],
+  "unstructured_fields": [
+    {
+      "name": "report_text",
+      "note_type": "chest x-ray radiology report",
+      "target_elements": [
+        {
+          "element_id": "acute_finding",
+          "description": "an acute abnormality present on THIS study",
+          "phrasings": [
+            "new {value} in the right lower lobe",
+            "there is {value} at the left base",
+            "{value} is present, increased from prior",
+            "findings consistent with {value}"
+          ],
+          "density": 0.85,
+          "difficulty": "easy",
+          "value_source": {
+            "choices": [
+              "patchy airspace opacity",
+              "a small pleural effusion",
+              "pulmonary edema",
+              "a dense consolidation"
+            ]
+          }
+        },
+        {
+          "element_id": "device_position",
+          "description": "a support device and its position",
+          "phrasings": [
+            "{value} in satisfactory position",
+            "{value} tip projects over the cavoatrial junction",
+            "{value} remains in place"
+          ],
+          "density": 0.6,
+          "difficulty": "medium",
+          "value_source": {
+            "choices": [
+              "endotracheal tube",
+              "right PICC line",
+              "nasogastric tube",
+              "left chest tube"
+            ]
+          }
+        },
+        {
+          "element_id": "comparison_change",
+          "description": "explicit change versus the prior study",
+          "phrasings": [
+            "interval {value} compared with the prior study",
+            "{value} since yesterday's radiograph"
+          ],
+          "density": 0.5,
+          "difficulty": "hard",
+          "value_source": {
+            "choices": [
+              "improvement",
+              "worsening",
+              "no significant change"
+            ]
+          }
+        }
+      ],
+      "distractors": [
+        {
+          "distractor_id": "negated_finding",
+          "description": "a finding explicitly ABSENT - must not be extracted as acute",
+          "phrasings": [
+            "no evidence of {value}",
+            "without focal {value}",
+            "{value} is not identified"
+          ],
+          "density": 0.7,
+          "value_source": {
+            "choices": [
+              "pneumothorax",
+              "consolidation",
+              "pleural effusion"
+            ]
+          }
+        },
+        {
+          "distractor_id": "historical_finding",
+          "description": "a chronic/known finding, unchanged - not acute on this study",
+          "phrasings": [
+            "stable {value}, unchanged from 2019",
+            "known chronic {value}, previously characterized"
+          ],
+          "density": 0.45,
+          "value_source": {
+            "choices": [
+              "calcified granuloma",
+              "mild cardiomegaly",
+              "apical scarring"
+            ]
+          }
+        }
+      ],
+      "style": {
+        "personas": [
+          "attending radiologist",
+          "resident"
+        ],
+        "verbosity": [
+          "terse",
+          "moderate"
+        ],
+        "abbreviation": [
+          "none",
+          "moderate"
+        ]
+      },
+      "length_words": [
+        40,
+        140
+      ]
+    }
+  ],
+  "cross_field_rules": [],
+  "corpus": {
+    "size": 24,
+    "master_seed": 7
+  },
+  "version": 1
+}
