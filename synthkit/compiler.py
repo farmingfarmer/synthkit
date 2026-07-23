@@ -54,7 +54,7 @@ class OllamaBackend(LLMBackend):
 
     def __init__(self, model: str = "mistral-small3.1",
                  host: str = "http://localhost:11434",
-                 timeout_s: float = 300.0):
+                 timeout_s: float = 120.0):
         self.model = model
         self.host = host.rstrip("/")
         self.timeout_s = timeout_s

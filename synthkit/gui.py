@@ -64,12 +64,16 @@ def build_fingerprint() -> str:
 _JOBS: Dict[str, dict] = {}
 
 
+JOB_BUDGET_S = 1800.0   # a campaign should not outlive this
+
+
 def _start_job(fn, payload: dict) -> str:
     import time
     import uuid
     job_id = uuid.uuid4().hex[:12]
     _JOBS[job_id] = {"status": "running",
-                     "started": time.time()}
+                     "started": time.time(),
+                     "cancelled": False}
 
     def work():
         try:
@@ -92,13 +96,37 @@ def api_job(payload: dict) -> dict:
     job = _JOBS.get(payload.get("id", ""))
     if job is None:
         return {"error": "unknown job"}
-    out = {"status": job["status"],
-           "elapsed": round(time.time() - job["started"], 1)}
-    if job["status"] == "done":
+    elapsed = round(time.time() - job["started"], 1)
+    status = job["status"]
+    if status == "running" and job.get("cancelled"):
+        status = "cancelled"
+    elif status == "running" and elapsed > JOB_BUDGET_S:
+        status = "timeout"
+    out = {"status": status, "elapsed": elapsed}
+    if status == "done":
         out["result"] = job["result"]
-    elif job["status"] == "error":
+    elif status == "error":
         out["error"] = job["error"]
+    elif status == "timeout":
+        out["error"] = ("job exceeded its {}s budget — the "
+                        "backend is likely crawling or wedged "
+                        "(a wedged ollama once served a 6-minute "
+                        "run for 106 minutes). The thread may "
+                        "still finish in the background; safe "
+                        "to move on.".format(int(JOB_BUDGET_S)))
+    elif status == "cancelled":
+        out["error"] = ("cancelled — the current backend call "
+                        "may run to completion in the "
+                        "background, then stop")
     return out
+
+
+def api_job_cancel(payload: dict) -> dict:
+    job = _JOBS.get(payload.get("id", ""))
+    if job is None:
+        return {"error": "unknown job"}
+    job["cancelled"] = True
+    return {"ok": True}
 
 
 def _backend(name: str, model: str):
@@ -138,10 +166,73 @@ def _solver(name: str) -> Callable:
 # API operations
 # ===================================================================
 
+_CALIBRATED_ENCOUNTER = """{
+  "title": "Inpatient encounters (readmission study)",
+  "rows": 400,
+  "master_seed": 12345,
+  "duplicate_rate": 0.03,
+  "columns": [
+    {"name": "patient_id", "ctype": "str_id",
+     "distribution": {"kind": "sequence", "prefix": "P",
+                      "start": 20000}},
+    {"name": "patient_name", "ctype": "person_name",
+     "mess": {"case_rate": 0.05, "space_rate": 0.02}},
+    {"name": "age", "ctype": "int",
+     "distribution": {"kind": "normal", "mean": 62, "std": 15,
+                      "min": 18, "max": 100},
+     "mess": {"missing_rate": 0.12}},
+    {"name": "admitting_department", "ctype": "category",
+     "distribution": {"kind": "categorical",
+       "choices": ["internal medicine", "cardiology",
+                   "oncology", "emergency"],
+       "weights": [0.5, 0.2, 0.2, 0.1]},
+     "mess": {"typo_rate": 0.05}},
+    {"name": "length_of_stay", "ctype": "int",
+     "distribution": {"kind": "mixture",
+       "components": [{"kind": "uniform", "min": 1, "max": 4},
+                      {"kind": "uniform", "min": 10,
+                       "max": 18}],
+       "weights": [0.75, 0.25]},
+     "mess": {"outlier_rate": 0.01, "outlier_factor": 2}},
+    {"name": "total_charges", "ctype": "float",
+     "mess": {"outlier_rate": 0.02, "outlier_factor": 40.0}},
+    {"name": "admission_date", "ctype": "date",
+     "distribution": {"kind": "date_range",
+                      "start": "2026-01-01",
+                      "end": "2026-06-30"},
+     "mess": {"format_rate": 0.05}},
+    {"name": "discharge_date", "ctype": "date",
+     "mess": {"wrong_rate": 0.02}}
+  ],
+  "rules": [
+    {"kind": "date_after", "earlier": "admission_date",
+     "later": "discharge_date", "days_from": "length_of_stay"},
+    {"kind": "derived", "target": "total_charges",
+     "source": "length_of_stay", "factor": 2100,
+     "noise_sigma": 0.15}
+  ],
+  "outcomes": [
+    {"name": "readmitted", "kind": "logistic",
+     "intercept": -3.8,
+     "coefficients": {"length_of_stay": 0.1, "age": 0.02,
+                      "admitting_department=oncology": 0.8},
+     "target_prevalence": [0.10, 0.25]}
+  ]
+}"""
+
+
 def api_presets() -> dict:
     from .examples import reference_spec, reference_table
+    import json as _json
+    calibrated = _CALIBRATED_ENCOUNTER
     return {"presets": [
-        {"name": "Encounter billing table",
+        {"name": "Encounter benchmark (calibrated)",
+         "kind": "table",
+         "description": "the 400-row readmission study from the "
+                        "live compiler benchmark: coupled dates, "
+                        "derived charges, declared prevalence",
+         "spec": _json.loads(calibrated)},
+        {"name": "Billing table (reference)",
          "kind": "table",
          "description": "billing extract with bimodal stays, "
                         "cost derived from stay, every mess tier",
@@ -282,7 +373,19 @@ def api_campaign_compile(payload: dict) -> dict:
     camp = compile_campaign(payload["goal"], spec,
                             bars=payload.get("bars") or {},
                             outcome=payload.get("outcome", ""))
-    out = Path(payload.get("out") or "gui_runs/campaign_001")
+    out = payload.get("out", "")
+    if not out:
+        # Auto-increment: each compile gets its own directory so
+        # trial history stays with the campaign that produced it
+        # (a live tour found regress arms filed under a clean
+        # campaign's tiers).
+        base = Path("gui_runs")
+        base.mkdir(exist_ok=True)
+        n = 1
+        while (base / "campaign_{:03d}".format(n)).exists():
+            n += 1
+        out = base / "campaign_{:03d}".format(n)
+    out = Path(out)
     write_campaign(out, camp)
     return {"campaign_dir": str(out),
             "title": camp.title,
@@ -355,6 +458,7 @@ _ROUTES = {
     "/api/showdown-async": lambda payload: {
         "job": _start_job(api_showdown, payload)},
     "/api/job": api_job,
+    "/api/job-cancel": api_job_cancel,
     "/api/showdown": api_showdown,
 }
 
@@ -507,6 +611,10 @@ pre.out{font-family:var(--mono);font-size:12px;line-height:1.55;
   overflow:auto;max-height:420px;white-space:pre-wrap;
   margin-top:12px}
 pre.out:empty{display:none}
+.outlabel{font-family:var(--mono);font-size:10px;
+  letter-spacing:.16em;color:var(--dim);
+  text-transform:uppercase;margin-top:14px}
+.outlabel:has(+pre.out:empty){display:none}
 pre.out .ok{color:var(--pass)} pre.out .bad{color:var(--fail)}
 .verdict-pass{color:var(--pass);font-weight:600}
 .verdict-fail{color:var(--fail);font-weight:600}
@@ -570,6 +678,7 @@ table.preview th{background:var(--chip);
     <div class="hint">Compiled specs are drafts. Validation problems
     are shown verbatim; nothing renders until the spec validates and
     you have reviewed it — that pause is the safety story.</div>
+    <div class="outlabel">readout &mdash; results only, not editable</div>
     <pre class="out" id="compile-out"></pre>
   </div>
 </section>
@@ -582,6 +691,8 @@ table.preview th{background:var(--chip);
     <button class="act" onclick="validateSpec()">Validate</button>
     <button class="act ghost" onclick="planSpec()">Plan (dry run)</button>
     <button class="act ghost" onclick="lintSpec()">Semantic lint</button>
+    <button class="act ghost" onclick="downloadSpec()">Download spec.json</button>
+    <div class="outlabel">readout &mdash; results only, not editable</div>
     <pre class="out" id="spec-out"></pre>
   </div>
 </section>
@@ -595,6 +706,7 @@ table.preview th{background:var(--chip);
     <div class="hint">Tables write dirty.csv + clean.csv +
     ledger.json under an integrity manifest. Document corpora render
     stub-verified here; use the CLI with ollama for live prose.</div>
+    <div class="outlabel">readout &mdash; results only, not editable</div>
     <pre class="out" id="render-out"></pre>
     <div id="render-preview"></div>
   </div>
@@ -629,6 +741,7 @@ table.preview th{background:var(--chip);
         <input id="intervention" placeholder="optional"></div>
     </div>
     <button class="act" onclick="campaignRun()">Run ladder</button>
+    <div class="outlabel">readout &mdash; results only, not editable</div>
     <pre class="out" id="campaign-out"></pre>
   </div>
 </section>
@@ -642,6 +755,7 @@ table.preview th{background:var(--chip);
     <label for="vendor">vendor solver (built-in or pkg.mod:fn)</label>
     <input id="vendor" value="autosolver">
     <button class="act" onclick="showdown()">Run showdown</button>
+    <div class="outlabel">readout &mdash; results only, not editable</div>
     <pre class="out" id="showdown-out"></pre>
   </div>
 </section>
@@ -736,6 +850,19 @@ function guessKind(){
     document.getElementById('spec').value);
     return d.columns?'table':'document';}catch(e){
     return 'table';}}
+function downloadSpec(){
+  const raw=document.getElementById('spec').value;
+  if(!raw.trim()){out('spec-out',
+    'Nothing to download - no spec loaded.','bad');return;}
+  let name='spec';
+  try{name=(JSON.parse(raw).title||'spec')
+    .toLowerCase().replace(/[^a-z0-9]+/g,'_')
+    .replace(/^_+|_+$/g,'');}catch(e){}
+  const blob=new Blob([raw],{type:'application/json'});
+  const a=document.createElement('a');
+  a.href=URL.createObjectURL(blob);
+  a.download=name+'.json';a.click();
+  URL.revokeObjectURL(a.href);}
 async function lintSpec(){
   const d=await api('/api/lint',{kind:guessKind(),
     spec:document.getElementById('spec').value,
@@ -778,20 +905,34 @@ async function campaignCompile(){
     goal:document.getElementById('goal').value,
     spec:document.getElementById('spec').value,
     bars:bars,outcome:document.getElementById('outcome').value,
-    out:'gui_runs/campaign_001'});
+    out:''});
   if(d.error){out('campaign-out',d.error,'bad');return;}
-  campaignDir=d.campaign_dir;
-  out('campaign-out',d.title+'\n\n'+d.tiers.map((t,i)=>
+  campaignDir=d.campaign_dir;saveSession();
+  out('campaign-out',d.title+' -> '+d.campaign_dir+'\n\n'+d.tiers.map((t,i)=>
     'tier '+(i+1)+' `'+t.name+'`: '+t.notes+'\n    '+
     t.conditions.join('\n    ')).join('\n'));}
+let activeJob=null;
+async function cancelJob(){
+  if(activeJob)await api('/api/job-cancel',{id:activeJob});}
 async function poll(jobId,outId,render){
+  activeJob=jobId;
   const t=setInterval(async()=>{
     const j=await api('/api/job',{id:jobId});
     if(j.status==='running'){
-      out(outId,'working... '+j.elapsed+'s');}
-    else{clearInterval(t);
-      if(j.status==='error'){out(outId,j.error,'bad');}
+      let msg='working... '+j.elapsed+'s';
+      if(j.elapsed>300)msg+='  (long run: llm ladders take '
+        +'minutes; Cancel abandons it)';
+      out(outId,msg);
+      const el=document.getElementById(outId);
+      const b=document.createElement('button');
+      b.className='act ghost';b.textContent='Cancel job';
+      b.style.marginLeft='12px';b.onclick=cancelJob;
+      el.appendChild(b);}
+    else{clearInterval(t);activeJob=null;
+      if(j.status==='error'||j.status==='timeout'
+        ||j.status==='cancelled'){out(outId,j.error,'bad');}
       else{render(j.result);}}},1500);}
+
 async function campaignRun(){
   if(!campaignDir){out('campaign-out',
     'Compile a ladder first.','bad');return;}
@@ -814,6 +955,27 @@ async function showdown(){
     campaign_dir:campaignDir,
     solver:document.getElementById('vendor').value});
   poll(d.job,'showdown-out',r=>out('showdown-out',r.text,''));}
+const PERSIST=['spec','english','kind','goal','outcome',
+  'bars','solver','vendor','outdir','samples','intervention'];
+function saveSession(){
+  const state={campaignDir:campaignDir};
+  PERSIST.forEach(id=>{const el=document.getElementById(id);
+    if(el)state[id]=el.value;});
+  try{localStorage.setItem('synthkit_bench',
+    JSON.stringify(state));}catch(e){}}
+function restoreSession(){
+  try{
+    const raw=localStorage.getItem('synthkit_bench');
+    if(!raw)return;
+    const state=JSON.parse(raw);
+    PERSIST.forEach(id=>{const el=document.getElementById(id);
+      if(el&&state[id]!==undefined)el.value=state[id];});
+    if(state.campaignDir)campaignDir=state.campaignDir;
+    refreshCard();
+  }catch(e){}}
+PERSIST.forEach(id=>{const el=document.getElementById(id);
+  if(el)el.addEventListener('input',saveSession);});
+restoreSession();
 loadPresets();
 api('/api/version').then(d=>{
   document.getElementById('fp').textContent=

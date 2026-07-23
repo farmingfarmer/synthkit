@@ -74,12 +74,13 @@ def main():
         # ---------- presets ----------
         status, raw = get("/api/presets")
         presets = json.loads(raw)["presets"]
-        check("presets carry a table spec, an English brief, and "
-              "a document spec",
-              len(presets) == 3
+        check("presets carry specs, an English brief, and a "
+              "document spec",
+              len(presets) == 4
               and "spec" in presets[0]
-              and "english" in presets[1]
-              and presets[2]["kind"] == "document")
+              and "spec" in presets[1]
+              and "english" in presets[2]
+              and presets[3]["kind"] == "document")
 
         # ---------- validation ----------
         good = reference_table(rows=40).to_json()
@@ -210,6 +211,58 @@ def main():
         j = post("/api/job", {"id": "nonsense"})
         check("unknown jobs answer with an error, not a crash",
               "error" in j)
+
+        # ---------- D3: presets, dirs, budget, cancel ----------
+        status, raw = get("/api/presets")
+        presets = json.loads(raw)["presets"]
+        check("the calibrated encounter benchmark is preset #1 "
+              "with its outcome and declared prevalence",
+              len(presets) == 4
+              and presets[0]["name"].startswith(
+                  "Encounter benchmark")
+              and presets[0]["spec"]["outcomes"][0][
+                  "target_prevalence"] == [0.10, 0.25]
+              and presets[1]["name"].startswith(
+                  "Billing table"))
+        d1 = post("/api/campaign-compile",
+                  {"goal": "clean", "spec": good,
+                   "bars": {"fix_rate": 0.35,
+                            "detect_rate": 0.5}, "out": ""})
+        d2 = post("/api/campaign-compile",
+                  {"goal": "clean", "spec": good,
+                   "bars": {"fix_rate": 0.35,
+                            "detect_rate": 0.5}, "out": ""})
+        check("empty out auto-increments campaign dirs — trial "
+              "history stays with its campaign",
+              d1["campaign_dir"] != d2["campaign_dir"]
+              and "campaign_" in d1["campaign_dir"])
+        import shutil as _sh
+        for dd in (d1["campaign_dir"], d2["campaign_dir"]):
+            _sh.rmtree(dd, ignore_errors=True)
+        job = post("/api/campaign-run-async",
+                   {"campaign_dir": str(tmp / "camp1"),
+                    "solver": "autoclean"})["job"]
+        post("/api/job-cancel", {"id": job})
+        j = post("/api/job", {"id": job})
+        check("cancelled jobs report cancelled (or finish "
+              "first) with a readable note",
+              j["status"] in ("cancelled", "done"))
+        gui.JOB_BUDGET_S = 0.0
+        job = post("/api/campaign-run-async",
+                   {"campaign_dir": str(tmp / "camp1"),
+                    "solver": "autoclean"})["job"]
+        import time as _t
+        _t.sleep(0.1)
+        j = post("/api/job", {"id": job})
+        gui.JOB_BUDGET_S = 1800.0
+        check("over-budget jobs flip to timeout with the "
+              "crawling-backend explanation",
+              j["status"] in ("timeout", "done")
+              and (j["status"] == "done"
+                   or "budget" in j["error"]))
+        check("the page carries the D3 client affordances",
+              "Download spec.json" in html
+              or "downloadSpec" in gui.PAGE)
 
         # ---------- errors stay JSON ----------
         d = post("/api/campaign-run",
