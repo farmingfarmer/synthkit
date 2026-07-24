@@ -70,6 +70,25 @@ corpus (100% recall, 0%/0%). The completed arc:
 **0% (stub, flattered) -> 17.6% (mistral, honest) ->
 0% (hardened, verified)**.
 
+## Act 4 - the third pen (Llama-3.2-3B, CPU, Windows)
+
+The same spec rendered live on the locked-down demo machine
+itself: llama.cpp serving Llama-3.2-3B-Instruct (Q4, CPU-only,
+16 GB laptop) through synthkit's openai-compatible backend.
+Render report at demo size (8 docs): 7 verified first try, 1
+after retry, 0 fallbacks. Evaluation of extract_careful_v2:
+recall 100%, negation fp 0.0%, historical fp 0.0% - the
+structural guard holds against a third renderer's phrasings.
+(Small-n caveat: at 8 docs the trap counts are single-digit, so
+a campaign would call these trap lines INCONCLUSIVE against a
+0.10 bar; the 24-doc rerun is the verdict-grade version.)
+
+Three renderers, one planted truth, one guard: stub 0%,
+mistral-24B 0% (after the 17.6% lesson and the v2 repair),
+llama-3B 0%. The open-source cost ladder, demonstrated:
+$0 local 3B on the demo laptop -> local 24B on a dev Mac ->
+Bedrock open weights when sanctioned -> one dropdown apart.
+
 The demo shows BOTH numbers - the 17.6% cliff and v2's repair -
 because the cliff sells the problem and the repair sells the
 workflow: characterize, intervene, transfer-test, harden,
