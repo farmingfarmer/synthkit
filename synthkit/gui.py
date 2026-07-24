@@ -708,7 +708,8 @@ table.preview th{background:var(--chip);
       <div><label for="rbackend">render backend (documents;
         tables are always deterministic)</label>
         <select id="rbackend"><option>stub</option>
-        <option>ollama</option><option>bedrock</option>
+        <option>ollama</option><option>openai</option>
+        <option>bedrock</option>
         <option>anthropic</option></select></div>
       <div><label for="rmodel">model (blank = backend
         default)</label>

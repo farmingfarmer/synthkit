@@ -36,6 +36,9 @@ def _backend(name: str, model: str = ""):
         from .compiler import HFLocalBackend
         return HFLocalBackend(
             model_id=model or "Qwen/Qwen2.5-1.5B-Instruct")
+    if name == "openai":
+        from .openai_compat import OpenAICompatBackend
+        return OpenAICompatBackend(model=model or "local")
     if name == "bedrock":
         from .compiler import BedrockBackend
         if not model:
