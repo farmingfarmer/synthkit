@@ -260,6 +260,13 @@ def main():
               j["status"] in ("timeout", "done")
               and (j["status"] == "done"
                    or "budget" in j["error"]))
+        check("the backend switch reaches every LLM seam: "
+              "compiler, render, and vendor pickers all offer "
+              "openai",
+              html.count('value="openai"') >= 1
+              and 'id="lbackend"' in html
+              and 'id="rbackend"' in html
+              and html.count(">openai<") >= 2)
         check("the page carries the D3 client affordances",
               "Download spec.json" in html
               or "downloadSpec" in gui.PAGE)

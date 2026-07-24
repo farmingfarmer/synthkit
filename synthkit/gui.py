@@ -674,7 +674,10 @@ table.preview th{background:var(--chip);
         <select id="kind"><option value="table">table</option>
         <option value="document">document corpus</option></select></div>
       <div><label for="backend">compiler model</label>
-        <select id="backend"><option value="ollama">ollama (local)</option></select></div>
+        <select id="backend"><option value="ollama">ollama (local)</option>
+        <option value="openai">openai-compatible (llamafile / vLLM / LM Studio)</option>
+        <option value="bedrock">bedrock (AWS)</option>
+        <option value="anthropic">anthropic API</option></select></div>
     </div>
     <button class="act" onclick="compileSpec()">Compile spec</button>
     <div class="hint">Compiled specs are drafts. Validation problems
@@ -746,6 +749,15 @@ table.preview th{background:var(--chip);
       <option>regex_extract</option>
       <option value="llm_extract">llm_extract (ollama as the
       vendor)</option></select>
+    <div class="row2">
+      <div><label for="lbackend">llm vendor backend</label>
+        <select id="lbackend"><option>ollama</option>
+        <option>openai</option><option>bedrock</option>
+        <option>anthropic</option></select></div>
+      <div><label for="lmodel">vendor model (blank =
+        backend default)</label>
+        <input id="lmodel" placeholder="mistral-small3.1"></div>
+    </div>
     <div class="row2">
       <div><label for="samples">llm samples (majority vote)</label>
         <input id="samples" value="1"></div>
@@ -973,6 +985,8 @@ async function campaignRun(){
     solver:document.getElementById('solver').value,
     samples:parseInt(document.getElementById(
       'samples').value)||1,
+    backend:document.getElementById('lbackend').value,
+    model:document.getElementById('lmodel').value,
     extra_system:document.getElementById(
       'intervention').value});
   poll(d.job,'campaign-out',r=>out('campaign-out',r.text,
@@ -988,7 +1002,7 @@ async function showdown(){
   poll(d.job,'showdown-out',r=>out('showdown-out',r.text,''));}
 const PERSIST=['spec','english','kind','goal','outcome',
   'bars','solver','vendor','outdir','samples','intervention',
-  'rbackend','rmodel'];
+  'rbackend','rmodel','lbackend','lmodel'];
 function saveSession(){
   const state={campaignDir:campaignDir};
   PERSIST.forEach(id=>{const el=document.getElementById(id);
