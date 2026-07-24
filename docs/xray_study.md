@@ -39,7 +39,7 @@ different pen writes the prose.
 |---|---|---|---|
 | extract_naive | 100% | 100% | 100% |
 | extract_careful | 100% | **17.6% (3/17)** | 0% |
-| extract_careful_v2 | (run it) | (run it) | (run it) |
+| extract_careful_v2 | 100% | **0% (0/17)** | 0% |
 
 The guard that scored a perfect 0% on stub prose leaks 3/17 on
 LLM prose: mistral writes negations the template-tuned patterns
@@ -62,9 +62,13 @@ negation (bare "no <...>" clauses, compound subjects, "not
 identified/seen/present", "without", "absent", "negative for"),
 with one surgical exception: "no significant change" is a
 legitimate comparison_change VALUE and must not be treated as a
-negation. Verified: catches all three mistral escapes, keeps
-the real finding in the same report, preserves the exception,
-and regresses cleanly on the stub corpus (100% recall, 0%/0%).
+negation. Verified live on both renderers: catches all three
+mistral escapes with recall held at 100% (0/17 negation fp on
+the LLM corpus), keeps the real finding in the escape report,
+preserves the exception, and regresses cleanly on the stub
+corpus (100% recall, 0%/0%). The completed arc:
+**0% (stub, flattered) -> 17.6% (mistral, honest) ->
+0% (hardened, verified)**.
 
 The demo shows BOTH numbers - the 17.6% cliff and v2's repair -
 because the cliff sells the problem and the repair sells the
