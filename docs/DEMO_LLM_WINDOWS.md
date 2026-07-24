@@ -7,36 +7,46 @@ user-directory executable that serves an OpenAI-compatible API);
 model: a 3B-class instruct model (fits 16 GB CPU-only with room
 to spare, fast enough to watch).
 
-## 1. One-time setup (two downloads, no installer)
+## 1. One-time setup (no installer, no admin)
 
-llamafile ships as a small runtime exe plus a separate model
-file (on Windows, keep them separate — Windows cannot execute
-files over 4 GB, so do NOT use the all-in-one bundles):
+**Runtime: llama.cpp's official Windows CPU build** (a plain
+PE executable - PROVEN on the locked-down machine; note that
+llamafile's polyglot APE format was silently refused by the
+enterprise security stack, exiting without error, so llama.cpp
+is the primary path here, not the fallback). Model: a 3B-class
+instruct gguf.
 
 ```bat
+%USERPROFILE%\dev\verbatim\.venv\Scripts\activate.bat
 cd %USERPROFILE%\dev
-curl -L -o llamafile.exe https://github.com/Mozilla-Ocho/llamafile/releases/latest/download/llamafile.exe
 curl -L -o llama3.2-3b.gguf https://huggingface.co/bartowski/Llama-3.2-3B-Instruct-GGUF/resolve/main/Llama-3.2-3B-Instruct-Q4_K_M.gguf
+python -c "import json,urllib.request; r=json.load(urllib.request.urlopen('https://api.github.com/repos/ggml-org/llama.cpp/releases/latest')); u=[a['browser_download_url'] for a in r['assets'] if 'win-cpu-x64' in a['name'] and a['name'].endswith('.zip')][0]; print(u); urllib.request.urlretrieve(u,'llamacpp.zip')"
+mkdir llamacpp
+tar -xf llamacpp.zip -C llamacpp
+dir /s /b llamacpp\llama-server.exe
 ```
 
-(~2.1 GB model download; do it before demo day. If those URLs
-drift, any Q4_K_M gguf of a 3B-class instruct model works:
-Qwen2.5-3B-Instruct and Phi-3.5-mini are equally good picks.
-If curl to huggingface is blocked, download in the browser and
-move the file.)
+(~2.1 GB model; download before demo day. The python one-liner
+resolves the versioned release asset by API - hardcoded "latest"
+asset URLs on GitHub can 404 into tiny text files that curl
+happily saves; check `dir` sizes after every download.)
 
 ## 2. Start the server (demo day, terminal one)
 
 ```bat
 cd %USERPROFILE%\dev
-llamafile.exe -m llama3.2-3b.gguf --server --port 8080 --nobrowser
+llamacpp\llama-server.exe -m llama3.2-3b.gguf --port 8080
 ```
 
-Leave it running. Sanity check from a second terminal:
+llama-server narrates: tensor loading, then an explicit
+"listening" line. Leave it running. Sanity from terminal two:
 
 ```bat
 curl http://127.0.0.1:8080/v1/models
 ```
+
+Live result on the target machine (Llama-3.2-3B, CPU, 8 docs):
+verified first try 7, after retry 1, fallbacks 0.
 
 ## 3. Point synthkit at it
 
