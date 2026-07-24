@@ -33,6 +33,18 @@ _CHANGES = ["improvement", "worsening", "no significant change"]
 
 _NEGATION = re.compile(
     r"(no evidence of|without focal|is not identified)")
+
+# v2: STRUCTURAL negation - learned when mistral-rendered prose
+# slipped 3/17 past the template-tuned patterns above ("No
+# pneumothorax or pleural effusion is identified" matches none
+# of them). Bare "no <...>" clauses, compound subjects, freer
+# verb forms. The lookahead spares "no significant change",
+# which is a legitimate comparison_change VALUE, not a negation.
+_NEGATION_V2 = re.compile(
+    r"\bno\b(?!\s+significant\s+change)"
+    r"|\bwithout\b"
+    r"|\bnot\s+(identified|seen|present|visualized)\b"
+    r"|\babsent\b|\bnegative\s+for\b|\bfree\s+of\b")
 _HISTORY = re.compile(
     r"(stable|unchanged|known chronic|previously characterized)")
 
@@ -41,13 +53,17 @@ _CLAUSE_SPLIT = re.compile(r"[.\n]|also noted,|;")
 
 
 def _scan(text: str, guard: str):
-    """guard: 'none' | 'sentence' (blunt) | 'clause' (precise)"""
+    """guard: 'none' | 'sentence' (blunt) | 'clause' (precise,
+    template-tuned) | 'clause_v2' (precise, structural)"""
     found = []
     low = text.lower()
-    pieces = re.split(r"[.\n]", low) if guard != "clause" \
-        else _CLAUSE_SPLIT.split(low)
+    clause_mode = guard in ("clause", "clause_v2")
+    neg_pat = _NEGATION_V2 if guard == "clause_v2" \
+        else _NEGATION
+    pieces = _CLAUSE_SPLIT.split(low) if clause_mode \
+        else re.split(r"[.\n]", low)
     for sentence in pieces:
-        negated = bool(_NEGATION.search(sentence))
+        negated = bool(neg_pat.search(sentence))
         historical = bool(_HISTORY.search(sentence))
         for f in _FINDINGS:
             if f in sentence:
@@ -85,5 +101,16 @@ def extract_blunt(doc_id: str, text: str):
 
 def extract_careful(doc_id: str, text: str):
     """Arm 3: the precise intervention - the same guard scoped
-    to the CLAUSE. Traps dead, recall intact."""
+    to the CLAUSE. Traps dead on stub prose (0/17), but 3/17
+    slip through mistral-rendered prose: template-tuned
+    patterns do not transfer to a freer pen."""
     return _scan(text, guard="clause")
+
+
+def extract_careful_v2(doc_id: str, text: str):
+    """Arm 4: the hardened intervention - structural negation
+    instead of template patterns. Built after the transfer
+    test; the point of the demo is the 0% -> 17.6% -> (this
+    arm's number) arc across two renderers of the SAME
+    planted truth."""
+    return _scan(text, guard="clause_v2")
