@@ -455,6 +455,8 @@ _ROUTES = {
     "/api/campaign-run": api_campaign_run,
     "/api/campaign-run-async": lambda payload: {
         "job": _start_job(api_campaign_run, payload)},
+    "/api/render-async": lambda payload: {
+        "job": _start_job(api_render, payload)},
     "/api/showdown-async": lambda payload: {
         "job": _start_job(api_showdown, payload)},
     "/api/job": api_job,
@@ -702,6 +704,16 @@ table.preview th{background:var(--chip);
     <div class="eyebrow">render &rarr; auditable artifact</div>
     <label for="outdir">output directory</label>
     <input id="outdir" value="gui_runs/run_001">
+    <div class="row2">
+      <div><label for="rbackend">render backend (documents;
+        tables are always deterministic)</label>
+        <select id="rbackend"><option>stub</option>
+        <option>ollama</option><option>bedrock</option>
+        <option>anthropic</option></select></div>
+      <div><label for="rmodel">model (blank = backend
+        default)</label>
+        <input id="rmodel" placeholder="mistral-small3.1"></div>
+    </div>
     <button class="act" onclick="renderSpec()">Render data</button>
     <div class="hint">Tables write dirty.csv + clean.csv +
     ledger.json under an integrity manifest. Document corpora render
@@ -875,25 +887,43 @@ async function planSpec(){
   out('spec-out',d.error?d.error:
     JSON.stringify(d,null,2),d.error?'bad':'');}
 async function renderSpec(){
-  out('render-out','rendering...');
-  const d=await api('/api/render',{kind:guessKind(),
+  var backend=document.getElementById('rbackend').value;
+  var payload={kind:guessKind(),
     spec:document.getElementById('spec').value,
-    out:document.getElementById('outdir').value});
+    out:document.getElementById('outdir').value,
+    backend:backend,
+    model:document.getElementById('rmodel').value};
+  if(backend==='stub'){
+    out('render-out','rendering...');
+    var d=await api('/api/render',payload);
+    renderDone(d);}
+  else{
+    out('render-out','rendering via '+backend+'... 0s');
+    var d=await api('/api/render-async',payload);
+    poll(d.job,'render-out',renderDone);}}
+function renderDone(d){
   if(d.error){out('render-out',d.error,'bad');return;}
   if(d.preview){
     out('render-out','wrote '+d.run_dir+'  ('+
       d.mess_cells+' mess cells, ledgered)');
-    const cols=d.columns;
-    let html='<table class="preview"><tr>'+cols.map(
-      c=>'<th>'+c+'</th>').join('')+'</tr>';
-    d.preview.forEach(r=>{html+='<tr>'+cols.map(
-      c=>'<td>'+(r[c]===''?'&empty;':String(r[c])
-      .replace(/&/g,'&amp;').replace(/</g,'&lt;'))+'</td>')
-      .join('')+'</tr>';});
+    var cols=d.columns;
+    var html='<table class="preview"><tr>';
+    for(var c=0;c<cols.length;c++){
+      html+='<th>'+cols[c]+'</th>';}
+    html+='</tr>';
+    for(var r=0;r<d.preview.length;r++){
+      html+='<tr>';
+      for(var c2=0;c2<cols.length;c2++){
+        var v=d.preview[r][cols[c2]];
+        html+='<td>'+(v===''?'&empty;':String(v)
+          .replace(/&/g,'&amp;').replace(/</g,'&lt;'))+
+          '</td>';}
+      html+='</tr>';}
     document.getElementById('render-preview').innerHTML=
       html+'</table>';}
   else{out('render-out','wrote '+d.run_dir+'  ('+d.documents+
-    ' docs, '+d.verified_first_try+' verified first try)\n\n'+
+    ' docs, '+d.verified_first_try+
+    ' verified first try)\n\n--- first document ---\n'+
     d.first_document);
     document.getElementById('render-preview').innerHTML='';}}
 async function campaignCompile(){
@@ -956,7 +986,8 @@ async function showdown(){
     solver:document.getElementById('vendor').value});
   poll(d.job,'showdown-out',r=>out('showdown-out',r.text,''));}
 const PERSIST=['spec','english','kind','goal','outcome',
-  'bars','solver','vendor','outdir','samples','intervention'];
+  'bars','solver','vendor','outdir','samples','intervention',
+  'rbackend','rmodel'];
 function saveSession(){
   const state={campaignDir:campaignDir};
   PERSIST.forEach(id=>{const el=document.getElementById(id);

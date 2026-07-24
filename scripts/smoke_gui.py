@@ -264,6 +264,39 @@ def main():
               "Download spec.json" in html
               or "downloadSpec" in gui.PAGE)
 
+        # ---------- station 03 backend picker ----------
+        check("station 03 offers a render backend picker with "
+              "async LLM route",
+              'id="rbackend"' in html and "render-async"
+              in gui.PAGE and "renderDone" in gui.PAGE)
+        doc_spec = json.loads(get("/api/presets")[1])[
+            "presets"][3]
+        d = post("/api/render",
+                 {"kind": "document",
+                  "spec": json.dumps(doc_spec["spec"]),
+                  "out": str(tmp / "docs_stub"),
+                  "backend": "stub"})
+        check("document render (stub) returns the first "
+              "document inline",
+              d["documents"] > 0 and len(
+                  d["first_document"]) > 40)
+        job = post("/api/render-async",
+                   {"kind": "document",
+                    "spec": json.dumps(doc_spec["spec"]),
+                    "out": str(tmp / "docs_async"),
+                    "backend": "stub"})["job"]
+        result = None
+        for _ in range(80):
+            j = post("/api/job", {"id": job})
+            if j["status"] in ("done", "error"):
+                result = j
+                break
+            _time.sleep(0.25)
+        check("async renders run to completion through the "
+              "job machinery",
+              result is not None and result["status"] == "done"
+              and result["result"]["documents"] > 0)
+
         # ---------- errors stay JSON ----------
         d = post("/api/campaign-run",
                  {"campaign_dir": str(tmp / "nowhere"),
