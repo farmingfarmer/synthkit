@@ -270,6 +270,13 @@ def main():
               and 'id="lbackend"' in html
               and 'id="rbackend"' in html
               and html.count(">openai<") >= 2)
+        from synthkit.gui import _solver
+        check("the hybrid solver is resolvable by the GUI "
+              "registry AND offered at BOTH stations (a "
+              "partial edit once shipped one without the "
+              "other)",
+              callable(_solver("autosolver_hybrid"))
+              and gui.PAGE.count("autosolver_hybrid") >= 2)
         check("the page carries the D3 client affordances",
               "Download spec.json" in html
               or "downloadSpec" in gui.PAGE)

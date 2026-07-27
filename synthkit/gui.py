@@ -142,6 +142,7 @@ def _backend(name: str, model: str):
 
 def _solver(name: str) -> Callable:
     from .autosolver import (autoclean, autosolver,
+                             autosolver_hybrid,
                              autosolver_regress)
     from .examples import regex_extract, strip_cleaner
     registry: Dict[str, Callable] = {
@@ -149,6 +150,7 @@ def _solver(name: str) -> Callable:
         "strip_cleaner": strip_cleaner,
         "autosolver": autosolver(),
         "autosolver_regress": autosolver_regress(),
+        "autosolver_hybrid": autosolver_hybrid(),
         "regex_extract": regex_extract,
     }
     if name in registry:
@@ -763,6 +765,7 @@ table.preview th{background:var(--chip);
     <select id="solver"><option>autoclean</option>
       <option>strip_cleaner</option><option>autosolver</option>
       <option>autosolver_regress</option>
+      <option>autosolver_hybrid</option>
       <option>regex_extract</option>
       <option value="llm_extract">llm_extract (ollama as the
       vendor)</option></select>
