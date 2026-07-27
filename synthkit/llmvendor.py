@@ -40,8 +40,37 @@ from typing import Dict, List, Optional
 from .evaluator import Extraction, ExtractorAdapter
 from .spec import DataSpec
 
-_ARRAY_RE = re.compile(r"\[[^\[\]]*(?:\{[^{}]*\}[^\[\]]*)*\]",
-                       re.DOTALL)
+def _first_balanced_array(raw: str) -> str:
+    """Linear scan for the first balanced [...] span, string-
+    aware. Replaces a backtracking regex that hung for MINUTES
+    on a rambling 3B's unclosed-bracket output (live catch:
+    the 154s frozen ticker and a CLI Ctrl-C traceback both
+    pointed at the same regex). O(n), immune to input shape."""
+    start = -1
+    depth = 0
+    in_str = False
+    esc = False
+    for k, ch in enumerate(raw):
+        if in_str:
+            if esc:
+                esc = False
+            elif ch == "\\":
+                esc = True
+            elif ch == '"':
+                in_str = False
+            continue
+        if ch == '"':
+            in_str = True
+        elif ch == "[":
+            if depth == 0:
+                start = k
+            depth += 1
+        elif ch == "]":
+            if depth > 0:
+                depth -= 1
+                if depth == 0 and start >= 0:
+                    return raw[start:k + 1]
+    return ""
 
 
 def _find_json_array(raw: str) -> Optional[list]:
@@ -53,9 +82,9 @@ def _find_json_array(raw: str) -> Optional[list]:
         for block in raw.split("```")[1::2]:
             candidates.append(
                 block.replace("json", "", 1).strip())
-    m = _ARRAY_RE.search(raw)
-    if m:
-        candidates.append(m.group(0))
+    span = _first_balanced_array(raw)
+    if span:
+        candidates.append(span)
     for cand in candidates:
         try:
             parsed = json.loads(cand)

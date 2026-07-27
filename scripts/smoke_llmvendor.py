@@ -269,6 +269,21 @@ def main():
           and "vendor reliability:" in d.get("text", ""))
     shutil.rmtree(tmp)
 
+    # ---------- the salvage scanner (live 3B catch) ----------
+    import time as _t
+    from synthkit import llmvendor as _lv
+    killer = "[" + ("{a} " * 400) + "ramble { no closing"
+    t0 = _t.time()
+    out = _lv._find_json_array(killer)
+    check("salvage is linear-time on unclosed-bracket rambles "
+          "(the regex that froze a live 3B run is gone)",
+          out is None and (_t.time() - t0) < 0.5)
+    raw = ('preamble "with [brackets] in strings" then '
+           '[{"category":"a","text":"[b]"}] { trailing junk')
+    check("string-aware balanced scan still salvages real "
+          "arrays from prose",
+          _lv._find_json_array(raw)
+          == [{"category": "a", "text": "[b]"}])
     print("\nAll {} checks passed.".format(PASS))
 
 
