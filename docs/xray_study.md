@@ -95,6 +95,41 @@ workflow: characterize, intervene, transfer-test, harden,
 re-verify. Two study cycles in one afternoon, on an invented
 domain, every number reproducible from a JSON file and a seed.
 
+## Act 5 - the 3B takes the witness stand (and fails it)
+
+The role reversal: the same Llama-3.2-3B that RENDERED the
+corpus beautifully (7/1/0 verified) was seated as the tested
+extractor - blind prompts, JSON protocol, three tiers, 24 calls
+on the CPU-only demo machine.
+
+Verdict: **vendor reliability: 24 calls, 17 malformed (71%)**,
+0 empty, 0 voted out. Recall 0.294 / 0.235 / 0.235 across
+tiers - DECISIVE fails against the 0.8 bar (ci 0.133-0.531
+clear of it). Trap fp lines read 0.000 but INCONCLUSIVE: with
+most calls malformed, there were barely any extractions left to
+trap, and the instrument says so rather than crediting a
+specificity it cannot measure.
+
+The lesson is the ROLE ASYMMETRY: generation and disciplined
+structured extraction are different capabilities. A model can
+write clinical prose convincingly and still be unusable as an
+extraction vendor - and the gap here is 71 points of protocol
+reliability on the same model, same corpus, same afternoon.
+This is the exact test to run on any vendor claiming a small
+efficient model "handles clinical extraction."
+
+Engineering footnote: this run also field-proved the salvage
+hardening - the 3B's rambling outputs previously triggered
+catastrophic regex backtracking (a live frozen-job incident);
+the linear scanner processed all 17 rambles in microseconds,
+each becoming a malformed tally instead of an infinite spin.
+
+Open follow-ups: majority voting (samples=3) and a
+format-forcing intervention ("respond with ONLY a JSON array")
+are the natural next arms - the intervention seam is built for
+exactly this question: how much protocol reliability can
+prompting buy a 3B?
+
 ## Reproduce everything
 
     synthkit render xray.json -o xray_stub --backend stub
