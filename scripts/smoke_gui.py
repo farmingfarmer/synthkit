@@ -76,11 +76,11 @@ def main():
         presets = json.loads(raw)["presets"]
         check("presets carry specs, an English brief, and a "
               "document spec",
-              len(presets) == 4
+              len(presets) == 5
               and "spec" in presets[0]
               and "spec" in presets[1]
-              and "english" in presets[2]
-              and presets[3]["kind"] == "document")
+              and "english" in presets[3]
+              and presets[4]["kind"] == "document")
 
         # ---------- validation ----------
         good = reference_table(rows=40).to_json()
@@ -215,15 +215,18 @@ def main():
         # ---------- D3: presets, dirs, budget, cancel ----------
         status, raw = get("/api/presets")
         presets = json.loads(raw)["presets"]
-        check("the calibrated encounter benchmark is preset #1 "
-              "with its outcome and declared prevalence",
-              len(presets) == 4
+        check("the vendor demo leads the presets, encounter "
+              "benchmark second, both carrying declared "
+              "prevalence",
+              len(presets) == 5
               and presets[0]["name"].startswith(
-                  "Encounter benchmark")
+                  "CHF readmission")
               and presets[0]["spec"]["outcomes"][0][
-                  "target_prevalence"] == [0.10, 0.25]
+                  "target_prevalence"] == [0.05, 0.12]
+              and any(c["ctype"] == "note" for c in
+                      presets[0]["spec"]["columns"])
               and presets[1]["name"].startswith(
-                  "Billing table"))
+                  "Encounter benchmark"))
         d1 = post("/api/campaign-compile",
                   {"goal": "clean", "spec": good,
                    "bars": {"fix_rate": 0.35,
@@ -277,7 +280,7 @@ def main():
               'id="rbackend"' in html and "render-async"
               in gui.PAGE and "renderDone" in gui.PAGE)
         doc_spec = json.loads(get("/api/presets")[1])[
-            "presets"][3]
+            "presets"][4]
         d = post("/api/render",
                  {"kind": "document",
                   "spec": json.dumps(doc_spec["spec"]),

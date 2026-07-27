@@ -109,6 +109,11 @@ def _gen_clean(col: ColumnSpec, row: int, master: int) -> Any:
 
 
 def _feature(key: str, vals: Dict[str, Any]) -> float:
+    if "." in key.split("=", 1)[0]:
+        # note-element presence: 'notecol.element_id'
+        ncol, eid = key.split(".", 1)
+        return float(vals.get(
+            "_note::{}::{}".format(ncol, eid), 0.0))
     if "=" in key:
         col, want = key.split("=", 1)
         return 1.0 if str(vals[col]) == want else 0.0
@@ -269,6 +274,11 @@ class TableBlueprint:
     duplicate_of: Dict[int, int] = field(default_factory=dict)
     # outcome name -> per-ORIGINAL-row true probabilities (the
     # generating model's P(y=1|x); ceiling metrics live on these)
+    # note column -> per-row {element_id: planted?} — the text
+    # ground truth (what the note ACTUALLY asserts, distractors
+    # excluded), for scoring text-mining solvers honestly.
+    note_truth: Dict[str, List[Dict[str, bool]]] = field(
+        default_factory=dict)
     true_probs: Dict[str, List[float]] = field(
         default_factory=dict)
     # dirty row index -> source clean row index (for appended dups)
@@ -278,18 +288,79 @@ class TableBlueprint:
                 if m.op != "duplicate"}
 
 
+def _build_note(col, r: int, seed: int):
+    """Assemble one patient's note deterministically: seeded
+    presence draws per element/distractor, seeded phrasing
+    picks, fillers, seeded sentence order. Returns (text,
+    presence) where presence maps element_id -> bool — the
+    ground truth that feeds the outcome logit."""
+    note = col.note or {}
+    rng = _cell_rng(seed, r, col.name, "note")
+    sentences = []
+    presence = {}
+    for el in note.get("elements", []):
+        hit = rng.random() < float(el.get("density", 0.0))
+        presence[el["id"]] = hit
+        if hit:
+            phr = el["phrasings"][
+                rng.randrange(len(el["phrasings"]))]
+            sentences.append(phr)
+    for dis in note.get("distractors", []):
+        # `excludes`: only plant this trap when the named
+        # element is ABSENT — "denies missing doses" belongs in
+        # the notes of patients who did NOT miss doses; that is
+        # what makes naive keyword matching dangerous.
+        excl = dis.get("excludes", "")
+        if excl and presence.get(excl, False):
+            continue
+        if rng.random() < float(dis.get("density", 0.0)):
+            phr = dis["phrasings"][
+                rng.randrange(len(dis["phrasings"]))]
+            sentences.append(phr)
+    fillers = list(note.get("fillers", []))
+    if fillers:
+        n_fill = 1 + rng.randrange(min(3, len(fillers)))
+        picks = list(range(len(fillers)))
+        for _ in range(n_fill):
+            k = picks.pop(rng.randrange(len(picks)))
+            sentences.append(fillers[k])
+            if not picks:
+                break
+    order = list(range(len(sentences)))
+    shuffled = []
+    while order:
+        shuffled.append(sentences[order.pop(
+            rng.randrange(len(order)))])
+    text = " ".join(s.rstrip(".") + "." for s in shuffled)
+    return text, presence
+
+
 def plan_table(spec: TableSpec) -> TableBlueprint:
     spec.validate()
     columns = [c.name for c in spec.columns]
     clean_rows: List[Dict[str, str]] = []
     clean_vals: List[Dict[str, Any]] = []
+    note_truth: Dict[str, List[Dict[str, bool]]] = {
+        c.name: [] for c in spec.columns if c.ctype == "note"}
     for r in range(spec.rows):
-        vals = {c.name: _gen_clean(c, r, spec.master_seed)
-                for c in spec.columns}
+        vals = {}
+        for c in spec.columns:
+            if c.ctype == "note":
+                text, presence = _build_note(
+                    c, r, spec.master_seed)
+                vals[c.name] = text
+                note_truth[c.name].append(presence)
+                for eid, hit in presence.items():
+                    vals["_note::{}::{}".format(
+                        c.name, eid)] = 1.0 if hit else 0.0
+            else:
+                vals[c.name] = _gen_clean(
+                    c, r, spec.master_seed)
         _apply_rules(spec, r, vals)
         clean_vals.append(vals)
         clean_rows.append({k: clean_str(v)
-                           for k, v in vals.items()})
+                           for k, v in vals.items()
+                           if not k.startswith("_")})
 
     # Outcomes: labels from CLEAN values (truth reflects reality;
     # mess on features is what makes prediction hard).
@@ -334,6 +405,9 @@ def plan_table(spec: TableSpec) -> TableBlueprint:
             cstr = clean_rows[r][col.name]
             dirty = cstr
             op_applied = None
+            if col.ctype == "note":
+                row_out[col.name] = dirty
+                continue
             m = col.mess
             # Ops are mutually exclusive per cell, priority order;
             # each op draws its own seeded RNG so toggling one rate
@@ -415,6 +489,7 @@ def plan_table(spec: TableSpec) -> TableBlueprint:
                                    str(src), str(idx)))
 
     return TableBlueprint(
+        note_truth=note_truth,
         spec_title=spec.title,
         master_seed=spec.master_seed,
         columns=columns,

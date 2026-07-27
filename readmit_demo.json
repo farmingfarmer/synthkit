@@ -1,0 +1,570 @@
+{
+  "title": "CHF discharge cohort: 30-day readmission (vendor evaluation)",
+  "columns": [
+    {
+      "name": "patient_id",
+      "ctype": "str_id",
+      "distribution": {
+        "kind": "sequence",
+        "prefix": "MRN",
+        "start": 400000
+      },
+      "mess": {
+        "missing_rate": 0.0,
+        "missing_tokens": [
+          "",
+          "NULL",
+          "N/A",
+          "?"
+        ],
+        "typo_rate": 0.0,
+        "format_rate": 0.0,
+        "outlier_rate": 0.0,
+        "outlier_factor": 10.0,
+        "case_rate": 0.0,
+        "space_rate": 0.0,
+        "wrong_rate": 0.0
+      },
+      "note": {}
+    },
+    {
+      "name": "patient_name",
+      "ctype": "person_name",
+      "distribution": {},
+      "mess": {
+        "missing_rate": 0.0,
+        "missing_tokens": [
+          "",
+          "NULL",
+          "N/A",
+          "?"
+        ],
+        "typo_rate": 0.0,
+        "format_rate": 0.0,
+        "outlier_rate": 0.0,
+        "outlier_factor": 10.0,
+        "case_rate": 0.06,
+        "space_rate": 0.03,
+        "wrong_rate": 0.0
+      },
+      "note": {}
+    },
+    {
+      "name": "age",
+      "ctype": "int",
+      "distribution": {
+        "kind": "normal",
+        "mean": 74,
+        "std": 11,
+        "min": 40,
+        "max": 97
+      },
+      "mess": {
+        "missing_rate": 0.1,
+        "missing_tokens": [
+          "",
+          "NULL",
+          "N/A",
+          "?"
+        ],
+        "typo_rate": 0.0,
+        "format_rate": 0.0,
+        "outlier_rate": 0.0,
+        "outlier_factor": 10.0,
+        "case_rate": 0.0,
+        "space_rate": 0.0,
+        "wrong_rate": 0.0
+      },
+      "note": {}
+    },
+    {
+      "name": "sex",
+      "ctype": "category",
+      "distribution": {
+        "kind": "categorical",
+        "choices": [
+          "female",
+          "male"
+        ],
+        "weights": [
+          0.48,
+          0.52
+        ]
+      },
+      "mess": {
+        "missing_rate": 0.0,
+        "missing_tokens": [
+          "",
+          "NULL",
+          "N/A",
+          "?"
+        ],
+        "typo_rate": 0.0,
+        "format_rate": 0.0,
+        "outlier_rate": 0.0,
+        "outlier_factor": 10.0,
+        "case_rate": 0.08,
+        "space_rate": 0.0,
+        "wrong_rate": 0.0
+      },
+      "note": {}
+    },
+    {
+      "name": "ejection_fraction",
+      "ctype": "int",
+      "distribution": {
+        "kind": "mixture",
+        "components": [
+          {
+            "kind": "normal",
+            "mean": 30,
+            "std": 6,
+            "min": 12,
+            "max": 40
+          },
+          {
+            "kind": "normal",
+            "mean": 55,
+            "std": 5,
+            "min": 45,
+            "max": 70
+          }
+        ],
+        "weights": [
+          0.55,
+          0.45
+        ]
+      },
+      "mess": {
+        "missing_rate": 0.18,
+        "missing_tokens": [
+          "",
+          "NULL",
+          "N/A",
+          "?"
+        ],
+        "typo_rate": 0.0,
+        "format_rate": 0.0,
+        "outlier_rate": 0.0,
+        "outlier_factor": 10.0,
+        "case_rate": 0.0,
+        "space_rate": 0.0,
+        "wrong_rate": 0.0
+      },
+      "note": {}
+    },
+    {
+      "name": "sodium",
+      "ctype": "float",
+      "distribution": {
+        "kind": "normal",
+        "mean": 137.0,
+        "std": 4.0,
+        "min": 118.0,
+        "max": 150.0
+      },
+      "mess": {
+        "missing_rate": 0.0,
+        "missing_tokens": [
+          "",
+          "NULL",
+          "N/A",
+          "?"
+        ],
+        "typo_rate": 0.0,
+        "format_rate": 0.0,
+        "outlier_rate": 0.02,
+        "outlier_factor": 1.4,
+        "case_rate": 0.0,
+        "space_rate": 0.0,
+        "wrong_rate": 0.0
+      },
+      "note": {}
+    },
+    {
+      "name": "creatinine",
+      "ctype": "float",
+      "distribution": {
+        "kind": "lognormal",
+        "mu": 0.25,
+        "sigma": 0.45,
+        "min": 0.4,
+        "max": 8.0
+      },
+      "mess": {
+        "missing_rate": 0.0,
+        "missing_tokens": [
+          "",
+          "NULL",
+          "N/A",
+          "?"
+        ],
+        "typo_rate": 0.0,
+        "format_rate": 0.06,
+        "outlier_rate": 0.0,
+        "outlier_factor": 10.0,
+        "case_rate": 0.0,
+        "space_rate": 0.0,
+        "wrong_rate": 0.0
+      },
+      "note": {}
+    },
+    {
+      "name": "prior_admissions_12mo",
+      "ctype": "int",
+      "distribution": {
+        "kind": "mixture",
+        "components": [
+          {
+            "kind": "uniform",
+            "min": 0,
+            "max": 0
+          },
+          {
+            "kind": "uniform",
+            "min": 1,
+            "max": 5
+          }
+        ],
+        "weights": [
+          0.55,
+          0.45
+        ]
+      },
+      "mess": {
+        "missing_rate": 0.0,
+        "missing_tokens": [
+          "",
+          "NULL",
+          "N/A",
+          "?"
+        ],
+        "typo_rate": 0.0,
+        "format_rate": 0.0,
+        "outlier_rate": 0.0,
+        "outlier_factor": 10.0,
+        "case_rate": 0.0,
+        "space_rate": 0.0,
+        "wrong_rate": 0.0
+      },
+      "note": {}
+    },
+    {
+      "name": "num_discharge_medications",
+      "ctype": "int",
+      "distribution": {
+        "kind": "normal",
+        "mean": 11,
+        "std": 4,
+        "min": 2,
+        "max": 26
+      },
+      "mess": {
+        "missing_rate": 0.07,
+        "missing_tokens": [
+          "",
+          "NULL",
+          "N/A",
+          "?"
+        ],
+        "typo_rate": 0.0,
+        "format_rate": 0.0,
+        "outlier_rate": 0.0,
+        "outlier_factor": 10.0,
+        "case_rate": 0.0,
+        "space_rate": 0.0,
+        "wrong_rate": 0.0
+      },
+      "note": {}
+    },
+    {
+      "name": "admitting_unit",
+      "ctype": "category",
+      "distribution": {
+        "kind": "categorical",
+        "choices": [
+          "cardiology",
+          "internal medicine",
+          "intensive care"
+        ],
+        "weights": [
+          0.5,
+          0.38,
+          0.12
+        ]
+      },
+      "mess": {
+        "missing_rate": 0.0,
+        "missing_tokens": [
+          "",
+          "NULL",
+          "N/A",
+          "?"
+        ],
+        "typo_rate": 0.06,
+        "format_rate": 0.0,
+        "outlier_rate": 0.0,
+        "outlier_factor": 10.0,
+        "case_rate": 0.0,
+        "space_rate": 0.0,
+        "wrong_rate": 0.0
+      },
+      "note": {}
+    },
+    {
+      "name": "admission_date",
+      "ctype": "date",
+      "distribution": {
+        "kind": "date_range",
+        "start": "2026-01-05",
+        "end": "2026-06-20"
+      },
+      "mess": {
+        "missing_rate": 0.0,
+        "missing_tokens": [
+          "",
+          "NULL",
+          "N/A",
+          "?"
+        ],
+        "typo_rate": 0.0,
+        "format_rate": 0.07,
+        "outlier_rate": 0.0,
+        "outlier_factor": 10.0,
+        "case_rate": 0.0,
+        "space_rate": 0.0,
+        "wrong_rate": 0.0
+      },
+      "note": {}
+    },
+    {
+      "name": "discharge_date",
+      "ctype": "date",
+      "distribution": {},
+      "mess": {
+        "missing_rate": 0.0,
+        "missing_tokens": [
+          "",
+          "NULL",
+          "N/A",
+          "?"
+        ],
+        "typo_rate": 0.0,
+        "format_rate": 0.0,
+        "outlier_rate": 0.0,
+        "outlier_factor": 10.0,
+        "case_rate": 0.0,
+        "space_rate": 0.0,
+        "wrong_rate": 0.02
+      },
+      "note": {}
+    },
+    {
+      "name": "length_of_stay",
+      "ctype": "int",
+      "distribution": {
+        "kind": "mixture",
+        "components": [
+          {
+            "kind": "uniform",
+            "min": 2,
+            "max": 5
+          },
+          {
+            "kind": "uniform",
+            "min": 8,
+            "max": 16
+          }
+        ],
+        "weights": [
+          0.7,
+          0.3
+        ]
+      },
+      "mess": {
+        "missing_rate": 0.0,
+        "missing_tokens": [
+          "",
+          "NULL",
+          "N/A",
+          "?"
+        ],
+        "typo_rate": 0.0,
+        "format_rate": 0.0,
+        "outlier_rate": 0.0,
+        "outlier_factor": 10.0,
+        "case_rate": 0.0,
+        "space_rate": 0.0,
+        "wrong_rate": 0.0
+      },
+      "note": {}
+    },
+    {
+      "name": "total_charges",
+      "ctype": "float",
+      "distribution": {},
+      "mess": {
+        "missing_rate": 0.0,
+        "missing_tokens": [
+          "",
+          "NULL",
+          "N/A",
+          "?"
+        ],
+        "typo_rate": 0.0,
+        "format_rate": 0.0,
+        "outlier_rate": 0.015,
+        "outlier_factor": 30.0,
+        "case_rate": 0.0,
+        "space_rate": 0.0,
+        "wrong_rate": 0.0
+      },
+      "note": {}
+    },
+    {
+      "name": "discharge_note",
+      "ctype": "note",
+      "distribution": {},
+      "mess": {
+        "missing_rate": 0.0,
+        "missing_tokens": [
+          "",
+          "NULL",
+          "N/A",
+          "?"
+        ],
+        "typo_rate": 0.0,
+        "format_rate": 0.0,
+        "outlier_rate": 0.0,
+        "outlier_factor": 10.0,
+        "case_rate": 0.0,
+        "space_rate": 0.0,
+        "wrong_rate": 0.0
+      },
+      "note": {
+        "elements": [
+          {
+            "id": "med_nonadherence",
+            "density": 0.22,
+            "weight": 1.5,
+            "phrasings": [
+              "pt admits to missing several doses of diuretics this month",
+              "poor adherence to medication regimen per family",
+              "ran out of furosemide two wks ago, did not refill",
+              "hx of med non-adherence documented by pharmacy"
+            ]
+          },
+          {
+            "id": "no_home_support",
+            "density": 0.28,
+            "weight": 1.1,
+            "phrasings": [
+              "lives alone, no home support available",
+              "no family or caregiver able to assist at home",
+              "declines home health; lives by self in 2nd floor apt"
+            ]
+          },
+          {
+            "id": "fluid_overload_signs",
+            "density": 0.3,
+            "weight": 1.3,
+            "phrasings": [
+              "3+ pitting edema and 4 kg weight gain since last visit",
+              "worsening orthopnea and bilateral crackles on exam",
+              "JVD elevated, weight up 3.5 kg over one week"
+            ]
+          },
+          {
+            "id": "followup_barrier",
+            "density": 0.18,
+            "weight": 0.9,
+            "phrasings": [
+              "no transportation to cardiology follow-up",
+              "unable to schedule follow up d/t work conflict",
+              "pt states he will not attend clinic visit"
+            ]
+          }
+        ],
+        "distractors": [
+          {
+            "id": "denies_nonadherence",
+            "density": 0.5,
+            "excludes": "med_nonadherence",
+            "phrasings": [
+              "denies missing any medication doses",
+              "adherent to all medications per pillbox review",
+              "no issues with medication compliance reported"
+            ]
+          },
+          {
+            "id": "no_overload",
+            "density": 0.45,
+            "excludes": "fluid_overload_signs",
+            "phrasings": [
+              "no edema, lungs clear to auscultation",
+              "denies orthopnea or PND, weight stable",
+              "no signs of fluid overload on exam"
+            ]
+          },
+          {
+            "id": "historical_admission",
+            "density": 0.35,
+            "phrasings": [
+              "prior admission for CHF exacerbation in 2023, resolved",
+              "remote hx of decompensation, stable since",
+              "old echocardiogram from 2022 reviewed, unchanged"
+            ]
+          }
+        ],
+        "fillers": [
+          "Vital signs stable at time of discharge",
+          "Diet and fluid restriction counseling provided",
+          "Discharge medications reconciled with pharmacy",
+          "Patient ambulating independently on the unit",
+          "Follow-up labs ordered for next week",
+          "Influenza vaccination administered this admission"
+        ]
+      }
+    }
+  ],
+  "rows": 1000,
+  "master_seed": 20260727,
+  "duplicate_rate": 0.02,
+  "rules": [
+    {
+      "kind": "date_after",
+      "earlier": "admission_date",
+      "later": "discharge_date",
+      "days_from": "length_of_stay"
+    },
+    {
+      "kind": "derived",
+      "target": "total_charges",
+      "source": "length_of_stay",
+      "factor": 2650,
+      "noise_sigma": 0.18
+    }
+  ],
+  "outcomes": [
+    {
+      "name": "readmitted_30d",
+      "kind": "logistic",
+      "intercept": 3.4,
+      "coefficients": {
+        "age": 0.015,
+        "prior_admissions_12mo": 0.32,
+        "ejection_fraction": -0.025,
+        "sodium": -0.06,
+        "length_of_stay": 0.05,
+        "discharge_note.med_nonadherence": 1.5,
+        "discharge_note.no_home_support": 1.1,
+        "discharge_note.fluid_overload_signs": 1.3,
+        "discharge_note.followup_barrier": 0.9
+      },
+      "target_prevalence": [
+        0.05,
+        0.12
+      ]
+    }
+  ]
+}

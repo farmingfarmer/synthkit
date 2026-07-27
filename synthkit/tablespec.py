@@ -42,7 +42,7 @@ from typing import Any, Dict, List, Optional
 MISSING_TOKENS = ["", "NULL", "N/A", "?"]
 
 COLUMN_TYPES = ("int", "float", "category", "str_id",
-                "person_name", "date", "bool")
+                "person_name", "date", "bool", "note")
 DIST_KINDS = ("uniform", "normal", "lognormal", "beta",
               "categorical", "date_range", "sequence", "bernoulli",
               "mixture")
@@ -96,9 +96,73 @@ class ColumnSpec:
     ctype: str
     distribution: Dict[str, Any] = field(default_factory=dict)
     mess: ColumnMess = field(default_factory=ColumnMess)
+    # ctype 'note': clinical-text column. `note` holds elements
+    # (planted signal phrases with weights), distractors
+    # (planted traps: negated/historical look-alikes), and
+    # fillers (neutral sentences). Outcome coefficients name
+    # planted elements as 'columnname.element_id'; the element's
+    # PRESENCE (0/1, decided by seeded density draws) enters the
+    # logit, so the AUROC ceiling includes text signal by
+    # construction and tabular-only models hit a lower wall.
+    note: Dict[str, Any] = field(default_factory=dict)
 
     def dist_kind(self) -> str:
         return str(self.distribution.get("kind", ""))
+
+
+def _validate_note(tag, col):
+    problems = []
+    if col.distribution:
+        problems.append(
+            "{}: note columns take no distribution — their "
+            "content comes from `note.elements` and "
+            "`note.distractors`".format(tag))
+    if any([col.mess.missing_rate, col.mess.typo_rate,
+            col.mess.case_rate, col.mess.space_rate,
+            col.mess.format_rate, col.mess.outlier_rate,
+            col.mess.wrong_rate]):
+        problems.append(
+            "{}: note columns take no cell mess — their mess "
+            "IS the text (trap phrasings, style variance, "
+            "fillers)".format(tag))
+    note = col.note or {}
+    elements = note.get("elements", [])
+    if not elements:
+        problems.append(
+            "{}: note columns need `note.elements` — at least "
+            "one planted phrase with an `id`, `phrasings`, a "
+            "`density` in (0,1), and a `weight` for the "
+            "outcome logit".format(tag))
+    seen = set()
+    for el in elements:
+        eid = el.get("id", "")
+        if not eid or eid in seen:
+            problems.append(
+                "{}: note element needs a unique `id`".format(
+                    tag))
+        seen.add(eid)
+        if not el.get("phrasings"):
+            problems.append(
+                "{} element `{}`: needs `phrasings` (2+ "
+                "surface forms keep the text messy)".format(
+                    tag, eid))
+        d = el.get("density", None)
+        if d is None or not (0.0 < float(d) < 1.0):
+            problems.append(
+                "{} element `{}`: `density` must be in (0,1) "
+                "— the fraction of patients whose note "
+                "contains it".format(tag, eid))
+    for dis in note.get("distractors", []):
+        if not dis.get("id") or not dis.get("phrasings"):
+            problems.append(
+                "{}: each distractor needs an `id` and "
+                "`phrasings`".format(tag))
+        dd = dis.get("density", None)
+        if dd is None or not (0.0 < float(dd) <= 1.0):
+            problems.append(
+                "{} distractor `{}`: `density` must be in "
+                "(0,1]".format(tag, dis.get("id", "?")))
+    return problems
 
 
 @dataclass
@@ -154,6 +218,9 @@ class TableSpec:
                     tag, col.ctype))
                 continue
             kind = col.dist_kind()
+            if col.ctype == "note":
+                problems.extend(_validate_note(tag, col))
+                continue
             if col.ctype == "person_name":
                 pass  # synthesized; distribution optional
             elif not col.distribution:
@@ -355,6 +422,30 @@ class TableSpec:
                                 "`coefficients`".format(otag))
             for key in coeffs:
                 base = key.split("=", 1)[0]
+                if "." in base:
+                    ncol, eid = base.split(".", 1)
+                    if ncol not in names or \
+                            ctypes.get(ncol) != "note":
+                        problems.append(
+                            "{}: coefficient `{}` — the part "
+                            "before the dot must name a note "
+                            "column".format(otag, key))
+                    else:
+                        col_obj = next(c for c in self.columns
+                                       if c.name == ncol)
+                        ids = {el.get("id") for el in
+                               (col_obj.note or {}).get(
+                                   "elements", [])}
+                        if eid not in ids:
+                            problems.append(
+                                "{}: coefficient `{}` names "
+                                "note element `{}` which `{}` "
+                                "does not plant (elements: {})"
+                                .format(otag, key, eid, ncol,
+                                        ", ".join(sorted(
+                                            i for i in ids
+                                            if i))))
+                    continue
                 if base not in names:
                     problems.append(
                         "{}: coefficient `{}` names no column"
@@ -457,6 +548,7 @@ class TableSpec:
                     ctype=c["ctype"],
                     distribution=c.get("distribution", {}),
                     mess=ColumnMess(**c.get("mess", {})),
+                    note=c.get("note", {}),
                 )
                 for c in d.get("columns", [])
             ],

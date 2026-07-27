@@ -93,6 +93,12 @@ class FeatureEncoder:
             present = [v for v in raw
                        if v.strip().lower() not in _MISSING]
             n = max(len(present), 1)
+            avg_len = sum(len(v) for v in present) / n
+            if avg_len > 60:
+                # free-text column: not a tabular feature. The
+                # tabular baseline stays text-blind by design —
+                # mining these is the hybrid solver's job.
+                continue
             nums = [_clean_number(v) for v in present]
             dates = [_clean_date(v) for v in present]
             bools = [_clean_bool(v) for v in present]
@@ -369,10 +375,12 @@ class ShowdownResult:
     title: str
     vendor_name: str
     tiers: List[ShowdownTier]
+    baseline_name: str = "synthkit baseline"
 
     def format_text(self) -> str:
-        lines = ["SHOWDOWN: {} vs synthkit baseline — {}".format(
-            self.vendor_name, self.title)]
+        lines = ["SHOWDOWN: {} vs {} — {}".format(
+            self.vendor_name, self.baseline_name,
+            self.title)]
         for t in self.tiers:
             lines.append(
                 "  {:<14} ceiling {:.3f} / baseline {:.3f} / "
@@ -384,9 +392,157 @@ class ShowdownResult:
         return "\n".join(lines)
 
 
+_NEG_TOKENS = {"no", "not", "denies", "denied", "without",
+               "negative", "never", "adherent"}
+_TOKEN_RE = None
+
+
+def _tokens(text: str):
+    import re as _re
+    global _TOKEN_RE
+    if _TOKEN_RE is None:
+        _TOKEN_RE = _re.compile(r"[a-z]+")
+    return _TOKEN_RE.findall(text.lower())
+
+
+class TextMiner:
+    """Learns discriminative note phrases FROM TRAINING DATA —
+    no access to the spec. Unigrams + bigrams, minimum document
+    frequency, ranked by |label-rate lift| * sqrt(support);
+    features are presence bits with a negation window: a term
+    within 3 tokens after a negation cue does not count. Built
+    for hybrid tables where the outcome signal hides in a note
+    column; deterministic."""
+
+    def __init__(self, top_k: int = 40, min_df: int = 5):
+        self.top_k = top_k
+        self.min_df = min_df
+        self.text_cols: List[str] = []
+        self.terms: List[str] = []
+
+    @staticmethod
+    def _text_columns(rows):
+        if not rows:
+            return []
+        out = []
+        for name in rows[0]:
+            if name.startswith("_"):
+                continue
+            vals = [str(r.get(name, "")) for r in rows[:200]]
+            if vals and sum(len(v) for v in vals) / len(vals) > 60:
+                out.append(name)
+        return out
+
+    @staticmethod
+    def _grams(toks):
+        for t in toks:
+            yield t
+        for a, b in zip(toks, toks[1:]):
+            yield a + " " + b
+
+    @staticmethod
+    def _present(term, toks):
+        """Returns (affirmed, negated) presence. Negated
+        occurrences are a SEPARATE feature, not a suppression:
+        clinical risk is often phrased negatively ("no home
+        support", "no transportation") and only the training
+        labels can say which sign a negated mention carries."""
+        parts = term.split(" ")
+        n = len(parts)
+        affirmed = negated = False
+        for i in range(len(toks) - n + 1):
+            if toks[i:i + n] == parts:
+                lo = max(0, i - 3)
+                if any(t in _NEG_TOKENS
+                       for t in toks[lo:i]):
+                    negated = True
+                else:
+                    affirmed = True
+        return affirmed, negated
+
+    def fit(self, rows, labels) -> "TextMiner":
+        self.text_cols = self._text_columns(rows)
+        if not self.text_cols:
+            return self
+        base = sum(1.0 for y in labels if y) / max(len(labels), 1)
+        df: Dict[str, int] = {}
+        pos: Dict[str, int] = {}
+        docs = []
+        for r, y in zip(rows, labels):
+            toks = []
+            for c in self.text_cols:
+                toks.extend(_tokens(str(r.get(c, ""))))
+            grams = set(self._grams(toks))
+            docs.append((toks, y))
+            for g in grams:
+                df[g] = df.get(g, 0) + 1
+                if y:
+                    pos[g] = pos.get(g, 0) + 1
+        scored = []
+        for g, d in df.items():
+            if d < self.min_df or d > 0.9 * len(rows):
+                continue
+            rate = pos.get(g, 0) / d
+            lift = abs(rate - base) * (d ** 0.5)
+            scored.append((lift, g))
+        scored.sort(key=lambda t: (-t[0], t[1]))
+        self.terms = [g for _s, g in scored[:self.top_k]]
+        return self
+
+    def encode(self, rows) -> List[List[float]]:
+        out = []
+        for r in rows:
+            toks = []
+            for c in self.text_cols:
+                toks.extend(_tokens(str(r.get(c, ""))))
+            feats: List[float] = []
+            for t in self.terms:
+                aff, neg = self._present(t, toks)
+                feats.append(1.0 if aff else 0.0)
+                feats.append(1.0 if neg else 0.0)
+            out.append(feats)
+        return out
+
+
+def _augment(rows, feats):
+    out = []
+    for r, f in zip(rows, feats):
+        r2 = dict(r)
+        for i, v in enumerate(f):
+            r2["txmine_{:02d}".format(i)] = \
+                "1" if v else "0"
+        out.append(r2)
+    return out
+
+
+def autosolver_hybrid():
+    """The doctor's own model: tabular features through the
+    standard encoder PLUS mined note features injected as
+    numeric pseudo-columns. Blind to the spec; everything it
+    knows about the text it learned from training labels."""
+    def solve(train_rows, train_labels, test_rows):
+        miner = TextMiner().fit(train_rows, train_labels)
+        aug_train = _augment(train_rows,
+                             miner.encode(train_rows))
+        aug_test = _augment(test_rows,
+                            miner.encode(test_rows))
+        model = LogisticBaseline().fit(aug_train, train_labels)
+        return model.score(aug_test)
+    return solve
+
+
+def hybrid(train_rows, train_labels, test_rows):
+    """Plain-callable form for CLI dotted paths:
+    --solver synthkit.autosolver:hybrid"""
+    return autosolver_hybrid()(train_rows, train_labels,
+                               test_rows)
+
+
 def run_showdown(campaign, vendor: Callable,
                  vendor_name: str = "vendor",
-                 train_seed_offset: int = 1000) -> ShowdownResult:
+                 train_seed_offset: int = 1000,
+                 baseline: Optional[Callable] = None,
+                 baseline_name: str = "synthkit baseline") -> ShowdownResult:
     from .campaign import _judge
     from .tableeval import (evaluate_prediction,
                             resolve_prediction_metric)
@@ -394,7 +550,8 @@ def run_showdown(campaign, vendor: Callable,
     from .tablespec import TableSpec
     if campaign.goal != "predict":
         raise ValueError("showdowns run on predict campaigns")
-    baseline = autosolver()
+    if baseline is None:
+        baseline = autosolver()
     tiers: List[ShowdownTier] = []
     for tier in campaign.tiers:
         spec = TableSpec.from_json(tier.spec_json)
@@ -431,4 +588,6 @@ def run_showdown(campaign, vendor: Callable,
             vendor_passed=tr.passed,
         ))
     return ShowdownResult(title=campaign.title,
-                          vendor_name=vendor_name, tiers=tiers)
+                          vendor_name=vendor_name,
+                          tiers=tiers,
+                          baseline_name=baseline_name)
