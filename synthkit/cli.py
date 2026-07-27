@@ -388,10 +388,17 @@ def cmd_showdown(args) -> int:
         print("solver must be 'package.module:function'",
               file=sys.stderr)
         return 2
+    _cwd_importable()
     mod_name, fn_name = args.solver.split(":", 1)
     fn = getattr(importlib.import_module(mod_name), fn_name)
+    kwargs = {}
+    if args.baseline:
+        from .gui import _solver as _gui_solver
+        kwargs["baseline"] = _gui_solver(args.baseline)
+        kwargs["baseline_name"] = args.baseline
     result = run_showdown(camp, fn,
-                          vendor_name=args.name or args.solver)
+                          vendor_name=args.name or args.solver,
+                          **kwargs)
     print(result.format_text())
     if args.json_out:
         import json as _json
@@ -553,6 +560,8 @@ def main(argv=None) -> int:
                    help="dotted path 'pkg.mod:function'")
     p.add_argument("--name", default="")
     p.add_argument("--json-out", default="")
+    p.add_argument("--baseline", default="",
+                   help="baseline solver (registry name or pkg.mod:fn); default autosolver")
     p.set_defaults(fn=cmd_showdown)
 
     p = sub.add_parser("trials",

@@ -157,6 +157,14 @@ def _solver(name: str) -> Callable:
         return registry[name]
     if ":" in name:
         import importlib
+        import os
+        import sys as _sys
+        # console-script servers lack cwd on sys.path;
+        # without this, vendor files beside the spec
+        # are invisible (live catch, mid-rehearsal)
+        cwd = os.getcwd()
+        if cwd not in _sys.path:
+            _sys.path.insert(0, cwd)
         mod, fn = name.split(":", 1)
         return getattr(importlib.import_module(mod), fn)
     raise ValueError(

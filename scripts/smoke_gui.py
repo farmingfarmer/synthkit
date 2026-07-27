@@ -271,6 +271,30 @@ def main():
               and 'id="rbackend"' in html
               and html.count(">openai<") >= 2)
         from synthkit.gui import _solver
+        import os as _os
+        import tempfile as _tf
+        vtmp = _tf.mkdtemp(prefix="synthkit_vendor_")
+        (Path(vtmp) / "vmod.py").write_text(
+            "def predict(tr, tl, te):\n"
+            "    return [0.5 for _ in te]\n",
+            encoding="utf-8")
+        _prev = _os.getcwd()
+        _pp = list(sys.path)
+        try:
+            _os.chdir(vtmp)
+            sys.path[:] = [q for q in sys.path
+                           if q not in ("", ".", vtmp)]
+            sys.modules.pop("vmod", None)
+            fn = _solver("vmod:predict")
+            check("dotted vendor files beside the spec "
+                  "resolve through the bench even "
+                  "without cwd on sys.path (rehearsal "
+                  "catch)",
+                  fn(None, None, [1, 2]) == [0.5, 0.5])
+        finally:
+            _os.chdir(_prev)
+            sys.path[:] = _pp
+            sys.modules.pop("vmod", None)
         check("the hybrid solver is resolvable by the GUI "
               "registry AND offered at BOTH stations (a "
               "partial edit once shipped one without the "
