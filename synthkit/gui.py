@@ -1108,8 +1108,8 @@ label{font-size:13.5px;color:#2c3a45;font-weight:600}
       <div><label for="backend"><span class="stepno">1.4</span>
         <span class="badge opt">advanced</span> which AI reads
         your English</label>
-        <select id="backend"><option value="ollama">local AI on
-        this machine (private)</option>
+        <select id="backend"><option value="ollama">Ollama app
+        (only if installed on this computer)</option>
         <option value="openai">local AI server (llama.cpp /
         LM Studio)</option>
         <option value="bedrock">hospital cloud (AWS
@@ -1201,10 +1201,11 @@ label{font-size:13.5px;color:#2c3a45;font-weight:600}
       <div><label for="rbackend">writer</label>
         <select id="rbackend"><option value="stub">built-in
         writer &mdash; no AI, instant, always identical</option>
-        <option value="ollama">Ollama on this machine (e.g.
-        mistral-24B on a Mac)</option>
+        <option value="ollama">Ollama app (only if Ollama is
+        installed on this computer)</option>
         <option value="openai">local AI server &mdash; llama.cpp /
-        LM Studio (e.g. Llama-3B on this laptop)</option>
+        LM Studio running on this computer (NOT
+        ChatGPT)</option>
         <option value="bedrock">hospital AWS cloud (Bedrock:
         Llama / Mistral / Claude)</option>
         <option value="anthropic">Anthropic cloud API
@@ -1215,9 +1216,10 @@ label{font-size:13.5px;color:#2c3a45;font-weight:600}
     <div class="hint">What each writer is: <b>built-in</b> = no
     AI at all; sentences come from the recipe's own phrase
     lists &mdash; instant, free, byte-identical every run
-    (recommended for tables and live demos). <b>Ollama</b> = a
-    large open model served by the Ollama app on this machine.
-    <b>local AI server</b> = any OpenAI-compatible server on
+    (recommended for tables and live demos). <b>Ollama</b> =
+    open models served by the Ollama app &mdash; only works where
+    that app is installed. <b>local AI server</b> = any
+    OpenAI-compatible server on
     this computer (llama.cpp, LM Studio, vLLM) &mdash; the $0
     fully-offline option. ("OpenAI-compatible" names the
     message FORMAT those servers all adopted, not the company:
@@ -1302,8 +1304,8 @@ label{font-size:13.5px;color:#2c3a45;font-weight:600}
       <div><label for="lbackend"><span class="stepno">4.6</span>
         <span class="badge opt">only for llm_extract</span>
         which AI is being tested</label>
-        <select id="lbackend"><option value="ollama">Ollama on
-        this machine</option>
+        <select id="lbackend"><option value="ollama">Ollama app
+        (only if installed)</option>
         <option value="openai">local AI server on this machine
         (llama.cpp / LM Studio &mdash; NOT ChatGPT)</option>
         <option value="bedrock">hospital AWS cloud

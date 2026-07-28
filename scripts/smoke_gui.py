@@ -495,8 +495,10 @@ def main():
               "terms (no-AI stub, Ollama, local server, "
               "Bedrock, Anthropic)",
               all(m in html for m in (
-                  "no AI, instant", "mistral-24B",
-                  "llama.cpp", "Bedrock", "fully-offline")))
+                  "no AI, instant", "only if Ollama is",
+                  "llama.cpp", "Bedrock", "fully-offline"))
+              and "Mac" not in html
+              and "mistral-24B" not in html)
         check("`openai` is disambiguated as a protocol, not "
               "the company, everywhere it appears",
               "NOT ChatGPT" in html
