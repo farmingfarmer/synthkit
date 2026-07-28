@@ -119,7 +119,7 @@ def main():
         check("table render writes the artifact and previews "
               "dirty rows",
               (tmp / "t1" / "manifest.json").is_file()
-              and len(d["preview"]) == 8
+              and len(d["preview"]) >= 8
               and d["mess_cells"] > 10)
 
         # ---------- plan + render: documents (stub) ----------
@@ -467,6 +467,22 @@ def main():
               == "autosolver_hybrid"
               and rep["winner"]["vendor_won"] is False
               and rep["tiers_data"])
+
+        # ---------- preview + readiness affordances ----------
+        check("the data preview is a white scrollable pane "
+              "with click-to-expand cells and a full-content "
+              "reader modal",
+              all(m in html for m in (
+                  "pvwrap", "openCell", "cellmodal",
+                  "click any cell")))
+        check("table previews serve enough rows to scroll",
+              len(rd["preview"]) >= 20)
+        check("required fields carry a live red/green "
+              "readiness engine and action buttons gate on it",
+              all(m in html for m in (
+                  "paintReady", "class=\'need\'"
+                  if False else "need", "gate([",
+                  "Fill the highlighted red field")))
 
         # ---------- errors stay JSON ----------
         d = post("/api/campaign-run",

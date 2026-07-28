@@ -373,7 +373,7 @@ def api_render(payload: dict) -> dict:
                 "columns": bp.columns,
                 "rows": len(bp.dirty_rows),
                 "outcomes": outcomes,
-                "preview": bp.dirty_rows[:8],
+                "preview": bp.dirty_rows[:40],
                 "mess_cells": len([m for m in bp.ledger
                                    if m.op != "duplicate"])}
     from .corpus_io import write_corpus
@@ -861,6 +861,37 @@ table.preview th{background:var(--chip);
   color:#33413b}
 .trapx{font-family:var(--mono,monospace);font-size:11px;
   background:#f6f1e7;border-radius:4px;padding:1px 5px}
+
+.pvwrap{max-height:430px;overflow:auto;border:1px solid #c2cdc8;
+  border-radius:8px;margin-top:8px;background:#fff}
+.pvwrap table{border-collapse:collapse;width:max-content;
+  min-width:100%}
+.pvwrap th{position:sticky;top:0;background:#eef2f0;
+  color:#000;font-size:11px;padding:6px 10px;text-align:left;
+  border:1px solid #d3dcd7;white-space:nowrap;z-index:2}
+.pvwrap td{background:#fff;color:#000;font-size:11.5px;
+  font-family:var(--mono,monospace);padding:5px 10px;
+  border:1px solid #e2e8e5;white-space:nowrap;max-width:340px;
+  overflow:hidden;text-overflow:ellipsis;cursor:pointer}
+.pvwrap td:hover{background:#f2f7f4}
+.pvhint{font-size:11px;color:#5a6a63;margin:6px 0 0}
+#cellmodal{display:none;position:fixed;inset:0;z-index:50;
+  background:rgba(20,30,26,.55)}
+#cellmodal .box{position:absolute;inset:7% 12%;background:#fff;
+  border-radius:12px;padding:22px 26px;overflow:auto;
+  box-shadow:0 18px 50px rgba(0,0,0,.35)}
+#cellmodal h4{margin:0 0 10px;font-size:13px;color:#1a2b3c}
+#cellmodal pre{white-space:pre-wrap;word-break:break-word;
+  font-size:13.5px;line-height:1.6;color:#000;margin:0;
+  font-family:var(--mono,monospace)}
+#cellmodal .close{position:absolute;top:12px;right:16px;
+  cursor:pointer;font-size:22px;color:#5a6a63;font-weight:700}
+input.need,textarea.need,select.need{
+  border:2px solid #b3261e !important;
+  background:#fdf3f2 !important}
+input.good,textarea.good,select.good{
+  border:2px solid #2e7d32 !important;
+  background:#f4faf4 !important}
 </style></head><body>
 <div class="frame">
 <nav>
@@ -1233,6 +1264,7 @@ async function loadPresets(){
         document.getElementById('kind').value=p.kind;}};
     box.appendChild(b);});}
 async function compileSpec(){
+  if(!gate(['english'],'compile-out'))return;
   out('compile-out','compiling via local model...');
   const d=await api('/api/compile',{
     description:document.getElementById('english').value,
@@ -1279,6 +1311,7 @@ async function planSpec(){
   out('spec-out',d.error?d.error:
     JSON.stringify(d,null,2),d.error?'bad':'');}
 async function renderSpec(){
+  if(!gate(['spec','outdir'],'render-out'))return;
   var backend=document.getElementById('rbackend').value;
   var payload={kind:guessKind(),
     spec:document.getElementById('spec').value,
@@ -1293,6 +1326,65 @@ async function renderSpec(){
     out('render-out','rendering via '+backend+'... 0s');
     var d=await api('/api/render-async',payload);
     poll(d.job,'render-out',renderDone);}}
+var PV=null;
+function specOk(){
+  var v=document.getElementById('spec').value.trim();
+  if(!v)return false;
+  try{JSON.parse(v);return true;}catch(e){return false;}}
+function barsOk(){
+  var v=document.getElementById('bars').value.trim();
+  return /^\s*[a-z_]+\s*=\s*[0-9.]+(\s*,\s*[a-z_]+\s*=\s*[0-9.]+)*\s*$/.test(v);}
+var READY={
+  english:function(){return document.getElementById(
+    'english').value.trim().length>=15;},
+  spec:specOk,
+  outdir:function(){return document.getElementById(
+    'outdir').value.trim().length>0;},
+  bars:barsOk,
+  outcome:function(){
+    var g=document.getElementById('goal').value;
+    var v=document.getElementById('outcome').value.trim();
+    return (g!=='predict'&&g!=='regress')||v.length>0;},
+  vendor:function(){return document.getElementById(
+    'vendor').value.trim().length>0;}};
+function paintReady(){
+  for(var id in READY){
+    var el=document.getElementById(id);
+    if(!el)continue;
+    var good=READY[id]();
+    el.classList.toggle('good',good);
+    el.classList.toggle('need',!good);}}
+function gate(ids,outId){
+  paintReady();
+  var missing=[];
+  for(var i=0;i<ids.length;i++){
+    if(!READY[ids[i]]()){missing.push(ids[i]);}}
+  if(missing.length){
+    out(outId,'Fill the highlighted red field(s) first: '+
+      missing.join(', ')+'. Green = ready.','bad');
+    document.getElementById(missing[0]).focus();
+    return false;}
+  return true;}
+
+function esc(s){return String(s).replace(/&/g,'&amp;')
+  .replace(/</g,'&lt;').replace(/>/g,'&gt;');}
+function openCell(r,c){
+  if(!PV)return;
+  var col=PV.cols[c];
+  var v=String(PV.rows[r][col]);
+  document.getElementById('cellmodal-title').textContent=
+    col+' \u2014 record '+(r+1);
+  document.getElementById('cellmodal-body').textContent=
+    v===''?'(empty cell \u2014 a deliberately missing value)':v;
+  document.getElementById('cellmodal').style.display='block';}
+function closeCell(){
+  document.getElementById('cellmodal').style.display='none';}
+document.addEventListener('keydown',function(e){
+  if(e.key==='Escape')closeCell();});
+document.addEventListener('input',paintReady);
+document.addEventListener('change',paintReady);
+window.addEventListener('load',function(){
+  setTimeout(paintReady,150);});
 function fmtPct(x){return (100*x).toFixed(1)+'%';}
 function dataSummary(d){
   var s='Created <b>'+d.rows+' synthetic records</b> with '+
@@ -1337,21 +1429,27 @@ function renderDone(d){
   if(d.preview){
     out('render-out','wrote '+d.run_dir+'  ('+
       d.mess_cells+' mess cells, ledgered)');
+    PV={cols:d.columns,rows:d.preview};
     var cols=d.columns;
-    var html='<table class="preview"><tr>';
+    var html='<div class="pvwrap"><table><tr>';
     for(var c=0;c<cols.length;c++){
-      html+='<th>'+cols[c]+'</th>';}
+      html+='<th>'+esc(cols[c])+'</th>';}
     html+='</tr>';
     for(var r=0;r<d.preview.length;r++){
       html+='<tr>';
       for(var c2=0;c2<cols.length;c2++){
-        var v=d.preview[r][cols[c2]];
-        html+='<td>'+(v===''?'&empty;':String(v)
-          .replace(/&/g,'&amp;').replace(/</g,'&lt;'))+
-          '</td>';}
+        var v=String(d.preview[r][cols[c2]]===''?
+          '':d.preview[r][cols[c2]]);
+        var short=v.length>90?v.slice(0,90)+'\u2026':v;
+        html+='<td onclick="openCell('+r+','+c2+')">'+
+          (v===''?'&empty;':esc(short))+'</td>';}
       html+='</tr>';}
-    document.getElementById('render-preview').innerHTML=
-      html+'</table>';
+    html+='</table></div>'+
+      '<div class="pvhint">Showing the first '+
+      d.preview.length+' of '+d.rows+' records \u2014 '+
+      'scroll the pane in both directions; click any cell '+
+      'to read its full contents (notes especially).</div>';
+    document.getElementById('render-preview').innerHTML=html;
     document.getElementById('data-summary').innerHTML=
       dataSummary(d);
     document.getElementById('data-downloads').innerHTML=
@@ -1362,6 +1460,7 @@ function renderDone(d){
     d.first_document);
     document.getElementById('render-preview').innerHTML='';}}
 async function campaignCompile(){
+  if(!gate(['spec','bars','outcome'],'campaign-out'))return;
   const bars={};document.getElementById('bars').value
     .split(',').forEach(p=>{const[k,v]=p.split('=');
     if(k&&v)bars[k.trim()]=parseFloat(v);});
@@ -1414,6 +1513,7 @@ async function campaignRun(){
   poll(d.job,'campaign-out',r=>out('campaign-out',r.text,
     r.highest_passed===r.tiers?'ok':''));}
 async function showdown(){
+  if(!gate(['vendor'],'showdown-out'))return;
   if(!campaignDir){out('showdown-out',
     'Compile a predict campaign at station 04 first.','bad');
     return;}
@@ -1531,5 +1631,11 @@ loadPresets();
 api('/api/version').then(d=>{
   document.getElementById('fp').textContent=
     'v'+d.version+' \u00b7 '+d.built+' \u00b7 '+d.fingerprint;});
-</script></body></html>
+</script><div id="cellmodal" onclick="if(event.target===this)closeCell()">
+  <div class="box"><span class="close"
+    onclick="closeCell()">&times;</span>
+  <h4 id="cellmodal-title"></h4>
+  <pre id="cellmodal-body"></pre></div>
+</div>
+</body></html>
 """
