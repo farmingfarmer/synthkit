@@ -266,10 +266,10 @@ def main():
         check("the backend switch reaches every LLM seam: "
               "compiler, render, and vendor pickers all offer "
               "openai",
-              html.count('value="openai"') >= 1
+              html.count('value="openai"') >= 2
               and 'id="lbackend"' in html
               and 'id="rbackend"' in html
-              and html.count(">openai<") >= 2)
+              and html.count(">openai<") >= 1)
         from synthkit.gui import _solver
         import os as _os
         import tempfile as _tf
@@ -337,6 +337,136 @@ def main():
               "job machinery",
               result is not None and result["status"] == "done"
               and result["result"]["documents"] > 0)
+
+        # ---------- plain-english guidance layer ----------
+        check("every station wears a numbered step banner with "
+              "plain-english purpose",
+              all(m in html for m in (
+                  "Step 1 of 5", "Step 2 of 5", "Step 3 of 5",
+                  "Step 4 of 5", "Step 5 of 5", "stepbanner",
+                  "explain")))
+        check("controls carry step numbers and required/"
+              "optional badges",
+              html.count('class="stepno"') >= 15
+              and 'badge req' in html and 'badge opt' in html
+              and 'badge rec' in html)
+        check("jargon is translated: dataset kinds, goals, and "
+              "solvers are labeled for non-technical readers",
+              "one row per patient" in html
+              and "clinical notes" in html
+              and "forecast a yes/no" in html
+              and "reads the table AND the notes" in html
+              and "coin flip" in html)
+
+        # ---------- data transparency ----------
+        table_preset = json.loads(get("/api/presets")[1])[
+            "presets"][1]
+        rd = post("/api/render",
+                  {"kind": "table",
+                   "spec": json.dumps(table_preset["spec"]),
+                   "out": str(tmp / "transp")})
+        check("table renders report rows and realized-vs-"
+              "declared outcome rates for the summary line",
+              rd["rows"] > 0 and rd["outcomes"]
+              and "realized" in rd["outcomes"][0]
+              and rd["outcomes"][0]["declared"])
+        ex = post("/api/export", {"dir": str(tmp / "transp"),
+                                  "which": "dirty",
+                                  "fmt": "csv"})
+        ex2 = post("/api/export", {"dir": str(tmp / "transp"),
+                                   "which": "clean",
+                                   "fmt": "json"})
+        ex3 = post("/api/export", {"dir": str(tmp / "transp"),
+                                   "which": "ledger"})
+        check("the download menu serves synthetic CSV, answer-"
+              "key JSON, and the corruption ledger",
+              ex["filename"].endswith(".csv")
+              and ex["content"].count("\n") > 10
+              and json.loads(ex2["content"])
+              and json.loads(ex3["content"]))
+
+        # ---------- the plain-english final report ----------
+        hspec = {
+         "title": "report fixture", "rows": 150,
+         "master_seed": 5,
+         "columns": [
+          {"name": "pid", "ctype": "str_id",
+           "distribution": {"kind": "sequence",
+                            "prefix": "P", "start": 1}},
+          {"name": "age", "ctype": "int",
+           "distribution": {"kind": "normal", "mean": 70,
+                            "std": 10, "min": 40, "max": 95},
+           "mess": {"missing_rate": 0.05}},
+          {"name": "note", "ctype": "note", "note": {
+           "elements": [
+            {"id": "nonadherence", "density": 0.3,
+             "weight": 1.8,
+             "phrasings": [
+              "patient reports missing several doses "
+              "of medication this month",
+              "documented poor adherence to the "
+              "prescribed regimen"]}],
+           "distractors": [
+            {"id": "denies", "density": 0.5,
+             "excludes": "nonadherence",
+             "phrasings": [
+              "patient denies missing any doses of "
+              "medication"]}],
+           "fillers": [
+            "Vital signs stable at time of discharge",
+            "Follow-up appointment scheduled next week",
+            "Dietary counseling provided during stay"]}}],
+         "outcomes": [{"name": "readmit",
+           "kind": "logistic", "intercept": -3.0,
+           "coefficients": {"age": 0.02,
+                            "note.nonadherence": 1.8},
+           "target_prevalence": [0.03, 0.4]}]}
+        cc = post("/api/campaign-compile",
+                  {"kind": "table",
+                   "spec": json.dumps(hspec),
+                   "goal": "predict", "outcome": "readmit",
+                   "bars": {"auroc": 0.55,
+                            "gap_max": 0.4},
+                   "out": str(tmp / "rep_camp")})
+        check("hybrid fixture campaign compiles",
+              "error" not in cc)
+        job = post("/api/showdown-async",
+                   {"campaign_dir": cc["campaign_dir"],
+                    "baseline": "autosolver_hybrid",
+                    "solver": "autosolver"})["job"]
+        rres = None
+        for _ in range(240):
+            j = post("/api/job", {"id": job})
+            if j["status"] in ("done", "error"):
+                rres = j
+                break
+            _time.sleep(0.5)
+        check("showdowns complete with a structured report "
+              "attached", rres is not None
+              and rres["status"] == "done"
+              and "report" in rres["result"])
+        rep = rres["result"]["report"]
+        check("the report knows the dataset facts, the trap "
+              "examples verbatim from the spec, and both "
+              "methodologies",
+              rep["dataset"]["rows"] == 150
+              and rep["dataset"]["note_columns"] == 1
+              and any(t["kind"] == "negation trap"
+                      and "denies missing" in t["example"]
+                      for t in rep["traps"])
+              and "logistic regression" in
+                  rep["baseline"]["how"]
+              and "mines the free-text" in
+                  rep["baseline"]["how"])
+        check("the report names a winner on the as-specified "
+              "tier — and with text signal dominant, the "
+              "note-reading hybrid beats the text-blind "
+              "vendor",
+              rep["winner"]
+              and rep["winner"]["name"]
+              == "autosolver_hybrid"
+              and rep["winner"]["vendor_won"] is False
+              and rep["tiers_data"])
 
         # ---------- errors stay JSON ----------
         d = post("/api/campaign-run",

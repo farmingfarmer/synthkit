@@ -359,8 +359,20 @@ def api_render(payload: dict) -> dict:
         from .tableplan import plan_table, write_table
         bp = plan_table(spec)
         run_dir = write_table(out, spec, bp)
+        outcomes = []
+        for oc in spec.outcomes:
+            name = oc["name"]
+            if oc.get("kind", "logistic") == "logistic":
+                pos = sum(1 for r in bp.clean_rows
+                          if r.get(name) == "True")
+                outcomes.append({
+                    "name": name,
+                    "realized": pos / max(len(bp.clean_rows), 1),
+                    "declared": oc.get("target_prevalence")})
         return {"run_dir": str(run_dir),
                 "columns": bp.columns,
+                "rows": len(bp.dirty_rows),
+                "outcomes": outcomes,
                 "preview": bp.dirty_rows[:8],
                 "mess_cells": len([m for m in bp.ledger
                                    if m.op != "duplicate"])}
@@ -449,6 +461,34 @@ def api_campaign_run(payload: dict) -> dict:
             "text": text}
 
 
+def api_export(payload: dict) -> dict:
+    """Return a run artifact for download. which: dirty|clean|
+    ledger; fmt: csv|json. Table runs only (documents live as
+    .txt on disk already)."""
+    import csv as _csv
+    import io
+    run = Path(payload["dir"])
+    which = payload.get("which", "dirty")
+    fmt = payload.get("fmt", "csv")
+    if which == "ledger":
+        raw = (run / "ledger.json").read_text(encoding="utf-8")
+        return {"filename": "corruption_ledger.json",
+                "content": raw, "mime": "application/json"}
+    path = run / ("dirty.csv" if which == "dirty"
+                  else "clean.csv")
+    raw = path.read_text(encoding="utf-8")
+    label = ("synthetic_data" if which == "dirty"
+             else "answer_key")
+    if fmt == "csv":
+        return {"filename": label + ".csv", "content": raw,
+                "mime": "text/csv"}
+    rows = list(_csv.DictReader(io.StringIO(raw)))
+    return {"filename": label + ".json",
+            "content": json.dumps(rows, indent=1,
+                                  ensure_ascii=False),
+            "mime": "application/json"}
+
+
 def api_showdown(payload: dict) -> dict:
     from .autosolver import run_showdown
     from .campaign import load_campaign
@@ -463,12 +503,130 @@ def api_showdown(payload: dict) -> dict:
                           vendor_name=payload.get("name")
                           or payload["solver"],
                           **kwargs)
+    tiers = [{"tier": t.tier, "ceiling": t.ceiling,
+              "baseline": t.baseline_auroc,
+              "vendor": t.vendor_auroc,
+              "passed": t.vendor_passed}
+             for t in result.tiers]
     return {"text": result.format_text(),
-            "tiers": [{"tier": t.tier, "ceiling": t.ceiling,
-                       "baseline": t.baseline_auroc,
-                       "vendor": t.vendor_auroc,
-                       "passed": t.vendor_passed}
-                      for t in result.tiers]}
+            "tiers": tiers,
+            "report": dict(
+                _showdown_report(
+                    camp, tiers, result.vendor_name,
+                    result.baseline_name),
+                tiers_data=tiers)}
+
+
+def _showdown_report(camp, tiers, vendor_name, baseline_name):
+    """Everything the plain-English final report needs: dataset
+    facts, trap examples pulled from the ACTUAL spec, model
+    methodology, per-tier verdicts, and the winner."""
+    from .tablespec import TableSpec
+    spec = None
+    for t in camp.tiers:
+        if "as-specified" in t.name or spec is None:
+            spec = TableSpec.from_json(t.spec_json)
+            if "as-specified" in t.name:
+                break
+    oc = next((o for o in spec.outcomes
+               if o["name"] == camp.outcome), spec.outcomes[0])
+    traps = []
+    mess_kinds = set()
+    note_cols = 0
+    for c in spec.columns:
+        if c.ctype == "note":
+            note_cols += 1
+            n = c.note or {}
+            for dis in n.get("distractors", []):
+                phr = (dis.get("phrasings") or [""])[0]
+                if dis.get("excludes"):
+                    traps.append({
+                        "kind": "negation trap",
+                        "example": phr,
+                        "why": "appears ONLY in patients "
+                               "WITHOUT the risk — a model "
+                               "matching keywords without "
+                               "understanding negation gets "
+                               "this exactly backwards"})
+                else:
+                    traps.append({
+                        "kind": "history trap",
+                        "example": phr,
+                        "why": "an old, resolved finding — "
+                               "not current risk"})
+            for el in n.get("elements", [])[:2]:
+                traps.append({
+                    "kind": "hidden signal",
+                    "example": (el.get("phrasings")
+                                or [""])[0],
+                    "why": "genuine risk, phrased informally "
+                           "— worth {} in the true risk "
+                           "model, invisible to any model "
+                           "that ignores the note".format(
+                               el.get("weight"))})
+        m = c.mess
+        for attr, label in [
+                ("missing_rate", "missing values"),
+                ("typo_rate", "typos"),
+                ("format_rate", "mixed formats"),
+                ("outlier_rate", "implausible outliers"),
+                ("wrong_rate", "subtly wrong values"),
+                ("case_rate", "inconsistent casing"),
+                ("space_rate", "stray whitespace")]:
+            if getattr(m, attr, 0):
+                mess_kinds.add(label)
+    if spec.duplicate_rate:
+        mess_kinds.add("duplicated rows")
+    meth = {
+        "autosolver": "standardizes every messy column "
+            "(dates to one format, numbers cleaned of $ and "
+            "commas, missing values handled), then fits a "
+            "logistic regression — a classic, transparent "
+            "statistical model. Pure standard-library code, "
+            "fully deterministic, zero external dependencies. "
+            "It does NOT read free-text fields.",
+        "autosolver_hybrid": "does everything autosolver does, "
+            "AND mines the free-text notes: from the training "
+            "records alone it learns which words and phrases "
+            "predict the outcome (keeping negated mentions — "
+            "'denies X' — as separate evidence from 'X'), "
+            "then feeds table features and text features into "
+            "one logistic regression. No hand-written rules, "
+            "no external libraries, fully deterministic.",
+    }
+    key = "as-specified"
+    kt = next((t for t in tiers if key in t["tier"]),
+              tiers[len(tiers) // 2] if tiers else None)
+    winner = None
+    if kt:
+        vw = kt["vendor"] >= kt["baseline"]
+        winner = {
+            "name": vendor_name if vw else baseline_name,
+            "loser": baseline_name if vw else vendor_name,
+            "vendor_won": vw,
+            "tier": kt["tier"],
+            "margin": round(abs(kt["vendor"]
+                                - kt["baseline"]), 3)}
+    return {
+        "dataset": {
+            "rows": spec.rows,
+            "outcome": camp.outcome or oc["name"],
+            "declared": oc.get("target_prevalence"),
+            "note_columns": note_cols,
+            "n_columns": len(spec.columns)},
+        "mess_kinds": sorted(mess_kinds),
+        "traps": traps[:6],
+        "vendor": {"name": vendor_name,
+                   "how": "the model under evaluation — "
+                          "treated as a black box; it sees "
+                          "the training data and answers on "
+                          "the test data, nothing more"},
+        "baseline": {"name": baseline_name,
+                     "how": meth.get(baseline_name,
+                                     meth["autosolver"])},
+        "winner": winner,
+        "bars": (camp.tiers[0].conditions
+                 if camp.tiers else [])}
 
 
 _ROUTES = {
@@ -482,6 +640,7 @@ _ROUTES = {
     "/api/campaign-run": api_campaign_run,
     "/api/campaign-run-async": lambda payload: {
         "job": _start_job(api_campaign_run, payload)},
+    "/api/export": api_export,
     "/api/render-async": lambda payload: {
         "job": _start_job(api_render, payload)},
     "/api/showdown-async": lambda payload: {
@@ -663,6 +822,45 @@ table.preview th{background:var(--chip);
 @media(prefers-reduced-motion:no-preference){
   section.active{animation:in .16s ease-out}
   @keyframes in{from{opacity:.4}to{opacity:1}}}
+
+.stepbanner{font-size:15px;font-weight:700;margin:14px 0 4px;
+  color:var(--ink,#1a2b3c)}
+.explain{font-size:12.5px;line-height:1.55;color:#3c4a58;
+  background:#f2f6f4;border-left:3px solid #2e6e5e;
+  padding:8px 12px;margin:6px 0 12px;border-radius:0 6px 6px 0}
+.stepno{display:inline-block;background:#2e6e5e;color:#fff;
+  font-size:10.5px;font-weight:700;border-radius:9px;
+  padding:1px 7px;margin-right:6px;vertical-align:1px}
+.badge{display:inline-block;font-size:9.5px;font-weight:700;
+  text-transform:uppercase;letter-spacing:.04em;
+  border-radius:8px;padding:1px 7px;margin-right:6px}
+.badge.req{background:#7c2d2d;color:#fff}
+.badge.rec{background:#8a6d1a;color:#fff}
+.badge.opt{background:#c9d4cf;color:#33413b}
+.dl{display:inline-block;margin:4px 8px 4px 0;padding:5px 11px;
+  font-size:11.5px;border:1px solid #2e6e5e;border-radius:6px;
+  background:#fff;color:#2e6e5e;cursor:pointer;font-weight:600}
+.dl:hover{background:#2e6e5e;color:#fff}
+.sumline{font-size:12.5px;background:#eef4ff;
+  border-left:3px solid #3b5f9e;padding:8px 12px;margin:8px 0;
+  border-radius:0 6px 6px 0;line-height:1.5}
+.vcard{border:2px solid #b6c2bd;border-radius:10px;
+  padding:12px 16px;margin:10px 0;background:#fff}
+.vcard.winner{border-color:#2e7d32;background:#f3faf3}
+.vcard.loser{opacity:.92}
+.vcard h4{margin:0 0 4px;font-size:14px}
+.wbadge{display:inline-block;background:#2e7d32;color:#fff;
+  font-size:10px;font-weight:800;border-radius:8px;
+  padding:2px 9px;margin-left:8px;letter-spacing:.06em}
+.tierrow{font-family:var(--mono,monospace);font-size:11.5px;
+  padding:3px 8px;border-radius:5px;margin:2px 0}
+.tierrow.pass{background:#e7f4e7;color:#1d4d22}
+.tierrow.fail{background:#f9e7e7;color:#6e1f1f}
+.report h3{font-size:13.5px;margin:16px 0 4px;color:#1a2b3c}
+.report p,.report li{font-size:12.5px;line-height:1.55;
+  color:#33413b}
+.trapx{font-family:var(--mono,monospace);font-size:11px;
+  background:#f6f1e7;border-radius:4px;padding:1px 5px}
 </style></head><body>
 <div class="frame">
 <nav>
@@ -686,133 +884,283 @@ table.preview th{background:var(--chip);
 </header>
 
 <section id="s-describe" class="active">
+  <div class="stepbanner">Step 1 of 5 &mdash; Say what data you
+  need</div>
+  <div class="explain">Everything starts with a description of a
+  dataset. Nothing here touches real patients &mdash; every record is
+  invented, but invented to order: realistic values, realistic
+  messiness, and a known answer key. Use a ready-made example
+  (1.1) or write your own description (1.2), then continue to
+  Step 2.</div>
   <div class="panel">
-    <div class="eyebrow">presets</div>
+    <div class="eyebrow"><span class="stepno">1.1</span>
+    <span class="badge opt">optional &mdash; fastest path</span>
+    ready-made examples</div>
     <div class="presets" id="presets"></div>
-    <div class="hint">Presets load a finished spec into station 02,
-    or drop example English below to compile fresh.</div>
+    <div class="hint">Click one to load a complete, tested
+    description into Step 2. For the vendor evaluation demo,
+    click the first card and skip to Step 2.</div>
   </div>
   <div class="panel">
-    <div class="eyebrow">english &rarr; spec</div>
+    <div class="eyebrow"><span class="stepno">1.2</span>
+    <span class="badge opt">skip if you clicked an example</span>
+    describe the data in plain English</div>
+    <div class="explain">Write what one record is (a patient, a
+    bill, a lab result), what fields it has, how values should
+    behave (typical ranges, how much is missing, what gets
+    mistyped), any free-text field like a discharge note and
+    what risk factors should hide inside it, and what outcome
+    should be predictable and how rare it is. What this box
+    cannot do: fetch real data, and it only produces dataset
+    descriptions &mdash; not code, not reports.</div>
     <textarea id="english" rows="5"
       placeholder="a 300-row lab results extract: patient id, ordering department weighted toward internal medicine, ten percent missing results, occasional wrong-value dates..."></textarea>
     <div class="row2">
-      <div><label for="kind">dataset kind</label>
-        <select id="kind"><option value="table">table</option>
-        <option value="document">document corpus</option></select></div>
-      <div><label for="backend">compiler model</label>
-        <select id="backend"><option value="ollama">ollama (local)</option>
-        <option value="openai">openai-compatible (llamafile / vLLM / LM Studio)</option>
-        <option value="bedrock">bedrock (AWS)</option>
-        <option value="anthropic">anthropic API</option></select></div>
+      <div><label for="kind"><span class="stepno">1.3</span>
+        what shape of data?</label>
+        <select id="kind"><option value="table">a table &mdash;
+        one row per patient / record</option>
+        <option value="document">text documents &mdash; e.g.
+        clinical notes or reports</option></select></div>
+      <div><label for="backend"><span class="stepno">1.4</span>
+        <span class="badge opt">advanced</span> which AI reads
+        your English</label>
+        <select id="backend"><option value="ollama">local AI on
+        this machine (private)</option>
+        <option value="openai">local AI server (llama.cpp /
+        LM Studio)</option>
+        <option value="bedrock">hospital cloud (AWS
+        Bedrock)</option>
+        <option value="anthropic">Anthropic API</option></select></div>
     </div>
+    <div class="eyebrow"><span class="stepno">1.5</span>
+    <span class="badge opt">skip if you clicked an example</span>
+    turn the description into a recipe</div>
     <button class="act" onclick="compileSpec()">Compile spec</button>
-    <div class="hint">Compiled specs are drafts. Validation problems
-    are shown verbatim; nothing renders until the spec validates and
-    you have reviewed it — that pause is the safety story.</div>
+    <div class="hint">The AI drafts a formal recipe from your
+    paragraph and Step 2 checks it. Drafts can contain mistakes
+    &mdash; nothing is created until the recipe passes review. That
+    pause is deliberate: a person approves every recipe.</div>
     <div class="outlabel">readout &mdash; results only, not editable</div>
     <pre class="out" id="compile-out"></pre>
   </div>
 </section>
 
 <section id="s-spec">
+  <div class="stepbanner">Step 2 of 5 &mdash; Review the recipe (the
+  contract for your data)</div>
+  <div class="explain">This is the complete, exact recipe the
+  rest of the process follows: every field, every distribution,
+  every deliberate flaw, every hidden trap, and the promised
+  outcome rate. You do not need to read it &mdash; the buttons below
+  do the reading. The short code above the page (the
+  fingerprint) identifies this recipe forever: same fingerprint,
+  same data, every time, on any machine.</div>
   <div class="panel">
-    <div class="eyebrow">the spec — review before rendering</div>
+    <div class="eyebrow"><span class="stepno">2.1</span>
+    <span class="badge opt">experts only</span> the recipe
+    itself (editable)</div>
     <textarea id="spec" rows="22" spellcheck="false"
-      placeholder="No spec yet — describe one or load a preset."></textarea>
+      placeholder="No spec yet &mdash; describe one or load a preset."></textarea>
+    <div class="eyebrow"><span class="stepno">2.2</span>
+    <span class="badge req">required</span> check the recipe is
+    complete and lawful</div>
     <button class="act" onclick="validateSpec()">Validate</button>
+    <div class="hint">Green means every field is well-defined
+    and internally consistent. Problems are listed in plain
+    terms so they can be fixed before anything is created.</div>
+    <div class="eyebrow"><span class="stepno">2.3</span>
+    <span class="badge opt">optional</span> quick trial run
+    (nothing saved)</div>
     <button class="act ghost" onclick="planSpec()">Plan (dry run)</button>
+    <div class="hint">Builds the dataset in memory and reports
+    what it WOULD contain &mdash; row counts, corrupted cells &mdash;
+    without writing anything to disk.</div>
+    <div class="eyebrow"><span class="stepno">2.4</span>
+    <span class="badge rec">recommended</span> does the data
+    keep the recipe's promises?</div>
     <button class="act ghost" onclick="lintSpec()">Semantic lint</button>
+    <div class="hint">Generates a sample and measures it against
+    what was declared &mdash; e.g. "readmission was promised at
+    5&ndash;12% and lands at 8%". This is how you know the dataset
+    means what the description said.</div>
+    <div class="eyebrow"><span class="stepno">2.5</span>
+    <span class="badge opt">optional</span> save the recipe
+    file</div>
     <button class="act ghost" onclick="downloadSpec()">Download spec.json</button>
+    <div class="hint">Anyone with this one file can regenerate
+    this exact dataset &mdash; that is the reproducibility guarantee,
+    and what you would hand an auditor or a vendor.</div>
     <div class="outlabel">readout &mdash; results only, not editable</div>
     <pre class="out" id="spec-out"></pre>
   </div>
 </section>
 
 <section id="s-data">
+  <div class="stepbanner">Step 3 of 5 &mdash; Create the synthetic
+  data</div>
+  <div class="explain">This turns the approved recipe into real
+  files: the messy dataset (what a model would actually face),
+  the clean answer key (the same records with every flaw
+  repaired and every truth known), and a ledger listing every
+  deliberate corruption. When it finishes, a preview and
+  download buttons appear below.</div>
   <div class="panel">
-    <div class="eyebrow">render &rarr; auditable artifact</div>
-    <label for="outdir">output directory</label>
+    <div class="eyebrow"><span class="stepno">3.1</span>
+    <span class="badge req">required</span> where to save</div>
+    <label for="outdir">folder name for this run</label>
     <input id="outdir" value="gui_runs/run_001">
+    <div class="eyebrow"><span class="stepno">3.2</span>
+    <span class="badge opt">advanced &mdash; text documents
+    only</span> who writes the prose</div>
     <div class="row2">
-      <div><label for="rbackend">render backend (documents;
-        tables are always deterministic)</label>
-        <select id="rbackend"><option>stub</option>
-        <option>ollama</option><option>openai</option>
-        <option>bedrock</option>
-        <option>anthropic</option></select></div>
-      <div><label for="rmodel">model (blank = backend
-        default)</label>
+      <div><label for="rbackend">writer</label>
+        <select id="rbackend"><option value="stub">instant
+        built-in writer (recommended)</option>
+        <option value="ollama">local AI (more natural prose,
+        slower)</option>
+        <option value="openai">local AI server (llama.cpp on
+        this machine)</option>
+        <option value="bedrock">hospital cloud (AWS
+        Bedrock)</option>
+        <option value="anthropic">Anthropic API</option></select></div>
+      <div><label for="rmodel">model name (blank = default)</label>
         <input id="rmodel" placeholder="mistral-small3.1"></div>
     </div>
-    <button class="act" onclick="renderSpec()">Render data</button>
-    <div class="hint">Tables write dirty.csv + clean.csv +
-    ledger.json under an integrity manifest. Document corpora render
-    stub-verified here; use the CLI with ollama for live prose.</div>
+    <div class="hint">Tables are always generated exactly from
+    the recipe &mdash; the writer choice only affects free-text
+    documents. AI-written prose is verified line-by-line against
+    the answer key and corrected if it drifts.</div>
+    <div class="eyebrow"><span class="stepno">3.3</span>
+    <span class="badge req">required</span> create the data</div>
+    <button class="act" onclick="renderSpec()">Create the data</button>
     <div class="outlabel">readout &mdash; results only, not editable</div>
     <pre class="out" id="render-out"></pre>
+    <div id="data-summary"></div>
+    <div id="data-downloads"></div>
     <div id="render-preview"></div>
   </div>
 </section>
 
 <section id="s-campaign">
+  <div class="stepbanner">Step 4 of 5 &mdash; Set the exam, then let
+  our own model take it</div>
+  <div class="explain">A campaign is a standardized exam built
+  from the recipe: the same test at three difficulty levels,
+  with pass marks you set. Here you define the exam (4.1&ndash;4.4)
+  and then have synthkit's own built-in model sit it (4.5&ndash;4.6)
+  &mdash; so before any vendor is judged, you know what a free,
+  transparent model can score on this data.</div>
   <div class="panel">
-    <div class="eyebrow">goal &rarr; tier ladder</div>
     <div class="row2">
-      <div><label for="goal">goal</label>
-        <select id="goal"><option>clean</option>
-        <option>predict</option><option>regress</option>
-        <option>extract</option></select></div>
-      <div><label for="outcome">outcome (predict only)</label>
-        <input id="outcome" placeholder="readmitted"></div>
+      <div><label for="goal"><span class="stepno">4.1</span>
+        <span class="badge req">required</span> what is the
+        task?</label>
+        <select id="goal"><option value="clean">clean &mdash; repair
+        messy values</option>
+        <option value="predict">predict &mdash; forecast a yes/no
+        outcome (the vendor demo)</option>
+        <option value="regress">regress &mdash; predict a
+        number</option>
+        <option value="extract">extract &mdash; pull facts out of
+        text</option></select></div>
+      <div><label for="outcome"><span class="stepno">4.2</span>
+        <span class="badge req">required for predict</span>
+        which column is being predicted?</label>
+        <input id="outcome" placeholder="readmitted_30d"></div>
     </div>
-    <label for="bars">bars (k=v, comma-separated)</label>
+    <label for="bars"><span class="stepno">4.3</span>
+    <span class="badge req">required</span> pass marks
+    (name=value, comma-separated)</label>
     <input id="bars" value="fix_rate=0.9,detect_rate=0.5">
+    <div class="hint">For prediction: auroc=0.6,gap_max=0.3.
+    AUROC is the ranking score &mdash; 1.0 is perfect, 0.5 is a coin
+    flip; 0.6 says "must beat a coin flip convincingly".
+    gap_max limits how much worse a model may do on the messy
+    data versus the clean answer key.</div>
+    <div class="eyebrow"><span class="stepno">4.4</span>
+    <span class="badge req">required</span> build the exam</div>
     <button class="act" onclick="campaignCompile()">Compile ladder</button>
-    <label for="solver">solver</label>
-    <select id="solver"><option>autoclean</option>
-      <option>strip_cleaner</option><option>autosolver</option>
-      <option>autosolver_regress</option>
-      <option>autosolver_hybrid</option>
-      <option>regex_extract</option>
-      <option value="llm_extract">llm_extract (ollama as the
-      vendor)</option></select>
+    <label for="solver"><span class="stepno">4.5</span>
+    <span class="badge req">required</span> which model takes
+    the exam</label>
+    <select id="solver"><option value="autoclean">autoclean &mdash;
+      built-in cleaning tool</option>
+      <option value="strip_cleaner">strip_cleaner &mdash; trivial
+      cleaner (a control)</option>
+      <option value="autosolver">autosolver &mdash; built-in tabular
+      model (cannot read notes)</option>
+      <option value="autosolver_regress">autosolver_regress &mdash;
+      built-in, for numeric targets</option>
+      <option value="autosolver_hybrid">autosolver_hybrid &mdash;
+      our best: reads the table AND the notes</option>
+      <option value="regex_extract">regex_extract &mdash; simple
+      pattern extractor (a control)</option>
+      <option value="llm_extract">llm_extract &mdash; an AI model
+      in the test seat (extract only)</option></select>
     <div class="row2">
-      <div><label for="lbackend">llm vendor backend</label>
+      <div><label for="lbackend"><span class="stepno">4.6</span>
+        <span class="badge opt">only for llm_extract</span>
+        which AI is being tested</label>
         <select id="lbackend"><option>ollama</option>
         <option>openai</option><option>bedrock</option>
         <option>anthropic</option></select></div>
-      <div><label for="lmodel">vendor model (blank =
-        backend default)</label>
+      <div><label for="lmodel">model name (blank =
+        default)</label>
         <input id="lmodel" placeholder="mistral-small3.1"></div>
     </div>
     <div class="row2">
-      <div><label for="samples">llm samples (majority vote)</label>
+      <div><label for="samples"><span class="stepno">4.7</span>
+        <span class="badge opt">advanced</span> answers per
+        question (majority vote)</label>
         <input id="samples" value="1"></div>
-      <div><label for="intervention">llm intervention
-        (extra system prompt)</label>
+      <div><label for="intervention"><span class="stepno">4.8</span>
+        <span class="badge opt">advanced</span> extra
+        instruction to the tested AI</label>
         <input id="intervention" placeholder="optional"></div>
     </div>
+    <div class="eyebrow"><span class="stepno">4.9</span>
+    <span class="badge req">required</span> run the exam</div>
     <button class="act" onclick="campaignRun()">Run ladder</button>
+    <div class="hint">Training happens on a separate practice
+    population the model has never been scored on; answers are
+    hidden during the test. Results arrive per difficulty tier
+    with statistical confidence attached.</div>
     <div class="outlabel">readout &mdash; results only, not editable</div>
     <pre class="out" id="campaign-out"></pre>
   </div>
 </section>
 
 <section id="s-showdown">
+  <div class="stepbanner">Step 5 of 5 &mdash; The verdict: vendor vs
+  our model</div>
+  <div class="explain">The vendor's model and our own take the
+  identical exam on identical data &mdash; data where the maximum
+  achievable score is KNOWN, because we planted the truth. Below
+  the raw readout, a full plain-English report explains what was
+  tested, what traps the data contained, how each model works,
+  and who won.</div>
   <div class="panel">
-    <div class="eyebrow">vendor vs the synthkit baseline</div>
-    <div class="hint">Runs on a compiled predict campaign. Every tier
-    reports ceiling / baseline / vendor — the whole meeting in one
-    line per tier.</div>
-    <label for="sbaseline">synthkit baseline (the floor the vendor must beat)</label>
-    <select id="sbaseline"><option>autosolver</option>
-      <option>autosolver_hybrid</option></select>
-    <label for="vendor">vendor solver (built-in or pkg.mod:fn)</label>
+    <label for="sbaseline"><span class="stepno">5.1</span>
+    <span class="badge req">required</span> our challenger (the
+    floor the vendor must beat)</label>
+    <select id="sbaseline"><option value="autosolver">autosolver
+      &mdash; tabular only (cannot read notes)</option>
+      <option value="autosolver_hybrid">autosolver_hybrid &mdash; our
+      best: reads the table AND the notes</option></select>
+    <label for="vendor"><span class="stepno">5.2</span>
+    <span class="badge req">required</span> the vendor's model
+    (name or file:function)</label>
     <input id="vendor" value="autosolver">
+    <div class="hint">For the demo: vendor_model:predict &mdash;
+    VendorCo RiskScore, a competent model that cannot read the
+    notes.</div>
+    <div class="eyebrow"><span class="stepno">5.3</span>
+    <span class="badge req">required</span> run the head-to-head</div>
     <button class="act" onclick="showdown()">Run showdown</button>
     <div class="outlabel">readout &mdash; results only, not editable</div>
     <pre class="out" id="showdown-out"></pre>
+    <div id="showdown-report"></div>
   </div>
 </section>
 </main></div>
@@ -945,8 +1293,47 @@ async function renderSpec(){
     out('render-out','rendering via '+backend+'... 0s');
     var d=await api('/api/render-async',payload);
     poll(d.job,'render-out',renderDone);}}
+function fmtPct(x){return (100*x).toFixed(1)+'%';}
+function dataSummary(d){
+  var s='Created <b>'+d.rows+' synthetic records</b> with '+
+    d.mess_cells+' deliberately corrupted cells (every one '+
+    'listed in the corruption ledger).';
+  for(var i=0;i<(d.outcomes||[]).length;i++){
+    var o=d.outcomes[i];
+    s+=' Outcome <b>'+o.name+'</b>: '+fmtPct(o.realized);
+    if(o.declared){
+      var ok=o.realized>=o.declared[0]&&
+             o.realized<=o.declared[1];
+      s+=' &mdash; '+(ok?'inside':'OUTSIDE')+
+        ' the promised '+fmtPct(o.declared[0])+'&ndash;'+
+        fmtPct(o.declared[1])+(ok?' &#10003;':' &#9888;');}}
+  s+=' The full dataset, the answer key, and the ledger are '+
+    'downloadable below; the first rows are previewed at the '+
+    'bottom.';
+  return '<div class="sumline">'+s+'</div>';}
+async function exportData(which,fmt){
+  var d=await api('/api/export',{
+    dir:document.getElementById('outdir').value,
+    which:which,fmt:fmt});
+  if(d.error){out('render-out',d.error,'bad');return;}
+  var blob=new Blob([d.content],{type:d.mime});
+  var a=document.createElement('a');
+  a.href=URL.createObjectURL(blob);
+  a.download=d.filename;a.click();
+  URL.revokeObjectURL(a.href);}
+function downloadBar(){
+  return '<div style="margin:6px 0 2px;font-size:11px;'+
+    'font-weight:700;text-transform:uppercase;'+
+    'letter-spacing:.05em;color:#5a6a63">downloads</div>'+
+    '<button class="dl" onclick="exportData(\'dirty\',\'csv\')">synthetic data (CSV)</button>'+
+    '<button class="dl" onclick="exportData(\'dirty\',\'json\')">synthetic data (JSON)</button>'+
+    '<button class="dl" onclick="exportData(\'clean\',\'csv\')">answer key (CSV)</button>'+
+    '<button class="dl" onclick="exportData(\'clean\',\'json\')">answer key (JSON)</button>'+
+    '<button class="dl" onclick="exportData(\'ledger\',\'json\')">corruption ledger</button>';}
 function renderDone(d){
   if(d.error){out('render-out',d.error,'bad');return;}
+  document.getElementById('data-summary').innerHTML='';
+  document.getElementById('data-downloads').innerHTML='';
   if(d.preview){
     out('render-out','wrote '+d.run_dir+'  ('+
       d.mess_cells+' mess cells, ledgered)');
@@ -964,7 +1351,11 @@ function renderDone(d){
           '</td>';}
       html+='</tr>';}
     document.getElementById('render-preview').innerHTML=
-      html+'</table>';}
+      html+'</table>';
+    document.getElementById('data-summary').innerHTML=
+      dataSummary(d);
+    document.getElementById('data-downloads').innerHTML=
+      downloadBar();}
   else{out('render-out','wrote '+d.run_dir+'  ('+d.documents+
     ' docs, '+d.verified_first_try+
     ' verified first try)\n\n--- first document ---\n'+
@@ -1031,7 +1422,89 @@ async function showdown(){
     campaign_dir:campaignDir,
     baseline:document.getElementById('sbaseline').value,
     solver:document.getElementById('vendor').value});
-  poll(d.job,'showdown-out',r=>out('showdown-out',r.text,''));}
+  poll(d.job,'showdown-out',function(r){
+    out('showdown-out',r.text,'');
+    renderReport(r.report);});}
+function tierRows(t,who){
+  var h='';
+  for(var i=0;i<t.length;i++){
+    var v=who==='vendor'?t[i].vendor:t[i].baseline;
+    var win=who==='vendor'?
+      t[i].vendor>=t[i].baseline:
+      t[i].baseline>=t[i].vendor;
+    var cls=(who==='vendor'?t[i].passed:true)&&win?
+      'pass':((who==='vendor'&&!t[i].passed)?
+      'fail':(win?'pass':'fail'));
+    h+='<div class="tierrow '+cls+'">'+t[i].tier+
+      ': score '+v.toFixed(3)+' (max possible '+
+      t[i].ceiling.toFixed(3)+') &mdash; '+
+      (win?'ahead':'behind')+' in this tier'+
+      (who==='vendor'?(t[i].passed?
+      ', pass mark met':', BELOW the pass mark'):'')+
+      '</div>';}
+  return h;}
+function modelCard(name,how,tiers,who,isWinner){
+  return '<div class="vcard '+
+    (isWinner?'winner':'loser')+'"><h4>'+name+
+    (isWinner?'<span class="wbadge">WINNER</span>':'')+
+    '</h4><p>'+how+'</p>'+tierRows(tiers,who)+
+    '</div>';}
+function renderReport(rep){
+  var el=document.getElementById('showdown-report');
+  if(!rep){el.innerHTML='';return;}
+  var ds=rep.dataset;
+  var h='<div class="report">';
+  h+='<h3>What just happened, in plain terms</h3>';
+  h+='<p>A synthetic population of <b>'+ds.rows+
+    ' records</b> ('+ds.n_columns+' fields'+
+    (ds.note_columns?', including '+ds.note_columns+
+    ' free-text note field':'')+
+    ') was generated from an approved recipe, with '+
+    'the outcome <b>'+ds.outcome+'</b>'+
+    (ds.declared?' promised to occur in '+
+    (100*ds.declared[0]).toFixed(0)+'&ndash;'+
+    (100*ds.declared[1]).toFixed(0)+
+    '% of records (a rare, minority outcome '+
+    '&mdash; like real clinical data)':'')+
+    '. Both models trained on a separate practice '+
+    'population and were scored blind on this one, '+
+    'at three difficulty levels. Because the truth '+
+    'was planted, the <b>maximum achievable score '+
+    'is known exactly</b> &mdash; no model can '+
+    'legitimately beat the ceiling shown in each '+
+    'row.</p>';
+  if(rep.mess_kinds&&rep.mess_kinds.length){
+    h+='<p>The data was deliberately imperfect: '+
+      rep.mess_kinds.join(', ')+
+      ' &mdash; every corruption recorded in the '+
+      'ledger from Step 3.</p>';}
+  if(rep.traps&&rep.traps.length){
+    h+='<h3>Hidden traps and buried signal</h3><ul>';
+    for(var i=0;i<rep.traps.length;i++){
+      var t=rep.traps[i];
+      h+='<li><b>'+t.kind+':</b> '+
+        '<span class="trapx">&ldquo;'+t.example+
+        '&rdquo;</span> &mdash; '+t.why+'</li>';}
+    h+='</ul>';}
+  h+='<h3>The verdict</h3>';
+  var w=rep.winner;
+  if(w){
+    h+='<p>On the <b>'+w.tier+'</b> tier (the data '+
+      'exactly as specified), <b>'+w.name+
+      '</b> wins by '+w.margin.toFixed(3)+
+      ' AUROC (1.0 = perfect, 0.5 = coin flip).</p>';
+    var vFirst=w.vendor_won;
+    var vc=modelCard(rep.vendor.name,rep.vendor.how,
+      rep.tiers_data,'vendor',vFirst);
+    var bc=modelCard(rep.baseline.name,
+      rep.baseline.how,rep.tiers_data,'baseline',
+      !vFirst);
+    h+=vFirst?vc+bc:bc+vc;}
+  h+='<p>Pass marks for this exam: '+
+    (rep.bars||[]).join(', ')+'. Green rows met '+
+    'their mark and led their tier; red rows fell '+
+    'short.</p></div>';
+  el.innerHTML=h;}
 const PERSIST=['spec','english','kind','goal','outcome',
   'bars','solver','vendor','outdir','samples','intervention',
   'rbackend','rmodel','lbackend','lmodel'];

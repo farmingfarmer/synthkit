@@ -94,7 +94,7 @@ class FeatureEncoder:
                        if v.strip().lower() not in _MISSING]
             n = max(len(present), 1)
             avg_len = sum(len(v) for v in present) / n
-            if avg_len > 60:
+            if avg_len > 40:
                 # free-text column: not a tabular feature. The
                 # tabular baseline stays text-blind by design —
                 # mining these is the hybrid solver's job.
@@ -429,7 +429,7 @@ class TextMiner:
             if name.startswith("_"):
                 continue
             vals = [str(r.get(name, "")) for r in rows[:200]]
-            if vals and sum(len(v) for v in vals) / len(vals) > 60:
+            if vals and sum(len(v) for v in vals) / len(vals) > 40:
                 out.append(name)
         return out
 
