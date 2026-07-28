@@ -1118,7 +1118,11 @@ details.explain summary{cursor:pointer;margin-bottom:6px}
     large open model served by the Ollama app on this machine.
     <b>local AI server</b> = any OpenAI-compatible server on
     this computer (llama.cpp, LM Studio, vLLM) &mdash; the $0
-    fully-offline option. <b>Bedrock</b> = open-weight and
+    fully-offline option. ("OpenAI-compatible" names the
+    message FORMAT those servers all adopted, not the company:
+    nothing is sent to OpenAI or ChatGPT, no account exists,
+    and traffic stays on this machine &mdash; it works with the
+    network unplugged.) <b>Bedrock</b> = open-weight and
     Claude models inside the hospital's governed AWS.
     <b>Anthropic</b> = Claude via external API. Tables are
     ALWAYS generated exactly from the recipe regardless of this
@@ -1197,9 +1201,14 @@ details.explain summary{cursor:pointer;margin-bottom:6px}
       <div><label for="lbackend"><span class="stepno">4.6</span>
         <span class="badge opt">only for llm_extract</span>
         which AI is being tested</label>
-        <select id="lbackend"><option>ollama</option>
-        <option>openai</option><option>bedrock</option>
-        <option>anthropic</option></select></div>
+        <select id="lbackend"><option value="ollama">Ollama on
+        this machine</option>
+        <option value="openai">local AI server on this machine
+        (llama.cpp / LM Studio &mdash; NOT ChatGPT)</option>
+        <option value="bedrock">hospital AWS cloud
+        (Bedrock)</option>
+        <option value="anthropic">Anthropic cloud API
+        (Claude)</option></select></div>
       <div><label for="lmodel">model name (blank =
         default)</label>
         <input id="lmodel" placeholder="mistral-small3.1"></div>

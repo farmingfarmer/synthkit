@@ -266,10 +266,9 @@ def main():
         check("the backend switch reaches every LLM seam: "
               "compiler, render, and vendor pickers all offer "
               "openai",
-              html.count('value="openai"') >= 2
+              html.count('value="openai"') >= 3
               and 'id="lbackend"' in html
-              and 'id="rbackend"' in html
-              and html.count(">openai<") >= 1)
+              and 'id="rbackend"' in html)
         from synthkit.gui import _solver
         import os as _os
         import tempfile as _tf
@@ -498,6 +497,11 @@ def main():
               all(m in html for m in (
                   "no AI, instant", "mistral-24B",
                   "llama.cpp", "Bedrock", "fully-offline")))
+        check("`openai` is disambiguated as a protocol, not "
+              "the company, everywhere it appears",
+              "NOT ChatGPT" in html
+              and "not the company" in html
+              and html.count("<option>openai</option>") == 0)
         check("the recipe summary card and live pass-marks "
               "translation exist",
               all(m in html for m in (
