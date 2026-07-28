@@ -67,6 +67,13 @@ DOMAINS = [
       "a real confusion: rule-kinds-in-distributions, bool "
       "derived targets, dollar-amount sigmas, "
       "target_prevalence bounds."),
+     ("Note columns: text with planted signal", "tablespec.py",
+      "_validate_note",
+      "Plain English: a table can carry a free-text note field "
+      "whose hidden phrases genuinely drive the outcome. This "
+      "validator teaches the rules: elements need phrasings, "
+      "densities, weights; distractors can carry `excludes` so "
+      "denial traps only appear in patients WITHOUT the risk."),
     ]},
    {"file": "spec.py", "name": "spec (documents)",
     "blurb": "The document-corpus schema: plantable elements, "
@@ -106,6 +113,14 @@ DOMAINS = [
       "Planted causality. Logistic stores true probabilities "
       "(the AUROC ceiling); linear stores the noiseless signal "
       "(the exact R^2 ceiling)."),
+     ("Hybrid notes: prose that moves the logit",
+      "tableplan.py", "_build_note",
+      "The capstone mechanism. Each patient's note is "
+      "assembled from seeded phrase draws; which risk phrases "
+      "landed feeds the outcome directly — so the achievable "
+      "ceiling INCLUDES the text, and any model that cannot "
+      "read hits a lower wall by construction. Measured: "
+      "ceiling 0.82, note-blind 0.60, note-reading 0.72."),
     ]},
    {"file": "planner.py", "name": "planner (documents)",
     "blurb": "Blueprints decide every document's contents before "
@@ -253,9 +268,32 @@ DOMAINS = [
       "Fixes what heuristics honestly can (space, case, "
       "formats), flags exact dups, never guesses — "
       "overcorrection near zero."),
+     ("TextMiner: reading the notes, honestly",
+      "autosolver.py", "TextMiner",
+      "Plain English: from training records ALONE it learns "
+      "which words and phrases predict the outcome — no "
+      "peeking at the recipe. Negated mentions ('denies X') "
+      "are kept as separate evidence from 'X', because "
+      "clinical risk is often phrased negatively ('no home "
+      "support'). That split alone bought +0.03 AUROC."),
+     ("autosolver_hybrid: the doctor's own model",
+      "autosolver.py", "autosolver_hybrid",
+      "Tabular features PLUS mined note features into one "
+      "logistic regression. The free challenger that beat "
+      "the text-blind vendor by 0.12 on the capstone cohort."),
+     ("Model transparency: real coefficients",
+      "autosolver.py", "_publish_fit",
+      "Every fit publishes its actual learned weights with "
+      "human names — categorical one-hots expanded, mined "
+      "phrases labeled ('note phrase \"kg\" mentioned — "
+      "raises risk'). Building this caught patient NAMES "
+      "wearing risk weights; identifier-like columns are now "
+      "excluded from features."),
      ("run_showdown", "autosolver.py", "run_showdown",
-      "ceiling / baseline / vendor per tier — the meeting "
-      "summary as a function."),
+      "ceiling / baseline / vendor per tier, with a "
+      "SELECTABLE baseline (hybrid as the floor) and a "
+      "[bar:] verdict split from the baseline comparison — "
+      "the meeting summary as a function."),
     ]},
    {"file": "llmvendor.py", "name": "llmvendor",
     "blurb": "The chair a real model sat in: 26% trap rate "
@@ -269,6 +307,14 @@ DOMAINS = [
      ("_find_json_array", "llmvendor.py", "_find_json_array",
       "Salvages arrays from fences and prose; hopeless output "
       "counts as malformed instead of crashing."),
+     ("The linear salvage scanner", "llmvendor.py",
+      "_first_balanced_array",
+      "Replaced a backtracking regex that spun FOREVER on a "
+      "3B model's unclosed-bracket rambles — one bug, three "
+      "live incidents (frozen ticker, idle server, Ctrl-C "
+      "traceback). String-aware bracket scan: 0.0001s on the "
+      "killer input, 17 rambles counted calmly in its first "
+      "real outing."),
     ]},
   ]},
  {"id": "gates",
@@ -301,9 +347,15 @@ DOMAINS = [
            "backends including AWS Bedrock.",
   "modules": [
    {"file": "gui.py", "name": "gui — the bench",
-    "blurb": "Five stations, spec-card fingerprint, async jobs "
-             "with budget+cancel, auto-incrementing campaign "
-             "dirs, session persistence, the build chip.",
+    "blurb": "Five numbered steps a clinician can walk without "
+             "an engineer: plain-English banners, required/"
+             "optional badges, live red/green readiness that "
+             "GATES the buttons, jargon-free labels ('a table "
+             "— one row per patient'), a governance strip, "
+             "and depth styling (sheened raised buttons, "
+             "inset editables, shadowed cards) so the eye "
+             "knows what is pressable. Plus: async jobs with "
+             "budget+cancel, fingerprint chip, persistence.",
     "components": [
      ("build_info — the chip", "gui.py", "build_info",
       "version - built date - fingerprint; matches `synthkit "
@@ -313,6 +365,37 @@ DOMAINS = [
       "A wedged ollama once served a 6-minute run for 106 "
       "minutes; jobs now time out readably and can be "
       "cancelled."),
+     ("Data transparency: preview + downloads", "gui.py",
+      "api_export",
+      "The moment data exists: metric cards (records / "
+      "corruptions / outcome-rate vs promise), a white "
+      "scrollable preview with click-to-read-any-cell (the "
+      "notes, full screen), and one-click downloads — messy "
+      "CSV/JSON, the clean answer key, the corruption "
+      "ledger."),
+     ("The plain-English final report", "gui.py",
+      "_showdown_report",
+      "After the showdown: what happened in plain terms, the "
+      "hidden traps WITH example phrases pulled live from "
+      "the spec, both methodologies, the trained model's "
+      "actual coefficients as weight bars, color-coded "
+      "per-tier verdicts, and the WINNER card on top."),
+    ]},
+   {"file": "openai_compat.py", "name": "openai_compat",
+    "blurb": "The open-source door. 'OpenAI-compatible' names "
+             "the message FORMAT the local-serving world "
+             "standardized on — llama.cpp, LM Studio, vLLM, "
+             "llamafile — NOT the company: no ChatGPT, no "
+             "account, traffic stays on the machine. This one "
+             "backend put a $0 Llama-3B on the demo laptop.",
+    "components": [
+     ("OpenAICompatBackend", "openai_compat.py",
+      "OpenAICompatBackend",
+      "One class covering every OpenAI-dialect server; "
+      "injectable transport, both response dialects, "
+      "llamafile-citing errors. Field-proven: the ThinkPad "
+      "rendered its first live clinical prose through it "
+      "(7 verified first try / 1 retried / 0 fallbacks)."),
     ]},
    {"file": "cli.py", "name": "cli",
     "blurb": "Everything scriptable: compile, render, lint, "
@@ -451,6 +534,33 @@ footer{margin-top:12px;font-family:var(--mono);font-size:11px;
 @media(prefers-reduced-motion:no-preference){
  .stage>*{animation:in .16s ease-out}
  @keyframes in{from{opacity:.5}to{opacity:1}}}
+/* ===== DEPTH & READABILITY LAYER (matches the bench) ===== */
+body{font-size:15.5px;line-height:1.55}
+.stage{border-radius:12px;
+ box-shadow:0 1px 2px rgba(23,34,44,.06),
+            0 6px 18px rgba(23,34,44,.08)}
+.blurb{font-size:14px;color:#3d4c56;max-width:820px}
+.chip{border-radius:10px;
+ background:linear-gradient(180deg,#ffffff,#f5f8f7);
+ box-shadow:inset 0 1px 0 rgba(255,255,255,.85),
+            0 2px 5px rgba(23,34,44,.10);
+ transition:transform .06s,box-shadow .06s}
+.chip:hover{transform:translateY(-1px);
+ box-shadow:0 5px 12px rgba(23,34,44,.16)}
+.chip.active{box-shadow:inset 0 2px 5px rgba(23,34,44,.10)}
+.chip b{font-size:13.5px}
+.chip small{font-size:12px;color:#4a5a54}
+.node .plate{filter:drop-shadow(0 3px 5px rgba(23,34,44,.22))}
+.node:hover .plate{filter:drop-shadow(0 6px 10px
+ rgba(23,34,44,.3))}
+#crumbs{font-size:13px}
+#crumbs a{font-weight:700}
+.codebox{border-radius:10px;overflow:hidden;
+ box-shadow:0 3px 10px rgba(23,34,44,.12)}
+pre.code{font-size:12.5px}
+.compblurb{font-size:13.5px;line-height:1.55}
+.codehead{font-size:12px}
+footer{font-size:12px}
 </style></head><body>
 <header>
  <div class="wordmark">SYNTHKIT<small>system atlas &middot;
@@ -528,7 +638,7 @@ function hub(){
   s+='<g class="node" data-act="domain" data-i="'+di+'">'+
    '<circle class="halo" cx="'+x+'" cy="'+y+
    '" r="56" fill="'+d.color+'"/>'+
-   '<circle cx="'+x+'" cy="'+y+'" r="44" fill="'+d.color+
+   '<circle class="plate" cx="'+x+'" cy="'+y+'" r="44" fill="'+d.color+
    '"/>'+
    '<text x="'+x+'" y="'+(y-1)+'" text-anchor="middle" '+
    'fill="#fff" font-size="10.5" font-weight="600">0'+
@@ -555,7 +665,7 @@ function hub(){
    '<rect class="halo" x="'+(x0-58)+'" y="'+(ry-26)+
    '" width="'+(W-2*x0+116)+'" height="52" rx="8" fill="'+
    rd.color+'"/>'+
-   '<rect x="'+(x0-50)+'" y="'+(ry-20)+'" width="'+
+   '<rect class="plate" x="'+(x0-50)+'" y="'+(ry-20)+'" width="'+
    (W-2*x0+100)+'" height="40" rx="5" fill="#fff" stroke="'+
    rd.color+'" stroke-width="2"/>'+
    '<text x="'+(x0-34)+'" y="'+(ry+4)+'" font-size="11.5" '+
@@ -591,7 +701,7 @@ function domainView(i){
    '" data-j="'+j+'">'+
    '<rect class="halo" x="'+(x-104)+'" y="'+(y-30)+
    '" width="208" height="60" rx="6" fill="'+d.color+'"/>'+
-   '<rect x="'+(x-96)+'" y="'+(y-24)+'" width="192" '+
+   '<rect class="plate" x="'+(x-96)+'" y="'+(y-24)+'" width="192" '+
    'height="48" rx="4" fill="#fff" stroke="'+d.color+
    '" stroke-width="2"/>'+
    '<text x="'+x+'" y="'+(y-3)+'" text-anchor="middle" '+
