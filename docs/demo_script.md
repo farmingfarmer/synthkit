@@ -55,7 +55,15 @@ Station 05: baseline `autosolver_hybrid`, vendor
 tabular model; not a strawman; it just can't read") -> Run
 showdown. THE SLIDE lands as three lines, approximately:
 
-    ceiling 0.82 / synthkit hybrid 0.72 / VendorCo 0.60  [FAIL]
+    as-specified  ceiling 0.822 / baseline 0.724 / vendor 0.604  [bar: PASS] vendor loses to a stdlib baseline
+
+(Rehearsed numbers from the demo machine itself; deterministic,
+so these exact digits reappear. Note the strong-signal tier: the
+vendor legitimately WINS there - amplified tabular signal - which
+is worth saying aloud: "the instrument is not rigged; on the
+realistic tier, not reading the notes costs them 0.12." The
+[bar:] tag is the campaign's auroc>=0.6 threshold, separate from
+the baseline comparison.)
 
 Read it aloud: "This population supports AT MOST 0.82 - known
 exactly, because we planted the truth. The vendor's claimed

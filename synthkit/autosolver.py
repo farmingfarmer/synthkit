@@ -384,7 +384,7 @@ class ShowdownResult:
         for t in self.tiers:
             lines.append(
                 "  {:<14} ceiling {:.3f} / baseline {:.3f} / "
-                "{} {:.3f}  [{}] {}".format(
+                "{} {:.3f}  [bar: {}] {}".format(
                     t.tier, t.ceiling, t.baseline_auroc,
                     self.vendor_name, t.vendor_auroc,
                     "PASS" if t.vendor_passed else "FAIL",
