@@ -525,6 +525,15 @@ def main():
               and any("note phrase" in t["name"]
                       for t in rep["inside_the_model"]["top"]))
 
+        check("the depth layer is present: sheened raised "
+              "buttons, inset editables, shadowed panels, "
+              "enlarged base type",
+              all(m in html for m in (
+                  "DEPTH & READABILITY LAYER",
+                  "linear-gradient(180deg,#178a7d",
+                  "inset 0 2px 4px", "translateY(-1px)",
+                  "font-size:15.5px")))
+
         # ---------- errors stay JSON ----------
         d = post("/api/campaign-run",
                  {"campaign_dir": str(tmp / "nowhere"),

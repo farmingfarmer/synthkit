@@ -932,6 +932,107 @@ input.good,textarea.good,select.good{
 details.explain summary{cursor:pointer;margin-bottom:6px}
 .station.done b::after{content:" \2713";color:#2e7d32;
   font-weight:800}
+
+/* ================================================
+   DEPTH & READABILITY LAYER (appended: later wins)
+   Consistent physical language: raised = clickable,
+   inset = editable, flat card = information.
+   ================================================ */
+body{font-size:15.5px;line-height:1.55}
+main{max-width:1160px}
+.panel{background:var(--panel);border:1px solid var(--rule);
+  border-radius:12px;padding:18px 22px;margin-bottom:18px;
+  box-shadow:0 1px 2px rgba(23,34,44,.06),
+             0 6px 18px rgba(23,34,44,.07)}
+/* --- raised, sheened buttons: unmistakably pressable --- */
+.act{
+  background:linear-gradient(180deg,#178a7d 0%,
+    var(--enamel) 45%,#0a5d54 100%);
+  color:#fff;border:1px solid #0a4f47;border-radius:9px;
+  padding:11px 26px;font-size:15px;font-weight:700;
+  cursor:pointer;
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.35),
+             0 2px 4px rgba(14,110,100,.35),
+             0 5px 12px rgba(23,34,44,.18);
+  text-shadow:0 1px 1px rgba(0,0,0,.25);
+  transition:transform .06s,box-shadow .06s}
+.act:hover{transform:translateY(-1px);
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.4),
+             0 4px 8px rgba(14,110,100,.4),
+             0 8px 18px rgba(23,34,44,.22)}
+.act:active{transform:translateY(1px);
+  background:var(--enamel-press);
+  box-shadow:inset 0 2px 5px rgba(0,0,0,.35)}
+.act.ghost{
+  background:linear-gradient(180deg,#ffffff 0%,#f2f5f4 55%,
+    #e4eae8 100%);
+  color:var(--enamel);border:1px solid #b9c6c1;
+  text-shadow:none;
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.9),
+             0 2px 4px rgba(23,34,44,.12),
+             0 4px 10px rgba(23,34,44,.08)}
+.act.ghost:hover{transform:translateY(-1px)}
+.act.ghost:active{transform:translateY(1px);
+  background:#dde5e2;
+  box-shadow:inset 0 2px 5px rgba(0,0,0,.15)}
+.dl{
+  background:linear-gradient(180deg,#ffffff,#eef3f1);
+  border:1px solid #9db3aa;border-radius:8px;
+  padding:7px 14px;font-size:13px;font-weight:600;
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.9),
+             0 2px 4px rgba(23,34,44,.14);
+  transition:transform .06s,box-shadow .06s}
+.dl:hover{transform:translateY(-1px);background:#e7f0ec;
+  color:var(--enamel);
+  box-shadow:0 4px 9px rgba(23,34,44,.18)}
+.dl:active{transform:translateY(1px);
+  box-shadow:inset 0 2px 4px rgba(0,0,0,.18)}
+.presets .preset,.preset{
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.8),
+             0 2px 5px rgba(23,34,44,.12);
+  border-radius:10px;transition:transform .06s,
+    box-shadow .06s;cursor:pointer}
+.preset:hover{transform:translateY(-1px);
+  box-shadow:0 5px 12px rgba(23,34,44,.18)}
+/* --- inset editables: clearly "type here" --- */
+input,select,textarea{
+  font-size:14.5px;border-radius:8px;
+  border:1px solid #b7c2bd;background:#fff;
+  box-shadow:inset 0 2px 4px rgba(23,34,44,.10);
+  padding:9px 12px}
+select{
+  background-image:linear-gradient(180deg,#fff,#f2f5f4);
+  cursor:pointer;
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.8),
+             0 2px 4px rgba(23,34,44,.10)}
+textarea{line-height:1.5}
+/* --- bigger, darker text everywhere --- */
+label{font-size:13.5px;color:#2c3a45;font-weight:600}
+.hint{font-size:13.5px;color:#3d4c46;line-height:1.55}
+.explain{font-size:14px;color:#33424e;
+  box-shadow:0 1px 3px rgba(23,34,44,.06)}
+.stepbanner{font-size:19px}
+.eyebrow{font-size:13px}
+.out{font-size:13px;line-height:1.55;
+  box-shadow:inset 0 2px 5px rgba(23,34,44,.09);
+  border-radius:8px}
+.outlabel{font-size:11px}
+.pvwrap{box-shadow:0 3px 10px rgba(23,34,44,.12)}
+.pvwrap td{font-size:12.5px}
+.pvwrap th{font-size:12px}
+.summarycard,.mcard,.vcard{
+  box-shadow:0 1px 2px rgba(23,34,44,.06),
+             0 4px 12px rgba(23,34,44,.08)}
+.vstrip{box-shadow:0 4px 14px rgba(23,34,44,.28)}
+.report p,.report li{font-size:13.5px}
+.station{font-size:15px}
+.subt{font-size:10px}
+.gov span{font-size:11.5px;
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.7),
+             0 1px 3px rgba(23,34,44,.08)}
+.badge{font-size:10px}
+.stepno{font-size:11px;
+  box-shadow:0 1px 3px rgba(14,110,100,.35)}
 </style></head><body>
 <div class="frame">
 <nav>
