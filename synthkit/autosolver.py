@@ -115,6 +115,15 @@ class FeatureEncoder:
                 kind, vals = "numeric", [v for v in nums
                                          if v is not None]
             else:
+                uniq = len(set(v.strip().lower()
+                               for v in present)) / n
+                if n >= 20 and uniq > 0.5:
+                    # identifier-like column (names, MRNs):
+                    # mostly-unique strings are memorization
+                    # bait, not features — live transparency
+                    # view caught "patient_name = jules kim"
+                    # wearing a risk weight.
+                    continue
                 counts: Dict[str, int] = {}
                 for v in present:
                     key = v.strip().lower()
@@ -252,6 +261,55 @@ class LinearBaseline:
         return out
 
 
+# Introspection: the most recent fit of each built-in solver
+# publishes its learned weights here so the bench can show
+# "what the model actually found" — feature names aligned to
+# the encoder's exact vector order (categorical one-hots
+# expanded; mined note terms renamed to their human meaning).
+LAST_FIT: Dict[str, Any] = {}
+
+
+def _feature_names(encoder, miner=None):
+    names = []
+    for col in encoder.columns:
+        if col.kind == "categorical":
+            names.extend("{} = {}".format(col.name, c)
+                         for c in col.categories)
+        elif col.name.startswith("txmine_") and miner \
+                and miner.terms:
+            idx = int(col.name.split("_")[1])
+            term = miner.terms[idx // 2]
+            side = ("mentioned" if idx % 2 == 0 else
+                    "mentioned but NEGATED (no/denies...)")
+            names.append('note phrase "{}" {}'.format(
+                term, side))
+        else:
+            names.append(col.name)
+    return names
+
+
+def _publish_fit(tag, model, miner=None):
+    try:
+        names = _feature_names(model.encoder, miner)
+        if len(names) != len(model.w):
+            LAST_FIT[tag] = {"error": "name/weight mismatch"}
+            return
+        ranked = sorted(zip(names, model.w),
+                        key=lambda t: -abs(t[1]))
+        LAST_FIT[tag] = {
+            "kind": "logistic regression (standard library, "
+                    "deterministic, L2-regularized)",
+            "n_features": len(names),
+            "text_terms": len(miner.terms) if miner else 0,
+            "top": [{"name": n, "weight": round(w, 3),
+                     "direction": "raises risk" if w > 0
+                     else "lowers risk"}
+                    for n, w in ranked[:12]
+                    if abs(w) > 1e-6]}
+    except Exception as e:                 # never break a run
+        LAST_FIT[tag] = {"error": str(e)}
+
+
 def autosolver_regress(**kwargs) -> Callable:
     """The regress-campaign-contract baseline."""
     def solve(train_rows, train_labels, test_rows):
@@ -268,6 +326,7 @@ def autosolver(**kwargs) -> Callable:
     def solve(train_rows, train_labels, test_rows):
         model = LogisticBaseline(**kwargs)
         model.fit(train_rows, train_labels)
+        _publish_fit("autosolver", model)
         return model.score(test_rows)
     solve.__name__ = "synthkit-baseline"
     return solve
@@ -527,6 +586,7 @@ def autosolver_hybrid():
         aug_test = _augment(test_rows,
                             miner.encode(test_rows))
         model = LogisticBaseline().fit(aug_train, train_labels)
+        _publish_fit("autosolver_hybrid", model, miner)
         return model.score(aug_test)
     return solve
 

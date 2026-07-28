@@ -607,7 +607,10 @@ def _showdown_report(camp, tiers, vendor_name, baseline_name):
             "tier": kt["tier"],
             "margin": round(abs(kt["vendor"]
                                 - kt["baseline"]), 3)}
+    from .autosolver import LAST_FIT
+    inside = LAST_FIT.get(baseline_name) or {}
     return {
+        "inside_the_model": inside,
         "dataset": {
             "rows": spec.rows,
             "outcome": camp.outcome or oc["name"],
@@ -892,6 +895,43 @@ input.need,textarea.need,select.need{
 input.good,textarea.good,select.good{
   border:2px solid #2e7d32 !important;
   background:#f4faf4 !important}
+
+.subt{display:block;font-size:9px;letter-spacing:.02em;
+  text-transform:none;color:#7c8a84;font-weight:400;
+  margin-top:1px}
+.gov{display:flex;flex-wrap:wrap;gap:6px;margin:2px 0 10px}
+.gov span{font-size:10.5px;background:#eef4ef;
+  border:1px solid #cfdcd4;border-radius:12px;padding:3px 10px;
+  color:#2c4a3e;font-weight:600}
+.mcards{display:flex;flex-wrap:wrap;gap:10px;margin:10px 0}
+.mcard{background:#fff;border:1px solid #c9d4cf;
+  border-radius:10px;padding:10px 16px;min-width:130px}
+.mcard .n{font-size:21px;font-weight:800;color:#1a2b3c}
+.mcard .l{font-size:10.5px;color:#5a6a63;
+  text-transform:uppercase;letter-spacing:.05em}
+.mcard.ok{border-color:#2e7d32;background:#f4faf4}
+.mcard.warn{border-color:#b3261e;background:#fdf3f2}
+.vstrip{background:#1f3d33;color:#fff;border-radius:10px;
+  padding:12px 18px;margin:12px 0;font-size:13px;
+  line-height:1.55}
+.vstrip b{color:#9fe0c0}
+.modelrow{display:flex;align-items:center;gap:8px;
+  font-size:12px;padding:3px 8px;border-radius:5px;margin:2px 0;
+  background:#fff;border:1px solid #e2e8e5}
+.modelrow .bar{height:8px;border-radius:4px;min-width:2px}
+.modelrow .up{background:#b3452c}
+.modelrow .dn{background:#3b6ea5}
+.modelrow code{font-size:11px}
+.summarycard{background:#fff;border:1px solid #c9d4cf;
+  border-radius:10px;padding:10px 16px;margin:6px 0 10px;
+  font-size:12.5px;line-height:1.6;color:#22303a}
+.summarycard b{color:#1a2b3c}
+.stepbanner{font-size:17px}
+.hint{font-size:12px;color:#44534c}
+.act{padding:10px 22px;font-size:13.5px;font-weight:700}
+details.explain summary{cursor:pointer;margin-bottom:6px}
+.station.done b::after{content:" \2713";color:#2e7d32;
+  font-weight:800}
 </style></head><body>
 <div class="frame">
 <nav>
@@ -899,11 +939,16 @@ input.good,textarea.good,select.good{
     <span id="fp" title="version &middot; built &middot; build
     fingerprint; compare with `synthkit version`">loading
     build...</span></small></div>
-  <button class="station active" data-s="describe"><b>01</b> Describe</button>
-  <button class="station" data-s="spec"><b>02</b> Spec</button>
-  <button class="station" data-s="data"><b>03</b> Data</button>
-  <button class="station" data-s="campaign"><b>04</b> Campaign</button>
-  <button class="station" data-s="showdown"><b>05</b> Showdown</button>
+  <button class="station active" data-s="describe"><b>01</b>
+    Describe<small class="subt">define the dataset</small></button>
+  <button class="station" data-s="spec"><b>02</b>
+    Spec<small class="subt">review the recipe</small></button>
+  <button class="station" data-s="data"><b>03</b>
+    Data<small class="subt">generate synthetic data</small></button>
+  <button class="station" data-s="campaign"><b>04</b>
+    Campaign<small class="subt">configure the evaluation</small></button>
+  <button class="station" data-s="showdown"><b>05</b>
+    Showdown<small class="subt">compare results</small></button>
 </nav>
 <main>
 <header class="bar">
@@ -917,6 +962,12 @@ input.good,textarea.good,select.good{
 <section id="s-describe" class="active">
   <div class="stepbanner">Step 1 of 5 &mdash; Say what data you
   need</div>
+  <div class="gov"><span>&#128274; Synthetic only &mdash; no real
+  patient data touched</span><span>&#128273; Known answer key
+  &mdash; every truth planted on purpose</span><span>&#128257;
+  Reproducible &mdash; same fingerprint, same data,
+  forever</span><span>&#128100; Human review before anything is
+  created</span></div>
   <div class="explain">Everything starts with a description of a
   dataset. Nothing here touches real patients &mdash; every record is
   invented, but invented to order: realistic values, realistic
@@ -988,6 +1039,7 @@ input.good,textarea.good,select.good{
   fingerprint) identifies this recipe forever: same fingerprint,
   same data, every time, on any machine.</div>
   <div class="panel">
+    <div id="spec-summary"></div>
     <div class="eyebrow"><span class="stepno">2.1</span>
     <span class="badge opt">experts only</span> the recipe
     itself (editable)</div>
@@ -1046,22 +1098,33 @@ input.good,textarea.good,select.good{
     only</span> who writes the prose</div>
     <div class="row2">
       <div><label for="rbackend">writer</label>
-        <select id="rbackend"><option value="stub">instant
-        built-in writer (recommended)</option>
-        <option value="ollama">local AI (more natural prose,
-        slower)</option>
-        <option value="openai">local AI server (llama.cpp on
-        this machine)</option>
-        <option value="bedrock">hospital cloud (AWS
-        Bedrock)</option>
-        <option value="anthropic">Anthropic API</option></select></div>
+        <select id="rbackend"><option value="stub">built-in
+        writer &mdash; no AI, instant, always identical</option>
+        <option value="ollama">Ollama on this machine (e.g.
+        mistral-24B on a Mac)</option>
+        <option value="openai">local AI server &mdash; llama.cpp /
+        LM Studio (e.g. Llama-3B on this laptop)</option>
+        <option value="bedrock">hospital AWS cloud (Bedrock:
+        Llama / Mistral / Claude)</option>
+        <option value="anthropic">Anthropic cloud API
+        (Claude)</option></select></div>
       <div><label for="rmodel">model name (blank = default)</label>
         <input id="rmodel" placeholder="mistral-small3.1"></div>
     </div>
-    <div class="hint">Tables are always generated exactly from
-    the recipe &mdash; the writer choice only affects free-text
-    documents. AI-written prose is verified line-by-line against
-    the answer key and corrected if it drifts.</div>
+    <div class="hint">What each writer is: <b>built-in</b> = no
+    AI at all; sentences come from the recipe's own phrase
+    lists &mdash; instant, free, byte-identical every run
+    (recommended for tables and live demos). <b>Ollama</b> = a
+    large open model served by the Ollama app on this machine.
+    <b>local AI server</b> = any OpenAI-compatible server on
+    this computer (llama.cpp, LM Studio, vLLM) &mdash; the $0
+    fully-offline option. <b>Bedrock</b> = open-weight and
+    Claude models inside the hospital's governed AWS.
+    <b>Anthropic</b> = Claude via external API. Tables are
+    ALWAYS generated exactly from the recipe regardless of this
+    choice; AI writers only phrase the free-text notes, and
+    every AI-written note is verified against the answer key
+    and corrected if it drifts.</div>
     <div class="eyebrow"><span class="stepno">3.3</span>
     <span class="badge req">required</span> create the data</div>
     <button class="act" onclick="renderSpec()">Create the data</button>
@@ -1104,6 +1167,7 @@ input.good,textarea.good,select.good{
     <span class="badge req">required</span> pass marks
     (name=value, comma-separated)</label>
     <input id="bars" value="fix_rate=0.9,detect_rate=0.5">
+    <div id="bars-plain" class="hint"></div>
     <div class="hint">For prediction: auroc=0.6,gap_max=0.3.
     AUROC is the ranking score &mdash; 1.0 is perfect, 0.5 is a coin
     flip; 0.6 says "must beat a coin flip convincingly".
@@ -1183,9 +1247,34 @@ input.good,textarea.good,select.good{
     <span class="badge req">required</span> the vendor's model
     (name or file:function)</label>
     <input id="vendor" value="autosolver">
-    <div class="hint">For the demo: vendor_model:predict &mdash;
-    VendorCo RiskScore, a competent model that cannot read the
-    notes.</div>
+    <div class="hint">Accepts a built-in name (for practice
+    runs) or <b>file:function</b> &mdash; a Python file placed next
+    to synthkit exposing one function that takes (training
+    records, training answers, test records) and returns one
+    risk score per test record. For this demo:
+    <b>vendor_model:predict</b> &mdash; "VendorCo RiskScore", a
+    competent model that simply cannot read the notes.</div>
+    <details class="explain"><summary><b>How would a REAL
+    vendor's model plug in?</b> (the question procurement will
+    ask)</summary>
+    Three routes, in increasing formality:
+    <b>(1) Wrapper file</b> &mdash; the vendor's team writes a
+    ten-line Python function that calls their model (their
+    library, their API, their container) and returns scores;
+    drop the file next to synthkit, type its name here. The
+    vendor's code stays theirs; synthkit only sees scores.
+    <b>(2) API wrapper</b> &mdash; same file, but the function
+    calls the vendor's hosted scoring endpoint over the
+    network; nothing is installed locally.
+    <b>(3) Offline scoring exchange</b> &mdash; for vendors who
+    will not integrate: export the test population from Step 3
+    (downloads: synthetic data CSV &mdash; WITHOUT the outcome
+    column), send it, receive their scores back as a file, and
+    wrap that file in a two-line function that returns the
+    scores in order. In every route the vendor never sees the
+    answer key, and the exam stays identical for every
+    contestant. Full walkthrough with copy-paste templates:
+    docs/vendor_integration.md.</details>
     <div class="eyebrow"><span class="stepno">5.3</span>
     <span class="badge req">required</span> run the head-to-head</div>
     <button class="act" onclick="showdown()">Run showdown</button>
@@ -1279,6 +1368,7 @@ async function compileSpec(){
 async function validateSpec(){
   const d=await api('/api/validate',{
     kind:guessKind(),spec:document.getElementById('spec').value});
+  if(d.ok)tick('spec');
   out('spec-out',d.ok?'Spec validates. A validated spec must '+
     'plan — that is the contract.':d.problems,d.ok?'ok':'bad');}
 function guessKind(){
@@ -1348,6 +1438,7 @@ var READY={
   vendor:function(){return document.getElementById(
     'vendor').value.trim().length>0;}};
 function paintReady(){
+  specSummary();barsExplain();
   for(var id in READY){
     var el=document.getElementById(id);
     if(!el)continue;
@@ -1381,28 +1472,99 @@ function closeCell(){
   document.getElementById('cellmodal').style.display='none';}
 document.addEventListener('keydown',function(e){
   if(e.key==='Escape')closeCell();});
+function specSummary(){
+  var box=document.getElementById('spec-summary');
+  if(!box)return;
+  var v=document.getElementById('spec').value.trim();
+  if(!v){box.innerHTML='';return;}
+  var s;try{s=JSON.parse(v);}catch(e){
+    box.innerHTML='<div class="summarycard">The recipe text '+
+    'is not valid yet \u2014 fix the red box below or reload '+
+    'a preset.</div>';return;}
+  var cols=s.columns||[];
+  var notes=[],flaws={},i;
+  for(i=0;i<cols.length;i++){
+    if(cols[i].ctype==='note')notes.push(cols[i].name);
+    var m=cols[i].mess||{};
+    if(m.missing_rate)flaws['missing values']=1;
+    if(m.typo_rate)flaws['typos']=1;
+    if(m.format_rate)flaws['mixed formats']=1;
+    if(m.outlier_rate)flaws['implausible outliers']=1;
+    if(m.wrong_rate)flaws['subtly wrong values']=1;
+    if(m.case_rate||m.space_rate)flaws['casing/whitespace']=1;}
+  if(s.duplicate_rate)flaws['duplicated rows']=1;
+  var oc=(s.outcomes||[])[0];
+  var h='<div class="summarycard"><b>Recipe summary'+
+    '</b> \u2014 '+(s.rows||'?')+' records \u00d7 '+
+    cols.length+' fields'+(notes.length?', including free-text '+
+    'note field'+(notes.length>1?'s':'')+' <b>'+
+    notes.join(', ')+'</b>':'')+'.';
+  if(oc){h+=' Outcome <b>'+oc.name+'</b>';
+    if(oc.target_prevalence){h+=' promised at '+
+      (100*oc.target_prevalence[0]).toFixed(0)+'\u2013'+
+      (100*oc.target_prevalence[1]).toFixed(0)+
+      '% of records (minority class)';}h+='.';}
+  var fk=Object.keys(flaws);
+  if(fk.length)h+=' Deliberate flaws: '+fk.join(', ')+'.';
+  h+=' (Full formal recipe below \u2014 the buttons check it '+
+    'so you never have to read it.)</div>';
+  box.innerHTML=h;}
+var BAR_WORDS={
+  auroc:'ranking score at least VAL (1.0 = perfect, 0.5 = '+
+    'coin flip)',
+  gap_max:'messy-data score may trail the clean answer key '+
+    'by at most VAL',
+  fix_rate:'must repair at least PCT of corrupted cells',
+  detect_rate:'must flag at least PCT of corruptions',
+  recall:'must find at least PCT of planted facts',
+  trap_max:'may fall for at most PCT of planted traps',
+  rmse_max:'average numeric error at most VAL'};
+function barsExplain(){
+  var el=document.getElementById('bars-plain');
+  if(!el)return;
+  var v=document.getElementById('bars').value.trim();
+  if(!barsOk()){el.textContent='';return;}
+  var parts=v.split(','),outp=[];
+  for(var i=0;i<parts.length;i++){
+    var kv=parts[i].split('=');
+    var k=kv[0].trim(),val=parseFloat(kv[1]);
+    var w=BAR_WORDS[k];
+    if(w){outp.push(w.replace('VAL',val)
+      .replace('PCT',(100*val).toFixed(0)+'%'));}
+    else{outp.push(k+' \u2265 '+val);}}
+  el.innerHTML='In plain terms: '+outp.join('; ')+'.';}
+function tick(step){
+  var b=document.querySelector(
+    '.station[data-s="'+step+'"]');
+  if(b)b.classList.add('done');}
 document.addEventListener('input',paintReady);
 document.addEventListener('change',paintReady);
 window.addEventListener('load',function(){
   setTimeout(paintReady,150);});
 function fmtPct(x){return (100*x).toFixed(1)+'%';}
 function dataSummary(d){
-  var s='Created <b>'+d.rows+' synthetic records</b> with '+
-    d.mess_cells+' deliberately corrupted cells (every one '+
-    'listed in the corruption ledger).';
+  var h='<div class="mcards">'+
+    '<div class="mcard"><div class="n">'+d.rows+
+    '</div><div class="l">synthetic records</div></div>'+
+    '<div class="mcard"><div class="n">'+d.mess_cells+
+    '</div><div class="l">deliberate corruptions '+
+    '(ledgered)</div></div>';
   for(var i=0;i<(d.outcomes||[]).length;i++){
-    var o=d.outcomes[i];
-    s+=' Outcome <b>'+o.name+'</b>: '+fmtPct(o.realized);
+    var o=d.outcomes[i];var ok=true,sub='outcome rate';
     if(o.declared){
-      var ok=o.realized>=o.declared[0]&&
-             o.realized<=o.declared[1];
-      s+=' &mdash; '+(ok?'inside':'OUTSIDE')+
-        ' the promised '+fmtPct(o.declared[0])+'&ndash;'+
-        fmtPct(o.declared[1])+(ok?' &#10003;':' &#9888;');}}
-  s+=' The full dataset, the answer key, and the ledger are '+
-    'downloadable below; the first rows are previewed at the '+
-    'bottom.';
-  return '<div class="sumline">'+s+'</div>';}
+      ok=o.realized>=o.declared[0]&&
+         o.realized<=o.declared[1];
+      sub=o.name+' (promised '+fmtPct(o.declared[0])+
+        '\u2013'+fmtPct(o.declared[1])+')';}
+    h+='<div class="mcard '+(ok?'ok':'warn')+'">'+
+      '<div class="n">'+fmtPct(o.realized)+
+      (ok?' \u2713':' \u26a0')+'</div>'+
+      '<div class="l">'+sub+'</div></div>';}
+  h+='</div><div class="sumline">The messy dataset, the clean '+
+    'answer key, and the corruption ledger are downloadable '+
+    'below; the first rows are previewed at the bottom \u2014 '+
+    'click any cell to read it in full.</div>';
+  return h;}
 async function exportData(which,fmt){
   var d=await api('/api/export',{
     dir:document.getElementById('outdir').value,
@@ -1424,6 +1586,7 @@ function downloadBar(){
     '<button class="dl" onclick="exportData(\'ledger\',\'json\')">corruption ledger</button>';}
 function renderDone(d){
   if(d.error){out('render-out',d.error,'bad');return;}
+  tick('data');
   document.getElementById('data-summary').innerHTML='';
   document.getElementById('data-downloads').innerHTML='';
   if(d.preview){
@@ -1510,8 +1673,10 @@ async function campaignRun(){
     model:document.getElementById('lmodel').value,
     extra_system:document.getElementById(
       'intervention').value});
-  poll(d.job,'campaign-out',r=>out('campaign-out',r.text,
-    r.highest_passed===r.tiers?'ok':''));}
+  poll(d.job,'campaign-out',function(r){
+    tick('campaign');
+    out('campaign-out',r.text,
+      r.highest_passed===r.tiers?'ok':'');});}
 async function showdown(){
   if(!gate(['vendor'],'showdown-out'))return;
   if(!campaignDir){out('showdown-out',
@@ -1524,7 +1689,7 @@ async function showdown(){
     solver:document.getElementById('vendor').value});
   poll(d.job,'showdown-out',function(r){
     out('showdown-out',r.text,'');
-    renderReport(r.report);});}
+    tick('showdown');renderReport(r.report);});}
 function tierRows(t,who){
   var h='';
   for(var i=0;i<t.length;i++){
@@ -1586,8 +1751,19 @@ function renderReport(rep){
         '<span class="trapx">&ldquo;'+t.example+
         '&rdquo;</span> &mdash; '+t.why+'</li>';}
     h+='</ul>';}
-  h+='<h3>The verdict</h3>';
   var w=rep.winner;
+  if(w){
+    var vt=rep.tiers_data,np=0;
+    for(var vi=0;vi<vt.length;vi++){
+      if(vt[vi].passed)np++;}
+    h+='<div class="vstrip"><b>VERDICT:</b> '+w.name+
+      ' wins on the data as specified (by '+
+      w.margin.toFixed(3)+' AUROC). The vendor met its pass '+
+      'mark on '+np+' of '+vt.length+' difficulty tiers'+
+      (w.vendor_won?'':' but was beaten by a model we built '+
+      'for free')+'. Every number below was scored against a '+
+      'planted, known truth.</div>';}
+  h+='<h3>The verdict, in detail</h3>';
   if(w){
     h+='<p>On the <b>'+w.tier+'</b> tier (the data '+
       'exactly as specified), <b>'+w.name+
@@ -1600,6 +1776,33 @@ function renderReport(rep){
       rep.baseline.how,rep.tiers_data,'baseline',
       !vFirst);
     h+=vFirst?vc+bc:bc+vc;}
+  var im=rep.inside_the_model;
+  if(im&&im.top&&im.top.length){
+    h+='<h3>Inside our model: what it actually learned</h3>'+
+      '<p>Our challenger is a <b>'+im.kind+'</b> over '+
+      im.n_features+' features'+(im.text_terms?' ('+
+      im.text_terms+' of them phrases it mined from the '+
+      'notes using only the training labels)':'')+
+      '. Its strongest learned predictors \u2014 the actual '+
+      'trained coefficients, not a summary:</p>';
+    var mx=0;
+    for(var mi=0;mi<im.top.length;mi++){
+      mx=Math.max(mx,Math.abs(im.top[mi].weight));}
+    for(var mj=0;mj<im.top.length;mj++){
+      var it=im.top[mj];
+      var wpx=Math.max(2,Math.round(
+        90*Math.abs(it.weight)/mx));
+      h+='<div class="modelrow"><span class="bar '+
+        (it.weight>0?'up':'dn')+'" style="width:'+wpx+
+        'px"></span><code>'+(it.weight>0?'+':'')+
+        it.weight.toFixed(3)+'</code> '+esc(it.name)+
+        ' \u2014 '+it.direction+'</div>';}
+    h+='<p>Red bars raise predicted risk, blue bars lower '+
+      'it. Note the mined note-phrases standing beside the '+
+      'vital signs \u2014 that is the value the text-blind '+
+      'vendor left on the table. The vendor model remains a '+
+      'black box to us by design: we judge it only on its '+
+      'scores.</p>';}
   h+='<p>Pass marks for this exam: '+
     (rep.bars||[]).join(', ')+'. Green rows met '+
     'their mark and led their tier; red rows fell '+

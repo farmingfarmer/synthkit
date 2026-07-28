@@ -484,6 +484,43 @@ def main():
                   if False else "need", "gate([",
                   "Fill the highlighted red field")))
 
+        # ---------- clinician clarity batch ----------
+        check("sidebar carries plain subtitles, station 01 "
+              "wears the governance strip, and completed "
+              "steps earn ticks",
+              all(m in html for m in (
+                  "define the dataset", "compare results",
+                  'class="gov"', "Synthetic only",
+                  "tick('data')", "station.done")))
+        check("the writer menu explains every choice in plain "
+              "terms (no-AI stub, Ollama, local server, "
+              "Bedrock, Anthropic)",
+              all(m in html for m in (
+                  "no AI, instant", "mistral-24B",
+                  "llama.cpp", "Bedrock", "fully-offline")))
+        check("the recipe summary card and live pass-marks "
+              "translation exist",
+              all(m in html for m in (
+                  "spec-summary", "specSummary",
+                  "bars-plain", "coin flip)")))
+        check("station 05 explains vendor plumbing with the "
+              "three real-vendor integration routes",
+              all(m in html for m in (
+                  "How would a REAL", "Wrapper file",
+                  "Offline scoring exchange",
+                  "vendor_integration.md")))
+        check("the report renders a verdict strip and the "
+              "inside-the-model coefficient rows",
+              all(m in html for m in (
+                  "vstrip", "VERDICT:", "modelrow",
+                  "what it actually learned")))
+        check("the trained baseline publishes real "
+              "coefficients including mined note phrases",
+              "inside_the_model" in rep
+              and rep["inside_the_model"].get("top")
+              and any("note phrase" in t["name"]
+                      for t in rep["inside_the_model"]["top"]))
+
         # ---------- errors stay JSON ----------
         d = post("/api/campaign-run",
                  {"campaign_dir": str(tmp / "nowhere"),
