@@ -137,14 +137,17 @@
    "degenerate_body": false,
    "family": "lognormal",
    "params": {
-    "mu": 2.745,
-    "sigma": 0.4352
+    "mu": 2.7476,
+    "sigma": 0.1914
    },
    "p1": 8.5,
    "p50": 16.03,
    "p99": 61.88,
    "integer_valued": false,
    "skew": 5.436,
+   "outlier_rate": 0.0336,
+   "outlier_factor": 5.55,
+   "fit_note": "fitted on the trimmed body; the extremes are declared as a mess rate so contamination is reproduced as contamination, not as shape",
    "missing_rate": 0.6053
   },
   "urea": {
@@ -153,14 +156,17 @@
    "degenerate_body": false,
    "family": "normal",
    "params": {
-    "mean": 15.9422,
-    "sd": 10.5854
+    "mean": 14.775,
+    "sd": 6.2323
    },
    "p1": 1.14,
    "p50": 14.7,
    "p99": 66.92,
    "integer_valued": false,
    "skew": 3.902,
+   "outlier_rate": 0.0188,
+   "outlier_factor": 6.48,
+   "fit_note": "fitted on the trimmed body; the extremes are declared as a mess rate so contamination is reproduced as contamination, not as shape",
    "missing_rate": 0.6082
   },
   "diastolic_blood_pressure": {
@@ -169,14 +175,17 @@
    "degenerate_body": false,
    "family": "lognormal",
    "params": {
-    "mu": 4.3429,
-    "sigma": 0.4077
+    "mu": 4.3505,
+    "sigma": 0.1475
    },
    "p1": 49.44,
    "p50": 79.03,
    "p99": 325.88,
    "integer_valued": false,
    "skew": 5.458,
+   "outlier_rate": 0.0305,
+   "outlier_factor": 4.25,
+   "fit_note": "fitted on the trimmed body; the extremes are declared as a mess rate so contamination is reproduced as contamination, not as shape",
    "missing_rate": 0.6141
   },
   "erythrocytes": {
@@ -185,14 +194,17 @@
    "degenerate_body": false,
    "family": "lognormal",
    "params": {
-    "mu": 1.4934,
-    "sigma": 0.5166
+    "mu": 1.5372,
+    "sigma": 0.1161
    },
    "p1": 0.23,
    "p50": 4.66,
    "p99": 17.72,
    "integer_valued": false,
    "skew": 5.339,
+   "outlier_rate": 0.0421,
+   "outlier_factor": 4.65,
+   "fit_note": "fitted on the trimmed body; the extremes are declared as a mess rate so contamination is reproduced as contamination, not as shape",
    "missing_rate": 0.6156
   },
   "alkaline_phosphatase": {
@@ -201,14 +213,17 @@
    "degenerate_body": false,
    "family": "lognormal",
    "params": {
-    "mu": 4.3325,
-    "sigma": 0.5732
+    "mu": 4.3561,
+    "sigma": 0.3459
    },
    "p1": 4.57,
    "p50": 81.19,
    "p99": 359.76,
    "integer_valued": false,
    "skew": 3.957,
+   "outlier_rate": 0.0383,
+   "outlier_factor": 5.19,
+   "fit_note": "fitted on the trimmed body; the extremes are declared as a mess rate so contamination is reproduced as contamination, not as shape",
    "missing_rate": 0.6156
   },
   "mch": {
@@ -217,14 +232,17 @@
    "degenerate_body": false,
    "family": "lognormal",
    "params": {
-    "mu": 3.3701,
-    "sigma": 0.5156
+    "mu": 3.3958,
+    "sigma": 0.0805
    },
    "p1": 1.6,
    "p50": 30.02,
    "p99": 124.8,
    "integer_valued": false,
    "skew": 4.651,
+   "outlier_rate": 0.0538,
+   "outlier_factor": 4.46,
+   "fit_note": "fitted on the trimmed body; the extremes are declared as a mess rate so contamination is reproduced as contamination, not as shape",
    "missing_rate": 0.6171
   },
   "mcv": {
@@ -233,14 +251,17 @@
    "degenerate_body": false,
    "family": "lognormal",
    "params": {
-    "mu": 4.4642,
-    "sigma": 0.4682
+    "mu": 4.4907,
+    "sigma": 0.0712
    },
    "p1": 4.65,
    "p50": 89.49,
    "p99": 335.04,
    "integer_valued": false,
    "skew": 5.157,
+   "outlier_rate": 0.0426,
+   "outlier_factor": 4.08,
+   "fit_note": "fitted on the trimmed body; the extremes are declared as a mess rate so contamination is reproduced as contamination, not as shape",
    "missing_rate": 0.62
   },
   "glucose": {
@@ -249,14 +270,17 @@
    "degenerate_body": false,
    "family": "lognormal",
    "params": {
-    "mu": 4.4925,
-    "sigma": 0.6324
+    "mu": 4.5443,
+    "sigma": 0.3883
    },
    "p1": 5.62,
    "p50": 94.56,
    "p99": 411.44,
    "integer_valued": false,
    "skew": 4.478,
+   "outlier_rate": 0.0465,
+   "outlier_factor": 7.01,
+   "fit_note": "fitted on the trimmed body; the extremes are declared as a mess rate so contamination is reproduced as contamination, not as shape",
    "missing_rate": 0.62
   },
   "albumin": {
@@ -265,14 +289,17 @@
    "degenerate_body": false,
    "family": "lognormal",
    "params": {
-    "mu": 1.3785,
-    "sigma": 0.4718
+    "mu": 1.4087,
+    "sigma": 0.1266
    },
    "p1": 0.23,
    "p50": 4.09,
    "p99": 15.04,
    "integer_valued": false,
    "skew": 5.28,
+   "outlier_rate": 0.0388,
+   "outlier_factor": 4.41,
+   "fit_note": "fitted on the trimmed body; the extremes are declared as a mess rate so contamination is reproduced as contamination, not as shape",
    "missing_rate": 0.62
   },
   "eosinophils": {
@@ -281,14 +308,17 @@
    "degenerate_body": false,
    "family": "normal",
    "params": {
-    "mean": 2.1995,
-    "sd": 2.0534
+    "mean": 2.0449,
+    "sd": 1.5801
    },
    "p1": -1.48,
    "p50": 2.18,
    "p99": 8.52,
    "integer_valued": false,
    "skew": 2.397,
+   "outlier_rate": 0.0156,
+   "outlier_factor": 8.58,
+   "fit_note": "fitted on the trimmed body; the extremes are declared as a mess rate so contamination is reproduced as contamination, not as shape",
    "missing_rate": 0.6215
   },
   "aspartate_aminotransferase": {
@@ -297,14 +327,17 @@
    "degenerate_body": false,
    "family": "normal",
    "params": {
-    "mean": 28.1234,
-    "sd": 20.4907
+    "mean": 25.4187,
+    "sd": 11.5058
    },
    "p1": -0.3,
    "p50": 25.92,
    "p99": 118.2,
    "integer_valued": false,
    "skew": 3.722,
+   "outlier_rate": 0.0273,
+   "outlier_factor": 6.68,
+   "fit_note": "fitted on the trimmed body; the extremes are declared as a mess rate so contamination is reproduced as contamination, not as shape",
    "missing_rate": 0.623
   },
   "lymphocytes": {
@@ -313,14 +346,17 @@
    "degenerate_body": false,
    "family": "lognormal",
    "params": {
-    "mu": 3.2296,
-    "sigma": 0.6145
+    "mu": 3.3201,
+    "sigma": 0.294
    },
    "p1": 1.45,
    "p50": 28.48,
    "p99": 53.75,
    "integer_valued": false,
    "skew": 1.784,
+   "outlier_rate": 0.0352,
+   "outlier_factor": 3.54,
+   "fit_note": "fitted on the trimmed body; the extremes are declared as a mess rate so contamination is reproduced as contamination, not as shape",
    "missing_rate": 0.623
   },
   "bilirubin_total": {
@@ -329,14 +365,17 @@
    "degenerate_body": false,
    "family": "normal",
    "params": {
-    "mean": 0.6148,
-    "sd": 0.3781
+    "mean": 0.5908,
+    "sd": 0.2947
    },
    "p1": 0.01,
    "p50": 0.58,
    "p99": 1.39,
    "integer_valued": false,
    "skew": 2.73,
+   "outlier_rate": 0.0118,
+   "outlier_factor": 6.62,
+   "fit_note": "fitted on the trimmed body; the extremes are declared as a mess rate so contamination is reproduced as contamination, not as shape",
    "missing_rate": 0.6244
   },
   "peripheral_pulse": {
@@ -345,14 +384,17 @@
    "degenerate_body": false,
    "family": "lognormal",
    "params": {
-    "mu": 4.2296,
-    "sigma": 0.6565
+    "mu": 4.3383,
+    "sigma": 0.1486
    },
    "p1": 3.44,
    "p50": 76.24,
    "p99": 266.92,
    "integer_valued": false,
    "skew": 4.241,
+   "outlier_rate": 0.0593,
+   "outlier_factor": 4.57,
+   "fit_note": "fitted on the trimmed body; the extremes are declared as a mess rate so contamination is reproduced as contamination, not as shape",
    "missing_rate": 0.6274
   },
   "leukocytes": {
@@ -361,14 +403,17 @@
    "degenerate_body": false,
    "family": "lognormal",
    "params": {
-    "mu": 1.8946,
-    "sigma": 0.4373
+    "mu": 1.898,
+    "sigma": 0.3599
    },
    "p1": 1.9,
    "p50": 6.87,
    "p99": 23.64,
    "integer_valued": false,
    "skew": 4.68,
+   "outlier_rate": 0.0158,
+   "outlier_factor": 5.91,
+   "fit_note": "fitted on the trimmed body; the extremes are declared as a mess rate so contamination is reproduced as contamination, not as shape",
    "missing_rate": 0.6274
   },
   "nucleated_erythrocytes": {
@@ -377,14 +422,17 @@
    "degenerate_body": false,
    "family": "normal",
    "params": {
-    "mean": 0.0885,
-    "sd": 0.1984
+    "mean": 0.0878,
+    "sd": 0.1835
    },
    "p1": -0.4,
    "p50": 0.09,
    "p99": 0.5,
    "integer_valued": false,
    "skew": 0.211,
+   "outlier_rate": 0.008,
+   "outlier_factor": 11.56,
+   "fit_note": "fitted on the trimmed body; the extremes are declared as a mess rate so contamination is reproduced as contamination, not as shape",
    "missing_rate": 0.6303
   },
   "systolic_blood_pressure": {
@@ -393,14 +441,17 @@
    "degenerate_body": false,
    "family": "lognormal",
    "params": {
-    "mu": 4.7827,
-    "sigma": 0.5371
+    "mu": 4.816,
+    "sigma": 0.1426
    },
    "p1": 5.47,
    "p50": 125.31,
    "p99": 537.32,
    "integer_valued": false,
    "skew": 4.702,
+   "outlier_rate": 0.052,
+   "outlier_factor": 4.72,
+   "fit_note": "fitted on the trimmed body; the extremes are declared as a mess rate so contamination is reproduced as contamination, not as shape",
    "missing_rate": 0.6318
   },
   "platelet_mean_volume": {
@@ -409,14 +460,17 @@
    "degenerate_body": false,
    "family": "lognormal",
    "params": {
-    "mu": 2.1621,
-    "sigma": 0.4721
+    "mu": 2.1997,
+    "sigma": 0.1248
    },
    "p1": 0.45,
    "p50": 9.16,
    "p99": 34.04,
    "integer_valued": false,
    "skew": 5.523,
+   "outlier_rate": 0.036,
+   "outlier_factor": 4.45,
+   "fit_note": "fitted on the trimmed body; the extremes are declared as a mess rate so contamination is reproduced as contamination, not as shape",
    "missing_rate": 0.6318
   },
   "basophils": {
@@ -425,14 +479,17 @@
    "degenerate_body": false,
    "family": "normal",
    "params": {
-    "mean": 0.5898,
-    "sd": 0.4599
+    "mean": 0.5771,
+    "sd": 0.4154
    },
    "p1": -0.38,
    "p50": 0.58,
    "p99": 1.61,
    "integer_valued": false,
    "skew": 1.232,
+   "outlier_rate": 0.004,
+   "outlier_factor": 6.41,
+   "fit_note": "fitted on the trimmed body; the extremes are declared as a mess rate so contamination is reproduced as contamination, not as shape",
    "missing_rate": 0.6333
   },
   "reticulocytes": {
@@ -441,14 +498,17 @@
    "degenerate_body": false,
    "family": "normal",
    "params": {
-    "mean": 54.169,
-    "sd": 25.3339
+    "mean": 53.2903,
+    "sd": 21.2457
    },
    "p1": 3.67,
    "p50": 54.54,
    "p99": 98.68,
    "integer_valued": false,
    "skew": 2.328,
+   "outlier_rate": 0.004,
+   "outlier_factor": 4.99,
+   "fit_note": "fitted on the trimmed body; the extremes are declared as a mess rate so contamination is reproduced as contamination, not as shape",
    "missing_rate": 0.6333
   },
   "monocytes": {
@@ -457,14 +517,17 @@
    "degenerate_body": false,
    "family": "lognormal",
    "params": {
-    "mu": 1.6962,
-    "sigma": 0.7133
+    "mu": 1.8179,
+    "sigma": 0.3773
    },
    "p1": 0.26,
    "p50": 6.43,
    "p99": 11.63,
    "integer_valued": false,
    "skew": 2.31,
+   "outlier_rate": 0.0488,
+   "outlier_factor": 4.37,
+   "fit_note": "fitted on the trimmed body; the extremes are declared as a mess rate so contamination is reproduced as contamination, not as shape",
    "missing_rate": 0.6377
   },
   "condition_count": {
@@ -851,14 +914,17 @@
    "degenerate_body": false,
    "family": "lognormal",
    "params": {
-    "mu": 1.1843,
-    "sigma": 0.7869
+    "mu": 1.132,
+    "sigma": 0.64
    },
    "p1": 1.0,
    "p50": 4.0,
    "p99": 194.0,
    "integer_valued": true,
    "skew": 8.585,
+   "outlier_rate": 0.0126,
+   "outlier_factor": 49.25,
+   "fit_note": "fitted on the trimmed body; the extremes are declared as a mess rate so contamination is reproduced as contamination, not as shape",
    "missing_rate": 0.5331
   },
   "active_drug_count": {

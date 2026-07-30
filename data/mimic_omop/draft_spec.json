@@ -1,6 +1,6 @@
 {
  "title": "profiled from tidy_visits_labeled.csv",
- "rows": 1000,
+ "rows": 679,
  "master_seed": 20260730,
  "columns": [
   {
@@ -122,11 +122,13 @@
    "ctype": "float",
    "distribution": {
     "kind": "lognormal",
-    "mu": 2.745,
-    "sigma": 0.4352
+    "mu": 2.7476,
+    "sigma": 0.1914
    },
    "mess": {
-    "missing_rate": 0.6053
+    "missing_rate": 0.6053,
+    "outlier_rate": 0.0336,
+    "outlier_factor": 5.55
    }
   },
   {
@@ -134,11 +136,13 @@
    "ctype": "float",
    "distribution": {
     "kind": "normal",
-    "mean": 15.9422,
-    "std": 10.5854
+    "mean": 14.775,
+    "std": 6.2323
    },
    "mess": {
-    "missing_rate": 0.6082
+    "missing_rate": 0.6082,
+    "outlier_rate": 0.0188,
+    "outlier_factor": 6.48
    }
   },
   {
@@ -146,11 +150,13 @@
    "ctype": "float",
    "distribution": {
     "kind": "lognormal",
-    "mu": 4.3429,
-    "sigma": 0.4077
+    "mu": 4.3505,
+    "sigma": 0.1475
    },
    "mess": {
-    "missing_rate": 0.6141
+    "missing_rate": 0.6141,
+    "outlier_rate": 0.0305,
+    "outlier_factor": 4.25
    }
   },
   {
@@ -158,11 +164,13 @@
    "ctype": "float",
    "distribution": {
     "kind": "lognormal",
-    "mu": 1.4934,
-    "sigma": 0.5166
+    "mu": 1.5372,
+    "sigma": 0.1161
    },
    "mess": {
-    "missing_rate": 0.6156
+    "missing_rate": 0.6156,
+    "outlier_rate": 0.0421,
+    "outlier_factor": 4.65
    }
   },
   {
@@ -170,11 +178,13 @@
    "ctype": "float",
    "distribution": {
     "kind": "lognormal",
-    "mu": 4.3325,
-    "sigma": 0.5732
+    "mu": 4.3561,
+    "sigma": 0.3459
    },
    "mess": {
-    "missing_rate": 0.6156
+    "missing_rate": 0.6156,
+    "outlier_rate": 0.0383,
+    "outlier_factor": 5.19
    }
   },
   {
@@ -182,11 +192,13 @@
    "ctype": "float",
    "distribution": {
     "kind": "lognormal",
-    "mu": 3.3701,
-    "sigma": 0.5156
+    "mu": 3.3958,
+    "sigma": 0.0805
    },
    "mess": {
-    "missing_rate": 0.6171
+    "missing_rate": 0.6171,
+    "outlier_rate": 0.0538,
+    "outlier_factor": 4.46
    }
   },
   {
@@ -194,11 +206,13 @@
    "ctype": "float",
    "distribution": {
     "kind": "lognormal",
-    "mu": 4.4642,
-    "sigma": 0.4682
+    "mu": 4.4907,
+    "sigma": 0.0712
    },
    "mess": {
-    "missing_rate": 0.62
+    "missing_rate": 0.62,
+    "outlier_rate": 0.0426,
+    "outlier_factor": 4.08
    }
   },
   {
@@ -206,11 +220,13 @@
    "ctype": "float",
    "distribution": {
     "kind": "lognormal",
-    "mu": 4.4925,
-    "sigma": 0.6324
+    "mu": 4.5443,
+    "sigma": 0.3883
    },
    "mess": {
-    "missing_rate": 0.62
+    "missing_rate": 0.62,
+    "outlier_rate": 0.0465,
+    "outlier_factor": 7.01
    }
   },
   {
@@ -218,11 +234,13 @@
    "ctype": "float",
    "distribution": {
     "kind": "lognormal",
-    "mu": 1.3785,
-    "sigma": 0.4718
+    "mu": 1.4087,
+    "sigma": 0.1266
    },
    "mess": {
-    "missing_rate": 0.62
+    "missing_rate": 0.62,
+    "outlier_rate": 0.0388,
+    "outlier_factor": 4.41
    }
   },
   {
@@ -230,11 +248,13 @@
    "ctype": "float",
    "distribution": {
     "kind": "normal",
-    "mean": 2.1995,
-    "std": 2.0534
+    "mean": 2.0449,
+    "std": 1.5801
    },
    "mess": {
-    "missing_rate": 0.6215
+    "missing_rate": 0.6215,
+    "outlier_rate": 0.0156,
+    "outlier_factor": 8.58
    }
   },
   {
@@ -242,11 +262,13 @@
    "ctype": "float",
    "distribution": {
     "kind": "normal",
-    "mean": 28.1234,
-    "std": 20.4907
+    "mean": 25.4187,
+    "std": 11.5058
    },
    "mess": {
-    "missing_rate": 0.623
+    "missing_rate": 0.623,
+    "outlier_rate": 0.0273,
+    "outlier_factor": 6.68
    }
   },
   {
@@ -254,11 +276,13 @@
    "ctype": "float",
    "distribution": {
     "kind": "lognormal",
-    "mu": 3.2296,
-    "sigma": 0.6145
+    "mu": 3.3201,
+    "sigma": 0.294
    },
    "mess": {
-    "missing_rate": 0.623
+    "missing_rate": 0.623,
+    "outlier_rate": 0.0352,
+    "outlier_factor": 3.54
    }
   },
   {
@@ -266,11 +290,13 @@
    "ctype": "float",
    "distribution": {
     "kind": "normal",
-    "mean": 0.6148,
-    "std": 0.3781
+    "mean": 0.5908,
+    "std": 0.2947
    },
    "mess": {
-    "missing_rate": 0.6244
+    "missing_rate": 0.6244,
+    "outlier_rate": 0.0118,
+    "outlier_factor": 6.62
    }
   },
   {
@@ -278,11 +304,13 @@
    "ctype": "float",
    "distribution": {
     "kind": "lognormal",
-    "mu": 4.2296,
-    "sigma": 0.6565
+    "mu": 4.3383,
+    "sigma": 0.1486
    },
    "mess": {
-    "missing_rate": 0.6274
+    "missing_rate": 0.6274,
+    "outlier_rate": 0.0593,
+    "outlier_factor": 4.57
    }
   },
   {
@@ -290,11 +318,13 @@
    "ctype": "float",
    "distribution": {
     "kind": "lognormal",
-    "mu": 1.8946,
-    "sigma": 0.4373
+    "mu": 1.898,
+    "sigma": 0.3599
    },
    "mess": {
-    "missing_rate": 0.6274
+    "missing_rate": 0.6274,
+    "outlier_rate": 0.0158,
+    "outlier_factor": 5.91
    }
   },
   {
@@ -302,11 +332,13 @@
    "ctype": "float",
    "distribution": {
     "kind": "normal",
-    "mean": 0.0885,
-    "std": 0.1984
+    "mean": 0.0878,
+    "std": 0.1835
    },
    "mess": {
-    "missing_rate": 0.6303
+    "missing_rate": 0.6303,
+    "outlier_rate": 0.008,
+    "outlier_factor": 11.56
    }
   },
   {
@@ -314,11 +346,13 @@
    "ctype": "float",
    "distribution": {
     "kind": "lognormal",
-    "mu": 4.7827,
-    "sigma": 0.5371
+    "mu": 4.816,
+    "sigma": 0.1426
    },
    "mess": {
-    "missing_rate": 0.6318
+    "missing_rate": 0.6318,
+    "outlier_rate": 0.052,
+    "outlier_factor": 4.72
    }
   },
   {
@@ -326,11 +360,13 @@
    "ctype": "float",
    "distribution": {
     "kind": "lognormal",
-    "mu": 2.1621,
-    "sigma": 0.4721
+    "mu": 2.1997,
+    "sigma": 0.1248
    },
    "mess": {
-    "missing_rate": 0.6318
+    "missing_rate": 0.6318,
+    "outlier_rate": 0.036,
+    "outlier_factor": 4.45
    }
   },
   {
@@ -338,11 +374,13 @@
    "ctype": "float",
    "distribution": {
     "kind": "normal",
-    "mean": 0.5898,
-    "std": 0.4599
+    "mean": 0.5771,
+    "std": 0.4154
    },
    "mess": {
-    "missing_rate": 0.6333
+    "missing_rate": 0.6333,
+    "outlier_rate": 0.004,
+    "outlier_factor": 6.41
    }
   },
   {
@@ -350,11 +388,13 @@
    "ctype": "float",
    "distribution": {
     "kind": "normal",
-    "mean": 54.169,
-    "std": 25.3339
+    "mean": 53.2903,
+    "std": 21.2457
    },
    "mess": {
-    "missing_rate": 0.6333
+    "missing_rate": 0.6333,
+    "outlier_rate": 0.004,
+    "outlier_factor": 4.99
    }
   },
   {
@@ -362,11 +402,13 @@
    "ctype": "float",
    "distribution": {
     "kind": "lognormal",
-    "mu": 1.6962,
-    "sigma": 0.7133
+    "mu": 1.8179,
+    "sigma": 0.3773
    },
    "mess": {
-    "missing_rate": 0.6377
+    "missing_rate": 0.6377,
+    "outlier_rate": 0.0488,
+    "outlier_factor": 4.37
    }
   },
   {
@@ -420,11 +462,13 @@
    "ctype": "int",
    "distribution": {
     "kind": "lognormal",
-    "mu": 1.1843,
-    "sigma": 0.7869
+    "mu": 1.132,
+    "sigma": 0.64
    },
    "mess": {
-    "missing_rate": 0.5331
+    "missing_rate": 0.5331,
+    "outlier_rate": 0.0126,
+    "outlier_factor": 49.25
    }
   },
   {

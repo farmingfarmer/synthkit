@@ -62,6 +62,10 @@ def main() -> None:
         mr = p.get("missing_rate", 0.0)
         if mr > 0.001:
             mess["missing_rate"] = round(mr, 4)
+        if p.get("outlier_rate"):
+            mess["outlier_rate"] = p["outlier_rate"]
+            if p.get("outlier_factor"):
+                mess["outlier_factor"] = p["outlier_factor"]
         if kind == "numeric":
             col = {"name": name,
                    "ctype": "int" if p.get("integer_valued")

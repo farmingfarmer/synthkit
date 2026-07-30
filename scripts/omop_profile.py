@@ -159,9 +159,43 @@ def profile_numeric(vals, k):
     zeros = sum(1 for x in xs if x == 0)
     nz = [x for x in xs if x != 0]
     body = nz if (zeros / len(xs) > 0.2 and len(nz) >= k) else xs
+    # Contamination guard. A handful of extreme values drags the
+    # fitted shape badly — a gaussian column with 4% wild outliers
+    # reads as right-skewed and gets fitted lognormal, which then
+    # generates the WRONG distribution. So fit the trimmed body and
+    # declare the outliers separately as a mess rate; synthkit's
+    # spec already speaks `outlier_rate`, so the contamination is
+    # reproduced as contamination rather than baked into the shape.
+    # Family FIRST, then trim in the space where that family is
+    # symmetric. A lognormal's long right tail is legitimate shape,
+    # not contamination — fencing it in raw space would erase the
+    # skew and mis-fit the column as normal.
+    lognormal_shape = (body and min(body) > 0
+                       and skew(body) > 0.75)
+    space = ([math.log(x) for x in body] if lognormal_shape
+             else list(body))
+    q1, q3 = pct(space, 0.25), pct(space, 0.75)
+    iqr = (q3 - q1) if (q1 is not None and q3 is not None) else 0
+    outlier_rate = 0.0
+    outlier_factor = None
+    if iqr > 0:
+        lo_f, hi_f = q1 - 2.5 * iqr, q3 + 2.5 * iqr
+        keep = [i for i, x in enumerate(space)
+                if lo_f <= x <= hi_f]
+        drop = [i for i, x in enumerate(space)
+                if not (lo_f <= x <= hi_f)]
+        if len(keep) >= k and drop:
+            outlier_rate = round(len(drop) / len(space), 4)
+            inside_raw = [body[i] for i in keep]
+            out_raw = [body[i] for i in drop]
+            med = pct(inside_raw, 0.5) or 1.0
+            if med:
+                outlier_factor = round(
+                    max(abs(max(out_raw, key=abs) / med), 1.5), 2)
+            body = inside_raw
     degenerate = len(set(body)) < 2
     fam, params = "normal", {}
-    if body and min(body) > 0 and skew(body) > 0.75:
+    if lognormal_shape and body and min(body) > 0:
         logs = [math.log(x) for x in body]
         fam = "lognormal"
         params = {"mu": round(mean(logs), 4),
@@ -180,6 +214,13 @@ def profile_numeric(vals, k):
     }
     if zeros / len(xs) > 0.2:
         out["zero_inflation"] = round(zeros / len(xs), 4)
+    if outlier_rate:
+        out["outlier_rate"] = outlier_rate
+        out["outlier_factor"] = outlier_factor
+        out["fit_note"] = ("fitted on the trimmed body; the "
+                           "extremes are declared as a mess rate "
+                           "so contamination is reproduced as "
+                           "contamination, not as shape")
     if min(xs) >= 0 and fam == "normal":
         m, s = params["mean"], params["sd"]
         if s > 0 and m - 2 * s < 0:
