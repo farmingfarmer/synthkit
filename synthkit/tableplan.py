@@ -335,6 +335,83 @@ def _build_note(col, r: int, seed: int):
     return text, presence
 
 
+
+# =====================================================================
+# CORRELATION IMPOSITION (Iman-Conover)
+# ---------------------------------------------------------------------
+# Columns are drawn independently from their declared marginals, then
+# REORDERED so their rank pattern matches a reference sample carrying
+# the target correlation. Because reordering only permutes the values
+# already drawn, every marginal survives EXACTLY as specified — the
+# fitted distribution is untouched while the joint structure appears.
+# This is what lets a profiled spec reproduce "how the fields move
+# together" without disturbing "what each field looks like".
+# =====================================================================
+def _cholesky(m):
+    n = len(m)
+    L = [[0.0] * n for _ in range(n)]
+    for i in range(n):
+        for j in range(i + 1):
+            s = sum(L[i][k] * L[j][k] for k in range(j))
+            if i == j:
+                d = m[i][i] - s
+                # nearest-PSD nudge: profiled matrices from real data
+                # are not always positive definite
+                L[i][j] = math.sqrt(d) if d > 1e-12 else 1e-6
+            else:
+                L[i][j] = (m[i][j] - s) / L[j][j] if L[j][j] else 0.0
+    return L
+
+
+def _rank_order(xs):
+    """Positions that would sort xs, i.e. rank of each element."""
+    idx = sorted(range(len(xs)), key=lambda i: xs[i])
+    out = [0] * len(xs)
+    for rank, i in enumerate(idx):
+        out[i] = rank
+    return out
+
+
+def _apply_correlations(spec, clean_vals, clean_rows):
+    pairs = getattr(spec, "correlations", None) or []
+    if not pairs:
+        return
+    names = []
+    for pr in pairs:
+        for k in ("a", "b"):
+            if pr[k] not in names:
+                names.append(pr[k])
+    n = len(names)
+    idx = {nm: i for i, nm in enumerate(names)}
+    target = [[1.0 if i == j else 0.0 for j in range(n)]
+              for i in range(n)]
+    for pr in pairs:
+        i, j = idx[pr["a"]], idx[pr["b"]]
+        # Pearson correlation of the normal scores that yields the
+        # requested SPEARMAN correlation (Pearson-Spearman bridge)
+        rho = max(-0.999, min(0.999, float(pr["spearman"])))
+        target[i][j] = target[j][i] = 2.0 * math.sin(
+            math.pi * rho / 6.0)
+    L = _cholesky(target)
+    rows = len(clean_vals)
+    rng = _cell_rng(spec.master_seed, 0, "__correlation__", "ref")
+    ref = []
+    for _ in range(rows):
+        z = [rng.gauss(0.0, 1.0) for _ in range(n)]
+        ref.append([sum(L[i][k] * z[k] for k in range(i + 1))
+                    for i in range(n)])
+    for nm in names:
+        col = idx[nm]
+        vals = [clean_vals[r].get(nm) for r in range(rows)]
+        if any(not isinstance(v, (int, float)) for v in vals):
+            continue                    # numeric columns only
+        want = _rank_order([ref[r][col] for r in range(rows)])
+        ordered = sorted(vals)
+        for r in range(rows):
+            clean_vals[r][nm] = ordered[want[r]]
+            clean_rows[r][nm] = clean_str(ordered[want[r]])
+
+
 def plan_table(spec: TableSpec) -> TableBlueprint:
     spec.validate()
     columns = [c.name for c in spec.columns]
@@ -361,6 +438,10 @@ def plan_table(spec: TableSpec) -> TableBlueprint:
         clean_rows.append({k: clean_str(v)
                            for k, v in vals.items()
                            if not k.startswith("_")})
+
+    # Joint structure BEFORE outcomes, so planted coefficients act
+    # on the correlated values a model will actually see.
+    _apply_correlations(spec, clean_vals, clean_rows)
 
     # Outcomes: labels from CLEAN values (truth reflects reality;
     # mess on features is what makes prediction hard).

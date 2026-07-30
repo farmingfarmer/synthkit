@@ -1,0 +1,792 @@
+{
+ "title": "profiled from tidy_visits_labeled.csv",
+ "rows": 1000,
+ "master_seed": 20260730,
+ "columns": [
+  {
+   "name": "visit_start_date",
+   "ctype": "date",
+   "distribution": {
+    "kind": "date_range",
+    "start": "2007-01-01",
+    "end": "2020-12-04"
+   }
+  },
+  {
+   "name": "visit_end_date",
+   "ctype": "date",
+   "distribution": {
+    "kind": "date_range",
+    "start": "2007-01-17",
+    "end": "2020-12-31"
+   }
+  },
+  {
+   "name": "span_days",
+   "ctype": "int",
+   "distribution": {
+    "kind": "mixture",
+    "weights": [
+     0.9985,
+     0.0015
+    ],
+    "components": [
+     {
+      "kind": "normal",
+      "mean": 0.0,
+      "std": 0.0001
+     },
+     {
+      "kind": "normal",
+      "mean": 7.5302,
+      "std": 196.2189
+     }
+    ]
+   }
+  },
+  {
+   "name": "age_at_visit",
+   "ctype": "int",
+   "distribution": {
+    "kind": "normal",
+    "mean": 44.6495,
+    "std": 18.8368
+   }
+  },
+  {
+   "name": "year_of_birth",
+   "ctype": "int",
+   "distribution": {
+    "kind": "normal",
+    "mean": 1968.3108,
+    "std": 18.3283
+   }
+  },
+  {
+   "name": "gender",
+   "ctype": "category",
+   "distribution": {
+    "kind": "categorical",
+    "choices": [
+     "FEMALE",
+     "MALE"
+    ],
+    "weights": [
+     0.5449,
+     0.4551
+    ]
+   }
+  },
+  {
+   "name": "race",
+   "ctype": "category",
+   "distribution": {
+    "kind": "categorical",
+    "choices": [
+     "WHITE",
+     "BLACKORAFRICANAMERICAN",
+     "OTHER",
+     "ASIAN",
+     "PATIENTREFUSESORDOESNOTKNOW",
+     "OTHER_SUPPRESSED"
+    ],
+    "weights": [
+     0.5714,
+     0.1708,
+     0.137,
+     0.0943,
+     0.0236,
+     0.0029
+    ]
+   }
+  },
+  {
+   "name": "ethnicity",
+   "ctype": "category",
+   "distribution": {
+    "kind": "categorical",
+    "choices": [
+     "NONHISPANICORLATINO",
+     "HISPANICORLATINO",
+     "OTHER_SUPPRESSED"
+    ],
+    "weights": [
+     0.8498,
+     0.1414,
+     0.0088
+    ]
+   }
+  },
+  {
+   "name": "respiratory_rate",
+   "ctype": "float",
+   "distribution": {
+    "kind": "lognormal",
+    "mu": 2.745,
+    "sigma": 0.4352
+   },
+   "mess": {
+    "missing_rate": 0.6053
+   }
+  },
+  {
+   "name": "urea",
+   "ctype": "float",
+   "distribution": {
+    "kind": "normal",
+    "mean": 15.9422,
+    "std": 10.5854
+   },
+   "mess": {
+    "missing_rate": 0.6082
+   }
+  },
+  {
+   "name": "diastolic_blood_pressure",
+   "ctype": "float",
+   "distribution": {
+    "kind": "lognormal",
+    "mu": 4.3429,
+    "sigma": 0.4077
+   },
+   "mess": {
+    "missing_rate": 0.6141
+   }
+  },
+  {
+   "name": "erythrocytes",
+   "ctype": "float",
+   "distribution": {
+    "kind": "lognormal",
+    "mu": 1.4934,
+    "sigma": 0.5166
+   },
+   "mess": {
+    "missing_rate": 0.6156
+   }
+  },
+  {
+   "name": "alkaline_phosphatase",
+   "ctype": "float",
+   "distribution": {
+    "kind": "lognormal",
+    "mu": 4.3325,
+    "sigma": 0.5732
+   },
+   "mess": {
+    "missing_rate": 0.6156
+   }
+  },
+  {
+   "name": "mch",
+   "ctype": "float",
+   "distribution": {
+    "kind": "lognormal",
+    "mu": 3.3701,
+    "sigma": 0.5156
+   },
+   "mess": {
+    "missing_rate": 0.6171
+   }
+  },
+  {
+   "name": "mcv",
+   "ctype": "float",
+   "distribution": {
+    "kind": "lognormal",
+    "mu": 4.4642,
+    "sigma": 0.4682
+   },
+   "mess": {
+    "missing_rate": 0.62
+   }
+  },
+  {
+   "name": "glucose",
+   "ctype": "float",
+   "distribution": {
+    "kind": "lognormal",
+    "mu": 4.4925,
+    "sigma": 0.6324
+   },
+   "mess": {
+    "missing_rate": 0.62
+   }
+  },
+  {
+   "name": "albumin",
+   "ctype": "float",
+   "distribution": {
+    "kind": "lognormal",
+    "mu": 1.3785,
+    "sigma": 0.4718
+   },
+   "mess": {
+    "missing_rate": 0.62
+   }
+  },
+  {
+   "name": "eosinophils",
+   "ctype": "float",
+   "distribution": {
+    "kind": "normal",
+    "mean": 2.1995,
+    "std": 2.0534
+   },
+   "mess": {
+    "missing_rate": 0.6215
+   }
+  },
+  {
+   "name": "aspartate_aminotransferase",
+   "ctype": "float",
+   "distribution": {
+    "kind": "normal",
+    "mean": 28.1234,
+    "std": 20.4907
+   },
+   "mess": {
+    "missing_rate": 0.623
+   }
+  },
+  {
+   "name": "lymphocytes",
+   "ctype": "float",
+   "distribution": {
+    "kind": "lognormal",
+    "mu": 3.2296,
+    "sigma": 0.6145
+   },
+   "mess": {
+    "missing_rate": 0.623
+   }
+  },
+  {
+   "name": "bilirubin_total",
+   "ctype": "float",
+   "distribution": {
+    "kind": "normal",
+    "mean": 0.6148,
+    "std": 0.3781
+   },
+   "mess": {
+    "missing_rate": 0.6244
+   }
+  },
+  {
+   "name": "peripheral_pulse",
+   "ctype": "float",
+   "distribution": {
+    "kind": "lognormal",
+    "mu": 4.2296,
+    "sigma": 0.6565
+   },
+   "mess": {
+    "missing_rate": 0.6274
+   }
+  },
+  {
+   "name": "leukocytes",
+   "ctype": "float",
+   "distribution": {
+    "kind": "lognormal",
+    "mu": 1.8946,
+    "sigma": 0.4373
+   },
+   "mess": {
+    "missing_rate": 0.6274
+   }
+  },
+  {
+   "name": "nucleated_erythrocytes",
+   "ctype": "float",
+   "distribution": {
+    "kind": "normal",
+    "mean": 0.0885,
+    "std": 0.1984
+   },
+   "mess": {
+    "missing_rate": 0.6303
+   }
+  },
+  {
+   "name": "systolic_blood_pressure",
+   "ctype": "float",
+   "distribution": {
+    "kind": "lognormal",
+    "mu": 4.7827,
+    "sigma": 0.5371
+   },
+   "mess": {
+    "missing_rate": 0.6318
+   }
+  },
+  {
+   "name": "platelet_mean_volume",
+   "ctype": "float",
+   "distribution": {
+    "kind": "lognormal",
+    "mu": 2.1621,
+    "sigma": 0.4721
+   },
+   "mess": {
+    "missing_rate": 0.6318
+   }
+  },
+  {
+   "name": "basophils",
+   "ctype": "float",
+   "distribution": {
+    "kind": "normal",
+    "mean": 0.5898,
+    "std": 0.4599
+   },
+   "mess": {
+    "missing_rate": 0.6333
+   }
+  },
+  {
+   "name": "reticulocytes",
+   "ctype": "float",
+   "distribution": {
+    "kind": "normal",
+    "mean": 54.169,
+    "std": 25.3339
+   },
+   "mess": {
+    "missing_rate": 0.6333
+   }
+  },
+  {
+   "name": "monocytes",
+   "ctype": "float",
+   "distribution": {
+    "kind": "lognormal",
+    "mu": 1.6962,
+    "sigma": 0.7133
+   },
+   "mess": {
+    "missing_rate": 0.6377
+   }
+  },
+  {
+   "name": "condition_count",
+   "ctype": "int",
+   "distribution": {
+    "kind": "mixture",
+    "weights": [
+     0.2563,
+     0.7437
+    ],
+    "components": [
+     {
+      "kind": "normal",
+      "mean": 0.0,
+      "std": 0.0001
+     },
+     {
+      "kind": "normal",
+      "mean": 2.1822,
+      "std": 1.017
+     }
+    ]
+   }
+  },
+  {
+   "name": "procedure_count",
+   "ctype": "int",
+   "distribution": {
+    "kind": "mixture",
+    "weights": [
+     0.5331,
+     0.4669
+    ],
+    "components": [
+     {
+      "kind": "normal",
+      "mean": 0.0,
+      "std": 0.0001
+     },
+     {
+      "kind": "normal",
+      "mean": 3.3249,
+      "std": 1.6891
+     }
+    ]
+   }
+  },
+  {
+   "name": "procedure_quantity",
+   "ctype": "int",
+   "distribution": {
+    "kind": "lognormal",
+    "mu": 1.1843,
+    "sigma": 0.7869
+   },
+   "mess": {
+    "missing_rate": 0.5331
+   }
+  },
+  {
+   "name": "active_drug_count",
+   "ctype": "int",
+   "distribution": {
+    "kind": "normal",
+    "mean": 4.5935,
+    "std": 2.5578
+   }
+  },
+  {
+   "name": "returned_within_30d",
+   "ctype": "bool",
+   "distribution": {
+    "kind": "bernoulli",
+    "p": 0.0781
+   }
+  },
+  {
+   "name": "is_last_visit",
+   "ctype": "bool",
+   "distribution": {
+    "kind": "bernoulli",
+    "p": 0.1767
+   }
+  }
+ ],
+ "correlations": [],
+ "outcomes": [],
+ "_provenance": {
+  "profiled_from": "tidy_visits_labeled.csv",
+  "source_rows": 679,
+  "k_threshold": 10,
+  "correlations_imposed": 0,
+  "correlations_available_unconfirmed": 54,
+  "privacy": "aggregates only; no record, value or identifier is emitted; generation from this profile cannot reproduce a source record",
+  "outcomes": "EMPTY BY DESIGN \u2014 planted truth is authored, not inferred. Add an outcome with known coefficients over these columns; that is what makes the answer key exact and the performance ceiling knowable.",
+  "review": "This is a DRAFT. Every number here is a dial: change any distribution, weight, mess rate or correlation before compiling.",
+  "editing_notes": [
+   "span_days: observed values are all >= 0 but a normal fit would emit negatives; generation must clamp at 0",
+   "visit_type: single value in the source \u2014 omitted as uninformative",
+   "admitted_from: single value in the source \u2014 omitted as uninformative",
+   "race: 1 rare level(s) were suppressed into OTHER_SUPPRESSED before this draft \u2014 rename or redistribute that weight as you see fit",
+   "ethnicity: 1 rare level(s) were suppressed into OTHER_SUPPRESSED before this draft \u2014 rename or redistribute that weight as you see fit",
+   "procedure_count: observed values are all >= 0 but a normal fit would emit negatives; generation must clamp at 0",
+   "active_drug_count: observed values are all >= 0 but a normal fit would emit negatives; generation must clamp at 0",
+   "age_at_visit <-> year_of_birth: correlation -0.984 is near-perfect \u2014 these encode the same quantity, so it is NOT imposed; derive one from the other with a rule instead",
+   "procedure_count <-> procedure_quantity: correlation +0.959 is near-perfect \u2014 these encode the same quantity, so it is NOT imposed; derive one from the other with a rule instead"
+  ],
+  "deferred_columns": [
+   {
+    "name": "conditions",
+    "reason": "list-valued column",
+    "measured": {
+     "mean_length": 1.571,
+     "empty_rate": 0.2563,
+     "distinct_items": 19,
+     "item_rates": {
+      "Pain of breast": 0.1134,
+      "Fibromyalgia": 0.106,
+      "Genitourinary tract hemorrhage": 0.0928,
+      "Inflammatory dermatosis": 0.0913,
+      "Fatigue": 0.0898,
+      "Irritable bowel syndrome": 0.0869,
+      "Polyneuropathy": 0.0869,
+      "Autoimmune thyroiditis": 0.0869,
+      "Anxiety disorder": 0.0854,
+      "Disorder of lung": 0.0854,
+      "Neoplastic disease": 0.0825,
+      "Tietze's disease": 0.081,
+      "Swelling / lump finding": 0.0795,
+      "Postoperative state": 0.0751,
+      "Acquired absence of breast": 0.0736,
+      "Solitary nodule of lung": 0.0736,
+      "Lymphadenopathy": 0.0722,
+      "Hypothyroidism": 0.0619,
+      "Abnormal findings on diagnostic imaging": 0.0471
+     },
+     "cooccurrence": [
+      {
+       "a": "Fatigue",
+       "b": "Polyneuropathy",
+       "n": 11,
+       "lift": 2.076
+      },
+      {
+       "a": "Inflammatory dermatosis",
+       "b": "Tietze's disease",
+       "n": 10,
+       "lift": 1.991
+      },
+      {
+       "a": "Lymphadenopathy",
+       "b": "Pain of breast",
+       "n": 11,
+       "lift": 1.979
+      },
+      {
+       "a": "Fatigue",
+       "b": "Inflammatory dermatosis",
+       "n": 10,
+       "lift": 1.796
+      },
+      {
+       "a": "Irritable bowel syndrome",
+       "b": "Pain of breast",
+       "n": 12,
+       "lift": 1.793
+      },
+      {
+       "a": "Fibromyalgia",
+       "b": "Polyneuropathy",
+       "n": 10,
+       "lift": 1.599
+      },
+      {
+       "a": "Fibromyalgia",
+       "b": "Pain of breast",
+       "n": 11,
+       "lift": 1.348
+      }
+     ]
+    },
+    "how_to_use": "author this as a `note` column: each frequent item becomes an element with phrasings and a density equal to its measured rate; co-occurring pairs can share an element or become a distractor pair"
+   },
+   {
+    "name": "procedures",
+    "reason": "list-valued column",
+    "measured": {
+     "mean_length": 1.373,
+     "empty_rate": 0.5331,
+     "distinct_items": 14,
+     "item_rates": {
+      "Fluoroscopy of Bilateral Internal Carotid Arteries": 0.1694,
+      "Fluoroscopy of Bilateral Vertebral Arteries": 0.1134,
+      "Fluoroscopy of Bilateral Common Carotid Arteries": 0.106,
+      "Oxygen therapy": 0.1001,
+      "Destruction of Left Foot Skin, External Approach": 0.0972,
+      "Destruction of Back Skin, External Approach, Diagnostic": 0.0957,
+      "Excision of Left Hand Skin, Multiple, External Approach": 0.0957,
+      "Repair Back Skin, External Approach": 0.0928,
+      "Chemotherapy follow-up": 0.0898,
+      "Magnetic resonance (eg, proton) imaging, brain": 0.0869,
+      "Selective catheter placement, external carotid artery": 0.0854,
+      "Destruction of Right Foot Skin, External Approach": 0.081,
+      "Excision of Back Skin, External Approach": 0.0795,
+      "Fluoroscopy of Other Upper Arteries using Low Osmolar": 0.0795
+     },
+     "cooccurrence": [
+      {
+       "a": "Fluoroscopy of Other Upper Arteries using Low Osmolar",
+       "b": "Repair Back Skin, External Approach",
+       "n": 17,
+       "lift": 3.394
+      },
+      {
+       "a": "Excision of Left Hand Skin, Multiple, External Approach",
+       "b": "Magnetic resonance (eg, proton) imaging, brain",
+       "n": 18,
+       "lift": 3.188
+      },
+      {
+       "a": "Destruction of Back Skin, External Approach, Diagnostic",
+       "b": "Excision of Back Skin, External Approach",
+       "n": 16,
+       "lift": 3.097
+      },
+      {
+       "a": "Destruction of Right Foot Skin, External Approach",
+       "b": "Oxygen therapy",
+       "n": 16,
+       "lift": 2.906
+      },
+      {
+       "a": "Chemotherapy follow-up",
+       "b": "Fluoroscopy of Bilateral Internal Carotid Arteries",
+       "n": 29,
+       "lift": 2.808
+      },
+      {
+       "a": "Destruction of Right Foot Skin, External Approach",
+       "b": "Selective catheter placement, external carotid artery",
+       "n": 13,
+       "lift": 2.768
+      },
+      {
+       "a": "Excision of Left Hand Skin, Multiple, External Approach",
+       "b": "Fluoroscopy of Bilateral Common Carotid Arteries",
+       "n": 19,
+       "lift": 2.758
+      },
+      {
+       "a": "Chemotherapy follow-up",
+       "b": "Destruction of Back Skin, External Approach, Diagnostic",
+       "n": 16,
+       "lift": 2.742
+      },
+      {
+       "a": "Destruction of Left Foot Skin, External Approach",
+       "b": "Oxygen therapy",
+       "n": 18,
+       "lift": 2.725
+      },
+      {
+       "a": "Chemotherapy follow-up",
+       "b": "Destruction of Left Foot Skin, External Approach",
+       "n": 16,
+       "lift": 2.7
+      }
+     ]
+    },
+    "how_to_use": "author this as a `note` column: each frequent item becomes an element with phrasings and a density equal to its measured rate; co-occurring pairs can share an element or become a distractor pair"
+   },
+   {
+    "name": "active_drugs",
+    "reason": "list-valued column",
+    "measured": {
+     "mean_length": 4.594,
+     "empty_rate": 0.0442,
+     "distinct_items": 20,
+     "item_rates": {
+      "levothyroxine": 0.2975,
+      "iopamidol": 0.2518,
+      "linaclotide": 0.2445,
+      "clobetasol": 0.2445,
+      "gadopentetate dimeglumine": 0.243,
+      "liothyronine": 0.243,
+      "ketoconazole": 0.2415,
+      "sulfacetamide": 0.2415,
+      "lamotrigine": 0.2415,
+      "sodium bicarbonate": 0.2342,
+      "triamcinolone": 0.2312,
+      "norethindrone": 0.2297,
+      "venlafaxine": 0.2283,
+      "lidocaine": 0.2283,
+      "bupropion": 0.2121,
+      "ondansetron": 0.2003,
+      "gadobenate": 0.2003,
+      "sodium chloride": 0.1988,
+      "sodium": 0.1915,
+      "estradiol": 0.19
+     },
+     "cooccurrence": [
+      {
+       "a": "ondansetron",
+       "b": "sulfacetamide",
+       "n": 57,
+       "lift": 1.735
+      },
+      {
+       "a": "estradiol",
+       "b": "norethindrone",
+       "n": 48,
+       "lift": 1.62
+      },
+      {
+       "a": "ondansetron",
+       "b": "triamcinolone",
+       "n": 50,
+       "lift": 1.59
+      },
+      {
+       "a": "ondansetron",
+       "b": "sodium",
+       "n": 40,
+       "lift": 1.536
+      },
+      {
+       "a": "liothyronine",
+       "b": "venlafaxine",
+       "n": 57,
+       "lift": 1.513
+      },
+      {
+       "a": "bupropion",
+       "b": "sodium bicarbonate",
+       "n": 51,
+       "lift": 1.512
+      },
+      {
+       "a": "estradiol",
+       "b": "iopamidol",
+       "n": 49,
+       "lift": 1.508
+      },
+      {
+       "a": "gadobenate",
+       "b": "triamcinolone",
+       "n": 47,
+       "lift": 1.495
+      },
+      {
+       "a": "gadopentetate dimeglumine",
+       "b": "sodium",
+       "n": 47,
+       "lift": 1.487
+      },
+      {
+       "a": "gadobenate",
+       "b": "lidocaine",
+       "n": 46,
+       "lift": 1.481
+      }
+     ]
+    },
+    "how_to_use": "author this as a `note` column: each frequent item becomes an element with phrasings and a density equal to its measured rate; co-occurring pairs can share an element or become a distractor pair"
+   },
+   {
+    "name": "drug_routes",
+    "reason": "list-valued column",
+    "measured": {
+     "mean_length": 2.373,
+     "empty_rate": 0.0442,
+     "distinct_items": 4,
+     "item_rates": {
+      "Oral": 0.8807,
+      "Topical": 0.6966,
+      "IV": 0.6038,
+      "Charge": 0.1915
+     },
+     "cooccurrence": [
+      {
+       "a": "Charge",
+       "b": "IV",
+       "n": 94,
+       "lift": 1.197
+      },
+      {
+       "a": "Charge",
+       "b": "Topical",
+       "n": 106,
+       "lift": 1.17
+      },
+      {
+       "a": "IV",
+       "b": "Oral",
+       "n": 386,
+       "lift": 1.069
+      },
+      {
+       "a": "IV",
+       "b": "Topical",
+       "n": 302,
+       "lift": 1.057
+      },
+      {
+       "a": "Charge",
+       "b": "Oral",
+       "n": 120,
+       "lift": 1.048
+      },
+      {
+       "a": "Oral",
+       "b": "Topical",
+       "n": 434,
+       "lift": 1.042
+      }
+     ]
+    },
+    "how_to_use": "author this as a `note` column: each frequent item becomes an element with phrasings and a density equal to its measured rate; co-occurring pairs can share an element or become a distractor pair"
+   }
+  ]
+ }
+}

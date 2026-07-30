@@ -187,6 +187,11 @@ class TableSpec:
     # Coefficient keys: numeric column, bool column (0/1), or
     # "column=value" indicator for categoricals.
     outcomes: List[Dict[str, Any]] = field(default_factory=list)
+    # Joint structure: [{"a": col, "b": col, "spearman": r}, ...]
+    # Imposed by reordering drawn values, so declared marginals
+    # survive exactly. Profiled specs carry only CONFIRMED pairs.
+    correlations: List[Dict[str, Any]] = field(
+        default_factory=list)
 
     # ---------------- validation (total) ----------------
     def validate(self) -> None:
@@ -368,6 +373,47 @@ class TableSpec:
                 if rule.get("target") == rule.get("source"):
                     problems.append("{}: target and source must "
                                     "differ".format(rtag))
+        names = {c.name for c in self.columns}
+        numeric_kinds = {"normal", "lognormal", "uniform", "beta",
+                         "mixture", "sequence"}
+        for i, pr in enumerate(self.correlations):
+            where = "correlations[{}]".format(i)
+            if not isinstance(pr, dict):
+                problems.append("{}: each correlation must be an "
+                                "object with `a`, `b` and "
+                                "`spearman`".format(where))
+                continue
+            for k in ("a", "b"):
+                if pr.get(k) not in names:
+                    problems.append(
+                        "{}: `{}` names `{}`, which is not a column "
+                        "in this spec".format(where, k, pr.get(k)))
+            if pr.get("a") == pr.get("b"):
+                problems.append("{}: a column cannot be correlated "
+                                "with itself".format(where))
+            try:
+                r = float(pr.get("spearman"))
+            except (TypeError, ValueError):
+                problems.append("{}: `spearman` must be a number "
+                                "between -1 and 1".format(where))
+                continue
+            if not -1.0 <= r <= 1.0:
+                problems.append("{}: `spearman` is {} — rank "
+                                "correlation lives in [-1, 1]"
+                                .format(where, r))
+            for k in ("a", "b"):
+                col = next((c for c in self.columns
+                            if c.name == pr.get(k)), None)
+                if (col is not None
+                        and col.dist_kind() not in numeric_kinds):
+                    problems.append(
+                        "{}: `{}` is `{}`, a {} column — "
+                        "correlations are imposed by reordering "
+                        "numeric draws, so both sides must be "
+                        "numeric".format(where, k, col.name,
+                                         col.dist_kind()
+                                         or col.ctype))
+
         for i, oc in enumerate(self.outcomes):
             otag = "outcome #{}".format(i + 1)
             name = oc.get("name", "")
@@ -542,6 +588,7 @@ class TableSpec:
             duplicate_rate=d.get("duplicate_rate", 0.0),
             rules=d.get("rules", []),
             outcomes=d.get("outcomes", []),
+            correlations=d.get("correlations", []),
             columns=[
                 ColumnSpec(
                     name=c["name"],
