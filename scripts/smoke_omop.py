@@ -98,6 +98,52 @@ def main():
               "not silently dropped",
               any(r_["span_days"] not in ("", "0") for r_ in rows))
 
+        # ---------- label derivation + null diagnostic ----------
+        lab = Path(td) / "labeled.csv"
+        r = run("scripts/derive_label.py", "--in", str(out),
+                "-o", str(lab), "--window", "30", "--report")
+        check("label deriver runs and reports prevalence",
+              r.returncode == 0 and "prevalence" in r.stdout)
+        lrows = list(csv.DictReader(lab.open(encoding="utf-8")))
+        check("outcome column added to every visit",
+              all("returned_within_30d" in r_ for r_ in lrows))
+        check("labels are computed per person in DATE order "
+              "(a visit is positive only if that patient's next "
+              "visit falls inside the window)",
+              all((r_["returned_within_30d"] != "1")
+                  or (r_["days_to_next_visit"]
+                      and 0 <= int(r_["days_to_next_visit"]) <= 30)
+                  for r_ in lrows))
+        check("each patient's final visit is flagged as "
+              "right-censored, not silently positive",
+              sum(1 for r_ in lrows
+                  if r_["is_last_visit"] == "1") > 0
+              and all(r_["returned_within_30d"] == "0"
+                      for r_ in lrows if r_["is_last_visit"] == "1"))
+        prev = (sum(1 for r_ in lrows
+                    if r_["returned_within_30d"] == "1")
+                / max(1, len(lrows)))
+        check("outcome lands in a usable minority band (2-45%)",
+              0.02 <= prev <= 0.45)
+
+        r = run("scripts/null_diagnostic.py", "--in", str(lab))
+        check("null diagnostic runs on a PERSON-GROUPED split "
+              "with zero patient overlap",
+              r.returncode == 0
+              and "patient overlap between train and test: 0"
+              in r.stdout)
+        check("diagnostic reports AUROC with a confidence interval "
+              "and a verdict for both solvers",
+              r.stdout.count("AUROC") == 2
+              and r.stdout.count("->") >= 2)
+        check("unplanted data yields NO learnable structure "
+              "(the interval includes 0.50) - the argument for "
+              "planting truth",
+              r.stdout.count("no learnable structure") == 2)
+        check("leakage columns are excluded from features",
+              "days_to_next_visit" not in
+              r.stdout.split("strongest weight")[-1])
+
     print()
     if FAIL:
         print("{} FAILED".format(FAIL))
