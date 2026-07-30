@@ -1,0 +1,1055 @@
+,procedure_occurrence_id,procedure_concept_id,procedure_date,procedure_type_concept_id,modifier_concept_id,quantity,visit_occurrence_id,procedure_source_value,procedure_source_concept_id,modifier_source_value,concept_id,concept_name,person_id
+0,10929556842,2756496,12/1/2012,32827,0,2,498867,"Repair Back Skin, External Approach",2756496,,2756496,"Repair Back Skin, External Approach",317994
+1,10929556843,4081128,12/1/2012,32827,0,1,498867,Chemotherapy follow-up,4081128,,4081128,Chemotherapy follow-up,317994
+2,10929556844,2750316,12/1/2012,32827,0,1,498867,"Destruction of Left Foot Skin, External Approach",2750316,,2750316,"Destruction of Left Foot Skin, External Approach",317994
+3,10929556845,2756496,12/1/2012,32827,0,1,498867,"Repair Back Skin, External Approach",2756496,,2756496,"Repair Back Skin, External Approach",317994
+4,10929556846,4081128,12/1/2012,32827,0,1,498867,Chemotherapy follow-up,4081128,,4081128,Chemotherapy follow-up,317994
+5,10929556847,43527928,12/1/2012,32827,0,1,498867,"Selective catheter placement, external carotid artery",43527928,,43527928,"Selective catheter placement, external carotid artery",317994
+6,1,2787075,7/9/2012,32827,0,1,543788,Fluoroscopy of Other Upper Arteries using Low Osmolar,2787075,,2787075,Fluoroscopy of Other Upper Arteries using Low Osmolar,947926
+7,10929556848,2751613,3/25/2013,32827,0,1,236172,"Excision of Back Skin, External Approach",2751613,,2751613,"Excision of Back Skin, External Approach",947926
+8,10929556849,2751614,3/25/2013,32827,0,1,236172,"Excision of Left Hand Skin, Multiple, External Approach",2751614,,2751614,"Excision of Left Hand Skin, Multiple, External Approach",947926
+9,10929556850,2751614,3/25/2013,32827,0,1,236172,"Excision of Left Hand Skin, Multiple, External Approach",2751614,,2751614,"Excision of Left Hand Skin, Multiple, External Approach",947926
+10,2,2751614,11/22/2012,32827,0,2,079753,"Excision of Left Hand Skin, Multiple, External Approach",2751614,,2751614,"Excision of Left Hand Skin, Multiple, External Approach",72710
+11,3,2751614,1/1/2012,32827,0,2,079753,"Excision of Left Hand Skin, Multiple, External Approach",2751614,,2751614,"Excision of Left Hand Skin, Multiple, External Approach",72710
+12,10929556851,2786802,12/22/2012,32827,0,1,167056,Fluoroscopy of Bilateral Internal Carotid Arteries,2786802,,2786802,Fluoroscopy of Bilateral Internal Carotid Arteries,72710
+13,10929556852,2787075,12/19/2013,32827,0,1,996902,Fluoroscopy of Other Upper Arteries using Low Osmolar,2787075,,2787075,Fluoroscopy of Other Upper Arteries using Low Osmolar,72710
+14,10929556853,2787075,1/23/2015,32827,0,1,175783,Fluoroscopy of Other Upper Arteries using Low Osmolar,2787075,,2787075,Fluoroscopy of Other Upper Arteries using Low Osmolar,72710
+15,10929556854,2756496,1/23/2015,32827,0,1,175783,"Repair Back Skin, External Approach",2756496,,2756496,"Repair Back Skin, External Approach",72710
+16,10929556855,2786591,12/10/2011,32827,0,1,608898,Fluoroscopy of Bilateral Common Carotid Arteries,2786591,,2786591,Fluoroscopy of Bilateral Common Carotid Arteries,573454
+17,10929556856,2751614,12/10/2011,32827,0,1,608898,"Excision of Left Hand Skin, Multiple, External Approach",2751614,,2751614,"Excision of Left Hand Skin, Multiple, External Approach",573454
+18,4,2786612,1/1/2011,32827,0,1,608898,Fluoroscopy of Bilateral Internal Carotid Arteries,2786612,,2786612,Fluoroscopy of Bilateral Internal Carotid Arteries,573454
+19,10929556857,2211351,12/10/2011,32827,0,1,608898,"Magnetic resonance (eg, proton) imaging, brain",2211351,,2211351,"Magnetic resonance (eg, proton) imaging, brain",573454
+20,10929556858,2786841,10/15/2013,32827,0,1,814231,Fluoroscopy of Bilateral Vertebral Arteries,2786841,,2786841,Fluoroscopy of Bilateral Vertebral Arteries,80012
+21,10929556859,2750316,1/1/2014,32827,0,1,997578,"Destruction of Left Foot Skin, External Approach",2750316,,2750316,"Destruction of Left Foot Skin, External Approach",80012
+22,5,2786591,9/8/2014,32827,0,2,997578,Fluoroscopy of Bilateral Common Carotid Arteries,2786591,,2786591,Fluoroscopy of Bilateral Common Carotid Arteries,80012
+23,10929556860,2750303,9/8/2014,32827,0,1,997578,"Destruction of Back Skin, External Approach, Diagnostic",2750303,,2750303,"Destruction of Back Skin, External Approach, Diagnostic",80012
+24,6,2786841,1/1/2014,32827,0,1,997578,Fluoroscopy of Bilateral Vertebral Arteries,2786841,,2786841,Fluoroscopy of Bilateral Vertebral Arteries,80012
+25,7,2750303,1/1/2014,32827,0,1,366484,"Destruction of Back Skin, External Approach, Diagnostic",2750303,,2750303,"Destruction of Back Skin, External Approach, Diagnostic",80012
+26,8,2786591,1/1/2007,32827,0,1,765946,Fluoroscopy of Bilateral Common Carotid Arteries,2786591,,2786591,Fluoroscopy of Bilateral Common Carotid Arteries,413432
+27,10929556861,2786841,1/1/2007,32827,0,1,765946,Fluoroscopy of Bilateral Vertebral Arteries,2786841,,2786841,Fluoroscopy of Bilateral Vertebral Arteries,413432
+28,10929556862,2786802,10/27/2007,32827,0,1,765946,Fluoroscopy of Bilateral Internal Carotid Arteries,2786802,,2786802,Fluoroscopy of Bilateral Internal Carotid Arteries,413432
+29,9,2786612,1/1/2007,32827,0,1,765946,Fluoroscopy of Bilateral Internal Carotid Arteries,2786612,,2786612,Fluoroscopy of Bilateral Internal Carotid Arteries,413432
+30,10929556863,2751614,10/27/2007,32827,0,1,765946,"Excision of Left Hand Skin, Multiple, External Approach",2751614,,2751614,"Excision of Left Hand Skin, Multiple, External Approach",413432
+31,10929556864,2211351,10/27/2007,32827,0,1,765946,"Magnetic resonance (eg, proton) imaging, brain",2211351,,2211351,"Magnetic resonance (eg, proton) imaging, brain",413432
+32,10929556865,2787075,5/2/2008,32827,0,1,52507,Fluoroscopy of Other Upper Arteries using Low Osmolar,2787075,,2787075,Fluoroscopy of Other Upper Arteries using Low Osmolar,413432
+33,10,2787075,5/2/2008,32827,0,1,52507,Fluoroscopy of Other Upper Arteries using Low Osmolar,2787075,,2787075,Fluoroscopy of Other Upper Arteries using Low Osmolar,413432
+34,11,2211351,5/2/2008,32827,0,1,52507,"Magnetic resonance (eg, proton) imaging, brain",2211351,,2211351,"Magnetic resonance (eg, proton) imaging, brain",413432
+35,10929556866,2786612,5/2/2008,32827,0,1,52507,Fluoroscopy of Bilateral Internal Carotid Arteries,2786612,,2786612,Fluoroscopy of Bilateral Internal Carotid Arteries,413432
+36,10929556867,2786841,5/2/2008,32827,0,1,52507,Fluoroscopy of Bilateral Vertebral Arteries,2786841,,2786841,Fluoroscopy of Bilateral Vertebral Arteries,413432
+37,12,2787075,5/2/2008,32827,0,2,52507,Fluoroscopy of Other Upper Arteries using Low Osmolar,2787075,,2787075,Fluoroscopy of Other Upper Arteries using Low Osmolar,413432
+38,13,2751614,1/11/2009,32827,0,1,811286,"Excision of Left Hand Skin, Multiple, External Approach",2751614,,2751614,"Excision of Left Hand Skin, Multiple, External Approach",413432
+39,10929556868,2750314,1/11/2009,32827,0,1,811286,"Destruction of Right Foot Skin, External Approach",2750314,,2750314,"Destruction of Right Foot Skin, External Approach",413432
+40,10929556869,43527928,1/11/2009,32827,0,1,811286,"Selective catheter placement, external carotid artery",43527928,,43527928,"Selective catheter placement, external carotid artery",413432
+41,10929556870,2751614,1/11/2009,32827,0,2,811286,"Excision of Left Hand Skin, Multiple, External Approach",2751614,,2751614,"Excision of Left Hand Skin, Multiple, External Approach",413432
+42,10929556871,2751613,5/24/2013,32827,0,1,823219,"Excision of Back Skin, External Approach",2751613,,2751613,"Excision of Back Skin, External Approach",625375
+43,14,2750303,5/24/2013,32827,0,1,823219,"Destruction of Back Skin, External Approach, Diagnostic",2750303,,2750303,"Destruction of Back Skin, External Approach, Diagnostic",625375
+44,10929556872,2786841,8/17/2013,32827,0,1,591330,Fluoroscopy of Bilateral Vertebral Arteries,2786841,,2786841,Fluoroscopy of Bilateral Vertebral Arteries,625375
+45,10929556873,4239130,1/1/2015,32827,0,1,378021,Oxygen therapy,4239130,,4239130,Oxygen therapy,625375
+46,10929556874,2751613,6/9/2015,32827,0,1,378021,"Excision of Back Skin, External Approach",2751613,,2751613,"Excision of Back Skin, External Approach",625375
+47,10929556875,2750316,6/9/2015,32827,0,1,378021,"Destruction of Left Foot Skin, External Approach",2750316,,2750316,"Destruction of Left Foot Skin, External Approach",625375
+48,10929556876,4239130,6/9/2015,32827,0,1,378021,Oxygen therapy,4239130,,4239130,Oxygen therapy,625375
+49,10929556877,2751613,8/26/2014,32827,0,1,084477,"Excision of Back Skin, External Approach",2751613,,2751613,"Excision of Back Skin, External Approach",625375
+50,10929556878,2750303,8/26/2014,32827,0,1,084477,"Destruction of Back Skin, External Approach, Diagnostic",2750303,,2750303,"Destruction of Back Skin, External Approach, Diagnostic",625375
+51,10929556879,2211351,8/26/2014,32827,0,1,084477,"Magnetic resonance (eg, proton) imaging, brain",2211351,,2211351,"Magnetic resonance (eg, proton) imaging, brain",625375
+52,15,2751614,8/26/2014,32827,0,1,084477,"Excision of Left Hand Skin, Multiple, External Approach",2751614,,2751614,"Excision of Left Hand Skin, Multiple, External Approach",625375
+53,10929556880,2751613,4/11/2015,32827,0,1,620777,"Excision of Back Skin, External Approach",2751613,,2751613,"Excision of Back Skin, External Approach",625375
+54,10929556881,43527928,4/11/2015,32827,0,1,620777,"Selective catheter placement, external carotid artery",43527928,,43527928,"Selective catheter placement, external carotid artery",625375
+55,10929556882,4081128,12/3/2009,32827,0,1,557740,Chemotherapy follow-up,4081128,,4081128,Chemotherapy follow-up,625949
+56,10929556883,4081128,12/3/2009,32827,0,1,557740,Chemotherapy follow-up,4081128,,4081128,Chemotherapy follow-up,625949
+57,10929556884,2750316,1/1/2009,32827,0,1,557740,"Destruction of Left Foot Skin, External Approach",2750316,,2750316,"Destruction of Left Foot Skin, External Approach",625949
+58,10929556885,2751613,12/3/2009,32827,0,2,557740,"Excision of Back Skin, External Approach",2751613,,2751613,"Excision of Back Skin, External Approach",625949
+59,16,2750314,11/20/2010,32827,0,2,845452,"Destruction of Right Foot Skin, External Approach",2750314,,2750314,"Destruction of Right Foot Skin, External Approach",625949
+60,10929556886,2786802,1/1/2010,32827,0,1,845452,Fluoroscopy of Bilateral Internal Carotid Arteries,2786802,,2786802,Fluoroscopy of Bilateral Internal Carotid Arteries,625949
+61,17,2786802,11/20/2010,32827,0,191,845452,Fluoroscopy of Bilateral Internal Carotid Arteries,2786802,,2786802,Fluoroscopy of Bilateral Internal Carotid Arteries,625949
+62,10929556887,2786802,11/20/2010,32827,0,1,845452,Fluoroscopy of Bilateral Internal Carotid Arteries,2786802,,2786802,Fluoroscopy of Bilateral Internal Carotid Arteries,625949
+63,10929556888,43527928,11/20/2010,32827,0,2,845452,"Selective catheter placement, external carotid artery",43527928,,43527928,"Selective catheter placement, external carotid artery",625949
+64,10929556889,2756496,12/10/2010,32827,0,1,88013,"Repair Back Skin, External Approach",2756496,,2756496,"Repair Back Skin, External Approach",625949
+65,10929556890,2756496,12/10/2010,32827,0,2,88013,"Repair Back Skin, External Approach",2756496,,2756496,"Repair Back Skin, External Approach",625949
+66,10929556891,2750314,4/16/2015,32827,0,1,728763,"Destruction of Right Foot Skin, External Approach",2750314,,2750314,"Destruction of Right Foot Skin, External Approach",575459
+67,18,2786612,11/20/2016,32827,0,2,377629,Fluoroscopy of Bilateral Internal Carotid Arteries,2786612,,2786612,Fluoroscopy of Bilateral Internal Carotid Arteries,575459
+68,10929556892,2786591,1/1/2016,32827,0,1,377629,Fluoroscopy of Bilateral Common Carotid Arteries,2786591,,2786591,Fluoroscopy of Bilateral Common Carotid Arteries,575459
+69,10929556893,2786802,11/20/2016,32827,0,1,377629,Fluoroscopy of Bilateral Internal Carotid Arteries,2786802,,2786802,Fluoroscopy of Bilateral Internal Carotid Arteries,575459
+70,10929556894,2786802,1/1/2016,32827,0,1,377629,Fluoroscopy of Bilateral Internal Carotid Arteries,2786802,,2786802,Fluoroscopy of Bilateral Internal Carotid Arteries,575459
+71,10929556895,2786802,1/1/2014,32827,0,1,203197,Fluoroscopy of Bilateral Internal Carotid Arteries,2786802,,2786802,Fluoroscopy of Bilateral Internal Carotid Arteries,610461
+72,10929556896,2786841,7/23/2014,32827,0,1,203197,Fluoroscopy of Bilateral Vertebral Arteries,2786841,,2786841,Fluoroscopy of Bilateral Vertebral Arteries,610461
+73,10929556897,4239130,1/1/2014,32827,0,1,203197,Oxygen therapy,4239130,,4239130,Oxygen therapy,610461
+74,10929556898,2786591,7/23/2014,32827,0,2,203197,Fluoroscopy of Bilateral Common Carotid Arteries,2786591,,2786591,Fluoroscopy of Bilateral Common Carotid Arteries,610461
+75,10929556899,4081128,7/20/2016,32827,0,1,534214,Chemotherapy follow-up,4081128,,4081128,Chemotherapy follow-up,610461
+76,10929556900,2751614,7/20/2016,32827,0,1,534214,"Excision of Left Hand Skin, Multiple, External Approach",2751614,,2751614,"Excision of Left Hand Skin, Multiple, External Approach",610461
+77,19,2751614,1/1/2016,32827,0,1,534214,"Excision of Left Hand Skin, Multiple, External Approach",2751614,,2751614,"Excision of Left Hand Skin, Multiple, External Approach",610461
+78,10929556901,2750303,1/1/2016,32827,0,1,534214,"Destruction of Back Skin, External Approach, Diagnostic",2750303,,2750303,"Destruction of Back Skin, External Approach, Diagnostic",610461
+79,10929556902,2750314,1/1/2017,32827,0,1,085123,"Destruction of Right Foot Skin, External Approach",2750314,,2750314,"Destruction of Right Foot Skin, External Approach",610461
+80,20,2750314,5/4/2017,32827,0,1,085123,"Destruction of Right Foot Skin, External Approach",2750314,,2750314,"Destruction of Right Foot Skin, External Approach",610461
+81,21,2750316,5/4/2017,32827,0,1,085123,"Destruction of Left Foot Skin, External Approach",2750316,,2750316,"Destruction of Left Foot Skin, External Approach",610461
+82,10929556903,2750314,5/4/2017,32827,0,1,085123,"Destruction of Right Foot Skin, External Approach",2750314,,2750314,"Destruction of Right Foot Skin, External Approach",610461
+83,10929556904,2786591,5/4/2017,32827,0,1,085123,Fluoroscopy of Bilateral Common Carotid Arteries,2786591,,2786591,Fluoroscopy of Bilateral Common Carotid Arteries,610461
+84,22,2750316,1/1/2020,32827,0,1,983165,"Destruction of Left Foot Skin, External Approach",2750316,,2750316,"Destruction of Left Foot Skin, External Approach",610461
+85,10929556905,2756496,10/19/2020,32827,0,1,983165,"Repair Back Skin, External Approach",2756496,,2756496,"Repair Back Skin, External Approach",610461
+86,10929556906,2786612,10/19/2020,32827,0,2,983165,Fluoroscopy of Bilateral Internal Carotid Arteries,2786612,,2786612,Fluoroscopy of Bilateral Internal Carotid Arteries,610461
+87,10929556907,2786612,1/1/2020,32827,0,1,983165,Fluoroscopy of Bilateral Internal Carotid Arteries,2786612,,2786612,Fluoroscopy of Bilateral Internal Carotid Arteries,610461
+88,23,2787075,1/1/2020,32827,0,1,983165,Fluoroscopy of Other Upper Arteries using Low Osmolar,2787075,,2787075,Fluoroscopy of Other Upper Arteries using Low Osmolar,610461
+89,10929556908,2786612,2/9/2012,32827,0,1,512997,Fluoroscopy of Bilateral Internal Carotid Arteries,2786612,,2786612,Fluoroscopy of Bilateral Internal Carotid Arteries,146241
+90,10929556909,4081128,1/1/2012,32827,0,1,512997,Chemotherapy follow-up,4081128,,4081128,Chemotherapy follow-up,146241
+91,10929556910,2786802,1/1/2012,32827,0,1,539665,Fluoroscopy of Bilateral Internal Carotid Arteries,2786802,,2786802,Fluoroscopy of Bilateral Internal Carotid Arteries,146241
+92,10929556911,2756496,9/30/2012,32827,0,1,539665,"Repair Back Skin, External Approach",2756496,,2756496,"Repair Back Skin, External Approach",146241
+93,10929556912,2750316,9/30/2012,32827,0,1,539665,"Destruction of Left Foot Skin, External Approach",2750316,,2750316,"Destruction of Left Foot Skin, External Approach",146241
+94,10929556913,2756496,11/15/2011,32827,0,2,776075,"Repair Back Skin, External Approach",2756496,,2756496,"Repair Back Skin, External Approach",146241
+95,10929556914,2786841,4/22/2016,32827,0,1,103358,Fluoroscopy of Bilateral Vertebral Arteries,2786841,,2786841,Fluoroscopy of Bilateral Vertebral Arteries,146241
+96,24,2750303,1/1/2016,32827,0,1,103358,"Destruction of Back Skin, External Approach, Diagnostic",2750303,,2750303,"Destruction of Back Skin, External Approach, Diagnostic",146241
+97,10929556915,4239130,3/29/2010,32827,0,1,092672,Oxygen therapy,4239130,,4239130,Oxygen therapy,815466
+98,10929556916,2751614,3/29/2010,32827,0,1,092672,"Excision of Left Hand Skin, Multiple, External Approach",2751614,,2751614,"Excision of Left Hand Skin, Multiple, External Approach",815466
+99,10929556917,2786591,10/3/2010,32827,0,1,053554,Fluoroscopy of Bilateral Common Carotid Arteries,2786591,,2786591,Fluoroscopy of Bilateral Common Carotid Arteries,815466
+100,10929556918,2751613,10/3/2010,32827,0,2,053554,"Excision of Back Skin, External Approach",2751613,,2751613,"Excision of Back Skin, External Approach",815466
+101,25,2751614,10/3/2010,32827,0,1,053554,"Excision of Left Hand Skin, Multiple, External Approach",2751614,,2751614,"Excision of Left Hand Skin, Multiple, External Approach",815466
+102,26,2751613,10/3/2010,32827,0,1,053554,"Excision of Back Skin, External Approach",2751613,,2751613,"Excision of Back Skin, External Approach",815466
+103,27,2750314,10/3/2010,32827,0,1,053554,"Destruction of Right Foot Skin, External Approach",2750314,,2750314,"Destruction of Right Foot Skin, External Approach",815466
+104,10929556919,4081128,4/27/2008,32827,0,1,935664,Chemotherapy follow-up,4081128,,4081128,Chemotherapy follow-up,297329
+105,10929556920,2211351,8/18/2008,32827,0,1,338504,"Magnetic resonance (eg, proton) imaging, brain",2211351,,2211351,"Magnetic resonance (eg, proton) imaging, brain",297329
+106,10929556921,43527928,1/1/2008,32827,0,1,338504,"Selective catheter placement, external carotid artery",43527928,,43527928,"Selective catheter placement, external carotid artery",297329
+107,10929556922,2751614,8/18/2008,32827,0,1,338504,"Excision of Left Hand Skin, Multiple, External Approach",2751614,,2751614,"Excision of Left Hand Skin, Multiple, External Approach",297329
+108,10929556923,2786802,8/18/2008,32827,0,1,338504,Fluoroscopy of Bilateral Internal Carotid Arteries,2786802,,2786802,Fluoroscopy of Bilateral Internal Carotid Arteries,297329
+109,10929556924,2751614,1/1/2008,32827,0,1,338504,"Excision of Left Hand Skin, Multiple, External Approach",2751614,,2751614,"Excision of Left Hand Skin, Multiple, External Approach",297329
+110,10929556925,2750316,1/1/2008,32827,0,1,338504,"Destruction of Left Foot Skin, External Approach",2750316,,2750316,"Destruction of Left Foot Skin, External Approach",297329
+111,10929556926,2750316,1/1/2009,32827,0,1,489304,"Destruction of Left Foot Skin, External Approach",2750316,,2750316,"Destruction of Left Foot Skin, External Approach",757872
+112,10929556927,2786841,5/8/2009,32827,0,1,489304,Fluoroscopy of Bilateral Vertebral Arteries,2786841,,2786841,Fluoroscopy of Bilateral Vertebral Arteries,757872
+113,10929556928,2756496,1/1/2011,32827,0,1,686516,"Repair Back Skin, External Approach",2756496,,2756496,"Repair Back Skin, External Approach",757872
+114,28,2786612,5/24/2011,32827,0,1,686516,Fluoroscopy of Bilateral Internal Carotid Arteries,2786612,,2786612,Fluoroscopy of Bilateral Internal Carotid Arteries,757872
+115,29,2751613,5/24/2011,32827,0,1,686516,"Excision of Back Skin, External Approach",2751613,,2751613,"Excision of Back Skin, External Approach",757872
+116,10929556929,4081128,5/24/2011,32827,0,1,686516,Chemotherapy follow-up,4081128,,4081128,Chemotherapy follow-up,757872
+117,10929556930,2750303,5/24/2011,32827,0,1,686516,"Destruction of Back Skin, External Approach, Diagnostic",2750303,,2750303,"Destruction of Back Skin, External Approach, Diagnostic",757872
+118,10929556931,2211351,5/24/2011,32827,0,1,686516,"Magnetic resonance (eg, proton) imaging, brain",2211351,,2211351,"Magnetic resonance (eg, proton) imaging, brain",757872
+119,30,2786591,2/4/2012,32827,0,1,283490,Fluoroscopy of Bilateral Common Carotid Arteries,2786591,,2786591,Fluoroscopy of Bilateral Common Carotid Arteries,757872
+120,31,2756496,1/1/2012,32827,0,1,283490,"Repair Back Skin, External Approach",2756496,,2756496,"Repair Back Skin, External Approach",757872
+121,10929556932,2787075,1/1/2012,32827,0,1,283490,Fluoroscopy of Other Upper Arteries using Low Osmolar,2787075,,2787075,Fluoroscopy of Other Upper Arteries using Low Osmolar,757872
+122,10929556933,2786841,1/1/2012,32827,0,1,283490,Fluoroscopy of Bilateral Vertebral Arteries,2786841,,2786841,Fluoroscopy of Bilateral Vertebral Arteries,757872
+123,32,2786802,2/4/2012,32827,0,1,283490,Fluoroscopy of Bilateral Internal Carotid Arteries,2786802,,2786802,Fluoroscopy of Bilateral Internal Carotid Arteries,757872
+124,33,2751613,2/4/2012,32827,0,1,283490,"Excision of Back Skin, External Approach",2751613,,2751613,"Excision of Back Skin, External Approach",757872
+125,10929556934,2750314,1/1/2007,32827,0,1,014850,"Destruction of Right Foot Skin, External Approach",2750314,,2750314,"Destruction of Right Foot Skin, External Approach",967098
+126,10929556935,2756496,12/16/2007,32827,0,1,014850,"Repair Back Skin, External Approach",2756496,,2756496,"Repair Back Skin, External Approach",967098
+127,10929556936,2787075,12/16/2007,32827,0,2,014850,Fluoroscopy of Other Upper Arteries using Low Osmolar,2787075,,2787075,Fluoroscopy of Other Upper Arteries using Low Osmolar,967098
+128,10929556937,2786802,12/16/2007,32827,0,1,014850,Fluoroscopy of Bilateral Internal Carotid Arteries,2786802,,2786802,Fluoroscopy of Bilateral Internal Carotid Arteries,967098
+129,34,2750303,1/1/2009,32827,0,2,410688,"Destruction of Back Skin, External Approach, Diagnostic",2750303,,2750303,"Destruction of Back Skin, External Approach, Diagnostic",967098
+130,10929556938,2756496,1/1/2009,32827,0,1,410688,"Repair Back Skin, External Approach",2756496,,2756496,"Repair Back Skin, External Approach",967098
+131,35,2756496,1/1/2009,32827,0,1,410688,"Repair Back Skin, External Approach",2756496,,2756496,"Repair Back Skin, External Approach",967098
+132,10929556939,2786841,5/23/2009,32827,0,1,410688,Fluoroscopy of Bilateral Vertebral Arteries,2786841,,2786841,Fluoroscopy of Bilateral Vertebral Arteries,967098
+133,10929556940,43527928,1/1/2009,32827,0,1,410688,"Selective catheter placement, external carotid artery",43527928,,43527928,"Selective catheter placement, external carotid artery",967098
+134,36,4239130,5/23/2009,32827,0,1,410688,Oxygen therapy,4239130,,4239130,Oxygen therapy,967098
+135,10929556941,2750303,1/1/2011,32827,0,1,66250,"Destruction of Back Skin, External Approach, Diagnostic",2750303,,2750303,"Destruction of Back Skin, External Approach, Diagnostic",967098
+136,37,2756496,3/22/2014,32827,0,1,100797,"Repair Back Skin, External Approach",2756496,,2756496,"Repair Back Skin, External Approach",150472
+137,10929556942,4081128,1/9/2015,32827,0,1,087716,Chemotherapy follow-up,4081128,,4081128,Chemotherapy follow-up,150472
+138,38,2750314,3/12/2013,32827,0,1,555592,"Destruction of Right Foot Skin, External Approach",2750314,,2750314,"Destruction of Right Foot Skin, External Approach",563522
+139,10929556943,4239130,3/12/2013,32827,0,1,555592,Oxygen therapy,4239130,,4239130,Oxygen therapy,563522
+140,10929556944,2786612,1/1/2013,32827,0,1,555592,Fluoroscopy of Bilateral Internal Carotid Arteries,2786612,,2786612,Fluoroscopy of Bilateral Internal Carotid Arteries,563522
+141,39,2786841,8/17/2013,32827,0,1,421383,Fluoroscopy of Bilateral Vertebral Arteries,2786841,,2786841,Fluoroscopy of Bilateral Vertebral Arteries,563522
+142,10929556945,2751614,8/17/2013,32827,0,1,421383,"Excision of Left Hand Skin, Multiple, External Approach",2751614,,2751614,"Excision of Left Hand Skin, Multiple, External Approach",563522
+143,10929556946,2787075,1/1/2013,32827,0,1,421383,Fluoroscopy of Other Upper Arteries using Low Osmolar,2787075,,2787075,Fluoroscopy of Other Upper Arteries using Low Osmolar,563522
+144,10929556947,2750316,8/17/2013,32827,0,1,421383,"Destruction of Left Foot Skin, External Approach",2750316,,2750316,"Destruction of Left Foot Skin, External Approach",563522
+145,40,43527928,10/8/2013,32827,0,1,450864,"Selective catheter placement, external carotid artery",43527928,,43527928,"Selective catheter placement, external carotid artery",563522
+146,10929556948,2750303,1/1/2013,32827,0,1,450864,"Destruction of Back Skin, External Approach, Diagnostic",2750303,,2750303,"Destruction of Back Skin, External Approach, Diagnostic",563522
+147,41,2786591,10/8/2013,32827,0,1,450864,Fluoroscopy of Bilateral Common Carotid Arteries,2786591,,2786591,Fluoroscopy of Bilateral Common Carotid Arteries,563522
+148,10929556949,2786612,1/1/2014,32827,0,1,029812,Fluoroscopy of Bilateral Internal Carotid Arteries,2786612,,2786612,Fluoroscopy of Bilateral Internal Carotid Arteries,563522
+149,10929556950,43527928,1/1/2014,32827,0,1,029812,"Selective catheter placement, external carotid artery",43527928,,43527928,"Selective catheter placement, external carotid artery",563522
+150,42,2786591,7/15/2013,32827,0,1,919923,Fluoroscopy of Bilateral Common Carotid Arteries,2786591,,2786591,Fluoroscopy of Bilateral Common Carotid Arteries,563522
+151,10929556951,4081128,7/12/2015,32827,0,1,682438,Chemotherapy follow-up,4081128,,4081128,Chemotherapy follow-up,925746
+152,43,2787075,7/12/2015,32827,0,1,682438,Fluoroscopy of Other Upper Arteries using Low Osmolar,2787075,,2787075,Fluoroscopy of Other Upper Arteries using Low Osmolar,925746
+153,44,2751613,1/1/2015,32827,0,1,682438,"Excision of Back Skin, External Approach",2751613,,2751613,"Excision of Back Skin, External Approach",925746
+154,45,2786802,7/12/2015,32827,0,1,682438,Fluoroscopy of Bilateral Internal Carotid Arteries,2786802,,2786802,Fluoroscopy of Bilateral Internal Carotid Arteries,925746
+155,46,2787075,7/12/2015,32827,0,1,682438,Fluoroscopy of Other Upper Arteries using Low Osmolar,2787075,,2787075,Fluoroscopy of Other Upper Arteries using Low Osmolar,925746
+156,10929556952,2786841,9/4/2015,32827,0,1,130448,Fluoroscopy of Bilateral Vertebral Arteries,2786841,,2786841,Fluoroscopy of Bilateral Vertebral Arteries,925746
+157,10929556953,2756496,6/4/2017,32827,0,1,515859,"Repair Back Skin, External Approach",2756496,,2756496,"Repair Back Skin, External Approach",925746
+158,10929556954,2751614,7/23/2017,32827,0,1,467651,"Excision of Left Hand Skin, Multiple, External Approach",2751614,,2751614,"Excision of Left Hand Skin, Multiple, External Approach",925746
+159,10929556955,2756496,7/23/2017,32827,0,1,467651,"Repair Back Skin, External Approach",2756496,,2756496,"Repair Back Skin, External Approach",925746
+160,10929556956,2211351,1/1/2017,32827,0,1,467651,"Magnetic resonance (eg, proton) imaging, brain",2211351,,2211351,"Magnetic resonance (eg, proton) imaging, brain",925746
+161,10929556957,43527928,12/30/2011,32827,0,1,355470,"Selective catheter placement, external carotid artery",43527928,,43527928,"Selective catheter placement, external carotid artery",640243
+162,10929556958,2211351,1/1/2011,32827,0,1,355470,"Magnetic resonance (eg, proton) imaging, brain",2211351,,2211351,"Magnetic resonance (eg, proton) imaging, brain",640243
+163,10929556959,43527928,12/30/2011,32827,0,1,355470,"Selective catheter placement, external carotid artery",43527928,,43527928,"Selective catheter placement, external carotid artery",640243
+164,10929556960,2786841,12/30/2011,32827,0,1,355470,Fluoroscopy of Bilateral Vertebral Arteries,2786841,,2786841,Fluoroscopy of Bilateral Vertebral Arteries,640243
+165,47,2786612,2/11/2012,32827,0,2,261801,Fluoroscopy of Bilateral Internal Carotid Arteries,2786612,,2786612,Fluoroscopy of Bilateral Internal Carotid Arteries,661770
+166,10929556961,2756496,1/1/2012,32827,0,1,261801,"Repair Back Skin, External Approach",2756496,,2756496,"Repair Back Skin, External Approach",661770
+167,10929556962,2787075,2/11/2012,32827,0,1,261801,Fluoroscopy of Other Upper Arteries using Low Osmolar,2787075,,2787075,Fluoroscopy of Other Upper Arteries using Low Osmolar,661770
+168,10929556963,2750303,2/11/2012,32827,0,1,261801,"Destruction of Back Skin, External Approach, Diagnostic",2750303,,2750303,"Destruction of Back Skin, External Approach, Diagnostic",661770
+169,10929556964,2211351,2/11/2012,32827,0,1,261801,"Magnetic resonance (eg, proton) imaging, brain",2211351,,2211351,"Magnetic resonance (eg, proton) imaging, brain",661770
+170,10929556965,4081128,2/11/2012,32827,0,1,261801,Chemotherapy follow-up,4081128,,4081128,Chemotherapy follow-up,661770
+171,48,2750314,11/21/2012,32827,0,1,528038,"Destruction of Right Foot Skin, External Approach",2750314,,2750314,"Destruction of Right Foot Skin, External Approach",661770
+172,10929556966,43527928,11/21/2012,32827,0,1,528038,"Selective catheter placement, external carotid artery",43527928,,43527928,"Selective catheter placement, external carotid artery",661770
+173,49,2751614,1/1/2016,32827,0,1,334643,"Excision of Left Hand Skin, Multiple, External Approach",2751614,,2751614,"Excision of Left Hand Skin, Multiple, External Approach",452703
+174,50,2750314,6/29/2011,32827,0,1,56341,"Destruction of Right Foot Skin, External Approach",2750314,,2750314,"Destruction of Right Foot Skin, External Approach",922522
+175,10929556967,2787075,6/29/2011,32827,0,1,56341,Fluoroscopy of Other Upper Arteries using Low Osmolar,2787075,,2787075,Fluoroscopy of Other Upper Arteries using Low Osmolar,922522
+176,10929556968,2786591,6/29/2011,32827,0,2,56341,Fluoroscopy of Bilateral Common Carotid Arteries,2786591,,2786591,Fluoroscopy of Bilateral Common Carotid Arteries,922522
+177,10929556969,2751614,6/29/2011,32827,0,1,56341,"Excision of Left Hand Skin, Multiple, External Approach",2751614,,2751614,"Excision of Left Hand Skin, Multiple, External Approach",922522
+178,10929556970,2756496,12/12/2014,32827,0,2,286873,"Repair Back Skin, External Approach",2756496,,2756496,"Repair Back Skin, External Approach",896340
+179,51,2786591,1/1/2014,32827,0,1,286873,Fluoroscopy of Bilateral Common Carotid Arteries,2786591,,2786591,Fluoroscopy of Bilateral Common Carotid Arteries,896340
+180,52,2751613,12/12/2014,32827,0,1,286873,"Excision of Back Skin, External Approach",2751613,,2751613,"Excision of Back Skin, External Approach",896340
+181,10929556971,4081128,6/24/2016,32827,0,2,118492,Chemotherapy follow-up,4081128,,4081128,Chemotherapy follow-up,896340
+182,10929556972,2786841,1/1/2016,32827,0,1,118492,Fluoroscopy of Bilateral Vertebral Arteries,2786841,,2786841,Fluoroscopy of Bilateral Vertebral Arteries,896340
+183,10929556973,4239130,6/30/2016,32827,0,1,439265,Oxygen therapy,4239130,,4239130,Oxygen therapy,561355
+184,53,4081128,1/1/2016,32827,0,1,439265,Chemotherapy follow-up,4081128,,4081128,Chemotherapy follow-up,561355
+185,10929556974,2787075,11/13/2011,32827,0,1,729356,Fluoroscopy of Other Upper Arteries using Low Osmolar,2787075,,2787075,Fluoroscopy of Other Upper Arteries using Low Osmolar,278244
+186,10929556975,4239130,1/1/2011,32827,0,1,729356,Oxygen therapy,4239130,,4239130,Oxygen therapy,278244
+187,10929556976,2211351,11/13/2011,32827,0,1,729356,"Magnetic resonance (eg, proton) imaging, brain",2211351,,2211351,"Magnetic resonance (eg, proton) imaging, brain",278244
+188,54,2787075,11/13/2011,32827,0,1,729356,Fluoroscopy of Other Upper Arteries using Low Osmolar,2787075,,2787075,Fluoroscopy of Other Upper Arteries using Low Osmolar,278244
+189,55,4239130,11/13/2011,32827,0,1,729356,Oxygen therapy,4239130,,4239130,Oxygen therapy,278244
+190,10929556977,43527928,1/1/2012,32827,0,1,244808,"Selective catheter placement, external carotid artery",43527928,,43527928,"Selective catheter placement, external carotid artery",278244
+191,10929556978,2751613,1/1/2012,32827,0,1,244808,"Excision of Back Skin, External Approach",2751613,,2751613,"Excision of Back Skin, External Approach",278244
+192,10929556979,4081128,1/1/2012,32827,0,2,244808,Chemotherapy follow-up,4081128,,4081128,Chemotherapy follow-up,278244
+193,56,2786612,6/7/2014,32827,0,2,248915,Fluoroscopy of Bilateral Internal Carotid Arteries,2786612,,2786612,Fluoroscopy of Bilateral Internal Carotid Arteries,278244
+194,10929556980,2756496,5/8/2016,32827,0,1,767153,"Repair Back Skin, External Approach",2756496,,2756496,"Repair Back Skin, External Approach",278244
+195,10929556981,2750316,5/8/2016,32827,0,1,767153,"Destruction of Left Foot Skin, External Approach",2750316,,2750316,"Destruction of Left Foot Skin, External Approach",278244
+196,10929556982,2786591,9/15/2012,32827,0,1,811529,Fluoroscopy of Bilateral Common Carotid Arteries,2786591,,2786591,Fluoroscopy of Bilateral Common Carotid Arteries,278244
+197,10929556983,2750314,1/1/2012,32827,0,1,811529,"Destruction of Right Foot Skin, External Approach",2750314,,2750314,"Destruction of Right Foot Skin, External Approach",278244
+198,10929556984,43527928,9/15/2012,32827,0,1,811529,"Selective catheter placement, external carotid artery",43527928,,43527928,"Selective catheter placement, external carotid artery",278244
+199,57,4081128,9/15/2012,32827,0,1,811529,Chemotherapy follow-up,4081128,,4081128,Chemotherapy follow-up,278244
+200,10929556985,2786802,9/15/2012,32827,0,191,811529,Fluoroscopy of Bilateral Internal Carotid Arteries,2786802,,2786802,Fluoroscopy of Bilateral Internal Carotid Arteries,278244
+201,58,2750314,9/15/2012,32827,0,1,811529,"Destruction of Right Foot Skin, External Approach",2750314,,2750314,"Destruction of Right Foot Skin, External Approach",278244
+202,10929556986,43527928,5/4/2020,32827,0,1,046882,"Selective catheter placement, external carotid artery",43527928,,43527928,"Selective catheter placement, external carotid artery",278244
+203,10929556987,2750303,8/10/2017,32827,0,2,298460,"Destruction of Back Skin, External Approach, Diagnostic",2750303,,2750303,"Destruction of Back Skin, External Approach, Diagnostic",107937
+204,59,2786612,8/10/2017,32827,0,1,298460,Fluoroscopy of Bilateral Internal Carotid Arteries,2786612,,2786612,Fluoroscopy of Bilateral Internal Carotid Arteries,107937
+205,10929556988,2751613,1/1/2017,32827,0,1,298460,"Excision of Back Skin, External Approach",2751613,,2751613,"Excision of Back Skin, External Approach",107937
+206,60,2750316,7/20/2009,32827,0,1,048334,"Destruction of Left Foot Skin, External Approach",2750316,,2750316,"Destruction of Left Foot Skin, External Approach",511784
+207,10929556989,2750303,7/20/2009,32827,0,1,048334,"Destruction of Back Skin, External Approach, Diagnostic",2750303,,2750303,"Destruction of Back Skin, External Approach, Diagnostic",511784
+208,61,43527928,7/20/2009,32827,0,1,048334,"Selective catheter placement, external carotid artery",43527928,,43527928,"Selective catheter placement, external carotid artery",511784
+209,62,2786591,1/1/2009,32827,0,1,048334,Fluoroscopy of Bilateral Common Carotid Arteries,2786591,,2786591,Fluoroscopy of Bilateral Common Carotid Arteries,511784
+210,63,4239130,1/1/2009,32827,0,1,048334,Oxygen therapy,4239130,,4239130,Oxygen therapy,511784
+211,10929556990,2786591,6/27/2009,32827,0,1,931109,Fluoroscopy of Bilateral Common Carotid Arteries,2786591,,2786591,Fluoroscopy of Bilateral Common Carotid Arteries,230922
+212,10929556991,4239130,1/1/2009,32827,0,1,931109,Oxygen therapy,4239130,,4239130,Oxygen therapy,230922
+213,10929556992,2751613,6/27/2009,32827,0,1,931109,"Excision of Back Skin, External Approach",2751613,,2751613,"Excision of Back Skin, External Approach",230922
+214,10929556993,2756496,6/27/2009,32827,0,1,931109,"Repair Back Skin, External Approach",2756496,,2756496,"Repair Back Skin, External Approach",230922
+215,10929556994,2750316,6/27/2009,32827,0,2,931109,"Destruction of Left Foot Skin, External Approach",2750316,,2750316,"Destruction of Left Foot Skin, External Approach",230922
+216,64,2750303,2/17/2010,32827,0,1,530665,"Destruction of Back Skin, External Approach, Diagnostic",2750303,,2750303,"Destruction of Back Skin, External Approach, Diagnostic",230922
+217,10929556995,2751613,2/17/2010,32827,0,1,530665,"Excision of Back Skin, External Approach",2751613,,2751613,"Excision of Back Skin, External Approach",230922
+218,10929556996,2211351,2/17/2010,32827,0,1,530665,"Magnetic resonance (eg, proton) imaging, brain",2211351,,2211351,"Magnetic resonance (eg, proton) imaging, brain",230922
+219,65,2751613,2/17/2010,32827,0,1,530665,"Excision of Back Skin, External Approach",2751613,,2751613,"Excision of Back Skin, External Approach",230922
+220,10929556997,43527928,1/1/2012,32827,0,1,540224,"Selective catheter placement, external carotid artery",43527928,,43527928,"Selective catheter placement, external carotid artery",579427
+221,10929556998,2786612,4/12/2012,32827,0,1,540224,Fluoroscopy of Bilateral Internal Carotid Arteries,2786612,,2786612,Fluoroscopy of Bilateral Internal Carotid Arteries,579427
+222,10929556999,2756496,4/12/2012,32827,0,1,540224,"Repair Back Skin, External Approach",2756496,,2756496,"Repair Back Skin, External Approach",579427
+223,10929557000,4239130,4/12/2012,32827,0,1,540224,Oxygen therapy,4239130,,4239130,Oxygen therapy,579427
+224,10929557001,2750316,4/12/2012,32827,0,1,540224,"Destruction of Left Foot Skin, External Approach",2750316,,2750316,"Destruction of Left Foot Skin, External Approach",579427
+225,66,4239130,8/20/2012,32827,0,1,636349,Oxygen therapy,4239130,,4239130,Oxygen therapy,579427
+226,10929557002,2751613,1/1/2015,32827,0,1,494350,"Excision of Back Skin, External Approach",2751613,,2751613,"Excision of Back Skin, External Approach",579427
+227,10929557003,2750316,6/11/2015,32827,0,1,494350,"Destruction of Left Foot Skin, External Approach",2750316,,2750316,"Destruction of Left Foot Skin, External Approach",579427
+228,67,2786591,6/11/2015,32827,0,1,494350,Fluoroscopy of Bilateral Common Carotid Arteries,2786591,,2786591,Fluoroscopy of Bilateral Common Carotid Arteries,579427
+229,10929557004,2751614,1/1/2015,32827,0,1,494350,"Excision of Left Hand Skin, Multiple, External Approach",2751614,,2751614,"Excision of Left Hand Skin, Multiple, External Approach",579427
+230,10929557005,2751614,8/26/2012,32827,0,1,823213,"Excision of Left Hand Skin, Multiple, External Approach",2751614,,2751614,"Excision of Left Hand Skin, Multiple, External Approach",579427
+231,68,4081128,1/1/2012,32827,0,1,823213,Chemotherapy follow-up,4081128,,4081128,Chemotherapy follow-up,579427
+232,10929557006,2756496,8/26/2012,32827,0,1,823213,"Repair Back Skin, External Approach",2756496,,2756496,"Repair Back Skin, External Approach",579427
+233,10929557007,4239130,1/23/2018,32827,0,1,342604,Oxygen therapy,4239130,,4239130,Oxygen therapy,579427
+234,10929557008,43527928,1/1/2018,32827,0,1,342604,"Selective catheter placement, external carotid artery",43527928,,43527928,"Selective catheter placement, external carotid artery",579427
+235,10929557009,2750303,1/23/2018,32827,0,1,342604,"Destruction of Back Skin, External Approach, Diagnostic",2750303,,2750303,"Destruction of Back Skin, External Approach, Diagnostic",579427
+236,69,2756496,1/1/2018,32827,0,1,342604,"Repair Back Skin, External Approach",2756496,,2756496,"Repair Back Skin, External Approach",579427
+237,10929557010,2787075,1/1/2018,32827,0,1,342604,Fluoroscopy of Other Upper Arteries using Low Osmolar,2787075,,2787075,Fluoroscopy of Other Upper Arteries using Low Osmolar,579427
+238,10929557011,2750314,1/23/2018,32827,0,1,342604,"Destruction of Right Foot Skin, External Approach",2750314,,2750314,"Destruction of Right Foot Skin, External Approach",579427
+239,10929557012,2786841,1/1/2010,32827,0,1,915890,Fluoroscopy of Bilateral Vertebral Arteries,2786841,,2786841,Fluoroscopy of Bilateral Vertebral Arteries,862059
+240,10929557013,2787075,4/6/2010,32827,0,1,915890,Fluoroscopy of Other Upper Arteries using Low Osmolar,2787075,,2787075,Fluoroscopy of Other Upper Arteries using Low Osmolar,862059
+241,70,2756496,4/6/2010,32827,0,1,915890,"Repair Back Skin, External Approach",2756496,,2756496,"Repair Back Skin, External Approach",862059
+242,10929557014,2786612,4/6/2010,32827,0,1,915890,Fluoroscopy of Bilateral Internal Carotid Arteries,2786612,,2786612,Fluoroscopy of Bilateral Internal Carotid Arteries,862059
+243,10929557015,43527928,2/25/2011,32827,0,1,817918,"Selective catheter placement, external carotid artery",43527928,,43527928,"Selective catheter placement, external carotid artery",862059
+244,10929557016,2786802,2/25/2011,32827,0,1,817918,Fluoroscopy of Bilateral Internal Carotid Arteries,2786802,,2786802,Fluoroscopy of Bilateral Internal Carotid Arteries,862059
+245,10929557017,2751614,1/1/2016,32827,0,1,710222,"Excision of Left Hand Skin, Multiple, External Approach",2751614,,2751614,"Excision of Left Hand Skin, Multiple, External Approach",361811
+246,71,2211351,1/1/2016,32827,0,1,710222,"Magnetic resonance (eg, proton) imaging, brain",2211351,,2211351,"Magnetic resonance (eg, proton) imaging, brain",361811
+247,10929557018,4239130,1/9/2016,32827,0,2,710222,Oxygen therapy,4239130,,4239130,Oxygen therapy,361811
+248,72,2750316,1/1/2016,32827,0,1,710222,"Destruction of Left Foot Skin, External Approach",2750316,,2750316,"Destruction of Left Foot Skin, External Approach",361811
+249,10929557019,2751614,1/9/2016,32827,0,1,710222,"Excision of Left Hand Skin, Multiple, External Approach",2751614,,2751614,"Excision of Left Hand Skin, Multiple, External Approach",361811
+250,73,2786591,1/1/2016,32827,0,1,710222,Fluoroscopy of Bilateral Common Carotid Arteries,2786591,,2786591,Fluoroscopy of Bilateral Common Carotid Arteries,361811
+251,10929557020,2786841,9/16/2014,32827,0,2,145641,Fluoroscopy of Bilateral Vertebral Arteries,2786841,,2786841,Fluoroscopy of Bilateral Vertebral Arteries,553080
+252,10929557021,2786612,9/16/2014,32827,0,1,145641,Fluoroscopy of Bilateral Internal Carotid Arteries,2786612,,2786612,Fluoroscopy of Bilateral Internal Carotid Arteries,553080
+253,10929557022,2786802,9/16/2014,32827,0,1,145641,Fluoroscopy of Bilateral Internal Carotid Arteries,2786802,,2786802,Fluoroscopy of Bilateral Internal Carotid Arteries,553080
+254,74,4081128,9/3/2015,32827,0,1,966422,Chemotherapy follow-up,4081128,,4081128,Chemotherapy follow-up,553080
+255,75,2751614,9/3/2015,32827,0,1,966422,"Excision of Left Hand Skin, Multiple, External Approach",2751614,,2751614,"Excision of Left Hand Skin, Multiple, External Approach",553080
+256,76,2786591,9/3/2015,32827,0,1,966422,Fluoroscopy of Bilateral Common Carotid Arteries,2786591,,2786591,Fluoroscopy of Bilateral Common Carotid Arteries,553080
+257,10929557023,43527928,9/3/2015,32827,0,1,966422,"Selective catheter placement, external carotid artery",43527928,,43527928,"Selective catheter placement, external carotid artery",553080
+258,77,43527928,9/3/2015,32827,0,1,966422,"Selective catheter placement, external carotid artery",43527928,,43527928,"Selective catheter placement, external carotid artery",553080
+259,10929557024,2786841,9/3/2015,32827,0,1,966422,Fluoroscopy of Bilateral Vertebral Arteries,2786841,,2786841,Fluoroscopy of Bilateral Vertebral Arteries,553080
+260,10929557025,4081128,1/1/2015,32827,0,1,398131,Chemotherapy follow-up,4081128,,4081128,Chemotherapy follow-up,553080
+261,10929557026,4239130,9/11/2015,32827,0,1,398131,Oxygen therapy,4239130,,4239130,Oxygen therapy,553080
+262,10929557027,2750316,9/11/2015,32827,0,1,398131,"Destruction of Left Foot Skin, External Approach",2750316,,2750316,"Destruction of Left Foot Skin, External Approach",553080
+263,78,2786841,9/11/2015,32827,0,1,398131,Fluoroscopy of Bilateral Vertebral Arteries,2786841,,2786841,Fluoroscopy of Bilateral Vertebral Arteries,553080
+264,10929557028,43527928,6/22/2016,32827,0,1,232420,"Selective catheter placement, external carotid artery",43527928,,43527928,"Selective catheter placement, external carotid artery",553080
+265,79,2750303,6/17/2018,32827,0,1,444338,"Destruction of Back Skin, External Approach, Diagnostic",2750303,,2750303,"Destruction of Back Skin, External Approach, Diagnostic",553080
+266,10929557029,2786841,1/1/2009,32827,0,1,427742,Fluoroscopy of Bilateral Vertebral Arteries,2786841,,2786841,Fluoroscopy of Bilateral Vertebral Arteries,873999
+267,10929557030,43527928,12/23/2009,32827,0,1,427742,"Selective catheter placement, external carotid artery",43527928,,43527928,"Selective catheter placement, external carotid artery",873999
+268,10929557031,2750314,1/13/2010,32827,0,1,369738,"Destruction of Right Foot Skin, External Approach",2750314,,2750314,"Destruction of Right Foot Skin, External Approach",873999
+269,10929557032,4239130,1/1/2010,32827,0,1,369738,Oxygen therapy,4239130,,4239130,Oxygen therapy,873999
+270,80,2750314,1/1/2010,32827,0,1,369738,"Destruction of Right Foot Skin, External Approach",2750314,,2750314,"Destruction of Right Foot Skin, External Approach",873999
+271,81,43527928,1/13/2010,32827,0,1,369738,"Selective catheter placement, external carotid artery",43527928,,43527928,"Selective catheter placement, external carotid artery",873999
+272,10929557033,2751614,1/13/2010,32827,0,1,369738,"Excision of Left Hand Skin, Multiple, External Approach",2751614,,2751614,"Excision of Left Hand Skin, Multiple, External Approach",873999
+273,10929557034,2750316,1/13/2010,32827,0,1,369738,"Destruction of Left Foot Skin, External Approach",2750316,,2750316,"Destruction of Left Foot Skin, External Approach",873999
+274,10929557035,2211351,5/14/2010,32827,0,1,699927,"Magnetic resonance (eg, proton) imaging, brain",2211351,,2211351,"Magnetic resonance (eg, proton) imaging, brain",873999
+275,82,2786841,5/14/2010,32827,0,1,699927,Fluoroscopy of Bilateral Vertebral Arteries,2786841,,2786841,Fluoroscopy of Bilateral Vertebral Arteries,873999
+276,83,2751613,5/14/2010,32827,0,1,699927,"Excision of Back Skin, External Approach",2751613,,2751613,"Excision of Back Skin, External Approach",873999
+277,84,2211351,1/1/2010,32827,0,1,699927,"Magnetic resonance (eg, proton) imaging, brain",2211351,,2211351,"Magnetic resonance (eg, proton) imaging, brain",873999
+278,10929557036,2751613,5/14/2010,32827,0,1,699927,"Excision of Back Skin, External Approach",2751613,,2751613,"Excision of Back Skin, External Approach",873999
+279,10929557037,2786612,5/14/2010,32827,0,1,699927,Fluoroscopy of Bilateral Internal Carotid Arteries,2786612,,2786612,Fluoroscopy of Bilateral Internal Carotid Arteries,873999
+280,85,2750303,9/26/2008,32827,0,1,949071,"Destruction of Back Skin, External Approach, Diagnostic",2750303,,2750303,"Destruction of Back Skin, External Approach, Diagnostic",674858
+281,10929557038,4081128,1/1/2008,32827,0,1,949071,Chemotherapy follow-up,4081128,,4081128,Chemotherapy follow-up,674858
+282,10929557039,2786612,9/26/2008,32827,0,1,949071,Fluoroscopy of Bilateral Internal Carotid Arteries,2786612,,2786612,Fluoroscopy of Bilateral Internal Carotid Arteries,674858
+283,10929557040,43527928,9/26/2008,32827,0,1,949071,"Selective catheter placement, external carotid artery",43527928,,43527928,"Selective catheter placement, external carotid artery",674858
+284,86,2786591,6/3/2010,32827,0,1,517004,Fluoroscopy of Bilateral Common Carotid Arteries,2786591,,2786591,Fluoroscopy of Bilateral Common Carotid Arteries,674858
+285,10929557041,2786591,6/3/2010,32827,0,1,517004,Fluoroscopy of Bilateral Common Carotid Arteries,2786591,,2786591,Fluoroscopy of Bilateral Common Carotid Arteries,674858
+286,10929557042,2786841,2/12/2011,32827,0,1,586196,Fluoroscopy of Bilateral Vertebral Arteries,2786841,,2786841,Fluoroscopy of Bilateral Vertebral Arteries,674858
+287,10929557043,2750303,1/4/2014,32827,0,1,162696,"Destruction of Back Skin, External Approach, Diagnostic",2750303,,2750303,"Destruction of Back Skin, External Approach, Diagnostic",674858
+288,10929557044,2786802,1/4/2014,32827,0,1,162696,Fluoroscopy of Bilateral Internal Carotid Arteries,2786802,,2786802,Fluoroscopy of Bilateral Internal Carotid Arteries,674858
+289,10929557045,2211351,1/4/2014,32827,0,2,162696,"Magnetic resonance (eg, proton) imaging, brain",2211351,,2211351,"Magnetic resonance (eg, proton) imaging, brain",674858
+290,10929557046,2786591,1/1/2014,32827,0,1,162696,Fluoroscopy of Bilateral Common Carotid Arteries,2786591,,2786591,Fluoroscopy of Bilateral Common Carotid Arteries,674858
+291,87,2750303,5/17/2010,32827,0,2,792380,"Destruction of Back Skin, External Approach, Diagnostic",2750303,,2750303,"Destruction of Back Skin, External Approach, Diagnostic",77087
+292,10929557047,2751614,5/17/2010,32827,0,1,792380,"Excision of Left Hand Skin, Multiple, External Approach",2751614,,2751614,"Excision of Left Hand Skin, Multiple, External Approach",77087
+293,10929557048,2751614,5/17/2010,32827,0,1,792380,"Excision of Left Hand Skin, Multiple, External Approach",2751614,,2751614,"Excision of Left Hand Skin, Multiple, External Approach",77087
+294,10929557049,2750316,5/17/2010,32827,0,1,792380,"Destruction of Left Foot Skin, External Approach",2750316,,2750316,"Destruction of Left Foot Skin, External Approach",77087
+295,88,4081128,5/17/2010,32827,0,2,792380,Chemotherapy follow-up,4081128,,4081128,Chemotherapy follow-up,77087
+296,89,4081128,5/17/2010,32827,0,1,792380,Chemotherapy follow-up,4081128,,4081128,Chemotherapy follow-up,77087
+297,10929557050,2786612,2/23/2013,32827,0,1,157039,Fluoroscopy of Bilateral Internal Carotid Arteries,2786612,,2786612,Fluoroscopy of Bilateral Internal Carotid Arteries,77087
+298,10929557051,2786802,1/1/2013,32827,0,1,157039,Fluoroscopy of Bilateral Internal Carotid Arteries,2786802,,2786802,Fluoroscopy of Bilateral Internal Carotid Arteries,77087
+299,90,2787075,2/23/2013,32827,0,1,157039,Fluoroscopy of Other Upper Arteries using Low Osmolar,2787075,,2787075,Fluoroscopy of Other Upper Arteries using Low Osmolar,77087
+300,10929557052,2786591,2/23/2013,32827,0,1,157039,Fluoroscopy of Bilateral Common Carotid Arteries,2786591,,2786591,Fluoroscopy of Bilateral Common Carotid Arteries,77087
+301,91,2750316,12/24/2011,32827,0,1,288067,"Destruction of Left Foot Skin, External Approach",2750316,,2750316,"Destruction of Left Foot Skin, External Approach",77087
+302,10929557053,2786612,12/24/2011,32827,0,1,288067,Fluoroscopy of Bilateral Internal Carotid Arteries,2786612,,2786612,Fluoroscopy of Bilateral Internal Carotid Arteries,77087
+303,92,2211351,12/24/2011,32827,0,1,288067,"Magnetic resonance (eg, proton) imaging, brain",2211351,,2211351,"Magnetic resonance (eg, proton) imaging, brain",77087
+304,10929557054,2786841,12/24/2011,32827,0,2,288067,Fluoroscopy of Bilateral Vertebral Arteries,2786841,,2786841,Fluoroscopy of Bilateral Vertebral Arteries,77087
+305,10929557055,2756496,6/20/2014,32827,0,1,108579,"Repair Back Skin, External Approach",2756496,,2756496,"Repair Back Skin, External Approach",77087
+306,10929557056,2786612,6/20/2014,32827,0,1,108579,Fluoroscopy of Bilateral Internal Carotid Arteries,2786612,,2786612,Fluoroscopy of Bilateral Internal Carotid Arteries,77087
+307,93,2786591,1/1/2014,32827,0,1,108579,Fluoroscopy of Bilateral Common Carotid Arteries,2786591,,2786591,Fluoroscopy of Bilateral Common Carotid Arteries,77087
+308,10929557057,2751614,6/20/2014,32827,0,2,108579,"Excision of Left Hand Skin, Multiple, External Approach",2751614,,2751614,"Excision of Left Hand Skin, Multiple, External Approach",77087
+309,10929557058,2211351,6/20/2014,32827,0,1,108579,"Magnetic resonance (eg, proton) imaging, brain",2211351,,2211351,"Magnetic resonance (eg, proton) imaging, brain",77087
+310,10929557059,2751614,3/9/2014,32827,0,1,146468,"Excision of Left Hand Skin, Multiple, External Approach",2751614,,2751614,"Excision of Left Hand Skin, Multiple, External Approach",77087
+311,10929557060,4239130,1/1/2014,32827,0,1,146468,Oxygen therapy,4239130,,4239130,Oxygen therapy,77087
+312,10929557061,43527928,1/1/2014,32827,0,1,146468,"Selective catheter placement, external carotid artery",43527928,,43527928,"Selective catheter placement, external carotid artery",77087
+313,94,4239130,1/1/2018,32827,0,1,129099,Oxygen therapy,4239130,,4239130,Oxygen therapy,77087
+314,10929557062,2756496,1/1/2018,32827,0,1,033781,"Repair Back Skin, External Approach",2756496,,2756496,"Repair Back Skin, External Approach",630559
+315,10929557063,2750314,11/13/2018,32827,0,1,033781,"Destruction of Right Foot Skin, External Approach",2750314,,2750314,"Destruction of Right Foot Skin, External Approach",630559
+316,95,2211351,1/1/2018,32827,0,1,033781,"Magnetic resonance (eg, proton) imaging, brain",2211351,,2211351,"Magnetic resonance (eg, proton) imaging, brain",630559
+317,10929557064,4239130,11/13/2018,32827,0,1,033781,Oxygen therapy,4239130,,4239130,Oxygen therapy,630559
+318,10929557065,2756496,11/13/2018,32827,0,1,033781,"Repair Back Skin, External Approach",2756496,,2756496,"Repair Back Skin, External Approach",630559
+319,10929557066,2786841,10/21/2010,32827,0,1,502771,Fluoroscopy of Bilateral Vertebral Arteries,2786841,,2786841,Fluoroscopy of Bilateral Vertebral Arteries,77599
+320,96,4239130,1/1/2010,32827,0,1,502771,Oxygen therapy,4239130,,4239130,Oxygen therapy,77599
+321,10929557067,2786591,10/21/2010,32827,0,1,502771,Fluoroscopy of Bilateral Common Carotid Arteries,2786591,,2786591,Fluoroscopy of Bilateral Common Carotid Arteries,77599
+322,97,2750303,10/21/2010,32827,0,1,502771,"Destruction of Back Skin, External Approach, Diagnostic",2750303,,2750303,"Destruction of Back Skin, External Approach, Diagnostic",77599
+323,10929557068,2750303,1/29/2014,32827,0,1,522165,"Destruction of Back Skin, External Approach, Diagnostic",2750303,,2750303,"Destruction of Back Skin, External Approach, Diagnostic",411103
+324,10929557069,2750316,1/1/2014,32827,0,1,522165,"Destruction of Left Foot Skin, External Approach",2750316,,2750316,"Destruction of Left Foot Skin, External Approach",411103
+325,98,2751614,1/1/2014,32827,0,1,522165,"Excision of Left Hand Skin, Multiple, External Approach",2751614,,2751614,"Excision of Left Hand Skin, Multiple, External Approach",411103
+326,99,4081128,1/1/2014,32827,0,2,522165,Chemotherapy follow-up,4081128,,4081128,Chemotherapy follow-up,411103
+327,10929557070,2786612,1/1/2014,32827,0,1,522165,Fluoroscopy of Bilateral Internal Carotid Arteries,2786612,,2786612,Fluoroscopy of Bilateral Internal Carotid Arteries,411103
+328,10929557071,4239130,1/29/2014,32827,0,1,522165,Oxygen therapy,4239130,,4239130,Oxygen therapy,411103
+329,10929557072,2786591,12/20/2013,32827,0,1,514029,Fluoroscopy of Bilateral Common Carotid Arteries,2786591,,2786591,Fluoroscopy of Bilateral Common Carotid Arteries,411103
+330,10929557073,2786591,12/20/2013,32827,0,1,514029,Fluoroscopy of Bilateral Common Carotid Arteries,2786591,,2786591,Fluoroscopy of Bilateral Common Carotid Arteries,411103
+331,10929557074,2756496,12/20/2013,32827,0,1,514029,"Repair Back Skin, External Approach",2756496,,2756496,"Repair Back Skin, External Approach",411103
+332,10929557075,2786802,12/20/2013,32827,0,1,514029,Fluoroscopy of Bilateral Internal Carotid Arteries,2786802,,2786802,Fluoroscopy of Bilateral Internal Carotid Arteries,411103
+333,10929557076,2751614,4/12/2016,32827,0,1,473341,"Excision of Left Hand Skin, Multiple, External Approach",2751614,,2751614,"Excision of Left Hand Skin, Multiple, External Approach",411103
+334,10929557077,2756496,1/1/2016,32827,0,1,473341,"Repair Back Skin, External Approach",2756496,,2756496,"Repair Back Skin, External Approach",411103
+335,10929557078,2786841,1/1/2016,32827,0,1,473341,Fluoroscopy of Bilateral Vertebral Arteries,2786841,,2786841,Fluoroscopy of Bilateral Vertebral Arteries,411103
+336,100,2786802,1/1/2016,32827,0,1,473341,Fluoroscopy of Bilateral Internal Carotid Arteries,2786802,,2786802,Fluoroscopy of Bilateral Internal Carotid Arteries,411103
+337,101,2750303,4/12/2016,32827,0,1,473341,"Destruction of Back Skin, External Approach, Diagnostic",2750303,,2750303,"Destruction of Back Skin, External Approach, Diagnostic",411103
+338,10929557079,2786591,4/12/2016,32827,0,2,473341,Fluoroscopy of Bilateral Common Carotid Arteries,2786591,,2786591,Fluoroscopy of Bilateral Common Carotid Arteries,411103
+339,102,2751613,3/28/2017,32827,0,1,310420,"Excision of Back Skin, External Approach",2751613,,2751613,"Excision of Back Skin, External Approach",411103
+340,10929557080,2750303,6/4/2015,32827,0,1,366766,"Destruction of Back Skin, External Approach, Diagnostic",2750303,,2750303,"Destruction of Back Skin, External Approach, Diagnostic",411103
+341,10929557081,4239130,1/1/2015,32827,0,1,366766,Oxygen therapy,4239130,,4239130,Oxygen therapy,411103
+342,10929557082,2750314,6/4/2015,32827,0,1,366766,"Destruction of Right Foot Skin, External Approach",2750314,,2750314,"Destruction of Right Foot Skin, External Approach",411103
+343,10929557083,2786841,1/1/2011,32827,0,2,84361,Fluoroscopy of Bilateral Vertebral Arteries,2786841,,2786841,Fluoroscopy of Bilateral Vertebral Arteries,596619
+344,103,43527928,4/25/2011,32827,0,1,84361,"Selective catheter placement, external carotid artery",43527928,,43527928,"Selective catheter placement, external carotid artery",596619
+345,104,2756496,4/25/2011,32827,0,1,84361,"Repair Back Skin, External Approach",2756496,,2756496,"Repair Back Skin, External Approach",596619
+346,10929557084,2756496,1/1/2011,32827,0,1,84361,"Repair Back Skin, External Approach",2756496,,2756496,"Repair Back Skin, External Approach",596619
+347,10929557085,2756496,4/25/2011,32827,0,1,84361,"Repair Back Skin, External Approach",2756496,,2756496,"Repair Back Skin, External Approach",596619
+348,10929557086,2787075,1/1/2011,32827,0,1,84361,Fluoroscopy of Other Upper Arteries using Low Osmolar,2787075,,2787075,Fluoroscopy of Other Upper Arteries using Low Osmolar,596619
+349,10929557087,43527928,1/1/2012,32827,0,1,041686,"Selective catheter placement, external carotid artery",43527928,,43527928,"Selective catheter placement, external carotid artery",596619
+350,10929557088,4081128,1/14/2012,32827,0,1,041686,Chemotherapy follow-up,4081128,,4081128,Chemotherapy follow-up,596619
+351,10929557089,43527928,1/14/2012,32827,0,1,041686,"Selective catheter placement, external carotid artery",43527928,,43527928,"Selective catheter placement, external carotid artery",596619
+352,105,2751613,1/1/2011,32827,0,1,126833,"Excision of Back Skin, External Approach",2751613,,2751613,"Excision of Back Skin, External Approach",596619
+353,106,2750303,1/1/2011,32827,0,2,126833,"Destruction of Back Skin, External Approach, Diagnostic",2750303,,2750303,"Destruction of Back Skin, External Approach, Diagnostic",596619
+354,10929557090,2786591,3/5/2012,32827,0,1,843832,Fluoroscopy of Bilateral Common Carotid Arteries,2786591,,2786591,Fluoroscopy of Bilateral Common Carotid Arteries,596619
+355,10929557091,2750316,3/5/2012,32827,0,2,843832,"Destruction of Left Foot Skin, External Approach",2750316,,2750316,"Destruction of Left Foot Skin, External Approach",596619
+356,10929557092,2750314,1/1/2010,32827,0,1,993373,"Destruction of Right Foot Skin, External Approach",2750314,,2750314,"Destruction of Right Foot Skin, External Approach",317174
+357,107,2786841,3/6/2010,32827,0,1,993373,Fluoroscopy of Bilateral Vertebral Arteries,2786841,,2786841,Fluoroscopy of Bilateral Vertebral Arteries,317174
+358,10929557093,2750314,6/12/2013,32827,0,1,853733,"Destruction of Right Foot Skin, External Approach",2750314,,2750314,"Destruction of Right Foot Skin, External Approach",317174
+359,10929557094,2786841,6/12/2013,32827,0,1,853733,Fluoroscopy of Bilateral Vertebral Arteries,2786841,,2786841,Fluoroscopy of Bilateral Vertebral Arteries,317174
+360,10929557095,2751613,6/12/2013,32827,0,2,853733,"Excision of Back Skin, External Approach",2751613,,2751613,"Excision of Back Skin, External Approach",317174
+361,10929557096,2751614,1/1/2013,32827,0,1,853733,"Excision of Left Hand Skin, Multiple, External Approach",2751614,,2751614,"Excision of Left Hand Skin, Multiple, External Approach",317174
+362,10929557097,2751614,6/7/2010,32827,0,1,718721,"Excision of Left Hand Skin, Multiple, External Approach",2751614,,2751614,"Excision of Left Hand Skin, Multiple, External Approach",317174
+363,108,2787075,1/1/2015,32827,0,1,384898,Fluoroscopy of Other Upper Arteries using Low Osmolar,2787075,,2787075,Fluoroscopy of Other Upper Arteries using Low Osmolar,618432
+364,10929557098,2756496,1/1/2015,32827,0,1,384898,"Repair Back Skin, External Approach",2756496,,2756496,"Repair Back Skin, External Approach",618432
+365,10929557099,2750316,1/1/2015,32827,0,1,523075,"Destruction of Left Foot Skin, External Approach",2750316,,2750316,"Destruction of Left Foot Skin, External Approach",618432
+366,109,2786802,7/27/2015,32827,0,1,523075,Fluoroscopy of Bilateral Internal Carotid Arteries,2786802,,2786802,Fluoroscopy of Bilateral Internal Carotid Arteries,618432
+367,10929557100,4239130,1/1/2015,32827,0,1,523075,Oxygen therapy,4239130,,4239130,Oxygen therapy,618432
+368,10929557101,2787075,7/27/2015,32827,0,1,523075,Fluoroscopy of Other Upper Arteries using Low Osmolar,2787075,,2787075,Fluoroscopy of Other Upper Arteries using Low Osmolar,618432
+369,10929557102,2751614,6/14/2007,32827,0,2,026255,"Excision of Left Hand Skin, Multiple, External Approach",2751614,,2751614,"Excision of Left Hand Skin, Multiple, External Approach",144441
+370,10929557103,2756496,6/14/2007,32827,0,1,026255,"Repair Back Skin, External Approach",2756496,,2756496,"Repair Back Skin, External Approach",144441
+371,10929557104,2750316,6/14/2007,32827,0,1,026255,"Destruction of Left Foot Skin, External Approach",2750316,,2750316,"Destruction of Left Foot Skin, External Approach",144441
+372,10929557105,2786802,6/14/2007,32827,0,1,026255,Fluoroscopy of Bilateral Internal Carotid Arteries,2786802,,2786802,Fluoroscopy of Bilateral Internal Carotid Arteries,144441
+373,10929557106,43527928,1/1/2007,32827,0,1,026255,"Selective catheter placement, external carotid artery",43527928,,43527928,"Selective catheter placement, external carotid artery",144441
+374,10929557107,2750303,1/1/2008,32827,0,1,156520,"Destruction of Back Skin, External Approach, Diagnostic",2750303,,2750303,"Destruction of Back Skin, External Approach, Diagnostic",144441
+375,10929557108,2786841,12/31/2007,32827,0,1,192392,Fluoroscopy of Bilateral Vertebral Arteries,2786841,,2786841,Fluoroscopy of Bilateral Vertebral Arteries,144441
+376,10929557109,2751613,12/31/2007,32827,0,2,192392,"Excision of Back Skin, External Approach",2751613,,2751613,"Excision of Back Skin, External Approach",144441
+377,10929557110,2786612,3/7/2010,32827,0,1,668698,Fluoroscopy of Bilateral Internal Carotid Arteries,2786612,,2786612,Fluoroscopy of Bilateral Internal Carotid Arteries,561891
+378,110,2750314,1/1/2010,32827,0,1,668698,"Destruction of Right Foot Skin, External Approach",2750314,,2750314,"Destruction of Right Foot Skin, External Approach",561891
+379,10929557111,2786841,1/1/2011,32827,0,1,693328,Fluoroscopy of Bilateral Vertebral Arteries,2786841,,2786841,Fluoroscopy of Bilateral Vertebral Arteries,970160
+380,10929557112,2756496,1/15/2011,32827,0,1,693328,"Repair Back Skin, External Approach",2756496,,2756496,"Repair Back Skin, External Approach",970160
+381,10929557113,2211351,1/1/2011,32827,0,1,693328,"Magnetic resonance (eg, proton) imaging, brain",2211351,,2211351,"Magnetic resonance (eg, proton) imaging, brain",970160
+382,10929557114,43527928,1/15/2011,32827,0,1,693328,"Selective catheter placement, external carotid artery",43527928,,43527928,"Selective catheter placement, external carotid artery",970160
+383,10929557115,2751613,9/25/2010,32827,0,2,455721,"Excision of Back Skin, External Approach",2751613,,2751613,"Excision of Back Skin, External Approach",970160
+384,111,2750316,1/1/2010,32827,0,1,455721,"Destruction of Left Foot Skin, External Approach",2750316,,2750316,"Destruction of Left Foot Skin, External Approach",970160
+385,10929557116,4081128,9/25/2010,32827,0,1,455721,Chemotherapy follow-up,4081128,,4081128,Chemotherapy follow-up,970160
+386,10929557117,43527928,9/25/2010,32827,0,1,455721,"Selective catheter placement, external carotid artery",43527928,,43527928,"Selective catheter placement, external carotid artery",970160
+387,10929557118,2786802,5/17/2012,32827,0,1,106964,Fluoroscopy of Bilateral Internal Carotid Arteries,2786802,,2786802,Fluoroscopy of Bilateral Internal Carotid Arteries,970160
+388,10929557119,2750316,5/17/2012,32827,0,1,106964,"Destruction of Left Foot Skin, External Approach",2750316,,2750316,"Destruction of Left Foot Skin, External Approach",970160
+389,112,2786612,1/1/2012,32827,0,1,106964,Fluoroscopy of Bilateral Internal Carotid Arteries,2786612,,2786612,Fluoroscopy of Bilateral Internal Carotid Arteries,970160
+390,10929557120,4081128,5/17/2012,32827,0,1,106964,Chemotherapy follow-up,4081128,,4081128,Chemotherapy follow-up,970160
+391,10929557121,4081128,3/19/2017,32827,0,1,347909,Chemotherapy follow-up,4081128,,4081128,Chemotherapy follow-up,970160
+392,113,2786841,3/19/2017,32827,0,1,347909,Fluoroscopy of Bilateral Vertebral Arteries,2786841,,2786841,Fluoroscopy of Bilateral Vertebral Arteries,970160
+393,10929557122,4239130,3/19/2017,32827,0,1,347909,Oxygen therapy,4239130,,4239130,Oxygen therapy,970160
+394,114,2786612,3/19/2017,32827,0,1,347909,Fluoroscopy of Bilateral Internal Carotid Arteries,2786612,,2786612,Fluoroscopy of Bilateral Internal Carotid Arteries,970160
+395,115,2211351,3/19/2017,32827,0,1,347909,"Magnetic resonance (eg, proton) imaging, brain",2211351,,2211351,"Magnetic resonance (eg, proton) imaging, brain",970160
+396,10929557123,4239130,5/16/2010,32827,0,2,342655,Oxygen therapy,4239130,,4239130,Oxygen therapy,202601
+397,10929557124,2756496,1/1/2010,32827,0,1,342655,"Repair Back Skin, External Approach",2756496,,2756496,"Repair Back Skin, External Approach",202601
+398,10929557125,2756496,9/5/2010,32827,0,1,51178,"Repair Back Skin, External Approach",2756496,,2756496,"Repair Back Skin, External Approach",202601
+399,10929557126,2786802,9/5/2010,32827,0,1,51178,Fluoroscopy of Bilateral Internal Carotid Arteries,2786802,,2786802,Fluoroscopy of Bilateral Internal Carotid Arteries,202601
+400,10929557127,43527928,9/21/2010,32827,0,2,852126,"Selective catheter placement, external carotid artery",43527928,,43527928,"Selective catheter placement, external carotid artery",202601
+401,10929557128,2786841,9/21/2010,32827,0,1,852126,Fluoroscopy of Bilateral Vertebral Arteries,2786841,,2786841,Fluoroscopy of Bilateral Vertebral Arteries,202601
+402,10929557129,4239130,1/1/2010,32827,0,2,852126,Oxygen therapy,4239130,,4239130,Oxygen therapy,202601
+403,10929557130,2786591,9/3/2017,32827,0,1,286362,Fluoroscopy of Bilateral Common Carotid Arteries,2786591,,2786591,Fluoroscopy of Bilateral Common Carotid Arteries,202601
+404,10929557131,2786612,1/1/2017,32827,0,1,286362,Fluoroscopy of Bilateral Internal Carotid Arteries,2786612,,2786612,Fluoroscopy of Bilateral Internal Carotid Arteries,202601
+405,116,4239130,1/1/2017,32827,0,1,286362,Oxygen therapy,4239130,,4239130,Oxygen therapy,202601
+406,10929557132,2786591,9/3/2017,32827,0,2,286362,Fluoroscopy of Bilateral Common Carotid Arteries,2786591,,2786591,Fluoroscopy of Bilateral Common Carotid Arteries,202601
+407,10929557133,2211351,9/3/2017,32827,0,1,286362,"Magnetic resonance (eg, proton) imaging, brain",2211351,,2211351,"Magnetic resonance (eg, proton) imaging, brain",202601
+408,10929557134,2786841,1/1/2009,32827,0,1,811544,Fluoroscopy of Bilateral Vertebral Arteries,2786841,,2786841,Fluoroscopy of Bilateral Vertebral Arteries,513841
+409,10929557135,2750316,1/1/2009,32827,0,1,811544,"Destruction of Left Foot Skin, External Approach",2750316,,2750316,"Destruction of Left Foot Skin, External Approach",513841
+410,10929557136,4081128,4/28/2009,32827,0,2,811544,Chemotherapy follow-up,4081128,,4081128,Chemotherapy follow-up,513841
+411,10929557137,2787075,4/28/2009,32827,0,1,811544,Fluoroscopy of Other Upper Arteries using Low Osmolar,2787075,,2787075,Fluoroscopy of Other Upper Arteries using Low Osmolar,513841
+412,10929557138,2750314,1/1/2009,32827,0,1,811544,"Destruction of Right Foot Skin, External Approach",2750314,,2750314,"Destruction of Right Foot Skin, External Approach",513841
+413,117,2786802,8/7/2009,32827,0,1,269188,Fluoroscopy of Bilateral Internal Carotid Arteries,2786802,,2786802,Fluoroscopy of Bilateral Internal Carotid Arteries,513841
+414,118,43527928,2/19/2009,32827,0,2,357183,"Selective catheter placement, external carotid artery",43527928,,43527928,"Selective catheter placement, external carotid artery",283556
+415,10929557139,2750314,5/10/2010,32827,0,1,104112,"Destruction of Right Foot Skin, External Approach",2750314,,2750314,"Destruction of Right Foot Skin, External Approach",283556
+416,10929557140,2751614,5/10/2010,32827,0,1,104112,"Excision of Left Hand Skin, Multiple, External Approach",2751614,,2751614,"Excision of Left Hand Skin, Multiple, External Approach",283556
+417,119,2786591,1/1/2010,32827,0,1,104112,Fluoroscopy of Bilateral Common Carotid Arteries,2786591,,2786591,Fluoroscopy of Bilateral Common Carotid Arteries,283556
+418,120,4239130,5/10/2010,32827,0,1,104112,Oxygen therapy,4239130,,4239130,Oxygen therapy,283556
+419,10929557141,43527928,5/10/2010,32827,0,1,104112,"Selective catheter placement, external carotid artery",43527928,,43527928,"Selective catheter placement, external carotid artery",283556
+420,10929557142,2211351,1/1/2010,32827,0,1,104112,"Magnetic resonance (eg, proton) imaging, brain",2211351,,2211351,"Magnetic resonance (eg, proton) imaging, brain",283556
+421,121,2751613,1/1/2011,32827,0,1,144057,"Excision of Back Skin, External Approach",2751613,,2751613,"Excision of Back Skin, External Approach",283556
+422,10929557143,2787075,12/12/2011,32827,0,1,144057,Fluoroscopy of Other Upper Arteries using Low Osmolar,2787075,,2787075,Fluoroscopy of Other Upper Arteries using Low Osmolar,283556
+423,10929557144,4081128,4/14/2009,32827,0,1,161014,Chemotherapy follow-up,4081128,,4081128,Chemotherapy follow-up,55585
+424,122,2756496,4/14/2009,32827,0,1,161014,"Repair Back Skin, External Approach",2756496,,2756496,"Repair Back Skin, External Approach",55585
+425,10929557145,2786612,4/14/2009,32827,0,1,161014,Fluoroscopy of Bilateral Internal Carotid Arteries,2786612,,2786612,Fluoroscopy of Bilateral Internal Carotid Arteries,55585
+426,123,2750314,4/22/2013,32827,0,1,555127,"Destruction of Right Foot Skin, External Approach",2750314,,2750314,"Destruction of Right Foot Skin, External Approach",92124
+427,10929557146,4239130,1/1/2013,32827,0,1,555127,Oxygen therapy,4239130,,4239130,Oxygen therapy,92124
+428,10929557147,2787075,7/24/2009,32827,0,1,504541,Fluoroscopy of Other Upper Arteries using Low Osmolar,2787075,,2787075,Fluoroscopy of Other Upper Arteries using Low Osmolar,368236
+429,124,2751613,7/24/2009,32827,0,1,504541,"Excision of Back Skin, External Approach",2751613,,2751613,"Excision of Back Skin, External Approach",368236
+430,10929557148,2786612,11/8/2011,32827,0,1,902546,Fluoroscopy of Bilateral Internal Carotid Arteries,2786612,,2786612,Fluoroscopy of Bilateral Internal Carotid Arteries,368236
+431,10929557149,2787075,11/8/2011,32827,0,1,902546,Fluoroscopy of Other Upper Arteries using Low Osmolar,2787075,,2787075,Fluoroscopy of Other Upper Arteries using Low Osmolar,368236
+432,10929557150,2751613,11/8/2011,32827,0,2,902546,"Excision of Back Skin, External Approach",2751613,,2751613,"Excision of Back Skin, External Approach",368236
+433,10929557151,2750316,11/8/2011,32827,0,1,902546,"Destruction of Left Foot Skin, External Approach",2750316,,2750316,"Destruction of Left Foot Skin, External Approach",368236
+434,125,2756496,1/1/2011,32827,0,1,902546,"Repair Back Skin, External Approach",2756496,,2756496,"Repair Back Skin, External Approach",368236
+435,10929557152,4081128,11/8/2011,32827,0,1,902546,Chemotherapy follow-up,4081128,,4081128,Chemotherapy follow-up,368236
+436,10929557153,2750303,5/2/2012,32827,0,1,677035,"Destruction of Back Skin, External Approach, Diagnostic",2750303,,2750303,"Destruction of Back Skin, External Approach, Diagnostic",60169
+437,10929557154,2756496,5/2/2012,32827,0,1,677035,"Repair Back Skin, External Approach",2756496,,2756496,"Repair Back Skin, External Approach",60169
+438,10929557155,2786802,5/2/2012,32827,0,1,677035,Fluoroscopy of Bilateral Internal Carotid Arteries,2786802,,2786802,Fluoroscopy of Bilateral Internal Carotid Arteries,60169
+439,10929557156,4081128,5/2/2012,32827,0,1,677035,Chemotherapy follow-up,4081128,,4081128,Chemotherapy follow-up,60169
+440,10929557157,2787075,4/24/2013,32827,0,1,031766,Fluoroscopy of Other Upper Arteries using Low Osmolar,2787075,,2787075,Fluoroscopy of Other Upper Arteries using Low Osmolar,60169
+441,10929557158,2751614,4/24/2013,32827,0,1,031766,"Excision of Left Hand Skin, Multiple, External Approach",2751614,,2751614,"Excision of Left Hand Skin, Multiple, External Approach",60169
+442,126,2751613,1/1/2013,32827,0,1,031766,"Excision of Back Skin, External Approach",2751613,,2751613,"Excision of Back Skin, External Approach",60169
+443,10929557159,2787075,1/1/2013,32827,0,1,031766,Fluoroscopy of Other Upper Arteries using Low Osmolar,2787075,,2787075,Fluoroscopy of Other Upper Arteries using Low Osmolar,60169
+444,10929557160,2786612,4/24/2013,32827,0,2,031766,Fluoroscopy of Bilateral Internal Carotid Arteries,2786612,,2786612,Fluoroscopy of Bilateral Internal Carotid Arteries,60169
+445,10929557161,2750314,1/1/2014,32827,0,1,732275,"Destruction of Right Foot Skin, External Approach",2750314,,2750314,"Destruction of Right Foot Skin, External Approach",60169
+446,127,2786591,5/2/2014,32827,0,1,732275,Fluoroscopy of Bilateral Common Carotid Arteries,2786591,,2786591,Fluoroscopy of Bilateral Common Carotid Arteries,60169
+447,128,2786841,8/4/2016,32827,0,1,239082,Fluoroscopy of Bilateral Vertebral Arteries,2786841,,2786841,Fluoroscopy of Bilateral Vertebral Arteries,60169
+448,10929557162,2211351,1/1/2016,32827,0,1,239082,"Magnetic resonance (eg, proton) imaging, brain",2211351,,2211351,"Magnetic resonance (eg, proton) imaging, brain",60169
+449,129,2750316,1/1/2016,32827,0,1,239082,"Destruction of Left Foot Skin, External Approach",2750316,,2750316,"Destruction of Left Foot Skin, External Approach",60169
+450,130,4081128,10/14/2011,32827,0,1,937570,Chemotherapy follow-up,4081128,,4081128,Chemotherapy follow-up,205301
+451,10929557163,2786612,10/14/2011,32827,0,1,937570,Fluoroscopy of Bilateral Internal Carotid Arteries,2786612,,2786612,Fluoroscopy of Bilateral Internal Carotid Arteries,205301
+452,10929557164,4081128,10/14/2011,32827,0,1,937570,Chemotherapy follow-up,4081128,,4081128,Chemotherapy follow-up,205301
+453,131,2750303,10/14/2011,32827,0,1,937570,"Destruction of Back Skin, External Approach, Diagnostic",2750303,,2750303,"Destruction of Back Skin, External Approach, Diagnostic",205301
+454,10929557165,2786612,8/16/2012,32827,0,1,989633,Fluoroscopy of Bilateral Internal Carotid Arteries,2786612,,2786612,Fluoroscopy of Bilateral Internal Carotid Arteries,205301
+455,10929557166,2750314,8/16/2012,32827,0,1,989633,"Destruction of Right Foot Skin, External Approach",2750314,,2750314,"Destruction of Right Foot Skin, External Approach",205301
+456,10929557167,4239130,8/16/2012,32827,0,1,989633,Oxygen therapy,4239130,,4239130,Oxygen therapy,205301
+457,132,2787075,1/1/2012,32827,0,1,989633,Fluoroscopy of Other Upper Arteries using Low Osmolar,2787075,,2787075,Fluoroscopy of Other Upper Arteries using Low Osmolar,205301
+458,133,2751614,8/16/2012,32827,0,1,989633,"Excision of Left Hand Skin, Multiple, External Approach",2751614,,2751614,"Excision of Left Hand Skin, Multiple, External Approach",205301
+459,134,2211351,3/17/2013,32827,0,1,889604,"Magnetic resonance (eg, proton) imaging, brain",2211351,,2211351,"Magnetic resonance (eg, proton) imaging, brain",205301
+460,10929557168,2786841,3/17/2013,32827,0,1,889604,Fluoroscopy of Bilateral Vertebral Arteries,2786841,,2786841,Fluoroscopy of Bilateral Vertebral Arteries,205301
+461,10929557169,2750314,3/17/2013,32827,0,1,889604,"Destruction of Right Foot Skin, External Approach",2750314,,2750314,"Destruction of Right Foot Skin, External Approach",205301
+462,135,2211351,1/1/2012,32827,0,1,237600,"Magnetic resonance (eg, proton) imaging, brain",2211351,,2211351,"Magnetic resonance (eg, proton) imaging, brain",96105
+463,10929557170,2786841,6/3/2012,32827,0,1,237600,Fluoroscopy of Bilateral Vertebral Arteries,2786841,,2786841,Fluoroscopy of Bilateral Vertebral Arteries,96105
+464,136,2786841,6/3/2012,32827,0,1,237600,Fluoroscopy of Bilateral Vertebral Arteries,2786841,,2786841,Fluoroscopy of Bilateral Vertebral Arteries,96105
+465,137,4081128,6/3/2012,32827,0,1,237600,Chemotherapy follow-up,4081128,,4081128,Chemotherapy follow-up,96105
+466,10929557171,2751614,1/1/2012,32827,0,1,237600,"Excision of Left Hand Skin, Multiple, External Approach",2751614,,2751614,"Excision of Left Hand Skin, Multiple, External Approach",96105
+467,138,2750316,12/4/2013,32827,0,1,643815,"Destruction of Left Foot Skin, External Approach",2750316,,2750316,"Destruction of Left Foot Skin, External Approach",96105
+468,10929557172,2750314,12/4/2013,32827,0,1,643815,"Destruction of Right Foot Skin, External Approach",2750314,,2750314,"Destruction of Right Foot Skin, External Approach",96105
+469,10929557173,2786841,12/4/2013,32827,0,1,643815,Fluoroscopy of Bilateral Vertebral Arteries,2786841,,2786841,Fluoroscopy of Bilateral Vertebral Arteries,96105
+470,10929557174,2750303,1/1/2013,32827,0,1,643815,"Destruction of Back Skin, External Approach, Diagnostic",2750303,,2750303,"Destruction of Back Skin, External Approach, Diagnostic",96105
+471,10929557175,2750303,8/22/2013,32827,0,1,918932,"Destruction of Back Skin, External Approach, Diagnostic",2750303,,2750303,"Destruction of Back Skin, External Approach, Diagnostic",96105
+472,10929557176,2750316,8/22/2013,32827,0,1,918932,"Destruction of Left Foot Skin, External Approach",2750316,,2750316,"Destruction of Left Foot Skin, External Approach",96105
+473,10929557177,2786591,1/1/2013,32827,0,1,918932,Fluoroscopy of Bilateral Common Carotid Arteries,2786591,,2786591,Fluoroscopy of Bilateral Common Carotid Arteries,96105
+474,10929557178,2756496,12/9/2012,32827,0,1,129572,"Repair Back Skin, External Approach",2756496,,2756496,"Repair Back Skin, External Approach",96105
+475,10929557179,2751613,1/1/2012,32827,0,1,129572,"Excision of Back Skin, External Approach",2751613,,2751613,"Excision of Back Skin, External Approach",96105
+476,10929557180,2786802,12/9/2012,32827,0,2,129572,Fluoroscopy of Bilateral Internal Carotid Arteries,2786802,,2786802,Fluoroscopy of Bilateral Internal Carotid Arteries,96105
+477,10929557181,2756496,1/1/2012,32827,0,1,129572,"Repair Back Skin, External Approach",2756496,,2756496,"Repair Back Skin, External Approach",96105
+478,10929557182,2756496,12/9/2012,32827,0,1,129572,"Repair Back Skin, External Approach",2756496,,2756496,"Repair Back Skin, External Approach",96105
+479,10929557183,2786591,7/24/2016,32827,0,1,980199,Fluoroscopy of Bilateral Common Carotid Arteries,2786591,,2786591,Fluoroscopy of Bilateral Common Carotid Arteries,96105
+480,10929557184,2786591,1/1/2016,32827,0,1,980199,Fluoroscopy of Bilateral Common Carotid Arteries,2786591,,2786591,Fluoroscopy of Bilateral Common Carotid Arteries,96105
+481,139,2750303,7/24/2016,32827,0,1,980199,"Destruction of Back Skin, External Approach, Diagnostic",2750303,,2750303,"Destruction of Back Skin, External Approach, Diagnostic",96105
+482,10929557185,2751613,1/1/2013,32827,0,1,420971,"Excision of Back Skin, External Approach",2751613,,2751613,"Excision of Back Skin, External Approach",96105
+483,10929557186,2786841,1/1/2012,32827,0,1,744116,Fluoroscopy of Bilateral Vertebral Arteries,2786841,,2786841,Fluoroscopy of Bilateral Vertebral Arteries,361799
+484,10929557187,4239130,7/5/2012,32827,0,2,744116,Oxygen therapy,4239130,,4239130,Oxygen therapy,361799
+485,10929557188,4239130,12/8/2012,32827,0,1,555060,Oxygen therapy,4239130,,4239130,Oxygen therapy,361799
+486,10929557189,2786841,12/8/2012,32827,0,1,555060,Fluoroscopy of Bilateral Vertebral Arteries,2786841,,2786841,Fluoroscopy of Bilateral Vertebral Arteries,361799
+487,140,2750316,12/8/2012,32827,0,1,555060,"Destruction of Left Foot Skin, External Approach",2750316,,2750316,"Destruction of Left Foot Skin, External Approach",361799
+488,10929557190,2750303,1/1/2012,32827,0,1,555060,"Destruction of Back Skin, External Approach, Diagnostic",2750303,,2750303,"Destruction of Back Skin, External Approach, Diagnostic",361799
+489,10929557191,2786841,11/15/2013,32827,0,1,425618,Fluoroscopy of Bilateral Vertebral Arteries,2786841,,2786841,Fluoroscopy of Bilateral Vertebral Arteries,361799
+490,10929557192,2211351,6/17/2019,32827,0,2,25032,"Magnetic resonance (eg, proton) imaging, brain",2211351,,2211351,"Magnetic resonance (eg, proton) imaging, brain",361799
+491,10929557193,2751614,6/17/2019,32827,0,1,25032,"Excision of Left Hand Skin, Multiple, External Approach",2751614,,2751614,"Excision of Left Hand Skin, Multiple, External Approach",361799
+492,10929557194,2751613,1/1/2019,32827,0,1,25032,"Excision of Back Skin, External Approach",2751613,,2751613,"Excision of Back Skin, External Approach",361799
+493,10929557195,4081128,6/17/2019,32827,0,1,25032,Chemotherapy follow-up,4081128,,4081128,Chemotherapy follow-up,361799
+494,10929557196,2751614,6/17/2019,32827,0,2,25032,"Excision of Left Hand Skin, Multiple, External Approach",2751614,,2751614,"Excision of Left Hand Skin, Multiple, External Approach",361799
+495,10929557197,2750314,1/1/2019,32827,0,2,25032,"Destruction of Right Foot Skin, External Approach",2750314,,2750314,"Destruction of Right Foot Skin, External Approach",361799
+496,10929557198,2211351,1/1/2020,32827,0,2,644576,"Magnetic resonance (eg, proton) imaging, brain",2211351,,2211351,"Magnetic resonance (eg, proton) imaging, brain",361799
+497,141,2750316,4/15/2020,32827,0,2,644576,"Destruction of Left Foot Skin, External Approach",2750316,,2750316,"Destruction of Left Foot Skin, External Approach",361799
+498,10929557199,2751614,1/1/2020,32827,0,1,644576,"Excision of Left Hand Skin, Multiple, External Approach",2751614,,2751614,"Excision of Left Hand Skin, Multiple, External Approach",361799
+499,10929557200,2211351,4/15/2020,32827,0,1,644576,"Magnetic resonance (eg, proton) imaging, brain",2211351,,2211351,"Magnetic resonance (eg, proton) imaging, brain",361799
+500,142,43527928,1/1/2018,32827,0,2,528212,"Selective catheter placement, external carotid artery",43527928,,43527928,"Selective catheter placement, external carotid artery",361799
+501,143,2756496,4/9/2018,32827,0,1,528212,"Repair Back Skin, External Approach",2756496,,2756496,"Repair Back Skin, External Approach",361799
+502,144,2750316,4/9/2018,32827,0,1,528212,"Destruction of Left Foot Skin, External Approach",2750316,,2750316,"Destruction of Left Foot Skin, External Approach",361799
+503,145,4081128,6/29/2018,32827,0,2,341078,Chemotherapy follow-up,4081128,,4081128,Chemotherapy follow-up,361799
+504,146,2786802,1/1/2018,32827,0,1,341078,Fluoroscopy of Bilateral Internal Carotid Arteries,2786802,,2786802,Fluoroscopy of Bilateral Internal Carotid Arteries,361799
+505,147,4239130,1/1/2018,32827,0,1,341078,Oxygen therapy,4239130,,4239130,Oxygen therapy,361799
+506,10929557201,2787075,11/16/2011,32827,0,1,044648,Fluoroscopy of Other Upper Arteries using Low Osmolar,2787075,,2787075,Fluoroscopy of Other Upper Arteries using Low Osmolar,634706
+507,10929557202,43527928,11/16/2011,32827,0,1,044648,"Selective catheter placement, external carotid artery",43527928,,43527928,"Selective catheter placement, external carotid artery",634706
+508,10929557203,4081128,11/16/2011,32827,0,1,044648,Chemotherapy follow-up,4081128,,4081128,Chemotherapy follow-up,634706
+509,10929557204,2786841,5/15/2012,32827,0,1,344999,Fluoroscopy of Bilateral Vertebral Arteries,2786841,,2786841,Fluoroscopy of Bilateral Vertebral Arteries,634706
+510,10929557205,2786612,2/27/2014,32827,0,2,351653,Fluoroscopy of Bilateral Internal Carotid Arteries,2786612,,2786612,Fluoroscopy of Bilateral Internal Carotid Arteries,634706
+511,10929557206,2751614,2/27/2014,32827,0,1,351653,"Excision of Left Hand Skin, Multiple, External Approach",2751614,,2751614,"Excision of Left Hand Skin, Multiple, External Approach",634706
+512,148,2211351,5/17/2012,32827,0,2,766304,"Magnetic resonance (eg, proton) imaging, brain",2211351,,2211351,"Magnetic resonance (eg, proton) imaging, brain",161700
+513,10929557207,2786802,10/16/2012,32827,0,1,116138,Fluoroscopy of Bilateral Internal Carotid Arteries,2786802,,2786802,Fluoroscopy of Bilateral Internal Carotid Arteries,161700
+514,10929557208,2786802,1/22/2014,32827,0,1,251396,Fluoroscopy of Bilateral Internal Carotid Arteries,2786802,,2786802,Fluoroscopy of Bilateral Internal Carotid Arteries,550431
+515,149,2751614,1/22/2014,32827,0,2,251396,"Excision of Left Hand Skin, Multiple, External Approach",2751614,,2751614,"Excision of Left Hand Skin, Multiple, External Approach",550431
+516,10929557209,4081128,1/22/2014,32827,0,1,251396,Chemotherapy follow-up,4081128,,4081128,Chemotherapy follow-up,550431
+517,10929557210,2750316,1/22/2014,32827,0,1,251396,"Destruction of Left Foot Skin, External Approach",2750316,,2750316,"Destruction of Left Foot Skin, External Approach",550431
+518,10929557211,2786802,1/22/2014,32827,0,2,251396,Fluoroscopy of Bilateral Internal Carotid Arteries,2786802,,2786802,Fluoroscopy of Bilateral Internal Carotid Arteries,550431
+519,10929557212,2756496,1/1/2016,32827,0,1,162524,"Repair Back Skin, External Approach",2756496,,2756496,"Repair Back Skin, External Approach",550431
+520,10929557213,2756496,11/25/2015,32827,0,1,704128,"Repair Back Skin, External Approach",2756496,,2756496,"Repair Back Skin, External Approach",550431
+521,10929557214,2750316,9/7/2016,32827,0,1,90378,"Destruction of Left Foot Skin, External Approach",2750316,,2750316,"Destruction of Left Foot Skin, External Approach",550431
+522,10929557215,2211351,9/7/2016,32827,0,1,90378,"Magnetic resonance (eg, proton) imaging, brain",2211351,,2211351,"Magnetic resonance (eg, proton) imaging, brain",550431
+523,10929557216,4081128,9/7/2016,32827,0,1,90378,Chemotherapy follow-up,4081128,,4081128,Chemotherapy follow-up,550431
+524,10929557217,2786591,9/7/2016,32827,0,1,90378,Fluoroscopy of Bilateral Common Carotid Arteries,2786591,,2786591,Fluoroscopy of Bilateral Common Carotid Arteries,550431
+525,10929557218,2750316,9/7/2016,32827,0,1,90378,"Destruction of Left Foot Skin, External Approach",2750316,,2750316,"Destruction of Left Foot Skin, External Approach",550431
+526,150,2786591,3/2/2013,32827,0,1,79989,Fluoroscopy of Bilateral Common Carotid Arteries,2786591,,2786591,Fluoroscopy of Bilateral Common Carotid Arteries,709786
+527,10929557219,2786591,3/2/2013,32827,0,2,79989,Fluoroscopy of Bilateral Common Carotid Arteries,2786591,,2786591,Fluoroscopy of Bilateral Common Carotid Arteries,709786
+528,10929557220,2750314,3/2/2013,32827,0,1,79989,"Destruction of Right Foot Skin, External Approach",2750314,,2750314,"Destruction of Right Foot Skin, External Approach",709786
+529,10929557221,4081128,1/1/2013,32827,0,1,570607,Chemotherapy follow-up,4081128,,4081128,Chemotherapy follow-up,709786
+530,10929557222,2756496,3/26/2013,32827,0,1,570607,"Repair Back Skin, External Approach",2756496,,2756496,"Repair Back Skin, External Approach",709786
+531,10929557223,2787075,3/26/2013,32827,0,1,570607,Fluoroscopy of Other Upper Arteries using Low Osmolar,2787075,,2787075,Fluoroscopy of Other Upper Arteries using Low Osmolar,709786
+532,10929557224,2751613,3/26/2013,32827,0,1,570607,"Excision of Back Skin, External Approach",2751613,,2751613,"Excision of Back Skin, External Approach",709786
+533,151,2750303,1/1/2013,32827,0,1,570607,"Destruction of Back Skin, External Approach, Diagnostic",2750303,,2750303,"Destruction of Back Skin, External Approach, Diagnostic",709786
+534,10929557225,2787075,6/29/2014,32827,0,1,626421,Fluoroscopy of Other Upper Arteries using Low Osmolar,2787075,,2787075,Fluoroscopy of Other Upper Arteries using Low Osmolar,709786
+535,152,2786591,1/1/2013,32827,0,1,44064,Fluoroscopy of Bilateral Common Carotid Arteries,2786591,,2786591,Fluoroscopy of Bilateral Common Carotid Arteries,709786
+536,10929557226,2750316,1/1/2014,32827,0,1,387972,"Destruction of Left Foot Skin, External Approach",2750316,,2750316,"Destruction of Left Foot Skin, External Approach",709786
+537,10929557227,2750316,5/26/2014,32827,0,2,387972,"Destruction of Left Foot Skin, External Approach",2750316,,2750316,"Destruction of Left Foot Skin, External Approach",709786
+538,153,2751613,1/1/2014,32827,0,1,387972,"Excision of Back Skin, External Approach",2751613,,2751613,"Excision of Back Skin, External Approach",709786
+539,10929557228,2786841,1/1/2014,32827,0,1,387972,Fluoroscopy of Bilateral Vertebral Arteries,2786841,,2786841,Fluoroscopy of Bilateral Vertebral Arteries,709786
+540,10929557229,2750303,4/28/2018,32827,0,1,585201,"Destruction of Back Skin, External Approach, Diagnostic",2750303,,2750303,"Destruction of Back Skin, External Approach, Diagnostic",709786
+541,154,2786591,4/28/2018,32827,0,1,585201,Fluoroscopy of Bilateral Common Carotid Arteries,2786591,,2786591,Fluoroscopy of Bilateral Common Carotid Arteries,709786
+542,10929557230,2751614,1/1/2018,32827,0,2,585201,"Excision of Left Hand Skin, Multiple, External Approach",2751614,,2751614,"Excision of Left Hand Skin, Multiple, External Approach",709786
+543,155,2750303,4/28/2018,32827,0,1,585201,"Destruction of Back Skin, External Approach, Diagnostic",2750303,,2750303,"Destruction of Back Skin, External Approach, Diagnostic",709786
+544,10929557231,2786802,1/1/2018,32827,0,1,585201,Fluoroscopy of Bilateral Internal Carotid Arteries,2786802,,2786802,Fluoroscopy of Bilateral Internal Carotid Arteries,709786
+545,10929557232,2787075,9/2/2013,32827,0,1,217837,Fluoroscopy of Other Upper Arteries using Low Osmolar,2787075,,2787075,Fluoroscopy of Other Upper Arteries using Low Osmolar,709786
+546,10929557233,2750303,10/2/2010,32827,0,1,985335,"Destruction of Back Skin, External Approach, Diagnostic",2750303,,2750303,"Destruction of Back Skin, External Approach, Diagnostic",633409
+547,156,2786612,1/1/2010,32827,0,1,985335,Fluoroscopy of Bilateral Internal Carotid Arteries,2786612,,2786612,Fluoroscopy of Bilateral Internal Carotid Arteries,633409
+548,10929557234,2786591,10/2/2010,32827,0,1,985335,Fluoroscopy of Bilateral Common Carotid Arteries,2786591,,2786591,Fluoroscopy of Bilateral Common Carotid Arteries,633409
+549,10929557235,4239130,3/31/2011,32827,0,2,20398,Oxygen therapy,4239130,,4239130,Oxygen therapy,633409
+550,10929557236,2786612,3/31/2011,32827,0,1,20398,Fluoroscopy of Bilateral Internal Carotid Arteries,2786612,,2786612,Fluoroscopy of Bilateral Internal Carotid Arteries,633409
+551,10929557237,2787075,1/1/2014,32827,0,1,358234,Fluoroscopy of Other Upper Arteries using Low Osmolar,2787075,,2787075,Fluoroscopy of Other Upper Arteries using Low Osmolar,633409
+552,157,2211351,1/1/2014,32827,0,2,358234,"Magnetic resonance (eg, proton) imaging, brain",2211351,,2211351,"Magnetic resonance (eg, proton) imaging, brain",633409
+553,10929557238,2750316,6/3/2012,32827,0,1,823080,"Destruction of Left Foot Skin, External Approach",2750316,,2750316,"Destruction of Left Foot Skin, External Approach",550639
+554,10929557239,2786841,6/3/2012,32827,0,1,823080,Fluoroscopy of Bilateral Vertebral Arteries,2786841,,2786841,Fluoroscopy of Bilateral Vertebral Arteries,550639
+555,158,2786612,6/3/2012,32827,0,1,823080,Fluoroscopy of Bilateral Internal Carotid Arteries,2786612,,2786612,Fluoroscopy of Bilateral Internal Carotid Arteries,550639
+556,10929557240,2786591,6/3/2012,32827,0,1,823080,Fluoroscopy of Bilateral Common Carotid Arteries,2786591,,2786591,Fluoroscopy of Bilateral Common Carotid Arteries,550639
+557,10929557241,2786802,6/3/2012,32827,0,1,823080,Fluoroscopy of Bilateral Internal Carotid Arteries,2786802,,2786802,Fluoroscopy of Bilateral Internal Carotid Arteries,550639
+558,159,2786802,1/1/2012,32827,0,1,857631,Fluoroscopy of Bilateral Internal Carotid Arteries,2786802,,2786802,Fluoroscopy of Bilateral Internal Carotid Arteries,550639
+559,10929557242,4239130,1/1/2012,32827,0,2,857631,Oxygen therapy,4239130,,4239130,Oxygen therapy,550639
+560,10929557243,4081128,6/23/2012,32827,0,1,857631,Chemotherapy follow-up,4081128,,4081128,Chemotherapy follow-up,550639
+561,10929557244,2786841,6/23/2012,32827,0,1,857631,Fluoroscopy of Bilateral Vertebral Arteries,2786841,,2786841,Fluoroscopy of Bilateral Vertebral Arteries,550639
+562,10929557245,2786802,7/10/2012,32827,0,1,796532,Fluoroscopy of Bilateral Internal Carotid Arteries,2786802,,2786802,Fluoroscopy of Bilateral Internal Carotid Arteries,374126
+563,160,2786841,4/18/2013,32827,0,1,279873,Fluoroscopy of Bilateral Vertebral Arteries,2786841,,2786841,Fluoroscopy of Bilateral Vertebral Arteries,374126
+564,10929557246,2211351,1/1/2013,32827,0,1,975719,"Magnetic resonance (eg, proton) imaging, brain",2211351,,2211351,"Magnetic resonance (eg, proton) imaging, brain",254195
+565,10929557247,2211351,5/12/2013,32827,0,1,975719,"Magnetic resonance (eg, proton) imaging, brain",2211351,,2211351,"Magnetic resonance (eg, proton) imaging, brain",254195
+566,10929557248,2751613,5/12/2013,32827,0,1,975719,"Excision of Back Skin, External Approach",2751613,,2751613,"Excision of Back Skin, External Approach",254195
+567,10929557249,2750303,5/12/2013,32827,0,1,975719,"Destruction of Back Skin, External Approach, Diagnostic",2750303,,2750303,"Destruction of Back Skin, External Approach, Diagnostic",254195
+568,10929557250,2750303,5/12/2013,32827,0,2,975719,"Destruction of Back Skin, External Approach, Diagnostic",2750303,,2750303,"Destruction of Back Skin, External Approach, Diagnostic",254195
+569,161,4081128,5/12/2013,32827,0,1,975719,Chemotherapy follow-up,4081128,,4081128,Chemotherapy follow-up,254195
+570,10929557251,2786591,12/23/2013,32827,0,1,230784,Fluoroscopy of Bilateral Common Carotid Arteries,2786591,,2786591,Fluoroscopy of Bilateral Common Carotid Arteries,254195
+571,10929557252,2750303,12/23/2013,32827,0,2,230784,"Destruction of Back Skin, External Approach, Diagnostic",2750303,,2750303,"Destruction of Back Skin, External Approach, Diagnostic",254195
+572,10929557253,2750316,7/17/2015,32827,0,1,90254,"Destruction of Left Foot Skin, External Approach",2750316,,2750316,"Destruction of Left Foot Skin, External Approach",254195
+573,162,2786612,7/17/2015,32827,0,1,90254,Fluoroscopy of Bilateral Internal Carotid Arteries,2786612,,2786612,Fluoroscopy of Bilateral Internal Carotid Arteries,254195
+574,10929557254,4081128,7/17/2015,32827,0,1,90254,Chemotherapy follow-up,4081128,,4081128,Chemotherapy follow-up,254195
+575,10929557255,4081128,5/31/2016,32827,0,1,171104,Chemotherapy follow-up,4081128,,4081128,Chemotherapy follow-up,254195
+576,10929557256,2786612,5/31/2016,32827,0,1,171104,Fluoroscopy of Bilateral Internal Carotid Arteries,2786612,,2786612,Fluoroscopy of Bilateral Internal Carotid Arteries,254195
+577,163,2786802,5/31/2016,32827,0,1,171104,Fluoroscopy of Bilateral Internal Carotid Arteries,2786802,,2786802,Fluoroscopy of Bilateral Internal Carotid Arteries,254195
+578,164,2211351,5/31/2016,32827,0,1,171104,"Magnetic resonance (eg, proton) imaging, brain",2211351,,2211351,"Magnetic resonance (eg, proton) imaging, brain",254195
+579,165,2750314,1/1/2018,32827,0,1,562244,"Destruction of Right Foot Skin, External Approach",2750314,,2750314,"Destruction of Right Foot Skin, External Approach",254195
+580,10929557257,2750303,1/1/2018,32827,0,1,562244,"Destruction of Back Skin, External Approach, Diagnostic",2750303,,2750303,"Destruction of Back Skin, External Approach, Diagnostic",254195
+581,10929557258,2756496,5/10/2018,32827,0,1,562244,"Repair Back Skin, External Approach",2756496,,2756496,"Repair Back Skin, External Approach",254195
+582,10929557259,43527928,1/1/2018,32827,0,1,562244,"Selective catheter placement, external carotid artery",43527928,,43527928,"Selective catheter placement, external carotid artery",254195
+583,10929557260,2751613,5/10/2018,32827,0,1,562244,"Excision of Back Skin, External Approach",2751613,,2751613,"Excision of Back Skin, External Approach",254195
+584,10929557261,2750316,5/10/2018,32827,0,1,562244,"Destruction of Left Foot Skin, External Approach",2750316,,2750316,"Destruction of Left Foot Skin, External Approach",254195
+585,10929557262,2786802,11/3/2014,32827,0,1,376246,Fluoroscopy of Bilateral Internal Carotid Arteries,2786802,,2786802,Fluoroscopy of Bilateral Internal Carotid Arteries,559086
+586,166,2787075,9/2/2016,32827,0,2,084566,Fluoroscopy of Other Upper Arteries using Low Osmolar,2787075,,2787075,Fluoroscopy of Other Upper Arteries using Low Osmolar,559086
+587,10929557263,2786841,9/2/2016,32827,0,1,084566,Fluoroscopy of Bilateral Vertebral Arteries,2786841,,2786841,Fluoroscopy of Bilateral Vertebral Arteries,559086
+588,10929557264,2211351,9/2/2016,32827,0,1,084566,"Magnetic resonance (eg, proton) imaging, brain",2211351,,2211351,"Magnetic resonance (eg, proton) imaging, brain",559086
+589,10929557265,4239130,1/1/2016,32827,0,1,084566,Oxygen therapy,4239130,,4239130,Oxygen therapy,559086
+590,167,4239130,3/11/2008,32827,0,1,186876,Oxygen therapy,4239130,,4239130,Oxygen therapy,272949
+591,168,2750314,3/11/2008,32827,0,1,186876,"Destruction of Right Foot Skin, External Approach",2750314,,2750314,"Destruction of Right Foot Skin, External Approach",272949
+592,169,4239130,3/11/2008,32827,0,1,186876,Oxygen therapy,4239130,,4239130,Oxygen therapy,272949
+593,10929557266,2751613,3/11/2008,32827,0,1,186876,"Excision of Back Skin, External Approach",2751613,,2751613,"Excision of Back Skin, External Approach",272949
+594,10929557267,2750314,1/1/2008,32827,0,1,186876,"Destruction of Right Foot Skin, External Approach",2750314,,2750314,"Destruction of Right Foot Skin, External Approach",272949
+595,10929557268,2756496,1/1/2008,32827,0,1,186876,"Repair Back Skin, External Approach",2756496,,2756496,"Repair Back Skin, External Approach",272949
+596,10929557269,2786841,1/1/2008,32827,0,1,847595,Fluoroscopy of Bilateral Vertebral Arteries,2786841,,2786841,Fluoroscopy of Bilateral Vertebral Arteries,272949
+597,170,43527928,1/1/2008,32827,0,1,847595,"Selective catheter placement, external carotid artery",43527928,,43527928,"Selective catheter placement, external carotid artery",272949
+598,171,2786612,6/11/2008,32827,0,2,847595,Fluoroscopy of Bilateral Internal Carotid Arteries,2786612,,2786612,Fluoroscopy of Bilateral Internal Carotid Arteries,272949
+599,172,2786591,1/1/2014,32827,0,1,144159,Fluoroscopy of Bilateral Common Carotid Arteries,2786591,,2786591,Fluoroscopy of Bilateral Common Carotid Arteries,363080
+600,173,4081128,1/1/2014,32827,0,1,144159,Chemotherapy follow-up,4081128,,4081128,Chemotherapy follow-up,363080
+601,174,2786612,12/3/2014,32827,0,1,144159,Fluoroscopy of Bilateral Internal Carotid Arteries,2786612,,2786612,Fluoroscopy of Bilateral Internal Carotid Arteries,363080
+602,10929557270,2751613,7/7/2015,32827,0,1,146870,"Excision of Back Skin, External Approach",2751613,,2751613,"Excision of Back Skin, External Approach",363080
+603,10929557271,2786841,7/7/2015,32827,0,1,146870,Fluoroscopy of Bilateral Vertebral Arteries,2786841,,2786841,Fluoroscopy of Bilateral Vertebral Arteries,363080
+604,10929557272,2751614,7/7/2015,32827,0,1,146870,"Excision of Left Hand Skin, Multiple, External Approach",2751614,,2751614,"Excision of Left Hand Skin, Multiple, External Approach",363080
+605,10929557273,4239130,7/7/2015,32827,0,1,146870,Oxygen therapy,4239130,,4239130,Oxygen therapy,363080
+606,10929557274,2786612,1/1/2017,32827,0,1,013361,Fluoroscopy of Bilateral Internal Carotid Arteries,2786612,,2786612,Fluoroscopy of Bilateral Internal Carotid Arteries,363080
+607,10929557275,2750314,3/13/2017,32827,0,1,013361,"Destruction of Right Foot Skin, External Approach",2750314,,2750314,"Destruction of Right Foot Skin, External Approach",363080
+608,175,2750303,1/1/2016,32827,0,1,821475,"Destruction of Back Skin, External Approach, Diagnostic",2750303,,2750303,"Destruction of Back Skin, External Approach, Diagnostic",363080
+609,10929557276,2786802,10/13/2014,32827,0,1,626009,Fluoroscopy of Bilateral Internal Carotid Arteries,2786802,,2786802,Fluoroscopy of Bilateral Internal Carotid Arteries,862161
+610,176,2786612,10/13/2014,32827,0,1,626009,Fluoroscopy of Bilateral Internal Carotid Arteries,2786612,,2786612,Fluoroscopy of Bilateral Internal Carotid Arteries,862161
+611,10929557277,2750316,1/1/2014,32827,0,1,626009,"Destruction of Left Foot Skin, External Approach",2750316,,2750316,"Destruction of Left Foot Skin, External Approach",862161
+612,177,4239130,10/13/2014,32827,0,1,626009,Oxygen therapy,4239130,,4239130,Oxygen therapy,862161
+613,178,43527928,10/13/2014,32827,0,1,626009,"Selective catheter placement, external carotid artery",43527928,,43527928,"Selective catheter placement, external carotid artery",862161
+614,10929557278,2750303,7/31/2008,32827,0,1,48468,"Destruction of Back Skin, External Approach, Diagnostic",2750303,,2750303,"Destruction of Back Skin, External Approach, Diagnostic",313736
+615,10929557279,2751613,7/31/2008,32827,0,1,48468,"Excision of Back Skin, External Approach",2751613,,2751613,"Excision of Back Skin, External Approach",313736
+616,179,2750303,7/31/2008,32827,0,2,48468,"Destruction of Back Skin, External Approach, Diagnostic",2750303,,2750303,"Destruction of Back Skin, External Approach, Diagnostic",313736
+617,10929557280,2787075,1/1/2008,32827,0,1,48468,Fluoroscopy of Other Upper Arteries using Low Osmolar,2787075,,2787075,Fluoroscopy of Other Upper Arteries using Low Osmolar,313736
+618,10929557281,2786841,1/1/2012,32827,0,1,36809,Fluoroscopy of Bilateral Vertebral Arteries,2786841,,2786841,Fluoroscopy of Bilateral Vertebral Arteries,925186
+619,10929557282,2786591,1/1/2012,32827,0,2,36809,Fluoroscopy of Bilateral Common Carotid Arteries,2786591,,2786591,Fluoroscopy of Bilateral Common Carotid Arteries,925186
+620,180,2786802,11/24/2012,32827,0,191,36809,Fluoroscopy of Bilateral Internal Carotid Arteries,2786802,,2786802,Fluoroscopy of Bilateral Internal Carotid Arteries,925186
+621,10929557283,2751613,1/1/2013,32827,0,1,169965,"Excision of Back Skin, External Approach",2751613,,2751613,"Excision of Back Skin, External Approach",925186
+622,181,2211351,7/9/2015,32827,0,1,655848,"Magnetic resonance (eg, proton) imaging, brain",2211351,,2211351,"Magnetic resonance (eg, proton) imaging, brain",925186
+623,10929557284,4239130,7/9/2015,32827,0,1,655848,Oxygen therapy,4239130,,4239130,Oxygen therapy,925186
+624,10929557285,2750314,1/1/2017,32827,0,1,957947,"Destruction of Right Foot Skin, External Approach",2750314,,2750314,"Destruction of Right Foot Skin, External Approach",925186
+625,10929557286,43527928,11/13/2017,32827,0,2,957947,"Selective catheter placement, external carotid artery",43527928,,43527928,"Selective catheter placement, external carotid artery",925186
+626,10929557287,2756496,3/17/2019,32827,0,1,044100,"Repair Back Skin, External Approach",2756496,,2756496,"Repair Back Skin, External Approach",925186
+627,10929557288,2756496,3/17/2019,32827,0,1,044100,"Repair Back Skin, External Approach",2756496,,2756496,"Repair Back Skin, External Approach",925186
+628,10929557289,2786841,1/1/2019,32827,0,1,044100,Fluoroscopy of Bilateral Vertebral Arteries,2786841,,2786841,Fluoroscopy of Bilateral Vertebral Arteries,925186
+629,10929557290,2756496,1/1/2012,32827,0,1,624340,"Repair Back Skin, External Approach",2756496,,2756496,"Repair Back Skin, External Approach",274459
+630,182,4081128,2/8/2012,32827,0,2,624340,Chemotherapy follow-up,4081128,,4081128,Chemotherapy follow-up,274459
+631,10929557291,2750316,1/1/2012,32827,0,1,624340,"Destruction of Left Foot Skin, External Approach",2750316,,2750316,"Destruction of Left Foot Skin, External Approach",274459
+632,183,4081128,1/1/2012,32827,0,1,624340,Chemotherapy follow-up,4081128,,4081128,Chemotherapy follow-up,274459
+633,184,2750303,2/8/2012,32827,0,1,624340,"Destruction of Back Skin, External Approach, Diagnostic",2750303,,2750303,"Destruction of Back Skin, External Approach, Diagnostic",274459
+634,10929557292,2751613,1/1/2012,32827,0,1,73208,"Excision of Back Skin, External Approach",2751613,,2751613,"Excision of Back Skin, External Approach",274459
+635,10929557293,2750314,10/26/2012,32827,0,1,73208,"Destruction of Right Foot Skin, External Approach",2750314,,2750314,"Destruction of Right Foot Skin, External Approach",274459
+636,10929557294,2751614,1/1/2012,32827,0,1,564933,"Excision of Left Hand Skin, Multiple, External Approach",2751614,,2751614,"Excision of Left Hand Skin, Multiple, External Approach",274459
+637,10929557295,2786612,1/1/2012,32827,0,1,564933,Fluoroscopy of Bilateral Internal Carotid Arteries,2786612,,2786612,Fluoroscopy of Bilateral Internal Carotid Arteries,274459
+638,185,43527928,5/2/2012,32827,0,1,564933,"Selective catheter placement, external carotid artery",43527928,,43527928,"Selective catheter placement, external carotid artery",274459
+639,10929557296,2750303,1/1/2012,32827,0,1,564933,"Destruction of Back Skin, External Approach, Diagnostic",2750303,,2750303,"Destruction of Back Skin, External Approach, Diagnostic",274459
+640,10929557297,2787075,1/23/2014,32827,0,1,368629,Fluoroscopy of Other Upper Arteries using Low Osmolar,2787075,,2787075,Fluoroscopy of Other Upper Arteries using Low Osmolar,458711
+641,10929557298,2756496,1/23/2014,32827,0,1,368629,"Repair Back Skin, External Approach",2756496,,2756496,"Repair Back Skin, External Approach",458711
+642,10929557299,4239130,1/23/2014,32827,0,1,368629,Oxygen therapy,4239130,,4239130,Oxygen therapy,458711
+643,10929557300,2786612,1/12/2013,32827,0,1,243012,Fluoroscopy of Bilateral Internal Carotid Arteries,2786612,,2786612,Fluoroscopy of Bilateral Internal Carotid Arteries,653619
+644,10929557301,2211351,7/24/2013,32827,0,1,577446,"Magnetic resonance (eg, proton) imaging, brain",2211351,,2211351,"Magnetic resonance (eg, proton) imaging, brain",653619
+645,10929557302,2787075,7/24/2013,32827,0,1,577446,Fluoroscopy of Other Upper Arteries using Low Osmolar,2787075,,2787075,Fluoroscopy of Other Upper Arteries using Low Osmolar,653619
+646,10929557303,2751614,1/1/2013,32827,0,1,577446,"Excision of Left Hand Skin, Multiple, External Approach",2751614,,2751614,"Excision of Left Hand Skin, Multiple, External Approach",653619
+647,10929557304,2786802,1/1/2013,32827,0,1,577446,Fluoroscopy of Bilateral Internal Carotid Arteries,2786802,,2786802,Fluoroscopy of Bilateral Internal Carotid Arteries,653619
+648,10929557305,2211351,7/24/2013,32827,0,1,577446,"Magnetic resonance (eg, proton) imaging, brain",2211351,,2211351,"Magnetic resonance (eg, proton) imaging, brain",653619
+649,10929557306,4239130,7/24/2013,32827,0,1,577446,Oxygen therapy,4239130,,4239130,Oxygen therapy,653619
+650,10929557307,2756496,1/5/2014,32827,0,1,043763,"Repair Back Skin, External Approach",2756496,,2756496,"Repair Back Skin, External Approach",653619
+651,10929557308,2786591,1/1/2014,32827,0,1,043763,Fluoroscopy of Bilateral Common Carotid Arteries,2786591,,2786591,Fluoroscopy of Bilateral Common Carotid Arteries,653619
+652,10929557309,2751614,1/5/2014,32827,0,1,043763,"Excision of Left Hand Skin, Multiple, External Approach",2751614,,2751614,"Excision of Left Hand Skin, Multiple, External Approach",653619
+653,10929557310,2786612,3/23/2010,32827,0,1,471881,Fluoroscopy of Bilateral Internal Carotid Arteries,2786612,,2786612,Fluoroscopy of Bilateral Internal Carotid Arteries,952306
+654,10929557311,2786841,3/23/2010,32827,0,1,471881,Fluoroscopy of Bilateral Vertebral Arteries,2786841,,2786841,Fluoroscopy of Bilateral Vertebral Arteries,952306
+655,186,43527928,1/1/2010,32827,0,1,471881,"Selective catheter placement, external carotid artery",43527928,,43527928,"Selective catheter placement, external carotid artery",952306
+656,10929557312,2751613,3/23/2010,32827,0,1,471881,"Excision of Back Skin, External Approach",2751613,,2751613,"Excision of Back Skin, External Approach",952306
+657,187,4239130,1/1/2015,32827,0,2,701447,Oxygen therapy,4239130,,4239130,Oxygen therapy,118052
+658,10929557313,2750314,2/23/2015,32827,0,1,701447,"Destruction of Right Foot Skin, External Approach",2750314,,2750314,"Destruction of Right Foot Skin, External Approach",118052
+659,10929557314,43527928,9/24/2016,32827,0,2,076818,"Selective catheter placement, external carotid artery",43527928,,43527928,"Selective catheter placement, external carotid artery",224383
+660,10929557315,2787075,10/5/2009,32827,0,1,439818,Fluoroscopy of Other Upper Arteries using Low Osmolar,2787075,,2787075,Fluoroscopy of Other Upper Arteries using Low Osmolar,645848
+661,10929557316,2751613,1/1/2009,32827,0,1,439818,"Excision of Back Skin, External Approach",2751613,,2751613,"Excision of Back Skin, External Approach",645848
+662,10929557317,2786591,1/1/2009,32827,0,1,439818,Fluoroscopy of Bilateral Common Carotid Arteries,2786591,,2786591,Fluoroscopy of Bilateral Common Carotid Arteries,645848
+663,10929557318,43527928,10/20/2009,32827,0,1,815923,"Selective catheter placement, external carotid artery",43527928,,43527928,"Selective catheter placement, external carotid artery",258346
+664,188,2751614,1/1/2008,32827,0,1,479974,"Excision of Left Hand Skin, Multiple, External Approach",2751614,,2751614,"Excision of Left Hand Skin, Multiple, External Approach",955000
+665,189,4081128,1/1/2008,32827,0,1,479974,Chemotherapy follow-up,4081128,,4081128,Chemotherapy follow-up,955000
+666,10929557319,2750314,11/14/2008,32827,0,1,479974,"Destruction of Right Foot Skin, External Approach",2750314,,2750314,"Destruction of Right Foot Skin, External Approach",955000
+667,10929557320,2787075,1/1/2008,32827,0,1,479974,Fluoroscopy of Other Upper Arteries using Low Osmolar,2787075,,2787075,Fluoroscopy of Other Upper Arteries using Low Osmolar,955000
+668,190,2756496,11/14/2008,32827,0,1,479974,"Repair Back Skin, External Approach",2756496,,2756496,"Repair Back Skin, External Approach",955000
+669,191,2750303,11/14/2008,32827,0,1,479974,"Destruction of Back Skin, External Approach, Diagnostic",2750303,,2750303,"Destruction of Back Skin, External Approach, Diagnostic",955000
+670,10929557321,2786841,2/26/2012,32827,0,1,538112,Fluoroscopy of Bilateral Vertebral Arteries,2786841,,2786841,Fluoroscopy of Bilateral Vertebral Arteries,242116
+671,10929557322,2751613,2/26/2012,32827,0,2,538112,"Excision of Back Skin, External Approach",2751613,,2751613,"Excision of Back Skin, External Approach",242116
+672,10929557323,2750314,1/1/2012,32827,0,1,538112,"Destruction of Right Foot Skin, External Approach",2750314,,2750314,"Destruction of Right Foot Skin, External Approach",242116
+673,10929557324,2786841,2/26/2012,32827,0,1,538112,Fluoroscopy of Bilateral Vertebral Arteries,2786841,,2786841,Fluoroscopy of Bilateral Vertebral Arteries,242116
+674,10929557325,2751613,2/26/2012,32827,0,1,538112,"Excision of Back Skin, External Approach",2751613,,2751613,"Excision of Back Skin, External Approach",242116
+675,10929557326,2787075,1/17/2013,32827,0,1,870381,Fluoroscopy of Other Upper Arteries using Low Osmolar,2787075,,2787075,Fluoroscopy of Other Upper Arteries using Low Osmolar,242116
+676,192,43527928,1/1/2013,32827,0,1,870381,"Selective catheter placement, external carotid artery",43527928,,43527928,"Selective catheter placement, external carotid artery",242116
+677,193,2786591,1/1/2013,32827,0,1,870381,Fluoroscopy of Bilateral Common Carotid Arteries,2786591,,2786591,Fluoroscopy of Bilateral Common Carotid Arteries,242116
+678,194,4239130,1/17/2013,32827,0,2,870381,Oxygen therapy,4239130,,4239130,Oxygen therapy,242116
+679,195,2756496,1/17/2013,32827,0,1,870381,"Repair Back Skin, External Approach",2756496,,2756496,"Repair Back Skin, External Approach",242116
+680,10929557327,2751613,1/17/2013,32827,0,1,870381,"Excision of Back Skin, External Approach",2751613,,2751613,"Excision of Back Skin, External Approach",242116
+681,10929557328,2750303,1/1/2015,32827,0,1,307252,"Destruction of Back Skin, External Approach, Diagnostic",2750303,,2750303,"Destruction of Back Skin, External Approach, Diagnostic",242116
+682,10929557329,4239130,1/1/2013,32827,0,1,401924,Oxygen therapy,4239130,,4239130,Oxygen therapy,242116
+683,196,2750316,1/1/2013,32827,0,2,401924,"Destruction of Left Foot Skin, External Approach",2750316,,2750316,"Destruction of Left Foot Skin, External Approach",242116
+684,197,2786591,7/24/2017,32827,0,1,884842,Fluoroscopy of Bilateral Common Carotid Arteries,2786591,,2786591,Fluoroscopy of Bilateral Common Carotid Arteries,242116
+685,198,2751614,7/24/2017,32827,0,1,884842,"Excision of Left Hand Skin, Multiple, External Approach",2751614,,2751614,"Excision of Left Hand Skin, Multiple, External Approach",242116
+686,10929557330,2787075,1/1/2017,32827,0,1,884842,Fluoroscopy of Other Upper Arteries using Low Osmolar,2787075,,2787075,Fluoroscopy of Other Upper Arteries using Low Osmolar,242116
+687,10929557331,2787075,7/24/2017,32827,0,1,884842,Fluoroscopy of Other Upper Arteries using Low Osmolar,2787075,,2787075,Fluoroscopy of Other Upper Arteries using Low Osmolar,242116
+688,199,2756496,1/1/2017,32827,0,1,884842,"Repair Back Skin, External Approach",2756496,,2756496,"Repair Back Skin, External Approach",242116
+689,200,2786802,12/19/2013,32827,0,1,973985,Fluoroscopy of Bilateral Internal Carotid Arteries,2786802,,2786802,Fluoroscopy of Bilateral Internal Carotid Arteries,471622
+690,10929557332,2786591,12/19/2013,32827,0,1,973985,Fluoroscopy of Bilateral Common Carotid Arteries,2786591,,2786591,Fluoroscopy of Bilateral Common Carotid Arteries,471622
+691,10929557333,4239130,12/19/2013,32827,0,2,973985,Oxygen therapy,4239130,,4239130,Oxygen therapy,471622
+692,10929557334,2750314,12/19/2013,32827,0,2,973985,"Destruction of Right Foot Skin, External Approach",2750314,,2750314,"Destruction of Right Foot Skin, External Approach",471622
+693,201,2786841,1/1/2013,32827,0,1,973985,Fluoroscopy of Bilateral Vertebral Arteries,2786841,,2786841,Fluoroscopy of Bilateral Vertebral Arteries,471622
+694,10929557335,2751614,12/29/2014,32827,0,1,533999,"Excision of Left Hand Skin, Multiple, External Approach",2751614,,2751614,"Excision of Left Hand Skin, Multiple, External Approach",471622
+695,202,2756496,12/29/2014,32827,0,1,533999,"Repair Back Skin, External Approach",2756496,,2756496,"Repair Back Skin, External Approach",471622
+696,10929557336,2751614,12/29/2014,32827,0,1,533999,"Excision of Left Hand Skin, Multiple, External Approach",2751614,,2751614,"Excision of Left Hand Skin, Multiple, External Approach",471622
+697,203,2751614,12/29/2014,32827,0,2,533999,"Excision of Left Hand Skin, Multiple, External Approach",2751614,,2751614,"Excision of Left Hand Skin, Multiple, External Approach",471622
+698,10929557337,2787075,12/29/2014,32827,0,1,533999,Fluoroscopy of Other Upper Arteries using Low Osmolar,2787075,,2787075,Fluoroscopy of Other Upper Arteries using Low Osmolar,471622
+699,204,2786841,1/1/2015,32827,0,1,37037,Fluoroscopy of Bilateral Vertebral Arteries,2786841,,2786841,Fluoroscopy of Bilateral Vertebral Arteries,471622
+700,205,2751613,1/1/2015,32827,0,1,37037,"Excision of Back Skin, External Approach",2751613,,2751613,"Excision of Back Skin, External Approach",471622
+701,10929557338,2751613,8/29/2016,32827,0,1,378751,"Excision of Back Skin, External Approach",2751613,,2751613,"Excision of Back Skin, External Approach",471622
+702,10929557339,2751614,1/1/2016,32827,0,1,378751,"Excision of Left Hand Skin, Multiple, External Approach",2751614,,2751614,"Excision of Left Hand Skin, Multiple, External Approach",471622
+703,10929557340,2750314,7/18/2015,32827,0,2,064640,"Destruction of Right Foot Skin, External Approach",2750314,,2750314,"Destruction of Right Foot Skin, External Approach",471622
+704,10929557341,2211351,9/3/2015,32827,0,1,175954,"Magnetic resonance (eg, proton) imaging, brain",2211351,,2211351,"Magnetic resonance (eg, proton) imaging, brain",471622
+705,10929557342,2786802,9/3/2015,32827,0,1,175954,Fluoroscopy of Bilateral Internal Carotid Arteries,2786802,,2786802,Fluoroscopy of Bilateral Internal Carotid Arteries,471622
+706,10929557343,2211351,9/3/2015,32827,0,1,175954,"Magnetic resonance (eg, proton) imaging, brain",2211351,,2211351,"Magnetic resonance (eg, proton) imaging, brain",471622
+707,206,2786841,9/3/2015,32827,0,1,175954,Fluoroscopy of Bilateral Vertebral Arteries,2786841,,2786841,Fluoroscopy of Bilateral Vertebral Arteries,471622
+708,10929557344,4239130,9/3/2015,32827,0,1,175954,Oxygen therapy,4239130,,4239130,Oxygen therapy,471622
+709,10929557345,2750303,7/31/2014,32827,0,1,020688,"Destruction of Back Skin, External Approach, Diagnostic",2750303,,2750303,"Destruction of Back Skin, External Approach, Diagnostic",471622
+710,10929557346,2786612,1/1/2014,32827,0,2,020688,Fluoroscopy of Bilateral Internal Carotid Arteries,2786612,,2786612,Fluoroscopy of Bilateral Internal Carotid Arteries,471622
+711,10929557347,2756496,1/1/2014,32827,0,1,020688,"Repair Back Skin, External Approach",2756496,,2756496,"Repair Back Skin, External Approach",471622
+712,207,2786802,7/31/2014,32827,0,1,020688,Fluoroscopy of Bilateral Internal Carotid Arteries,2786802,,2786802,Fluoroscopy of Bilateral Internal Carotid Arteries,471622
+713,10929557348,4239130,7/31/2014,32827,0,1,020688,Oxygen therapy,4239130,,4239130,Oxygen therapy,471622
+714,208,2750303,1/1/2016,32827,0,1,526192,"Destruction of Back Skin, External Approach, Diagnostic",2750303,,2750303,"Destruction of Back Skin, External Approach, Diagnostic",471622
+715,10929557349,2786612,6/24/2016,32827,0,1,526192,Fluoroscopy of Bilateral Internal Carotid Arteries,2786612,,2786612,Fluoroscopy of Bilateral Internal Carotid Arteries,471622
+716,10929557350,2751614,1/1/2016,32827,0,1,526192,"Excision of Left Hand Skin, Multiple, External Approach",2751614,,2751614,"Excision of Left Hand Skin, Multiple, External Approach",471622
+717,10929557351,2786612,6/24/2016,32827,0,1,526192,Fluoroscopy of Bilateral Internal Carotid Arteries,2786612,,2786612,Fluoroscopy of Bilateral Internal Carotid Arteries,471622
+718,10929557352,2786802,3/7/2020,32827,0,1,236325,Fluoroscopy of Bilateral Internal Carotid Arteries,2786802,,2786802,Fluoroscopy of Bilateral Internal Carotid Arteries,471622
+719,10929557353,2750303,3/7/2020,32827,0,1,236325,"Destruction of Back Skin, External Approach, Diagnostic",2750303,,2750303,"Destruction of Back Skin, External Approach, Diagnostic",471622
+720,10929557354,2750316,12/28/2019,32827,0,1,100282,"Destruction of Left Foot Skin, External Approach",2750316,,2750316,"Destruction of Left Foot Skin, External Approach",471622
+721,209,2211351,12/28/2019,32827,0,2,100282,"Magnetic resonance (eg, proton) imaging, brain",2211351,,2211351,"Magnetic resonance (eg, proton) imaging, brain",471622
+722,10929557355,2786841,12/28/2019,32827,0,1,100282,Fluoroscopy of Bilateral Vertebral Arteries,2786841,,2786841,Fluoroscopy of Bilateral Vertebral Arteries,471622
+723,10929557356,2211351,9/16/2009,32827,0,1,253918,"Magnetic resonance (eg, proton) imaging, brain",2211351,,2211351,"Magnetic resonance (eg, proton) imaging, brain",924280
+724,10929557357,4239130,9/16/2009,32827,0,2,253918,Oxygen therapy,4239130,,4239130,Oxygen therapy,924280
+725,210,2756496,1/1/2013,32827,0,1,991964,"Repair Back Skin, External Approach",2756496,,2756496,"Repair Back Skin, External Approach",924280
+726,10929557358,43527928,1/1/2013,32827,0,1,991964,"Selective catheter placement, external carotid artery",43527928,,43527928,"Selective catheter placement, external carotid artery",924280
+727,10929557359,2750303,8/31/2013,32827,0,1,991964,"Destruction of Back Skin, External Approach, Diagnostic",2750303,,2750303,"Destruction of Back Skin, External Approach, Diagnostic",924280
+728,211,2750303,4/24/2010,32827,0,1,949725,"Destruction of Back Skin, External Approach, Diagnostic",2750303,,2750303,"Destruction of Back Skin, External Approach, Diagnostic",276227
+729,10929557360,2786841,7/4/2010,32827,0,1,268491,Fluoroscopy of Bilateral Vertebral Arteries,2786841,,2786841,Fluoroscopy of Bilateral Vertebral Arteries,276227
+730,212,2786612,1/1/2010,32827,0,1,268491,Fluoroscopy of Bilateral Internal Carotid Arteries,2786612,,2786612,Fluoroscopy of Bilateral Internal Carotid Arteries,276227
+731,10929557361,4239130,7/4/2010,32827,0,1,268491,Oxygen therapy,4239130,,4239130,Oxygen therapy,276227
+732,213,2786841,7/4/2010,32827,0,1,268491,Fluoroscopy of Bilateral Vertebral Arteries,2786841,,2786841,Fluoroscopy of Bilateral Vertebral Arteries,276227
+733,214,2751614,1/1/2010,32827,0,1,268491,"Excision of Left Hand Skin, Multiple, External Approach",2751614,,2751614,"Excision of Left Hand Skin, Multiple, External Approach",276227
+734,10929557362,2787075,12/18/2011,32827,0,1,951145,Fluoroscopy of Other Upper Arteries using Low Osmolar,2787075,,2787075,Fluoroscopy of Other Upper Arteries using Low Osmolar,276227
+735,215,4081128,11/24/2010,32827,0,1,196859,Chemotherapy follow-up,4081128,,4081128,Chemotherapy follow-up,365176
+736,10929557363,2750314,1/1/2010,32827,0,1,196859,"Destruction of Right Foot Skin, External Approach",2750314,,2750314,"Destruction of Right Foot Skin, External Approach",365176
+737,10929557364,2751614,10/30/2013,32827,0,1,624570,"Excision of Left Hand Skin, Multiple, External Approach",2751614,,2751614,"Excision of Left Hand Skin, Multiple, External Approach",365176
+738,10929557365,2787075,1/1/2011,32827,0,1,55950,Fluoroscopy of Other Upper Arteries using Low Osmolar,2787075,,2787075,Fluoroscopy of Other Upper Arteries using Low Osmolar,365176
+739,216,2750316,7/29/2011,32827,0,1,55950,"Destruction of Left Foot Skin, External Approach",2750316,,2750316,"Destruction of Left Foot Skin, External Approach",365176
+740,10929557366,2211351,7/29/2011,32827,0,1,55950,"Magnetic resonance (eg, proton) imaging, brain",2211351,,2211351,"Magnetic resonance (eg, proton) imaging, brain",365176
+741,10929557367,2751614,7/29/2011,32827,0,2,55950,"Excision of Left Hand Skin, Multiple, External Approach",2751614,,2751614,"Excision of Left Hand Skin, Multiple, External Approach",365176
+742,217,2786802,7/29/2011,32827,0,1,55950,Fluoroscopy of Bilateral Internal Carotid Arteries,2786802,,2786802,Fluoroscopy of Bilateral Internal Carotid Arteries,365176
+743,10929557368,2786591,7/29/2011,32827,0,1,55950,Fluoroscopy of Bilateral Common Carotid Arteries,2786591,,2786591,Fluoroscopy of Bilateral Common Carotid Arteries,365176
+744,218,2786802,1/1/2014,32827,0,1,555371,Fluoroscopy of Bilateral Internal Carotid Arteries,2786802,,2786802,Fluoroscopy of Bilateral Internal Carotid Arteries,365176
+745,10929557369,4239130,10/25/2014,32827,0,1,555371,Oxygen therapy,4239130,,4239130,Oxygen therapy,365176
+746,10929557370,2787075,1/1/2014,32827,0,1,555371,Fluoroscopy of Other Upper Arteries using Low Osmolar,2787075,,2787075,Fluoroscopy of Other Upper Arteries using Low Osmolar,365176
+747,10929557371,2787075,10/25/2014,32827,0,2,555371,Fluoroscopy of Other Upper Arteries using Low Osmolar,2787075,,2787075,Fluoroscopy of Other Upper Arteries using Low Osmolar,365176
+748,10929557372,2786802,10/25/2014,32827,0,1,555371,Fluoroscopy of Bilateral Internal Carotid Arteries,2786802,,2786802,Fluoroscopy of Bilateral Internal Carotid Arteries,365176
+749,10929557373,2751614,10/25/2014,32827,0,1,555371,"Excision of Left Hand Skin, Multiple, External Approach",2751614,,2751614,"Excision of Left Hand Skin, Multiple, External Approach",365176
+750,10929557374,2786612,8/31/2016,32827,0,2,058744,Fluoroscopy of Bilateral Internal Carotid Arteries,2786612,,2786612,Fluoroscopy of Bilateral Internal Carotid Arteries,365176
+751,10929557375,2786591,1/1/2016,32827,0,1,058744,Fluoroscopy of Bilateral Common Carotid Arteries,2786591,,2786591,Fluoroscopy of Bilateral Common Carotid Arteries,365176
+752,219,2751614,1/1/2016,32827,0,1,058744,"Excision of Left Hand Skin, Multiple, External Approach",2751614,,2751614,"Excision of Left Hand Skin, Multiple, External Approach",365176
+753,10929557376,4081128,8/31/2016,32827,0,1,058744,Chemotherapy follow-up,4081128,,4081128,Chemotherapy follow-up,365176
+754,10929557377,2787075,8/31/2016,32827,0,1,058744,Fluoroscopy of Other Upper Arteries using Low Osmolar,2787075,,2787075,Fluoroscopy of Other Upper Arteries using Low Osmolar,365176
+755,10929557378,43527928,8/31/2016,32827,0,1,058744,"Selective catheter placement, external carotid artery",43527928,,43527928,"Selective catheter placement, external carotid artery",365176
+756,10929557379,4239130,3/29/2010,32827,0,1,562423,Oxygen therapy,4239130,,4239130,Oxygen therapy,686737
+757,220,4239130,3/29/2010,32827,0,1,562423,Oxygen therapy,4239130,,4239130,Oxygen therapy,686737
+758,221,2786591,1/1/2010,32827,0,1,336459,Fluoroscopy of Bilateral Common Carotid Arteries,2786591,,2786591,Fluoroscopy of Bilateral Common Carotid Arteries,686737
+759,10929557380,2786591,10/26/2010,32827,0,2,336459,Fluoroscopy of Bilateral Common Carotid Arteries,2786591,,2786591,Fluoroscopy of Bilateral Common Carotid Arteries,686737
+760,10929557381,2750303,1/1/2010,32827,0,1,336459,"Destruction of Back Skin, External Approach, Diagnostic",2750303,,2750303,"Destruction of Back Skin, External Approach, Diagnostic",686737
+761,10929557382,2786841,1/1/2010,32827,0,1,336459,Fluoroscopy of Bilateral Vertebral Arteries,2786841,,2786841,Fluoroscopy of Bilateral Vertebral Arteries,686737
+762,10929557383,2750303,1/1/2010,32827,0,2,336459,"Destruction of Back Skin, External Approach, Diagnostic",2750303,,2750303,"Destruction of Back Skin, External Approach, Diagnostic",686737
+763,10929557384,2787075,10/26/2010,32827,0,2,336459,Fluoroscopy of Other Upper Arteries using Low Osmolar,2787075,,2787075,Fluoroscopy of Other Upper Arteries using Low Osmolar,686737
+764,222,2211351,3/21/2011,32827,0,1,789783,"Magnetic resonance (eg, proton) imaging, brain",2211351,,2211351,"Magnetic resonance (eg, proton) imaging, brain",686737
+765,223,2756496,3/21/2011,32827,0,2,789783,"Repair Back Skin, External Approach",2756496,,2756496,"Repair Back Skin, External Approach",686737
+766,10929557385,4081128,3/21/2011,32827,0,1,789783,Chemotherapy follow-up,4081128,,4081128,Chemotherapy follow-up,686737
+767,10929557386,2751614,1/1/2011,32827,0,1,073298,"Excision of Left Hand Skin, Multiple, External Approach",2751614,,2751614,"Excision of Left Hand Skin, Multiple, External Approach",686737
+768,10929557387,2750314,10/30/2011,32827,0,2,073298,"Destruction of Right Foot Skin, External Approach",2750314,,2750314,"Destruction of Right Foot Skin, External Approach",686737
+769,224,2756496,1/1/2008,32827,0,1,559871,"Repair Back Skin, External Approach",2756496,,2756496,"Repair Back Skin, External Approach",649438
+770,225,2786841,7/13/2008,32827,0,1,559871,Fluoroscopy of Bilateral Vertebral Arteries,2786841,,2786841,Fluoroscopy of Bilateral Vertebral Arteries,649438
+771,10929557388,2756496,7/13/2008,32827,0,1,559871,"Repair Back Skin, External Approach",2756496,,2756496,"Repair Back Skin, External Approach",649438
+772,10929557389,4239130,1/1/2008,32827,0,1,559871,Oxygen therapy,4239130,,4239130,Oxygen therapy,649438
+773,226,2751614,7/13/2008,32827,0,1,559871,"Excision of Left Hand Skin, Multiple, External Approach",2751614,,2751614,"Excision of Left Hand Skin, Multiple, External Approach",649438
+774,10929557390,2751613,7/16/2009,32827,0,2,267615,"Excision of Back Skin, External Approach",2751613,,2751613,"Excision of Back Skin, External Approach",649438
+775,10929557391,2750303,7/16/2009,32827,0,1,267615,"Destruction of Back Skin, External Approach, Diagnostic",2750303,,2750303,"Destruction of Back Skin, External Approach, Diagnostic",649438
+776,227,2786591,1/1/2009,32827,0,1,267615,Fluoroscopy of Bilateral Common Carotid Arteries,2786591,,2786591,Fluoroscopy of Bilateral Common Carotid Arteries,649438
+777,10929557392,2786841,1/1/2009,32827,0,1,267615,Fluoroscopy of Bilateral Vertebral Arteries,2786841,,2786841,Fluoroscopy of Bilateral Vertebral Arteries,649438
+778,10929557393,2787075,1/1/2009,32827,0,1,126573,Fluoroscopy of Other Upper Arteries using Low Osmolar,2787075,,2787075,Fluoroscopy of Other Upper Arteries using Low Osmolar,649438
+779,10929557394,43527928,9/14/2009,32827,0,1,126573,"Selective catheter placement, external carotid artery",43527928,,43527928,"Selective catheter placement, external carotid artery",649438
+780,10929557395,2211351,9/14/2009,32827,0,1,126573,"Magnetic resonance (eg, proton) imaging, brain",2211351,,2211351,"Magnetic resonance (eg, proton) imaging, brain",649438
+781,10929557396,4239130,1/1/2007,32827,0,1,758767,Oxygen therapy,4239130,,4239130,Oxygen therapy,807031
+782,228,2786802,1/1/2007,32827,0,1,758767,Fluoroscopy of Bilateral Internal Carotid Arteries,2786802,,2786802,Fluoroscopy of Bilateral Internal Carotid Arteries,807031
+783,229,2756496,1/1/2007,32827,0,2,758767,"Repair Back Skin, External Approach",2756496,,2756496,"Repair Back Skin, External Approach",807031
+784,230,2756496,1/1/2007,32827,0,1,758767,"Repair Back Skin, External Approach",2756496,,2756496,"Repair Back Skin, External Approach",807031
+785,231,2750316,7/22/2014,32827,0,1,753312,"Destruction of Left Foot Skin, External Approach",2750316,,2750316,"Destruction of Left Foot Skin, External Approach",807031
+786,232,2786612,1/1/2014,32827,0,1,753312,Fluoroscopy of Bilateral Internal Carotid Arteries,2786612,,2786612,Fluoroscopy of Bilateral Internal Carotid Arteries,807031
+787,233,43527928,1/1/2015,32827,0,1,979633,"Selective catheter placement, external carotid artery",43527928,,43527928,"Selective catheter placement, external carotid artery",807031
+788,10929557397,2786591,1/1/2015,32827,0,1,979633,Fluoroscopy of Bilateral Common Carotid Arteries,2786591,,2786591,Fluoroscopy of Bilateral Common Carotid Arteries,807031
+789,10929557398,2751614,9/11/2015,32827,0,1,979633,"Excision of Left Hand Skin, Multiple, External Approach",2751614,,2751614,"Excision of Left Hand Skin, Multiple, External Approach",807031
+790,234,2786802,9/11/2015,32827,0,1,979633,Fluoroscopy of Bilateral Internal Carotid Arteries,2786802,,2786802,Fluoroscopy of Bilateral Internal Carotid Arteries,807031
+791,10929557399,2211351,9/11/2015,32827,0,1,979633,"Magnetic resonance (eg, proton) imaging, brain",2211351,,2211351,"Magnetic resonance (eg, proton) imaging, brain",807031
+792,10929557400,4081128,7/16/2014,32827,0,1,366570,Chemotherapy follow-up,4081128,,4081128,Chemotherapy follow-up,807031
+793,10929557401,2750303,7/16/2014,32827,0,1,366570,"Destruction of Back Skin, External Approach, Diagnostic",2750303,,2750303,"Destruction of Back Skin, External Approach, Diagnostic",807031
+794,10929557402,43527928,7/16/2014,32827,0,1,366570,"Selective catheter placement, external carotid artery",43527928,,43527928,"Selective catheter placement, external carotid artery",807031
+795,10929557403,43527928,7/16/2014,32827,0,1,366570,"Selective catheter placement, external carotid artery",43527928,,43527928,"Selective catheter placement, external carotid artery",807031
+796,10929557404,2751614,7/16/2014,32827,0,1,366570,"Excision of Left Hand Skin, Multiple, External Approach",2751614,,2751614,"Excision of Left Hand Skin, Multiple, External Approach",807031
+797,235,2786612,7/15/2015,32827,0,2,365322,Fluoroscopy of Bilateral Internal Carotid Arteries,2786612,,2786612,Fluoroscopy of Bilateral Internal Carotid Arteries,807031
+798,236,2751614,7/15/2015,32827,0,1,365322,"Excision of Left Hand Skin, Multiple, External Approach",2751614,,2751614,"Excision of Left Hand Skin, Multiple, External Approach",807031
+799,10929557405,2786612,7/15/2015,32827,0,1,365322,Fluoroscopy of Bilateral Internal Carotid Arteries,2786612,,2786612,Fluoroscopy of Bilateral Internal Carotid Arteries,807031
+800,10929557406,2211351,7/15/2015,32827,0,1,365322,"Magnetic resonance (eg, proton) imaging, brain",2211351,,2211351,"Magnetic resonance (eg, proton) imaging, brain",807031
+801,10929557407,4081128,1/1/2015,32827,0,1,365322,Chemotherapy follow-up,4081128,,4081128,Chemotherapy follow-up,807031
+802,10929557408,4239130,1/13/2020,32827,0,1,86788,Oxygen therapy,4239130,,4239130,Oxygen therapy,807031
+803,10929557409,2786802,1/13/2020,32827,0,1,86788,Fluoroscopy of Bilateral Internal Carotid Arteries,2786802,,2786802,Fluoroscopy of Bilateral Internal Carotid Arteries,807031
+804,10929557410,2750316,1/13/2020,32827,0,1,86788,"Destruction of Left Foot Skin, External Approach",2750316,,2750316,"Destruction of Left Foot Skin, External Approach",807031
+805,10929557411,4081128,1/13/2020,32827,0,1,86788,Chemotherapy follow-up,4081128,,4081128,Chemotherapy follow-up,807031
+806,237,2750303,1/1/2020,32827,0,1,86788,"Destruction of Back Skin, External Approach, Diagnostic",2750303,,2750303,"Destruction of Back Skin, External Approach, Diagnostic",807031
+807,238,2786802,1/1/2020,32827,0,2,86788,Fluoroscopy of Bilateral Internal Carotid Arteries,2786802,,2786802,Fluoroscopy of Bilateral Internal Carotid Arteries,807031
+808,10929557412,2786612,1/1/2020,32827,0,1,078281,Fluoroscopy of Bilateral Internal Carotid Arteries,2786612,,2786612,Fluoroscopy of Bilateral Internal Carotid Arteries,807031
+809,239,2750303,8/9/2020,32827,0,1,078281,"Destruction of Back Skin, External Approach, Diagnostic",2750303,,2750303,"Destruction of Back Skin, External Approach, Diagnostic",807031
+810,10929557413,2750303,1/1/2020,32827,0,2,078281,"Destruction of Back Skin, External Approach, Diagnostic",2750303,,2750303,"Destruction of Back Skin, External Approach, Diagnostic",807031
+811,10929557414,2786841,11/5/2014,32827,0,1,381060,Fluoroscopy of Bilateral Vertebral Arteries,2786841,,2786841,Fluoroscopy of Bilateral Vertebral Arteries,807031
+812,10929557415,2786802,11/5/2014,32827,0,1,381060,Fluoroscopy of Bilateral Internal Carotid Arteries,2786802,,2786802,Fluoroscopy of Bilateral Internal Carotid Arteries,807031
+813,10929557416,2786591,11/5/2014,32827,0,1,381060,Fluoroscopy of Bilateral Common Carotid Arteries,2786591,,2786591,Fluoroscopy of Bilateral Common Carotid Arteries,807031
+814,10929557417,2786841,1/1/2020,32827,0,1,925430,Fluoroscopy of Bilateral Vertebral Arteries,2786841,,2786841,Fluoroscopy of Bilateral Vertebral Arteries,807031
+815,10929557418,2786802,1/26/2020,32827,0,2,925430,Fluoroscopy of Bilateral Internal Carotid Arteries,2786802,,2786802,Fluoroscopy of Bilateral Internal Carotid Arteries,807031
+816,240,2786612,1/1/2020,32827,0,1,925430,Fluoroscopy of Bilateral Internal Carotid Arteries,2786612,,2786612,Fluoroscopy of Bilateral Internal Carotid Arteries,807031
+817,241,2211351,1/26/2020,32827,0,1,925430,"Magnetic resonance (eg, proton) imaging, brain",2211351,,2211351,"Magnetic resonance (eg, proton) imaging, brain",807031
+818,10929557419,2786591,12/11/2014,32827,0,1,257675,Fluoroscopy of Bilateral Common Carotid Arteries,2786591,,2786591,Fluoroscopy of Bilateral Common Carotid Arteries,358334
+819,10929557420,43527928,12/11/2014,32827,0,1,257675,"Selective catheter placement, external carotid artery",43527928,,43527928,"Selective catheter placement, external carotid artery",358334
+820,10929557421,2211351,12/11/2014,32827,0,1,257675,"Magnetic resonance (eg, proton) imaging, brain",2211351,,2211351,"Magnetic resonance (eg, proton) imaging, brain",358334
+821,242,2211351,1/1/2014,32827,0,2,085450,"Magnetic resonance (eg, proton) imaging, brain",2211351,,2211351,"Magnetic resonance (eg, proton) imaging, brain",358334
+822,10929557422,2787075,6/6/2014,32827,0,1,085450,Fluoroscopy of Other Upper Arteries using Low Osmolar,2787075,,2787075,Fluoroscopy of Other Upper Arteries using Low Osmolar,358334
+823,10929557423,2751614,6/6/2014,32827,0,2,085450,"Excision of Left Hand Skin, Multiple, External Approach",2751614,,2751614,"Excision of Left Hand Skin, Multiple, External Approach",358334
+824,243,2786802,6/6/2014,32827,0,1,085450,Fluoroscopy of Bilateral Internal Carotid Arteries,2786802,,2786802,Fluoroscopy of Bilateral Internal Carotid Arteries,358334
+825,10929557424,2750316,6/6/2014,32827,0,191,085450,"Destruction of Left Foot Skin, External Approach",2750316,,2750316,"Destruction of Left Foot Skin, External Approach",358334
+826,10929557425,4081128,1/1/2020,32827,0,1,621154,Chemotherapy follow-up,4081128,,4081128,Chemotherapy follow-up,358334
+827,10929557426,4239130,7/8/2020,32827,0,1,621154,Oxygen therapy,4239130,,4239130,Oxygen therapy,358334
+828,10929557427,2787075,7/8/2020,32827,0,1,621154,Fluoroscopy of Other Upper Arteries using Low Osmolar,2787075,,2787075,Fluoroscopy of Other Upper Arteries using Low Osmolar,358334
+829,244,43527928,7/8/2020,32827,0,1,621154,"Selective catheter placement, external carotid artery",43527928,,43527928,"Selective catheter placement, external carotid artery",358334
+830,10929557428,43527928,1/1/2020,32827,0,1,621154,"Selective catheter placement, external carotid artery",43527928,,43527928,"Selective catheter placement, external carotid artery",358334
+831,245,4081128,1/1/2011,32827,0,1,813420,Chemotherapy follow-up,4081128,,4081128,Chemotherapy follow-up,741683
+832,10929557429,2786591,1/1/2011,32827,0,1,813420,Fluoroscopy of Bilateral Common Carotid Arteries,2786591,,2786591,Fluoroscopy of Bilateral Common Carotid Arteries,741683
+833,246,4081128,6/8/2011,32827,0,1,813420,Chemotherapy follow-up,4081128,,4081128,Chemotherapy follow-up,741683
+834,247,2750316,6/8/2011,32827,0,1,813420,"Destruction of Left Foot Skin, External Approach",2750316,,2750316,"Destruction of Left Foot Skin, External Approach",741683
+835,10929557430,2786841,6/8/2011,32827,0,1,813420,Fluoroscopy of Bilateral Vertebral Arteries,2786841,,2786841,Fluoroscopy of Bilateral Vertebral Arteries,741683
+836,248,2786591,10/11/2013,32827,0,1,643964,Fluoroscopy of Bilateral Common Carotid Arteries,2786591,,2786591,Fluoroscopy of Bilateral Common Carotid Arteries,741683
+837,10929557431,2786802,10/11/2013,32827,0,1,643964,Fluoroscopy of Bilateral Internal Carotid Arteries,2786802,,2786802,Fluoroscopy of Bilateral Internal Carotid Arteries,741683
+838,10929557432,4081128,10/11/2013,32827,0,1,643964,Chemotherapy follow-up,4081128,,4081128,Chemotherapy follow-up,741683
+839,10929557433,2786841,10/11/2013,32827,0,1,643964,Fluoroscopy of Bilateral Vertebral Arteries,2786841,,2786841,Fluoroscopy of Bilateral Vertebral Arteries,741683
+840,10929557434,4239130,10/11/2013,32827,0,1,643964,Oxygen therapy,4239130,,4239130,Oxygen therapy,741683
+841,249,2756496,3/16/2008,32827,0,1,802303,"Repair Back Skin, External Approach",2756496,,2756496,"Repair Back Skin, External Approach",613362
+842,10929557435,2751614,3/16/2008,32827,0,1,802303,"Excision of Left Hand Skin, Multiple, External Approach",2751614,,2751614,"Excision of Left Hand Skin, Multiple, External Approach",613362
+843,250,2211351,3/16/2008,32827,0,1,802303,"Magnetic resonance (eg, proton) imaging, brain",2211351,,2211351,"Magnetic resonance (eg, proton) imaging, brain",613362
+844,251,2211351,1/1/2008,32827,0,1,802303,"Magnetic resonance (eg, proton) imaging, brain",2211351,,2211351,"Magnetic resonance (eg, proton) imaging, brain",613362
+845,10929557436,2787075,2/7/2008,32827,0,1,758050,Fluoroscopy of Other Upper Arteries using Low Osmolar,2787075,,2787075,Fluoroscopy of Other Upper Arteries using Low Osmolar,613362
+846,252,2786841,2/7/2008,32827,0,1,758050,Fluoroscopy of Bilateral Vertebral Arteries,2786841,,2786841,Fluoroscopy of Bilateral Vertebral Arteries,613362
+847,10929557437,2750316,1/1/2008,32827,0,1,758050,"Destruction of Left Foot Skin, External Approach",2750316,,2750316,"Destruction of Left Foot Skin, External Approach",613362
+848,10929557438,4239130,2/7/2008,32827,0,1,758050,Oxygen therapy,4239130,,4239130,Oxygen therapy,613362
+849,10929557439,2786591,10/26/2010,32827,0,1,797839,Fluoroscopy of Bilateral Common Carotid Arteries,2786591,,2786591,Fluoroscopy of Bilateral Common Carotid Arteries,613362
+850,10929557440,43527928,10/26/2010,32827,0,2,797839,"Selective catheter placement, external carotid artery",43527928,,43527928,"Selective catheter placement, external carotid artery",613362
+851,253,4239130,1/1/2010,32827,0,1,797839,Oxygen therapy,4239130,,4239130,Oxygen therapy,613362
+852,10929557441,2786802,1/1/2010,32827,0,1,797839,Fluoroscopy of Bilateral Internal Carotid Arteries,2786802,,2786802,Fluoroscopy of Bilateral Internal Carotid Arteries,613362
+853,10929557442,2750316,10/26/2010,32827,0,1,797839,"Destruction of Left Foot Skin, External Approach",2750316,,2750316,"Destruction of Left Foot Skin, External Approach",613362
+854,10929557443,43527928,10/26/2010,32827,0,2,797839,"Selective catheter placement, external carotid artery",43527928,,43527928,"Selective catheter placement, external carotid artery",613362
+855,10929557444,2750303,9/27/2013,32827,0,1,537221,"Destruction of Back Skin, External Approach, Diagnostic",2750303,,2750303,"Destruction of Back Skin, External Approach, Diagnostic",613362
+856,10929557445,4081128,9/27/2013,32827,0,1,537221,Chemotherapy follow-up,4081128,,4081128,Chemotherapy follow-up,613362
+857,10929557446,2750303,9/27/2013,32827,0,1,537221,"Destruction of Back Skin, External Approach, Diagnostic",2750303,,2750303,"Destruction of Back Skin, External Approach, Diagnostic",613362
+858,10929557447,2786802,7/30/2013,32827,0,1,453324,Fluoroscopy of Bilateral Internal Carotid Arteries,2786802,,2786802,Fluoroscopy of Bilateral Internal Carotid Arteries,613362
+859,10929557448,4081128,7/30/2013,32827,0,1,453324,Chemotherapy follow-up,4081128,,4081128,Chemotherapy follow-up,613362
+860,10929557449,2750314,7/30/2013,32827,0,1,453324,"Destruction of Right Foot Skin, External Approach",2750314,,2750314,"Destruction of Right Foot Skin, External Approach",613362
+861,10929557450,43527928,1/1/2013,32827,0,1,453324,"Selective catheter placement, external carotid artery",43527928,,43527928,"Selective catheter placement, external carotid artery",613362
+862,254,2750314,7/30/2013,32827,0,1,453324,"Destruction of Right Foot Skin, External Approach",2750314,,2750314,"Destruction of Right Foot Skin, External Approach",613362
+863,10929557451,2756496,7/30/2013,32827,0,1,453324,"Repair Back Skin, External Approach",2756496,,2756496,"Repair Back Skin, External Approach",613362
+864,10929557452,2786802,1/1/2016,32827,0,1,911386,Fluoroscopy of Bilateral Internal Carotid Arteries,2786802,,2786802,Fluoroscopy of Bilateral Internal Carotid Arteries,613362
+865,10929557453,2786841,7/5/2016,32827,0,1,911386,Fluoroscopy of Bilateral Vertebral Arteries,2786841,,2786841,Fluoroscopy of Bilateral Vertebral Arteries,613362
+866,10929557454,2786841,10/4/2008,32827,0,1,527677,Fluoroscopy of Bilateral Vertebral Arteries,2786841,,2786841,Fluoroscopy of Bilateral Vertebral Arteries,613362
+867,255,2786802,2/6/2015,32827,0,2,532150,Fluoroscopy of Bilateral Internal Carotid Arteries,2786802,,2786802,Fluoroscopy of Bilateral Internal Carotid Arteries,81347
+868,10929557455,2786612,1/1/2015,32827,0,2,532150,Fluoroscopy of Bilateral Internal Carotid Arteries,2786612,,2786612,Fluoroscopy of Bilateral Internal Carotid Arteries,81347
+869,256,4081128,2/6/2015,32827,0,1,532150,Chemotherapy follow-up,4081128,,4081128,Chemotherapy follow-up,81347
+870,257,2211351,2/6/2015,32827,0,1,532150,"Magnetic resonance (eg, proton) imaging, brain",2211351,,2211351,"Magnetic resonance (eg, proton) imaging, brain",81347
+871,258,2750314,1/1/2015,32827,0,1,532150,"Destruction of Right Foot Skin, External Approach",2750314,,2750314,"Destruction of Right Foot Skin, External Approach",81347
+872,259,2750314,2/6/2015,32827,0,1,532150,"Destruction of Right Foot Skin, External Approach",2750314,,2750314,"Destruction of Right Foot Skin, External Approach",81347
+873,260,2786612,1/1/2015,32827,0,2,922895,Fluoroscopy of Bilateral Internal Carotid Arteries,2786612,,2786612,Fluoroscopy of Bilateral Internal Carotid Arteries,81347
+874,10929557456,2786612,4/25/2015,32827,0,1,922895,Fluoroscopy of Bilateral Internal Carotid Arteries,2786612,,2786612,Fluoroscopy of Bilateral Internal Carotid Arteries,81347
+875,261,2751613,4/25/2015,32827,0,1,922895,"Excision of Back Skin, External Approach",2751613,,2751613,"Excision of Back Skin, External Approach",81347
+876,10929557457,2750303,4/25/2015,32827,0,1,922895,"Destruction of Back Skin, External Approach, Diagnostic",2750303,,2750303,"Destruction of Back Skin, External Approach, Diagnostic",81347
+877,10929557458,4081128,1/1/2013,32827,0,2,564253,Chemotherapy follow-up,4081128,,4081128,Chemotherapy follow-up,145168
+878,10929557459,2786802,1/24/2013,32827,0,1,564253,Fluoroscopy of Bilateral Internal Carotid Arteries,2786802,,2786802,Fluoroscopy of Bilateral Internal Carotid Arteries,145168
+879,262,2751614,1/24/2013,32827,0,1,564253,"Excision of Left Hand Skin, Multiple, External Approach",2751614,,2751614,"Excision of Left Hand Skin, Multiple, External Approach",145168
+880,10929557460,2750316,1/24/2013,32827,0,1,564253,"Destruction of Left Foot Skin, External Approach",2750316,,2750316,"Destruction of Left Foot Skin, External Approach",145168
+881,10929557461,2751614,1/24/2013,32827,0,1,564253,"Excision of Left Hand Skin, Multiple, External Approach",2751614,,2751614,"Excision of Left Hand Skin, Multiple, External Approach",145168
+882,10929557462,2750316,1/24/2013,32827,0,1,564253,"Destruction of Left Foot Skin, External Approach",2750316,,2750316,"Destruction of Left Foot Skin, External Approach",145168
+883,10929557463,4239130,8/15/2013,32827,0,1,317247,Oxygen therapy,4239130,,4239130,Oxygen therapy,145168
+884,10929557464,2756496,8/15/2013,32827,0,1,317247,"Repair Back Skin, External Approach",2756496,,2756496,"Repair Back Skin, External Approach",145168
+885,10929557465,2786591,8/15/2013,32827,0,1,317247,Fluoroscopy of Bilateral Common Carotid Arteries,2786591,,2786591,Fluoroscopy of Bilateral Common Carotid Arteries,145168
+886,263,2750303,8/15/2013,32827,0,1,317247,"Destruction of Back Skin, External Approach, Diagnostic",2750303,,2750303,"Destruction of Back Skin, External Approach, Diagnostic",145168
+887,264,2787075,8/15/2013,32827,0,1,317247,Fluoroscopy of Other Upper Arteries using Low Osmolar,2787075,,2787075,Fluoroscopy of Other Upper Arteries using Low Osmolar,145168
+888,10929557466,2786591,6/23/2015,32827,0,2,200346,Fluoroscopy of Bilateral Common Carotid Arteries,2786591,,2786591,Fluoroscopy of Bilateral Common Carotid Arteries,145168
+889,265,4081128,6/23/2015,32827,0,1,200346,Chemotherapy follow-up,4081128,,4081128,Chemotherapy follow-up,145168
+890,266,2786802,6/23/2015,32827,0,2,200346,Fluoroscopy of Bilateral Internal Carotid Arteries,2786802,,2786802,Fluoroscopy of Bilateral Internal Carotid Arteries,145168
+891,10929557467,2751613,1/1/2015,32827,0,1,200346,"Excision of Back Skin, External Approach",2751613,,2751613,"Excision of Back Skin, External Approach",145168
+892,10929557468,2786612,5/31/2014,32827,0,1,513226,Fluoroscopy of Bilateral Internal Carotid Arteries,2786612,,2786612,Fluoroscopy of Bilateral Internal Carotid Arteries,145168
+893,267,2787075,5/31/2014,32827,0,1,513226,Fluoroscopy of Other Upper Arteries using Low Osmolar,2787075,,2787075,Fluoroscopy of Other Upper Arteries using Low Osmolar,145168
+894,10929557469,2750316,6/12/2017,32827,0,1,861236,"Destruction of Left Foot Skin, External Approach",2750316,,2750316,"Destruction of Left Foot Skin, External Approach",145168
+895,268,2786612,6/12/2017,32827,0,1,861236,Fluoroscopy of Bilateral Internal Carotid Arteries,2786612,,2786612,Fluoroscopy of Bilateral Internal Carotid Arteries,145168
+896,269,2211351,6/12/2017,32827,0,1,861236,"Magnetic resonance (eg, proton) imaging, brain",2211351,,2211351,"Magnetic resonance (eg, proton) imaging, brain",145168
+897,270,2786802,1/1/2017,32827,0,1,861236,Fluoroscopy of Bilateral Internal Carotid Arteries,2786802,,2786802,Fluoroscopy of Bilateral Internal Carotid Arteries,145168
+898,10929557470,2750303,6/12/2017,32827,0,1,861236,"Destruction of Back Skin, External Approach, Diagnostic",2750303,,2750303,"Destruction of Back Skin, External Approach, Diagnostic",145168
+899,10929557471,2751614,9/23/2020,32827,0,1,315793,"Excision of Left Hand Skin, Multiple, External Approach",2751614,,2751614,"Excision of Left Hand Skin, Multiple, External Approach",145168
+900,271,2750316,9/23/2020,32827,0,1,315793,"Destruction of Left Foot Skin, External Approach",2750316,,2750316,"Destruction of Left Foot Skin, External Approach",145168
+901,10929557472,2750314,11/10/2015,32827,0,1,245048,"Destruction of Right Foot Skin, External Approach",2750314,,2750314,"Destruction of Right Foot Skin, External Approach",145168
+902,10929557473,2786802,1/1/2015,32827,0,1,245048,Fluoroscopy of Bilateral Internal Carotid Arteries,2786802,,2786802,Fluoroscopy of Bilateral Internal Carotid Arteries,145168
+903,10929557474,2786841,11/10/2015,32827,0,1,245048,Fluoroscopy of Bilateral Vertebral Arteries,2786841,,2786841,Fluoroscopy of Bilateral Vertebral Arteries,145168
+904,10929557475,2750314,11/10/2015,32827,0,1,245048,"Destruction of Right Foot Skin, External Approach",2750314,,2750314,"Destruction of Right Foot Skin, External Approach",145168
+905,10929557476,4239130,11/10/2015,32827,0,1,245048,Oxygen therapy,4239130,,4239130,Oxygen therapy,145168
+906,10929557477,2751614,1/1/2010,32827,0,1,542960,"Excision of Left Hand Skin, Multiple, External Approach",2751614,,2751614,"Excision of Left Hand Skin, Multiple, External Approach",898456
+907,272,2751614,4/23/2010,32827,0,1,542960,"Excision of Left Hand Skin, Multiple, External Approach",2751614,,2751614,"Excision of Left Hand Skin, Multiple, External Approach",898456
+908,10929557478,2751614,1/1/2010,32827,0,1,542960,"Excision of Left Hand Skin, Multiple, External Approach",2751614,,2751614,"Excision of Left Hand Skin, Multiple, External Approach",898456
+909,10929557479,2750303,1/1/2010,32827,0,1,542960,"Destruction of Back Skin, External Approach, Diagnostic",2750303,,2750303,"Destruction of Back Skin, External Approach, Diagnostic",898456
+910,10929557480,2750316,4/23/2010,32827,0,2,542960,"Destruction of Left Foot Skin, External Approach",2750316,,2750316,"Destruction of Left Foot Skin, External Approach",898456
+911,273,2786591,4/23/2010,32827,0,1,542960,Fluoroscopy of Bilateral Common Carotid Arteries,2786591,,2786591,Fluoroscopy of Bilateral Common Carotid Arteries,898456
+912,10929557481,4081128,1/30/2011,32827,0,1,197414,Chemotherapy follow-up,4081128,,4081128,Chemotherapy follow-up,898456
+913,274,43527928,1/30/2011,32827,0,2,197414,"Selective catheter placement, external carotid artery",43527928,,43527928,"Selective catheter placement, external carotid artery",898456
+914,275,43527928,1/30/2011,32827,0,1,197414,"Selective catheter placement, external carotid artery",43527928,,43527928,"Selective catheter placement, external carotid artery",898456
+915,10929557482,2786841,1/30/2011,32827,0,1,197414,Fluoroscopy of Bilateral Vertebral Arteries,2786841,,2786841,Fluoroscopy of Bilateral Vertebral Arteries,898456
+916,10929557483,2786802,1/30/2011,32827,0,1,197414,Fluoroscopy of Bilateral Internal Carotid Arteries,2786802,,2786802,Fluoroscopy of Bilateral Internal Carotid Arteries,898456
+917,276,2211351,1/1/2011,32827,0,1,224051,"Magnetic resonance (eg, proton) imaging, brain",2211351,,2211351,"Magnetic resonance (eg, proton) imaging, brain",898456
+918,277,2756496,6/27/2011,32827,0,2,224051,"Repair Back Skin, External Approach",2756496,,2756496,"Repair Back Skin, External Approach",898456
+919,278,2751613,6/27/2011,32827,0,2,224051,"Excision of Back Skin, External Approach",2751613,,2751613,"Excision of Back Skin, External Approach",898456
+920,10929557484,2786802,6/27/2011,32827,0,1,224051,Fluoroscopy of Bilateral Internal Carotid Arteries,2786802,,2786802,Fluoroscopy of Bilateral Internal Carotid Arteries,898456
+921,10929557485,2750316,6/14/2012,32827,0,1,182436,"Destruction of Left Foot Skin, External Approach",2750316,,2750316,"Destruction of Left Foot Skin, External Approach",898456
+922,10929557486,2786612,1/1/2012,32827,0,1,182436,Fluoroscopy of Bilateral Internal Carotid Arteries,2786612,,2786612,Fluoroscopy of Bilateral Internal Carotid Arteries,898456
+923,10929557487,2786841,1/1/2012,32827,0,1,182436,Fluoroscopy of Bilateral Vertebral Arteries,2786841,,2786841,Fluoroscopy of Bilateral Vertebral Arteries,898456
+924,10929557488,2756496,6/14/2012,32827,0,1,182436,"Repair Back Skin, External Approach",2756496,,2756496,"Repair Back Skin, External Approach",898456
+925,279,2750314,8/31/2016,32827,0,1,229829,"Destruction of Right Foot Skin, External Approach",2750314,,2750314,"Destruction of Right Foot Skin, External Approach",898456
+926,10929557489,2751613,4/8/2016,32827,0,2,159912,"Excision of Back Skin, External Approach",2751613,,2751613,"Excision of Back Skin, External Approach",898456
+927,10929557490,2786802,4/8/2016,32827,0,2,159912,Fluoroscopy of Bilateral Internal Carotid Arteries,2786802,,2786802,Fluoroscopy of Bilateral Internal Carotid Arteries,898456
+928,280,2751613,4/8/2016,32827,0,1,159912,"Excision of Back Skin, External Approach",2751613,,2751613,"Excision of Back Skin, External Approach",898456
+929,10929557491,2750316,1/1/2016,32827,0,1,159912,"Destruction of Left Foot Skin, External Approach",2750316,,2750316,"Destruction of Left Foot Skin, External Approach",898456
+930,10929557492,2750314,4/8/2016,32827,0,1,159912,"Destruction of Right Foot Skin, External Approach",2750314,,2750314,"Destruction of Right Foot Skin, External Approach",898456
+931,10929557493,2786591,1/1/2016,32827,0,1,159912,Fluoroscopy of Bilateral Common Carotid Arteries,2786591,,2786591,Fluoroscopy of Bilateral Common Carotid Arteries,898456
+932,281,2751613,2/5/2008,32827,0,1,510707,"Excision of Back Skin, External Approach",2751613,,2751613,"Excision of Back Skin, External Approach",223974
+933,10929557494,2750316,2/5/2008,32827,0,1,510707,"Destruction of Left Foot Skin, External Approach",2750316,,2750316,"Destruction of Left Foot Skin, External Approach",223974
+934,10929557495,2750303,2/5/2008,32827,0,1,510707,"Destruction of Back Skin, External Approach, Diagnostic",2750303,,2750303,"Destruction of Back Skin, External Approach, Diagnostic",223974
+935,10929557496,2756496,2/5/2008,32827,0,1,510707,"Repair Back Skin, External Approach",2756496,,2756496,"Repair Back Skin, External Approach",223974
+936,282,2211351,2/5/2008,32827,0,1,510707,"Magnetic resonance (eg, proton) imaging, brain",2211351,,2211351,"Magnetic resonance (eg, proton) imaging, brain",223974
+937,10929557497,2211351,2/5/2008,32827,0,1,510707,"Magnetic resonance (eg, proton) imaging, brain",2211351,,2211351,"Magnetic resonance (eg, proton) imaging, brain",223974
+938,10929557498,2786591,11/23/2008,32827,0,1,213773,Fluoroscopy of Bilateral Common Carotid Arteries,2786591,,2786591,Fluoroscopy of Bilateral Common Carotid Arteries,223974
+939,283,2787075,1/1/2008,32827,0,1,213773,Fluoroscopy of Other Upper Arteries using Low Osmolar,2787075,,2787075,Fluoroscopy of Other Upper Arteries using Low Osmolar,223974
+940,284,2786802,11/23/2008,32827,0,1,213773,Fluoroscopy of Bilateral Internal Carotid Arteries,2786802,,2786802,Fluoroscopy of Bilateral Internal Carotid Arteries,223974
+941,10929557499,2750316,6/26/2009,32827,0,1,637459,"Destruction of Left Foot Skin, External Approach",2750316,,2750316,"Destruction of Left Foot Skin, External Approach",223974
+942,10929557500,2786591,1/1/2012,32827,0,1,175502,Fluoroscopy of Bilateral Common Carotid Arteries,2786591,,2786591,Fluoroscopy of Bilateral Common Carotid Arteries,223974
+943,10929557501,2786841,9/27/2012,32827,0,1,175502,Fluoroscopy of Bilateral Vertebral Arteries,2786841,,2786841,Fluoroscopy of Bilateral Vertebral Arteries,223974
+944,10929557502,2750316,9/27/2012,32827,0,1,175502,"Destruction of Left Foot Skin, External Approach",2750316,,2750316,"Destruction of Left Foot Skin, External Approach",223974
+945,10929557503,2751614,9/27/2012,32827,0,1,175502,"Excision of Left Hand Skin, Multiple, External Approach",2751614,,2751614,"Excision of Left Hand Skin, Multiple, External Approach",223974
+946,10929557504,2786591,1/1/2014,32827,0,1,254476,Fluoroscopy of Bilateral Common Carotid Arteries,2786591,,2786591,Fluoroscopy of Bilateral Common Carotid Arteries,223974
+947,10929557505,2751613,4/11/2014,32827,0,1,254476,"Excision of Back Skin, External Approach",2751613,,2751613,"Excision of Back Skin, External Approach",223974
+948,10929557506,4239130,1/1/2010,32827,0,1,479096,Oxygen therapy,4239130,,4239130,Oxygen therapy,153083
+949,285,2786591,6/22/2010,32827,0,1,479096,Fluoroscopy of Bilateral Common Carotid Arteries,2786591,,2786591,Fluoroscopy of Bilateral Common Carotid Arteries,153083
+950,286,2786841,1/1/2010,32827,0,1,479096,Fluoroscopy of Bilateral Vertebral Arteries,2786841,,2786841,Fluoroscopy of Bilateral Vertebral Arteries,153083
+951,10929557507,43527928,6/22/2010,32827,0,2,479096,"Selective catheter placement, external carotid artery",43527928,,43527928,"Selective catheter placement, external carotid artery",153083
+952,10929557508,2211351,5/21/2015,32827,0,1,745221,"Magnetic resonance (eg, proton) imaging, brain",2211351,,2211351,"Magnetic resonance (eg, proton) imaging, brain",928827
+953,10929557509,2211351,1/1/2015,32827,0,1,745221,"Magnetic resonance (eg, proton) imaging, brain",2211351,,2211351,"Magnetic resonance (eg, proton) imaging, brain",928827
+954,10929557510,2211351,1/1/2015,32827,0,1,745221,"Magnetic resonance (eg, proton) imaging, brain",2211351,,2211351,"Magnetic resonance (eg, proton) imaging, brain",928827
+955,10929557511,2751614,5/21/2015,32827,0,1,745221,"Excision of Left Hand Skin, Multiple, External Approach",2751614,,2751614,"Excision of Left Hand Skin, Multiple, External Approach",928827
+956,10929557512,4081128,1/1/2014,32827,0,1,367546,Chemotherapy follow-up,4081128,,4081128,Chemotherapy follow-up,910583
+957,10929557513,2756496,3/29/2014,32827,0,1,367546,"Repair Back Skin, External Approach",2756496,,2756496,"Repair Back Skin, External Approach",910583
+958,10929557514,2211351,3/29/2014,32827,0,1,367546,"Magnetic resonance (eg, proton) imaging, brain",2211351,,2211351,"Magnetic resonance (eg, proton) imaging, brain",910583
+959,10929557515,2756496,1/1/2014,32827,0,1,367546,"Repair Back Skin, External Approach",2756496,,2756496,"Repair Back Skin, External Approach",910583
+960,10929557516,2750314,12/30/2009,32827,0,1,191604,"Destruction of Right Foot Skin, External Approach",2750314,,2750314,"Destruction of Right Foot Skin, External Approach",398446
+961,287,2786841,12/30/2009,32827,0,1,191604,Fluoroscopy of Bilateral Vertebral Arteries,2786841,,2786841,Fluoroscopy of Bilateral Vertebral Arteries,398446
+962,288,2751613,8/6/2010,32827,0,1,773408,"Excision of Back Skin, External Approach",2751613,,2751613,"Excision of Back Skin, External Approach",398446
+963,10929557517,4239130,8/6/2010,32827,0,1,773408,Oxygen therapy,4239130,,4239130,Oxygen therapy,398446
+964,289,2211351,1/1/2010,32827,0,1,773408,"Magnetic resonance (eg, proton) imaging, brain",2211351,,2211351,"Magnetic resonance (eg, proton) imaging, brain",398446
+965,10929557518,2750303,8/6/2010,32827,0,1,773408,"Destruction of Back Skin, External Approach, Diagnostic",2750303,,2750303,"Destruction of Back Skin, External Approach, Diagnostic",398446
+966,290,2751613,8/6/2010,32827,0,1,773408,"Excision of Back Skin, External Approach",2751613,,2751613,"Excision of Back Skin, External Approach",398446
+967,10929557519,2786612,8/6/2010,32827,0,1,773408,Fluoroscopy of Bilateral Internal Carotid Arteries,2786612,,2786612,Fluoroscopy of Bilateral Internal Carotid Arteries,398446
+968,10929557520,2750314,1/1/2011,32827,0,2,168633,"Destruction of Right Foot Skin, External Approach",2750314,,2750314,"Destruction of Right Foot Skin, External Approach",398446
+969,291,2750314,11/4/2014,32827,0,1,756273,"Destruction of Right Foot Skin, External Approach",2750314,,2750314,"Destruction of Right Foot Skin, External Approach",398446
+970,10929557521,2786591,1/1/2014,32827,0,1,756273,Fluoroscopy of Bilateral Common Carotid Arteries,2786591,,2786591,Fluoroscopy of Bilateral Common Carotid Arteries,398446
+971,10929557522,2211351,11/4/2014,32827,0,2,756273,"Magnetic resonance (eg, proton) imaging, brain",2211351,,2211351,"Magnetic resonance (eg, proton) imaging, brain",398446
+972,10929557523,4239130,1/1/2014,32827,0,1,756273,Oxygen therapy,4239130,,4239130,Oxygen therapy,398446
+973,292,4239130,11/4/2014,32827,0,1,756273,Oxygen therapy,4239130,,4239130,Oxygen therapy,398446
+974,293,2750316,11/4/2014,32827,0,1,756273,"Destruction of Left Foot Skin, External Approach",2750316,,2750316,"Destruction of Left Foot Skin, External Approach",398446
+975,294,2786841,9/26/2009,32827,0,1,259743,Fluoroscopy of Bilateral Vertebral Arteries,2786841,,2786841,Fluoroscopy of Bilateral Vertebral Arteries,919113
+976,10929557524,2750314,1/1/2010,32827,0,1,937262,"Destruction of Right Foot Skin, External Approach",2750314,,2750314,"Destruction of Right Foot Skin, External Approach",919113
+977,10929557525,2211351,8/6/2014,32827,0,1,868882,"Magnetic resonance (eg, proton) imaging, brain",2211351,,2211351,"Magnetic resonance (eg, proton) imaging, brain",526723
+978,295,2750314,1/1/2014,32827,0,1,868882,"Destruction of Right Foot Skin, External Approach",2750314,,2750314,"Destruction of Right Foot Skin, External Approach",526723
+979,296,2786591,1/1/2014,32827,0,1,868882,Fluoroscopy of Bilateral Common Carotid Arteries,2786591,,2786591,Fluoroscopy of Bilateral Common Carotid Arteries,526723
+980,10929557526,4081128,8/6/2014,32827,0,1,868882,Chemotherapy follow-up,4081128,,4081128,Chemotherapy follow-up,526723
+981,10929557527,2750314,5/9/2014,32827,0,2,053156,"Destruction of Right Foot Skin, External Approach",2750314,,2750314,"Destruction of Right Foot Skin, External Approach",526723
+982,10929557528,4239130,5/9/2014,32827,0,1,053156,Oxygen therapy,4239130,,4239130,Oxygen therapy,526723
+983,10929557529,2786841,7/26/2014,32827,0,1,062331,Fluoroscopy of Bilateral Vertebral Arteries,2786841,,2786841,Fluoroscopy of Bilateral Vertebral Arteries,850976
+984,297,2786591,7/26/2014,32827,0,1,062331,Fluoroscopy of Bilateral Common Carotid Arteries,2786591,,2786591,Fluoroscopy of Bilateral Common Carotid Arteries,850976
+985,10929557530,2750314,7/26/2014,32827,0,1,062331,"Destruction of Right Foot Skin, External Approach",2750314,,2750314,"Destruction of Right Foot Skin, External Approach",850976
+986,10929557531,2786841,7/26/2014,32827,0,1,062331,Fluoroscopy of Bilateral Vertebral Arteries,2786841,,2786841,Fluoroscopy of Bilateral Vertebral Arteries,850976
+987,298,2786612,7/26/2014,32827,0,1,062331,Fluoroscopy of Bilateral Internal Carotid Arteries,2786612,,2786612,Fluoroscopy of Bilateral Internal Carotid Arteries,850976
+988,10929557532,2786802,5/10/2015,32827,0,1,170894,Fluoroscopy of Bilateral Internal Carotid Arteries,2786802,,2786802,Fluoroscopy of Bilateral Internal Carotid Arteries,850976
+989,299,43527928,1/1/2015,32827,0,1,170894,"Selective catheter placement, external carotid artery",43527928,,43527928,"Selective catheter placement, external carotid artery",850976
+990,10929557533,2750314,1/1/2015,32827,0,1,170894,"Destruction of Right Foot Skin, External Approach",2750314,,2750314,"Destruction of Right Foot Skin, External Approach",850976
+991,10929557534,2787075,1/1/2015,32827,0,1,253289,Fluoroscopy of Other Upper Arteries using Low Osmolar,2787075,,2787075,Fluoroscopy of Other Upper Arteries using Low Osmolar,850976
+992,300,2787075,1/1/2015,32827,0,1,253289,Fluoroscopy of Other Upper Arteries using Low Osmolar,2787075,,2787075,Fluoroscopy of Other Upper Arteries using Low Osmolar,850976
+993,10929557535,2786591,1/1/2015,32827,0,1,253289,Fluoroscopy of Bilateral Common Carotid Arteries,2786591,,2786591,Fluoroscopy of Bilateral Common Carotid Arteries,850976
+994,10929557536,2751614,1/1/2015,32827,0,1,253289,"Excision of Left Hand Skin, Multiple, External Approach",2751614,,2751614,"Excision of Left Hand Skin, Multiple, External Approach",850976
+995,10929557537,43527928,5/6/2011,32827,0,1,068017,"Selective catheter placement, external carotid artery",43527928,,43527928,"Selective catheter placement, external carotid artery",522931
+996,10929557538,2756496,1/1/2011,32827,0,1,068017,"Repair Back Skin, External Approach",2756496,,2756496,"Repair Back Skin, External Approach",522931
+997,10929557539,2750314,5/6/2011,32827,0,1,068017,"Destruction of Right Foot Skin, External Approach",2750314,,2750314,"Destruction of Right Foot Skin, External Approach",522931
+998,10929557540,4239130,5/6/2011,32827,0,1,068017,Oxygen therapy,4239130,,4239130,Oxygen therapy,522931
+999,301,2751614,1/1/2011,32827,0,1,286066,"Excision of Left Hand Skin, Multiple, External Approach",2751614,,2751614,"Excision of Left Hand Skin, Multiple, External Approach",522931
+1000,302,2750314,1/1/2015,32827,0,1,028485,"Destruction of Right Foot Skin, External Approach",2750314,,2750314,"Destruction of Right Foot Skin, External Approach",522931
+1001,10929557541,4239130,2/26/2015,32827,0,1,028485,Oxygen therapy,4239130,,4239130,Oxygen therapy,522931
+1002,10929557542,43527928,2/26/2015,32827,0,1,028485,"Selective catheter placement, external carotid artery",43527928,,43527928,"Selective catheter placement, external carotid artery",522931
+1003,303,2750316,1/1/2015,32827,0,1,028485,"Destruction of Left Foot Skin, External Approach",2750316,,2750316,"Destruction of Left Foot Skin, External Approach",522931
+1004,304,2786802,1/1/2015,32827,0,1,028485,Fluoroscopy of Bilateral Internal Carotid Arteries,2786802,,2786802,Fluoroscopy of Bilateral Internal Carotid Arteries,522931
+1005,10929557543,2786802,12/7/2014,32827,0,1,268523,Fluoroscopy of Bilateral Internal Carotid Arteries,2786802,,2786802,Fluoroscopy of Bilateral Internal Carotid Arteries,522931
+1006,10929557544,2786591,1/1/2014,32827,0,1,268523,Fluoroscopy of Bilateral Common Carotid Arteries,2786591,,2786591,Fluoroscopy of Bilateral Common Carotid Arteries,522931
+1007,305,2751614,10/9/2012,32827,0,1,197436,"Excision of Left Hand Skin, Multiple, External Approach",2751614,,2751614,"Excision of Left Hand Skin, Multiple, External Approach",522931
+1008,10929557545,2786841,10/9/2012,32827,0,2,197436,Fluoroscopy of Bilateral Vertebral Arteries,2786841,,2786841,Fluoroscopy of Bilateral Vertebral Arteries,522931
+1009,10929557546,4081128,12/26/2012,32827,0,2,734452,Chemotherapy follow-up,4081128,,4081128,Chemotherapy follow-up,757380
+1010,10929557547,4081128,3/22/2013,32827,0,1,970188,Chemotherapy follow-up,4081128,,4081128,Chemotherapy follow-up,757380
+1011,10929557548,4081128,1/1/2013,32827,0,1,970188,Chemotherapy follow-up,4081128,,4081128,Chemotherapy follow-up,757380
+1012,306,2786612,3/22/2013,32827,0,2,970188,Fluoroscopy of Bilateral Internal Carotid Arteries,2786612,,2786612,Fluoroscopy of Bilateral Internal Carotid Arteries,757380
+1013,10929557549,2787075,3/22/2013,32827,0,1,970188,Fluoroscopy of Other Upper Arteries using Low Osmolar,2787075,,2787075,Fluoroscopy of Other Upper Arteries using Low Osmolar,757380
+1014,10929557550,2750303,3/22/2013,32827,0,1,970188,"Destruction of Back Skin, External Approach, Diagnostic",2750303,,2750303,"Destruction of Back Skin, External Approach, Diagnostic",757380
+1015,307,2750316,9/3/2015,32827,0,1,834023,"Destruction of Left Foot Skin, External Approach",2750316,,2750316,"Destruction of Left Foot Skin, External Approach",757380
+1016,308,2786591,9/3/2015,32827,0,2,834023,Fluoroscopy of Bilateral Common Carotid Arteries,2786591,,2786591,Fluoroscopy of Bilateral Common Carotid Arteries,757380
+1017,309,2750303,9/3/2015,32827,0,1,834023,"Destruction of Back Skin, External Approach, Diagnostic",2750303,,2750303,"Destruction of Back Skin, External Approach, Diagnostic",757380
+1018,310,4239130,1/27/2015,32827,0,1,159842,Oxygen therapy,4239130,,4239130,Oxygen therapy,757380
+1019,311,2750316,1/27/2015,32827,0,1,159842,"Destruction of Left Foot Skin, External Approach",2750316,,2750316,"Destruction of Left Foot Skin, External Approach",757380
+1020,312,4239130,1/27/2015,32827,0,1,159842,Oxygen therapy,4239130,,4239130,Oxygen therapy,757380
+1021,10929557551,2786591,1/1/2020,32827,0,1,964496,Fluoroscopy of Bilateral Common Carotid Arteries,2786591,,2786591,Fluoroscopy of Bilateral Common Carotid Arteries,757380
+1022,10929557552,2787075,1/1/2017,32827,0,1,272435,Fluoroscopy of Other Upper Arteries using Low Osmolar,2787075,,2787075,Fluoroscopy of Other Upper Arteries using Low Osmolar,757380
+1023,10929557553,2786802,1/1/2017,32827,0,1,272435,Fluoroscopy of Bilateral Internal Carotid Arteries,2786802,,2786802,Fluoroscopy of Bilateral Internal Carotid Arteries,757380
+1024,10929557554,2786591,8/2/2017,32827,0,1,272435,Fluoroscopy of Bilateral Common Carotid Arteries,2786591,,2786591,Fluoroscopy of Bilateral Common Carotid Arteries,757380
+1025,313,2786612,2/18/2012,32827,0,1,516688,Fluoroscopy of Bilateral Internal Carotid Arteries,2786612,,2786612,Fluoroscopy of Bilateral Internal Carotid Arteries,200101
+1026,10929557555,2786612,2/18/2012,32827,0,1,516688,Fluoroscopy of Bilateral Internal Carotid Arteries,2786612,,2786612,Fluoroscopy of Bilateral Internal Carotid Arteries,200101
+1027,10929557556,2750303,1/1/2012,32827,0,1,516688,"Destruction of Back Skin, External Approach, Diagnostic",2750303,,2750303,"Destruction of Back Skin, External Approach, Diagnostic",200101
+1028,314,2750314,1/1/2012,32827,0,1,516688,"Destruction of Right Foot Skin, External Approach",2750314,,2750314,"Destruction of Right Foot Skin, External Approach",200101
+1029,10929557557,2786841,9/10/2008,32827,0,1,753308,Fluoroscopy of Bilateral Vertebral Arteries,2786841,,2786841,Fluoroscopy of Bilateral Vertebral Arteries,692721
+1030,10929557558,2756496,9/10/2008,32827,0,1,753308,"Repair Back Skin, External Approach",2756496,,2756496,"Repair Back Skin, External Approach",692721
+1031,315,2786802,9/10/2008,32827,0,1,753308,Fluoroscopy of Bilateral Internal Carotid Arteries,2786802,,2786802,Fluoroscopy of Bilateral Internal Carotid Arteries,692721
+1032,316,2750314,9/10/2008,32827,0,1,753308,"Destruction of Right Foot Skin, External Approach",2750314,,2750314,"Destruction of Right Foot Skin, External Approach",692721
+1033,10929557559,2750316,4/11/2013,32827,0,1,977263,"Destruction of Left Foot Skin, External Approach",2750316,,2750316,"Destruction of Left Foot Skin, External Approach",692721
+1034,10929557560,2211351,4/6/2016,32827,0,1,119992,"Magnetic resonance (eg, proton) imaging, brain",2211351,,2211351,"Magnetic resonance (eg, proton) imaging, brain",692721
+1035,10929557561,2750316,1/1/2016,32827,0,1,119992,"Destruction of Left Foot Skin, External Approach",2750316,,2750316,"Destruction of Left Foot Skin, External Approach",692721
+1036,317,2750303,5/14/2011,32827,0,1,503351,"Destruction of Back Skin, External Approach, Diagnostic",2750303,,2750303,"Destruction of Back Skin, External Approach, Diagnostic",692721
+1037,318,2751613,1/1/2011,32827,0,1,503351,"Excision of Back Skin, External Approach",2751613,,2751613,"Excision of Back Skin, External Approach",692721
+1038,10929557562,2211351,1/1/2011,32827,0,1,503351,"Magnetic resonance (eg, proton) imaging, brain",2211351,,2211351,"Magnetic resonance (eg, proton) imaging, brain",692721
+1039,10929557563,2751613,5/14/2011,32827,0,1,503351,"Excision of Back Skin, External Approach",2751613,,2751613,"Excision of Back Skin, External Approach",692721
+1040,319,4239130,1/1/2011,32827,0,1,503351,Oxygen therapy,4239130,,4239130,Oxygen therapy,692721
+1041,10929557564,43527928,1/1/2013,32827,0,1,451752,"Selective catheter placement, external carotid artery",43527928,,43527928,"Selective catheter placement, external carotid artery",369883
+1042,10929557565,2211351,10/21/2013,32827,0,1,451752,"Magnetic resonance (eg, proton) imaging, brain",2211351,,2211351,"Magnetic resonance (eg, proton) imaging, brain",369883
+1043,10929557566,2786591,10/21/2013,32827,0,1,451752,Fluoroscopy of Bilateral Common Carotid Arteries,2786591,,2786591,Fluoroscopy of Bilateral Common Carotid Arteries,369883
+1044,10929557567,43527928,10/21/2013,32827,0,1,451752,"Selective catheter placement, external carotid artery",43527928,,43527928,"Selective catheter placement, external carotid artery",369883
+1045,10929557568,43527928,5/20/2014,32827,0,1,880789,"Selective catheter placement, external carotid artery",43527928,,43527928,"Selective catheter placement, external carotid artery",369883
+1046,320,2786841,11/19/2014,32827,0,1,258683,Fluoroscopy of Bilateral Vertebral Arteries,2786841,,2786841,Fluoroscopy of Bilateral Vertebral Arteries,369883
+1047,321,2211351,11/19/2014,32827,0,1,258683,"Magnetic resonance (eg, proton) imaging, brain",2211351,,2211351,"Magnetic resonance (eg, proton) imaging, brain",369883
+1048,10929557569,2786841,1/1/2014,32827,0,1,258683,Fluoroscopy of Bilateral Vertebral Arteries,2786841,,2786841,Fluoroscopy of Bilateral Vertebral Arteries,369883
+1049,322,2751613,4/4/2014,32827,0,2,899562,"Excision of Back Skin, External Approach",2751613,,2751613,"Excision of Back Skin, External Approach",369883
+1050,10929557570,2787075,4/4/2014,32827,0,1,899562,Fluoroscopy of Other Upper Arteries using Low Osmolar,2787075,,2787075,Fluoroscopy of Other Upper Arteries using Low Osmolar,369883
+1051,10929557571,2786612,4/4/2014,32827,0,1,899562,Fluoroscopy of Bilateral Internal Carotid Arteries,2786612,,2786612,Fluoroscopy of Bilateral Internal Carotid Arteries,369883
+1052,10929557572,2750303,1/1/2014,32827,0,1,899562,"Destruction of Back Skin, External Approach, Diagnostic",2750303,,2750303,"Destruction of Back Skin, External Approach, Diagnostic",369883
+1053,323,2750303,4/4/2014,32827,0,1,899562,"Destruction of Back Skin, External Approach, Diagnostic",2750303,,2750303,"Destruction of Back Skin, External Approach, Diagnostic",369883
