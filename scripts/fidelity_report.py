@@ -298,6 +298,12 @@ def _profile(rows, keyfn, target, positive=None):
 
 
 def _shape(prof, scale=1.0):
+    """Is this profile monotone, or does it turn? A turn must beat
+    SAMPLING NOISE, not a fixed number: with sixty rows a bin, the
+    means wobble by chance and any profile can look like it turns.
+    Requiring the swing to exceed three standard errors is what
+    keeps the count of `turning` relationships honest — a fixed sd
+    threshold reported 268 of them in data drawn independently."""
     """monotone, or does the profile turn? A turning profile is
     exactly what rank correlation cannot represent."""
     keys = sorted(prof.keys(), key=lambda k: str(k))
@@ -306,8 +312,12 @@ def _shape(prof, scale=1.0):
         return "flat"
     ups = sum(1 for i in range(len(ys) - 1) if ys[i + 1] > ys[i])
     downs = len(ys) - 1 - ups
+    ns = [prof[k][0] for k in keys]
     span_sd = (max(ys) - min(ys)) / (scale or 1.0)
-    if span_sd < 0.15:
+    hi_i = ys.index(max(ys))
+    lo_i = ys.index(min(ys))
+    se = math.sqrt(1.0 / max(ns[hi_i], 1) + 1.0 / max(ns[lo_i], 1))
+    if span_sd < max(0.15, 3.0 * se):
         # a profile that barely moves is not a relationship;
         # calling it "turning" would flood the report with noise
         return "flat"
@@ -481,6 +491,7 @@ def main() -> None:
     nb = a.deep_bins
     shaped, nonlinear_found = [], 0
     tested_pairs = 0
+    skipped_noise = 0
     cand_t = [c for c in numcols if c in shared]
     cat_t = [c for c in catcols if c in shared]
     for src_col in shared:
@@ -498,12 +509,27 @@ def main() -> None:
             pg = _profile(G, kf, tgt)
             if len(pg) < 3:
                 continue
-            tested_pairs += 1
             base = [num(r.get(tgt)) for r in S]
             base = [x for x in base if x is not None]
             scale = sd(base) or 1.0
             common = [b for b in ps if b in pg]
             if len(common) < 3:
+                continue
+            # Only score a profile whose SOURCE shape is real. If
+            # the source's own variation across bins is within
+            # sampling noise, there is no relationship there — and
+            # demanding that synthetic data reproduce noise is not
+            # a fidelity test, it is a coin flip counted as a
+            # failure. The profiler refuses to IMPOSE unconfirmed
+            # structure; the scorecard refuses to SCORE it.
+            sy = [ps[b][1] for b in common]
+            sn = [ps[b][0] for b in common]
+            src_span = (max(sy) - min(sy)) / scale
+            src_se = math.sqrt(
+                1.0 / max(sn[sy.index(max(sy))], 1)
+                + 1.0 / max(sn[sy.index(min(sy))], 1))
+            if src_span < 3.0 * src_se:
+                skipped_noise += 1
                 continue
             dev = max(abs(ps[b][1] - pg[b][1]) / scale
                       for b in common)
@@ -511,6 +537,7 @@ def main() -> None:
                 math.sqrt(1.0 / min(ps[b][0] for b in common)
                           + 1.0 / min(pg[b][0] for b in common)),
                 0.05)
+            tested_pairs += 1
             shape = _shape(ps, scale)
             ok = dev <= tol
             if shape == "turning":
@@ -665,6 +692,7 @@ def main() -> None:
         "correlations": pairs, "conditional_shifts": strata,
         "dependence_shape": {
             "pairs_tested": tested_pairs,
+            "pairs_skipped_as_noise": skipped_noise,
             "nonlinear_relationships_in_source": nonlinear_found,
             "detail": shaped[:60],
             "reading": "a `turning` profile cannot be represented "
@@ -734,9 +762,10 @@ def main() -> None:
                           s["source"], s["synthetic"]))
         print("\n-- shape of dependence (what correlation "
               "cannot see) --")
-        print("  {} pairs profiled; {} show a TURNING relationship "
-              "in the source".format(tested_pairs,
-                                     nonlinear_found))
+        print("  {} relationships real enough to score ({} more "
+              "were within sampling noise and skipped); {} of "
+              "them TURN".format(tested_pairs, skipped_noise,
+                                 nonlinear_found))
         if shaped:
             for d in shaped[:8]:
                 print("  {} {:20s} across {:18s} [{}] source {} "

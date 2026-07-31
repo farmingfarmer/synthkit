@@ -362,6 +362,48 @@ def main():
               and all(d["pass"] for d in
                       Rg["interactions"]["detail"]))
 
+        # ---------- engine selection in the pipeline ----------
+        res = run("scripts/phase2_pipeline.py", "--src",
+                  str(pipesrc), "-o", str(td / "runc"),
+                  "--skip-wrangle", "--engine", "condnet")
+        check("the pipeline runs with --engine condnet",
+              res.returncode == 0)
+        check("it saves the learned model and its own generated "
+              "data",
+              (td / "runc" / "condnet_model.json").exists()
+              and (td / "runc" / "generated_condnet.csv").exists())
+        check("the conditional model is parameters, not records — "
+              "it states its own privacy contract",
+              "no record is stored" in
+              (td / "runc" / "condnet_model.json").read_text(
+                  encoding="utf-8"))
+        check("the condnet run is scored too",
+              (td / "runc" / "fidelity_condnet.json").exists())
+
+        res = run("scripts/phase2_pipeline.py", "--src",
+                  str(pipesrc), "-o", str(td / "runb"),
+                  "--skip-wrangle", "--engine", "both")
+        check("--engine both runs each and prints a head-to-head",
+              res.returncode == 0
+              and "HEAD TO HEAD" in res.stdout
+              and (td / "runb" / "generated.csv").exists()
+              and (td / "runb" / "generated_condnet.csv").exists())
+        check("both engines are scored against the SAME question "
+              "set (the profile describes the source, not the "
+              "engine)",
+              json.loads((td / "runb" / "fidelity.json").read_text(
+                  encoding="utf-8"))["correlations"] is not None
+              and json.loads(
+                  (td / "runb" / "fidelity_condnet.json")
+                  .read_text(encoding="utf-8"))[
+                      "correlations"] is not None)
+        Rn = json.loads((td / "runb" / "fidelity_condnet.json")
+                        .read_text(encoding="utf-8"))
+        check("relationships that are only sampling noise in the "
+              "source are SKIPPED, not scored — reproducing noise "
+              "is not fidelity",
+              Rn["dependence_shape"]["pairs_skipped_as_noise"] > 0)
+
     print()
     if FAIL:
         print("{} FAILED".format(FAIL))
