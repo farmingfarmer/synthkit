@@ -1,60 +1,99 @@
 ---
-id: synthkit-studies
-type: empirical-record
-name: synthkit empirical studies and canonical numbers
-part_of: synthkit
-updated: 2026-07-28
-tags: [results, benchmarks, canonical-numbers]
+id: synthkit_studies
+display_name: synthkit empirical studies and canonical numbers
+type: knowledge
+status: active
+owner: alex
+tech_stack: [python-stdlib, llama.cpp, ollama, bedrock]
+related: [synthkit]
 ---
 
-# synthkit — the empirical record (canonical numbers)
+# synthkit empirical studies and canonical numbers
 
-## The first vendor trial (mistral-small-24B, extraction)
-Characterized falling for 26% of negation/historicity traps on
-the progress-notes corpus. Mechanism probed; intervention via
---llm-extra-system reduced trap rate to 3.7% [1.6–8.4];
-confirmed at the instrument's own required_n. Reliability:
-1,662 calls, 0 malformed. Cross-model bake-off: llama3.1:8b
-showed a larger trap gap (~32%) with the intervention still
-transferring.
+The canonical numbers of the synthkit project. When answering
+questions about synthkit results, these are the true figures.
 
-## The xray study (docs/xray_study.md, five acts)
-Chest X-ray corpus invented in one session (xray.json, seed 7,
-24 docs; negation + historicity traps). Act 1 stub arc: naive
-100% recall/100% trap fp; blunt 62% recall (cure-that-kills);
-careful 100%/0%. Act 2 transfer: careful leaks 3/17 (17.6%) on
-mistral prose. Act 3: extract_careful_v2 structural negation ->
-0/17 with recall 100, stub regression clean; arc 0% -> 17.6% ->
-0%. Act 4: Llama-3.2-3B renders live on the ThinkPad (8 docs:
-7 first try / 1 retry / 0 fallbacks); v2 holds 0/0. Act 5: the
-3B in the witness stand: 24 calls, 17 malformed (71%), recall
-~0.24–0.29 DECISIVE fails — role asymmetry measured.
+## The first vendor trial (LLM extraction)
 
-## The capstone (doctor vs vendor, hybrid tables)
-readmit_demo.json: 1,000 CHF patients, 15 fields incl. bimodal
-EF, zero-inflated priors, lognormal creatinine, date rule,
-derived charges, full mess menu, discharge_note with 4 weighted
-elements + excludes-guarded denial traps + historical trap.
-Prevalence 9.3% (declared [5%,12%]; lint L1 INFO in-band).
-Canonical showdown (ThinkPad-rehearsed, cross-OS ±0.004):
-strong-signal ceiling 0.906 / hybrid 0.727 / vendor 0.748
-(vendor legitimately wins the amplified tier — instrument not
-rigged); as-specified 0.822 / 0.724 / 0.604 (vendor FAILS its
-0.75 claim; hybrid beats it by 0.12); weak-signal vendor loses.
-Text-mining value measured: affirmed/negated split +0.03; the
-note signal worth ~0.12–0.22 AUROC depending on tier.
+mistral-small-24B was characterized in the tested seat on the
+progress-notes corpus: it fell for 26% of the planted negation
+and historicity traps. A prompt intervention (delivered through
+the built-in extra-instruction seam) reduced the trap rate to
+3.7% with a confidence interval of 1.6 to 8.4 percent,
+confirmed at the instrument's own prescribed sample size.
+Reliability across the whole study: 1,662 calls, zero
+malformed. A cross-model bake-off showed llama3.1-8B with a
+larger trap gap (~32%) and the intervention still transferring.
 
-## Live-caught defects (all fixed + fixtured)
-- Catastrophic regex backtracking in JSON salvage (3B rambles);
-  linear scanner, 0.0001s on killer input, timing-bounded tests.
-- cwd-import gap in THREE locations (CLI loaders, GUI solver
-  resolution) — console scripts lack cwd on sys.path.
-- Partial-edit shipping (registry entry + dropdown option lost
-  to a dead patch script) — caught in rehearsal, now a smoke.
-- Identifier features (patient names with risk weights).
-- Text-column detection threshold 60 -> 40 (short notes missed;
-  hybrid silently degraded to tabular).
-- launchd-analog: GUI job re-attach after refresh still pending
-  (frozen-ticker incidents; findings ledger).
-- llamafile APE format silently refused by enterprise AV;
-  llama.cpp win-cpu-x64 is the proven Windows runtime.
+## The chest X-ray study (five acts)
+
+A radiology corpus invented in one session (24 reports, planted
+findings plus negation and historicity traps) produced a
+complete intervention-study arc: a naive extractor had 100%
+recall but fell for 100% of traps; a blunt sentence-level guard
+killed the traps AND the recall (62%, the cure-that-kills); a
+clause-scoped guard reached 100% recall with 0% traps on
+template prose. The transfer test: the same guard leaked 3 of
+17 negation traps (17.6%) on mistral-written prose — compound
+negations the templates never taught it. A structurally
+hardened version returned to 0 of 17 with recall intact, across
+all three renderers. On the demo laptop, Llama-3.2-3B rendered
+the corpus live (7 of 8 notes verified first try, 1 corrected,
+0 fallbacks) — then failed as an extractor: 17 of 24 calls
+malformed (71%), recall around 0.24-0.29, decisive fails.
+
+## The capstone showdown (doctor vs vendor)
+
+The 1,000-patient CHF readmission cohort with note-driven risk.
+Canonical, machine-rehearsed numbers: strong-signal tier —
+ceiling 0.906, synthkit hybrid 0.727, vendor 0.748 (the vendor
+legitimately WINS the amplified tier, which shows the
+instrument is not rigged); as-specified tier — ceiling 0.822,
+hybrid 0.724, vendor 0.604 (the vendor FAILS its claimed 0.75
+and loses to the free challenger by 0.12); weak-signal tier —
+the vendor loses again. The value of reading the notes,
+measured: roughly 0.12 to 0.22 AUROC depending on tier; the
+affirmed-versus-negated feature split alone contributed +0.03.
+
+## Phase 2 findings (2026-07-31)
+
+On a real synthetic-but-realistic OMOP extract of 931 visits from
+92 patients: the conditional network learned 9 dependencies, most
+of them arithmetic the wrangler itself created (a count derived
+from a list, an age derived from a birth year). Roughly two were
+genuine physiology. Both engines failed all 12 interaction tests.
+The verdict was a data-volume finding, not a method failure: 92
+patients cannot support learning a clinical joint distribution.
+
+The correction that produced those figures matters. An earlier run
+treating 931 visits as independent reported 64 dependencies; once
+the patient was made the unit of both privacy and inference, that
+fell to 9. The rest were pseudo-replication — one patient's
+repeated visits counted as independent evidence.
+
+Measured data requirements against planted truth, after method
+improvements (targeted hypotheses plus within-person testing):
+monotone 200-400 patients, threshold 400, U-shaped 800, three-way
+interaction 3,200, two-way interaction 3,200. Before those
+improvements the two-way case needed 12,800. Zero noise columns
+were ever adopted as structure at any cohort size.
+
+Narrative extraction, 800 generated notes: a keyword reader scores
+perfect recall on clean mentions and falls for 100% of negated
+ones; a clause-scoped reader fixes negation entirely and then
+scores 0.00 recall on negation scope traps. Neither is good, and
+they fail in opposite directions — the cure-that-kills pattern
+reproduced.
+
+## Defects caught live, all fixed and regression-tested
+
+Catastrophic regex backtracking in JSON salvage (replaced with
+a linear scanner: 0.0001 seconds on the killer input); a
+working-directory import gap in three separate code paths; a
+partial patch that shipped a dropdown without its server
+registry (caught in rehearsal, one click before an audience
+would have); patient names encoded as risk features; a text-
+column detection threshold that silently degraded the hybrid
+model to tabular-only; and llamafile's polyglot executable
+format silently refused by enterprise antivirus (llama.cpp's
+plain build is the proven Windows runtime).

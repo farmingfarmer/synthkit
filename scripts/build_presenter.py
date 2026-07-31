@@ -523,6 +523,187 @@ P = {
        "optional-but-recommended, marked exactly that way "
        "in the interface."]]},
    ]},
+  {"id": "phase2", "label": "Learning From Real Data",
+   "color": "#7B4B94",
+   "say": [
+    "Everything I've shown so far invents a population from a "
+    "written recipe. The obvious question is: why not shape it "
+    "like OUR data? That's what this does.",
+    "It reads an existing extract and measures it — what each "
+    "field's distribution looks like, how often values go "
+    "missing, how often they're implausible, and crucially how "
+    "the fields move together. Then it hands back a recipe where "
+    "every one of those numbers is editable.",
+    "The privacy line doesn't move at all. Real data teaches "
+    "PARAMETERS — counts and curves — and generation never "
+    "touches a record. Nothing we produce descends from a "
+    "patient, and we verify that rather than assert it.",
+    "And it does something a correlation-based approach can't. "
+    "A lab that's dangerous at both extremes has a correlation "
+    "of essentially zero — we measured minus 0.019 — and any "
+    "method built on correlations would silently throw that "
+    "relationship away. This one reproduces it.",
+   ],
+   "why": "Realistic-looking data isn't the goal; realistic "
+    "STRUCTURE is. A dataset can match every field individually "
+    "and have lost every relationship between them — and it "
+    "would pass a column-by-column audit while being "
+    "statistically dead. So the scorecard tests the "
+    "relationships, and the generator models the joint "
+    "distribution rather than the margins.",
+   "scale": "The profiler works on any tidy extract, not just "
+    "the one we tested. The constraint is patients, not "
+    "engineering: we measured how many are needed for each kind "
+    "of pattern — roughly 800 for a nonlinear relationship, "
+    "3,200 for an interaction — and that curve is how a data "
+    "request becomes a specification instead of a guess.",
+   "faq": [
+    ["Are you copying our patients into synthetic data?",
+     "No, and the architecture makes that checkable. We store "
+     "distributions and counts, never records. Every published "
+     "figure covers at least ten PATIENTS — we fixed that "
+     "specifically after finding a rule that counted visits "
+     "instead, where one heavy user's thirty visits could clear "
+     "a threshold while describing one person. And the scorecard "
+     "measures how close synthetic records sit to real ones "
+     "versus how close real records already sit to each other."],
+    ["Could someone reverse-engineer a patient from this?",
+     "That's the exact question the privacy half of the "
+     "scorecard answers, and we test it against deliberate "
+     "failures — including near-copies with no exact matches, "
+     "which is how interpolation-based methods leak."],
+    ["How much data do you actually need?",
+     "Measured, not guessed: about 400 patients for a simple "
+     "relationship, 800 for a nonlinear one, and 3,200 for an "
+     "interaction between two factors. Our test extract had 92 "
+     "patients, which is why we're asking."],
+    ["What if the data has no learnable structure?",
+     "Then it says so. On our test extract it reported that most "
+     "apparent relationships were within sampling noise and "
+     "declined to reproduce them. An instrument that finds "
+     "patterns everywhere is worthless."],
+   ],
+   "components": [
+    {"name": "The dial on every discovered pattern",
+     "say": "This is the part I'd draw your attention to. Any "
+      "relationship it finds can be turned up, turned down, or "
+      "switched off. Set it to zero and see whether a vendor "
+      "still claims to find it. Double it and see whether they "
+      "catch it. That's how you test a model against a pattern "
+      "your data doesn't happen to contain yet.",
+     "why": "A copy of the data can only ever pose the question "
+      "reality already posed. Parameters let you pose harder "
+      "ones — which is the difference between a dataset and an "
+      "instrument.",
+     "scale": "Each dial is a stored table, so this scales to "
+      "any number of relationships without new engineering.",
+     "faq": [
+      ["Does changing a pattern break the rest of the data?",
+       "No — the strength changes while the shape is preserved, "
+       "and the other fields keep their own distributions."]]},
+    {"name": "Counting people, not rows",
+     "say": "One correction worth mentioning because it changed "
+      "our numbers. Our first run treated 931 visits as 931 "
+      "independent observations. They came from 92 patients. "
+      "Once we counted patients properly, the number of "
+      "statistically real findings dropped from 64 to 9 — the "
+      "rest were one person's visits voting repeatedly.",
+     "why": "It would have been easy to report the first number. "
+      "The second one is true, and an instrument whose job is "
+      "evaluating other people's claims has to survive its own "
+      "scrutiny first.",
+     "scale": "This applies to every longitudinal dataset we "
+      "will ever profile, so it is now enforced everywhere "
+      "rather than remembered.",
+     "faq": [
+      ["Does that mean the earlier numbers were wrong?",
+       "The direction held; the confidence didn't. We re-ran "
+       "everything and report the corrected figures."]]},
+   ]},
+  {"id": "narrative", "label": "Notes & Extraction",
+   "color": "#B45309",
+   "say": [
+    "The clinical value vendors compete over is mostly locked in "
+    "free text, and an exam made only of columns can't test for "
+    "it. So we render facts into notes written the way "
+    "clinicians actually write.",
+    "Abbreviations. Denials. Hedges. Findings copied forward "
+    "from last month. Transposed digits. And the trap that "
+    "matters most: a sentence like 'no improvement in heart "
+    "failure' — where there's a negation right next to the "
+    "finding that doesn't apply to it. Any reader looking for a "
+    "negative word nearby gets that exactly backwards.",
+    "Because we wrote the facts, we know what every sentence "
+    "really claims. So we can grade an extractor by the KIND of "
+    "mess that beat it — which turns a score into a diagnosis.",
+   ],
+   "why": "One overall recall averages every failure into a "
+    "number that names nothing. Sliced by corruption, the report "
+    "reads 'handles negation, cannot reason about scope' — which "
+    "tells a vendor what to fix and tells us what we're buying.",
+   "scale": "Nothing here learns language from real notes, which "
+    "is deliberate: text is where memorisation is most dangerous "
+    "because a single rare phrase identifies a person. Facts are "
+    "authored and rendered, so no phrasing can trace to a "
+    "patient. If we later want the vocabulary of our own "
+    "corpus, the safe route is learning only phrasings that "
+    "appear across many patients.",
+   "faq": [
+    ["Does this read like our clinicians write?",
+     "Honestly, not yet — the language is ours, not learned from "
+     "your notes. What it does have is the right STRUCTURE of "
+     "difficulty: negation, hedging, staleness, shorthand. It "
+     "answers 'can this model recover known facts from messy "
+     "prose', which is the question that matters for "
+     "procurement."],
+    ["Could you train it on our real notes to sound right?",
+     "Technically yes, and that's exactly where the privacy risk "
+     "concentrates — a rare phrase can identify a patient "
+     "outright. If we go there, the safe version learns only "
+     "phrasings shared by at least ten patients, and we would "
+     "want that reviewed before we start rather than after."],
+    ["What does it cost to test a vendor on this?",
+     "Nothing to generate the notes. Testing a model against "
+     "them costs whatever that model costs — zero for one "
+     "running on a laptop."],
+   ],
+   "components": [
+    {"name": "The scope trap",
+     "say": "Here's the sentence that separates the readers: 'No "
+      "improvement in heart failure.' The patient HAS heart "
+      "failure. But there's the word 'no', right beside it. A "
+      "keyword matcher fails one way, and a careful reader that "
+      "checks for nearby negations fails the opposite way — it "
+      "throws the finding out.",
+     "why": "We saw this exact pattern in an earlier study: a "
+      "guard that fixed one failure created another. Measuring "
+      "both directions is the only way to see it.",
+     "scale": "Each corruption type is a separate measurable "
+      "category, so new ones can be added as we learn what real "
+      "notes do.",
+     "faq": [
+      ["Do real notes actually contain that?",
+       "Constantly. 'No change in', 'no relief of', 'no "
+       "resolution of' — all of them put a negation beside a "
+       "finding that is present."]]},
+    {"name": "Counting models that can't answer",
+     "say": "One thing we report separately: how often a model "
+      "simply fails to produce a usable answer. In an earlier "
+      "study a small model failed to hold the answer format on "
+      "17 of 24 attempts — while writing perfectly good clinical "
+      "prose. Being wrong and being unusable are different "
+      "procurement problems.",
+     "why": "Averaging unusable replies into an accuracy score "
+      "hides a capability gap that matters more than the score.",
+     "scale": "The meter runs for any model in the seat, local "
+      "or cloud.",
+     "faq": [
+      ["Wouldn't a better prompt fix that?",
+       "Sometimes — and there's a seam for exactly that, so "
+       "prompt improvements are explicit and comparable rather "
+       "than quietly baked in. In an earlier study that seam "
+       "took a failure rate from 26% to under 4%."]]},
+   ]},
   {"id": "iface", "label": "Interfaces & Backends",
    "color": "#0E6E64",
    "say": [

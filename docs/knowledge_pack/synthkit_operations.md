@@ -1,62 +1,70 @@
 ---
-id: synthkit-operations
-type: operations
-name: synthkit operations (how to run, sync, and pay for it)
-part_of: synthkit
-updated: 2026-07-28
-tags: [runbook, cli, sync-ritual, costs, backends]
+id: synthkit_operations
+display_name: synthkit operations runbook
+type: knowledge
+status: active
+owner: alex
+tech_stack: [python-stdlib, llama.cpp, ollama, bedrock]
+related: [synthkit]
 ---
 
-# synthkit operations
+# synthkit operations runbook
 
-## Canonical commands (CLI)
-- synthkit version — build fingerprint (must match the bench chip)
-- synthkit table-compile <english> --backend ollama|openai|bedrock|anthropic
-- synthkit render <spec.json> -o <dir> --backend stub|ollama|openai|...
-- synthkit table-lint <spec.json> — probe-based promise check
-- synthkit campaign-compile --goal predict --spec X --bars auroc=0.6,gap_max=0.3 -o DIR
-- synthkit campaign-run DIR [--llm --llm-backend openai --samples N --llm-extra-system @file]
-- synthkit showdown DIR --solver vendor_model:predict --baseline autosolver_hybrid
-- synthkit trials DIR — append-only record
-- synthkit gui — the bench at http://127.0.0.1:8377/
-- python scripts/run_all_smokes.py — 324-check certification
-- python scripts/build_system_map.py — atlas (drift-refusing)
-- python scripts/build_presenter.py — presenter companion
+How synthkit is actually run, synced, and paid for.
+
+## Key commands
+
+synthkit version prints the build fingerprint (must match the
+bench's chip). synthkit render SPEC -o DIR --backend
+stub|ollama|openai|bedrock generates data. synthkit table-lint
+SPEC probe-checks the recipe's promises. synthkit
+campaign-compile --goal predict --spec SPEC --bars
+auroc=0.6,gap_max=0.3 -o DIR builds the three-tier exam;
+synthkit campaign-run DIR runs it (add --llm --llm-backend
+openai for an AI in the tested seat). synthkit showdown DIR
+--solver vendor_model:predict --baseline autosolver_hybrid is
+the head-to-head. synthkit gui serves the bench at
+127.0.0.1:8377. python scripts/run_all_smokes.py is the
+324-check certification; scripts/build_system_map.py rebuilds
+the atlas; scripts/build_presenter.py the presenter companion.
+
+## Phase 2 commands
+
+python scripts/phase2_pipeline.py --src DIR -o OUTDIR --engine
+spec|condnet|both [--transcribe] runs the whole loop: wrangle,
+label, diagnose, profile, compile, generate, score. The privacy
+unit defaults to person_id and is announced up front. Output
+folders are git-ignored because the tidy CSV is the source records
+reshaped. scripts/power_sweep.py --focused --multilevel reports
+how many patients each kind of structure needs.
+scripts/narrative_showdown.py runs the ceiling/reading/blind spine
+on transcribed notes. scripts/note_vendor_run.py --backend
+stub|ollama|openai|bedrock seats a model in the note-extraction
+chair and grades it by corruption type.
 
 ## The Windows sync ritual (locked-down ThinkPad)
-activate verbatim venv -> cd dev -> rmdir /s /q synthkit ->
-curl -L -o synthkit.zip api.github.com/repos/farmingfarmer/synthkit/zipball/main
--> **dir synthkit.zip (MUST be MB; ~106 bytes = repo private)**
--> tar -xf -> ren farmingfarmer-synthkit-* synthkit ->
-pip install -e . (mandatory after every rmdir) -> synthkit
-version fingerprint match -> run_all_smokes 324 green.
-Repo public-flip or Bearer-token header required; flip back.
 
-## Windows local LLM (proven path)
-llama.cpp win-cpu-x64 zip via GitHub API one-liner (llamafile's
-APE format is AV-blocked); llamacpp\llama-server.exe -m
-llama3.2-3b.gguf --port 8080; synthkit backend `openai`
-defaults to 127.0.0.1:8080/v1. Terminal topology: T1=model,
-T2=bench (8377), T3=working terminal.
+Activate the verbatim venv, remove the old synthkit folder,
+curl the GitHub zipball, then ALWAYS size-check the zip before
+extracting — a ~106-byte file means the repo is still private
+(this exact failure happened twice; megabytes means real).
+Extract, rename, pip install -e . (mandatory after every
+removal — the editable link died with the old folder), verify
+the fingerprint matches the Mac, run the smoke net. Local LLM
+on Windows: llama.cpp's win-cpu-x64 build (fetched via the
+GitHub release API) serving llama3.2-3b.gguf on port 8080;
+synthkit's openai backend defaults to that address. Terminal
+topology for demos: terminal one is the model, terminal two the
+bench, terminal three the working terminal.
 
-## Backend/cost ladder (order-of-magnitude, verify AWS pricing)
-- stub: $0, instant, deterministic — default and demo-safe.
-- local 3B (llama.cpp, ThinkPad): $0, offline; 8-doc render
-  ~90s; extraction-protocol UNRELIABLE (17/24 malformed).
-- local 24B (Ollama, Mac): $0; 24-doc render 2–5 min; 0/1,662
-  malformed in the vendor chair.
-- Bedrock open weights: HIPAA-eligible, fractions of a cent /
-  1K tokens; the 1,662-call study ≈ single-digit dollars;
-  BedrockBackend smoked, activation = IAM request.
-- Anthropic/frontier cloud: never required; tens of dollars for
-  study-scale workloads.
-- Enterprise seat estimate: cents to low single-digit $/month
-  for typical analyst AI usage on open weights; core system $0.
+## Cost ladder (order of magnitude; verify current AWS pricing)
 
-## Demo assets
-docs/demo_script.md (six-act runbook, canonical numbers),
-docs/demo_prompt.md (the station-01 English paragraph),
-readmit_demo.json + GUI preset #1, vendor_model.py (VendorCo),
-docs/vendor_integration.md (three real-vendor routes),
-docs/DEMO_LLM_WINDOWS.md, docs/system_map.html (atlas v2),
-docs/presenter_companion.html (private).
+The deterministic core costs nothing, forever. Local models:
+$0 — the ThinkPad's 3B renders eight notes in about ninety
+seconds offline; the Mac's 24B ran 1,662 test calls without a
+single malformed reply. AWS Bedrock open-weight models are
+HIPAA-eligible at fractions of a cent per thousand tokens — the
+entire vendor study would have cost single-digit dollars.
+Frontier cloud models are never required. A typical analyst's
+AI usage on open weights runs cents to low single-digit
+dollars monthly.

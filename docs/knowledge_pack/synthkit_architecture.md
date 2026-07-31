@@ -1,76 +1,106 @@
 ---
-id: synthkit-architecture
-type: architecture
-name: synthkit architecture
-part_of: synthkit
-updated: 2026-07-28
-tags: [pipeline, domains, modules]
+id: synthkit_architecture
+display_name: synthkit architecture
+type: knowledge
+status: active
+owner: alex
+tech_stack: [python-stdlib, faiss-free, llama.cpp, ollama, bedrock]
+related: [synthkit]
 ---
 
-# synthkit architecture — six stages, two rails
+# synthkit architecture
 
-Pipeline (left to right): Spec Layer -> Truth Planning ->
-Rendering -> Evaluation & Ceilings -> Campaigns & Verdicts ->
-Solvers & Vendors. Rails alongside every stage: Quality Gates,
-Interfaces & Backends. 43 atlas-documented components.
+synthkit's pipeline runs six stages with two rails alongside:
+Spec Layer -> Truth Planning -> Rendering -> Evaluation &
+Ceilings -> Campaigns & Verdicts -> Solvers & Vendors, with
+Quality Gates and Interfaces & Backends beside every stage. 43
+components are documented in the interactive atlas.
 
-## Spec Layer (compiler.py, tablespec.py, spec.py)
-English -> formal spec. LLM drafts (one repair round with
-validator problems fed back verbatim), validator teaches every
-problem at once, HUMAN GATE approves. TableSpec: columns with
-distributions (normal/lognormal/mixture/categorical/sequence/
-date_range...), mess rates per column, rules (date_after with
-days_from; derived), logistic/linear outcomes with
-target_prevalence. Note columns (ctype "note"): elements
-(id/phrasings/density/weight), distractors (with `excludes` —
-denial traps only in patients WITHOUT the risk), fillers;
-outcome coefficients reference "notecol.element_id".
+## Spec layer
 
-## Truth Planning (tableplan.py, planner.py, relational.py)
-Answer key BEFORE data. _cell_rng: sha256(master:row:column)
-per-cell RNG — column-independence law. plan_table: clean rows,
-outcome probabilities stored (the exact AUROC ceiling), then
-deliberate mess with a signed ledger. _build_note: seeded
-phrase draws per patient; presence feeds the logit, so the
-ceiling INCLUDES text signal by construction. note_truth
-ledgered per row.
+Plain English becomes a formal, fingerprinted JSON recipe: an
+LLM drafts, a validator lists every problem in teaching
+language, and a human gate approves — nothing is created from
+an unapproved recipe. Table specs declare per-column
+distributions (normal, lognormal, mixtures, categoricals,
+sequences, date ranges), per-column mess rates, cross-field
+rules (dates coupled by length of stay; charges derived from
+days), and logistic or linear outcomes with declared target
+prevalence. Note columns declare planted elements (phrase
+variants, density, outcome weight), distractors (denial traps
+carry an excludes rule so they appear only in patients WITHOUT
+the risk), and neutral fillers.
 
-## Rendering (renderer.py, write_table)
-Deterministic stub writer by default; optional LLM writers with
-verify-retry-deterministic-fallback per note (nothing an LLM
-writes is trusted).
+## Truth planning
 
-## Evaluation & Ceilings (tableeval.py, evaluator.py, mlmetrics.py)
-Exact grading vs ledger and planted truth. Wilson intervals on
-every rate; auroc_interval; required_n prescriptions.
+The answer key exists before the data. Every cell has its own
+seeded random stream (hash of recipe seed, row, and column), so
+editing one column never reshuffles another. Outcomes are
+computed from planted causes and the true probabilities are
+stored — that is why the AUROC ceiling is exact. Clinical notes
+are assembled per patient from seeded phrase draws, and phrase
+presence feeds the outcome logit directly, so the ceiling
+includes text signal by construction. Deliberate mess (missing
+values, typos, mixed formats, outliers, wrong values,
+duplicates) is applied afterward with every corruption signed
+into a ledger.
 
-## Campaigns & Verdicts (campaign.py)
-compile_campaign(goal, spec, bars, outcome) -> three difficulty
-tiers (gentle / as-specified / adversarial; predict goals:
-strong-signal / as-specified / weak-signal). Blinded training
-(shifted seed population), PASS/FAIL/INCONCLUSIVE verdicts on
-intervals, append-only trial records.
+## Rendering, evaluation, campaigns
 
-## Solvers & Vendors (autosolver.py, llmvendor.py)
-FeatureEncoder (type-sniffing through mess; text columns
-skipped, avg len > 40; identifier-like columns excluded —
-n>=20 & uniqueness>0.5). autoclean. TextMiner: label-driven
-uni/bigram mining, lift*sqrt(df), affirmed vs negated presence
-as SEPARATE features. autosolver_hybrid: tabular + mined text
-pseudo-columns into LogisticBaseline. _publish_fit -> LAST_FIT:
-real named coefficients for transparency. run_showdown:
-ceiling/baseline/vendor per tier, selectable baseline,
-[bar:] verdict split from baseline comparison. LLMExtractor:
-blind prompts, JSON salvage (_first_balanced_array linear
-scanner), majority voting, malformed-call reliability counting,
---llm-extra-system intervention seam.
+Rendering writes messy data, answer key, and ledger; optional
+LLM writers phrase the notes with per-note verification,
+retry, and deterministic fallback. Evaluation grades exactly
+against planted truth with Wilson intervals on every rate and
+required-sample-size prescriptions when inconclusive. Campaigns
+compile one exam at three difficulties (predict:
+strong-signal / as-specified / weak-signal; extraction:
+gentle / as-specified / adversarial), train contestants on a
+blinded shifted-seed population, and file append-only trial
+records.
 
-## Rails
-Gates: validate (lawful) -> semantic lint L1-L6/D1-D5 probe-
-based (kept promises) -> statistics (honest uncertainty).
-Interfaces: gui.py five-station bench; cli.py; backends stub /
-ollama / openai-compatible (openai_compat.py — llama.cpp,
-LM Studio, vLLM, llamafile; protocol NOT the company) /
-bedrock.py / anthropic. GUI extras: api_export downloads,
-_showdown_report plain-English report with winner cards and
-model coefficients.
+## Learning from real data (Phase 2)
+
+A wrangler collapses six OMOP tables into one tidy row per visit,
+normalising join keys that arrive as both integers and
+leading-zero text. A profiler measures each column as parameters —
+never records — with k-anonymity counted in patients, percentile
+clamping instead of true extremes, and multiple-comparison
+correction before any relationship is believed. A conditional
+dependency network learns the joint distribution: columns are
+discretised, parent sets are found by conditional mutual
+information, and conditional tables are sampled ancestrally, so
+nonlinear and interaction structure survives. Resolution is solved
+from the effective sample size. Every table is a dial via a
+geometric tilt toward or away from its marginal. A fidelity and
+privacy scorecard grades the result on marginals, missingness,
+correlations, dependence shape, interactions, exact matches and
+nearest-neighbour distances — with tolerances derived from
+sampling rather than fixed thresholds.
+
+## Notes and extraction
+
+A transcriber renders structured facts into messy clinical prose
+under a nine-part corruption taxonomy, declaring per fact whether
+it lives in the columns, the note, both, or both-while-disagreeing
+— and ledgers what each sentence actually asserts. Extraction is
+graded per corruption type. A language model can be seated in the
+chair through a narrow present/current/certain contract, blind to
+the traps, with unusable replies counted separately.
+
+## Solvers and vendors
+
+The built-in challenger standardizes messy tables (excluding
+identifier-like columns — names once snuck in wearing risk
+weights), mines note phrases from training labels alone
+(keeping negated mentions as separate features from affirmed
+ones), and trains a transparent logistic regression whose real
+named coefficients are published for display. Any vendor model
+plugs into the identical seat as a function of (training rows,
+training labels, test rows) returning scores; LLM vendors get
+blind prompting, linear-time JSON salvage, majority voting,
+and malformed-call reliability counting. Showdowns report
+ceiling / baseline / vendor per tier with a selectable
+baseline. Backends: deterministic stub, Ollama, any
+OpenAI-COMPATIBLE local server (llama.cpp, LM Studio, vLLM —
+a protocol name, not the company; nothing goes to ChatGPT),
+AWS Bedrock, and Anthropic.
