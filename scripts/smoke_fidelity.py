@@ -51,6 +51,9 @@ def score(td, src, syn, tag, profile=""):
 
 
 def main():
+    sys.path.insert(0, str(ROOT))
+    from synthkit.tablespec import TableSpec, TableSpecError
+    from synthkit.tableplan import plan_table
     with tempfile.TemporaryDirectory() as td:
         td = Path(td)
         r = random.Random(4)
@@ -189,6 +192,80 @@ def main():
               "categories",
               any(m["column"] == "when" and m["metric"] == "KS"
                   for m in R9["marginals"]))
+
+        # ---------- date shape + declined rules + pipeline ----
+        import datetime as _dt
+        rr = random.Random(21)
+        clustered = []
+        for _ in range(500):
+            # activity clusters in one part of the range
+            base = (_dt.date(2015, 1, 1)
+                    + _dt.timedelta(days=int(abs(rr.gauss(0, 120)))))
+            clustered.append({"when": base.isoformat(),
+                              "v": round(rr.gauss(10, 2), 2)})
+        cl = td / "clustered.csv"
+        write(cl, clustered)
+        cp = td / "clustered_profile.json"
+        run("scripts/omop_profile.py", "--in", str(cl), "-o",
+            str(cp), "--k", "10")
+        C = json.loads(cp.read_text(encoding="utf-8"))
+        w = C["columns"]["when"].get("bucket_weights") or []
+        check("a date column's TIMING SHAPE is profiled, not just "
+              "its range", len(w) >= 2 and max(w) > 2 * min(
+                  x for x in w if x > 0))
+        cd = td / "clustered_draft.json"
+        run("scripts/profile_to_spec.py", "--profile", str(cp),
+            "-o", str(cd))
+        CD = json.loads(cd.read_text(encoding="utf-8"))
+        dcol = [c for c in CD["columns"] if c["name"] == "when"][0]
+        check("the date shape crosses into the draft spec",
+              dcol["distribution"].get("weights"))
+        ts_c = TableSpec.from_json(json.dumps(
+            {k: v for k, v in CD.items()
+             if not k.startswith("_")}))
+        ts_c.validate()
+        tr_c = plan_table(ts_c)
+        early = sum(1 for r_ in tr_c.clean_rows
+                    if r_["when"] < "2015-05-01")
+        check("generated dates REPRODUCE the clustering (not "
+              "uniform across the range)",
+              early > 0.5 * len(tr_c.clean_rows))
+        bad_w = json.loads(json.dumps(CD))
+        for c in bad_w["columns"]:
+            if c["name"] == "when":
+                c["distribution"]["weights"] = [1]
+        try:
+            TableSpec.from_json(json.dumps(
+                {k: v for k, v in bad_w.items()
+                 if not k.startswith("_")})).validate()
+            taught = False
+        except TableSpecError:
+            taught = True
+        check("the validator teaches on a malformed date shape",
+              taught)
+
+        piperows = []
+        for i, row in enumerate(source):
+            piperows.append({
+                "visit_id": str(1000 + i),
+                "person_id": str(i // 3),
+                "visit_start_date": "2018-0{}-{:02d}".format(
+                    1 + (i // 40) % 8, 1 + (i % 40) % 28),
+                **row})
+        pipesrc = td / "pipe_tidy.csv"
+        write(pipesrc, piperows)
+        res = run("scripts/phase2_pipeline.py", "--src",
+                  str(pipesrc), "-o", str(td / "run"),
+                  "--skip-wrangle")
+        check("the whole pipeline runs end to end in one command",
+              res.returncode == 0
+              and "artifacts in" in res.stdout)
+        check("the pipeline reports its seven stages",
+              res.stdout.count("[") >= 7 and "/7]" in res.stdout)
+        for f in ("profile.json", "draft_spec.json",
+                  "generated.csv", "fidelity.json"):
+            check("pipeline produced {}".format(f),
+                  (td / "run" / f).exists())
 
     print()
     if FAIL:

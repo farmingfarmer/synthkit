@@ -92,10 +92,12 @@ def main() -> None:
                    "distribution": {"kind": "bernoulli",
                                     "p": p["rate"]}}
         elif kind == "date":
+            dist = {"kind": "date_range", "start": p["start"],
+                    "end": p["end"]}
+            if p.get("bucket_weights"):
+                dist["weights"] = p["bucket_weights"]
             col = {"name": name, "ctype": "date",
-                   "distribution": {"kind": "date_range",
-                                    "start": p["start"],
-                                    "end": p["end"]}}
+                   "distribution": dist}
         elif kind == "list":
             deferred.append({
                 "name": name, "reason": "list-valued column",
@@ -127,12 +129,37 @@ def main() -> None:
             if c.get("confirmed") and not c.get("redundant")]
     dropped = [c for c in P["joint"]["numeric_correlations"]
                if c.get("confirmed") and c.get("redundant")]
+    colnames = {c["name"] for c in cols}
+    rules = []
     for c in dropped:
-        notes.append(
-            "{} <-> {}: correlation {:+.3f} is near-perfect — these "
-            "encode the same quantity, so it is NOT imposed; derive "
-            "one from the other with a rule instead"
-            .format(c["a"], c["b"], c["spearman"]))
+        prop = c.get("proportional")
+        if prop and prop["target"] in colnames \
+                and prop["source"] in colnames:
+            rules.append({"kind": "derived",
+                          "target": prop["target"],
+                          "source": prop["source"],
+                          "factor": prop["factor"],
+                          "noise_sigma": prop["noise_sigma"]})
+            notes.append(
+                "{} <-> {}: near-perfect ({:+.3f}) because one is a "
+                "multiple of the other — restored as a DERIVED rule "
+                "({} = {} x {}), not as a correlation"
+                .format(c["a"], c["b"], c["spearman"],
+                        prop["target"], prop["source"],
+                        prop["factor"]))
+        elif c.get("proportional_declined"):
+            notes.append(
+                "{} <-> {}: near-perfect ({:+.3f}) but NOT restored "
+                "as a rule — {}"
+                .format(c["a"], c["b"], c["spearman"],
+                        c["proportional_declined"]))
+        else:
+            notes.append(
+                "{} <-> {}: correlation {:+.3f} is near-perfect but "
+                "not a simple multiple — these encode the same "
+                "quantity by some other formula; author a rule if "
+                "the relationship matters"
+                .format(c["a"], c["b"], c["spearman"]))
 
     spec = {
         "title": a.title or "profiled from {}".format(
@@ -140,6 +167,7 @@ def main() -> None:
         "rows": rows,
         "master_seed": 20260730,
         "columns": cols,
+        "rules": rules,
         "correlations": corr,
         "outcomes": [],
         "_provenance": {
@@ -147,6 +175,7 @@ def main() -> None:
             "source_rows": P["source"]["rows"],
             "k_threshold": P["privacy"]["k_threshold"],
             "correlations_imposed": len(corr),
+            "derived_rules_emitted": len(rules),
             "correlations_available_unconfirmed": sum(
                 1 for c in P["joint"]["numeric_correlations"]
                 if not c.get("confirmed")),

@@ -93,6 +93,19 @@ def _gen_clean(col: ColumnSpec, row: int, master: int) -> Any:
         start = date.fromisoformat(p["start"])
         end = date.fromisoformat(p["end"])
         span = max((end - start).days, 0)
+        w = p.get("weights")
+        if w and span > 0:
+            # Real activity is never uniform across a date range —
+            # it clusters. `weights` divides the span into equal
+            # buckets and draws a bucket by weight, then a day
+            # inside it, so profiled temporal shape survives.
+            pick = _cell_rng(master, row, col.name, "date_bucket")
+            b = pick.choices(list(range(len(w))), weights=w,
+                             k=1)[0]
+            lo = int(span * b / len(w))
+            hi = int(span * (b + 1) / len(w)) - 1
+            hi = max(lo, min(hi, span))
+            return start + timedelta(days=rng.randint(lo, hi))
         return (start + timedelta(days=rng.randint(0, span)))
     if kind == "bernoulli":
         return rng.random() < float(p["p"])

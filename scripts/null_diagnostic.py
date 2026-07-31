@@ -75,6 +75,19 @@ def main() -> None:
                  if k not in DROP and k != a.label} for r in rs]
 
     n_pos, n_neg = sum(yte), len(yte) - sum(yte)
+    if n_pos == 0 or n_neg == 0:
+        # A label with one class is not a hard failure — it is a
+        # finding: the chosen window produced no variation. Say so
+        # and stop cleanly instead of crashing the pipeline.
+        print("rows {} | test {} | positives {}".format(
+            len(rows), len(yte), n_pos))
+        print("\nDEGENERATE LABEL: the test split contains only "
+              "one class, so no model can be scored.")
+        print("  This usually means the outcome window is wrong "
+              "for this data's rhythm — widen or narrow it "
+              "(--window) and re-derive. It is a property of the "
+              "source, not an error.")
+        return
     print("rows {} | train {} ({} patients) | test {} ({} patients)"
           .format(len(rows), len(train),
                   len({r['person_id'] for r in train}),

@@ -339,9 +339,30 @@ def main() -> None:
                         break
                     except ValueError:
                         continue
-            p = ({"kind": "date", "n": len(ds),
-                  "start": str(min(ds)), "end": str(max(ds))}
-                 if len(ds) >= k else None)
+            if len(ds) >= k:
+                lo, hi = min(ds), max(ds)
+                span = max((hi - lo).days, 1)
+                nb = 10
+                buckets = [0] * nb
+                for d0 in ds:
+                    b = min(nb - 1,
+                            int(nb * (d0 - lo).days / (span + 1)))
+                    buckets[b] += 1
+                # suppress thin buckets to the k floor so a sparse
+                # month cannot single out a person by timing
+                buckets = [b if b >= k else 0 for b in buckets]
+                if sum(buckets) == 0:
+                    buckets = [1] * nb
+                p = {"kind": "date", "n": len(ds),
+                     "start": str(lo), "end": str(hi),
+                     "bucket_weights": [
+                         round(b / sum(buckets), 4)
+                         for b in buckets],
+                     "shape_note": "activity is not uniform across "
+                                   "the range; these deciles carry "
+                                   "the timing pattern"}
+            else:
+                p = None
         else:
             p = None
         if p is None:
@@ -408,6 +429,40 @@ def main() -> None:
     for d in corrs:
         d["confirmed"] = (d["z"] is None
                           or abs(d["z"]) >= z_crit)
+        # For a near-perfect pair, measure whether one column is
+        # simply a multiple of the other. If it is, the draft can
+        # restore the relationship with a `derived` rule instead of
+        # a correlation — the honest way to reproduce a column that
+        # was never independent in the first place.
+        if abs(d["spearman"]) >= 0.95:
+            xs = [x for x in series[d["a"]] if x is not None]
+            pr = [(x, y) for x, y in zip(series[d["a"]],
+                                         series[d["b"]])
+                  if x not in (None, 0) and y is not None]
+            ratios = [y / x for x, y in pr if x]
+            # A ratio measured only where BOTH columns are present
+            # cannot be imposed on rows where one is absent. If the
+            # two columns have very different coverage, the
+            # proportional story holds on the overlap and nowhere
+            # else — decline it rather than damage the marginal.
+            ma = columns[d["a"]].get("missing_rate", 0.0)
+            mb = columns[d["b"]].get("missing_rate", 0.0)
+            comparable = abs(ma - mb) <= 0.10
+            if len(ratios) >= k and comparable:
+                med = pct(ratios, 0.5)
+                spread = (pct(ratios, 0.75) - pct(ratios, 0.25))
+                if med and abs(spread / med) < 0.5:
+                    d["proportional"] = {
+                        "target": d["b"], "source": d["a"],
+                        "factor": round(med, 4),
+                        "noise_sigma": round(
+                            min(abs(spread / med) / 2, 0.5), 4),
+                        "measured_on": len(ratios)}
+            elif len(ratios) >= k and not comparable:
+                d["proportional_declined"] = (
+                    "coverage differs too much ({:.0%} vs {:.0%} "
+                    "missing) — the ratio holds only where both "
+                    "are present".format(ma, mb))
     corrs.sort(key=lambda d: (not d["confirmed"],
                               -abs(d["spearman"])))
 

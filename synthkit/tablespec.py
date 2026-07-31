@@ -543,6 +543,16 @@ class TableSpec:
                     out.append("{}: weights must be non-negative "
                                "with a positive sum".format(tag))
         elif kind == "date_range":
+            w = p.get("weights")
+            if w is not None:
+                if not isinstance(w, list) or len(w) < 2:
+                    out.append("{}: date_range `weights` must be a "
+                               "list of at least 2 bucket weights "
+                               "spanning start..end".format(tag))
+                elif any(x < 0 for x in w) or sum(w) <= 0:
+                    out.append("{}: date_range weights must be "
+                               "non-negative with a positive sum"
+                               .format(tag))
             need("start", "end")
         elif kind == "sequence":
             need("prefix", "start")

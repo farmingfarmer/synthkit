@@ -1,0 +1,2409 @@
+{
+ "source": {
+  "file": "tidy_visits_labeled.csv",
+  "rows": 679,
+  "columns_seen": 44,
+  "columns_profiled": 41
+ },
+ "privacy": {
+  "k_threshold": 10,
+  "contract": "aggregates only; no record, value or identifier is emitted; generation from this profile cannot reproduce a source record",
+  "excluded_columns": [
+   "visit_id",
+   "person_id",
+   "days_to_next_visit"
+  ],
+  "numeric_bounds": "p1/p99 reported; min/max withheld",
+  "notes": []
+ },
+ "columns": {
+  "visit_start_date": {
+   "kind": "date",
+   "n": 679,
+   "start": "2007-01-01",
+   "end": "2020-12-04",
+   "bucket_weights": [
+    0.0515,
+    0.0972,
+    0.1134,
+    0.1355,
+    0.1429,
+    0.1811,
+    0.137,
+    0.0648,
+    0.0339,
+    0.0427
+   ],
+   "shape_note": "activity is not uniform across the range; these deciles carry the timing pattern",
+   "missing_rate": 0.0
+  },
+  "visit_end_date": {
+   "kind": "date",
+   "n": 679,
+   "start": "2007-01-17",
+   "end": "2020-12-31",
+   "bucket_weights": [
+    0.0515,
+    0.0987,
+    0.1163,
+    0.1325,
+    0.1546,
+    0.1738,
+    0.1325,
+    0.0633,
+    0.0339,
+    0.0427
+   ],
+   "shape_note": "activity is not uniform across the range; these deciles carry the timing pattern",
+   "missing_rate": 0.0
+  },
+  "span_days": {
+   "kind": "numeric",
+   "n": 679,
+   "degenerate_body": false,
+   "family": "normal",
+   "params": {
+    "mean": 7.5302,
+    "sd": 196.2189
+   },
+   "p1": 0.0,
+   "p50": 0.0,
+   "p99": 0.0,
+   "integer_valued": true,
+   "skew": 25.943,
+   "zero_inflation": 0.9985,
+   "warning": "observed values are all >= 0 but a normal fit would emit negatives; generation must clamp at 0",
+   "missing_rate": 0.0
+  },
+  "visit_type": {
+   "kind": "constant",
+   "n": 679,
+   "missing_rate": 0.0,
+   "note": "single value \u2014 carries no information; a candidate to drop"
+  },
+  "admitted_from": {
+   "kind": "constant",
+   "n": 679,
+   "missing_rate": 0.0,
+   "note": "single value \u2014 carries no information; a candidate to drop"
+  },
+  "age_at_visit": {
+   "kind": "numeric",
+   "n": 679,
+   "degenerate_body": false,
+   "family": "normal",
+   "params": {
+    "mean": 44.6495,
+    "sd": 18.8368
+   },
+   "p1": 8.0,
+   "p50": 44.0,
+   "p99": 82.0,
+   "integer_valued": true,
+   "skew": 0.273,
+   "missing_rate": 0.0
+  },
+  "year_of_birth": {
+   "kind": "numeric",
+   "n": 679,
+   "degenerate_body": false,
+   "family": "normal",
+   "params": {
+    "mean": 1968.3108,
+    "sd": 18.3283
+   },
+   "p1": 1935.0,
+   "p50": 1970.0,
+   "p99": 2002.0,
+   "integer_valued": true,
+   "skew": -0.314,
+   "missing_rate": 0.0
+  },
+  "gender": {
+   "kind": "categorical",
+   "n": 679,
+   "levels": 2,
+   "weights": {
+    "FEMALE": 0.5449,
+    "MALE": 0.4551
+   },
+   "suppressed_levels": 0,
+   "missing_rate": 0.0
+  },
+  "race": {
+   "kind": "categorical",
+   "n": 679,
+   "levels": 6,
+   "weights": {
+    "WHITE": 0.5714,
+    "BLACKORAFRICANAMERICAN": 0.1708,
+    "OTHER": 0.137,
+    "ASIAN": 0.0943,
+    "PATIENTREFUSESORDOESNOTKNOW": 0.0236,
+    "OTHER_SUPPRESSED": 0.0029
+   },
+   "suppressed_levels": 1,
+   "missing_rate": 0.0
+  },
+  "ethnicity": {
+   "kind": "categorical",
+   "n": 679,
+   "levels": 3,
+   "weights": {
+    "NONHISPANICORLATINO": 0.8498,
+    "HISPANICORLATINO": 0.1414,
+    "OTHER_SUPPRESSED": 0.0088
+   },
+   "suppressed_levels": 1,
+   "missing_rate": 0.0
+  },
+  "respiratory_rate": {
+   "kind": "numeric",
+   "n": 268,
+   "degenerate_body": false,
+   "family": "lognormal",
+   "params": {
+    "mu": 2.7476,
+    "sigma": 0.1914
+   },
+   "p1": 8.5,
+   "p50": 16.03,
+   "p99": 61.88,
+   "integer_valued": false,
+   "skew": 5.436,
+   "outlier_rate": 0.0336,
+   "outlier_factor": 5.55,
+   "fit_note": "fitted on the trimmed body; the extremes are declared as a mess rate so contamination is reproduced as contamination, not as shape",
+   "missing_rate": 0.6053
+  },
+  "urea": {
+   "kind": "numeric",
+   "n": 266,
+   "degenerate_body": false,
+   "family": "normal",
+   "params": {
+    "mean": 14.775,
+    "sd": 6.2323
+   },
+   "p1": 1.14,
+   "p50": 14.7,
+   "p99": 66.92,
+   "integer_valued": false,
+   "skew": 3.902,
+   "outlier_rate": 0.0188,
+   "outlier_factor": 6.48,
+   "fit_note": "fitted on the trimmed body; the extremes are declared as a mess rate so contamination is reproduced as contamination, not as shape",
+   "missing_rate": 0.6082
+  },
+  "diastolic_blood_pressure": {
+   "kind": "numeric",
+   "n": 262,
+   "degenerate_body": false,
+   "family": "lognormal",
+   "params": {
+    "mu": 4.3505,
+    "sigma": 0.1475
+   },
+   "p1": 49.44,
+   "p50": 79.03,
+   "p99": 325.88,
+   "integer_valued": false,
+   "skew": 5.458,
+   "outlier_rate": 0.0305,
+   "outlier_factor": 4.25,
+   "fit_note": "fitted on the trimmed body; the extremes are declared as a mess rate so contamination is reproduced as contamination, not as shape",
+   "missing_rate": 0.6141
+  },
+  "erythrocytes": {
+   "kind": "numeric",
+   "n": 261,
+   "degenerate_body": false,
+   "family": "lognormal",
+   "params": {
+    "mu": 1.5372,
+    "sigma": 0.1161
+   },
+   "p1": 0.23,
+   "p50": 4.66,
+   "p99": 17.72,
+   "integer_valued": false,
+   "skew": 5.339,
+   "outlier_rate": 0.0421,
+   "outlier_factor": 4.65,
+   "fit_note": "fitted on the trimmed body; the extremes are declared as a mess rate so contamination is reproduced as contamination, not as shape",
+   "missing_rate": 0.6156
+  },
+  "alkaline_phosphatase": {
+   "kind": "numeric",
+   "n": 261,
+   "degenerate_body": false,
+   "family": "lognormal",
+   "params": {
+    "mu": 4.3561,
+    "sigma": 0.3459
+   },
+   "p1": 4.57,
+   "p50": 81.19,
+   "p99": 359.76,
+   "integer_valued": false,
+   "skew": 3.957,
+   "outlier_rate": 0.0383,
+   "outlier_factor": 5.19,
+   "fit_note": "fitted on the trimmed body; the extremes are declared as a mess rate so contamination is reproduced as contamination, not as shape",
+   "missing_rate": 0.6156
+  },
+  "mch": {
+   "kind": "numeric",
+   "n": 260,
+   "degenerate_body": false,
+   "family": "lognormal",
+   "params": {
+    "mu": 3.3958,
+    "sigma": 0.0805
+   },
+   "p1": 1.6,
+   "p50": 30.02,
+   "p99": 124.8,
+   "integer_valued": false,
+   "skew": 4.651,
+   "outlier_rate": 0.0538,
+   "outlier_factor": 4.46,
+   "fit_note": "fitted on the trimmed body; the extremes are declared as a mess rate so contamination is reproduced as contamination, not as shape",
+   "missing_rate": 0.6171
+  },
+  "mcv": {
+   "kind": "numeric",
+   "n": 258,
+   "degenerate_body": false,
+   "family": "lognormal",
+   "params": {
+    "mu": 4.4907,
+    "sigma": 0.0712
+   },
+   "p1": 4.65,
+   "p50": 89.49,
+   "p99": 335.04,
+   "integer_valued": false,
+   "skew": 5.157,
+   "outlier_rate": 0.0426,
+   "outlier_factor": 4.08,
+   "fit_note": "fitted on the trimmed body; the extremes are declared as a mess rate so contamination is reproduced as contamination, not as shape",
+   "missing_rate": 0.62
+  },
+  "glucose": {
+   "kind": "numeric",
+   "n": 258,
+   "degenerate_body": false,
+   "family": "lognormal",
+   "params": {
+    "mu": 4.5443,
+    "sigma": 0.3883
+   },
+   "p1": 5.62,
+   "p50": 94.56,
+   "p99": 411.44,
+   "integer_valued": false,
+   "skew": 4.478,
+   "outlier_rate": 0.0465,
+   "outlier_factor": 7.01,
+   "fit_note": "fitted on the trimmed body; the extremes are declared as a mess rate so contamination is reproduced as contamination, not as shape",
+   "missing_rate": 0.62
+  },
+  "albumin": {
+   "kind": "numeric",
+   "n": 258,
+   "degenerate_body": false,
+   "family": "lognormal",
+   "params": {
+    "mu": 1.4087,
+    "sigma": 0.1266
+   },
+   "p1": 0.23,
+   "p50": 4.09,
+   "p99": 15.04,
+   "integer_valued": false,
+   "skew": 5.28,
+   "outlier_rate": 0.0388,
+   "outlier_factor": 4.41,
+   "fit_note": "fitted on the trimmed body; the extremes are declared as a mess rate so contamination is reproduced as contamination, not as shape",
+   "missing_rate": 0.62
+  },
+  "eosinophils": {
+   "kind": "numeric",
+   "n": 257,
+   "degenerate_body": false,
+   "family": "normal",
+   "params": {
+    "mean": 2.0449,
+    "sd": 1.5801
+   },
+   "p1": -1.48,
+   "p50": 2.18,
+   "p99": 8.52,
+   "integer_valued": false,
+   "skew": 2.397,
+   "outlier_rate": 0.0156,
+   "outlier_factor": 8.58,
+   "fit_note": "fitted on the trimmed body; the extremes are declared as a mess rate so contamination is reproduced as contamination, not as shape",
+   "missing_rate": 0.6215
+  },
+  "aspartate_aminotransferase": {
+   "kind": "numeric",
+   "n": 256,
+   "degenerate_body": false,
+   "family": "normal",
+   "params": {
+    "mean": 25.4187,
+    "sd": 11.5058
+   },
+   "p1": -0.3,
+   "p50": 25.92,
+   "p99": 118.2,
+   "integer_valued": false,
+   "skew": 3.722,
+   "outlier_rate": 0.0273,
+   "outlier_factor": 6.68,
+   "fit_note": "fitted on the trimmed body; the extremes are declared as a mess rate so contamination is reproduced as contamination, not as shape",
+   "missing_rate": 0.623
+  },
+  "lymphocytes": {
+   "kind": "numeric",
+   "n": 256,
+   "degenerate_body": false,
+   "family": "lognormal",
+   "params": {
+    "mu": 3.3201,
+    "sigma": 0.294
+   },
+   "p1": 1.45,
+   "p50": 28.48,
+   "p99": 53.75,
+   "integer_valued": false,
+   "skew": 1.784,
+   "outlier_rate": 0.0352,
+   "outlier_factor": 3.54,
+   "fit_note": "fitted on the trimmed body; the extremes are declared as a mess rate so contamination is reproduced as contamination, not as shape",
+   "missing_rate": 0.623
+  },
+  "bilirubin_total": {
+   "kind": "numeric",
+   "n": 255,
+   "degenerate_body": false,
+   "family": "normal",
+   "params": {
+    "mean": 0.5908,
+    "sd": 0.2947
+   },
+   "p1": 0.01,
+   "p50": 0.58,
+   "p99": 1.39,
+   "integer_valued": false,
+   "skew": 2.73,
+   "outlier_rate": 0.0118,
+   "outlier_factor": 6.62,
+   "fit_note": "fitted on the trimmed body; the extremes are declared as a mess rate so contamination is reproduced as contamination, not as shape",
+   "missing_rate": 0.6244
+  },
+  "peripheral_pulse": {
+   "kind": "numeric",
+   "n": 253,
+   "degenerate_body": false,
+   "family": "lognormal",
+   "params": {
+    "mu": 4.3383,
+    "sigma": 0.1486
+   },
+   "p1": 3.44,
+   "p50": 76.24,
+   "p99": 266.92,
+   "integer_valued": false,
+   "skew": 4.241,
+   "outlier_rate": 0.0593,
+   "outlier_factor": 4.57,
+   "fit_note": "fitted on the trimmed body; the extremes are declared as a mess rate so contamination is reproduced as contamination, not as shape",
+   "missing_rate": 0.6274
+  },
+  "leukocytes": {
+   "kind": "numeric",
+   "n": 253,
+   "degenerate_body": false,
+   "family": "lognormal",
+   "params": {
+    "mu": 1.898,
+    "sigma": 0.3599
+   },
+   "p1": 1.9,
+   "p50": 6.87,
+   "p99": 23.64,
+   "integer_valued": false,
+   "skew": 4.68,
+   "outlier_rate": 0.0158,
+   "outlier_factor": 5.91,
+   "fit_note": "fitted on the trimmed body; the extremes are declared as a mess rate so contamination is reproduced as contamination, not as shape",
+   "missing_rate": 0.6274
+  },
+  "nucleated_erythrocytes": {
+   "kind": "numeric",
+   "n": 251,
+   "degenerate_body": false,
+   "family": "normal",
+   "params": {
+    "mean": 0.0878,
+    "sd": 0.1835
+   },
+   "p1": -0.4,
+   "p50": 0.09,
+   "p99": 0.5,
+   "integer_valued": false,
+   "skew": 0.211,
+   "outlier_rate": 0.008,
+   "outlier_factor": 11.56,
+   "fit_note": "fitted on the trimmed body; the extremes are declared as a mess rate so contamination is reproduced as contamination, not as shape",
+   "missing_rate": 0.6303
+  },
+  "systolic_blood_pressure": {
+   "kind": "numeric",
+   "n": 250,
+   "degenerate_body": false,
+   "family": "lognormal",
+   "params": {
+    "mu": 4.816,
+    "sigma": 0.1426
+   },
+   "p1": 5.47,
+   "p50": 125.31,
+   "p99": 537.32,
+   "integer_valued": false,
+   "skew": 4.702,
+   "outlier_rate": 0.052,
+   "outlier_factor": 4.72,
+   "fit_note": "fitted on the trimmed body; the extremes are declared as a mess rate so contamination is reproduced as contamination, not as shape",
+   "missing_rate": 0.6318
+  },
+  "platelet_mean_volume": {
+   "kind": "numeric",
+   "n": 250,
+   "degenerate_body": false,
+   "family": "lognormal",
+   "params": {
+    "mu": 2.1997,
+    "sigma": 0.1248
+   },
+   "p1": 0.45,
+   "p50": 9.16,
+   "p99": 34.04,
+   "integer_valued": false,
+   "skew": 5.523,
+   "outlier_rate": 0.036,
+   "outlier_factor": 4.45,
+   "fit_note": "fitted on the trimmed body; the extremes are declared as a mess rate so contamination is reproduced as contamination, not as shape",
+   "missing_rate": 0.6318
+  },
+  "basophils": {
+   "kind": "numeric",
+   "n": 249,
+   "degenerate_body": false,
+   "family": "normal",
+   "params": {
+    "mean": 0.5771,
+    "sd": 0.4154
+   },
+   "p1": -0.38,
+   "p50": 0.58,
+   "p99": 1.61,
+   "integer_valued": false,
+   "skew": 1.232,
+   "outlier_rate": 0.004,
+   "outlier_factor": 6.41,
+   "fit_note": "fitted on the trimmed body; the extremes are declared as a mess rate so contamination is reproduced as contamination, not as shape",
+   "missing_rate": 0.6333
+  },
+  "reticulocytes": {
+   "kind": "numeric",
+   "n": 249,
+   "degenerate_body": false,
+   "family": "normal",
+   "params": {
+    "mean": 53.2903,
+    "sd": 21.2457
+   },
+   "p1": 3.67,
+   "p50": 54.54,
+   "p99": 98.68,
+   "integer_valued": false,
+   "skew": 2.328,
+   "outlier_rate": 0.004,
+   "outlier_factor": 4.99,
+   "fit_note": "fitted on the trimmed body; the extremes are declared as a mess rate so contamination is reproduced as contamination, not as shape",
+   "missing_rate": 0.6333
+  },
+  "monocytes": {
+   "kind": "numeric",
+   "n": 246,
+   "degenerate_body": false,
+   "family": "lognormal",
+   "params": {
+    "mu": 1.8179,
+    "sigma": 0.3773
+   },
+   "p1": 0.26,
+   "p50": 6.43,
+   "p99": 11.63,
+   "integer_valued": false,
+   "skew": 2.31,
+   "outlier_rate": 0.0488,
+   "outlier_factor": 4.37,
+   "fit_note": "fitted on the trimmed body; the extremes are declared as a mess rate so contamination is reproduced as contamination, not as shape",
+   "missing_rate": 0.6377
+  },
+  "condition_count": {
+   "kind": "numeric",
+   "n": 679,
+   "degenerate_body": false,
+   "family": "normal",
+   "params": {
+    "mean": 2.1822,
+    "sd": 1.017
+   },
+   "p1": 0.0,
+   "p50": 2.0,
+   "p99": 4.0,
+   "integer_valued": true,
+   "skew": 0.26,
+   "zero_inflation": 0.2563,
+   "missing_rate": 0.0
+  },
+  "conditions": {
+   "kind": "list",
+   "n": 679,
+   "mean_length": 1.571,
+   "sd_length": 1.255,
+   "empty_rate": 0.2563,
+   "distinct_items": 19,
+   "item_rates": {
+    "Pain of breast": 0.1134,
+    "Fibromyalgia": 0.106,
+    "Genitourinary tract hemorrhage": 0.0928,
+    "Inflammatory dermatosis": 0.0913,
+    "Fatigue": 0.0898,
+    "Irritable bowel syndrome": 0.0869,
+    "Polyneuropathy": 0.0869,
+    "Autoimmune thyroiditis": 0.0869,
+    "Anxiety disorder": 0.0854,
+    "Disorder of lung": 0.0854,
+    "Neoplastic disease": 0.0825,
+    "Tietze's disease": 0.081,
+    "Swelling / lump finding": 0.0795,
+    "Postoperative state": 0.0751,
+    "Acquired absence of breast": 0.0736,
+    "Solitary nodule of lung": 0.0736,
+    "Lymphadenopathy": 0.0722,
+    "Hypothyroidism": 0.0619,
+    "Abnormal findings on diagnostic imaging": 0.0471
+   },
+   "suppressed_items": 0,
+   "cooccurrence": [
+    {
+     "a": "Fatigue",
+     "b": "Polyneuropathy",
+     "n": 11,
+     "lift": 2.076
+    },
+    {
+     "a": "Inflammatory dermatosis",
+     "b": "Tietze's disease",
+     "n": 10,
+     "lift": 1.991
+    },
+    {
+     "a": "Lymphadenopathy",
+     "b": "Pain of breast",
+     "n": 11,
+     "lift": 1.979
+    },
+    {
+     "a": "Fatigue",
+     "b": "Inflammatory dermatosis",
+     "n": 10,
+     "lift": 1.796
+    },
+    {
+     "a": "Irritable bowel syndrome",
+     "b": "Pain of breast",
+     "n": 12,
+     "lift": 1.793
+    },
+    {
+     "a": "Fibromyalgia",
+     "b": "Polyneuropathy",
+     "n": 10,
+     "lift": 1.599
+    },
+    {
+     "a": "Fibromyalgia",
+     "b": "Pain of breast",
+     "n": 11,
+     "lift": 1.348
+    }
+   ],
+   "missing_rate": 0.2563
+  },
+  "procedure_count": {
+   "kind": "numeric",
+   "n": 679,
+   "degenerate_body": false,
+   "family": "normal",
+   "params": {
+    "mean": 3.3249,
+    "sd": 1.6891
+   },
+   "p1": 0.0,
+   "p50": 0.0,
+   "p99": 6.0,
+   "integer_valued": true,
+   "skew": 0.951,
+   "zero_inflation": 0.5331,
+   "warning": "observed values are all >= 0 but a normal fit would emit negatives; generation must clamp at 0",
+   "missing_rate": 0.0
+  },
+  "procedures": {
+   "kind": "list",
+   "n": 679,
+   "mean_length": 1.373,
+   "sd_length": 1.763,
+   "empty_rate": 0.5331,
+   "distinct_items": 14,
+   "item_rates": {
+    "Fluoroscopy of Bilateral Internal Carotid Arteries": 0.1694,
+    "Fluoroscopy of Bilateral Vertebral Arteries": 0.1134,
+    "Fluoroscopy of Bilateral Common Carotid Arteries": 0.106,
+    "Oxygen therapy": 0.1001,
+    "Destruction of Left Foot Skin, External Approach": 0.0972,
+    "Destruction of Back Skin, External Approach, Diagnostic": 0.0957,
+    "Excision of Left Hand Skin, Multiple, External Approach": 0.0957,
+    "Repair Back Skin, External Approach": 0.0928,
+    "Chemotherapy follow-up": 0.0898,
+    "Magnetic resonance (eg, proton) imaging, brain": 0.0869,
+    "Selective catheter placement, external carotid artery": 0.0854,
+    "Destruction of Right Foot Skin, External Approach": 0.081,
+    "Excision of Back Skin, External Approach": 0.0795,
+    "Fluoroscopy of Other Upper Arteries using Low Osmolar": 0.0795
+   },
+   "suppressed_items": 0,
+   "cooccurrence": [
+    {
+     "a": "Fluoroscopy of Other Upper Arteries using Low Osmolar",
+     "b": "Repair Back Skin, External Approach",
+     "n": 17,
+     "lift": 3.394
+    },
+    {
+     "a": "Excision of Left Hand Skin, Multiple, External Approach",
+     "b": "Magnetic resonance (eg, proton) imaging, brain",
+     "n": 18,
+     "lift": 3.188
+    },
+    {
+     "a": "Destruction of Back Skin, External Approach, Diagnostic",
+     "b": "Excision of Back Skin, External Approach",
+     "n": 16,
+     "lift": 3.097
+    },
+    {
+     "a": "Destruction of Right Foot Skin, External Approach",
+     "b": "Oxygen therapy",
+     "n": 16,
+     "lift": 2.906
+    },
+    {
+     "a": "Chemotherapy follow-up",
+     "b": "Fluoroscopy of Bilateral Internal Carotid Arteries",
+     "n": 29,
+     "lift": 2.808
+    },
+    {
+     "a": "Destruction of Right Foot Skin, External Approach",
+     "b": "Selective catheter placement, external carotid artery",
+     "n": 13,
+     "lift": 2.768
+    },
+    {
+     "a": "Excision of Left Hand Skin, Multiple, External Approach",
+     "b": "Fluoroscopy of Bilateral Common Carotid Arteries",
+     "n": 19,
+     "lift": 2.758
+    },
+    {
+     "a": "Chemotherapy follow-up",
+     "b": "Destruction of Back Skin, External Approach, Diagnostic",
+     "n": 16,
+     "lift": 2.742
+    },
+    {
+     "a": "Destruction of Left Foot Skin, External Approach",
+     "b": "Oxygen therapy",
+     "n": 18,
+     "lift": 2.725
+    },
+    {
+     "a": "Chemotherapy follow-up",
+     "b": "Destruction of Left Foot Skin, External Approach",
+     "n": 16,
+     "lift": 2.7
+    },
+    {
+     "a": "Oxygen therapy",
+     "b": "Selective catheter placement, external carotid artery",
+     "n": 15,
+     "lift": 2.584
+    },
+    {
+     "a": "Destruction of Left Foot Skin, External Approach",
+     "b": "Fluoroscopy of Bilateral Common Carotid Arteries",
+     "n": 18,
+     "lift": 2.573
+    },
+    {
+     "a": "Excision of Back Skin, External Approach",
+     "b": "Fluoroscopy of Other Upper Arteries using Low Osmolar",
+     "n": 11,
+     "lift": 2.563
+    },
+    {
+     "a": "Destruction of Left Foot Skin, External Approach",
+     "b": "Excision of Left Hand Skin, Multiple, External Approach",
+     "n": 16,
+     "lift": 2.533
+    },
+    {
+     "a": "Excision of Left Hand Skin, Multiple, External Approach",
+     "b": "Fluoroscopy of Other Upper Arteries using Low Osmolar",
+     "n": 13,
+     "lift": 2.516
+    },
+    {
+     "a": "Chemotherapy follow-up",
+     "b": "Selective catheter placement, external carotid artery",
+     "n": 13,
+     "lift": 2.497
+    },
+    {
+     "a": "Fluoroscopy of Bilateral Vertebral Arteries",
+     "b": "Oxygen therapy",
+     "n": 19,
+     "lift": 2.465
+    },
+    {
+     "a": "Fluoroscopy of Bilateral Common Carotid Arteries",
+     "b": "Fluoroscopy of Bilateral Internal Carotid Arteries",
+     "n": 30,
+     "lift": 2.461
+    },
+    {
+     "a": "Chemotherapy follow-up",
+     "b": "Magnetic resonance (eg, proton) imaging, brain",
+     "n": 13,
+     "lift": 2.453
+    },
+    {
+     "a": "Repair Back Skin, External Approach",
+     "b": "Selective catheter placement, external carotid artery",
+     "n": 13,
+     "lift": 2.416
+    },
+    {
+     "a": "Fluoroscopy of Bilateral Internal Carotid Arteries",
+     "b": "Fluoroscopy of Other Upper Arteries using Low Osmolar",
+     "n": 22,
+     "lift": 2.406
+    },
+    {
+     "a": "Fluoroscopy of Bilateral Internal Carotid Arteries",
+     "b": "Magnetic resonance (eg, proton) imaging, brain",
+     "n": 24,
+     "lift": 2.401
+    },
+    {
+     "a": "Excision of Back Skin, External Approach",
+     "b": "Repair Back Skin, External Approach",
+     "n": 12,
+     "lift": 2.396
+    },
+    {
+     "a": "Magnetic resonance (eg, proton) imaging, brain",
+     "b": "Oxygen therapy",
+     "n": 14,
+     "lift": 2.37
+    },
+    {
+     "a": "Destruction of Back Skin, External Approach, Diagnostic",
+     "b": "Fluoroscopy of Bilateral Common Carotid Arteries",
+     "n": 16,
+     "lift": 2.323
+    },
+    {
+     "a": "Destruction of Back Skin, External Approach, Diagnostic",
+     "b": "Repair Back Skin, External Approach",
+     "n": 14,
+     "lift": 2.322
+    },
+    {
+     "a": "Chemotherapy follow-up",
+     "b": "Repair Back Skin, External Approach",
+     "n": 13,
+     "lift": 2.297
+    },
+    {
+     "a": "Fluoroscopy of Bilateral Common Carotid Arteries",
+     "b": "Fluoroscopy of Other Upper Arteries using Low Osmolar",
+     "n": 13,
+     "lift": 2.272
+    },
+    {
+     "a": "Destruction of Left Foot Skin, External Approach",
+     "b": "Magnetic resonance (eg, proton) imaging, brain",
+     "n": 13,
+     "lift": 2.267
+    },
+    {
+     "a": "Fluoroscopy of Bilateral Vertebral Arteries",
+     "b": "Magnetic resonance (eg, proton) imaging, brain",
+     "n": 15,
+     "lift": 2.242
+    },
+    {
+     "a": "Fluoroscopy of Bilateral Common Carotid Arteries",
+     "b": "Magnetic resonance (eg, proton) imaging, brain",
+     "n": 14,
+     "lift": 2.238
+    },
+    {
+     "a": "Chemotherapy follow-up",
+     "b": "Excision of Left Hand Skin, Multiple, External Approach",
+     "n": 13,
+     "lift": 2.228
+    },
+    {
+     "a": "Fluoroscopy of Other Upper Arteries using Low Osmolar",
+     "b": "Oxygen therapy",
+     "n": 12,
+     "lift": 2.221
+    },
+    {
+     "a": "Oxygen therapy",
+     "b": "Repair Back Skin, External Approach",
+     "n": 14,
+     "lift": 2.22
+    },
+    {
+     "a": "Destruction of Back Skin, External Approach, Diagnostic",
+     "b": "Destruction of Left Foot Skin, External Approach",
+     "n": 14,
+     "lift": 2.217
+    },
+    {
+     "a": "Fluoroscopy of Bilateral Common Carotid Arteries",
+     "b": "Fluoroscopy of Bilateral Vertebral Arteries",
+     "n": 18,
+     "lift": 2.205
+    },
+    {
+     "a": "Fluoroscopy of Bilateral Internal Carotid Arteries",
+     "b": "Oxygen therapy",
+     "n": 25,
+     "lift": 2.171
+    },
+    {
+     "a": "Fluoroscopy of Bilateral Internal Carotid Arteries",
+     "b": "Repair Back Skin, External Approach",
+     "n": 23,
+     "lift": 2.155
+    },
+    {
+     "a": "Destruction of Left Foot Skin, External Approach",
+     "b": "Fluoroscopy of Bilateral Internal Carotid Arteries",
+     "n": 24,
+     "lift": 2.147
+    },
+    {
+     "a": "Destruction of Left Foot Skin, External Approach",
+     "b": "Fluoroscopy of Bilateral Vertebral Arteries",
+     "n": 16,
+     "lift": 2.138
+    }
+   ],
+   "missing_rate": 0.5331
+  },
+  "procedure_quantity": {
+   "kind": "numeric",
+   "n": 317,
+   "degenerate_body": false,
+   "family": "lognormal",
+   "params": {
+    "mu": 1.132,
+    "sigma": 0.64
+   },
+   "p1": 1.0,
+   "p50": 4.0,
+   "p99": 194.0,
+   "integer_valued": true,
+   "skew": 8.585,
+   "outlier_rate": 0.0126,
+   "outlier_factor": 49.25,
+   "fit_note": "fitted on the trimmed body; the extremes are declared as a mess rate so contamination is reproduced as contamination, not as shape",
+   "missing_rate": 0.5331
+  },
+  "active_drug_count": {
+   "kind": "numeric",
+   "n": 679,
+   "degenerate_body": false,
+   "family": "normal",
+   "params": {
+    "mean": 4.5935,
+    "sd": 2.5578
+   },
+   "p1": 0.0,
+   "p50": 4.0,
+   "p99": 11.0,
+   "integer_valued": true,
+   "skew": 0.286,
+   "warning": "observed values are all >= 0 but a normal fit would emit negatives; generation must clamp at 0",
+   "missing_rate": 0.0
+  },
+  "active_drugs": {
+   "kind": "list",
+   "n": 679,
+   "mean_length": 4.594,
+   "sd_length": 2.558,
+   "empty_rate": 0.0442,
+   "distinct_items": 20,
+   "item_rates": {
+    "levothyroxine": 0.2975,
+    "iopamidol": 0.2518,
+    "linaclotide": 0.2445,
+    "clobetasol": 0.2445,
+    "gadopentetate dimeglumine": 0.243,
+    "liothyronine": 0.243,
+    "ketoconazole": 0.2415,
+    "sulfacetamide": 0.2415,
+    "lamotrigine": 0.2415,
+    "sodium bicarbonate": 0.2342,
+    "triamcinolone": 0.2312,
+    "norethindrone": 0.2297,
+    "venlafaxine": 0.2283,
+    "lidocaine": 0.2283,
+    "bupropion": 0.2121,
+    "ondansetron": 0.2003,
+    "gadobenate": 0.2003,
+    "sodium chloride": 0.1988,
+    "sodium": 0.1915,
+    "estradiol": 0.19
+   },
+   "suppressed_items": 0,
+   "cooccurrence": [
+    {
+     "a": "ondansetron",
+     "b": "sulfacetamide",
+     "n": 57,
+     "lift": 1.735
+    },
+    {
+     "a": "estradiol",
+     "b": "norethindrone",
+     "n": 48,
+     "lift": 1.62
+    },
+    {
+     "a": "ondansetron",
+     "b": "triamcinolone",
+     "n": 50,
+     "lift": 1.59
+    },
+    {
+     "a": "ondansetron",
+     "b": "sodium",
+     "n": 40,
+     "lift": 1.536
+    },
+    {
+     "a": "liothyronine",
+     "b": "venlafaxine",
+     "n": 57,
+     "lift": 1.513
+    },
+    {
+     "a": "bupropion",
+     "b": "sodium bicarbonate",
+     "n": 51,
+     "lift": 1.512
+    },
+    {
+     "a": "estradiol",
+     "b": "iopamidol",
+     "n": 49,
+     "lift": 1.508
+    },
+    {
+     "a": "gadobenate",
+     "b": "triamcinolone",
+     "n": 47,
+     "lift": 1.495
+    },
+    {
+     "a": "gadopentetate dimeglumine",
+     "b": "sodium",
+     "n": 47,
+     "lift": 1.487
+    },
+    {
+     "a": "gadobenate",
+     "b": "lidocaine",
+     "n": 46,
+     "lift": 1.481
+    },
+    {
+     "a": "sulfacetamide",
+     "b": "triamcinolone",
+     "n": 56,
+     "lift": 1.477
+    },
+    {
+     "a": "norethindrone",
+     "b": "sulfacetamide",
+     "n": 55,
+     "lift": 1.46
+    },
+    {
+     "a": "estradiol",
+     "b": "sodium",
+     "n": 36,
+     "lift": 1.457
+    },
+    {
+     "a": "iopamidol",
+     "b": "norethindrone",
+     "n": 57,
+     "lift": 1.451
+    },
+    {
+     "a": "bupropion",
+     "b": "norethindrone",
+     "n": 48,
+     "lift": 1.451
+    },
+    {
+     "a": "ondansetron",
+     "b": "venlafaxine",
+     "n": 45,
+     "lift": 1.449
+    },
+    {
+     "a": "gadopentetate dimeglumine",
+     "b": "linaclotide",
+     "n": 58,
+     "lift": 1.438
+    },
+    {
+     "a": "gadopentetate dimeglumine",
+     "b": "norethindrone",
+     "n": 54,
+     "lift": 1.425
+    },
+    {
+     "a": "clobetasol",
+     "b": "lidocaine",
+     "n": 54,
+     "lift": 1.425
+    },
+    {
+     "a": "linaclotide",
+     "b": "venlafaxine",
+     "n": 54,
+     "lift": 1.425
+    },
+    {
+     "a": "linaclotide",
+     "b": "sodium chloride",
+     "n": 47,
+     "lift": 1.424
+    },
+    {
+     "a": "lidocaine",
+     "b": "sodium",
+     "n": 42,
+     "lift": 1.415
+    },
+    {
+     "a": "ketoconazole",
+     "b": "levothyroxine",
+     "n": 69,
+     "lift": 1.414
+    },
+    {
+     "a": "iopamidol",
+     "b": "linaclotide",
+     "n": 59,
+     "lift": 1.411
+    },
+    {
+     "a": "lamotrigine",
+     "b": "sodium",
+     "n": 19,
+     "lift": 0.605
+    },
+    {
+     "a": "bupropion",
+     "b": "iopamidol",
+     "n": 50,
+     "lift": 1.379
+    },
+    {
+     "a": "gadopentetate dimeglumine",
+     "b": "sodium bicarbonate",
+     "n": 24,
+     "lift": 0.621
+    },
+    {
+     "a": "bupropion",
+     "b": "sodium",
+     "n": 38,
+     "lift": 1.378
+    },
+    {
+     "a": "iopamidol",
+     "b": "sodium bicarbonate",
+     "n": 55,
+     "lift": 1.374
+    },
+    {
+     "a": "ondansetron",
+     "b": "sodium chloride",
+     "n": 37,
+     "lift": 1.368
+    },
+    {
+     "a": "sodium bicarbonate",
+     "b": "sodium chloride",
+     "n": 43,
+     "lift": 1.36
+    },
+    {
+     "a": "gadopentetate dimeglumine",
+     "b": "venlafaxine",
+     "n": 51,
+     "lift": 1.354
+    },
+    {
+     "a": "bupropion",
+     "b": "estradiol",
+     "n": 37,
+     "lift": 1.352
+    },
+    {
+     "a": "iopamidol",
+     "b": "liothyronine",
+     "n": 56,
+     "lift": 1.348
+    },
+    {
+     "a": "clobetasol",
+     "b": "ketoconazole",
+     "n": 54,
+     "lift": 1.347
+    },
+    {
+     "a": "norethindrone",
+     "b": "sodium bicarbonate",
+     "n": 49,
+     "lift": 1.341
+    },
+    {
+     "a": "clobetasol",
+     "b": "liothyronine",
+     "n": 54,
+     "lift": 1.339
+    },
+    {
+     "a": "lamotrigine",
+     "b": "sulfacetamide",
+     "n": 53,
+     "lift": 1.338
+    },
+    {
+     "a": "liothyronine",
+     "b": "sulfacetamide",
+     "n": 53,
+     "lift": 1.33
+    },
+    {
+     "a": "estradiol",
+     "b": "sodium bicarbonate",
+     "n": 40,
+     "lift": 1.324
+    }
+   ],
+   "missing_rate": 0.0442
+  },
+  "drug_routes": {
+   "kind": "list",
+   "n": 679,
+   "mean_length": 2.373,
+   "sd_length": 0.996,
+   "empty_rate": 0.0442,
+   "distinct_items": 4,
+   "item_rates": {
+    "Oral": 0.8807,
+    "Topical": 0.6966,
+    "IV": 0.6038,
+    "Charge": 0.1915
+   },
+   "suppressed_items": 0,
+   "cooccurrence": [
+    {
+     "a": "Charge",
+     "b": "IV",
+     "n": 94,
+     "lift": 1.197
+    },
+    {
+     "a": "Charge",
+     "b": "Topical",
+     "n": 106,
+     "lift": 1.17
+    },
+    {
+     "a": "IV",
+     "b": "Oral",
+     "n": 386,
+     "lift": 1.069
+    },
+    {
+     "a": "IV",
+     "b": "Topical",
+     "n": 302,
+     "lift": 1.057
+    },
+    {
+     "a": "Charge",
+     "b": "Oral",
+     "n": 120,
+     "lift": 1.048
+    },
+    {
+     "a": "Oral",
+     "b": "Topical",
+     "n": 434,
+     "lift": 1.042
+    }
+   ],
+   "missing_rate": 0.0442
+  },
+  "returned_within_30d": {
+   "kind": "binary",
+   "n": 679,
+   "rate": 0.0781,
+   "missing_rate": 0.0
+  },
+  "is_last_visit": {
+   "kind": "binary",
+   "n": 679,
+   "rate": 0.1767,
+   "missing_rate": 0.0
+  }
+ },
+ "joint": {
+  "multiple_comparisons": {
+   "correlation_pairs_tested": 378,
+   "correlation_z_threshold": 3.822,
+   "correlations_confirmed": 2,
+   "stratum_tests": 286,
+   "stratum_z_threshold": 3.753,
+   "shifts_confirmed": 0,
+   "policy": "only confirmed relationships may be imposed on generated data; unconfirmed ones are reported for review and treated as absent"
+  },
+  "numeric_correlations": [
+   {
+    "a": "age_at_visit",
+    "b": "year_of_birth",
+    "spearman": -0.984,
+    "ci": [
+     -0.986,
+     -0.981
+    ],
+    "n": 679,
+    "z": -62.3,
+    "redundant": true,
+    "confirmed": true
+   },
+   {
+    "a": "procedure_count",
+    "b": "procedure_quantity",
+    "spearman": 0.959,
+    "ci": [
+     0.949,
+     0.967
+    ],
+    "n": 317,
+    "z": 34.26,
+    "redundant": true,
+    "confirmed": true,
+    "proportional_declined": "coverage differs too much (0% vs 53% missing) \u2014 the ratio holds only where both are present"
+   },
+   {
+    "a": "respiratory_rate",
+    "b": "nucleated_erythrocytes",
+    "spearman": -0.213,
+    "ci": [
+     -0.345,
+     -0.072
+    ],
+    "n": 188,
+    "z": -2.94,
+    "redundant": false,
+    "confirmed": false
+   },
+   {
+    "a": "respiratory_rate",
+    "b": "lymphocytes",
+    "spearman": 0.194,
+    "ci": [
+     0.052,
+     0.327
+    ],
+    "n": 189,
+    "z": 2.68,
+    "redundant": false,
+    "confirmed": false
+   },
+   {
+    "a": "leukocytes",
+    "b": "systolic_blood_pressure",
+    "spearman": 0.19,
+    "ci": [
+     0.048,
+     0.325
+    ],
+    "n": 186,
+    "z": 2.6,
+    "redundant": false,
+    "confirmed": false
+   },
+   {
+    "a": "diastolic_blood_pressure",
+    "b": "basophils",
+    "spearman": 0.179,
+    "ci": [
+     0.034,
+     0.317
+    ],
+    "n": 181,
+    "z": 2.41,
+    "redundant": false,
+    "confirmed": false
+   },
+   {
+    "a": "mch",
+    "b": "bilirubin_total",
+    "spearman": -0.174,
+    "ci": [
+     -0.31,
+     -0.031
+    ],
+    "n": 186,
+    "z": -2.38,
+    "redundant": false,
+    "confirmed": false
+   },
+   {
+    "a": "nucleated_erythrocytes",
+    "b": "basophils",
+    "spearman": -0.17,
+    "ci": [
+     -0.309,
+     -0.025
+    ],
+    "n": 180,
+    "z": -2.29,
+    "redundant": false,
+    "confirmed": false
+   },
+   {
+    "a": "lymphocytes",
+    "b": "monocytes",
+    "spearman": 0.16,
+    "ci": [
+     0.01,
+     0.302
+    ],
+    "n": 172,
+    "z": 2.09,
+    "redundant": false,
+    "confirmed": false
+   },
+   {
+    "a": "leukocytes",
+    "b": "nucleated_erythrocytes",
+    "spearman": 0.16,
+    "ci": [
+     0.012,
+     0.3
+    ],
+    "n": 177,
+    "z": 2.12,
+    "redundant": false,
+    "confirmed": false
+   },
+   {
+    "a": "diastolic_blood_pressure",
+    "b": "albumin",
+    "spearman": 0.158,
+    "ci": [
+     0.015,
+     0.294
+    ],
+    "n": 189,
+    "z": 2.17,
+    "redundant": false,
+    "confirmed": false
+   },
+   {
+    "a": "systolic_blood_pressure",
+    "b": "basophils",
+    "spearman": 0.156,
+    "ci": [
+     0.007,
+     0.297
+    ],
+    "n": 174,
+    "z": 2.05,
+    "redundant": false,
+    "confirmed": false
+   },
+   {
+    "a": "erythrocytes",
+    "b": "mcv",
+    "spearman": 0.151,
+    "ci": [
+     0.007,
+     0.288
+    ],
+    "n": 187,
+    "z": 2.06,
+    "redundant": false,
+    "confirmed": false
+   },
+   {
+    "a": "diastolic_blood_pressure",
+    "b": "mcv",
+    "spearman": -0.15,
+    "ci": [
+     -0.288,
+     -0.006
+    ],
+    "n": 185,
+    "z": -2.04,
+    "redundant": false,
+    "confirmed": false
+   },
+   {
+    "a": "alkaline_phosphatase",
+    "b": "monocytes",
+    "spearman": -0.149,
+    "ci": [
+     -0.289,
+     -0.001
+    ],
+    "n": 178,
+    "z": -1.98,
+    "redundant": false,
+    "confirmed": false
+   },
+   {
+    "a": "platelet_mean_volume",
+    "b": "basophils",
+    "spearman": -0.144,
+    "ci": [
+     -0.285,
+     0.003
+    ],
+    "n": 179,
+    "z": -1.92,
+    "redundant": false,
+    "confirmed": false
+   },
+   {
+    "a": "lymphocytes",
+    "b": "bilirubin_total",
+    "spearman": 0.141,
+    "ci": [
+     -0.005,
+     0.281
+    ],
+    "n": 182,
+    "z": 1.9,
+    "redundant": false,
+    "confirmed": false
+   },
+   {
+    "a": "nucleated_erythrocytes",
+    "b": "monocytes",
+    "spearman": -0.138,
+    "ci": [
+     -0.283,
+     0.012
+    ],
+    "n": 171,
+    "z": -1.81,
+    "redundant": false,
+    "confirmed": false
+   },
+   {
+    "a": "albumin",
+    "b": "bilirubin_total",
+    "spearman": -0.134,
+    "ci": [
+     -0.275,
+     0.012
+    ],
+    "n": 180,
+    "z": -1.8,
+    "redundant": false,
+    "confirmed": false
+   },
+   {
+    "a": "mch",
+    "b": "procedure_quantity",
+    "spearman": -0.13,
+    "ci": [
+     -0.307,
+     0.056
+    ],
+    "n": 113,
+    "z": -1.37,
+    "redundant": false,
+    "confirmed": false
+   },
+   {
+    "a": "mch",
+    "b": "mcv",
+    "spearman": 0.129,
+    "ci": [
+     -0.015,
+     0.267
+    ],
+    "n": 188,
+    "z": 1.76,
+    "redundant": false,
+    "confirmed": false
+   },
+   {
+    "a": "peripheral_pulse",
+    "b": "procedure_quantity",
+    "spearman": -0.129,
+    "ci": [
+     -0.303,
+     0.054
+    ],
+    "n": 117,
+    "z": -1.38,
+    "redundant": false,
+    "confirmed": false
+   },
+   {
+    "a": "basophils",
+    "b": "procedure_quantity",
+    "spearman": 0.129,
+    "ci": [
+     -0.054,
+     0.304
+    ],
+    "n": 116,
+    "z": 1.38,
+    "redundant": false,
+    "confirmed": false
+   },
+   {
+    "a": "respiratory_rate",
+    "b": "leukocytes",
+    "spearman": 0.127,
+    "ci": [
+     -0.018,
+     0.266
+    ],
+    "n": 184,
+    "z": 1.71,
+    "redundant": false,
+    "confirmed": false
+   },
+   {
+    "a": "age_at_visit",
+    "b": "leukocytes",
+    "spearman": -0.126,
+    "ci": [
+     -0.245,
+     -0.003
+    ],
+    "n": 253,
+    "z": -2.0,
+    "redundant": false,
+    "confirmed": false
+   },
+   {
+    "a": "urea",
+    "b": "nucleated_erythrocytes",
+    "spearman": 0.126,
+    "ci": [
+     -0.019,
+     0.266
+    ],
+    "n": 183,
+    "z": 1.7,
+    "redundant": false,
+    "confirmed": false
+   },
+   {
+    "a": "mcv",
+    "b": "bilirubin_total",
+    "spearman": 0.126,
+    "ci": [
+     -0.019,
+     0.266
+    ],
+    "n": 185,
+    "z": 1.71,
+    "redundant": false,
+    "confirmed": false
+   },
+   {
+    "a": "respiratory_rate",
+    "b": "mcv",
+    "spearman": -0.125,
+    "ci": [
+     -0.262,
+     0.017
+    ],
+    "n": 193,
+    "z": -1.73,
+    "redundant": false,
+    "confirmed": false
+   },
+   {
+    "a": "age_at_visit",
+    "b": "nucleated_erythrocytes",
+    "spearman": -0.123,
+    "ci": [
+     -0.243,
+     0.001
+    ],
+    "n": 251,
+    "z": -1.95,
+    "redundant": false,
+    "confirmed": false
+   },
+   {
+    "a": "diastolic_blood_pressure",
+    "b": "mch",
+    "spearman": 0.123,
+    "ci": [
+     -0.021,
+     0.261
+    ],
+    "n": 188,
+    "z": 1.68,
+    "redundant": false,
+    "confirmed": false
+   },
+   {
+    "a": "eosinophils",
+    "b": "active_drug_count",
+    "spearman": 0.123,
+    "ci": [
+     0.0,
+     0.242
+    ],
+    "n": 257,
+    "z": 1.97,
+    "redundant": false,
+    "confirmed": false
+   },
+   {
+    "a": "mcv",
+    "b": "peripheral_pulse",
+    "spearman": 0.121,
+    "ci": [
+     -0.027,
+     0.263
+    ],
+    "n": 178,
+    "z": 1.6,
+    "redundant": false,
+    "confirmed": false
+   },
+   {
+    "a": "aspartate_aminotransferase",
+    "b": "bilirubin_total",
+    "spearman": 0.12,
+    "ci": [
+     -0.028,
+     0.264
+    ],
+    "n": 176,
+    "z": 1.59,
+    "redundant": false,
+    "confirmed": false
+   },
+   {
+    "a": "erythrocytes",
+    "b": "platelet_mean_volume",
+    "spearman": -0.119,
+    "ci": [
+     -0.258,
+     0.026
+    ],
+    "n": 185,
+    "z": -1.61,
+    "redundant": false,
+    "confirmed": false
+   },
+   {
+    "a": "year_of_birth",
+    "b": "leukocytes",
+    "spearman": 0.118,
+    "ci": [
+     -0.006,
+     0.238
+    ],
+    "n": 253,
+    "z": 1.87,
+    "redundant": false,
+    "confirmed": false
+   },
+   {
+    "a": "alkaline_phosphatase",
+    "b": "peripheral_pulse",
+    "spearman": -0.117,
+    "ci": [
+     -0.257,
+     0.028
+    ],
+    "n": 185,
+    "z": -1.59,
+    "redundant": false,
+    "confirmed": false
+   },
+   {
+    "a": "aspartate_aminotransferase",
+    "b": "reticulocytes",
+    "spearman": -0.117,
+    "ci": [
+     -0.259,
+     0.03
+    ],
+    "n": 180,
+    "z": -1.56,
+    "redundant": false,
+    "confirmed": false
+   },
+   {
+    "a": "aspartate_aminotransferase",
+    "b": "monocytes",
+    "spearman": 0.117,
+    "ci": [
+     -0.031,
+     0.259
+    ],
+    "n": 178,
+    "z": 1.55,
+    "redundant": false,
+    "confirmed": false
+   },
+   {
+    "a": "alkaline_phosphatase",
+    "b": "nucleated_erythrocytes",
+    "spearman": 0.116,
+    "ci": [
+     -0.03,
+     0.257
+    ],
+    "n": 182,
+    "z": 1.56,
+    "redundant": false,
+    "confirmed": false
+   },
+   {
+    "a": "year_of_birth",
+    "b": "nucleated_erythrocytes",
+    "spearman": 0.115,
+    "ci": [
+     -0.009,
+     0.235
+    ],
+    "n": 251,
+    "z": 1.82,
+    "redundant": false,
+    "confirmed": false
+   },
+   {
+    "a": "lymphocytes",
+    "b": "procedure_quantity",
+    "spearman": -0.114,
+    "ci": [
+     -0.293,
+     0.072
+    ],
+    "n": 113,
+    "z": -1.2,
+    "redundant": false,
+    "confirmed": false
+   },
+   {
+    "a": "respiratory_rate",
+    "b": "erythrocytes",
+    "spearman": 0.112,
+    "ci": [
+     -0.03,
+     0.25
+    ],
+    "n": 192,
+    "z": 1.55,
+    "redundant": false,
+    "confirmed": false
+   },
+   {
+    "a": "lymphocytes",
+    "b": "leukocytes",
+    "spearman": 0.111,
+    "ci": [
+     -0.036,
+     0.253
+    ],
+    "n": 180,
+    "z": 1.48,
+    "redundant": false,
+    "confirmed": false
+   },
+   {
+    "a": "albumin",
+    "b": "procedure_quantity",
+    "spearman": -0.11,
+    "ci": [
+     -0.286,
+     0.074
+    ],
+    "n": 116,
+    "z": -1.17,
+    "redundant": false,
+    "confirmed": false
+   },
+   {
+    "a": "leukocytes",
+    "b": "condition_count",
+    "spearman": 0.108,
+    "ci": [
+     -0.015,
+     0.229
+    ],
+    "n": 253,
+    "z": 1.72,
+    "redundant": false,
+    "confirmed": false
+   },
+   {
+    "a": "alkaline_phosphatase",
+    "b": "glucose",
+    "spearman": 0.107,
+    "ci": [
+     -0.035,
+     0.246
+    ],
+    "n": 191,
+    "z": 1.48,
+    "redundant": false,
+    "confirmed": false
+   },
+   {
+    "a": "glucose",
+    "b": "peripheral_pulse",
+    "spearman": -0.107,
+    "ci": [
+     -0.249,
+     0.04
+    ],
+    "n": 181,
+    "z": -1.43,
+    "redundant": false,
+    "confirmed": false
+   },
+   {
+    "a": "leukocytes",
+    "b": "active_drug_count",
+    "spearman": -0.107,
+    "ci": [
+     -0.228,
+     0.016
+    ],
+    "n": 253,
+    "z": -1.7,
+    "redundant": false,
+    "confirmed": false
+   },
+   {
+    "a": "urea",
+    "b": "condition_count",
+    "spearman": 0.106,
+    "ci": [
+     -0.015,
+     0.223
+    ],
+    "n": 266,
+    "z": 1.72,
+    "redundant": false,
+    "confirmed": false
+   },
+   {
+    "a": "mch",
+    "b": "reticulocytes",
+    "spearman": -0.105,
+    "ci": [
+     -0.246,
+     0.041
+    ],
+    "n": 183,
+    "z": -1.41,
+    "redundant": false,
+    "confirmed": false
+   },
+   {
+    "a": "systolic_blood_pressure",
+    "b": "monocytes",
+    "spearman": -0.105,
+    "ci": [
+     -0.249,
+     0.042
+    ],
+    "n": 178,
+    "z": -1.4,
+    "redundant": false,
+    "confirmed": false
+   },
+   {
+    "a": "monocytes",
+    "b": "active_drug_count",
+    "spearman": 0.105,
+    "ci": [
+     -0.02,
+     0.227
+    ],
+    "n": 246,
+    "z": 1.64,
+    "redundant": false,
+    "confirmed": false
+   },
+   {
+    "a": "diastolic_blood_pressure",
+    "b": "monocytes",
+    "spearman": -0.104,
+    "ci": [
+     -0.247,
+     0.044
+    ],
+    "n": 178,
+    "z": -1.38,
+    "redundant": false,
+    "confirmed": false
+   },
+   {
+    "a": "erythrocytes",
+    "b": "leukocytes",
+    "spearman": 0.104,
+    "ci": [
+     -0.043,
+     0.246
+    ],
+    "n": 181,
+    "z": 1.39,
+    "redundant": false,
+    "confirmed": false
+   },
+   {
+    "a": "peripheral_pulse",
+    "b": "active_drug_count",
+    "spearman": -0.1,
+    "ci": [
+     -0.221,
+     0.023
+    ],
+    "n": 253,
+    "z": -1.59,
+    "redundant": false,
+    "confirmed": false
+   },
+   {
+    "a": "systolic_blood_pressure",
+    "b": "platelet_mean_volume",
+    "spearman": 0.1,
+    "ci": [
+     -0.048,
+     0.244
+    ],
+    "n": 178,
+    "z": 1.33,
+    "redundant": false,
+    "confirmed": false
+   }
+  ],
+  "conditional_shifts": [
+   {
+    "column": "age_at_visit",
+    "given": "race",
+    "level": "PATIENTREFUSESORDOESNOTKNOW",
+    "n": 16,
+    "std_shift": -0.681,
+    "z": -2.69,
+    "confirmed": false
+   },
+   {
+    "column": "year_of_birth",
+    "given": "race",
+    "level": "PATIENTREFUSESORDOESNOTKNOW",
+    "n": 16,
+    "std_shift": 0.61,
+    "z": 2.41,
+    "confirmed": false
+   },
+   {
+    "column": "nucleated_erythrocytes",
+    "given": "returned_within_30d",
+    "level": "1",
+    "n": 21,
+    "std_shift": 0.574,
+    "z": 2.53,
+    "confirmed": false
+   },
+   {
+    "column": "active_drug_count",
+    "given": "race",
+    "level": "PATIENTREFUSESORDOESNOTKNOW",
+    "n": 16,
+    "std_shift": 0.452,
+    "z": 1.79,
+    "confirmed": false
+   },
+   {
+    "column": "reticulocytes",
+    "given": "race",
+    "level": "OTHER",
+    "n": 25,
+    "std_shift": -0.42,
+    "z": -2.0,
+    "confirmed": false
+   },
+   {
+    "column": "reticulocytes",
+    "given": "ethnicity",
+    "level": "HISPANICORLATINO",
+    "n": 33,
+    "std_shift": 0.389,
+    "z": 2.1,
+    "confirmed": false
+   },
+   {
+    "column": "peripheral_pulse",
+    "given": "race",
+    "level": "OTHER",
+    "n": 27,
+    "std_shift": 0.387,
+    "z": 1.91,
+    "confirmed": false
+   },
+   {
+    "column": "year_of_birth",
+    "given": "race",
+    "level": "ASIAN",
+    "n": 64,
+    "std_shift": 0.386,
+    "z": 2.95,
+    "confirmed": false
+   },
+   {
+    "column": "active_drug_count",
+    "given": "race",
+    "level": "ASIAN",
+    "n": 64,
+    "std_shift": 0.385,
+    "z": 2.94,
+    "confirmed": false
+   },
+   {
+    "column": "span_days",
+    "given": "race",
+    "level": "ASIAN",
+    "n": 64,
+    "std_shift": 0.369,
+    "z": 2.82,
+    "confirmed": false
+   },
+   {
+    "column": "age_at_visit",
+    "given": "race",
+    "level": "ASIAN",
+    "n": 64,
+    "std_shift": -0.363,
+    "z": -2.78,
+    "confirmed": false
+   },
+   {
+    "column": "systolic_blood_pressure",
+    "given": "is_last_visit",
+    "level": "1",
+    "n": 47,
+    "std_shift": 0.354,
+    "z": 2.23,
+    "confirmed": false
+   },
+   {
+    "column": "diastolic_blood_pressure",
+    "given": "race",
+    "level": "OTHER",
+    "n": 28,
+    "std_shift": 0.317,
+    "z": 1.6,
+    "confirmed": false
+   },
+   {
+    "column": "procedure_quantity",
+    "given": "returned_within_30d",
+    "level": "1",
+    "n": 23,
+    "std_shift": 0.27,
+    "z": 1.25,
+    "confirmed": false
+   },
+   {
+    "column": "active_drug_count",
+    "given": "race",
+    "level": "OTHER",
+    "n": 93,
+    "std_shift": -0.261,
+    "z": -2.36,
+    "confirmed": false
+   },
+   {
+    "column": "monocytes",
+    "given": "race",
+    "level": "ASIAN",
+    "n": 22,
+    "std_shift": 0.257,
+    "z": 1.15,
+    "confirmed": false
+   },
+   {
+    "column": "aspartate_aminotransferase",
+    "given": "ethnicity",
+    "level": "HISPANICORLATINO",
+    "n": 38,
+    "std_shift": 0.257,
+    "z": 1.48,
+    "confirmed": false
+   },
+   {
+    "column": "erythrocytes",
+    "given": "race",
+    "level": "ASIAN",
+    "n": 21,
+    "std_shift": 0.256,
+    "z": 1.13,
+    "confirmed": false
+   },
+   {
+    "column": "albumin",
+    "given": "race",
+    "level": "OTHER",
+    "n": 31,
+    "std_shift": 0.255,
+    "z": 1.34,
+    "confirmed": false
+   },
+   {
+    "column": "alkaline_phosphatase",
+    "given": "returned_within_30d",
+    "level": "1",
+    "n": 20,
+    "std_shift": -0.254,
+    "z": -1.1,
+    "confirmed": false
+   },
+   {
+    "column": "lymphocytes",
+    "given": "race",
+    "level": "BLACKORAFRICANAMERICAN",
+    "n": 46,
+    "std_shift": 0.25,
+    "z": 1.56,
+    "confirmed": false
+   },
+   {
+    "column": "platelet_mean_volume",
+    "given": "race",
+    "level": "ASIAN",
+    "n": 19,
+    "std_shift": 0.248,
+    "z": 1.04,
+    "confirmed": false
+   },
+   {
+    "column": "glucose",
+    "given": "returned_within_30d",
+    "level": "1",
+    "n": 18,
+    "std_shift": 0.242,
+    "z": 0.99,
+    "confirmed": false
+   },
+   {
+    "column": "eosinophils",
+    "given": "race",
+    "level": "OTHER",
+    "n": 30,
+    "std_shift": -0.238,
+    "z": -1.23,
+    "confirmed": false
+   },
+   {
+    "column": "mch",
+    "given": "race",
+    "level": "ASIAN",
+    "n": 22,
+    "std_shift": -0.233,
+    "z": -1.05,
+    "confirmed": false
+   },
+   {
+    "column": "leukocytes",
+    "given": "ethnicity",
+    "level": "HISPANICORLATINO",
+    "n": 40,
+    "std_shift": 0.225,
+    "z": 1.32,
+    "confirmed": false
+   },
+   {
+    "column": "leukocytes",
+    "given": "returned_within_30d",
+    "level": "1",
+    "n": 17,
+    "std_shift": -0.225,
+    "z": -0.9,
+    "confirmed": false
+   },
+   {
+    "column": "peripheral_pulse",
+    "given": "race",
+    "level": "BLACKORAFRICANAMERICAN",
+    "n": 56,
+    "std_shift": -0.223,
+    "z": -1.51,
+    "confirmed": false
+   },
+   {
+    "column": "bilirubin_total",
+    "given": "is_last_visit",
+    "level": "1",
+    "n": 47,
+    "std_shift": -0.222,
+    "z": -1.4,
+    "confirmed": false
+   },
+   {
+    "column": "urea",
+    "given": "race",
+    "level": "BLACKORAFRICANAMERICAN",
+    "n": 51,
+    "std_shift": 0.217,
+    "z": 1.42,
+    "confirmed": false
+   },
+   {
+    "column": "eosinophils",
+    "given": "race",
+    "level": "ASIAN",
+    "n": 20,
+    "std_shift": 0.216,
+    "z": 0.93,
+    "confirmed": false
+   },
+   {
+    "column": "nucleated_erythrocytes",
+    "given": "race",
+    "level": "ASIAN",
+    "n": 20,
+    "std_shift": 0.209,
+    "z": 0.9,
+    "confirmed": false
+   },
+   {
+    "column": "monocytes",
+    "given": "race",
+    "level": "OTHER",
+    "n": 28,
+    "std_shift": -0.209,
+    "z": -1.05,
+    "confirmed": false
+   },
+   {
+    "column": "leukocytes",
+    "given": "race",
+    "level": "ASIAN",
+    "n": 22,
+    "std_shift": -0.208,
+    "z": -0.94,
+    "confirmed": false
+   },
+   {
+    "column": "systolic_blood_pressure",
+    "given": "ethnicity",
+    "level": "HISPANICORLATINO",
+    "n": 37,
+    "std_shift": -0.208,
+    "z": -1.18,
+    "confirmed": false
+   },
+   {
+    "column": "mcv",
+    "given": "race",
+    "level": "ASIAN",
+    "n": 24,
+    "std_shift": 0.205,
+    "z": 0.96,
+    "confirmed": false
+   },
+   {
+    "column": "urea",
+    "given": "is_last_visit",
+    "level": "1",
+    "n": 53,
+    "std_shift": 0.205,
+    "z": 1.36,
+    "confirmed": false
+   },
+   {
+    "column": "procedure_quantity",
+    "given": "race",
+    "level": "ASIAN",
+    "n": 30,
+    "std_shift": 0.204,
+    "z": 1.07,
+    "confirmed": false
+   },
+   {
+    "column": "bilirubin_total",
+    "given": "returned_within_30d",
+    "level": "1",
+    "n": 19,
+    "std_shift": 0.2,
+    "z": 0.84,
+    "confirmed": false
+   }
+  ]
+ }
+}
