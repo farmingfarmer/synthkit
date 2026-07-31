@@ -63,6 +63,29 @@ def main() -> None:
         else Path(a.out)
     out.mkdir(parents=True, exist_ok=True)
 
+    # ---- data-safety gate -------------------------------------
+    # The tidy and labeled CSVs are the SOURCE RECORDS reshaped.
+    # If the output folder is not ignored by git, a reflexive
+    # `git add -A` would publish them. Refuse to be that trap.
+    at_risk = False
+    try:
+        chk = subprocess.run(
+            ["git", "check-ignore", "-q", str(out)],
+            cwd=str(ROOT), capture_output=True)
+        # 0 = ignored (safe), 1 = tracked path (warn),
+        # 128 = not a git repo (nothing to publish to)
+        at_risk = chk.returncode == 1
+    except Exception:
+        at_risk = False
+    if at_risk:
+        print("\n!! WARNING: {} is NOT git-ignored.".format(out))
+        print("   This folder will hold the source records "
+              "reshaped (tidy_visits.csv) — if the source is real "
+              "data, committing it would publish patient records.")
+        print("   Add it to .gitignore, or pass -o with a path "
+              "outside the repository, before running on anything "
+              "real.\n")
+
     tidy = out / "tidy_visits.csv"
     if a.skip_wrangle:
         tidy = Path(a.src)

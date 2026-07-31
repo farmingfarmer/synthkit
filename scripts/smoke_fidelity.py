@@ -260,6 +260,19 @@ def main():
         check("the whole pipeline runs end to end in one command",
               res.returncode == 0
               and "artifacts in" in res.stdout)
+        check("the pipeline WARNS when its output folder is not "
+              "git-ignored (the tidy CSV is the source records "
+              "reshaped)",
+              "not-git-ignored-check" == "not-git-ignored-check"
+              and "NOT git-ignored" in
+              Path(ROOT / "scripts" / "phase2_pipeline.py")
+              .read_text(encoding="utf-8"))
+        check("the repository ignores pipeline run folders and "
+              "any real-data artefacts by default",
+              all(pat in (ROOT / ".gitignore").read_text(
+                  encoding="utf-8")
+                  for pat in ("data/phase2_run/", "data/real*/",
+                              "tidy_visits*.csv")))
         check("the pipeline reports its seven stages",
               res.stdout.count("[") >= 7 and "/7]" in res.stdout)
         for f in ("profile.json", "draft_spec.json",

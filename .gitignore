@@ -8,3 +8,20 @@ corpus/
 tables/
 gui_runs/
 campaigns/
+
+# ---------------------------------------------------------------
+# PHASE 2 DATA SAFETY
+# Pipeline outputs contain RECORDS, not parameters: the tidy and
+# labeled CSVs are the source data reshaped, and generated.csv is
+# derived from a profile of it. When the source is real clinical
+# data these must never leave the machine. Profiles and specs are
+# aggregates by construction, but they still deserve a governance
+# decision rather than a habit — so runs are ignored wholesale.
+# The mimic set is exempt: it is synthetic and regenerable by seed.
+# ---------------------------------------------------------------
+data/phase2_run/
+data/real*/
+*_real*.csv
+*_real*profile.json
+tidy_visits*.csv
+!data/mimic_omop/tidy_visits*.csv
