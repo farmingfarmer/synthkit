@@ -45,3 +45,7 @@ runs/
 out/
 gui_runs/
 *.egg-info/
+.venv/
+venv/
+env/
+.env
