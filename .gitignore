@@ -49,3 +49,7 @@ gui_runs/
 venv/
 env/
 .env
+.DS_Store
+campaigns/
+corpus/
+corpora/

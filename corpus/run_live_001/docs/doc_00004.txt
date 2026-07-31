@@ -1,5 +1,0 @@
-**Inpatient Progress Note**
-
-Pt: Emerson Ashford | Encounter ID: ENC-10004 | Admit Date: 2026-01-07 | Length of Stay: 1 day
-
-Pt remains on metformin 500mg BID for glycemic control. Omeprazole was stopped due to side effects, including persistent nausea. Pt reports no other med-related issues. Allergies remain latex. Pt tolerated diet and ambulation without issue. Follow-up scheduled for in two weeks to reassess medication regimen and overall condition. Pt will be discharged today, 2026-01-12, with instructions for follow-up and medication management.

@@ -1,9 +1,0 @@
-**Inpatient Progress Note**
-
-Encounter ID: ENC-10003
-Patient: Riley Renner
-Admit Date: 2026-01-23
-Discharge Date: 2026-02-04
-LOS: 2 days
-
-Pt admitted for evaluation of chest pain. Pt remains on atorvastatin 40mg nightly. Pt reports mild pain with deep inspiration. No fever or chills noted. IV fluids continued. BP stable. Pt reports no SOB at rest. Oxygen saturation 96% on room air. Omeprazole discontinued this admission due to resolution of GERD symptoms. Pt tolerating diet well. No signs of infection. Wound dressing clean and dry. Pt ambulating with assistance. Discharge planning initiated. Pt and family educated on medication management and follow-up care. Pt to follow up with PCP within 7 days of discharge.
