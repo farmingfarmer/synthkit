@@ -44,6 +44,13 @@ from collections import Counter, defaultdict
 from datetime import datetime
 from pathlib import Path
 
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+try:                       # console-safe on Windows terminals
+    from _console import console_safe
+    console_safe()
+except Exception:
+    pass
+
 csv.field_size_limit(1 << 22)
 
 # Tolerances are NOT magic numbers. Two independent draws from the

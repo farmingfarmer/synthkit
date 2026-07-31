@@ -34,6 +34,13 @@ import re
 import sys
 from pathlib import Path
 
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+try:                       # console-safe on Windows terminals
+    from _console import console_safe
+    console_safe()
+except Exception:
+    pass
+
 
 def snake(s):
     return re.sub(r"[^a-z0-9]+", "_", s.lower()).strip("_") \

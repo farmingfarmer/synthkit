@@ -45,6 +45,13 @@ ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT))
 from synthkit.condnet import CondNet          # noqa: E402
 
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+try:                       # console-safe on Windows terminals
+    from _console import console_safe
+    console_safe()
+except Exception:
+    pass
+
 
 def make_cohort(n_patients, visits_per_patient, seed):
     """A clinical-shaped extract with KNOWN structure planted."""

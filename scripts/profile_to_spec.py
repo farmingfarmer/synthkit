@@ -19,8 +19,16 @@ saying so; it goes through the same review gate as any other spec.
 from __future__ import annotations
 
 import argparse
+import sys
 import json
 from pathlib import Path
+
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+try:                       # console-safe on Windows terminals
+    from _console import console_safe
+    console_safe()
+except Exception:
+    pass
 
 
 def numeric_dist(p):

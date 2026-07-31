@@ -39,6 +39,13 @@ from synthkit.autosolver import (          # noqa: E402
     autosolver, autosolver_hybrid, LAST_FIT)
 from synthkit.mlmetrics import auroc, auroc_interval  # noqa: E402
 
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+try:                       # console-safe on Windows terminals
+    from _console import console_safe
+    console_safe()
+except Exception:
+    pass
+
 
 FACTS = [
     # these stay in the structured record

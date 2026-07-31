@@ -35,6 +35,13 @@ from synthkit.noteextract import (         # noqa: E402
 from narrative_showdown import (           # noqa: E402
     FACTS, TERMS, cohort)
 
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+try:                       # console-safe on Windows terminals
+    from _console import console_safe
+    console_safe()
+except Exception:
+    pass
+
 
 def build_backend(kind, model, facts):
     if kind == "stub":

@@ -24,11 +24,19 @@ Reproduced mess (documented from photographs of the real files):
 from __future__ import annotations
 
 import argparse
+import sys
 import csv
 import hashlib
 import random
 from datetime import date, timedelta
 from pathlib import Path
+
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+try:                       # console-safe on Windows terminals
+    from _console import console_safe
+    console_safe()
+except Exception:
+    pass
 
 # ---------------------------------------------------------------
 # deterministic per-stream RNG (synthkit's column-independence law)

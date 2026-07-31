@@ -15,6 +15,45 @@ with confidence intervals and sample-size prescriptions.
 ceiling 0.678 / synthkit baseline 0.667 / vendor 0.520  [FAIL]
 ```
 
+## Two ways to get a dataset
+
+**From a description.** Write what you need in plain English;
+synthkit compiles it to a reviewable recipe, plants the truth, and
+renders the data.
+
+**From an existing extract.** Point it at real tables and it
+measures them — distributions, missingness, contamination, and the
+relationships between fields, including nonlinear ones a
+correlation cannot represent — then hands back a recipe where
+every number is editable. Real data teaches PARAMETERS; generation
+never touches a record, k-anonymity counts PATIENTS rather than
+rows, and a privacy scorecard verifies that no synthetic record
+sits closer to a real person than real people sit to each other.
+
+```
+python scripts/phase2_pipeline.py --src DIR -o OUT --engine both
+```
+
+Seven stages, one command: wrangle, label, diagnose, profile,
+compile, generate, score. Add `--transcribe` to render the
+structured facts into messy clinical notes with a truth ledger, so
+extraction can be graded by the KIND of mess that defeated it.
+
+## How much data does it need?
+
+Measured against planted truth rather than asserted
+(`scripts/power_sweep.py`): roughly 400 patients to recover a
+simple monotone relationship, 800 for a nonlinear one, and 3,200
+for an interaction between two factors — with zero noise columns
+ever adopted as structure at any cohort size.
+
+## Where to start reading
+
+`docs/system_map.html` is a generated, self-contained map of the
+whole system: hub to domains to modules to live source, with a
+plain-English walkthrough at every level. Open it in a browser; it
+needs nothing installed.
+
 ## Why
 
 Evaluating a data-quality tool, an extraction model, or a vendor

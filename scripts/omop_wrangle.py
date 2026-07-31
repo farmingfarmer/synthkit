@@ -27,6 +27,13 @@ from collections import defaultdict
 from datetime import date
 from pathlib import Path
 
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+try:                       # console-safe on Windows terminals
+    from _console import console_safe
+    console_safe()
+except Exception:
+    pass
+
 csv.field_size_limit(1 << 22)
 
 

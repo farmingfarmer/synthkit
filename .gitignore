@@ -25,3 +25,7 @@ data/real*/
 *_real*profile.json
 tidy_visits*.csv
 !data/mimic_omop/tidy_visits*.csv
+
+# PRIVATE — presenter teleprompter, never for shared repos
+docs/presenter_companion.html
+data/scratch_check/
