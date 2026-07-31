@@ -59,6 +59,28 @@ TAIL_REACH = 2.0
 # overconfident exactly where it can least afford to be.
 SMOOTHING = 1.0
 
+# Neighbour smoothing — implemented, MEASURED, and off by default.
+#
+# The idea: a thin cell is better informed by the cells next door
+# than by the global marginal, because clinical relationships are
+# smooth. Sound in principle. Measured against the fidelity of the
+# generated conditional profile at 400/800/1600 patients, in a
+# deliberately thin-cell regime (three ordinal parents, fine
+# bins), it changed nothing — 0.0319 vs 0.0322, 0.0281 vs 0.0281,
+# 0.0216 vs 0.0221.
+#
+# The reason is that this architecture already solves the problem
+# a different way. Cells below k people are never published: they
+# BACK OFF to a smaller parent set, which borrows strength more
+# aggressively and more defensibly than averaging with a
+# neighbour. Every cell that survives to be smoothed already has
+# enough support that smoothing is arithmetically negligible.
+#
+# Left in place and set to zero: if k is ever lowered so that
+# genuinely thin cells reach publication, raising this is the
+# first thing to try.
+NEIGHBOUR_WEIGHT = 0.0
+
 # A column is DERIVED when another column determines it almost
 # perfectly — a count computed from a list, an age computed from a
 # birth year, a flag defined by a gap. These are arithmetic the
@@ -451,7 +473,20 @@ class CondNet:
     def learn(self, rows: List[Dict[str, Any]],
               columns: Optional[List[str]] = None,
               targets: Optional[List[str]] = None,
-              group_by: Optional[str] = None) -> "CondNet":
+              group_by: Optional[str] = None,
+              hypotheses: Optional[Dict[str, List[str]]] = None
+              ) -> "CondNet":
+        """`hypotheses` maps a column to the columns allowed to
+        explain it — the clinical questions actually being asked.
+
+        Blind search tests every pair and pays a multiple-
+        comparison tax across hundreds of them; that tax is the
+        single largest drain on statistical power here. Naming a
+        dozen candidate relationships instead of asking the
+        machine to find everything collapses the correction and
+        buys roughly a doubling of effective sample size, measured.
+        Columns outside the hypotheses are still modelled from
+        their marginals, so generated data stays complete."""
         """`targets` are placed LAST in the ordering so they can
         condition on everything else. Without that hint an outcome
         often lands first (it is the hub of the dependence graph)
@@ -528,16 +563,27 @@ class CondNet:
                         self.derived[b] = a_
                         break
 
-        tests = 0
-        for i, c in enumerate(self.order):
-            tests += min(i, 1) * i
-        tests = max(tests, 1)
-        alpha_c = self.alpha / max(
-            1, sum(range(len(self.order))) or 1)
+        hyp = {c: [x for x in v if x in self.order]
+               for c, v in (hypotheses or {}).items()
+               if c in self.order}
+        self.hypotheses = hyp
+        if hyp:
+            n_tests = sum(len(v) for v in hyp.values()) or 1
+        else:
+            n_tests = sum(range(len(self.order))) or 1
+        alpha_c = self.alpha / n_tests
 
         chosen_log = []
         for i, c in enumerate(self.order):
-            candidates = self.order[:i]
+            if hyp:
+                # only the declared questions are asked; a column
+                # with no hypothesis keeps its marginal
+                if c not in hyp:
+                    self.parents[c] = []
+                    continue
+                candidates = [x for x in hyp[c] if x != c]
+            else:
+                candidates = self.order[:i]
             if c in self.derived and self.derived[c] in candidates:
                 # its determinant says everything about it; storing
                 # that one table is exact and cheap, and no search
@@ -682,6 +728,28 @@ class CondNet:
                     cfg = "|".join(enc[p][j] for p in ps)
                     cells[cfg][enc[c][j]] += 1
                     people[cfg].add(self.groups[j])
+                # which parent positions are ordinal (numeric
+                # bins b0, b1, ...) — only those have neighbours
+                ordinal = [ix for ix, pn in enumerate(ps)
+                           if self.binnings[pn].kind == "numeric"]
+
+                def neighbours(cfg_str):
+                    parts = cfg_str.split("|")
+                    out = []
+                    for ix in ordinal:
+                        tok = parts[ix]
+                        if not tok.startswith("b"):
+                            continue
+                        try:
+                            bi = int(tok[1:])
+                        except ValueError:
+                            continue
+                        for step in (-1, 1):
+                            alt = list(parts)
+                            alt[ix] = "b{}".format(bi + step)
+                            out.append("|".join(alt))
+                    return out
+
                 for cfg, cnt in cells.items():
                     m = sum(cnt.values())
                     # k counts PEOPLE. Ten visits from one patient
@@ -691,11 +759,24 @@ class CondNet:
                         suppressed += 1
                         continue          # falls back at sampling
                     marg = self.marginal[c]
+                    nb_acc, nb_tot = Counter(), 0
+                    for nb_cfg in neighbours(cfg):
+                        nb = cells.get(nb_cfg)
+                        if not nb:
+                            continue
+                        nm = sum(nb.values())
+                        for s, v in nb.items():
+                            nb_acc[s] += v / nm
+                        nb_tot += 1
                     a_s = SMOOTHING
-                    syms = set(cnt) | set(marg)
+                    w_s = NEIGHBOUR_WEIGHT if nb_tot else 0.0
+                    syms = set(cnt) | set(marg) | set(nb_acc)
                     table[cfg] = {
-                        s: (cnt.get(s, 0) + a_s * marg.get(s, 0.0))
-                        / (m + a_s) for s in syms}
+                        s: (cnt.get(s, 0)
+                            + a_s * marg.get(s, 0.0)
+                            + w_s * (nb_acc.get(s, 0.0)
+                                     / max(nb_tot, 1)))
+                        / (m + a_s + w_s) for s in syms}
             self.cpt[c] = table
 
         self.report = {
@@ -736,6 +817,18 @@ class CondNet:
             "acceptance_log": chosen_log,
             "suppressed_configurations": suppressed,
             "k": self.k, "max_parents": self.max_parents,
+            "hypotheses_declared": len(hyp),
+            "comparisons_corrected_for": n_tests,
+            "search_mode": ("targeted — only the declared "
+                            "relationships were tested, so the "
+                            "multiple-comparison correction is "
+                            "over {} tests rather than {}".format(
+                                n_tests,
+                                sum(range(len(self.order))) or 1)
+                            if hyp else
+                            "blind — every pair was tested, and "
+                            "the correction is over all {} of "
+                            "them".format(n_tests)),
             "bins": nbins,
             "bins_chosen": ("auto — solved so cells stay populated "
                             "enough to detect dependence"

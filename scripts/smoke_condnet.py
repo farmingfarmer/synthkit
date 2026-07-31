@@ -358,6 +358,53 @@ def main():
           "just because it was unobserved — smoothing shrinks "
           "every table toward its marginal", thin_ok)
 
+    # ---- targeted hypotheses collapse the correction ----
+    r8 = random.Random(77)
+    hyp_rows = []
+    for pid in range(900):
+        age = r8.gauss(62, 14)
+        for _ in range(r8.randint(2, 5)):
+            creat = max(0.4, r8.gauss(1.1, 0.45))
+            eld = age > 70
+            p_i = 0.06 + (0.45 * min(creat, 2.5) / 2.5 if eld
+                          else 0.03)
+            hyp_rows.append({
+                "person_id": "P%04d" % pid, "age": round(age, 1),
+                "creatinine": round(creat, 2),
+                "n1": round(r8.gauss(0, 1), 3),
+                "n2": round(r8.gauss(0, 1), 3),
+                "n3": round(r8.gauss(0, 1), 3),
+                "n4": round(r8.gauss(0, 1), 3),
+                "n5": round(r8.gauss(0, 1), 3),
+                "ev": 1 if r8.random() < p_i else 0})
+    blind = CondNet(k=10, max_parents=3).learn(
+        hyp_rows, targets=["ev"], group_by="person_id")
+    focused = CondNet(k=10, max_parents=3).learn(
+        hyp_rows, targets=["ev"], group_by="person_id",
+        hypotheses={"ev": ["age", "creatinine"]})
+    check("declaring hypotheses shrinks the multiple-comparison "
+          "correction — the largest single drain on power here",
+          focused.report["comparisons_corrected_for"]
+          < blind.report["comparisons_corrected_for"] / 3)
+    check("the model states which search mode it ran in",
+          "targeted" in focused.report["search_mode"]
+          and "blind" in blind.report["search_mode"])
+    check("a targeted search never finds LESS than a blind one — "
+          "the correction only ever gets easier",
+          len(set(focused.parents.get("ev", []))
+              & {"age", "creatinine"})
+          >= len(set(blind.parents.get("ev", []))
+                 & {"age", "creatinine"}))
+    check("columns outside the hypotheses are still modelled, so "
+          "generated data stays complete",
+          all(c in focused.order for c in ("n1", "n5")))
+    syn8 = focused.sample(400, seed=4)
+    check("...and they still appear in generated rows",
+          "n1" in syn8[0] and "n5" in syn8[0])
+    check("noise is not adopted even when hypotheses are declared",
+          not any(x.startswith("n") for x in
+                  focused.parents.get("ev", [])))
+
     print()
     if FAIL:
         print("{} FAILED".format(FAIL))

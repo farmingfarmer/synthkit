@@ -118,13 +118,29 @@ NOISE = {"noise_a", "noise_b"}
 OUTCOMES = ["event_u", "event_t", "event_i", "event_3"]
 
 
-def run_once(n_patients, visits, seed, k, max_parents):
+# What a clinician would actually declare: which fields might
+# plausibly explain which outcome. Naming these instead of asking
+# the search to consider every pair is the cheapest source of
+# statistical power available.
+HYPOTHESES = {
+    "glucose": ["age", "bmi"],
+    "event_u": ["sodium", "age", "bmi"],
+    "event_t": ["bmi", "age", "sodium"],
+    "event_i": ["age", "creatinine", "sodium", "bmi", "drug"],
+    "event_3": ["age", "creatinine", "drug", "bmi", "sodium"],
+}
+
+
+def run_once(n_patients, visits, seed, k, max_parents,
+             focused=False):
     rows = make_cohort(n_patients, visits, seed)
     net = CondNet(k=k, max_parents=max_parents).learn(
-        rows, targets=OUTCOMES, group_by="person_id")
+        rows, targets=OUTCOMES, group_by="person_id",
+        hypotheses=(HYPOTHESES if focused else None))
     pars = {c: set(net.parents.get(c, [])) for c in net.order}
     out = {"rows": len(rows), "patients": n_patients,
            "bins": net.report["bins"],
+           "corrections": net.report["comparisons_corrected_for"],
            "edges": net.report["edge_count"],
            "recovered": {}, "partial": {}}
     for label, child, needed in TRUTH:
@@ -148,18 +164,25 @@ def main() -> None:
     ap.add_argument("--k", type=int, default=10)
     ap.add_argument("--max-parents", type=int, default=3)
     ap.add_argument("-o", "--out", default="power_sweep.json")
+    ap.add_argument("--focused", action="store_true",
+                    help="declare the candidate relationships "
+                         "instead of searching blindly, so the "
+                         "multiple-comparison correction covers "
+                         "only the questions actually asked")
     ap.add_argument("--report", action="store_true")
     a = ap.parse_args()
     sizes = [int(s) for s in a.sizes.split(",")]
 
     results = []
     for n in sizes:
-        runs = [run_once(n, a.visits, 1000 + s, a.k, a.max_parents)
+        runs = [run_once(n, a.visits, 1000 + s, a.k, a.max_parents,
+                         a.focused)
                 for s in range(a.seeds)]
         agg = {"patients": n,
                "rows": int(statistics.mean(
                    x["rows"] for x in runs)),
                "bins": statistics.mode([x["bins"] for x in runs]),
+               "corrections": runs[0]["corrections"],
                "edges": round(statistics.mean(
                    x["edges"] for x in runs), 1),
                "false_positives": round(statistics.mean(
@@ -188,7 +211,9 @@ def main() -> None:
              if r["recovery"][label] >= 0.5]
         half[label] = h[0] if h else None
 
-    payload = {"config": {"sizes": sizes, "seeds": a.seeds,
+    payload = {"config": {"search": ("targeted" if a.focused
+                                     else "blind"),
+                          "sizes": sizes, "seeds": a.seeds,
                           "visits_per_patient": a.visits,
                           "k": a.k,
                           "max_parents": a.max_parents},
@@ -233,6 +258,11 @@ def main() -> None:
         line = "  {:52s}".format("false positives (noise adopted)")
         for r in results:
             line += "{:>7}".format(r["false_positives"])
+        print(line)
+        line = "  {:52s}".format(
+            "comparisons corrected for")
+        for r in results:
+            line += "{:>7}".format(r["corrections"])
         print(line)
         line = "  {:52s}".format("bin resolution the data supports")
         for r in results:
