@@ -43,3 +43,5 @@ campaigns/
 corpora/
 runs/
 out/
+gui_runs/
+*.egg-info/
