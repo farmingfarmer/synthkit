@@ -1,0 +1,36 @@
+{
+  "solver": "mistral-hardened-t0",
+  "highest_passed": 3,
+  "tiers": [
+    {
+      "tier": "gentle",
+      "passed": true,
+      "measured": {
+        "overall_recall": 1.0
+      },
+      "failed_conditions": [],
+      "evidence": "overall_recall = 1.000 (required >= 0.850) -> HOLDS  [ci 0.947-1.000 n=69: DECISIVE]"
+    },
+    {
+      "tier": "as-specified",
+      "passed": true,
+      "measured": {
+        "overall_recall": 1.0,
+        "distractors.discontinued_medication.fp_rate": 0.0526
+      },
+      "failed_conditions": [],
+      "evidence": "overall_recall = 1.000 (required >= 0.850) -> HOLDS  [ci 0.947-1.000 n=69: DECISIVE]\ndistractors.discontinued_medication.fp_rate = 0.053 (required <= 0.100) -> HOLDS  [ci 0.009-0.246 n=19: INCONCLUSIVE; n~86 to resolve]"
+    },
+    {
+      "tier": "adversarial",
+      "passed": true,
+      "measured": {
+        "overall_recall": 1.0,
+        "distractors.discontinued_medication.fp_rate": 0.0645
+      },
+      "failed_conditions": [],
+      "evidence": "overall_recall = 1.000 (required >= 0.850) -> HOLDS  [ci 0.947-1.000 n=69: DECISIVE]\ndistractors.discontinued_medication.fp_rate = 0.065 (required <= 0.100) -> HOLDS  [ci 0.018-0.207 n=31: INCONCLUSIVE; n~185 to resolve]"
+    }
+  ],
+  "text": "CAMPAIGN [extract]: extraction: Progress note extraction test corpus\n  cleared tier 3 of 3\n  tier 1 `gentle`: PASSED\n    overall_recall = 1.000 (required >= 0.850) -> HOLDS  [ci 0.947-1.000 n=69: DECISIVE]\n  tier 2 `as-specified`: PASSED\n    overall_recall = 1.000 (required >= 0.850) -> HOLDS  [ci 0.947-1.000 n=69: DECISIVE]\n    distractors.discontinued_medication.fp_rate = 0.053 (required <= 0.100) -> HOLDS  [ci 0.009-0.246 n=19: INCONCLUSIVE; n~86 to resolve]\n  tier 3 `adversarial`: PASSED\n    overall_recall = 1.000 (required >= 0.850) -> HOLDS  [ci 0.947-1.000 n=69: DECISIVE]\n    distractors.discontinued_medication.fp_rate = 0.065 (required <= 0.100) -> HOLDS  [ci 0.018-0.207 n=31: INCONCLUSIVE; n~185 to resolve]"
+}

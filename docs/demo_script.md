@@ -1,5 +1,5 @@
 # The demo: a doctor, a vendor, and an answer key
-## Runbook (25-30 minutes, works fully offline on the ThinkPad)
+## Runbook (25-30 minutes, works fully offline on the Windows laptop)
 
 **The frame (say first):** "A vendor is selling us a 30-day
 readmission model for our heart-failure population. They claim

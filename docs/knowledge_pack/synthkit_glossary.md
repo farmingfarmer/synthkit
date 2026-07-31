@@ -3,7 +3,7 @@ id: synthkit_glossary
 display_name: synthkit glossary of terms
 type: knowledge
 status: active
-owner: alex
+owner: project-owner
 tech_stack: [python-stdlib, llama.cpp, ollama, bedrock]
 related: [synthkit]
 ---

@@ -1,0 +1,756 @@
+{
+  "ledger": [
+    {
+      "row": 3,
+      "column": "ordering_department",
+      "op": "case",
+      "clean": "Neurology",
+      "dirty": "neurology"
+    },
+    {
+      "row": 3,
+      "column": "potassium",
+      "op": "missing",
+      "clean": "4.2135",
+      "dirty": ""
+    },
+    {
+      "row": 11,
+      "column": "potassium",
+      "op": "missing",
+      "clean": "3.1879",
+      "dirty": "NULL"
+    },
+    {
+      "row": 12,
+      "column": "potassium",
+      "op": "missing",
+      "clean": "4.6235",
+      "dirty": "?"
+    },
+    {
+      "row": 14,
+      "column": "ordering_department",
+      "op": "case",
+      "clean": "Internal Medicine",
+      "dirty": "internal medicine"
+    },
+    {
+      "row": 14,
+      "column": "potassium",
+      "op": "outlier",
+      "clean": "3.7639",
+      "dirty": "7.5278"
+    },
+    {
+      "row": 16,
+      "column": "collection_date",
+      "op": "wrong",
+      "clean": "2023-11-06",
+      "dirty": "2023-12-11"
+    },
+    {
+      "row": 17,
+      "column": "potassium",
+      "op": "missing",
+      "clean": "4.2643",
+      "dirty": "N/A"
+    },
+    {
+      "row": 18,
+      "column": "result_date",
+      "op": "wrong",
+      "clean": "2023-12-28",
+      "dirty": "2024-02-04"
+    },
+    {
+      "row": 28,
+      "column": "potassium",
+      "op": "missing",
+      "clean": "4.3635",
+      "dirty": ""
+    },
+    {
+      "row": 32,
+      "column": "result_date",
+      "op": "wrong",
+      "clean": "2023-12-17",
+      "dirty": "2023-11-27"
+    },
+    {
+      "row": 32,
+      "column": "potassium",
+      "op": "missing",
+      "clean": "4.4583",
+      "dirty": "N/A"
+    },
+    {
+      "row": 38,
+      "column": "collection_date",
+      "op": "wrong",
+      "clean": "2023-01-04",
+      "dirty": "2022-12-27"
+    },
+    {
+      "row": 39,
+      "column": "potassium",
+      "op": "missing",
+      "clean": "3.7639",
+      "dirty": "?"
+    },
+    {
+      "row": 40,
+      "column": "ordering_department",
+      "op": "case",
+      "clean": "Internal Medicine",
+      "dirty": "INTERNAL MEDICINE"
+    },
+    {
+      "row": 42,
+      "column": "result_date",
+      "op": "wrong",
+      "clean": "2023-08-29",
+      "dirty": "2023-07-31"
+    },
+    {
+      "row": 47,
+      "column": "potassium",
+      "op": "missing",
+      "clean": "3.5301",
+      "dirty": ""
+    },
+    {
+      "row": 48,
+      "column": "collection_date",
+      "op": "wrong",
+      "clean": "2023-04-02",
+      "dirty": "2023-05-16"
+    },
+    {
+      "row": 49,
+      "column": "collection_date",
+      "op": "wrong",
+      "clean": "2023-12-29",
+      "dirty": "2024-01-18"
+    },
+    {
+      "row": 50,
+      "column": "result_date",
+      "op": "wrong",
+      "clean": "2023-05-29",
+      "dirty": "2023-08-07"
+    },
+    {
+      "row": 63,
+      "column": "patient_id",
+      "op": "missing",
+      "clean": "P64",
+      "dirty": "?"
+    },
+    {
+      "row": 67,
+      "column": "collection_date",
+      "op": "wrong",
+      "clean": "2023-10-15",
+      "dirty": "2023-12-02"
+    },
+    {
+      "row": 72,
+      "column": "collection_date",
+      "op": "wrong",
+      "clean": "2023-07-12",
+      "dirty": "2023-09-19"
+    },
+    {
+      "row": 73,
+      "column": "result_date",
+      "op": "wrong",
+      "clean": "2023-10-05",
+      "dirty": "2023-07-16"
+    },
+    {
+      "row": 76,
+      "column": "collection_date",
+      "op": "wrong",
+      "clean": "2023-03-12",
+      "dirty": "2022-12-30"
+    },
+    {
+      "row": 83,
+      "column": "result_date",
+      "op": "wrong",
+      "clean": "2023-01-21",
+      "dirty": "2022-12-29"
+    },
+    {
+      "row": 92,
+      "column": "potassium",
+      "op": "missing",
+      "clean": "4.4678",
+      "dirty": "NULL"
+    },
+    {
+      "row": 102,
+      "column": "potassium",
+      "op": "outlier",
+      "clean": "3.9201",
+      "dirty": "7.8402"
+    },
+    {
+      "row": 105,
+      "column": "collection_date",
+      "op": "wrong",
+      "clean": "2023-03-23",
+      "dirty": "2023-05-18"
+    },
+    {
+      "row": 108,
+      "column": "potassium",
+      "op": "missing",
+      "clean": "5.1835",
+      "dirty": "?"
+    },
+    {
+      "row": 109,
+      "column": "potassium",
+      "op": "missing",
+      "clean": "4.2439",
+      "dirty": "?"
+    },
+    {
+      "row": 110,
+      "column": "potassium",
+      "op": "missing",
+      "clean": "3.8313",
+      "dirty": "NULL"
+    },
+    {
+      "row": 112,
+      "column": "potassium",
+      "op": "missing",
+      "clean": "4.2381",
+      "dirty": ""
+    },
+    {
+      "row": 114,
+      "column": "potassium",
+      "op": "missing",
+      "clean": "4.1387",
+      "dirty": ""
+    },
+    {
+      "row": 115,
+      "column": "result_date",
+      "op": "wrong",
+      "clean": "2023-02-23",
+      "dirty": "2023-04-23"
+    },
+    {
+      "row": 117,
+      "column": "potassium",
+      "op": "outlier",
+      "clean": "4.6069",
+      "dirty": "9.2138"
+    },
+    {
+      "row": 121,
+      "column": "potassium",
+      "op": "missing",
+      "clean": "3.7815",
+      "dirty": "NULL"
+    },
+    {
+      "row": 127,
+      "column": "result_date",
+      "op": "wrong",
+      "clean": "2023-12-21",
+      "dirty": "2023-09-22"
+    },
+    {
+      "row": 128,
+      "column": "ordering_department",
+      "op": "case",
+      "clean": "Cardiology",
+      "dirty": "cardiology"
+    },
+    {
+      "row": 128,
+      "column": "collection_date",
+      "op": "wrong",
+      "clean": "2023-08-04",
+      "dirty": "2023-06-07"
+    },
+    {
+      "row": 129,
+      "column": "potassium",
+      "op": "missing",
+      "clean": "4.3011",
+      "dirty": "N/A"
+    },
+    {
+      "row": 134,
+      "column": "potassium",
+      "op": "missing",
+      "clean": "3.8127",
+      "dirty": "N/A"
+    },
+    {
+      "row": 137,
+      "column": "result_date",
+      "op": "wrong",
+      "clean": "2023-06-19",
+      "dirty": "2023-03-24"
+    },
+    {
+      "row": 137,
+      "column": "potassium",
+      "op": "missing",
+      "clean": "4.075",
+      "dirty": "NULL"
+    },
+    {
+      "row": 139,
+      "column": "result_date",
+      "op": "wrong",
+      "clean": "2023-04-11",
+      "dirty": "2023-04-19"
+    },
+    {
+      "row": 140,
+      "column": "potassium",
+      "op": "missing",
+      "clean": "3.9868",
+      "dirty": "NULL"
+    },
+    {
+      "row": 141,
+      "column": "potassium",
+      "op": "missing",
+      "clean": "3.7529",
+      "dirty": ""
+    },
+    {
+      "row": 146,
+      "column": "collection_date",
+      "op": "wrong",
+      "clean": "2023-03-16",
+      "dirty": "2023-05-11"
+    },
+    {
+      "row": 148,
+      "column": "collection_date",
+      "op": "wrong",
+      "clean": "2023-02-03",
+      "dirty": "2023-04-01"
+    },
+    {
+      "row": 161,
+      "column": "potassium",
+      "op": "missing",
+      "clean": "3.7267",
+      "dirty": "N/A"
+    },
+    {
+      "row": 162,
+      "column": "potassium",
+      "op": "missing",
+      "clean": "4.0288",
+      "dirty": "?"
+    },
+    {
+      "row": 163,
+      "column": "result_date",
+      "op": "wrong",
+      "clean": "2023-03-02",
+      "dirty": "2023-05-29"
+    },
+    {
+      "row": 164,
+      "column": "ordering_department",
+      "op": "typo",
+      "clean": "Cardiology",
+      "dirty": "Cardology"
+    },
+    {
+      "row": 167,
+      "column": "ordering_department",
+      "op": "case",
+      "clean": "Pediatrics",
+      "dirty": "pediatrics"
+    },
+    {
+      "row": 170,
+      "column": "collection_date",
+      "op": "wrong",
+      "clean": "2023-12-29",
+      "dirty": "2023-11-24"
+    },
+    {
+      "row": 172,
+      "column": "collection_date",
+      "op": "wrong",
+      "clean": "2023-04-01",
+      "dirty": "2023-03-07"
+    },
+    {
+      "row": 172,
+      "column": "potassium",
+      "op": "missing",
+      "clean": "4.0079",
+      "dirty": "?"
+    },
+    {
+      "row": 173,
+      "column": "patient_id",
+      "op": "typo",
+      "clean": "P174",
+      "dirty": "P714"
+    },
+    {
+      "row": 175,
+      "column": "potassium",
+      "op": "missing",
+      "clean": "4.379",
+      "dirty": ""
+    },
+    {
+      "row": 184,
+      "column": "patient_id",
+      "op": "missing",
+      "clean": "P185",
+      "dirty": "N/A"
+    },
+    {
+      "row": 185,
+      "column": "potassium",
+      "op": "missing",
+      "clean": "3.5929",
+      "dirty": "N/A"
+    },
+    {
+      "row": 186,
+      "column": "ordering_department",
+      "op": "case",
+      "clean": "Internal Medicine",
+      "dirty": "INTERNAL MEDICINE"
+    },
+    {
+      "row": 189,
+      "column": "potassium",
+      "op": "missing",
+      "clean": "3.9331",
+      "dirty": ""
+    },
+    {
+      "row": 197,
+      "column": "potassium",
+      "op": "missing",
+      "clean": "3.8465",
+      "dirty": "NULL"
+    },
+    {
+      "row": 199,
+      "column": "result_date",
+      "op": "wrong",
+      "clean": "2023-06-04",
+      "dirty": "2023-08-31"
+    },
+    {
+      "row": 203,
+      "column": "ordering_department",
+      "op": "case",
+      "clean": "Neurology",
+      "dirty": "neurology"
+    },
+    {
+      "row": 204,
+      "column": "potassium",
+      "op": "missing",
+      "clean": "4.0262",
+      "dirty": "?"
+    },
+    {
+      "row": 205,
+      "column": "potassium",
+      "op": "outlier",
+      "clean": "4.5219",
+      "dirty": "9.0438"
+    },
+    {
+      "row": 206,
+      "column": "potassium",
+      "op": "missing",
+      "clean": "4.0783",
+      "dirty": "NULL"
+    },
+    {
+      "row": 207,
+      "column": "result_date",
+      "op": "wrong",
+      "clean": "2023-05-28",
+      "dirty": "2023-07-04"
+    },
+    {
+      "row": 208,
+      "column": "result_date",
+      "op": "wrong",
+      "clean": "2023-08-17",
+      "dirty": "2023-06-25"
+    },
+    {
+      "row": 209,
+      "column": "collection_date",
+      "op": "wrong",
+      "clean": "2023-02-28",
+      "dirty": "2023-02-05"
+    },
+    {
+      "row": 211,
+      "column": "potassium",
+      "op": "outlier",
+      "clean": "4.1841",
+      "dirty": "8.3682"
+    },
+    {
+      "row": 214,
+      "column": "potassium",
+      "op": "missing",
+      "clean": "4.5142",
+      "dirty": "N/A"
+    },
+    {
+      "row": 218,
+      "column": "result_date",
+      "op": "wrong",
+      "clean": "2023-06-19",
+      "dirty": "2023-05-16"
+    },
+    {
+      "row": 220,
+      "column": "collection_date",
+      "op": "wrong",
+      "clean": "2023-02-23",
+      "dirty": "2023-04-19"
+    },
+    {
+      "row": 231,
+      "column": "potassium",
+      "op": "missing",
+      "clean": "3.7768",
+      "dirty": ""
+    },
+    {
+      "row": 236,
+      "column": "potassium",
+      "op": "missing",
+      "clean": "4.0115",
+      "dirty": "N/A"
+    },
+    {
+      "row": 237,
+      "column": "potassium",
+      "op": "missing",
+      "clean": "2.7701",
+      "dirty": "?"
+    },
+    {
+      "row": 246,
+      "column": "ordering_department",
+      "op": "case",
+      "clean": "Oncology",
+      "dirty": "oncology"
+    },
+    {
+      "row": 259,
+      "column": "potassium",
+      "op": "outlier",
+      "clean": "4.3755",
+      "dirty": "8.751"
+    },
+    {
+      "row": 262,
+      "column": "potassium",
+      "op": "missing",
+      "clean": "4.6797",
+      "dirty": ""
+    },
+    {
+      "row": 268,
+      "column": "potassium",
+      "op": "missing",
+      "clean": "3.529",
+      "dirty": "N/A"
+    },
+    {
+      "row": 271,
+      "column": "ordering_department",
+      "op": "case",
+      "clean": "Pediatrics",
+      "dirty": "pediatrics"
+    },
+    {
+      "row": 271,
+      "column": "potassium",
+      "op": "missing",
+      "clean": "4.0602",
+      "dirty": ""
+    },
+    {
+      "row": 275,
+      "column": "potassium",
+      "op": "missing",
+      "clean": "3.8988",
+      "dirty": ""
+    },
+    {
+      "row": 282,
+      "column": "ordering_department",
+      "op": "case",
+      "clean": "Neurology",
+      "dirty": "neurology"
+    },
+    {
+      "row": 283,
+      "column": "potassium",
+      "op": "missing",
+      "clean": "4.7021",
+      "dirty": "?"
+    },
+    {
+      "row": 284,
+      "column": "potassium",
+      "op": "missing",
+      "clean": "5.2464",
+      "dirty": "?"
+    },
+    {
+      "row": 287,
+      "column": "potassium",
+      "op": "missing",
+      "clean": "3.5402",
+      "dirty": ""
+    },
+    {
+      "row": 300,
+      "column": "*",
+      "op": "duplicate",
+      "clean": "93",
+      "dirty": "300"
+    },
+    {
+      "row": 301,
+      "column": "*",
+      "op": "duplicate",
+      "clean": "148",
+      "dirty": "301"
+    },
+    {
+      "row": 302,
+      "column": "*",
+      "op": "duplicate",
+      "clean": "271",
+      "dirty": "302"
+    },
+    {
+      "row": 303,
+      "column": "*",
+      "op": "duplicate",
+      "clean": "107",
+      "dirty": "303"
+    },
+    {
+      "row": 304,
+      "column": "*",
+      "op": "duplicate",
+      "clean": "166",
+      "dirty": "304"
+    },
+    {
+      "row": 305,
+      "column": "*",
+      "op": "duplicate",
+      "clean": "231",
+      "dirty": "305"
+    },
+    {
+      "row": 306,
+      "column": "*",
+      "op": "duplicate",
+      "clean": "112",
+      "dirty": "306"
+    },
+    {
+      "row": 307,
+      "column": "*",
+      "op": "duplicate",
+      "clean": "259",
+      "dirty": "307"
+    },
+    {
+      "row": 308,
+      "column": "*",
+      "op": "duplicate",
+      "clean": "118",
+      "dirty": "308"
+    },
+    {
+      "row": 309,
+      "column": "*",
+      "op": "duplicate",
+      "clean": "36",
+      "dirty": "309"
+    },
+    {
+      "row": 310,
+      "column": "*",
+      "op": "duplicate",
+      "clean": "151",
+      "dirty": "310"
+    },
+    {
+      "row": 311,
+      "column": "*",
+      "op": "duplicate",
+      "clean": "275",
+      "dirty": "311"
+    },
+    {
+      "row": 312,
+      "column": "*",
+      "op": "duplicate",
+      "clean": "106",
+      "dirty": "312"
+    },
+    {
+      "row": 313,
+      "column": "*",
+      "op": "duplicate",
+      "clean": "137",
+      "dirty": "313"
+    },
+    {
+      "row": 314,
+      "column": "*",
+      "op": "duplicate",
+      "clean": "14",
+      "dirty": "314"
+    }
+  ],
+  "duplicate_of": {
+    "300": 93,
+    "301": 148,
+    "302": 271,
+    "303": 107,
+    "304": 166,
+    "305": 231,
+    "306": 112,
+    "307": 259,
+    "308": 118,
+    "309": 36,
+    "310": 151,
+    "311": 275,
+    "312": 106,
+    "313": 137,
+    "314": 14
+  }
+}

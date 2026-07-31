@@ -1,6 +1,7 @@
 # Phase 2, end to end: from a real extract to a graded exam
 
-The complete loop, as run on the Mac. Substitute `--src` with the
+The complete loop, as run on a development machine.
+Substitute `--src` with the
 real extract folder when the governance gate is cleared; nothing
 else changes.
 

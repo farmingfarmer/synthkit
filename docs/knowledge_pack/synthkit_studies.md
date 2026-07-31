@@ -3,7 +3,7 @@ id: synthkit_studies
 display_name: synthkit empirical studies and canonical numbers
 type: knowledge
 status: active
-owner: alex
+owner: project-owner
 tech_stack: [python-stdlib, llama.cpp, ollama, bedrock]
 related: [synthkit]
 ---

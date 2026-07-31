@@ -1,0 +1,6 @@
+Metadata-Version: 2.4
+Name: synthkit
+Version: 0.9.0
+Summary: Synthetic data creation and testing engine: spec, plan, verified render, exact evaluation, experiments
+License: Proprietary
+Requires-Python: >=3.8

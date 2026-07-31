@@ -24,6 +24,11 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 import synthkit.gui as gui
 from synthkit.examples import reference_spec, reference_table
 
+# Interface labels must describe REQUIREMENTS, never the machines
+# a thing was developed on. A name like these is a provenance
+# leak: invisible to the builder, glaring to a fresh audience.
+_MACHINE_NAMES = ("Mac", "MacBook", "ThinkPad", "M3")
+
 PASS = 0
 
 
@@ -497,7 +502,7 @@ def main():
               all(m in html for m in (
                   "no AI, instant", "only if Ollama is",
                   "llama.cpp", "Bedrock", "fully-offline"))
-              and "Mac" not in html
+              and not any(m in html for m in _MACHINE_NAMES)
               and "mistral-24B" not in html)
         check("`openai` is disambiguated as a protocol, not "
               "the company, everywhere it appears",

@@ -86,7 +86,7 @@ a campaign would call these trap lines INCONCLUSIVE against a
 Three renderers, one planted truth, one guard: stub 0%,
 mistral-24B 0% (after the 17.6% lesson and the v2 repair),
 llama-3B 0%. The open-source cost ladder, demonstrated:
-$0 local 3B on the demo laptop -> local 24B on a dev Mac ->
+$0 local 3B on the demo laptop -> local 24B on a development machine ->
 Bedrock open weights when sanctioned -> one dropdown apart.
 
 The demo shows BOTH numbers - the 17.6% cliff and v2's repair -
@@ -133,7 +133,7 @@ prompting buy a 3B?
 ## Reproduce everything
 
     synthkit render xray.json -o xray_stub --backend stub
-    synthkit render xray.json -o xray_llm --backend ollama   # Mac
+    synthkit render xray.json -o xray_llm --backend ollama   # development machine
     synthkit evaluate xray_stub --extractor xray_extractor:extract_careful
     synthkit evaluate xray_llm  --extractor xray_extractor:extract_careful
     synthkit evaluate xray_llm  --extractor xray_extractor:extract_careful_v2

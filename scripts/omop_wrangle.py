@@ -1,6 +1,6 @@
 """Wrangle an OMOP CSV extract into ONE TIDY ROW PER VISIT for
 synthkit Phase 2 profiling. Standard library only — runs on the
-locked-down Windows laptop and the Mac identically.
+locked-down Windows laptop and a development machine identically.
 
     python scripts/omop_wrangle.py --src DIR [-o tidy_visits.csv]
                                    [--report]

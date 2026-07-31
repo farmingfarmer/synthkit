@@ -1,7 +1,7 @@
 # Live LLM text generation on the Windows machine (open source)
 
 The demo act: messy clinical prose generated LIVE by an open-
-source model on the ThinkPad itself — no cloud, no cost, no
+source model on the Windows laptop itself — no cloud, no cost, no
 installation, no admin rights. Runtime: **llamafile** (a single
 user-directory executable that serves an OpenAI-compatible API);
 model: a 3B-class instruct model (fits 16 GB CPU-only with room
@@ -92,7 +92,7 @@ built for imperfect: misses are caught by blueprint
 verification, retried, and deterministically backfilled, so the
 demo cannot fail; it can only show its safety net working. A
 few retries in the report are a feature of the show. The same
-spec renders through mistral-24B on a dev Mac, through Bedrock's
+spec renders through mistral-24B on a development machine, through Bedrock's
 open-weight Llama/Mistral catalog for sanctioned work, or
 through a shared vLLM cluster at enterprise scale — one
 instrument, one backend dialect, every price point from $0 to

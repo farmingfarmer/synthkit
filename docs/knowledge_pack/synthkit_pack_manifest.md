@@ -3,7 +3,7 @@ id: synthkit_pack_manifest
 display_name: synthkit knowledge pack manifest
 type: knowledge
 status: active
-owner: alex
+owner: project-owner
 tech_stack: [python-stdlib, llama.cpp, ollama, bedrock]
 related: [synthkit]
 ---

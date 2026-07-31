@@ -138,7 +138,7 @@ def main():
     shutil.rmtree(tmp)
     # ---------- dotted imports from the working dir ----------
     # Console entry points lack cwd on sys.path; emulate that and
-    # prove the loaders bootstrap it (live Mac catch).
+    # prove the loaders bootstrap it (live catch on the development machine).
     import os as _os
     tmp = tempfile.mkdtemp(prefix="synthkit_cwd_")
     (Path(tmp) / "mymod.py").write_text(

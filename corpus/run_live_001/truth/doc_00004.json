@@ -1,0 +1,51 @@
+{
+  "doc_id": "doc_00004",
+  "doc_index": 4,
+  "seed": 125392833281620,
+  "structured": {
+    "encounter_id": "ENC-10004",
+    "patient_name": "Emerson Ashford",
+    "admit_date": "2026-01-07",
+    "length_of_stay_days": 1,
+    "discharge_date": "2026-01-12"
+  },
+  "notes": [
+    {
+      "field_name": "progress_note",
+      "note_type": "inpatient progress note",
+      "style": {
+        "persona": "nurse",
+        "verbosity": "moderate",
+        "abbreviation": "moderate"
+      },
+      "length_words": 102,
+      "elements": [
+        {
+          "element_id": "current_medication",
+          "phrasing": "pt remains on metformin 500mg BID",
+          "value": "metformin 500mg BID",
+          "difficulty": "easy"
+        },
+        {
+          "element_id": "followup_appointment",
+          "phrasing": "follow up scheduled for in two weeks",
+          "value": "in two weeks",
+          "difficulty": "medium"
+        },
+        {
+          "element_id": "allergy_flag",
+          "phrasing": "allergies: latex",
+          "value": "latex",
+          "difficulty": "hard"
+        }
+      ],
+      "distractors": [
+        {
+          "distractor_id": "discontinued_medication",
+          "phrasing": "stopped omeprazole due to side effects",
+          "value": "omeprazole"
+        }
+      ]
+    }
+  ]
+}

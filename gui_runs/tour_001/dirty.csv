@@ -1,0 +1,413 @@
+patient_id,patient_name,age,admitting_department,length_of_stay,total_charges,admission_date,discharge_date,readmitted
+P20000,Quinn Bauer,81,cardiology,2,4037.6889,2026-02-23,2026-02-25,False
+P20001,Quinn Ito,58,emergency,2,4048.9902,2026-03-11,2026-03-13,False
+P20002,Sam Reyes,46,oncology,12,27196.6374,2026-02-16,2026-02-28,False
+P20003,Devon Singh,42,cardiology,4,8241.9235,2026-05-23,2026-05-27,False
+P20004,Casey Reyes,70,internal medicine,18,52613.4661,2026-06-06,2026-06-24,False
+P20005,Riley Fontaine,56,cardiology,2,5437.0612,2026-03-05,2026-03-07,False
+P20006,Alex Marsh,77,oncology,14,30322.9493,2026-03-12,2026-03-26,True
+P20007,Morgan Walsh,76,internal medicine,4,6923.5653,2026-05-24,2026-05-28,False
+P20008,Rowan Marsh,?,internal medicine,2,4192.532,2026-01-21,2026-01-23,True
+P20009,Riley Bauer,63,internal medicine,3,6861.9412,2026-03-04,2026-03-07,False
+P20010,Harper Singh,52,emergency,3,7355.5235,2026-05-19,2026-05-22,False
+P20011,Jules Marsh,49,oncology,4,3993.0887,2026-04-13,2026-04-15,False
+P20012,Jules Alvarez,N/A,cardiology,3,5537.554,2026-04-08,2026-04-11,False
+P20013,Avery Singh,67,internal medicine,3,8039.1337,2026-04-09,2026-04-12,False
+P20014,Avery Reyes,66,oncology,3,4948.5746,2026-03-14,2026-03-17,False
+P20015,Riley Singh,74,internal medicine,14,44690.3767,04/07/2026,2026-04-21,False
+P20016,Jules Bauer,44,internal medicine,3,5823.9297,2026-01-20,2026-01-23,False
+P20017,Harper Ito,48,internal medicine,4,8828.0604,2026-03-30,2026-04-03,False
+P20018,Morgan Kim,,oncology,3,5802.9251,2026-02-06,2026-02-09,False
+P20019,Devon Alvarez,61,internal medicine,4,7103.4771,2026-04-19,2026-04-23,False
+P20020,Harper Osei,63,internal medicine,3,6864.1802,2026-01-25,2026-01-28,False
+P20021,Rowan Bauer,69,cardiology,2,4341.41,2026-02-10,2026-02-12,False
+P20022,Casey Kim,68,internal medicine,3,7238.7836,2026-06-23,2026-06-26,False
+P20023,Avery Ito,60,internal medicine,4,7749.3048,2026-01-30,2026-02-03,False
+P20024,Rowan Singh,28,oncology,12,22230.2122,2026-02-12,2026-02-24,False
+P20025,Casey Kim,61,internal medicine,4,9897.3868,2026-03-21,2026-03-25,False
+P20026,Morgan Okafor,NULL,internal medicine,16,34408.4848,2026-02-01,2026-02-17,False
+P20027,Sam Marsh,44,oncology,16,33931.7366,2026-05-26,2026-04-08,False
+P20028,Alex Singh,81,oncology,1,1987.1513,2026-05-01,2026-05-02,False
+P20029,Alex Alvarez,58,internal medicine,3,4948.1457,2026-04-25,2026-04-28,False
+P20030,Harper Marsh,25,cardiology,3,6283.7765,2026-04-02,2026-04-05,True
+P20031,Riley Marsh,49,internal medicine,6,6129.4821,2026-05-24,2026-05-27,False
+P20032,Alex Bauer,77,internal medicine,3,5248.6667,2026-01-19,2026-01-22,False
+P20033,quinn okafor,N/A,cardiology,2,4299.6783,2026-02-28,2026-03-02,False
+P20034,Rowan Marsh,81,cardiology,10,27138.2533,2026-03-31,2026-04-10,False
+P20035,Alex Novak,58,emergency,2,5271.8126,2026-05-08,2026-05-10,False
+P20036,Casey Kim,?,internal medicine,3,7311.2717,2026-04-08,2026-04-11,False
+P20037,Riley Okafor,76,emergency,1,2522.6762,2026-03-13,2026-03-14,False
+P20038,Avery Marsh,50,internal medicine,15,37680.4912,2026-01-13,2026-01-28,False
+P20039,Jordan Alvarez,67,internal medicine,2,4369.8845,2026-06-14,2026-06-16,False
+P20040,Morgan Bauer,85,oncology,2,3905.8468,2026-05-27,2026-03-04,False
+P20041,Casey Marsh,83,ocnology,3,6939.0491,2026-06-26,2026-06-29,False
+P20042,  Riley Fontaine,47,oncology,2,4585.5308,2026-06-05,2026-06-07,False
+P20043,Jules Okafor,69,oncology,13,28286.2303,2026-01-11,2026-01-24,False
+P20044,Casey Walsh,57,oncology,13,29340.2817,2026-01-20,2026-02-02,False
+P20045,Rowan Reyes,63,emergency,3,5977.0176,2026-01-29,2026-02-01,False
+P20046,Riley Bauer,56,cardiology,16,34672.4658,2026-03-03,2026-03-19,False
+P20047,Devon Alvarez,65,internal medicine,1,2651.5254,2026-01-28,2026-01-29,False
+P20048,Quinn Osei,78,internal medicine,3,5892.7364,2026-04-08,2026-04-11,False
+P20049,Sam Fontaine,57,internal medicine,3,4489.7717,2026-03-17,2026-03-20,False
+P20050,Jordan Alvarez,NULL,internal medicine,2,5397.7134,2026-06-30,2026-07-02,False
+P20051,Jordan Bauer,53,internal medicine,3,6322.58,2026-05-23,2026-05-26,False
+P20052,Quinn Walsh,76,oncology,2,4606.3337,2026-03-15,2026-03-17,False
+P20053,Jordan Kim,70,internal medicine,2,3485.988,2026-06-14,2026-08-29,False
+P20054,Quinn Kim,70,cardiology,3,6047.7415,2026-06-28,2026-07-01,False
+P20055,sam okafor,72,oncology,3,7914.3096,2026-02-11,2026-02-14,False
+P20056,Sam Alvarez,67,internal medicine,2,4327.0026,2026-04-07,2026-04-09,False
+P20057,Harper Reyes,83,cardiology,11,20739.4573,2026-03-09,2026-03-20,False
+P20058,Sam Novak,N/A,cardiology,3,5402.8561,2026-06-27,2026-06-30,False
+P20059,  Devon Bauer  ,35,oncology,3,6580.1962,2026-04-07,2026-04-10,False
+P20060,Jules Osei,42,internal medicine,1,2435.6031,2026-05-23,2026-05-24,False
+P20061,Devon Ito,N/A,internal medicine,2,3508.7886,2026-03-04,2026-03-06,True
+P20062,Riley Singh,56,cardiology,10,22254.3515,2026-03-16,2026-03-26,False
+P20063,Avery Kim,76,internal medicine,4,8540.4609,2026-02-14,2026-02-18,False
+P20064,Alex Reyes,57,internal medicine,12,29495.4302,2026-02-15,2026-02-27,True
+P20065,Rowan Kim,92,internal medicine,2,3266.8752,2026-05-20,2026-05-22,False
+P20066,Jordan Osei,51,internal medicine,11,31596.6411,2026-02-07,2026-02-18,False
+P20067,Morgan Marsh,35,emergency,15,36569.9373,2026-05-31,2026-06-15,False
+P20068,Devon Osei,?,internal medicine,1,2695.2092,"March 25, 2026",2026-03-26,False
+P20069,Harper Ito,51,internal medicine,2,3958.3709,06/14/2026,2026-06-16,False
+P20070,Jules Walsh,60,internal medicine,17,36573.8853,2026-06-01,2026-06-18,False
+P20071,Quinn Singh,67,oncology,3,6875.1454,2026-05-06,2026-05-09,True
+P20072,Jules Osei,48,internal medicine,14,20908.4619,2026-02-21,2026-03-07,True
+P20073,Sam Bauer,74,emergency,15,27262.2051,2026-03-21,2026-04-05,True
+P20074,ROWAN ALVAREZ,44,internal medicine,4,8777.8793,2026-04-10,2026-04-14,False
+P20075,Devon Walsh,72,emergency,3,7492.9669,2026-01-25,2026-01-28,False
+P20076,Jordan Osei,N/A,internal medicine,2,4820.6996,2026.06.10,2026-06-12,False
+P20077,Riley Walsh,30,cardiology,11,22485.6138,2026-05-14,2026-05-25,False
+P20078,Rowan Kim,78,oncology,1,2205.5962,2026-02-13,2026-02-14,False
+P20079,Morgan Alvarez,58,oncology,11,27003.1423,2026-02-05,2026-02-16,False
+P20080,Avery Kim,21,emregency,2,3621.7805,2026-06-07,2026-06-09,False
+P20081,Morgan Okafor,52,oncology,3,4547.292,2026-03-19,2026-03-22,False
+P20082,Avery Singh,?,internal medicine,3,6019.3672,2026-05-10,2026-05-13,False
+P20083,  Devon Novak  ,62,oncology,1,2007.1238,2026-05-21,2026-05-22,False
+P20084,Rowan Reyes,67,oncology,8,7067.3946,2026-02-25,2026-03-01,False
+P20085,Rowan Alvarez,64,cardiology,2,5872.5156,2026-06-04,2026-06-06,False
+P20086,Devon Marsh,51,emergency,3,5941.5046,2026-03-27,2026-03-30,False
+P20087,Casey Alvarez,60,cardiology,11,20771.5214,2026.05.22,2026-06-02,False
+P20088,Jules Okafor,N/A,internal medicine,4,10907.4169,2026-06-20,2026-06-24,False
+P20089,Devon Alvarez,?,oncology,15,37310.0331,2026-03-07,2026-03-22,True
+P20090,Jules Reyes,77,internal medicine,4,8659.5894,2026-02-25,2026-03-01,False
+P20091,Sam Ito,61,cardiology,3,6722.1039,2026-04-28,2026-05-01,False
+P20092,Casey Marsh,52,internal medicine,2,4635.5759,2026.04.26,2026-04-28,False
+P20093,Harper Ito,54,intrnal medicine,17,33054.6502,2026-06-05,2026-06-22,False
+P20094,Sam Fontaine,60,emergency,11,18954.3642,2026-03-07,2026-03-18,True
+P20095,Quinn Osei,77,internal medicine,3,5900.9838,2026-06-05,2026-06-08,False
+P20096,Harper Reyes,46,internal medicine,14,29711.8539,2026-04-15,2026-04-29,False
+P20097,Jordan Osei,46,internal medicine,14,22623.7584,2026-04-12,2026-04-26,False
+P20098,   Devon Marsh ,68,internal medicnie,3,6283.2841,2026-05-14,2026-05-17,False
+P20099,Harper Novak,46,internal medicine,4,6822.4345,2026-06-22,2026-06-26,False
+P20100,Avery Okafor,68,oncology,2,4061.953,2026-05-28,2026-05-30,False
+P20101,Alex Marsh,74,internal medicine,1,2050.1666,2026-04-13,2026-04-14,False
+P20102,Alex Ito,NULL,oncology,12,21616.5325,2026-03-04,2026-03-16,False
+P20103,Quinn Walsh,95,internal medicine,2,3389.1113,2026-02-06,2026-02-08,False
+P20104,Quinn Bauer,56,internal medicine,4,7845.9174,2026-01-13,2025-11-14,False
+P20105,Jordan Bauer,50,oncology,4,8851.0932,2026-05-17,2026-05-21,False
+P20106,Quinn Marsh,84,internal medicine,1,2321.1884,2026-04-29,2026-04-30,False
+P20107,Quinn Walsh,56,oncology,3,4850.7606,24-Jun-2026,2026-06-27,False
+P20108,Harper Walsh,89,internal medicine,3,6644.5606,2026-03-27,2026-03-30,False
+P20109,Alex Osei,70,cardiology,3,240057.204,2026-02-22,2026-02-25,False
+P20110,Morgan Alvarez,69,cardiology,4,7550.5514,2026-04-11,2026-04-15,False
+P20111,Riley Alvarez,58,emergency,3,6768.6198,2026-04-24,2026-04-27,False
+P20112,Rowan Okafor,88,internal medicine,2,4178.9106,2026-03-16,2026-03-18,True
+P20113,Harper Osei,N/A,internal medicine,16,30479.642,2026-02-02,2026-02-18,False
+P20114,Harper Fontaine,78,oncology,2,4605.5321,2026-04-05,2026-04-07,False
+P20115,Casey Osei,58,oncology,2,6282.7084,2026-06-17,2026-06-19,False
+P20116,Sam Marsh,45,internal medicine,3,6297.8755,2026-06-01,2026-06-04,False
+P20117,Jordan Alvarez,79,emergency,2,4410.9342,2026-02-28,2026-03-02,False
+P20118,Sam Walsh,73,cardiology,6,8612.4757,2026-01-12,2026-01-15,False
+P20119,Casey Reyes,67,cardiology,2,4139.2921,2026-05-07,2026-05-09,False
+P20120,jordan okafor,61,emergency,2,4656.1627,2026-03-29,2026-03-31,False
+P20121,Rowan Ito,N/A,emergency,3,5221.6308,2026-06-19,2026-06-22,True
+P20122,Riley Kim,45,internal medicine,4,8057.5098,2026-05-02,2026-05-06,False
+P20123,Morgan Okafor,58,internal medicine,12,39914.6318,2026-01-14,2026-01-26,True
+P20124,Rowan Reyes,?,cardiology,1,2695.4708,"February 24, 2026",2025-12-14,False
+P20125,Harper Marsh,45,internal medicine,3,7911.742,2026-04-30,2026-05-03,False
+P20126,Jules Novak,69,iternal medicine,12,22536.5925,2026-02-25,2026-03-09,True
+P20127,Quinn Marsh,54,oncology,1,1552.5912,2026-05-03,2026-05-04,False
+P20128,Harper Alvarez,N/A,internal medicine,15,29536.9463,2026-01-15,2026-01-30,True
+P20129,Alex Kim,40,internal medicine,3,4749.6578,2026-05-10,2026-05-13,False
+P20130,alex reyes,55,internal medicine,13,19401.6273,2026-02-03,2026-02-16,True
+P20131,Casey Kim,76,oncology,17,35554.986,2026-06-02,2026-06-19,False
+P20132,Jules Okafor,21,oncology,2,4002.2207,2026-04-03,2026-04-05,False
+P20133,Quinn Novak,63,internal meedicine,15,25387.9649,2026-03-14,2026-03-29,False
+P20134,Alex Osei,52,cardiology,2,4772.3941,2026-06-06,2026-06-08,False
+P20135,Devon Osei,35,internal medicine,2,5090.8351,2026-06-11,2026-06-13,False
+P20136,Rowan Osei,75,emergency,1,2381.6426,2026-05-09,2026-05-10,False
+P20137,Morgan Marsh,44,oncology,1,2169.5427,2026-03-16,2026-03-17,False
+P20138,Avery Walsh,67,oncology,2,5260.0965,2026-01-31,2026-02-02,False
+P20139,Jules Fontaine,64,cardiology,1,2191.5446,2026-04-24,2026-04-25,False
+P20140,Sam Marsh,86,cardiology,3,4419.9125,2026-05-31,2026-06-03,False
+P20141,Casey Kim,75,cardiology,12,21689.1782,2026-01-19,2026-01-31,False
+P20142,Jules Bauer,60,oncology,3,5586.71,"June 19, 2026",2026-06-22,False
+P20143,Avery Marsh,33,cardiology,3,6410.1724,2026-05-13,2026-05-16,False
+P20144,Quinn Fontaine,60,internal medicine,3,6849.2164,2026-01-01,2026-01-04,False
+P20145,Alex Fontaine,81,internal medicine,2,4799.8772,2026-04-10,2026-04-12,False
+P20146,Jordan Osei,65,oncology,12,26676.6287,2026-03-29,2026-04-10,True
+P20147,Rowan Bauer,18,internal medicine,2,3295.346,2026-01-17,2026-01-19,False
+P20148,Alex Walsh,82,emergency,4,6723.6526,2026-06-01,2026-06-05,True
+P20149, Sam Reyes ,69,cardiology,1,2705.9336,2026-03-21,2026-03-22,False
+P20150,Harper Singh,45,internal medicine,3,7767.323,2026-02-23,2026-02-26,False
+P20151,Jordan Singh,,cardiology,2,4212.4298,2026-01-11,2026-01-13,False
+P20152,Quinn Alvarez,66,oncology,14,42252.7466,2026-06-15,2026-06-29,True
+P20153,Casey Singh,79,cardiology,3,7850.5358,2026-01-13,2026-01-16,False
+P20154,Riley Novak,55,internal medicine,2,4042.1275,2026-03-01,2026-03-03,False
+P20155,Alex Fontaine,45,internal medicine,2,3765.5725,2026-05-16,2026-05-18,False
+P20156,Harper Bauer,59,oncology,1,2301.5472,2026-05-31,2026-06-01,False
+P20157,Jules Singh,47,oncology,3,8073.0553,2026-05-29,2026-06-01,False
+P20158,Harper Kim,61,internal medicine,2,3614.4429,2026-04-24,2026-04-26,False
+P20159,Avery Reyes,64,internal medicine,1,2484.7245,2026-05-22,2026-05-23,False
+P20160,rowan kim,69,emergency,2,3535.2621,2026-04-12,2026-04-14,False
+P20161,Devon Marsh,80,cardiology,12,25688.4206,2026-04-16,2026-04-28,True
+P20162,Alex Fontaine,56,internal medicine,2,3781.3017,2026-03-21,2026-03-23,False
+P20163,Sam Fontaine,NULL,cardiology,12,23683.6063,2026-01-18,2026-01-30,False
+P20164,Quinn Fontaine,70,oncology,1,1793.269,2026-01-11,2026-01-12,True
+P20165,Jordan Singh,95,internal medicine,12,21863.2382,2026-05-15,2026-05-27,False
+P20166,Devon Reyes,66,oncology,1,2418.2589,2026-02-11,2026-02-12,False
+P20167,Avery Bauer,36,internal medicine,2,4234.8907,2026-06-11,2026-06-13,False
+P20168,Quinn Alvarez,71,cardiology,16,29475.0762,2026-01-17,2026-02-02,True
+P20169,Devon Alvarez,66,emergency,18,33134.8798,2026-03-15,2026-04-02,False
+P20170,Riley Bauer,77,internal medicine,15,29755.0111,2026-02-09,2026-02-24,True
+P20171,Avery Kim,32,emergency,3,7411.9314,2026-03-17,2026-03-20,False
+P20172,Morgan Marsh,47,internal medicine,3,6035.8439,2026-01-10,2026-01-13,False
+P20173,Rowan Walsh,70,internal medicine,2,3929.0066,2026-06-12,2026-06-14,False
+P20174,Quinn Fontaine,64,cardiology,3,5703.408,2026-02-08,2026-02-11,True
+P20175,Alex Kim,73,cardiology,3,7158.4514,2026-05-20,2026-05-23,False
+P20176,Devon Ito,62,cardiology,3,5472.3415,2026-02-06,2026-02-09,False
+P20177,Jules Kim,72,internal medicine,1,1881.8008,2026-03-12,2026-03-13,False
+P20178,Morgan Bauer,58,internal medicine,2,4920.499,2026-02-10,2026-02-12,False
+P20179,Jordan Walsh,80,cardiology,3,5159.4401,2026-04-17,2026-04-20,False
+P20180,Sam Walsh,70,cardiology,13,1080595.244,2026-01-06,2026-01-19,False
+P20181,Jordan Bauer,69,oncology,2,4405.4621,2026-01-14,2026-01-16,True
+P20182,Alex Osei,72,oncology,4,7611.6722,2026-04-12,2026-04-16,False
+P20183,Harper Singh,82,emergency,2,3939.5288,2026-01-26,2026-01-28,True
+P20184,Quinn Osei,72,cardiology,2,4431.4619,2026-04-26,2026-04-28,False
+P20185,Harper Singh,70,emergency,4,3946.1518,2026-04-28,2026-04-30,False
+P20186,Avery Marsh,69,internal medicine,2,5160.5551,2026-01-28,2026-01-30,False
+P20187,Riley Okafor,79,internal medicine,3,6301.926,2026-06-14,2026-06-17,False
+P20188,Harper Reyes,70,oncology,3,5619.3479,2026-01-06,2026-01-09,True
+P20189,Morgan Bauer,33,internal medicine,4,8437.5066,2026-01-18,2026-01-22,False
+P20190,Sam Alvarez,48,oncology,3,5245.5498,2026-06-09,2026-06-12,False
+P20191,Jules Walsh,50,cardiology,4,8666.4359,2026-01-02,2026-01-06,False
+P20192,Morgan Reyes,NULL,oncology,2,4081.2997,2026-01-12,2026-01-14,False
+P20193,Sam Okafor,71,emergency,3,6707.8342,2026-03-02,2026-03-05,False
+P20194,Morgan Alvarez,,internal medicine,12,26685.8887,2026-01-26,2026-02-07,False
+P20195,Morgan Ito,100,oncology,16,28439.2349,2026-03-05,2026-03-21,True
+P20196,Jules Reyes,65,internal medicine,2,3965.8486,2026-01-15,2026-01-17,False
+P20197,Harper Ito,76,internal medicine,2,3813.2001,2026-06-06,2026-06-08,False
+P20198,Alex Walsh,82,emergency,4,8665.0885,2026.05.20,2026-05-24,False
+P20199,Sam Novak,71,cardology,2,4245.7525,2026-06-15,2026-06-17,False
+P20200,Casey Marsh,60,cardiology,12,22553.3597,2026-04-22,2026-05-04,True
+P20201,Jordan Singh,?,internal medicine,3,5690.9299,2026-01-27,2026-01-30,False
+P20202,Jordan Reyes,NULL,internal medicine,2,180376.968,2026-03-10,2026-03-12,False
+P20203,Riley Osei,80,internal medicine,2,5053.6769,2026-04-27,2026-04-29,False
+P20204,Harper Kim,79,internal medicine,1,1792.3248,2026-06-22,2026-06-23,False
+P20205,ROWAN FONTAINE,81,emergency,2,3431.662,2026-04-20,2026-04-22,True
+P20206,Sam Bauer,56,oncology,3,6046.1114,2026-02-22,2026-02-25,False
+P20207,Devon Osei,73,oncology,4,10317.062,2026-01-07,2026-01-11,True
+P20208,Sam Walsh,39,internal medicine,1,1793.3275,2026-04-08,2026-04-09,False
+P20209,Avery Reyes,68,internal medicine,3,5921.2993,2026-04-14,2026-04-17,False
+P20210,Avery Okafor,63,internal medicine,2,4276.2177,2026-05-31,2026-06-02,False
+P20211,Avery Bauer,75,internal medicine,4,9098.1461,2026-05-28,2026-06-01,False
+P20212,Harper Okafor,41,emergency,2,4662.8245,2026-03-19,2026-03-21,False
+P20213,Morgan Walsh,N/A,oncology,13,29063.9531,2026-06-28,2026-07-11,False
+P20214,devon reyes,,oncology,3,7221.5035,2026-06-07,2026-06-10,False
+P20215,Devon Walsh,50,cardiology,2,3923.6256,2026-03-18,2026-03-20,False
+P20216,Quinn Reyes,81,internal medicine,3,7186.1899,2026-05-03,2026-05-06,False
+P20217,Quinn Fontaine,50,emergency,4,11848.8224,2026-04-19,2026-04-23,False
+P20218,Rowan Alvarez,84,internal medicine,15,29444.3484,2026-06-22,2026-07-07,False
+P20219,Devon Walsh,73,oncology,3,5669.4368,2026-03-23,2026-03-26,False
+P20220,Sam Novak,40,internal medicine,4,9452.3185,"January 24, 2026",2026-01-28,False
+P20221,Alex Novak,78,internal medicine,3,7595.1026,2026-03-20,2026-03-23,False
+P20222,Harper Fontaine,62,cardiology,1,2236.7705,2026-04-22,2026-04-23,True
+P20223,Riley Reyes,63,internal medicine,16,34339.0185,2026-06-03,2026-06-19,False
+P20224,Devon Osei,?,cardiology,4,9134.0994,2026-05-22,2026-05-26,False
+P20225,Casey Osei,79,internal medicine,14,25772.6549,2026-03-04,2026-03-18,False
+P20226,Morgan Marsh,70,cardiology,17,45208.7826,02-Feb-2026,2026-02-19,False
+P20227,Alex Ito,64,emergency,2,4616.394,2026-02-02,2026-02-04,False
+P20228,Rowan Kim,44,internal medicine,15,27318.8034,2026-03-03,2026-03-18,False
+P20229,Avery Okafor,61,cardiology,4,7708.7026,2026-04-20,2026-04-24,False
+P20230,Avery Singh,48,internal medicine,3,7423.8601,2026-02-02,2026-02-05,False
+P20231,Sam Fontaine,46,internal medicine,4,7139.6224,2026-06-06,2026-06-10,False
+P20232,Morgan Fontaine,59,cardiology,3,4933.8531,2026-05-04,2026-05-07,False
+P20233,Harper Fontaine,61,emergency,4,7398.8767,2026-01-17,2026-01-21,False
+P20234,Casey Singh,,internal medicine,3,7499.8759,2026-04-21,2026-04-24,False
+P20235,Jules Alvarez,70,internal medicine,16,40043.9908,2026-06-06,2026-06-22,False
+P20236,Sam Walsh,NULL,cardiology,11,29559.2892,02/21/2026,2026-03-04,False
+P20237,Rowan Okafor,64,cardiology,1,1778.9204,2026-06-17,2026-06-18,False
+P20238,Riley Ito,NULL,internal medicine,11,19259.7461,2026-05-23,2026-06-03,False
+P20239,ROWAN OSEI,52,oncology,2,4064.5366,2026-04-01,2026-04-03,False
+P20240,Riley Osei,69,internal medicine,2,3747.3502,2026-02-08,2026-02-10,False
+P20241,Rowan Novak,51,oncoogy,2,5388.0516,2026-02-09,2026-02-11,True
+P20242,Riley Okafor,N/A,cardiology,12,20845.3041,2026-03-24,2026-04-05,False
+P20243,Quinn Singh,69,emergency,3,6776.4177,2026-06-24,2026-06-27,True
+P20244,Morgan Osei,63,cardiology,2,4606.8726,2026-02-18,2026-02-20,False
+P20245,Jules Osei,54,emergency,3,7315.6511,2026-04-08,2026-04-11,False
+P20246,Morgan Singh,33,internal medicine,4,8982.0814,2026-02-01,2026-02-05,True
+P20247,Morgan Osei,72,internal medicine,2,4515.2166,2026-01-31,2026-02-02,False
+P20248,Jordan Bauer,,oncology,2,3760.5489,2026-04-11,2026-04-13,False
+P20249,Jules Osei,89,oncology,2,4081.1405,2026-04-07,2026-04-09,False
+P20250,Harper Walsh,59,oncology,2,5397.2482,2026-05-12,2026-02-21,False
+P20251,Morgan Reyes,50,cardiology,3,6984.4676,2026-06-03,2026-06-06,False
+P20252,Jordan Bauer,,internal medicine,1,2449.8174,2026-03-03,2026-03-04,False
+P20253,   Rowan Singh,72,cardiology,2,4492.778,2026-02-03,2026-02-05,False
+P20254,Jordan Bauer,53,internal medicine,3,8419.2787,2026-03-04,2026-03-07,False
+P20255,Jordan Okafor,53,oncology,2,3572.2852,2026-06-19,2026-06-21,False
+P20256,Devon Novak,75,oncology,2,3938.5265,2026-04-12,2026-04-14,True
+P20257,  Riley Osei ,52,internal medicine,16,30579.1028,2026-04-26,2026-05-12,False
+P20258,Jules Singh,63,cardiology,14,30748.6212,2026-06-29,2026-07-13,False
+P20259,Alex Osei,68,internal medicine,12,1161635.784,2026-05-21,2026-06-02,False
+P20260,Morgan Bauer,49,cardiology,3,6160.0276,2026-04-03,2026-04-06,False
+P20261,Rowan Singh,54,cardiology,2,4515.0399,2026-03-06,2026-03-08,False
+P20262, Alex Marsh  ,46,cardiology,2,3656.3093,2026-03-12,2026-03-14,False
+P20263,Rowan Reyes,67,oncology,3,5838.7675,2026-02-23,2026-02-26,True
+P20264,Devon Walsh,45,internal medicine,12,25184.2618,2026-04-11,2026-04-23,True
+P20265,Avery Kim,67,oncology,1,1854.2691,29-May-2026,2026-05-30,False
+P20266,Alex Ito,74,internal medicine,2,4854.2586,2026-06-18,2026-06-20,True
+P20267,Alex Singh,70,oncology,2,4001.4504,2026-03-21,2026-03-23,False
+P20268,Morgan Osei,75,internal medicine,4,7236.8533,2026-03-07,2026-03-11,False
+P20269,Jordan Alvarez,80,emergency,13,22739.1765,2026-01-26,2026-02-08,False
+P20270,Devon Fontaine,46,internal medicine,3,6729.5173,"January 29, 2026",2026-02-01,False
+P20271,Jordan Reyes,45,cardiology,4,3892.2474,2026-04-21,2026-04-23,False
+P20272,Quinn Marsh,59,internal medicine,12,30713.4461,2026-02-14,2026-02-26,False
+P20273,Jordan Bauer,NULL,internal medicine,2,4537.8585,2026-03-22,2026-03-24,False
+P20274,HARPER BAUER,63,cardiology,2,3758.4734,2026-02-07,2026-02-09,False
+P20275,Jordan Ito,58,internal medicine,2,5356.1034,2026.06.23,2026-06-25,False
+P20276,Sam Osei,90,cardiology,4,8511.1062,2026-04-02,2026-04-06,False
+P20277,Alex Fontaine,86,ooncology,13,29894.7467,2026-05-08,2026-05-21,True
+P20278,Alex Ito,56,internl medicine,13,28985.5587,2026-06-07,2026-06-20,False
+P20279,Alex Alvarez,87,internal medicine,4,8927.8925,2026-05-25,2026-05-29,True
+P20280,Alex Ito,61,internal medicine,1,2325.2393,2026-05-26,2026-05-27,False
+P20281,Devon Okafor,64,internal medicine,2,5347.593,2026-03-17,2026-03-19,False
+P20282,Riley Fontaine,47,internal medicine,13,27298.3362,2026-05-13,2026-05-26,False
+P20283,Alex Osei,53,cardiology,1,1805.1158,2026-01-09,2026-01-10,False
+P20284,Morgan Novak,44,internal medicine,1,2218.1107,2026-01-28,2026-01-29,False
+P20285,Rowan Okafor,82,internal medicine,14,22759.3262,14-Mar-2026,2025-12-31,True
+P20286,Casey Marsh,66,cardiology,2,5122.4962,2026-03-18,2026-03-20,False
+P20287,Avery Novak,46,internal medicine,3,5320.5145,2026-04-02,2026-04-05,True
+P20288,Harper Ito,65,cardiology,1,2190.3066,2026-04-20,2026-04-21,False
+P20289,Harper Reyes,40,internal medicine,4,8771.5733,2026-01-11,2026-01-15,False
+P20290,Alex Osei,62,internal medicine,1,1901.1616,2026-03-18,2026-03-19,False
+P20291,Riley Alvarez,86,emergency,1,1847.1305,2026-03-04,2026-03-05,False
+P20292,Quinn Osei,66,cardiology,3,6514.1177,2026-05-14,2026-05-17,False
+P20293,Avery Alvarez,84,cardioology,3,5363.9333,2026-04-07,2026-04-10,False
+P20294,Rowan Okafor,41,internal medicine,4,7342.1024,2026-03-23,2026-03-27,False
+P20295,Alex Kim,?,oncoolgy,4,8016.5461,2026-03-09,2026-03-13,False
+P20296,Alex Singh,74,internal medicine,3,6253.9775,03/04/2026,2026-03-07,False
+P20297,Casey Marsh,43,cardiology,2,3873.7939,2026-06-29,2026-07-01,False
+P20298,   Harper Walsh  ,75,internal medicine,14,30906.7785,2026-05-27,2026-06-10,False
+P20299,Avery Okafor,56,oncology,3,6042.2974,2026-03-17,2026-03-20,False
+P20300,Riley Kim,51,oncology,2,3997.4377,2026-05-11,2026-05-13,False
+P20301,Jules Osei,71,oncology,3,7791.7257,2026-05-22,2026-05-25,False
+P20302,SAM NOVAK,36,oncology,4,9377.3431,2026-02-18,2026-02-22,False
+P20303,Jules Osei,55,internal medicine,2,3801.8452,2026-02-28,2026-03-02,False
+P20304,harper singh,42,internal medicine,4,8743.4614,2026-03-04,2026-03-08,False
+P20305,Alex Novak,NULL,emergency,1,1848.913,2026-05-14,2026-05-15,False
+P20306,Quinn Marsh,51,internal medicine,3,5419.3285,2026-03-05,2026-03-08,False
+P20307,Riley Alvarez,48,internal medicine,3,5953.7864,2026-04-06,2026-04-09,False
+P20308,Rowan Bauer,87,internal medicine,3,7823.3443,2026-04-16,2026-02-28,False
+P20309,Casey Osei,71,oncology,1,2834.6518,2026-05-04,2026-05-05,True
+P20310,Alex Kim,39,internal medicine,13,23104.9935,2026-04-03,2026-04-16,False
+P20311,Avery Alvarez,92,emergency,15,30800.7111,2026-01-29,2026-02-13,True
+P20312,Riley Reyes,,internal medicine,2,3926.9171,2026-06-13,2026-06-15,False
+P20313,Avery Kim,57,cardiology,14,28686.4802,2026-03-06,2026-03-20,False
+P20314,Harper Ito,63,internal medicine,2,5051.3057,2026-06-10,2026-06-12,False
+P20315,Morgan Bauer,68,internal medicine,4,7225.0371,2026-03-20,2026-03-24,False
+P20316,Avery Kim,70,internal medicine,4,8055.7855,01/28/2026,2026-02-01,False
+P20317,Morgan Novak,64,internal medicine,4,8235.7765,2026-06-01,2026-06-05,False
+P20318,Quinn Singh,40,internal medicine,3,7793.022,2026-02-22,2026-02-25,False
+P20319,Morgan Osei,,internal medicine,3,5638.3517,2026-05-18,2026-05-21,False
+P20320,  Jordan Reyes ,53,cardiology,4,9487.0624,2026-04-22,2026-04-26,False
+P20321,Alex Fontaine,54,cardiology,2,4615.6018,2026-06-25,2026-06-27,False
+P20322,ROWAN BAUER,40,internal medicine,2,3545.8115,2026-02-11,2026-02-13,False
+P20323,   Sam Bauer ,78,oncology,4,7992.8397,2026-01-21,2026-01-25,False
+P20324,Avery Walsh,75,internal medicine,2,4071.2833,2026-02-21,2026-02-23,False
+P20325,Sam Reyes,52,internal medicine,2,4560.5349,2026-02-13,2026-02-15,False
+P20326,Alex Kim,52,emergency,4,8360.7358,2026-01-13,2026-01-17,False
+P20327,Avery Kim,48,internal medicine,11,19746.9775,2026-05-12,2026-05-23,False
+P20328,Jordan Alvarez,60,cardiology,2,4723.5113,2026-03-31,2026-04-02,False
+P20329,Devon Singh,72,oncology,1,2154.0257,2026-03-12,2026-03-13,False
+P20330,Devon Alvarez,82,internal medicine,3,6074.3953,2026-01-25,2026-01-28,True
+P20331,Morgan Fontaine,60,cardiology,14,33970.2592,2026-01-13,2026-01-27,False
+P20332,Morgan Ito,49,cardiology,4,7327.8707,2026-01-31,2026-02-04,True
+P20333,Jules Singh,59,internal medicine,4,8744.0332,2026-02-23,2026-02-27,False
+P20334,Sam Reyes,52,cardiology,4,3926.3362,24-May-2026,2026-05-26,False
+P20335,Casey Osei,80,oncology,1,2137.8374,2026-02-18,2026-02-19,False
+P20336,Quinn Fontaine,64,internal medicine,3,6035.9922,2026-06-24,2026-06-27,False
+P20337,Harper Singh,44,oncology,2,4035.1141,2026-01-14,2026-01-16,False
+P20338,Morgan Walsh,28,cardiology,3,7630.8366,2026-01-14,2026-01-17,False
+P20339,Alex Okafor,71,cardiology,18,49121.5448,2026-03-17,2026-04-04,False
+P20340,Jordan Walsh,66,internal medicine,11,22318.0893,2026-05-16,2026-05-27,False
+P20341,Harper Reyes,65,oncology,4,6768.2271,05/29/2026,2026-06-02,False
+P20342,Alex Singh,67,cardiology,15,35856.6509,2026-01-09,2026-01-24,True
+P20343,Alex Singh,N/A,emergency,4,7278.2134,2026-05-01,2026-05-05,True
+P20344,Sam Walsh,56,internal medicine,3,6964.1445,2026-01-20,2026-01-23,False
+P20345,Harper Osei,67,internal medicine,12,36333.168,2026-01-15,2026-01-27,False
+P20346,Riley Osei,71,nternal medicine,11,21154.4151,2026-01-28,2026-02-08,False
+P20347,Avery Novak,NULL,internal medicine,4,6147.1719,2026-05-31,2026-06-04,False
+P20348,Riley Bauer,53,internal medicine,2,5403.9053,2026-05-12,2026-05-14,False
+P20349,Avery Okafor,50,internal medicine,12,26945.8593,2026-02-17,2026-03-01,False
+P20350,Jordan Bauer,58,internal medicine,4,7034.6597,2026-04-16,2026-04-20,False
+P20351,Casey Singh,NULL,internal medicine,3,7645.5731,2026-03-30,2026-05-01,False
+P20352,Rowan Alvarez,47,internal medicine,1,1760.7561,2026-05-19,2026-05-20,False
+P20353,Morgan Novak,59,oncology,2,3713.4977,2026-04-23,2026-04-25,False
+P20354,Jordan Okafor,?,cardiology,3,6839.625,2026-06-29,2026-07-02,False
+P20355,Alex Singh,N/A,internal medicine,2,4086.0919,2026-05-25,2026-05-27,False
+P20356,Jordan Walsh,43,internal medicine,3,6859.2292,2026-06-04,2026-06-07,False
+P20357,Avery Osei,62,oncology,3,6819.3808,2026-04-28,2026-05-01,False
+P20358,Devon Alvarez,37,cardiology,1,82111.56,2026-01-19,2026-01-20,False
+P20359,Devon Novak,73,oncology,2,4637.3459,2026-01-27,2026-01-29,False
+P20360,Devon Bauer,100,cardiology,8,8744.0165,2026-05-04,2026-05-08,False
+P20361,Sam Kim,31,internal medicine,15,42117.4425,2026-05-10,2026-05-25,False
+P20362,Riley Marsh,49,internal medicine,3,6023.2058,2026-01-31,2026-02-03,False
+P20363,Avery Singh,64,oncology,4,7445.7983,2026-05-09,2026-05-13,False
+P20364,Devon Kim,55,internal medicine,2,1960.545,2026-02-24,2026-02-25,False
+P20365,Quinn Alvarez,70,emergency,3,7240.4784,2026-06-23,2026-06-26,False
+P20366,Jordan Fontaine,46,internal medicine,11,22836.6227,2026-01-15,2026-01-26,False
+P20367,Jules Osei,69,intrenal medicine,2,3909.3127,2026-03-23,2026-03-25,False
+P20368,riley singh,54,internal medicine,2,141758.528,2026-01-04,2026-01-06,False
+P20369,Avery Alvarez,48,emergency,2,5669.8192,2026-04-03,2026-04-05,False
+P20370,Harper Walsh,76,cardiology,2,186220.38,2026-01-02,2026-01-04,True
+P20371,Quinn Osei,72,cardiology,1,1983.514,2026-03-30,2026-03-31,False
+P20372,Morgan Osei,84,internal medicine,3,6676.2472,2026-05-01,2026-05-04,False
+P20373,Quinn Marsh,55,emergency,3,7102.8886,2026-06-04,2026-06-07,False
+P20374,Jules Walsh,67,oncology,1,2003.7372,2026-06-12,2026-06-13,False
+P20375,Casey Singh,65,oncology,3,5948.6347,2026-01-19,2026-01-22,False
+P20376,Harper Novak,?,cardiology,2,4910.3392,2026-05-19,2026-05-21,False
+P20377,Alex Alvarez,55,oncology,13,31793.435,2026-06-12,2026-06-25,True
+P20378,Rowan Fontaine,N/A,cardiology,3,7222.1745,2026-06-27,2026-06-30,True
+P20379,Jules Novak,51,internal medicine,3,5470.5688,2026-04-17,2026-04-20,False
+P20380,rowan reyes,,innternal medicine,3,5213.2995,2026-04-17,2026-04-20,False
+P20381,Rowan Fontaine,73,emergency,4,7018.2034,2026-02-09,2026-02-13,False
+P20382,Devon Okafor,53,internal medicine,2,3672.5727,2026-05-16,2026-05-18,True
+P20383,Jules Novak,38,internal medicine,17,47957.5798,2026-01-29,2026-02-15,True
+P20384,Casey Novak,61,internal medicine,18,54803.2434,2026-04-24,2026-05-12,False
+P20385,Casey Novak,84,internal medicine,13,27182.4434,2026-01-30,2026-02-12,False
+P20386,Casey Bauer,39,internal medicine,2,5239.1679,2026-05-13,2026-05-15,False
+P20387,Jules Bauer,87,internal medicine,10,21176.2673,2026-02-01,2026-02-11,False
+P20388,Jules Singh,77,interrnal medicine,3,6042.1324,2026-05-16,2026-05-19,True
+P20389,Jordan Okafor,67,internal medicine,3,6645.9264,2026-05-24,2026-05-27,False
+P20390,Sam Marsh,65,oncology,2,3249.4013,2026-04-05,2026-04-07,True
+P20391,Alex Bauer,70,internal medicine,2,4914.9776,2026-04-19,2026-04-21,False
+P20392,QUINN ITO,74,oncology,2,5400.4324,2026-05-08,2026-05-10,False
+P20393,   Avery Ito,81,internal medicine,4,7861.6838,2026-01-20,2026-01-24,False
+P20394,Quinn Alvarez,76,cardiology,4,8836.6242,2026-02-14,2026-02-18,False
+P20395,Riley Marsh,84,cardiology,4,7230.4411,2026-04-07,2026-04-11,False
+P20396,Riley Okafor,56,oncology,17,30672.1017,2026-06-18,2026-07-05,False
+P20397,casey walsh,49,oncology,3,7417.9929,2026-06-13,2026-06-16,False
+P20398,Riley Bauer,61,ncology,11,18639.7074,2026-06-10,2026-06-21,False
+P20399,Harper Osei,62,emergency,17,29100.9247,2026-04-12,2026-04-29,False
+P20128,Harper Alvarez,N/A,internal medicine,15,29536.9463,2026-01-15,2026-01-30,True
+P20224,Devon Osei,?,cardiology,4,9134.0994,2026-05-22,2026-05-26,False
+P20044,Casey Walsh,57,oncology,13,29340.2817,2026-01-20,2026-02-02,False
+P20173,Rowan Walsh,70,internal medicine,2,3929.0066,2026-06-12,2026-06-14,False
+P20349,Avery Okafor,50,internal medicine,12,26945.8593,2026-02-17,2026-03-01,False
+P20062,Riley Singh,56,cardiology,10,22254.3515,2026-03-16,2026-03-26,False
+P20055,sam okafor,72,oncology,3,7914.3096,2026-02-11,2026-02-14,False
+P20161,Devon Marsh,80,cardiology,12,25688.4206,2026-04-16,2026-04-28,True
+P20152,Quinn Alvarez,66,oncology,14,42252.7466,2026-06-15,2026-06-29,True
+P20358,Devon Alvarez,37,cardiology,1,82111.56,2026-01-19,2026-01-20,False
+P20066,Jordan Osei,51,internal medicine,11,31596.6411,2026-02-07,2026-02-18,False
+P20085,Rowan Alvarez,64,cardiology,2,5872.5156,2026-06-04,2026-06-06,False

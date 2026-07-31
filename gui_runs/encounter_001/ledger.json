@@ -1,0 +1,1339 @@
+{
+  "ledger": [
+    {
+      "row": 8,
+      "column": "age",
+      "op": "missing",
+      "clean": "61",
+      "dirty": "N/A"
+    },
+    {
+      "row": 9,
+      "column": "discharge_date",
+      "op": "wrong",
+      "clean": "2026-04-30",
+      "dirty": "2026-02-11"
+    },
+    {
+      "row": 13,
+      "column": "patient_name",
+      "op": "space",
+      "clean": "Jules Kim",
+      "dirty": " Jules Kim "
+    },
+    {
+      "row": 15,
+      "column": "patient_name",
+      "op": "space",
+      "clean": "Avery Ito",
+      "dirty": "  Avery Ito  "
+    },
+    {
+      "row": 19,
+      "column": "patient_name",
+      "op": "case",
+      "clean": "Avery Fontaine",
+      "dirty": "avery fontaine"
+    },
+    {
+      "row": 20,
+      "column": "discharge_date",
+      "op": "wrong",
+      "clean": "2026-02-15",
+      "dirty": "2026-03-19"
+    },
+    {
+      "row": 32,
+      "column": "discharge_date",
+      "op": "wrong",
+      "clean": "2026-06-13",
+      "dirty": "2026-05-17"
+    },
+    {
+      "row": 33,
+      "column": "patient_name",
+      "op": "case",
+      "clean": "Morgan Okafor",
+      "dirty": "MORGAN OKAFOR"
+    },
+    {
+      "row": 35,
+      "column": "admitting_department",
+      "op": "typo",
+      "clean": "Cardiology",
+      "dirty": "Cardilogy"
+    },
+    {
+      "row": 36,
+      "column": "admission_date",
+      "op": "format",
+      "clean": "2026-04-24",
+      "dirty": "24-Apr-2026"
+    },
+    {
+      "row": 38,
+      "column": "total_charges",
+      "op": "outlier",
+      "clean": "0.0012",
+      "dirty": "0.0048"
+    },
+    {
+      "row": 39,
+      "column": "patient_name",
+      "op": "space",
+      "clean": "Avery Singh",
+      "dirty": "   Avery Singh "
+    },
+    {
+      "row": 42,
+      "column": "age",
+      "op": "missing",
+      "clean": "53",
+      "dirty": "?"
+    },
+    {
+      "row": 43,
+      "column": "admission_date",
+      "op": "format",
+      "clean": "2026-06-28",
+      "dirty": "June 28, 2026"
+    },
+    {
+      "row": 46,
+      "column": "admission_date",
+      "op": "format",
+      "clean": "2026-04-24",
+      "dirty": "April 24, 2026"
+    },
+    {
+      "row": 47,
+      "column": "admitting_department",
+      "op": "typo",
+      "clean": "Internal Medicine",
+      "dirty": "nternal Medicine"
+    },
+    {
+      "row": 47,
+      "column": "admission_date",
+      "op": "format",
+      "clean": "2026-05-10",
+      "dirty": "10-May-2026"
+    },
+    {
+      "row": 52,
+      "column": "admitting_department",
+      "op": "typo",
+      "clean": "Internal Medicine",
+      "dirty": "Iternal Medicine"
+    },
+    {
+      "row": 57,
+      "column": "patient_name",
+      "op": "case",
+      "clean": "Riley Reyes",
+      "dirty": "riley reyes"
+    },
+    {
+      "row": 58,
+      "column": "admitting_department",
+      "op": "typo",
+      "clean": "Cardiology",
+      "dirty": "Caardiology"
+    },
+    {
+      "row": 62,
+      "column": "admitting_department",
+      "op": "typo",
+      "clean": "Cardiology",
+      "dirty": "Cardioloogy"
+    },
+    {
+      "row": 68,
+      "column": "admission_date",
+      "op": "format",
+      "clean": "2026-04-03",
+      "dirty": "03-Apr-2026"
+    },
+    {
+      "row": 72,
+      "column": "admission_date",
+      "op": "format",
+      "clean": "2026-01-14",
+      "dirty": "01/14/2026"
+    },
+    {
+      "row": 75,
+      "column": "admitting_department",
+      "op": "typo",
+      "clean": "Internal Medicine",
+      "dirty": "Internal Meidcine"
+    },
+    {
+      "row": 76,
+      "column": "total_charges",
+      "op": "outlier",
+      "clean": "30909943894.2918",
+      "dirty": "123639775577.1672"
+    },
+    {
+      "row": 83,
+      "column": "age",
+      "op": "missing",
+      "clean": "94",
+      "dirty": "?"
+    },
+    {
+      "row": 84,
+      "column": "admitting_department",
+      "op": "typo",
+      "clean": "Oncology",
+      "dirty": "Oncollogy"
+    },
+    {
+      "row": 89,
+      "column": "age",
+      "op": "missing",
+      "clean": "76",
+      "dirty": "N/A"
+    },
+    {
+      "row": 90,
+      "column": "patient_name",
+      "op": "space",
+      "clean": "Avery Walsh",
+      "dirty": "   Avery Walsh"
+    },
+    {
+      "row": 94,
+      "column": "age",
+      "op": "missing",
+      "clean": "68",
+      "dirty": ""
+    },
+    {
+      "row": 96,
+      "column": "admission_date",
+      "op": "format",
+      "clean": "2026-01-05",
+      "dirty": "05-Jan-2026"
+    },
+    {
+      "row": 97,
+      "column": "age",
+      "op": "missing",
+      "clean": "43",
+      "dirty": "N/A"
+    },
+    {
+      "row": 102,
+      "column": "age",
+      "op": "missing",
+      "clean": "62",
+      "dirty": ""
+    },
+    {
+      "row": 103,
+      "column": "age",
+      "op": "missing",
+      "clean": "73",
+      "dirty": "?"
+    },
+    {
+      "row": 105,
+      "column": "age",
+      "op": "missing",
+      "clean": "49",
+      "dirty": "?"
+    },
+    {
+      "row": 114,
+      "column": "patient_name",
+      "op": "case",
+      "clean": "Jordan Fontaine",
+      "dirty": "jordan fontaine"
+    },
+    {
+      "row": 114,
+      "column": "age",
+      "op": "missing",
+      "clean": "60",
+      "dirty": "NULL"
+    },
+    {
+      "row": 120,
+      "column": "patient_name",
+      "op": "case",
+      "clean": "Avery Walsh",
+      "dirty": "AVERY WALSH"
+    },
+    {
+      "row": 124,
+      "column": "patient_name",
+      "op": "case",
+      "clean": "Jules Ito",
+      "dirty": "JULES ITO"
+    },
+    {
+      "row": 124,
+      "column": "age",
+      "op": "missing",
+      "clean": "53",
+      "dirty": ""
+    },
+    {
+      "row": 125,
+      "column": "admission_date",
+      "op": "format",
+      "clean": "2026-04-03",
+      "dirty": "03-Apr-2026"
+    },
+    {
+      "row": 126,
+      "column": "age",
+      "op": "missing",
+      "clean": "41",
+      "dirty": ""
+    },
+    {
+      "row": 128,
+      "column": "age",
+      "op": "missing",
+      "clean": "54",
+      "dirty": ""
+    },
+    {
+      "row": 129,
+      "column": "age",
+      "op": "missing",
+      "clean": "34",
+      "dirty": "N/A"
+    },
+    {
+      "row": 136,
+      "column": "age",
+      "op": "missing",
+      "clean": "62",
+      "dirty": "NULL"
+    },
+    {
+      "row": 137,
+      "column": "admitting_department",
+      "op": "typo",
+      "clean": "Cardiology",
+      "dirty": "Cardioloyg"
+    },
+    {
+      "row": 143,
+      "column": "age",
+      "op": "missing",
+      "clean": "72",
+      "dirty": "NULL"
+    },
+    {
+      "row": 145,
+      "column": "age",
+      "op": "missing",
+      "clean": "47",
+      "dirty": "N/A"
+    },
+    {
+      "row": 146,
+      "column": "admitting_department",
+      "op": "typo",
+      "clean": "Internal Medicine",
+      "dirty": "Itnernal Medicine"
+    },
+    {
+      "row": 156,
+      "column": "age",
+      "op": "missing",
+      "clean": "58",
+      "dirty": "N/A"
+    },
+    {
+      "row": 165,
+      "column": "age",
+      "op": "missing",
+      "clean": "48",
+      "dirty": ""
+    },
+    {
+      "row": 168,
+      "column": "age",
+      "op": "missing",
+      "clean": "71",
+      "dirty": "NULL"
+    },
+    {
+      "row": 171,
+      "column": "age",
+      "op": "missing",
+      "clean": "55",
+      "dirty": ""
+    },
+    {
+      "row": 173,
+      "column": "age",
+      "op": "missing",
+      "clean": "58",
+      "dirty": "N/A"
+    },
+    {
+      "row": 181,
+      "column": "admission_date",
+      "op": "format",
+      "clean": "2026-03-02",
+      "dirty": "03/02/2026"
+    },
+    {
+      "row": 190,
+      "column": "patient_name",
+      "op": "case",
+      "clean": "Harper Fontaine",
+      "dirty": "harper fontaine"
+    },
+    {
+      "row": 194,
+      "column": "admission_date",
+      "op": "format",
+      "clean": "2026-06-12",
+      "dirty": "June 12, 2026"
+    },
+    {
+      "row": 195,
+      "column": "patient_name",
+      "op": "case",
+      "clean": "Riley Singh",
+      "dirty": "RILEY SINGH"
+    },
+    {
+      "row": 197,
+      "column": "admitting_department",
+      "op": "typo",
+      "clean": "Internal Medicine",
+      "dirty": "Itnernal Medicine"
+    },
+    {
+      "row": 197,
+      "column": "total_charges",
+      "op": "outlier",
+      "clean": "5245546276936250194113316575103937222070202751391053064962048",
+      "dirty": "20982185107745000776453266300415748888280811005564212259848192"
+    },
+    {
+      "row": 201,
+      "column": "patient_name",
+      "op": "space",
+      "clean": "Morgan Singh",
+      "dirty": "  Morgan Singh "
+    },
+    {
+      "row": 201,
+      "column": "age",
+      "op": "missing",
+      "clean": "66",
+      "dirty": "?"
+    },
+    {
+      "row": 202,
+      "column": "age",
+      "op": "missing",
+      "clean": "72",
+      "dirty": "N/A"
+    },
+    {
+      "row": 204,
+      "column": "patient_name",
+      "op": "space",
+      "clean": "Rowan Kim",
+      "dirty": " Rowan Kim"
+    },
+    {
+      "row": 217,
+      "column": "patient_name",
+      "op": "case",
+      "clean": "Rowan Marsh",
+      "dirty": "rowan marsh"
+    },
+    {
+      "row": 220,
+      "column": "age",
+      "op": "missing",
+      "clean": "51",
+      "dirty": "?"
+    },
+    {
+      "row": 222,
+      "column": "age",
+      "op": "missing",
+      "clean": "62",
+      "dirty": "?"
+    },
+    {
+      "row": 229,
+      "column": "age",
+      "op": "missing",
+      "clean": "51",
+      "dirty": "?"
+    },
+    {
+      "row": 230,
+      "column": "age",
+      "op": "missing",
+      "clean": "61",
+      "dirty": "N/A"
+    },
+    {
+      "row": 231,
+      "column": "admitting_department",
+      "op": "typo",
+      "clean": "Internal Medicine",
+      "dirty": "Interrnal Medicine"
+    },
+    {
+      "row": 233,
+      "column": "age",
+      "op": "missing",
+      "clean": "52",
+      "dirty": "?"
+    },
+    {
+      "row": 236,
+      "column": "age",
+      "op": "missing",
+      "clean": "69",
+      "dirty": ""
+    },
+    {
+      "row": 236,
+      "column": "admitting_department",
+      "op": "typo",
+      "clean": "Internal Medicine",
+      "dirty": "Intrnal Medicine"
+    },
+    {
+      "row": 237,
+      "column": "age",
+      "op": "missing",
+      "clean": "86",
+      "dirty": "N/A"
+    },
+    {
+      "row": 239,
+      "column": "age",
+      "op": "missing",
+      "clean": "71",
+      "dirty": "N/A"
+    },
+    {
+      "row": 239,
+      "column": "admission_date",
+      "op": "format",
+      "clean": "2026-06-17",
+      "dirty": "2026.06.17"
+    },
+    {
+      "row": 241,
+      "column": "patient_name",
+      "op": "case",
+      "clean": "Quinn Fontaine",
+      "dirty": "QUINN FONTAINE"
+    },
+    {
+      "row": 245,
+      "column": "age",
+      "op": "missing",
+      "clean": "64",
+      "dirty": "NULL"
+    },
+    {
+      "row": 250,
+      "column": "age",
+      "op": "missing",
+      "clean": "70",
+      "dirty": ""
+    },
+    {
+      "row": 252,
+      "column": "admission_date",
+      "op": "format",
+      "clean": "2026-06-08",
+      "dirty": "08-Jun-2026"
+    },
+    {
+      "row": 256,
+      "column": "age",
+      "op": "missing",
+      "clean": "70",
+      "dirty": "?"
+    },
+    {
+      "row": 259,
+      "column": "admitting_department",
+      "op": "typo",
+      "clean": "Oncology",
+      "dirty": "Onology"
+    },
+    {
+      "row": 263,
+      "column": "admitting_department",
+      "op": "typo",
+      "clean": "Internal Medicine",
+      "dirty": "Inernal Medicine"
+    },
+    {
+      "row": 267,
+      "column": "age",
+      "op": "missing",
+      "clean": "69",
+      "dirty": ""
+    },
+    {
+      "row": 267,
+      "column": "admission_date",
+      "op": "format",
+      "clean": "2026-04-05",
+      "dirty": "05-Apr-2026"
+    },
+    {
+      "row": 271,
+      "column": "admission_date",
+      "op": "format",
+      "clean": "2026-05-08",
+      "dirty": "08-May-2026"
+    },
+    {
+      "row": 271,
+      "column": "discharge_date",
+      "op": "wrong",
+      "clean": "2026-05-12",
+      "dirty": "2026-02-18"
+    },
+    {
+      "row": 280,
+      "column": "age",
+      "op": "missing",
+      "clean": "56",
+      "dirty": "?"
+    },
+    {
+      "row": 291,
+      "column": "discharge_date",
+      "op": "wrong",
+      "clean": "2026-05-12",
+      "dirty": "2026-05-03"
+    },
+    {
+      "row": 292,
+      "column": "admission_date",
+      "op": "format",
+      "clean": "2026-01-01",
+      "dirty": "2026.01.01"
+    },
+    {
+      "row": 294,
+      "column": "admitting_department",
+      "op": "typo",
+      "clean": "Cardiology",
+      "dirty": "Cradiology"
+    },
+    {
+      "row": 302,
+      "column": "age",
+      "op": "missing",
+      "clean": "71",
+      "dirty": "NULL"
+    },
+    {
+      "row": 308,
+      "column": "admission_date",
+      "op": "format",
+      "clean": "2026-01-25",
+      "dirty": "01/25/2026"
+    },
+    {
+      "row": 312,
+      "column": "discharge_date",
+      "op": "wrong",
+      "clean": "2026-05-17",
+      "dirty": "2026-06-09"
+    },
+    {
+      "row": 315,
+      "column": "admitting_department",
+      "op": "typo",
+      "clean": "Internal Medicine",
+      "dirty": "Innternal Medicine"
+    },
+    {
+      "row": 316,
+      "column": "admission_date",
+      "op": "format",
+      "clean": "2026-04-10",
+      "dirty": "10-Apr-2026"
+    },
+    {
+      "row": 317,
+      "column": "patient_name",
+      "op": "case",
+      "clean": "Harper Alvarez",
+      "dirty": "harper alvarez"
+    },
+    {
+      "row": 326,
+      "column": "discharge_date",
+      "op": "wrong",
+      "clean": "2026-05-11",
+      "dirty": "2026-05-22"
+    },
+    {
+      "row": 328,
+      "column": "age",
+      "op": "missing",
+      "clean": "44",
+      "dirty": "NULL"
+    },
+    {
+      "row": 328,
+      "column": "admitting_department",
+      "op": "typo",
+      "clean": "Internal Medicine",
+      "dirty": "Inteernal Medicine"
+    },
+    {
+      "row": 329,
+      "column": "admission_date",
+      "op": "format",
+      "clean": "2026-01-06",
+      "dirty": "January 06, 2026"
+    },
+    {
+      "row": 332,
+      "column": "admission_date",
+      "op": "format",
+      "clean": "2026-02-09",
+      "dirty": "February 09, 2026"
+    },
+    {
+      "row": 343,
+      "column": "age",
+      "op": "missing",
+      "clean": "61",
+      "dirty": "N/A"
+    },
+    {
+      "row": 346,
+      "column": "admitting_department",
+      "op": "typo",
+      "clean": "Cardiology",
+      "dirty": "Cardioolgy"
+    },
+    {
+      "row": 352,
+      "column": "patient_name",
+      "op": "space",
+      "clean": "Rowan Marsh",
+      "dirty": "  Rowan Marsh "
+    },
+    {
+      "row": 356,
+      "column": "age",
+      "op": "missing",
+      "clean": "63",
+      "dirty": "N/A"
+    },
+    {
+      "row": 356,
+      "column": "discharge_date",
+      "op": "wrong",
+      "clean": "2026-01-29",
+      "dirty": "2026-03-26"
+    },
+    {
+      "row": 358,
+      "column": "admission_date",
+      "op": "format",
+      "clean": "2026-06-06",
+      "dirty": "2026.06.06"
+    },
+    {
+      "row": 366,
+      "column": "age",
+      "op": "missing",
+      "clean": "51",
+      "dirty": "?"
+    },
+    {
+      "row": 370,
+      "column": "patient_name",
+      "op": "case",
+      "clean": "Riley Walsh",
+      "dirty": "riley walsh"
+    },
+    {
+      "row": 377,
+      "column": "age",
+      "op": "missing",
+      "clean": "67",
+      "dirty": "NULL"
+    },
+    {
+      "row": 379,
+      "column": "age",
+      "op": "missing",
+      "clean": "45",
+      "dirty": "N/A"
+    },
+    {
+      "row": 382,
+      "column": "patient_name",
+      "op": "case",
+      "clean": "Jules Novak",
+      "dirty": "jules novak"
+    },
+    {
+      "row": 382,
+      "column": "admitting_department",
+      "op": "typo",
+      "clean": "Oncology",
+      "dirty": "Oncoloogy"
+    },
+    {
+      "row": 384,
+      "column": "admitting_department",
+      "op": "typo",
+      "clean": "Cardiology",
+      "dirty": "Carrdiology"
+    },
+    {
+      "row": 389,
+      "column": "admitting_department",
+      "op": "typo",
+      "clean": "Oncology",
+      "dirty": "Oncoloogy"
+    },
+    {
+      "row": 390,
+      "column": "discharge_date",
+      "op": "wrong",
+      "clean": "2026-02-08",
+      "dirty": "2026-04-13"
+    },
+    {
+      "row": 392,
+      "column": "age",
+      "op": "missing",
+      "clean": "43",
+      "dirty": "N/A"
+    },
+    {
+      "row": 398,
+      "column": "admission_date",
+      "op": "format",
+      "clean": "2026-01-06",
+      "dirty": "January 06, 2026"
+    },
+    {
+      "row": 400,
+      "column": "*",
+      "op": "duplicate",
+      "clean": "93",
+      "dirty": "400"
+    },
+    {
+      "row": 401,
+      "column": "*",
+      "op": "duplicate",
+      "clean": "148",
+      "dirty": "401"
+    },
+    {
+      "row": 402,
+      "column": "*",
+      "op": "duplicate",
+      "clean": "362",
+      "dirty": "402"
+    },
+    {
+      "row": 403,
+      "column": "*",
+      "op": "duplicate",
+      "clean": "379",
+      "dirty": "403"
+    },
+    {
+      "row": 404,
+      "column": "*",
+      "op": "duplicate",
+      "clean": "271",
+      "dirty": "404"
+    },
+    {
+      "row": 405,
+      "column": "*",
+      "op": "duplicate",
+      "clean": "374",
+      "dirty": "405"
+    },
+    {
+      "row": 406,
+      "column": "*",
+      "op": "duplicate",
+      "clean": "332",
+      "dirty": "406"
+    },
+    {
+      "row": 407,
+      "column": "*",
+      "op": "duplicate",
+      "clean": "334",
+      "dirty": "407"
+    },
+    {
+      "row": 408,
+      "column": "*",
+      "op": "duplicate",
+      "clean": "394",
+      "dirty": "408"
+    },
+    {
+      "row": 409,
+      "column": "*",
+      "op": "duplicate",
+      "clean": "107",
+      "dirty": "409"
+    },
+    {
+      "row": 410,
+      "column": "*",
+      "op": "duplicate",
+      "clean": "166",
+      "dirty": "410"
+    },
+    {
+      "row": 411,
+      "column": "*",
+      "op": "duplicate",
+      "clean": "231",
+      "dirty": "411"
+    }
+  ],
+  "duplicate_of": {
+    "400": 93,
+    "401": 148,
+    "402": 362,
+    "403": 379,
+    "404": 271,
+    "405": 374,
+    "406": 332,
+    "407": 334,
+    "408": 394,
+    "409": 107,
+    "410": 166,
+    "411": 231
+  },
+  "true_probs": {
+    "readmitted": [
+      0.542398,
+      0.517493,
+      0.542398,
+      0.71095,
+      0.761333,
+      0.731059,
+      0.798991,
+      0.591459,
+      0.652489,
+      0.598688,
+      0.770299,
+      0.698465,
+      0.613014,
+      0.672607,
+      0.704746,
+      0.631812,
+      0.761333,
+      0.564636,
+      0.687831,
+      0.596283,
+      0.638763,
+      0.661503,
+      0.789182,
+      0.826353,
+      0.620106,
+      0.827784,
+      0.79738,
+      0.672607,
+      0.752129,
+      0.65701,
+      0.874352,
+      0.613014,
+      0.809998,
+      0.579324,
+      0.779026,
+      0.638763,
+      0.75026,
+      0.610639,
+      0.674805,
+      0.552308,
+      0.725119,
+      0.608259,
+      0.584191,
+      0.615384,
+      0.591459,
+      0.727108,
+      0.643365,
+      0.772064,
+      0.763145,
+      0.584191,
+      0.564636,
+      0.610639,
+      0.596283,
+      0.69211,
+      0.529964,
+      0.71095,
+      0.700567,
+      0.721115,
+      0.713,
+      0.687831,
+      0.830616,
+      0.780743,
+      0.681354,
+      0.798991,
+      0.819061,
+      0.470036,
+      0.524979,
+      0.559714,
+      0.837535,
+      0.507499,
+      0.696355,
+      0.627148,
+      0.845535,
+      0.654753,
+      0.629483,
+      0.79249,
+      0.318646,
+      0.683521,
+      0.670401,
+      0.770299,
+      0.694236,
+      0.742691,
+      0.805338,
+      0.877611,
+      0.7191,
+      0.696355,
+      0.885948,
+      0.702661,
+      0.571996,
+      0.849412,
+      0.683521,
+      0.631812,
+      0.650219,
+      0.567093,
+      0.800592,
+      0.519989,
+      0.641067,
+      0.509999,
+      0.803766,
+      0.717075,
+      0.725119,
+      0.624806,
+      0.636453,
+      0.70889,
+      0.725119,
+      0.529964,
+      0.882881,
+      0.631812,
+      0.562177,
+      0.867611,
+      0.318646,
+      0.674805,
+      0.752129,
+      0.859362,
+      0.759511,
+      0.643365,
+      0.603483,
+      0.908045,
+      0.834795,
+      0.58904,
+      0.591459,
+      0.73885,
+      0.768525,
+      0.547358,
+      0.596283,
+      0.5,
+      0.495,
+      0.766741,
+      0.591459,
+      0.567093,
+      0.492501,
+      0.851953,
+      0.694236,
+      0.75026,
+      0.596283,
+      0.700567,
+      0.65926,
+      0.624806,
+      0.855697,
+      0.647941,
+      0.819061,
+      0.524979,
+      0.759511,
+      0.79576,
+      0.829205,
+      0.539915,
+      0.773819,
+      0.740775,
+      0.713,
+      0.689974,
+      0.552308,
+      0.740775,
+      0.598688,
+      0.69211,
+      0.627148,
+      0.650219,
+      0.620106,
+      0.752129,
+      0.846836,
+      0.779026,
+      0.689974,
+      0.641067,
+      0.652489,
+      0.557248,
+      0.850687,
+      0.547358,
+      0.615384,
+      0.838891,
+      0.798991,
+      0.586618,
+      0.780743,
+      0.598688,
+      0.593873,
+      0.620106,
+      0.744597,
+      0.803766,
+      0.627148,
+      0.748382,
+      0.620106,
+      0.557248,
+      0.641067,
+      0.729088,
+      0.879743,
+      0.564636,
+      0.601088,
+      0.787513,
+      0.524979,
+      0.586618,
+      0.848129,
+      0.842905,
+      0.413382,
+      0.849412,
+      0.522485,
+      0.683521,
+      0.779026,
+      0.742691,
+      0.672607,
+      0.601088,
+      0.723122,
+      0.394126,
+      0.615384,
+      0.663739,
+      0.846836,
+      0.809998,
+      0.676996,
+      0.665967,
+      0.68568,
+      0.631812,
+      0.663739,
+      0.874352,
+      0.65926,
+      0.627148,
+      0.753989,
+      0.663739,
+      0.71095,
+      0.858149,
+      0.509999,
+      0.552308,
+      0.591459,
+      0.785835,
+      0.544879,
+      0.613014,
+      0.647941,
+      0.903784,
+      0.753989,
+      0.773819,
+      0.759511,
+      0.837535,
+      0.696355,
+      0.674805,
+      0.755839,
+      0.532454,
+      0.480011,
+      0.58904,
+      0.851953,
+      0.790841,
+      0.683521,
+      0.798991,
+      0.68568,
+      0.814573,
+      0.631812,
+      0.748382,
+      0.634136,
+      0.736916,
+      0.855697,
+      0.650219,
+      0.784147,
+      0.770299,
+      0.509999,
+      0.4975,
+      0.700567,
+      0.753989,
+      0.855697,
+      0.73302,
+      0.70889,
+      0.763145,
+      0.700567,
+      0.596283,
+      0.569546,
+      0.838891,
+      0.761333,
+      0.495,
+      0.772064,
+      0.631812,
+      0.731059,
+      0.734973,
+      0.681354,
+      0.704746,
+      0.505,
+      0.634136,
+      0.702661,
+      0.596283,
+      0.822006,
+      0.752129,
+      0.742691,
+      0.79249,
+      0.559714,
+      0.542398,
+      0.586618,
+      0.46257,
+      0.706822,
+      0.687831,
+      0.522485,
+      0.742691,
+      0.75026,
+      0.544879,
+      0.800592,
+      0.615384,
+      0.736916,
+      0.46257,
+      0.884933,
+      0.654753,
+      0.524979,
+      0.867611,
+      0.822006,
+      0.7191,
+      0.706822,
+      0.603483,
+      0.813057,
+      0.702661,
+      0.670401,
+      0.593873,
+      0.706822,
+      0.65701,
+      0.634136,
+      0.748382,
+      0.663739,
+      0.71095,
+      0.681354,
+      0.5,
+      0.78245,
+      0.65701,
+      0.450166,
+      0.744597,
+      0.755839,
+      0.759511,
+      0.65701,
+      0.704746,
+      0.7191,
+      0.71095,
+      0.878681,
+      0.773819,
+      0.584191,
+      0.752129,
+      0.706822,
+      0.813057,
+      0.736916,
+      0.715042,
+      0.529964,
+      0.729088,
+      0.579324,
+      0.803766,
+      0.467546,
+      0.775564,
+      0.83617,
+      0.5025,
+      0.450166,
+      0.71095,
+      0.742691,
+      0.789182,
+      0.477515,
+      0.650219,
+      0.519989,
+      0.629483,
+      0.65926,
+      0.519989,
+      0.654753,
+      0.482507,
+      0.860566,
+      0.849412,
+      0.596283,
+      0.65926,
+      0.832018,
+      0.396517,
+      0.917587,
+      0.702661,
+      0.643365,
+      0.645656,
+      0.487503,
+      0.785835,
+      0.698465,
+      0.772064,
+      0.768525,
+      0.647941,
+      0.467546,
+      0.689974,
+      0.717075,
+      0.700567,
+      0.878681,
+      0.803766,
+      0.591459,
+      0.746494,
+      0.79413,
+      0.527472,
+      0.851953,
+      0.846836,
+      0.524979,
+      0.770299,
+      0.715042,
+      0.5,
+      0.713,
+      0.805338,
+      0.70889,
+      0.435364,
+      0.562177,
+      0.763145,
+      0.65701,
+      0.789182,
+      0.866458,
+      0.803766,
+      0.73302,
+      0.823465,
+      0.509999,
+      0.668188,
+      0.465057,
+      0.822006,
+      0.676996,
+      0.542398,
+      0.770299,
+      0.617748
+    ]
+  }
+}

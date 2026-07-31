@@ -13,6 +13,19 @@ HTML/CSS/vanilla JS + inline SVG. It must open from disk, offline,
 on a locked-down machine. No CDNs, no frameworks, no build step at
 view time.
 
+HARD REQUIREMENT — hostile-browser survival (learned live: a
+corporate Windows machine rendered the map but every click was
+dead): NO inline event handlers anywhere (`onclick=` attributes
+get stripped by enterprise security tooling) — use `data-act`/
+`data-*` attributes with ONE delegated `addEventListener` on the
+document, walking parentNode to find the acting element (SVG-safe;
+do not rely on `closest`). And write the page script in strict
+ES5: `var`, plain functions, indexed loops — no arrow functions,
+`const`/`let`, `forEach`, or template literals — so legacy/
+compatibility-mode engines still run it. Validate structurally:
+assert the built file contains zero `onclick=` and none of the
+ES6 tokens in the page script.
+
 ## The generator (this is the important part)
 
 Do NOT hand-write the HTML with pasted code. Write a generator
@@ -106,7 +119,7 @@ component counts + the rebuild command.
 ## Reference implementation
 
 This pattern was first built for the synthkit project
-(farmingfarmer/synthkit, `scripts/build_system_map.py` +
+(the project repository, `scripts/build_system_map.py` +
 `docs/system_map.html`): 8 domains (6 pipeline stages + 2 rails),
 34 ast-extracted components, 90 KB single file. Consult it if
 available; otherwise this spec is complete.

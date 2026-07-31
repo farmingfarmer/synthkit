@@ -34,7 +34,7 @@ from typing import Any, Dict, List, Tuple
 
 from .tablespec import ColumnSpec, TableSpec
 
-_FIRST = ["Alex", "Sam", "Jordan", "Morgan", "Riley", "Casey",
+_FIRST = ["Avery", "Sam", "Jordan", "Morgan", "Riley", "Casey",
           "Devon", "Harper", "Rowan", "Quinn", "Avery", "Jules"]
 _LAST = ["Reyes", "Kim", "Okafor", "Marsh", "Ito", "Alvarez",
          "Novak", "Singh", "Bauer", "Fontaine", "Walsh", "Osei"]

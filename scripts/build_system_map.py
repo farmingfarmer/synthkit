@@ -401,7 +401,7 @@ DOMAINS = [
       "OpenAICompatBackend",
       "One class covering every OpenAI-dialect server; "
       "injectable transport, both response dialects, "
-      "llamafile-citing errors. Field-proven: the ThinkPad "
+      "llamafile-citing errors. Field-proven: the Windows laptop "
       "rendered its first live clinical prose through it "
       "(7 verified first try / 1 retried / 0 fallbacks)."),
     ]},

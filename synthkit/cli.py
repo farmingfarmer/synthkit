@@ -53,7 +53,7 @@ def _backend(name: str, model: str = ""):
 def _cwd_importable():
     """Console entry points do not put the working directory on
     sys.path, so `synthkit evaluate --extractor mymod:fn` could
-    never find mymod beside the spec. (Found live on the Mac the
+    never find mymod beside the spec. (Found live on the development machine the
     first time a custom extractor met the installed command.)"""
     import os
     cwd = os.getcwd()

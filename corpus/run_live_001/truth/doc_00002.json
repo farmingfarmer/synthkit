@@ -1,0 +1,45 @@
+{
+  "doc_id": "doc_00002",
+  "doc_index": 2,
+  "seed": 226454022878170,
+  "structured": {
+    "encounter_id": "ENC-10002",
+    "patient_name": "Reese Solano",
+    "admit_date": "2026-01-13",
+    "length_of_stay_days": 8,
+    "discharge_date": "2026-02-02"
+  },
+  "notes": [
+    {
+      "field_name": "progress_note",
+      "note_type": "inpatient progress note",
+      "style": {
+        "persona": "nurse",
+        "verbosity": "verbose",
+        "abbreviation": "none"
+      },
+      "length_words": 132,
+      "elements": [
+        {
+          "element_id": "current_medication",
+          "phrasing": "continues metformin 500mg BID at current dose",
+          "value": "metformin 500mg BID",
+          "difficulty": "easy"
+        },
+        {
+          "element_id": "allergy_flag",
+          "phrasing": "allergies: latex",
+          "value": "latex",
+          "difficulty": "hard"
+        }
+      ],
+      "distractors": [
+        {
+          "distractor_id": "discontinued_medication",
+          "phrasing": "omeprazole discontinued this admission",
+          "value": "omeprazole"
+        }
+      ]
+    }
+  ]
+}

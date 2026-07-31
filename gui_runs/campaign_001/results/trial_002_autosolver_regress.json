@@ -1,0 +1,40 @@
+{
+  "solver": "autosolver_regress",
+  "highest_passed": 3,
+  "tiers": [
+    {
+      "tier": "strong-signal",
+      "passed": true,
+      "measured": {
+        "regress.r2": 0.9285,
+        "regress.r2_gap": 0.0048,
+        "regress.ceiling_r2": 0.9333
+      },
+      "failed_conditions": [],
+      "evidence": "regress.r2 = 0.928 (required >= 0.500) -> HOLDS\nregress.r2_gap = 0.005 (required <= 0.250) -> HOLDS\nREGRESSION EVALUATION: autosolver_regress on `episode_cost` (400 row(s))\n  R^2:   0.928   (ceiling 0.933 \u2014 gap 0.005)\n  RMSE:  4216.2078   MAE: 3258.3129"
+    },
+    {
+      "tier": "as-specified",
+      "passed": true,
+      "measured": {
+        "regress.r2": 0.8568,
+        "regress.r2_gap": 0.0067,
+        "regress.ceiling_r2": 0.8635
+      },
+      "failed_conditions": [],
+      "evidence": "regress.r2 = 0.857 (required >= 0.500) -> HOLDS\nregress.r2_gap = 0.007 (required <= 0.250) -> HOLDS\nREGRESSION EVALUATION: autosolver_regress on `episode_cost` (400 row(s))\n  R^2:   0.857   (ceiling 0.864 \u2014 gap 0.007)\n  RMSE:  4135.6179   MAE: 3263.9907"
+    },
+    {
+      "tier": "weak-signal",
+      "passed": true,
+      "measured": {
+        "regress.r2": 0.6908,
+        "regress.r2_gap": 0.0071,
+        "regress.ceiling_r2": 0.6979
+      },
+      "failed_conditions": [],
+      "evidence": "regress.r2 = 0.691 (required >= 0.350) -> HOLDS\nregress.r2_gap = 0.007 (required <= 0.250) -> HOLDS\nREGRESSION EVALUATION: autosolver_regress on `episode_cost` (400 row(s))\n  R^2:   0.691   (ceiling 0.698 \u2014 gap 0.007)\n  RMSE:  4055.6884   MAE: 3227.9181"
+    }
+  ],
+  "text": "CAMPAIGN [regress]: regression of `episode_cost`: Inpatient encounters (readmission study)\n  cleared tier 3 of 3\n  tier 1 `strong-signal`: PASSED\n    regress.r2 = 0.928 (required >= 0.500) -> HOLDS\n    regress.r2_gap = 0.005 (required <= 0.250) -> HOLDS\n    REGRESSION EVALUATION: autosolver_regress on `episode_cost` (400 row(s))\n      R^2:   0.928   (ceiling 0.933 \u2014 gap 0.005)\n      RMSE:  4216.2078   MAE: 3258.3129\n  tier 2 `as-specified`: PASSED\n    regress.r2 = 0.857 (required >= 0.500) -> HOLDS\n    regress.r2_gap = 0.007 (required <= 0.250) -> HOLDS\n    REGRESSION EVALUATION: autosolver_regress on `episode_cost` (400 row(s))\n      R^2:   0.857   (ceiling 0.864 \u2014 gap 0.007)\n      RMSE:  4135.6179   MAE: 3263.9907\n  tier 3 `weak-signal`: PASSED\n    regress.r2 = 0.691 (required >= 0.350) -> HOLDS\n    regress.r2_gap = 0.007 (required <= 0.250) -> HOLDS\n    REGRESSION EVALUATION: autosolver_regress on `episode_cost` (400 row(s))\n      R^2:   0.691   (ceiling 0.698 \u2014 gap 0.007)\n      RMSE:  4055.6884   MAE: 3227.9181"
+}

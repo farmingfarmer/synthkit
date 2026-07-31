@@ -1,0 +1,33 @@
+{
+  "doc_id": "doc_00000",
+  "doc_index": 0,
+  "seed": 92854068896206,
+  "structured": {
+    "encounter_id": "ENC-10000",
+    "patient_name": "Morgan Marsh",
+    "admit_date": "2026-01-29",
+    "length_of_stay_days": 13,
+    "discharge_date": "2026-02-15"
+  },
+  "notes": [
+    {
+      "field_name": "progress_note",
+      "note_type": "inpatient progress note",
+      "style": {
+        "persona": "nurse",
+        "verbosity": "verbose",
+        "abbreviation": "heavy"
+      },
+      "length_words": 119,
+      "elements": [
+        {
+          "element_id": "current_medication",
+          "phrasing": "pt remains on levothyroxine 75mcg qAM",
+          "value": "levothyroxine 75mcg qAM",
+          "difficulty": "easy"
+        }
+      ],
+      "distractors": []
+    }
+  ]
+}

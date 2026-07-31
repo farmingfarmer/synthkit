@@ -161,5 +161,5 @@ notebooks/      synthkit_standalone.ipynb (self-contained),
 docs/           the vendor trial, benchmark prompt, notes
 ```
 
-Personal R&D by Alex Marunycz. Built and validated entirely on
-personal hardware and time.
+Personal R&D. Built and validated entirely on personal
+hardware and time.

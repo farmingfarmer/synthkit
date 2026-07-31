@@ -1,13 +1,4 @@
-.venv/
-__pycache__/
-corpus/
-*.pyc
-.DS_Store
-*.egg-info/
-corpus/
-tables/
-gui_runs/
-campaigns/
+
 
 # ---------------------------------------------------------------
 # PHASE 2 DATA SAFETY
@@ -26,6 +17,13 @@ data/real*/
 tidy_visits*.csv
 !data/mimic_omop/tidy_visits*.csv
 
-# PRIVATE — presenter teleprompter, never for shared repos
+# ---------------------------------------------------------------
+# PRIVATE — PRESENTER NOTES
+# docs/presenter_companion.html is a teleprompter: verbatim
+# scripts, rehearsal notes, and answers written for one person to
+# read while presenting. It is not documentation and was never
+# meant for colleagues or for an enterprise mirror. Regenerate it
+# locally with scripts/build_presenter.py when needed.
+# ---------------------------------------------------------------
 docs/presenter_companion.html
 data/scratch_check/

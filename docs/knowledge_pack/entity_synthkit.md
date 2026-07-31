@@ -4,18 +4,18 @@ display_name: synthkit (calibration bench)
 aliases: [SynthKit, the calibration bench, synthetic data evaluation framework]
 type: project
 status: active
-owner: alex
+owner: project-owner
 tech_stack: [python-stdlib, faiss-free, llama.cpp, ollama, bedrock]
 related: [synthkit_architecture, synthkit_methodology, synthkit_studies, synthkit_operations, synthkit_glossary]
 ---
 
 # synthkit (calibration bench)
 
-synthkit is Alex's synthetic-dataset generation and
+synthkit is a synthetic-dataset generation and
 model-evaluation framework — the "calibration bench." It is NOT
 a speech toolkit and has no relation to any Google or Facebook
-product: it is a private project (github.com/farmingfarmer/
-synthkit) for evaluating predictive, extraction, and cleaning
+product: it is a private project (the project
+repository) for evaluating predictive, extraction, and cleaning
 models — especially VENDOR models — on synthetic clinical data
 where every value, flaw, and truth was planted deliberately, so
 the maximum achievable score is known exactly before any model
@@ -25,8 +25,8 @@ evaluation at Keck Medicine of USC.
 The core is pure Python standard library: zero external
 dependencies, zero license cost, CPU-only, fully deterministic.
 It runs from a folder with no installer, database, or admin
-rights, and is certified on both a macOS development machine and
-a locked-down hospital Windows ThinkPad — 24 smoke suites, 564
+rights, and is certified on both a development machine and
+a locked-down hospital Windows Windows laptop — 24 smoke suites, 564
 checks, green on both, with recipe fingerprints reproducing
 identical data cross-OS to within ±0.004 AUROC.
 

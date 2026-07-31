@@ -1,6 +1,6 @@
 """Generate a MIMIC OMOP CSV set that reproduces the structure and
-the MESS of the ThinkPad's synthetic OMOP extract, so Phase 2
-wrangling/profiling can be developed and tested on the Mac.
+the MESS of the Windows laptop's synthetic OMOP extract, so Phase 2
+wrangling/profiling can be developed and tested on a development machine.
 
     python scripts/make_mimic_omop.py [-o DIR] [--patients N] [--seed S]
 

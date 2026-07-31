@@ -1,0 +1,165 @@
+{
+  "synthkit_table_manifest": 1,
+  "spec": {
+    "title": "Lab Results Extract",
+    "columns": [
+      {
+        "name": "patient_id",
+        "ctype": "str_id",
+        "distribution": {
+          "kind": "sequence",
+          "prefix": "P",
+          "start": 1
+        },
+        "mess": {
+          "missing_rate": 0.02,
+          "missing_tokens": [
+            "",
+            "NULL",
+            "N/A",
+            "?"
+          ],
+          "typo_rate": 0.01,
+          "format_rate": 0.0,
+          "outlier_rate": 0.0,
+          "outlier_factor": 10.0,
+          "case_rate": 0.0,
+          "space_rate": 0.0,
+          "wrong_rate": 0.0
+        }
+      },
+      {
+        "name": "ordering_department",
+        "ctype": "category",
+        "distribution": {
+          "kind": "categorical",
+          "choices": [
+            "Internal Medicine",
+            "Cardiology",
+            "Neurology",
+            "Oncology",
+            "Pediatrics"
+          ],
+          "weights": [
+            0.5,
+            0.15,
+            0.1,
+            0.1,
+            0.15
+          ]
+        },
+        "mess": {
+          "missing_rate": 0.0,
+          "missing_tokens": [
+            "",
+            "NULL",
+            "N/A",
+            "?"
+          ],
+          "typo_rate": 0.01,
+          "format_rate": 0.0,
+          "outlier_rate": 0.0,
+          "outlier_factor": 10.0,
+          "case_rate": 0.05,
+          "space_rate": 0.0,
+          "wrong_rate": 0.0
+        }
+      },
+      {
+        "name": "collection_date",
+        "ctype": "date",
+        "distribution": {
+          "kind": "date_range",
+          "start": "2023-01-01",
+          "end": "2023-12-31"
+        },
+        "mess": {
+          "missing_rate": 0.0,
+          "missing_tokens": [
+            "",
+            "NULL",
+            "N/A",
+            "?"
+          ],
+          "typo_rate": 0.0,
+          "format_rate": 0.0,
+          "outlier_rate": 0.0,
+          "outlier_factor": 10.0,
+          "case_rate": 0.0,
+          "space_rate": 0.0,
+          "wrong_rate": 0.05
+        }
+      },
+      {
+        "name": "result_date",
+        "ctype": "date",
+        "distribution": {
+          "kind": "date_range",
+          "start": "2023-01-01",
+          "end": "2023-12-31"
+        },
+        "mess": {
+          "missing_rate": 0.0,
+          "missing_tokens": [
+            "",
+            "NULL",
+            "N/A",
+            "?"
+          ],
+          "typo_rate": 0.0,
+          "format_rate": 0.0,
+          "outlier_rate": 0.0,
+          "outlier_factor": 10.0,
+          "case_rate": 0.0,
+          "space_rate": 0.0,
+          "wrong_rate": 0.05
+        }
+      },
+      {
+        "name": "potassium",
+        "ctype": "float",
+        "distribution": {
+          "kind": "normal",
+          "mean": 4.1,
+          "std": 0.5
+        },
+        "mess": {
+          "missing_rate": 0.1,
+          "missing_tokens": [
+            "",
+            "NULL",
+            "N/A",
+            "?"
+          ],
+          "typo_rate": 0.0,
+          "format_rate": 0.0,
+          "outlier_rate": 0.02,
+          "outlier_factor": 2,
+          "case_rate": 0.0,
+          "space_rate": 0.0,
+          "wrong_rate": 0.0
+        }
+      }
+    ],
+    "rows": 300,
+    "master_seed": 42,
+    "duplicate_rate": 0.05,
+    "rules": [
+      {
+        "kind": "date_after",
+        "earlier": "collection_date",
+        "later": "result_date",
+        "min_days": 0,
+        "max_days": 3
+      }
+    ]
+  },
+  "rows": 300,
+  "dirty_rows": 315,
+  "mess_cells": 90,
+  "hashes": {
+    "dirty.csv": "ab000820df3a9bc0554925bc94feea5ac0bed502bd4e0f9e4da997e4dde35421",
+    "clean.csv": "2229ee09fbddf0088dbef462da9e8bd1fc8f1e923c3ffc55fd2653a5538b0398",
+    "ledger.json": "23d13f47e8be6280d4dc05a748a03d2d13c84d83cc8a2abc7b196bff9ce99f51"
+  }
+}

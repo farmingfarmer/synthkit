@@ -10,9 +10,9 @@ Private repo, so the fine-grained read-only token header applies:
 
 ```bat
 cd %USERPROFILE%\dev
-curl -L -H "Authorization: Bearer YOUR_READONLY_TOKEN" -o synthkit.zip https://api.github.com/repos/farmingfarmer/synthkit/zipball/main
+curl -L -H "Authorization: Bearer YOUR_READONLY_TOKEN" -o synthkit.zip https://api.github.com/repos/the project repository/zipball/main
 tar -xf synthkit.zip
-ren farmingfarmer-synthkit-* synthkit
+ren <ORG>-synthkit-* synthkit
 ```
 
 (Re-syncing later: delete the old folder first, or extract beside
@@ -26,7 +26,8 @@ pip install -e .
 synthkit version
 ```
 
-The fingerprint must MATCH the Mac's `synthkit version` at the
+The fingerprint must MATCH the development machine's
+`synthkit version` at the
 same commit — that one line proves the zip landed byte-perfect.
 If `synthkit` is not found, the venv's Scripts dir is not on
 PATH; `python -m synthkit.cli version` works regardless
@@ -53,7 +54,7 @@ canned backends), so no ollama is required for a green net.
   (`--backend ollama`), live document rendering, the LLM-vendor
   chair. On this machine those routes go through Bedrock once
   IAM is sorted (`synthkit.bedrock.BedrockBackend`), or stay
-  Mac-only.
+  development machine only.
 
 ## 5. The demo payloads, in order of ceremony
 
@@ -73,8 +74,8 @@ canned backends), so no ollama is required for a green net.
   (`_console_safe` in cli.py; verified under
   PYTHONIOENCODING=cp437:strict).
 - `.gitattributes` pins LF so the zipball is byte-identical to
-  the Mac tree (the fingerprint match depends on it).
-- The smoke net is a Python script, not a shell loop — no zsh
+  the development tree (the fingerprint match depends on it).
+- The smoke net is a Python script, not a shell loop — no POSIX shell
   assumed anywhere in the run path.
 - If console output still looks garbled on legacy cmd:
   `set PYTHONUTF8=1` before running, or use Windows Terminal.

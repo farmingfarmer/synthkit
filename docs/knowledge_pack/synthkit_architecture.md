@@ -3,7 +3,7 @@ id: synthkit_architecture
 display_name: synthkit architecture
 type: knowledge
 status: active
-owner: alex
+owner: project-owner
 tech_stack: [python-stdlib, faiss-free, llama.cpp, ollama, bedrock]
 related: [synthkit]
 ---

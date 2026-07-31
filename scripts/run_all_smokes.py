@@ -1,6 +1,6 @@
 """Cross-platform smoke net: runs every suite, sums the checks.
 
-Replaces the zsh for-loop (Windows has no zsh):
+Replaces a shell for-loop (Windows has no POSIX shell):
 
     python scripts/run_all_smokes.py
 
