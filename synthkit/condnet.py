@@ -44,6 +44,13 @@ from typing import Any, Dict, List, Optional, Sequence, Tuple
 
 MISSING = "\u2205"          # its own bin: missingness is a pattern
 
+# How far the outermost bins may reach past p1/p99 when emitting a
+# value, as a multiple of the adjacent interval's width. Zero keeps
+# every synthetic value inside the published range (safest, but the
+# distribution comes out slightly narrow); larger values restore
+# tail spread with extrapolated — never observed — extremes.
+TAIL_REACH = 2.0
+
 
 # ---------------------------------------------------------------
 # helpers
@@ -107,13 +114,28 @@ class Binning:
     """How one column becomes discrete symbols and back again."""
 
     def __init__(self, name, kind, edges=None, levels=None,
-                 integer=False, missing_rate=0.0):
+                 integer=False, missing_rate=0.0, fine=None,
+                 atoms=None):
         self.name = name
         self.kind = kind                  # numeric | categorical
         self.edges = edges or []          # len = nbins + 1
         self.levels = levels or []
         self.integer = integer
         self.missing_rate = missing_rate
+        # TWO resolutions, deliberately. `edges` are the coarse
+        # bins used for CONDITIONING — they must stay wide enough
+        # that cells keep enough rows to detect dependence. `fine`
+        # is a denser quantile grid used only to reconstruct a
+        # VALUE once a bin has been chosen, so the column's own
+        # distribution survives the discretization. Conditioning
+        # power and marginal fidelity stop competing.
+        self.fine = fine or []
+        # Point masses. Clinical numbers pile up on exact values —
+        # zeros, detection limits, clamped floors, defaults. No
+        # amount of interval sampling reproduces "exactly 0.4 in
+        # 4% of rows", so repeated values are stored as atoms with
+        # their own probability and emitted verbatim.
+        self.atoms = atoms or {}
 
     # -- learning ------------------------------------------------
     @staticmethod
@@ -122,6 +144,25 @@ class Binning:
         miss = 1.0 - (len(present) / max(1, len(values)))
         nums = [_num(v) for v in present]
         numeric = present and all(x is not None for x in nums)
+        if numeric:
+            distinct = sorted(set(nums))
+            # A numeric column with few distinct values — a 0/1
+            # outcome, a small count, a coded category — must NOT
+            # be quantile-binned: the quantiles collapse onto the
+            # same value, the column reads as constant and gets
+            # dropped. That silently destroyed outcome columns, so
+            # low-cardinality numerics are modelled by their actual
+            # values instead.
+            if len(distinct) <= max(2 * max_bins, 12):
+                keep = [v for v in distinct
+                        if sum(1 for x in nums if x == v) >= k]
+                if len(keep) >= 2:
+                    return Binning(
+                        name, "discrete",
+                        levels=[repr(v) for v in keep],
+                        integer=all(float(v).is_integer()
+                                    for v in distinct),
+                        missing_rate=miss)
         if numeric:
             xs = [x for x in nums if x is not None]
             # bin count is bounded by how many rows each bin must
@@ -146,10 +187,30 @@ class Binning:
                     ded.append(e)
             if len(ded) < 2:
                 ded = [ded[0], ded[0] + 1.0]
+            nf = max(4, min(40, len(xs) // max(2 * k, 1)))
+            fine = [_quantile(xs, i / nf) for i in range(nf + 1)]
+            fine[0], fine[-1] = ded[0], ded[-1]
+            fine = sorted(set(fine))
+            atoms = {}
+            counts = Counter(xs)
+            for bi in range(len(ded) - 1):
+                lo_e, hi_e = ded[bi], ded[bi + 1]
+                inb = [x for x in xs
+                       if (lo_e <= x <= hi_e if bi == 0
+                           else lo_e < x <= hi_e)]
+                if len(inb) < k:
+                    continue
+                spikes = [(v, counts[v] / len(inb))
+                          for v in set(inb)
+                          if counts[v] >= max(k, 0.03 * len(inb))]
+                if spikes:
+                    atoms[str(bi)] = sorted(spikes,
+                                            key=lambda t: -t[1])
             return Binning(name, "numeric", edges=ded,
                            integer=all(float(x).is_integer()
                                        for x in xs),
-                           missing_rate=miss)
+                           missing_rate=miss, fine=fine,
+                           atoms=atoms)
         c = Counter(str(v).strip() for v in present)
         floor = min_level_count if min_level_count is not None else k
         levels = [lv for lv, n in c.most_common() if n >= floor]
@@ -163,6 +224,12 @@ class Binning:
         s = str(v).strip()
         if not s or s.lower() in ("nan", "none", "null"):
             return MISSING
+        if self.kind == "discrete":
+            x = _num(s)
+            if x is None:
+                return "OTHER_SUPPRESSED"
+            r = repr(x)
+            return r if r in self.levels else "OTHER_SUPPRESSED"
         if self.kind == "numeric":
             x = _num(s)
             if x is None:
@@ -175,6 +242,8 @@ class Binning:
         return s if s in self.levels else "OTHER_SUPPRESSED"
 
     def symbols(self) -> List[str]:
+        if self.kind == "discrete":
+            return list(self.levels) + ["OTHER_SUPPRESSED"]
         if self.kind == "numeric":
             return ["b{}".format(i)
                     for i in range(len(self.edges) - 1)]
@@ -183,6 +252,14 @@ class Binning:
     def decode(self, sym: str, rng: random.Random):
         if sym == MISSING:
             return ""
+        if self.kind == "discrete":
+            if sym == "OTHER_SUPPRESSED":
+                sym = self.levels[0] if self.levels else "0"
+            try:
+                x = float(sym)
+            except ValueError:
+                return sym
+            return int(round(x)) if self.integer else x
         if self.kind == "numeric":
             try:
                 i = int(sym[1:])
@@ -190,13 +267,55 @@ class Binning:
                 i = 0
             lo = self.edges[max(0, min(i, len(self.edges) - 2))]
             hi = self.edges[max(1, min(i + 1, len(self.edges) - 1))]
-            x = rng.uniform(lo, hi)
+            spikes = self.atoms.get(str(i)) or []
+            if spikes:
+                u = rng.random()
+                acc = 0.0
+                for val, prob in spikes:
+                    acc += prob
+                    if u < acc:
+                        return (int(round(val)) if self.integer
+                                else round(val, 4))
+            sub = [v for v in self.fine if lo <= v <= hi]
+            # Tail extrapolation. Because the outer edges clamp to
+            # p1/p99 to avoid publishing anyone's true extreme, the
+            # synthetic distribution would come out narrower than
+            # the source. So the outermost bins reach a little
+            # beyond their edge, by the width of the neighbouring
+            # interval — the tail regains its spread while every
+            # emitted extreme is an extrapolation rather than a
+            # copy of a real measurement.
+            if len(sub) >= 2 and TAIL_REACH > 0:
+                # STRETCH the outermost interval rather than adding
+                # one: appending an interval would move a whole
+                # extra share of the mass into the tail and widen
+                # the distribution. Stretching keeps each interval
+                # carrying the mass it should while letting the
+                # extreme reach past the published bound.
+                if i == 0:
+                    sub[0] = sub[0] - TAIL_REACH * (sub[1] - sub[0])
+                elif i == len(self.edges) - 2:
+                    sub[-1] = sub[-1] + TAIL_REACH * (sub[-1]
+                                                      - sub[-2])
+            if len(sub) >= 2:
+                # each fine interval carries equal probability
+                # mass, so picking one uniformly and then a point
+                # inside it reproduces the column's shape WITHIN
+                # the bin instead of flattening it
+                j = rng.randrange(len(sub) - 1)
+                x = rng.uniform(sub[j], sub[j + 1])
+            else:
+                x = rng.uniform(lo, hi)
             return int(round(x)) if self.integer else round(x, 4)
         return sym
 
     def to_json(self):
         return {"name": self.name, "kind": self.kind,
                 "edges": [round(e, 6) for e in self.edges],
+                "fine": [round(e, 6) for e in self.fine],
+                "atoms": {b: [[round(v, 6), round(pp, 6)]
+                              for v, pp in lst]
+                          for b, lst in self.atoms.items()},
                 "levels": self.levels, "integer": self.integer,
                 "missing_rate": round(self.missing_rate, 6)}
 
@@ -204,7 +323,11 @@ class Binning:
     def from_json(d):
         return Binning(d["name"], d["kind"], d.get("edges"),
                        d.get("levels"), d.get("integer", False),
-                       d.get("missing_rate", 0.0))
+                       d.get("missing_rate", 0.0),
+                       d.get("fine"),
+                       {b: [(v, pp) for v, pp in lst]
+                        for b, lst in (d.get("atoms")
+                                       or {}).items()})
 
 
 # ---------------------------------------------------------------

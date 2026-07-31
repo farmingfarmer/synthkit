@@ -280,6 +280,88 @@ def main():
             check("pipeline produced {}".format(f),
                   (td / "run" / f).exists())
 
+        # ---------- structure beyond correlation ----------
+        rr2 = random.Random(41)
+        deep = []
+        for _ in range(6000):
+            age = rr2.gauss(62, 14)
+            sod = rr2.gauss(139, 5)
+            u = abs(sod - 139) / 5.0
+            cre = max(0.4, rr2.gauss(1.1, 0.4))
+            it = cre * (1.0 if age > 70 else 0.15)
+            risk = 0.02 + 0.25 * min(u, 3) / 3 \
+                + 0.35 * min(it, 2) / 2
+            deep.append({"age": round(age, 1),
+                         "sodium": round(sod, 1),
+                         "creatinine": round(cre, 2),
+                         "event": 1 if rr2.random() < risk else 0})
+        dsrc = td / "deep_src.csv"
+        write(dsrc, deep)
+        # a generator that gets every MARGINAL right and every
+        # relationship wrong: shuffle each column independently
+        shuffled = [dict(x) for x in deep]
+        # NOTE: each column needs its OWN permutation. Re-seeding
+        # per column hands every column the SAME permutation, which
+        # merely reorders the rows and leaves the joint structure
+        # perfectly intact — a fixture that quietly tests nothing.
+        shuf_rng = random.Random(42)
+        for col in ("age", "sodium", "creatinine", "event"):
+            vals = [x[col] for x in shuffled]
+            shuf_rng.shuffle(vals)
+            for x, v in zip(shuffled, vals):
+                x[col] = v
+        dshuf = td / "deep_shuffled.csv"
+        write(dshuf, shuffled)
+        Rd = score(td, dsrc, dshuf, "deep")
+        ds = Rd["dependence_shape"]
+        check("the scorecard PROFILES the shape of dependence, "
+              "not just its correlation",
+              ds["pairs_tested"] > 0)
+        check("it identifies TURNING relationships in the source — "
+              "the ones rank correlation cannot represent at all",
+              ds["nonlinear_relationships_in_source"] >= 1)
+        check("column-shuffled data (perfect marginals, no joint "
+              "structure) FAILS the shape tests",
+              any(not d["pass"] for d in ds["detail"]))
+        check("...while its marginals all still pass — proving "
+              "marginal fidelity alone proves nothing",
+              all(m["pass"] for m in Rd["marginals"]))
+
+        Rt = score(td, dsrc, dshuf, "deep_t")
+        out_t = td / "rep_deept.json"
+        run("scripts/fidelity_report.py", "--source", str(dsrc),
+            "--synthetic", str(dshuf), "--target", "event",
+            "-o", str(out_t))
+        Rt = json.loads(out_t.read_text(encoding="utf-8"))
+        check("with a target declared, INTERACTIONS are searched "
+              "for and found in the source",
+              len(Rt["interactions"]["detail"]) >= 1)
+        check("an interaction present in the source but absent "
+              "from the synthetic data FAILS",
+              any(not d["pass"]
+                  for d in Rt["interactions"]["detail"]))
+
+        # a faithful generator on the same source must clear them
+        sys.path.insert(0, str(ROOT))
+        from synthkit.condnet import CondNet
+        net = CondNet(k=10, max_parents=3).learn(
+            deep, targets=["event"])
+        dgood = td / "deep_condnet.csv"
+        write(dgood, net.sample(6000, seed=77))
+        out_g = td / "rep_good.json"
+        run("scripts/fidelity_report.py", "--source", str(dsrc),
+            "--synthetic", str(dgood), "--target", "event",
+            "-o", str(out_g))
+        Rg = json.loads(out_g.read_text(encoding="utf-8"))
+        check("a generator that models the JOINT distribution "
+              "passes the shape tests the shuffled one failed",
+              all(d["pass"] for d in
+                  Rg["dependence_shape"]["detail"]))
+        check("...and reproduces the interactions too",
+              Rg["interactions"]["detail"]
+              and all(d["pass"] for d in
+                      Rg["interactions"]["detail"]))
+
     print()
     if FAIL:
         print("{} FAILED".format(FAIL))

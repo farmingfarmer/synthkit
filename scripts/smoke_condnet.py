@@ -214,6 +214,52 @@ def main():
           > 0.3
           and missrate(s3, "well") - missrate(s3, "sick") > 0.2)
 
+    # ---- low-cardinality numerics must survive ----
+    r4 = random.Random(19)
+    binrows = []
+    for _ in range(3000):
+        x = r4.gauss(0, 1)
+        binrows.append({"x": round(x, 3),
+                        "flag": 1 if r4.random() < 0.2 + 0.2 * (
+                            x > 0) else 0,
+                        "count": min(4, int(abs(r4.gauss(0, 1.5))))})
+    n4 = CondNet(k=10, max_parents=2).learn(binrows,
+                                            targets=["flag"])
+    check("a 0/1 outcome column is NOT destroyed by quantile "
+          "binning — the bug that silently deleted outcomes",
+          "flag" in n4.order
+          and "flag" not in n4.report[
+              "columns_dropped_no_variation"])
+    check("a small-integer count column survives too",
+          "count" in n4.order)
+    s4 = n4.sample(3000, seed=8)
+    rate_s = sum(1 for x in binrows if x["flag"] == 1) / len(binrows)
+    rate_g = sum(1 for x in s4 if float(x["flag"]) == 1) / len(s4)
+    check("the outcome's rate is reproduced",
+          abs(rate_s - rate_g) < 0.04)
+    check("generated flags are exactly 0 or 1, never interpolated",
+          all(float(x["flag"]) in (0.0, 1.0) for x in s4))
+    hi_s = (sum(1 for x in binrows if x["x"] > 0 and x["flag"] == 1)
+            / max(1, sum(1 for x in binrows if x["x"] > 0)))
+    hi_g = (sum(1 for x in s4 if float(x["x"]) > 0
+                and float(x["flag"]) == 1)
+            / max(1, sum(1 for x in s4 if float(x["x"]) > 0)))
+    check("the outcome's dependence on its parent is reproduced",
+          abs(hi_s - hi_g) < 0.07)
+
+    # ---- point masses ----
+    r5 = random.Random(23)
+    spikes = [{"v": (0.0 if r5.random() < 0.35
+                     else round(abs(r5.gauss(5, 2)), 2)),
+               "g": r5.choice(["a", "b"])} for _ in range(3000)]
+    n5 = CondNet(k=10, max_parents=1).learn(spikes)
+    s5 = n5.sample(3000, seed=9)
+    z_s = sum(1 for x in spikes if float(x["v"]) == 0.0) / len(spikes)
+    z_g = sum(1 for x in s5 if float(x["v"]) == 0.0) / len(s5)
+    check("a POINT MASS (a value many rows share exactly, like a "
+          "zero or a detection limit) is reproduced as an exact "
+          "repeated value", abs(z_s - z_g) < 0.05 and z_g > 0.2)
+
     print()
     if FAIL:
         print("{} FAILED".format(FAIL))

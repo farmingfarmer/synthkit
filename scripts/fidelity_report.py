@@ -40,7 +40,7 @@ import json
 import math
 import random
 import sys
-from collections import Counter
+from collections import Counter, defaultdict
 from datetime import datetime
 from pathlib import Path
 
@@ -218,6 +218,107 @@ def nn_distances(A, B, numcols, catcols, stats, sample, seed=5):
     return out
 
 
+
+
+# ===============================================================
+# JOINT STRUCTURE BEYOND CORRELATION
+# ---------------------------------------------------------------
+# Marginals and rank correlations can all match while every
+# interesting relationship is gone. A U-shaped dependence has rank
+# correlation near zero; an interaction is invisible to any
+# pairwise measure. These tests compare the SHAPE of dependence —
+# how one column's behaviour changes across bins of another, and
+# how that changes again across a third — so the scorecard can
+# fail for the reasons that actually matter.
+# ===============================================================
+def _edges(xs, nb):
+    """Quantile bin edges from the SOURCE, reused for both sides
+    so the comparison is like-for-like."""
+    ys = sorted(xs)
+    if not ys:
+        return []
+    eg = [ys[min(len(ys) - 1, int(round(i / nb * (len(ys) - 1))))]
+          for i in range(nb + 1)]
+    ded = [eg[0]]
+    for e in eg[1:]:
+        if e > ded[-1]:
+            ded.append(e)
+    return ded if len(ded) >= 2 else []
+
+
+def _bin_of(x, edges):
+    if x is None or not edges:
+        return None
+    for i in range(len(edges) - 1):
+        if x <= edges[i + 1]:
+            return i
+    return len(edges) - 2
+
+
+def _keyer(col, rows, nb):
+    """Return a function mapping a row to a bin label for `col`,
+    plus the number of distinct labels."""
+    vals = [num(r.get(col)) for r in rows]
+    numeric = sum(1 for v in vals if v is not None) > 0.9 * len(
+        [r for r in rows if not is_missing(r.get(col))])
+    if numeric:
+        eg = _edges([v for v in vals if v is not None], nb)
+        if not eg:
+            return None, 0
+        return (lambda r: _bin_of(num(r.get(col)), eg)), \
+            len(eg) - 1
+    levels = [lv for lv, _ in Counter(
+        (r.get(col) or "").strip() for r in rows
+        if not is_missing(r.get(col))).most_common(nb)]
+    if len(levels) < 2:
+        return None, 0
+    lut = set(levels)
+    return (lambda r: ((r.get(col) or "").strip()
+                       if (r.get(col) or "").strip() in lut
+                       else None)), len(levels)
+
+
+def _profile(rows, keyfn, target, positive=None):
+    """mean of `target` within each bin of the key column."""
+    acc = defaultdict(list)
+    for r in rows:
+        b = keyfn(r)
+        if b is None:
+            continue
+        if positive is not None:
+            v = 1.0 if (r.get(target) or "").strip() == positive \
+                else 0.0
+        else:
+            v = num(r.get(target))
+            if v is None:
+                continue
+        acc[b].append(v)
+    return {b: (len(v), sum(v) / len(v)) for b, v in acc.items()
+            if len(v) >= 8}
+
+
+def _shape(prof, scale=1.0):
+    """monotone, or does the profile turn? A turning profile is
+    exactly what rank correlation cannot represent."""
+    keys = sorted(prof.keys(), key=lambda k: str(k))
+    ys = [prof[k][1] for k in keys]
+    if len(ys) < 3:
+        return "flat"
+    ups = sum(1 for i in range(len(ys) - 1) if ys[i + 1] > ys[i])
+    downs = len(ys) - 1 - ups
+    span_sd = (max(ys) - min(ys)) / (scale or 1.0)
+    if span_sd < 0.15:
+        # a profile that barely moves is not a relationship;
+        # calling it "turning" would flood the report with noise
+        return "flat"
+    if ups and downs:
+        span = max(ys) - min(ys)
+        interior = max(ys[1:-1]) if len(ys) > 2 else ys[0]
+        if span > 0 and (interior >= max(ys) - 1e-9
+                         or min(ys[1:-1]) <= min(ys) + 1e-9):
+            return "turning"
+    return "monotone"
+
 def main() -> None:
     ap = argparse.ArgumentParser()
     ap.add_argument("--source", required=True)
@@ -225,6 +326,11 @@ def main() -> None:
     ap.add_argument("--profile", default="")
     ap.add_argument("-o", "--out", default="fidelity_report.json")
     ap.add_argument("--nn-sample", type=int, default=400)
+    ap.add_argument("--target", default="",
+                    help="outcome column: interactions affecting "
+                         "it are tested explicitly")
+    ap.add_argument("--deep-bins", type=int, default=4)
+    ap.add_argument("--max-pairs", type=int, default=400)
     ap.add_argument("--report", action="store_true")
     a = ap.parse_args()
 
@@ -371,6 +477,127 @@ def main() -> None:
                            "synthetic": round(sg, 3),
                            "delta": round(d, 3), "pass": ok})
 
+    # ------------- shape of dependence (nonlinear) -------------
+    nb = a.deep_bins
+    shaped, nonlinear_found = [], 0
+    tested_pairs = 0
+    cand_t = [c for c in numcols if c in shared]
+    cat_t = [c for c in catcols if c in shared]
+    for src_col in shared:
+        if tested_pairs >= a.max_pairs:
+            break
+        kf, klen = _keyer(src_col, S, nb)
+        if kf is None:
+            continue
+        for tgt in cand_t:
+            if tgt == src_col or tested_pairs >= a.max_pairs:
+                continue
+            ps = _profile(S, kf, tgt)
+            if len(ps) < 3:
+                continue
+            pg = _profile(G, kf, tgt)
+            if len(pg) < 3:
+                continue
+            tested_pairs += 1
+            base = [num(r.get(tgt)) for r in S]
+            base = [x for x in base if x is not None]
+            scale = sd(base) or 1.0
+            common = [b for b in ps if b in pg]
+            if len(common) < 3:
+                continue
+            dev = max(abs(ps[b][1] - pg[b][1]) / scale
+                      for b in common)
+            tol = 3.0 * max(
+                math.sqrt(1.0 / min(ps[b][0] for b in common)
+                          + 1.0 / min(pg[b][0] for b in common)),
+                0.05)
+            shape = _shape(ps, scale)
+            ok = dev <= tol
+            if shape == "turning":
+                nonlinear_found += 1
+            if shape == "turning" or not ok:
+                fails += 0 if ok else 1
+                shaped.append({
+                    "given": src_col, "column": tgt,
+                    "source_shape": shape,
+                    "synthetic_shape": _shape(pg, scale),
+                    "max_deviation_sd": round(dev, 3),
+                    "tolerance": round(tol, 3), "pass": ok,
+                    "source_profile": [round(ps[b][1], 3)
+                                       for b in sorted(
+                                           common,
+                                           key=lambda x: str(x))],
+                    "synthetic_profile": [round(pg[b][1], 3)
+                                          for b in sorted(
+                                              common,
+                                              key=lambda x: str(x))
+                                          ]})
+
+    # ---------------- interactions -----------------------------
+    inter = []
+    if a.target and a.target in shared:
+        tgt = a.target
+        pos = None
+        tv = [num(r.get(tgt)) for r in S]
+        if sum(1 for v in tv if v is not None) < 0.9 * len(S):
+            c0 = Counter((r.get(tgt) or "").strip() for r in S
+                         if not is_missing(r.get(tgt)))
+            pos = c0.most_common()[-1][0] if len(c0) >= 2 else None
+        pool = [c for c in shared if c != tgt][:14]
+        for i in range(len(pool)):
+            for j in range(len(pool)):
+                if i == j:
+                    continue
+                cx, cz = pool[i], pool[j]
+                kx, _ = _keyer(cx, S, nb)
+                kz, _ = _keyer(cz, S, 2)
+                if kx is None or kz is None:
+                    continue
+                devs = []
+                shapes_s = []
+                for zval in (0, 1):
+                    sel_s = [r for r in S if kz(r) == zval]
+                    sel_g = [r for r in G if kz(r) == zval]
+                    if len(sel_s) < 40 or len(sel_g) < 40:
+                        continue
+                    p_s = _profile(sel_s, kx, tgt, pos)
+                    p_g = _profile(sel_g, kx, tgt, pos)
+                    common = [b for b in p_s if b in p_g]
+                    if len(common) < 3:
+                        continue
+                    base = [(1.0 if (r.get(tgt) or "").strip()
+                             == pos else 0.0) if pos
+                            else num(r.get(tgt)) for r in S]
+                    base = [x for x in base if x is not None]
+                    sc = sd(base) or 1.0
+                    devs.append(max(abs(p_s[b][1] - p_g[b][1]) / sc
+                                    for b in common))
+                    shapes_s.append(
+                        (max(p_s[b][1] for b in common)
+                         - min(p_s[b][1] for b in common)) / sc)
+                if len(devs) == 2 and len(shapes_s) == 2:
+                    # an interaction exists when the effect of cx
+                    # on the target has a materially different SIZE
+                    # in the two halves of cz
+                    gap = abs(shapes_s[0] - shapes_s[1])
+                    if gap < 0.25:
+                        continue
+                    ok = max(devs) <= 0.35
+                    fails += 0 if ok else 1
+                    inter.append({
+                        "target": tgt, "varies_with": cx,
+                        "moderated_by": cz,
+                        "effect_size_low_stratum": round(
+                            shapes_s[0], 3),
+                        "effect_size_high_stratum": round(
+                            shapes_s[1], 3),
+                        "max_deviation_sd": round(max(devs), 3),
+                        "pass": ok})
+        inter.sort(key=lambda d: -abs(
+            d["effect_size_high_stratum"]
+            - d["effect_size_low_stratum"]))
+        inter = inter[:12]
+
     # ---------------- privacy ----------------
     keys = [c for c in shared]
     sig_s = Counter(tuple((r.get(c) or "").strip() for c in keys)
@@ -418,7 +645,8 @@ def main() -> None:
                    "records than real records sit to each other",
     }
 
-    total = (len(marg) + len(miss) + len(pairs) + len(strata))
+    total = (len(marg) + len(miss) + len(pairs) + len(strata)
+             + len(shaped) + len(inter))
     report = {
         "source": {"file": Path(a.source).name, "rows": len(S)},
         "synthetic": {"file": Path(a.synthetic).name,
@@ -435,6 +663,21 @@ def main() -> None:
                     "privacy_verdict": privacy["verdict"]},
         "marginals": marg, "missingness": miss,
         "correlations": pairs, "conditional_shifts": strata,
+        "dependence_shape": {
+            "pairs_tested": tested_pairs,
+            "nonlinear_relationships_in_source": nonlinear_found,
+            "detail": shaped[:60],
+            "reading": "a `turning` profile cannot be represented "
+                       "by a rank correlation at all — these are "
+                       "the relationships a marginals-and-"
+                       "correlations generator silently destroys"},
+        "interactions": {
+            "target": a.target,
+            "detail": inter,
+            "reading": "an interaction is present when one "
+                       "column's effect on the target has a "
+                       "different SIZE in different strata of a "
+                       "third column"},
         "privacy": privacy,
     }
     Path(a.out).write_text(json.dumps(report, indent=1),
@@ -489,6 +732,41 @@ def main() -> None:
                           "ok " if s["pass"] else "OFF",
                           s["column"], s["given"], s["level"],
                           s["source"], s["synthetic"]))
+        print("\n-- shape of dependence (what correlation "
+              "cannot see) --")
+        print("  {} pairs profiled; {} show a TURNING relationship "
+              "in the source".format(tested_pairs,
+                                     nonlinear_found))
+        if shaped:
+            for d in shaped[:8]:
+                print("  {} {:20s} across {:18s} [{}] source {} "
+                      "-> synth {}".format(
+                          "ok " if d["pass"] else "OFF",
+                          d["column"], d["given"],
+                          d["source_shape"],
+                          "/".join("{:.2f}".format(x) for x in
+                                   d["source_profile"][:5]),
+                          "/".join("{:.2f}".format(x) for x in
+                                   d["synthetic_profile"][:5])))
+        else:
+            print("  every profiled relationship is monotone and "
+                  "reproduced within tolerance")
+        if a.target:
+            print("\n-- interactions on `{}` --".format(a.target))
+            if inter:
+                for d in inter[:6]:
+                    print("  {} effect of {:18s} differs across "
+                          "{:18s} ({:.2f} vs {:.2f} sd) — "
+                          "deviation {:.2f}".format(
+                              "ok " if d["pass"] else "OFF",
+                              d["varies_with"], d["moderated_by"],
+                              d["effect_size_low_stratum"],
+                              d["effect_size_high_stratum"],
+                              d["max_deviation_sd"]))
+            else:
+                print("  no interaction of material size found in "
+                      "the source")
+
         print("\n=== PRIVACY: DOES IT AVOID REPRODUCING THE "
               "PEOPLE? ===")
         print("  exact record matches: {}  ({})".format(
