@@ -29,6 +29,14 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parent.parent
 
 
+def _isnum(v):
+    try:
+        float(str(v).replace(",", ""))
+        return True
+    except ValueError:
+        return False
+
+
 def step(n, title):
     print("\n[{}/7] {}".format(n, title))
     print("-" * 58)
@@ -68,6 +76,12 @@ def main() -> None:
                          "interaction structure a recipe cannot "
                          "express. both: run each and compare.")
     ap.add_argument("--max-parents", type=int, default=3)
+    ap.add_argument("--transcribe", action="store_true",
+                    help="after generating, render some of the "
+                         "structured facts into a messy clinical "
+                         "note and emit the truth ledger, so "
+                         "extraction can be graded by corruption "
+                         "type")
     ap.add_argument("--group-by", default="person_id",
                     help="the PRIVACY UNIT column (default "
                          "person_id). k-anonymity counts these, "
@@ -230,6 +244,73 @@ def main() -> None:
         outputs.append(("condnet", gen_n, profile,
                         out / "fidelity_condnet.json"))
 
+    if a.transcribe:
+        step(7, "transcribe: structured facts -> messy prose")
+        from synthkit.transcribe import (
+            CORRUPTIONS, FactSpec, TranscribeSpec, transcribe)
+        for name, path, _, _ in outputs:
+            with Path(path).open(encoding="utf-8-sig",
+                                 newline="") as f:
+                gen_rows = list(csv.DictReader(f))
+            if not gen_rows:
+                continue
+            # derive facts from what the generated data actually
+            # contains: binary columns read as conditions,
+            # numerics as measurements
+            facts = []
+            for col in list(gen_rows[0]):
+                if col in ("person_id", "visit_id"):
+                    continue
+                vals = {str(r.get(col, "")).strip()
+                        for r in gen_rows[:400]}
+                vals.discard("")
+                if vals <= {"0", "1", "True", "False"} \
+                        and len(vals) == 2:
+                    facts.append(FactSpec(
+                        col, col.replace("_", " "), "condition",
+                        placement="both_agree",
+                        corruptions=["negation_simple",
+                                     "negation_scope_trap",
+                                     "hedge",
+                                     "temporal_history"]))
+                elif all(_isnum(v) for v in list(vals)[:40]) \
+                        and len(vals) > 8:
+                    facts.append(FactSpec(
+                        col, col.replace("_", " "), "measurement",
+                        section="vitals", placement="both_agree",
+                        corruptions=["transcription_error",
+                                     "omitted_units",
+                                     "copy_forward"]))
+                if len(facts) >= 10:
+                    break
+            if not facts:
+                print("  no transcribable facts found in {}"
+                      .format(Path(path).name))
+                continue
+            rates = {c: 0.30 for c in CORRUPTIONS}
+            tspec = TranscribeSpec(facts, rates=rates)
+            noted, ledgers = transcribe(gen_rows, tspec)
+            npath = Path(path).with_name(
+                Path(path).stem + "_noted.csv")
+            with npath.open("w", newline="",
+                            encoding="utf-8") as f:
+                w = csv.DictWriter(f, fieldnames=list(noted[0]))
+                w.writeheader()
+                w.writerows(noted)
+            lpath = Path(path).with_name(
+                Path(path).stem + "_note_ledger.json")
+            lpath.write_text(json.dumps(ledgers, indent=1),
+                             encoding="utf-8")
+            mentions = sum(len(L) for L in ledgers)
+            print("  {}: {} notes, {} ledgered mentions across {} "
+                  "corruption types -> {}".format(
+                      name, len(noted), mentions,
+                      len({c for L in ledgers for e in L
+                           for c in e["corruptions"]}),
+                      npath.name))
+        print("  the ledger is the answer key: what each note "
+              "asserts, and which corruption obscured it")
+
     step(7, "score: fidelity and privacy")
     scores = {}
     for name, path, prof_arg, rep_path in outputs:
@@ -286,7 +367,11 @@ def main() -> None:
     for f in ("tidy_visits.csv", "tidy_visits_labeled.csv",
               "profile.json", "draft_spec.json", "generated.csv",
               "fidelity.json", "condnet_model.json",
-              "generated_condnet.csv", "fidelity_condnet.json"):
+              "generated_condnet.csv", "fidelity_condnet.json",
+              "generated_noted.csv",
+              "generated_note_ledger.json",
+              "generated_condnet_noted.csv",
+              "generated_condnet_note_ledger.json"):
         p = out / f
         if p.exists():
             print("  {:26s} {:>9,} bytes".format(
