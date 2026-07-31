@@ -172,6 +172,9 @@ def main() -> None:
         spec["outcomes"] = [oc]
 
     calib = None
+    if a.calibrate and not (a.outcome and a.prevalence):
+        print("  --calibrate needs both --outcome and "
+              "--prevalence; skipping calibration")
     if a.outcome and a.calibrate and a.prevalence:
         # The COEFFICIENTS are causal claims and stay exactly as
         # authored. The INTERCEPT is only a base-rate knob, so
@@ -196,10 +199,23 @@ def main() -> None:
             return sum(1 for r in tr.clean_rows
                        if r[a.outcome] == "True") / n
 
+        # 16 bisection steps resolve the intercept to ~0.0008,
+        # far finer than the +/-0.8% sampling noise a 1,500-row
+        # probe carries at 10% prevalence. More steps would buy
+        # precision the measurement cannot see.
+        steps = 16
         lo_b, hi_b = -25.0, 25.0
-        for _ in range(28):
+        print("  calibrating intercept to hit {:.0%}-{:.0%} "
+              "({} probes of {} rows)...".format(
+                  lo_t, hi_t, steps, a.calibrate_rows))
+        for i in range(steps):
             mid = (lo_b + hi_b) / 2.0
-            if realized(mid) < want:
+            got_i = realized(mid)
+            if i % 4 == 3 or i == steps - 1:
+                print("    step {:2d}/{}  intercept {:+7.3f} -> "
+                      "{:5.1%}".format(i + 1, steps, mid, got_i),
+                      flush=True)
+            if got_i < want:
                 lo_b = mid
             else:
                 hi_b = mid
@@ -254,8 +270,12 @@ def main() -> None:
                 print("      {:28s} appears {:>5.1%}   {}".format(
                     e["id"], e["density"], mark))
         if a.outcome:
-            print("\n  PLANTED TRUTH for `{}` (intercept {:+.2f})"
-                  .format(a.outcome, a.intercept))
+            final_b = spec["outcomes"][0]["intercept"]
+            print("\n  PLANTED TRUTH for `{}` (intercept {:+.3f}{})"
+                  .format(a.outcome, final_b,
+                          " — solved to hit the declared "
+                          "prevalence" if calib else
+                          " — as stated"))
             for t, w, k in planted:
                 print("      {:+.3f}   {:36s} [{}]".format(
                     w, t, k))

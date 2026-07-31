@@ -78,7 +78,8 @@ def main():
                   "--note-weight", "warfarin=0.8",
                   "--outcome", "readmit", "--intercept", "-3.0",
                   "--coef", "age=0.02", "--coef", "glucose=0.01",
-                  "--prevalence", "0.08,0.16", "--calibrate")
+                  "--prevalence", "0.08,0.16", "--calibrate",
+                  "--report")
         check("authoring runs on a profiled draft",
               res.returncode == 0)
         F = json.loads(final.read_text(encoding="utf-8"))
@@ -121,6 +122,15 @@ def main():
               F["outcomes"][0]["coefficients"]["age"] == 0.02
               and F["outcomes"][0]["coefficients"]["glucose"]
               == 0.01)
+
+        check("calibration narrates its progress instead of "
+              "sitting silent for half a minute",
+              "calibrating intercept" in res.stdout
+              and "step " in res.stdout)
+        check("the report shows the SOLVED intercept, not the "
+              "argument that was superseded",
+              "solved to hit the declared prevalence"
+              in res.stdout or not cal)
 
         res = run("scripts/author_outcome.py", "--draft", draft,
                   "--profile", prof, "-o", td / "bad.json",
