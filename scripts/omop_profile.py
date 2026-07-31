@@ -230,14 +230,20 @@ def profile_numeric(vals, k):
     return out
 
 
-def profile_categorical(vals, k):
-    present = [str(v).strip() for v in vals if str(v).strip() != ""]
-    if len(present) < k:
+def profile_categorical(vals, k, groups=None):
+    gs = groups or [str(i) for i in range(len(vals))]
+    pairs = [(str(v).strip(), g) for v, g in zip(vals, gs)
+             if str(v).strip() != ""]
+    present = [v for v, _ in pairs]
+    if len(set(g for _, g in pairs)) < k:
         return None
     c = Counter(present)
+    people = defaultdict(set)
+    for v, g in pairs:
+        people[v].add(g)
     kept, suppressed, sup_n = {}, [], 0
     for level, cnt in c.most_common():
-        if cnt >= k:
+        if len(people[level]) >= k:
             kept[level] = round(cnt / len(present), 4)
         else:
             suppressed.append(level)
@@ -249,23 +255,32 @@ def profile_categorical(vals, k):
             "suppressed_levels": len(suppressed)}
 
 
-def profile_list(vals, k):
+def profile_list(vals, k, groups=None):
+    gs = groups or [str(i) for i in range(len(vals))]
     lists = [[i.strip() for i in str(v).split(LIST_SEP) if i.strip()]
              for v in vals]
     lens = [len(l) for l in lists]
     items = Counter(i for l in lists for i in l)
+    item_people = defaultdict(set)
+    for l, g in zip(lists, gs):
+        for i in set(l):
+            item_people[i].add(g)
     kept = {i: round(c / len(lists), 4)
-            for i, c in items.most_common() if c >= k}
+            for i, c in items.most_common()
+            if len(item_people[i]) >= k}
     # co-occurrence lift, suppressed below k
     pairs = Counter()
-    for l in lists:
+    pair_people = defaultdict(set)
+    for l, g in zip(lists, gs):
         s = sorted(set(l))
         for i in range(len(s)):
             for j in range(i + 1, len(s)):
                 pairs[(s[i], s[j])] += 1
+                pair_people[(s[i], s[j])].add(g)
     lift = []
     for (a, b), c in pairs.most_common(400):
-        if c < k or a not in kept or b not in kept:
+        if (len(pair_people[(a, b)]) < k
+                or a not in kept or b not in kept):
             continue
         exp = kept[a] * kept[b] * len(lists)
         if exp > 0:
@@ -290,6 +305,14 @@ def main() -> None:
     ap.add_argument("-o", "--out", default="profile.json")
     ap.add_argument("--k", type=int, default=10,
                     help="minimum cell size (k-anonymity threshold)")
+    ap.add_argument("--group-by", default="",
+                    help="column naming the PRIVACY UNIT, usually "
+                         "person_id. Every k-test then counts "
+                         "people rather than rows, and "
+                         "significance uses the person count — "
+                         "repeated encounters from one patient are "
+                         "neither protection nor independent "
+                         "evidence.")
     ap.add_argument("--report", action="store_true")
     a = ap.parse_args()
     k = a.k
@@ -300,6 +323,12 @@ def main() -> None:
         sys.exit("no rows")
     cols = list(rows[0].keys())
     N = len(rows)
+    gb = a.group_by if a.group_by in cols else ""
+    groups = ([str(r.get(gb, i)) for i, r in enumerate(rows)]
+              if gb else [str(i) for i in range(N)])
+    n_eff = len(set(groups))
+    if gb:
+        cols = [c for c in cols if c != gb]
 
     columns, excluded, notes = {}, [], []
     for c in cols:
@@ -326,9 +355,9 @@ def main() -> None:
             p = {"kind": "binary", "n": N,
                  "rate": round(ones / N, 4)}
         elif kind == "categorical":
-            p = profile_categorical(vals, k)
+            p = profile_categorical(vals, k, groups)
         elif kind == "list":
-            p = profile_list(vals, k)
+            p = profile_list(vals, k, groups)
         elif kind == "date":
             ds = []
             for v in vals:
@@ -350,7 +379,13 @@ def main() -> None:
                     buckets[b] += 1
                 # suppress thin buckets to the k floor so a sparse
                 # month cannot single out a person by timing
-                buckets = [b if b >= k else 0 for b in buckets]
+                bpeople = [set() for _ in range(nb)]
+                for d0, g in zip(ds, groups[:len(ds)]):
+                    bi2 = min(nb - 1,
+                              int(nb * (d0 - lo).days / (span + 1)))
+                    bpeople[bi2].add(g)
+                buckets = [b if len(bpeople[i]) >= k else 0
+                           for i, b in enumerate(buckets)]
                 if sum(buckets) == 0:
                     buckets = [1] * nb
                 p = {"kind": "date", "n": len(ds),
@@ -386,9 +421,16 @@ def main() -> None:
                       if x is not None and y is not None]
             if len(pairsx) < max(k, 20):
                 continue
+            ppl = len({groups[i] for i in range(N)
+                       if series[a_][i] is not None
+                       and series[b_][i] is not None})
+            if ppl < k:
+                continue
             rho = spearman([x for x, _ in pairsx],
                            [y for _, y in pairsx])
-            nn = len(pairsx)
+            # Significance counts INDEPENDENT UNITS: one patient's
+            # forty visits are not forty pieces of evidence.
+            nn = ppl
             # Fisher z: is this correlation distinguishable from
             # zero at all? Spurious pairs at n~180 easily reach
             # |rho| 0.15 by chance — profiling those and then
@@ -484,18 +526,22 @@ def main() -> None:
             for lv in levels:
                 sub = [num(r.get(nm, "")) for r in rows
                        if str(r.get(c, "")).strip() == lv]
+                sub_p = len({groups[i] for i, r in enumerate(rows)
+                             if str(r.get(c, "")).strip() == lv
+                             and num(r.get(nm, "")) is not None})
                 sub = [x for x in sub if x is not None]
-                if len(sub) < k:
+                if len(sub) < k or sub_p < k:
                     continue
                 d = (mean(sub) - bm) / bs
                 shift_tests += 1
                 if abs(d) >= 0.20:
                     # Welch-ish z on the standardized difference
-                    se = math.sqrt(1.0 / len(sub)
-                                   + 1.0 / len(base))
+                    se = math.sqrt(1.0 / max(sub_p, 1)
+                                   + 1.0 / max(n_eff, 1))
                     shifts.append({
                         "column": nm, "given": c, "level": lv,
                         "n": len(sub), "std_shift": round(d, 3),
+                        "persons": sub_p,
                         "z": round(d / se, 2) if se else 0.0})
     zs_crit = 1.96
     if shift_tests > 1:
@@ -512,6 +558,16 @@ def main() -> None:
 
     profile = {
         "source": {"file": Path(a.src).name, "rows": N,
+                   "persons": n_eff,
+                   "grouped_by": gb or "(none)",
+                   "clustering": (
+                       "{} rows from {} people (mean {:.1f} each) "
+                       "— k counts people and significance uses "
+                       "the person count".format(
+                           N, n_eff, N / max(n_eff, 1))
+                       if gb else
+                       "no grouping declared; each row treated as "
+                       "an independent unit"),
                    "columns_seen": len(cols),
                    "columns_profiled": len(columns)},
         "privacy": {

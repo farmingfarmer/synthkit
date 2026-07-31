@@ -260,6 +260,60 @@ def main():
           "zero or a detection limit) is reproduced as an exact "
           "repeated value", abs(z_s - z_g) < 0.05 and z_g > 0.2)
 
+    # ---- the privacy unit is the PERSON, not the row ----
+    r6 = random.Random(5)
+    clustered = []
+    for pid in range(92):
+        base = r6.gauss(130, 18)
+        rare = (pid == 7)
+        for _ in range(30 if rare else r6.randint(2, 20)):
+            clustered.append({
+                "person_id": "P{:03d}".format(pid),
+                "sbp": round(r6.gauss(base, 5), 1),
+                "unit": "WARD_7B" if rare else r6.choice(
+                    ["WARD_1A", "WARD_2C", "WARD_3D"]),
+                "flag": "y" if r6.random() < (
+                    0.7 if base > 140 else 0.2) else "n"})
+    rare_rows = sum(1 for x in clustered
+                    if x["unit"] == "WARD_7B")
+    rare_ppl = len({x["person_id"] for x in clustered
+                    if x["unit"] == "WARD_7B"})
+    check("the fixture models real clustering: one category "
+          "belongs to a single heavy-utilizing patient yet spans "
+          "more ROWS than k", rare_rows >= 10 and rare_ppl == 1)
+
+    n_row = CondNet(k=10, max_parents=2).learn(
+        clustered, targets=["flag"])
+    n_per = CondNet(k=10, max_parents=2).learn(
+        clustered, targets=["flag"], group_by="person_id")
+    check("counting ROWS toward k lets one patient's category "
+          "through — the false protection this layer removes",
+          "WARD_7B" in n_row.binnings["unit"].levels)
+    check("counting PEOPLE toward k suppresses it",
+          "WARD_7B" not in n_per.binnings["unit"].levels)
+    check("without a privacy unit the model may condition on "
+          "PATIENT IDENTITY itself — memorization wearing a graph",
+          any("person_id" in e["parents"]
+              for e in n_row.report["edges"]))
+    check("with a privacy unit, identity is excluded and the real "
+          "relationship is learned instead",
+          "person_id" not in n_per.order
+          and any(e["child"] == "flag" and "sbp" in e["parents"]
+                  for e in n_per.report["edges"]))
+    check("effective sample size is the person count, not the row "
+          "count",
+          n_per.report["effective_n"] == 92
+          and n_per.report["rows"] > 500)
+    check("the model states its clustering plainly",
+          "k-anonymity counts PEOPLE"
+          in n_per.report["clustering_note"])
+    check("bin resolution follows the EFFECTIVE sample size, so "
+          "repeated visits cannot buy detail they do not support",
+          n_per.report["bins"] <= n_row.report["bins"])
+    syn = n_per.sample(600, seed=3)
+    check("generated rows never carry the privacy-unit column",
+          "person_id" not in syn[0])
+
     print()
     if FAIL:
         print("{} FAILED".format(FAIL))

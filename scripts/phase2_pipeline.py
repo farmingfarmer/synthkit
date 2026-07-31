@@ -68,6 +68,10 @@ def main() -> None:
                          "interaction structure a recipe cannot "
                          "express. both: run each and compare.")
     ap.add_argument("--max-parents", type=int, default=3)
+    ap.add_argument("--group-by", default="person_id",
+                    help="the PRIVACY UNIT column (default "
+                         "person_id). k-anonymity counts these, "
+                         "not rows.")
     ap.add_argument("--seed-out", type=int, default=20260731)
     a = ap.parse_args()
     out = (ROOT / a.out) if not Path(a.out).is_absolute() \
@@ -117,8 +121,28 @@ def main() -> None:
 
     step(4, "profile: measure patterns as parameters, never records")
     profile = out / "profile.json"
-    run("scripts/omop_profile.py", "--in", labeled, "-o", profile,
-        "--k", a.k, "--report")
+    with labeled.open(encoding="utf-8-sig", newline="") as f:
+        head = csv.DictReader(f)
+        first = next(iter(head), {})
+    gb = a.group_by if a.group_by in first else ""
+    if gb:
+        with labeled.open(encoding="utf-8-sig", newline="") as f:
+            ids = {r.get(gb) for r in csv.DictReader(f)}
+        with labeled.open(encoding="utf-8-sig") as f:
+            nrows = sum(1 for _ in f) - 1
+        print("  PRIVACY UNIT: {} — {} rows from {} people "
+              "(mean {:.1f} each)".format(gb, nrows, len(ids),
+                                          nrows / max(len(ids), 1)))
+        print("  k counts PEOPLE, not rows: ten visits from one "
+              "patient is a cell of one.")
+    else:
+        print("  no privacy-unit column found ({}): every row is "
+              "treated as an independent person".format(a.group_by))
+    args4 = ["scripts/omop_profile.py", "--in", labeled,
+             "-o", profile, "--k", a.k, "--report"]
+    if gb:
+        args4 += ["--group-by", gb]
+    run(*args4)
 
     sys.path.insert(0, str(ROOT))
     with labeled.open(encoding="utf-8-sig") as f:
@@ -166,13 +190,15 @@ def main() -> None:
         tgts = [label] if label in (rows_in[0] if rows_in else {}) \
             else []
         net = CondNet(k=a.k, max_parents=a.max_parents).learn(
-            rows_in, targets=tgts)
+            rows_in, targets=tgts, group_by=(gb or None))
         model = out / "condnet_model.json"
         model.write_text(net.to_json(), encoding="utf-8")
         rep = net.report
         print("  {} columns modelled at {} bins ({})".format(
             rep["columns_modelled"], rep["bins"],
             rep["bins_chosen"]))
+        print("  effective sample size: {} (from {} rows)".format(
+            rep["effective_n"], rep["rows"]))
         print("  {} dependencies learned; {} configurations too "
               "thin to publish (they back off)".format(
                   rep["edge_count"],

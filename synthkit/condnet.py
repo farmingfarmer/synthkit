@@ -139,8 +139,19 @@ class Binning:
 
     # -- learning ------------------------------------------------
     @staticmethod
-    def learn(name, values, k, max_bins=10, min_level_count=None):
-        present = [v for v in values if str(v).strip() != ""]
+    def learn(name, values, k, max_bins=10, min_level_count=None,
+              groups=None):
+        """`groups` names the PRIVACY UNIT for each row — usually
+        the patient. Every k-test then counts distinct people, not
+        rows. It matters enormously: 931 visits from 92 patients
+        means a cell holding ten rows can be one person's ten
+        visits, and k-anonymity on rows would be no protection at
+        all. With no groups supplied each row is its own unit, so
+        behaviour is unchanged."""
+        gs = groups or [str(i) for i in range(len(values))]
+        pairs = [(v, g) for v, g in zip(values, gs)
+                 if str(v).strip() != ""]
+        present = [v for v, _ in pairs]
         miss = 1.0 - (len(present) / max(1, len(values)))
         nums = [_num(v) for v in present]
         numeric = present and all(x is not None for x in nums)
@@ -154,8 +165,13 @@ class Binning:
             # low-cardinality numerics are modelled by their actual
             # values instead.
             if len(distinct) <= max(2 * max_bins, 12):
+                by_v = defaultdict(set)
+                for v, g in pairs:
+                    x = _num(v)
+                    if x is not None:
+                        by_v[x].add(g)
                 keep = [v for v in distinct
-                        if sum(1 for x in nums if x == v) >= k]
+                        if len(by_v.get(v, ())) >= k]
                 if len(keep) >= 2:
                     return Binning(
                         name, "discrete",
@@ -200,9 +216,18 @@ class Binning:
                            else lo_e < x <= hi_e)]
                 if len(inb) < k:
                     continue
+                by_val = defaultdict(set)
+                for v, g in pairs:
+                    x = _num(v)
+                    if x is None:
+                        continue
+                    if (lo_e <= x <= hi_e if bi == 0
+                            else lo_e < x <= hi_e):
+                        by_val[x].add(g)
                 spikes = [(v, counts[v] / len(inb))
                           for v in set(inb)
-                          if counts[v] >= max(k, 0.03 * len(inb))]
+                          if counts[v] >= 0.03 * len(inb)
+                          and len(by_val.get(v, ())) >= k]
                 if spikes:
                     atoms[str(bi)] = sorted(spikes,
                                             key=lambda t: -t[1])
@@ -212,8 +237,12 @@ class Binning:
                            missing_rate=miss, fine=fine,
                            atoms=atoms)
         c = Counter(str(v).strip() for v in present)
+        by_level = defaultdict(set)
+        for v, g in pairs:
+            by_level[str(v).strip()].add(g)
         floor = min_level_count if min_level_count is not None else k
-        levels = [lv for lv, n in c.most_common() if n >= floor]
+        levels = [lv for lv, _ in c.most_common()
+                  if len(by_level[lv]) >= floor]
         if not levels:
             levels = [c.most_common(1)[0][0]] if c else []
         return Binning(name, "categorical", levels=levels,
@@ -371,14 +400,17 @@ class CondNet:
         if not zs:
             mi, nx, ny = self._mi(xs, ys)
             return mi, (nx - 1) * (ny - 1)
-        buckets = defaultdict(lambda: ([], []))
-        for x, y, z in zip(xs, ys, zs):
+        buckets = defaultdict(lambda: ([], [], set()))
+        gs = getattr(self, "groups", None) or list(
+            range(len(xs)))
+        for i, (x, y, z) in enumerate(zip(xs, ys, zs)):
             buckets[z][0].append(x)
             buckets[z][1].append(y)
+            buckets[z][2].add(gs[i])
         n = len(xs)
         total, df = 0.0, 0
-        for z, (bx, by) in buckets.items():
-            if len(bx) < self.k:
+        for z, (bx, by, ppl) in buckets.items():
+            if len(ppl) < self.k:
                 continue
             mi, nx, ny = self._mi(bx, by)
             total += (len(bx) / n) * mi
@@ -387,7 +419,8 @@ class CondNet:
 
     def learn(self, rows: List[Dict[str, Any]],
               columns: Optional[List[str]] = None,
-              targets: Optional[List[str]] = None) -> "CondNet":
+              targets: Optional[List[str]] = None,
+              group_by: Optional[str] = None) -> "CondNet":
         """`targets` are placed LAST in the ordering so they can
         condition on everything else. Without that hint an outcome
         often lands first (it is the hub of the dependence graph)
@@ -395,16 +428,28 @@ class CondNet:
         structure a benchmark cares about."""
         cols = columns or list(rows[0].keys())
         n = len(rows)
+        # The privacy and inference unit. Repeated encounters from
+        # one patient are not independent evidence: they neither
+        # earn k-anonymity nor carry n rows' worth of statistical
+        # weight.
+        self.group_by = group_by
+        if group_by:
+            self.groups = [str(r.get(group_by, i))
+                           for i, r in enumerate(rows)]
+            cols = [c for c in cols if c != group_by]
+        else:
+            self.groups = [str(i) for i in range(n)]
+        self.n_groups = len(set(self.groups))
         if self.max_bins and self.max_bins > 0:
             nbins, auto = self.max_bins, False
         else:
-            nbins = int(round((n / max(self.k, 1)) **
-                              (1.0 / (self.max_parents + 1))))
+            nbins = int(round((self.n_groups / max(self.k, 1))
+                              ** (1.0 / (self.max_parents + 1))))
             nbins, auto = max(3, min(10, nbins)), True
         self.resolved_bins = nbins
         self.binnings = {
             c: Binning.learn(c, [r.get(c, "") for r in rows],
-                             self.k, nbins)
+                             self.k, nbins, groups=self.groups)
             for c in cols}
         enc = {c: [self.binnings[c].encode(r.get(c, ""))
                    for r in rows] for c in cols}
@@ -473,7 +518,7 @@ class CondNet:
                                 pair_gain, pair_df = g, dfp
                     if pair and len(parents) + 2 <= \
                             self.max_parents:
-                        g_stat = 2.0 * n * pair_gain
+                        g_stat = 2.0 * self.n_groups * pair_gain
                         if g_stat >= _chi2_crit(pair_df, alpha_c):
                             width = 1
                             for q in parents + list(pair):
@@ -495,7 +540,10 @@ class CondNet:
                                                  "pair"})
                                 continue
                     break
-                g_stat = 2.0 * n * best_gain
+                # Significance scales with INDEPENDENT units. Using
+                # the row count would let one patient's forty
+                # visits vote forty times.
+                g_stat = 2.0 * self.n_groups * best_gain
                 crit = _chi2_crit(best_df, alpha_c)
                 # cells must also stay publishable: adding a parent
                 # multiplies the configuration count, and a table
@@ -525,13 +573,18 @@ class CondNet:
                                 for s in marg}
             table: Dict[str, Dict[str, float]] = {}
             if ps:
-                groups = defaultdict(Counter)
+                cells = defaultdict(Counter)
+                people = defaultdict(set)
                 for j in range(n):
                     cfg = "|".join(enc[p][j] for p in ps)
-                    groups[cfg][enc[c][j]] += 1
-                for cfg, cnt in groups.items():
+                    cells[cfg][enc[c][j]] += 1
+                    people[cfg].add(self.groups[j])
+                for cfg, cnt in cells.items():
                     m = sum(cnt.values())
-                    if m < self.k:
+                    # k counts PEOPLE. Ten visits from one patient
+                    # is a cell of one, and publishing it would
+                    # describe that individual.
+                    if len(people[cfg]) < self.k:
                         suppressed += 1
                         continue          # falls back at sampling
                     table[cfg] = {s: v / m for s, v in cnt.items()}
@@ -539,6 +592,20 @@ class CondNet:
 
         self.report = {
             "rows": n,
+            "persons": self.n_groups,
+            "grouped_by": group_by or "(none — each row treated "
+                                      "as its own unit)",
+            "effective_n": self.n_groups,
+            "clustering_note": (
+                "{} rows from {} people (mean {:.1f} each): "
+                "k-anonymity counts PEOPLE and significance uses "
+                "the person count, because repeated encounters "
+                "from one patient are neither independent "
+                "evidence nor protection".format(
+                    n, self.n_groups, n / max(self.n_groups, 1))
+                if group_by else
+                "no grouping declared — every row treated as an "
+                "independent unit"),
             "columns_modelled": len(self.order),
             "columns_dropped_no_variation": dropped,
             "edges": [{"child": c, "parents": self.parents[c]}
@@ -632,6 +699,7 @@ class CondNet:
     def to_json(self) -> str:
         return json.dumps({
             "k": self.k, "max_parents": self.max_parents,
+            "group_by": getattr(self, "group_by", None),
             "max_bins": getattr(self, "resolved_bins",
                                 self.max_bins),
             "alpha": self.alpha,
