@@ -314,6 +314,50 @@ def main():
     check("generated rows never carry the privacy-unit column",
           "person_id" not in syn[0])
 
+    # ---- derived columns are arithmetic, not findings ----
+    r7 = random.Random(3)
+    taut = []
+    for pid in range(400):
+        for _ in range(r7.randint(1, 5)):
+            conds = [c for c in ("dm", "htn", "ckd", "chf")
+                     if r7.random() < 0.4]
+            age = round(r7.gauss(60, 12), 1)
+            taut.append({"person_id": "P%03d" % pid, "age": age,
+                         "year_of_birth": round(2026 - age, 1),
+                         "conditions": "; ".join(conds) or "none",
+                         "condition_count": len(conds),
+                         "sbp": round(r7.gauss(130, 15), 1)})
+    n7 = CondNet(k=10, max_parents=3).learn(
+        taut, group_by="person_id")
+    dv = {d["column"]: d["determined_by"]
+          for d in n7.report["derived_columns"]}
+    check("a count computed from a list is recognised as DERIVED, "
+          "not discovered", dv.get("condition_count") == "conditions")
+    check("an age computed from a birth year is recognised too",
+          "age" in dv or "year_of_birth" in dv)
+    check("derived edges are excluded from the findings count — "
+          "the pipeline does not present its own arithmetic as "
+          "clinical insight",
+          all(e["child"] not in dv for e in n7.report["edges"]))
+    s7 = n7.sample(500, seed=2)
+    agree = sum(1 for x in s7
+                if len([c for c in str(x["conditions"]).split("; ")
+                        if c and c != "none"])
+                == int(x["condition_count"]))
+    check("...yet the derived relationship still holds in the "
+          "generated data", agree >= 0.9 * len(s7))
+
+    # ---- smoothing stabilises thin cells ----
+    probe = CondNet.from_json(n_per.to_json())
+    thin_ok = True
+    for c, table in probe.cpt.items():
+        for cfg, dist in table.items():
+            if any(v == 0.0 for v in dist.values()):
+                thin_ok = False
+    check("no conditional cell claims an outcome is IMPOSSIBLE "
+          "just because it was unobserved — smoothing shrinks "
+          "every table toward its marginal", thin_ok)
+
     print()
     if FAIL:
         print("{} FAILED".format(FAIL))

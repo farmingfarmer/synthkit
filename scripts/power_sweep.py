@@ -176,11 +176,17 @@ def main() -> None:
             n, agg["rows"]), flush=True)
 
     # the headline: patients needed for reliable recovery
-    needed = {}
+    needed, half = {}, {}
     for label, _, _ in TRUTH:
         hit = [r["patients"] for r in results
                if r["recovery"][label] >= 0.99]
         needed[label] = hit[0] if hit else None
+        # The 50% point is the standard power-curve statistic and
+        # far less jumpy than "recovered in every single run",
+        # which a handful of seeds cannot estimate stably.
+        h = [r["patients"] for r in results
+             if r["recovery"][label] >= 0.5]
+        half[label] = h[0] if h else None
 
     payload = {"config": {"sizes": sizes, "seeds": a.seeds,
                           "visits_per_patient": a.visits,
@@ -188,6 +194,7 @@ def main() -> None:
                           "max_parents": a.max_parents},
                "results": results,
                "patients_needed": needed,
+               "patients_for_half_recovery": half,
                "caveat": "the ordering reflects EFFECT SIZE as "
                          "well as complexity: a large three-way "
                          "jump can be easier to detect than a "
@@ -231,14 +238,16 @@ def main() -> None:
         for r in results:
             line += "{:>7}".format(r["bins"])
         print(line)
-        print("\n  PATIENTS NEEDED FOR RELIABLE RECOVERY")
-        print("  (reliable = found in every run at that size)")
+        print("\n  PATIENTS NEEDED")
+        print("    {:52s} {:>12s}  {:>12s}".format(
+            "", "50% of runs", "every run"))
         for label, _, _ in TRUTH:
-            n = needed[label]
-            print("    {:52s} {}".format(
+            print("    {:52s} {:>12s}  {:>12s}".format(
                 label,
-                "{} patients".format(n) if n
-                else "not reached in this sweep"))
+                "{}".format(half[label]) if half[label]
+                else "not reached",
+                "{}".format(needed[label]) if needed[label]
+                else "not reached"))
 
 
 if __name__ == "__main__":

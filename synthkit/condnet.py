@@ -51,6 +51,22 @@ MISSING = "\u2205"          # its own bin: missingness is a pattern
 # tail spread with extrapolated — never observed — extremes.
 TAIL_REACH = 2.0
 
+# Dirichlet smoothing strength for conditional tables. A cell
+# supported by twelve people should not yield a point estimate as
+# confident as one supported by twelve hundred, so every table is
+# shrunk toward its own marginal by a pseudo-count. This is where
+# thin-data behaviour lives, and raw maximum likelihood is
+# overconfident exactly where it can least afford to be.
+SMOOTHING = 1.0
+
+# A column is DERIVED when another column determines it almost
+# perfectly — a count computed from a list, an age computed from a
+# birth year, a flag defined by a gap. These are arithmetic the
+# pipeline itself created, not clinical findings, and letting them
+# compete for parent slots wastes a scarce statistical budget on
+# rediscovering our own bookkeeping.
+DERIVED_ENTROPY_RATIO = 0.08
+
 
 # ---------------------------------------------------------------
 # helpers
@@ -409,12 +425,27 @@ class CondNet:
             buckets[z][2].add(gs[i])
         n = len(xs)
         total, df = 0.0, 0
+        # An INTERACTION means the effect lives inside ONE stratum.
+        # The pooled test averages it across all strata while
+        # summing the degrees of freedom across all of them, so it
+        # is weakest exactly where interactions live. Alongside the
+        # pooled statistic we therefore keep the strongest single
+        # stratum, tested on its own people and corrected for how
+        # many strata were inspected.
+        best_g, best_df, best_n, n_strata = 0.0, 1, 0, 0
         for z, (bx, by, ppl) in buckets.items():
             if len(ppl) < self.k:
                 continue
+            n_strata += 1
             mi, nx, ny = self._mi(bx, by)
             total += (len(bx) / n) * mi
             df += (nx - 1) * (ny - 1)
+            g = 2.0 * len(ppl) * mi
+            if g > best_g:
+                best_g, best_df = g, max((nx - 1) * (ny - 1), 1)
+                best_n = len(ppl)
+        self._last_stratum = (best_g, best_df, best_n,
+                              max(n_strata, 1))
         return total, max(df, 1)
 
     def learn(self, rows: List[Dict[str, Any]],
@@ -473,6 +504,30 @@ class CondNet:
         self.order = (sorted(rest, key=lambda c: -strength[c])
                       + sorted(tgt, key=lambda c: -strength[c]))
 
+        # ---- derived columns: arithmetic, not findings ----
+        self.derived = {}
+        for b in self.order:
+            hb = _entropy(list(Counter(enc[b]).values()))
+            if hb <= 0:
+                continue
+            for a_ in self.order:
+                if a_ == b:
+                    continue
+                groups_ = defaultdict(Counter)
+                for j in range(n):
+                    groups_[enc[a_][j]][enc[b][j]] += 1
+                hcond = sum(
+                    (sum(cc.values()) / n)
+                    * _entropy(list(cc.values()))
+                    for cc in groups_.values())
+                if hcond / hb < DERIVED_ENTROPY_RATIO:
+                    ha = _entropy(list(Counter(enc[a_]).values()))
+                    # keep the more informative column as the
+                    # determinant; the other is its shadow
+                    if ha >= hb:
+                        self.derived[b] = a_
+                        break
+
         tests = 0
         for i, c in enumerate(self.order):
             tests += min(i, 1) * i
@@ -483,9 +538,24 @@ class CondNet:
         chosen_log = []
         for i, c in enumerate(self.order):
             candidates = self.order[:i]
+            if c in self.derived and self.derived[c] in candidates:
+                # its determinant says everything about it; storing
+                # that one table is exact and cheap, and no search
+                # is warranted
+                self.parents[c] = [self.derived[c]]
+                continue
+            # do not let a derived shadow compete against the
+            # column that determines it — they carry the same
+            # information and only one slot should be spent
+            shadows = {b for b, a_ in self.derived.items()
+                       if a_ in candidates}
+            candidates = [x for x in candidates if x not in shadows]
             parents: List[str] = []
             while len(parents) < self.max_parents and candidates:
                 best, best_gain, best_df = None, 0.0, 1
+                best_strat = (0.0, 1, 0, 1)
+                strat_best, strat_best_g, strat_best_df = None, 0.0, 1
+                found_how = ""
                 for cand in candidates:
                     if cand in parents:
                         continue
@@ -494,6 +564,23 @@ class CondNet:
                     gain, df = self._cmi(enc[c], enc[cand], zs)
                     if gain > best_gain:
                         best, best_gain, best_df = cand, gain, df
+                        best_strat = getattr(self, "_last_stratum",
+                                             (0.0, 1, 0, 1))
+                    # A candidate can be weak POOLED yet decisive
+                    # inside one stratum — that is what an
+                    # interaction looks like. Keep the strongest
+                    # such candidate separately, or greedy search
+                    # discards it before the stratum test is ever
+                    # applied.
+                    sg_c, sdf_c, sn_c, nst_c = getattr(
+                        self, "_last_stratum", (0.0, 1, 0, 1))
+                    if (sn_c >= self.k
+                            and sg_c >= _chi2_crit(
+                                sdf_c, alpha_c / max(nst_c, 1))
+                            and sg_c > strat_best_g):
+                        strat_best = cand
+                        strat_best_g = sg_c
+                        strat_best_df = sdf_c
                 if best is None or best_gain <= 0:
                     # Greedy selection is blind to parents that
                     # matter only JOINTLY: creatinine may carry no
@@ -545,6 +632,20 @@ class CondNet:
                 # visits vote forty times.
                 g_stat = 2.0 * self.n_groups * best_gain
                 crit = _chi2_crit(best_df, alpha_c)
+                passes = g_stat >= crit
+                sg, sdf, sn, nstr = best_strat
+                if not passes and sn >= self.k and \
+                        sg >= _chi2_crit(sdf,
+                                         alpha_c / max(nstr, 1)):
+                    passes = True
+                    found_how = "concentrated in one stratum"
+                if not passes and strat_best is not None:
+                    # the pooled winner failed, but another
+                    # candidate is decisive within a stratum
+                    best = strat_best
+                    best_gain = max(best_gain, 1e-9)
+                    passes = True
+                    found_how = "concentrated in one stratum"
                 # cells must also stay publishable: adding a parent
                 # multiplies the configuration count, and a table
                 # whose average cell falls below k cannot be kept
@@ -552,15 +653,17 @@ class CondNet:
                 for p in parents + [best]:
                     width *= len(set(enc[p]))
                 width *= len(set(enc[c]))
-                if g_stat < crit or (n / max(width, 1)) < 1.0:
+                if not passes or (n / max(width, 1)) < 1.0:
                     break
                 parents.append(best)
                 candidates = [x for x in candidates if x != best]
-                chosen_log.append(
-                    {"child": c, "parent": best,
-                     "cmi": round(best_gain, 5),
-                     "g": round(g_stat, 1),
-                     "crit": round(crit, 1)})
+                entry = {"child": c, "parent": best,
+                         "cmi": round(best_gain, 5),
+                         "g": round(g_stat, 1),
+                         "crit": round(crit, 1)}
+                if found_how:
+                    entry["found_as"] = found_how
+                chosen_log.append(entry)
             self.parents[c] = parents
 
         # conditional tables, with k-suppression
@@ -587,7 +690,12 @@ class CondNet:
                     if len(people[cfg]) < self.k:
                         suppressed += 1
                         continue          # falls back at sampling
-                    table[cfg] = {s: v / m for s, v in cnt.items()}
+                    marg = self.marginal[c]
+                    a_s = SMOOTHING
+                    syms = set(cnt) | set(marg)
+                    table[cfg] = {
+                        s: (cnt.get(s, 0) + a_s * marg.get(s, 0.0))
+                        / (m + a_s) for s in syms}
             self.cpt[c] = table
 
         self.report = {
@@ -609,9 +717,22 @@ class CondNet:
             "columns_modelled": len(self.order),
             "columns_dropped_no_variation": dropped,
             "edges": [{"child": c, "parents": self.parents[c]}
-                      for c in self.order if self.parents[c]],
-            "edge_count": sum(1 for c in self.order
-                              for _ in self.parents[c]),
+                      for c in self.order
+                      if self.parents.get(c)
+                      and c not in self.derived],
+            "edge_count": sum(
+                len(self.parents.get(c, []))
+                for c in self.order if c not in self.derived),
+            "derived_columns": [
+                {"column": b, "determined_by": a_}
+                for b, a_ in self.derived.items()],
+            "derived_note": "these are arithmetic the data "
+                            "pipeline created (a count from a "
+                            "list, an age from a birth year), not "
+                            "discovered relationships — they are "
+                            "reproduced exactly but excluded from "
+                            "the findings and from competing for "
+                            "parent slots",
             "acceptance_log": chosen_log,
             "suppressed_configurations": suppressed,
             "k": self.k, "max_parents": self.max_parents,
