@@ -474,8 +474,8 @@ class CondNet:
               columns: Optional[List[str]] = None,
               targets: Optional[List[str]] = None,
               group_by: Optional[str] = None,
-              hypotheses: Optional[Dict[str, List[str]]] = None
-              ) -> "CondNet":
+              hypotheses: Optional[Dict[str, List[str]]] = None,
+              multilevel: bool = False) -> "CondNet":
         """`hypotheses` maps a column to the columns allowed to
         explain it — the clinical questions actually being asked.
 
@@ -486,7 +486,18 @@ class CondNet:
         machine to find everything collapses the correction and
         buys roughly a doubling of effective sample size, measured.
         Columns outside the hypotheses are still modelled from
-        their marginals, so generated data stays complete."""
+        their marginals, so generated data stays complete.
+
+        `multilevel` recognises that not every question costs the
+        same amount of data. Collapsing to the patient count is
+        right for a BETWEEN-person effect — "do elderly patients
+        have more events?" has as many independent observations as
+        there are patients. But "when this patient's sodium drifts
+        from their own baseline, does their risk change?" is a
+        WITHIN-person comparison: each patient serves as their own
+        control, so the degrees of freedom come from visits rather
+        than people. Treating both the same way discards most of
+        what a longitudinal dataset contains."""
         """`targets` are placed LAST in the ordering so they can
         condition on everything else. Without that hint an outcome
         often lands first (it is the hub of the dependence graph)
@@ -506,6 +517,10 @@ class CondNet:
         else:
             self.groups = [str(i) for i in range(n)]
         self.n_groups = len(set(self.groups))
+        self.multilevel = bool(multilevel and group_by)
+        # Degrees of freedom for a within-person comparison: every
+        # observation, less one absorbed mean per person.
+        self.n_within = max(n - self.n_groups, 1)
         if self.max_bins and self.max_bins > 0:
             nbins, auto = self.max_bins, False
         else:
@@ -519,6 +534,47 @@ class CondNet:
             for c in cols}
         enc = {c: [self.binnings[c].encode(r.get(c, ""))
                    for r in rows] for c in cols}
+
+        # ---- which columns vary WITHIN a person? ----
+        self.level = {}
+        by_person = defaultdict(lambda: defaultdict(set))
+        for j in range(n):
+            for c in cols:
+                by_person[c][self.groups[j]].add(enc[c][j])
+        for c in cols:
+            varying = sum(1 for vals in by_person[c].values()
+                          if len(vals) > 1)
+            share = varying / max(len(by_person[c]), 1)
+            self.level[c] = ("visit" if share > 0.25
+                             else "patient")
+
+        # ---- within-person centred encodings ----
+        # Binning each value's deviation from its own patient's
+        # mean makes associations between centred columns
+        # within-person BY CONSTRUCTION: stable patient traits are
+        # differenced away and cannot confound them.
+        self.enc_within = {}
+        if self.multilevel:
+            for c in cols:
+                if self.level[c] != "visit":
+                    continue
+                if self.binnings[c].kind not in ("numeric",
+                                                 "discrete"):
+                    continue
+                vals = [_num(r.get(c, "")) for r in rows]
+                if any(v is None for v in vals):
+                    continue
+                sums, cnts = defaultdict(float), defaultdict(int)
+                for j, v in enumerate(vals):
+                    sums[self.groups[j]] += v
+                    cnts[self.groups[j]] += 1
+                dev = [vals[j] - sums[self.groups[j]]
+                       / cnts[self.groups[j]] for j in range(n)]
+                b = Binning.learn(
+                    c + "__dev", [str(d) for d in dev], self.k,
+                    nbins, groups=self.groups)
+                self.enc_within[c] = [b.encode(str(d))
+                                      for d in dev]
         # drop columns with no variation — nothing to condition on
         usable = [c for c in cols if len(set(enc[c])) > 1]
         dropped = [c for c in cols if c not in usable]
@@ -599,6 +655,8 @@ class CondNet:
             parents: List[str] = []
             while len(parents) < self.max_parents and candidates:
                 best, best_gain, best_df = None, 0.0, 1
+                best_n_eff = self.n_groups
+                best_level = "between-person"
                 best_strat = (0.0, 1, 0, 1)
                 strat_best, strat_best_g, strat_best_df = None, 0.0, 1
                 found_how = ""
@@ -607,9 +665,28 @@ class CondNet:
                         continue
                     zs = ([tuple(enc[p][j] for p in parents)
                            for j in range(n)] if parents else None)
-                    gain, df = self._cmi(enc[c], enc[cand], zs)
+                    # If BOTH sides move within a person, the
+                    # comparison can be made inside patients: use
+                    # the centred encodings, and the degrees of
+                    # freedom that a within-person comparison
+                    # actually has. If either side is a fixed
+                    # patient trait, only between-person evidence
+                    # exists and the patient count governs.
+                    use_w = (self.multilevel
+                             and self.level.get(c) == "visit"
+                             and self.level.get(cand) == "visit"
+                             and c in self.enc_within
+                             and cand in self.enc_within)
+                    ec = (self.enc_within[c] if use_w else enc[c])
+                    ed = (self.enc_within[cand] if use_w
+                          else enc[cand])
+                    gain, df = self._cmi(ec, ed, zs)
                     if gain > best_gain:
                         best, best_gain, best_df = cand, gain, df
+                        best_n_eff = (self.n_within if use_w
+                                      else self.n_groups)
+                        best_level = ("within-person" if use_w
+                                      else "between-person")
                         best_strat = getattr(self, "_last_stratum",
                                              (0.0, 1, 0, 1))
                     # A candidate can be weak POOLED yet decisive
@@ -676,7 +753,7 @@ class CondNet:
                 # Significance scales with INDEPENDENT units. Using
                 # the row count would let one patient's forty
                 # visits vote forty times.
-                g_stat = 2.0 * self.n_groups * best_gain
+                g_stat = 2.0 * best_n_eff * best_gain
                 crit = _chi2_crit(best_df, alpha_c)
                 passes = g_stat >= crit
                 sg, sdf, sn, nstr = best_strat
@@ -706,7 +783,9 @@ class CondNet:
                 entry = {"child": c, "parent": best,
                          "cmi": round(best_gain, 5),
                          "g": round(g_stat, 1),
-                         "crit": round(crit, 1)}
+                         "crit": round(crit, 1),
+                         "level": best_level,
+                         "effective_n": best_n_eff}
                 if found_how:
                     entry["found_as"] = found_how
                 chosen_log.append(entry)
@@ -818,6 +897,18 @@ class CondNet:
             "suppressed_configurations": suppressed,
             "k": self.k, "max_parents": self.max_parents,
             "hypotheses_declared": len(hyp),
+            "multilevel": self.multilevel,
+            "within_person_df": self.n_within,
+            "column_levels": dict(self.level),
+            "multilevel_note": (
+                "relationships between columns that both move "
+                "within a patient are tested on {} within-person "
+                "degrees of freedom; anything involving a fixed "
+                "patient trait is tested on {} patients".format(
+                    self.n_within, self.n_groups)
+                if self.multilevel else
+                "not enabled — every relationship is tested on "
+                "the patient count"),
             "comparisons_corrected_for": n_tests,
             "search_mode": ("targeted — only the declared "
                             "relationships were tested, so the "

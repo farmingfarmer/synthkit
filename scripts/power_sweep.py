@@ -132,11 +132,12 @@ HYPOTHESES = {
 
 
 def run_once(n_patients, visits, seed, k, max_parents,
-             focused=False):
+             focused=False, multilevel=False):
     rows = make_cohort(n_patients, visits, seed)
     net = CondNet(k=k, max_parents=max_parents).learn(
         rows, targets=OUTCOMES, group_by="person_id",
-        hypotheses=(HYPOTHESES if focused else None))
+        hypotheses=(HYPOTHESES if focused else None),
+        multilevel=multilevel)
     pars = {c: set(net.parents.get(c, [])) for c in net.order}
     out = {"rows": len(rows), "patients": n_patients,
            "bins": net.report["bins"],
@@ -164,6 +165,12 @@ def main() -> None:
     ap.add_argument("--k", type=int, default=10)
     ap.add_argument("--max-parents", type=int, default=3)
     ap.add_argument("-o", "--out", default="power_sweep.json")
+    ap.add_argument("--multilevel", action="store_true",
+                    help="test within-person relationships on the "
+                         "degrees of freedom a within-person "
+                         "comparison actually has, instead of "
+                         "collapsing everything to the patient "
+                         "count")
     ap.add_argument("--focused", action="store_true",
                     help="declare the candidate relationships "
                          "instead of searching blindly, so the "
@@ -176,7 +183,7 @@ def main() -> None:
     results = []
     for n in sizes:
         runs = [run_once(n, a.visits, 1000 + s, a.k, a.max_parents,
-                         a.focused)
+                         a.focused, a.multilevel)
                 for s in range(a.seeds)]
         agg = {"patients": n,
                "rows": int(statistics.mean(
@@ -213,6 +220,8 @@ def main() -> None:
 
     payload = {"config": {"search": ("targeted" if a.focused
                                      else "blind"),
+                          "levels": ("multilevel" if a.multilevel
+                                     else "single-level"),
                           "sizes": sizes, "seeds": a.seeds,
                           "visits_per_patient": a.visits,
                           "k": a.k,

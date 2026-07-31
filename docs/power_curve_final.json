@@ -1,0 +1,145 @@
+{
+ "config": {
+  "search": "targeted",
+  "levels": "multilevel",
+  "sizes": [
+   200,
+   400,
+   800,
+   1600,
+   3200
+  ],
+  "seeds": 5,
+  "visits_per_patient": 4,
+  "k": 10,
+  "max_parents": 3
+ },
+ "results": [
+  {
+   "patients": 200,
+   "rows": 701,
+   "bins": 3,
+   "corrections": 18,
+   "edges": 1.4,
+   "false_positives": 0,
+   "recovery": {
+    "MONOTONE   glucose rises with age": 1.0,
+    "U-SHAPED   risk at both sodium extremes": 0.0,
+    "THRESHOLD  risk jumps above a BMI cut-point": 0.4,
+    "2-WAY      creatinine matters only if elderly": 0.0,
+    "3-WAY      drug matters only if elderly AND high creatinine": 0.0
+   },
+   "partial": {
+    "MONOTONE   glucose rises with age": 1.0,
+    "U-SHAPED   risk at both sodium extremes": 0.0,
+    "THRESHOLD  risk jumps above a BMI cut-point": 0.4,
+    "2-WAY      creatinine matters only if elderly": 0.0,
+    "3-WAY      drug matters only if elderly AND high creatinine": 0.0
+   }
+  },
+  {
+   "patients": 400,
+   "rows": 1415,
+   "bins": 3,
+   "corrections": 18,
+   "edges": 2.8,
+   "false_positives": 0,
+   "recovery": {
+    "MONOTONE   glucose rises with age": 1.0,
+    "U-SHAPED   risk at both sodium extremes": 0.2,
+    "THRESHOLD  risk jumps above a BMI cut-point": 1.0,
+    "2-WAY      creatinine matters only if elderly": 0.0,
+    "3-WAY      drug matters only if elderly AND high creatinine": 0.0
+   },
+   "partial": {
+    "MONOTONE   glucose rises with age": 1.0,
+    "U-SHAPED   risk at both sodium extremes": 0.2,
+    "THRESHOLD  risk jumps above a BMI cut-point": 1.0,
+    "2-WAY      creatinine matters only if elderly": 0.3,
+    "3-WAY      drug matters only if elderly AND high creatinine": 0.0
+   }
+  },
+  {
+   "patients": 800,
+   "rows": 2850,
+   "bins": 3,
+   "corrections": 18,
+   "edges": 4,
+   "false_positives": 0,
+   "recovery": {
+    "MONOTONE   glucose rises with age": 1.0,
+    "U-SHAPED   risk at both sodium extremes": 1.0,
+    "THRESHOLD  risk jumps above a BMI cut-point": 1.0,
+    "2-WAY      creatinine matters only if elderly": 0.0,
+    "3-WAY      drug matters only if elderly AND high creatinine": 0.0
+   },
+   "partial": {
+    "MONOTONE   glucose rises with age": 1.0,
+    "U-SHAPED   risk at both sodium extremes": 1.0,
+    "THRESHOLD  risk jumps above a BMI cut-point": 1.0,
+    "2-WAY      creatinine matters only if elderly": 0.5,
+    "3-WAY      drug matters only if elderly AND high creatinine": 0.0
+   }
+  },
+  {
+   "patients": 1600,
+   "rows": 5665,
+   "bins": 4,
+   "corrections": 18,
+   "edges": 5.6,
+   "false_positives": 0,
+   "recovery": {
+    "MONOTONE   glucose rises with age": 1.0,
+    "U-SHAPED   risk at both sodium extremes": 1.0,
+    "THRESHOLD  risk jumps above a BMI cut-point": 1.0,
+    "2-WAY      creatinine matters only if elderly": 0.4,
+    "3-WAY      drug matters only if elderly AND high creatinine": 0.4
+   },
+   "partial": {
+    "MONOTONE   glucose rises with age": 1.0,
+    "U-SHAPED   risk at both sodium extremes": 1.0,
+    "THRESHOLD  risk jumps above a BMI cut-point": 1.0,
+    "2-WAY      creatinine matters only if elderly": 0.7,
+    "3-WAY      drug matters only if elderly AND high creatinine": 0.4
+   }
+  },
+  {
+   "patients": 3200,
+   "rows": 11333,
+   "bins": 4,
+   "corrections": 18,
+   "edges": 8.2,
+   "false_positives": 0,
+   "recovery": {
+    "MONOTONE   glucose rises with age": 1.0,
+    "U-SHAPED   risk at both sodium extremes": 1.0,
+    "THRESHOLD  risk jumps above a BMI cut-point": 1.0,
+    "2-WAY      creatinine matters only if elderly": 1.0,
+    "3-WAY      drug matters only if elderly AND high creatinine": 1.0
+   },
+   "partial": {
+    "MONOTONE   glucose rises with age": 1.0,
+    "U-SHAPED   risk at both sodium extremes": 1.0,
+    "THRESHOLD  risk jumps above a BMI cut-point": 1.0,
+    "2-WAY      creatinine matters only if elderly": 1.0,
+    "3-WAY      drug matters only if elderly AND high creatinine": 1.0
+   }
+  }
+ ],
+ "patients_needed": {
+  "MONOTONE   glucose rises with age": 200,
+  "U-SHAPED   risk at both sodium extremes": 800,
+  "THRESHOLD  risk jumps above a BMI cut-point": 400,
+  "2-WAY      creatinine matters only if elderly": 3200,
+  "3-WAY      drug matters only if elderly AND high creatinine": 3200
+ },
+ "patients_for_half_recovery": {
+  "MONOTONE   glucose rises with age": 200,
+  "U-SHAPED   risk at both sodium extremes": 800,
+  "THRESHOLD  risk jumps above a BMI cut-point": 400,
+  "2-WAY      creatinine matters only if elderly": 3200,
+  "3-WAY      drug matters only if elderly AND high creatinine": 3200
+ },
+ "caveat": "the ordering reflects EFFECT SIZE as well as complexity: a large three-way jump can be easier to detect than a graded two-way one. Read these as figures for structures of this strength, not as universal constants.",
+ "reading": "recovery = the fraction of runs in which the planted relationship was found. Sample sizes count PATIENTS; repeated visits from one person are not independent evidence."
+}

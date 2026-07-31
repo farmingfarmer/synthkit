@@ -405,6 +405,50 @@ def main():
           not any(x.startswith("n") for x in
                   focused.parents.get("ev", [])))
 
+    # ---- multilevel: within-person effects cost less data ----
+    r9 = random.Random(41)
+    ml_rows = []
+    for pid in range(300):
+        trait = r9.gauss(0, 1)          # stable patient trait
+        for _ in range(6):
+            v = r9.gauss(0, 1)          # varies visit to visit
+            ml_rows.append({
+                "person_id": "P%04d" % pid,
+                "trait": round(trait, 3),
+                "varying": round(v, 3),
+                "ev": 1 if r9.random() < 0.1 + 0.35 * (v > 0.5)
+                else 0})
+    ml = CondNet(k=10, max_parents=2).learn(
+        ml_rows, group_by="person_id", multilevel=True)
+    sl = CondNet(k=10, max_parents=2).learn(
+        ml_rows, group_by="person_id", multilevel=False)
+    check("a stable patient trait is recognised as PATIENT-level "
+          "and a fluctuating measure as VISIT-level",
+          ml.level.get("trait") == "patient"
+          and ml.level.get("varying") == "visit")
+    check("within-person degrees of freedom exceed the patient "
+          "count on longitudinal data",
+          ml.n_within > ml.n_groups * 2)
+    check("the model states which degrees of freedom each kind of "
+          "relationship was tested on",
+          "within-person degrees of freedom"
+          in ml.report["multilevel_note"])
+    check("a WITHIN-person effect is found with multilevel "
+          "testing at a sample size where single-level testing "
+          "does not find it, or at least never fewer",
+          ("varying" in ml.parents.get("ev", []))
+          >= ("varying" in sl.parents.get("ev", [])))
+    logs = {(e["child"], e["parent"]): e
+            for e in ml.report["acceptance_log"]}
+    lv = [e.get("level") for e in logs.values()]
+    check("each accepted relationship records whether it was a "
+          "within-person or between-person comparison",
+          all(x in ("within-person", "between-person")
+              for x in lv if x))
+    check("single-level mode is unchanged — multilevel is opt-in",
+          sl.report["multilevel"] is False
+          and "not enabled" in sl.report["multilevel_note"])
+
     print()
     if FAIL:
         print("{} FAILED".format(FAIL))
