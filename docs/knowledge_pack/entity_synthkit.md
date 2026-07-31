@@ -25,7 +25,7 @@ evaluation at Keck Medicine of USC.
 The core is pure Python standard library: zero external
 dependencies, zero license cost, CPU-only, fully deterministic.
 It runs from a folder with no installer, database, or admin
-rights, and is certified on both Alex's M3 Max MacBook Pro and
+rights, and is certified on both a macOS development machine and
 a locked-down hospital Windows ThinkPad — 24 smoke suites, 564
 checks, green on both, with recipe fingerprints reproducing
 identical data cross-OS to within ±0.004 AUROC.

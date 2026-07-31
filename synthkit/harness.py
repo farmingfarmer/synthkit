@@ -16,8 +16,8 @@ experiment to pass, and the finding names every measurement either
 way: the verdict carries its evidence.
 
 This is the piece that plugs synthkit into any hypothesis-testing
-loop (Mnemo's forge included, via a thin adapter on that side):
-empirical measurement replacing LLM-judged opinion.
+loop, via a thin adapter on that side: empirical measurement
+replacing LLM-judged opinion.
 
 StubBackend renders deterministically (planted content, boring
 prose) for dry runs and CI; swap in OllamaBackend for realistic

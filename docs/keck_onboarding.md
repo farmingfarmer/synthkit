@@ -7,7 +7,7 @@ be pasted into an email or spoken from.
 ## 1. Provenance (say this first, unprompted)
 
 synthkit is personal R&D: designed, built, and validated entirely
-on personal hardware (M3 MacBook) and personal time, in a personal
+on personal hardware and personal time, in a personal
 GitHub repository, before and outside any work assignment. It
 contains no Keck code, data, or credentials, and has never touched
 PHI — it GENERATES synthetic data by construction. Bringing it to

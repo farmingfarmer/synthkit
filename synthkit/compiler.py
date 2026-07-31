@@ -1,9 +1,9 @@
 """SYNTH_V1 S1: backends and the SpecCompiler.
 
 The LLMBackend protocol is the deployment seam: development runs
-Ollama on the M3; Keck runs Bedrock or the Anthropic API. Every
-LLM-touching stage takes a backend instance, so the move is a config
-change, not a port.
+a local model through Ollama; a governed environment runs Bedrock
+or the Anthropic API. Every LLM-touching stage takes a backend
+instance, so the move is a config change, not a port.
 
 The compiler is LLM-ASSISTED, not LLM-trusted: plain English goes
 in, a draft DataSpec comes out, validation runs, and the human
