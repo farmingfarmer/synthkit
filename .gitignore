@@ -27,3 +27,19 @@ tidy_visits*.csv
 # ---------------------------------------------------------------
 docs/presenter_companion.html
 data/scratch_check/
+
+# build and run artifacts — never tracked
+__pycache__/
+*.py[cod]
+*.egg-info/
+.pytest_cache/
+.DS_Store
+build/
+dist/
+
+# generated output directories
+tables/
+campaigns/
+corpora/
+runs/
+out/
