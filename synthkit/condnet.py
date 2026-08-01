@@ -110,6 +110,13 @@ DERIVED_ENTROPY_RATIO = 0.20
 NEVER_PARENT = ("days_to_next_visit", "is_last_visit",
                 "visit_id", "record_id")
 
+# Separator for list-valued columns (medication lists, condition
+# lists). These need expanding, not binning — see below.
+LIST_SEP = "; "
+
+# How many items from a list column become their own indicator.
+LIST_TOP_ITEMS = 12
+
 
 # ---------------------------------------------------------------
 # helpers
@@ -134,6 +141,14 @@ def _quantile(xs: Sequence[float], q: float) -> float:
     ys = sorted(xs)
     i = min(len(ys) - 1, max(0, int(round(q * (len(ys) - 1)))))
     return ys[i]
+
+
+def _rank(xs):
+    order = sorted(range(len(xs)), key=lambda i: xs[i])
+    out = [0.0] * len(xs)
+    for pos, i in enumerate(order):
+        out[i] = pos
+    return out
 
 
 def _entropy(counts: Sequence[float]) -> float:
@@ -547,6 +562,57 @@ class CondNet:
         if odd:
             cols = [c for c in cols if c not in odd]
         self.dropped_odd_names = odd
+
+        # ---- list columns: expand, never bin ----
+        # A medication or condition list is different for almost
+        # every visit, so treating the whole string as a category
+        # sends every value below the k-patient floor and collapses
+        # the column to a single bucket. Observed live: `conditions`
+        # and `active_drugs` each reduced to ONE level, contributing
+        # nothing but their missingness — which is how the clinical
+        # content of a record becomes invisible to the model.
+        #
+        # The information is in the ITEMS, not the combination. Each
+        # frequent item becomes its own present/absent indicator, so
+        # "this patient is on a diuretic" can carry structure while
+        # the rare combinations that would identify someone never
+        # appear.
+        self.list_columns = {}
+        self.list_lengths = {}
+        self.tally_of = {}
+        expanded_rows = [dict(r) for r in rows]
+        for c in list(cols):
+            vals = [str(r.get(c, "")) for r in rows]
+            if not any(LIST_SEP in v for v in vals):
+                continue
+            def _items(v):
+                # placeholders for "nothing here" are absence, not
+                # a finding — expanding them creates an indicator
+                # that simply mirrors the empty case
+                return {x.strip() for x in v.split(LIST_SEP)
+                        if x.strip()
+                        and x.strip().lower() not in
+                        ("none", "nan", "null", "n/a", "-")}
+            people_of = defaultdict(set)
+            for j, v in enumerate(vals):
+                for item in _items(v):
+                    people_of[item].add(self.groups[j])
+            keep = [i for i, ppl in sorted(
+                people_of.items(), key=lambda kv: -len(kv[1]))
+                if len(ppl) >= self.k][:LIST_TOP_ITEMS]
+            if not keep:
+                continue
+            self.list_columns[c] = keep
+            cols.remove(c)
+            self.list_lengths[c] = [len(_items(v)) for v in vals]
+            for j, v in enumerate(vals):
+                have = _items(v)
+                for item in keep:
+                    expanded_rows[j]["{}::{}".format(c, item)] = (
+                        "1" if item in have else "0")
+            cols.extend("{}::{}".format(c, i) for i in keep)
+        if self.list_columns:
+            rows = expanded_rows
         self.n_groups = len(set(self.groups))
         self.multilevel = bool(multilevel and group_by)
         # Degrees of freedom for a within-person comparison: every
@@ -628,22 +694,96 @@ class CondNet:
 
         # ---- derived columns: arithmetic, not findings ----
         self.derived = {}
+        # Determinism is tested on the RAW values, not the binned
+        # symbols. Binning destroys exactly the evidence this test
+        # needs: a count computed from a list is perfectly
+        # determined by that list, but once the list is bucketed
+        # the determinism disappears and the pair is reported as a
+        # discovery instead of as arithmetic.
+        raw = {c: [str(r.get(c, "")).strip() for r in rows]
+               for c in self.order}
+        # Two tracks, because "A determines B" means different
+        # things depending on how coarse A is.
+        #
+        # A COARSE determinant (a list, a category, a small count)
+        # genuinely determines what follows from it: a condition
+        # list fixes the condition count exactly. Conditional
+        # entropy detects this.
+        #
+        # A NEARLY-UNIQUE determinant determines everything
+        # trivially — if each age appears once, knowing the age
+        # tells you that row's blood pressure, its visit date and
+        # its record number, none of which is a derivation. Live,
+        # this reported `diastolic_blood_pressure` as derived from
+        # `age_at_visit`. So for high-cardinality numeric pairs the
+        # test is near-perfect CORRELATION instead, which catches
+        # the real arithmetic (an age and a birth year) without the
+        # false positives.
+        coarse_max = max(2, n // max(2 * self.k, 1))
+        numeric_vals = {}
+        for c in self.order:
+            xs = [_num(v) for v in raw[c]]
+            if all(x is not None for x in xs):
+                numeric_vals[c] = xs
+
+        def _rho(u, v):
+            ru, rv = _rank(u), _rank(v)
+            mu = sum(ru) / len(ru)
+            mv = sum(rv) / len(rv)
+            num = sum((a - mu) * (b - mv) for a, b in zip(ru, rv))
+            den = (sum((a - mu) ** 2 for a in ru)
+                   * sum((b - mv) ** 2 for b in rv)) ** 0.5
+            return num / den if den else 0.0
+
+        # A column holding the LENGTH of a list column is the
+        # plainest arithmetic there is. Testing it directly beats
+        # any entropy heuristic: if the number matches the item
+        # count on essentially every row, it is a tally, not a
+        # finding.
+        for lc, lengths in getattr(self, "list_lengths", {}).items():
+            for cand in self.order:
+                xs = [_num(v) for v in raw[cand]]
+                if any(x is None for x in xs):
+                    continue
+                agree = sum(1 for x, L in zip(xs, lengths)
+                            if abs(x - L) < 1e-9)
+                if agree >= 0.95 * n and cand not in self.derived:
+                    self.derived[cand] = lc
+                    self.tally_of[cand] = lc
+
         for b in self.order:
-            hb = _entropy(list(Counter(enc[b]).values()))
+            hb = _entropy(list(Counter(raw[b]).values()))
             if hb <= 0:
                 continue
             for a_ in self.order:
                 if a_ == b:
                     continue
-                groups_ = defaultdict(Counter)
-                for j in range(n):
-                    groups_[enc[a_][j]][enc[b][j]] += 1
-                hcond = sum(
-                    (sum(cc.values()) / n)
-                    * _entropy(list(cc.values()))
-                    for cc in groups_.values())
-                if hcond / hb < DERIVED_ENTROPY_RATIO:
-                    ha = _entropy(list(Counter(enc[a_]).values()))
+                card_a = len(set(raw[a_]))
+                if card_a <= coarse_max:
+                    groups_ = defaultdict(Counter)
+                    for j in range(n):
+                        groups_[raw[a_][j]][raw[b][j]] += 1
+                    hcond = sum(
+                        (sum(cc.values()) / n)
+                        * _entropy(list(cc.values()))
+                        for cc in groups_.values())
+                    determined = (hcond / hb
+                                  < DERIVED_ENTROPY_RATIO)
+                elif a_ in numeric_vals and b in numeric_vals:
+                    determined = abs(_rho(numeric_vals[a_],
+                                          numeric_vals[b])) >= 0.98
+                else:
+                    determined = False
+                if determined:
+                    # Two columns can determine EACH OTHER — an age
+                    # and a birth year do. Marking both derived
+                    # would bar both from the model and lose the
+                    # information entirely, so a column whose
+                    # proposed determinant is itself derived stays
+                    # as the surviving representative of the pair.
+                    if a_ in self.derived:
+                        continue
+                    ha = _entropy(list(Counter(raw[a_]).values()))
                     # keep the more informative column as the
                     # determinant; the other is its shadow
                     if ha >= hb:
@@ -680,12 +820,16 @@ class CondNet:
                 # is warranted
                 self.parents[c] = [self.derived[c]]
                 continue
-            # do not let a derived shadow compete against the
-            # column that determines it — they carry the same
-            # information and only one slot should be spent
-            shadows = {b for b, a_ in self.derived.items()
-                       if a_ in candidates}
-            candidates = [x for x in candidates if x not in shadows]
+            # A derived column carries no information its
+            # determinant does not already hold, so it never earns
+            # a parent slot — whether or not that determinant is
+            # itself still in the running. (A tally of a list stays
+            # redundant after the list has been expanded into
+            # indicators, which is exactly the case that leaked
+            # `active_drugs::furosemide <- active_drug_count` into
+            # the findings.)
+            candidates = [x for x in candidates
+                          if x not in self.derived]
             parents: List[str] = []
             while len(parents) < self.max_parents and candidates:
                 best, best_gain, best_df = None, 0.0, 1
@@ -931,6 +1075,15 @@ class CondNet:
                             "flawlessly while learning nothing",
             "dropped_odd_column_names": getattr(
                 self, "dropped_odd_names", []),
+            "list_columns_expanded": {
+                c: len(v) for c, v in
+                getattr(self, "list_columns", {}).items()},
+            "list_note": "list-valued columns are expanded into "
+                         "one indicator per frequent item rather "
+                         "than binned as whole strings: every "
+                         "combination is nearly unique, so binning "
+                         "collapses the column to a single bucket "
+                         "and its clinical content vanishes",
             "derived_note": "these are arithmetic the data "
                             "pipeline created (a count from a "
                             "list, an age from a birth year), not "
@@ -1019,6 +1172,27 @@ class CondNet:
             for c in self.order:
                 row[c] = self.binnings[c].decode(
                     assign[c], _rng(s, i, c, "decode"))
+            # Rebuild the list columns from their indicators, so
+            # generated data has the same shape as the source
+            # rather than a pile of expanded flags. The indicators
+            # stay too: they are what carried the structure.
+            for lc, items in getattr(self, "list_columns",
+                                     {}).items():
+                present = [it for it in items
+                           if str(row.get("{}::{}".format(lc, it),
+                                          "0")).strip() == "1"]
+                row[lc] = LIST_SEP.join(sorted(present))
+            # A tally is arithmetic on the list, so COMPUTE it
+            # rather than sampling it — otherwise generated rows
+            # carry a count that contradicts the list beside it.
+            for tally, lc in getattr(self, "tally_of", {}).items():
+                items = self.list_columns.get(lc)
+                if items is None:
+                    continue
+                row[tally] = sum(
+                    1 for it in items
+                    if str(row.get("{}::{}".format(lc, it),
+                                   "0")).strip() == "1")
             out.append(row)
         return out
 
@@ -1058,6 +1232,10 @@ class CondNet:
                          for c, b in self.binnings.items()},
             "parents": self.parents,
             "cpt": self.cpt, "marginal": self.marginal,
+            "tally_of": dict(getattr(self, "tally_of", {})),
+            "list_columns": {c: list(v) for c, v in
+                             getattr(self, "list_columns",
+                                     {}).items()},
             "report": self.report,
             "privacy": "counts and quantile edges only; every "
                        "published cell is supported by at least k "
@@ -1076,4 +1254,7 @@ class CondNet:
         net.cpt = d["cpt"]
         net.marginal = d["marginal"]
         net.report = d.get("report", {})
+        net.list_columns = {c: list(v) for c, v in
+                            (d.get("list_columns") or {}).items()}
+        net.tally_of = dict(d.get("tally_of") or {})
         return net

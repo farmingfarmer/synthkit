@@ -340,12 +340,17 @@ def main():
           "clinical insight",
           all(e["child"] not in dv for e in n7.report["edges"]))
     s7 = n7.sample(500, seed=2)
+    check("list columns are rebuilt in generated rows, so the "
+          "output has the same shape as the source",
+          all("conditions" in x for x in s7))
     agree = sum(1 for x in s7
                 if len([c for c in str(x["conditions"]).split("; ")
                         if c and c != "none"])
                 == int(x["condition_count"]))
-    check("...yet the derived relationship still holds in the "
-          "generated data", agree >= 0.9 * len(s7))
+    check("...and a tally is COMPUTED from the rebuilt list, never "
+          "sampled independently — a count that contradicts the "
+          "list beside it is worse than no count at all",
+          agree == len(s7))
 
     # ---- smoothing stabilises thin cells ----
     probe = CondNet.from_json(n_per.to_json())
@@ -498,9 +503,14 @@ def main():
           and dv2.get("active_drug_count") == "active_drugs")
     check("a year derived from an age is filed as arithmetic too",
           "year_of_birth" in dv2 or "age_at_visit" in dv2)
+    # Direction is not meaningful here: both factorisations encode
+    # the same joint distribution, and which one the ordering
+    # heuristic picks is arbitrary. The claim is that the pair is
+    # linked and the bookkeeping is not.
+    bp_pair = {"systolic_blood_pressure",
+               "diastolic_blood_pressure"}
     check("what survives is the PHYSIOLOGY, not the bookkeeping",
-          any(e["child"] == "diastolic_blood_pressure"
-              and "systolic_blood_pressure" in e["parents"]
+          any(bp_pair <= ({e["child"]} | set(e["parents"]))
               for e in rl["edges"]))
     check("the findings count reflects discoveries only — the "
           "arithmetic is reported separately",
