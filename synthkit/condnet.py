@@ -87,7 +87,28 @@ NEIGHBOUR_WEIGHT = 0.0
 # pipeline itself created, not clinical findings, and letting them
 # compete for parent slots wastes a scarce statistical budget on
 # rediscovering our own bookkeeping.
-DERIVED_ENTROPY_RATIO = 0.08
+#
+# The threshold is deliberately loose. A relationship that is exact
+# in principle is not exact after BINNING: a count derived from a
+# list, once both are discretised and rare levels folded into an
+# OTHER bucket, retains real residual entropy. At 0.08 the detector
+# caught three tautologies on a live extract and missed five,
+# including `condition_count <- conditions`. Genuine physiological
+# relationships sit far above 0.20 — systolic and diastolic
+# pressure move together strongly and still leave most of the
+# entropy unexplained — so the wider band separates arithmetic from
+# findings without swallowing any.
+DERIVED_ENTROPY_RATIO = 0.20
+
+# Columns that must never serve as a parent. These are not merely
+# redundant — they are the OUTCOME'S OWN DEFINITION. An outcome
+# defined as "did the next visit fall within thirty days" is
+# perfectly predicted by the gap to the next visit, and a model
+# handed both would score flawlessly while learning nothing. This
+# is label leakage, and it is worse than a tautology because it
+# looks like a finding.
+NEVER_PARENT = ("days_to_next_visit", "is_last_visit",
+                "visit_id", "record_id")
 
 
 # ---------------------------------------------------------------
@@ -516,6 +537,16 @@ class CondNet:
             cols = [c for c in cols if c != group_by]
         else:
             self.groups = [str(i) for i in range(n)]
+        # Column names that are purely numeric or blank are almost
+        # always an artefact of a headerless index or a malformed
+        # export, not a clinical field. Modelling them produces
+        # nonsense like `column "4" is determined by column "1"`.
+        odd = [c for c in cols
+               if not str(c).strip()
+               or str(c).strip().replace(".", "", 1).isdigit()]
+        if odd:
+            cols = [c for c in cols if c not in odd]
+        self.dropped_odd_names = odd
         self.n_groups = len(set(self.groups))
         self.multilevel = bool(multilevel and group_by)
         # Degrees of freedom for a within-person comparison: every
@@ -637,9 +668,12 @@ class CondNet:
                 if c not in hyp:
                     self.parents[c] = []
                     continue
-                candidates = [x for x in hyp[c] if x != c]
+                candidates = [x for x in hyp[c]
+                              if x != c and x not in NEVER_PARENT]
             else:
                 candidates = self.order[:i]
+            candidates = [x for x in candidates
+                          if x not in NEVER_PARENT]
             if c in self.derived and self.derived[c] in candidates:
                 # its determinant says everything about it; storing
                 # that one table is exact and cheap, and no search
@@ -886,6 +920,17 @@ class CondNet:
             "derived_columns": [
                 {"column": b, "determined_by": a_}
                 for b, a_ in self.derived.items()],
+            "never_parent_excluded": [c for c in NEVER_PARENT
+                                      if c in self.order],
+            "leakage_note": "a column that DEFINES the outcome is "
+                            "never offered as a parent: an outcome "
+                            "meaning 'the next visit fell within "
+                            "thirty days' is perfectly predicted "
+                            "by the gap to the next visit, and a "
+                            "model given both would score "
+                            "flawlessly while learning nothing",
+            "dropped_odd_column_names": getattr(
+                self, "dropped_odd_names", []),
             "derived_note": "these are arithmetic the data "
                             "pipeline created (a count from a "
                             "list, an age from a birth year), not "

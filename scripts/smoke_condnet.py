@@ -449,6 +449,66 @@ def main():
           sl.report["multilevel"] is False
           and "not enabled" in sl.report["multilevel_note"])
 
+    # ---- separating findings from bookkeeping (live-shaped) ----
+    r10 = random.Random(9)
+    live = []
+    for pid in range(92):
+        base = r10.gauss(132, 16)
+        for _ in range(r10.randint(2, 20)):
+            sbp = r10.gauss(base, 8)
+            dbp = 0.55 * sbp + r10.gauss(0, 5)
+            conds = [c for c in ("dm", "htn", "ckd", "chf")
+                     if r10.random() < 0.4]
+            drugs = [d for d in ("furosemide", "lisinopril",
+                                 "metformin") if r10.random() < 0.5]
+            gap = r10.randint(1, 400)
+            age = round(r10.gauss(66, 12), 1)
+            live.append({
+                "person_id": "P%03d" % pid,
+                "systolic_blood_pressure": round(sbp, 1),
+                "diastolic_blood_pressure": round(dbp, 1),
+                "conditions": "; ".join(conds) or "none",
+                "condition_count": len(conds),
+                "active_drugs": "; ".join(drugs) or "none",
+                "active_drug_count": len(drugs),
+                "age_at_visit": age,
+                "year_of_birth": round(2026 - age, 1),
+                "days_to_next_visit": gap,
+                "returned_within_30d": 1 if gap <= 30 else 0,
+                "4": r10.choice(["1", "2"])})
+    nl = CondNet(k=10, max_parents=3).learn(
+        live, targets=["returned_within_30d"],
+        group_by="person_id")
+    rl = nl.report
+    dv2 = {d["column"]: d["determined_by"]
+           for d in rl["derived_columns"]}
+    check("a numerically-named column — the mark of a headerless "
+          "index or a malformed export — is dropped rather than "
+          "modelled",
+          "4" in rl["dropped_odd_column_names"]
+          and "4" not in nl.order)
+    check("LABEL LEAKAGE is barred: the column that DEFINES the "
+          "outcome is never offered as a parent",
+          "days_to_next_visit" in rl["never_parent_excluded"]
+          and not any("days_to_next_visit" in e["parents"]
+                      for e in rl["edges"]))
+    check("a count derived from a list is filed as arithmetic "
+          "even after binning blurs the determinism",
+          dv2.get("condition_count") == "conditions"
+          and dv2.get("active_drug_count") == "active_drugs")
+    check("a year derived from an age is filed as arithmetic too",
+          "year_of_birth" in dv2 or "age_at_visit" in dv2)
+    check("what survives is the PHYSIOLOGY, not the bookkeeping",
+          any(e["child"] == "diastolic_blood_pressure"
+              and "systolic_blood_pressure" in e["parents"]
+              for e in rl["edges"]))
+    check("the findings count reflects discoveries only — the "
+          "arithmetic is reported separately",
+          rl["edge_count"] <= 3
+          and len(rl["derived_columns"]) >= 3)
+    check("the artifact explains why leakage columns are barred",
+          "learning nothing" in rl["leakage_note"])
+
     print()
     if FAIL:
         print("{} FAILED".format(FAIL))
