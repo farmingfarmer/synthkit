@@ -586,6 +586,41 @@ def main():
     check("an unrelated column is NOT swept up with it",
           "unrelated" not in dnames)
 
+    # ---- generated values must be physiologically possible ----
+    r13 = random.Random(31)
+    vit = []
+    for pid in range(120):
+        bp = r13.gauss(132, 14)
+        for _ in range(r13.randint(2, 9)):
+            s_ = r13.gauss(bp, 8)
+            vit.append({"person_id": "P%03d" % pid,
+                        "sbp": round(s_, 1),
+                        "dbp": round(0.55 * s_ + r13.gauss(0, 4), 1),
+                        "wbc": round(abs(r13.gauss(7, 2)), 2)})
+    nv = CondNet(k=10, max_parents=2).learn(
+        vit, group_by="person_id")
+    sv = nv.sample(4000, seed=6)
+    for col in ("sbp", "dbp", "wbc"):
+        obs = [float(x[col]) for x in vit]
+        gen = [float(x[col]) for x in sv]
+        span = max(obs) - min(obs)
+        check("generated `{}` stays inside a band the data "
+              "supports — tail extrapolation can no longer emit "
+              "an impossible vital sign".format(col),
+              min(gen) >= min(obs) - 0.6 * span
+              and max(gen) <= max(obs) + 0.6 * span)
+    check("a quantity never observed negative is never generated "
+          "negative",
+          all(float(x["wbc"]) >= 0 for x in sv))
+    check("the clamp does not flatten the distribution it "
+          "protects — the spread still matches the source",
+          abs((max(float(x["sbp"]) for x in sv)
+               - min(float(x["sbp"]) for x in sv))
+              - (max(float(x["sbp"]) for x in vit)
+                 - min(float(x["sbp"]) for x in vit)))
+          < 0.5 * (max(float(x["sbp"]) for x in vit)
+                   - min(float(x["sbp"]) for x in vit)))
+
     print()
     if FAIL:
         print("{} FAILED".format(FAIL))

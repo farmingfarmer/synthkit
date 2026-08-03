@@ -672,6 +672,7 @@ def api_learn(payload: dict) -> dict:
     facts = _ls.facts_from_model(net)
     _LEARNED["facts"] = facts
     return {"narrative": nar, "dials": _ls.dials(net),
+            "outcome_candidates": _ls.outcome_candidates(net),
             "note_plan": _ls.plan_summary(facts),
             "privacy": ("Nothing from this file is stored. The "
                         "model holds counts and bin edges only, "
@@ -713,6 +714,107 @@ def api_learn_generate(payload: dict) -> dict:
             "columns_list": list(syn[0]),
             "preview": preview,
             "dials_applied": payload.get("dials") or {}}
+
+
+def api_learn_plant(payload: dict) -> dict:
+    """Plant an outcome on the learned data and grade models on it.
+
+    Learning produces realistic data; it does not produce an EXAM.
+    An exam needs an answer key, and an answer key needs causes a
+    person stated rather than causes inferred from the same data
+    the models will see. So the weights here are authored, the
+    probability behind every row is therefore known, and the best
+    achievable score is known with it.
+    """
+    from . import learnspec as _ls
+    from .condnet import CondNet
+    from .transcribe import TranscribeSpec, transcribe
+    net = _LEARNED.get("net")
+    if net is None:
+        return {"error": "Learn from a dataset first."}
+    weights = {k: float(v) for k, v in
+               (payload.get("weights") or {}).items() if float(v)}
+    if not weights:
+        return {"error": "Give at least one column a weight. "
+                         "Those weights ARE the planted truth — "
+                         "nothing here infers them for you."}
+    rows = int(payload.get("rows") or 2000)
+    name = payload.get("label") or "outcome"
+    prev = payload.get("prevalence")
+    prev = float(prev) if prev else None
+    hide_text = bool(payload.get("hide_in_notes"))
+
+    work = CondNet.from_json(net.to_json())
+    _ls.apply_dials(work, payload.get("dials") or {})
+    data = work.sample(rows, seed=int(payload.get("seed") or 11))
+    planted = _ls.plant_outcome(data, weights, name=name,
+                                prevalence=prev)
+    if "error" in planted:
+        return planted
+
+    hidden = []
+    if hide_text:
+        hide_cols = [c for c in weights if "::" in c]
+        facts = _ls.facts_from_model(net, text_only=hide_cols)
+        spec = TranscribeSpec(facts, rates=_ls.default_rates())
+        planted["rows"], _ = transcribe(planted["rows"], spec)
+        hidden = _ls.columns_to_hide(net, hide_cols)
+        _ls.blank_columns(planted["rows"], hidden)
+    elif payload.get("transcribe"):
+        spec = TranscribeSpec(_ls.facts_from_model(net),
+                              rates=_ls.default_rates())
+        planted["rows"], _ = transcribe(planted["rows"], spec)
+
+    result = _ls.showdown(planted["rows"], planted["probs"], name,
+                          vendor=payload.get("vendor", ""))
+    if "error" in result:
+        return result
+    import csv as _csv
+    import io
+    buf = io.StringIO()
+    w = _csv.DictWriter(buf, fieldnames=list(planted["rows"][0]))
+    w.writeheader()
+    w.writerows(planted["rows"])
+    _LEARNED["generated"] = buf.getvalue()
+    lines = []
+    lines.append(
+        "The best score anything could reach on this data is "
+        "{:.3f}. That is not an estimate: the probability behind "
+        "every record is known, because you stated the causes."
+        .format(result["ceiling"]))
+    if result.get("blind") is not None:
+        lines.append(
+            "A model reading the notes scored {:.3f}; the same "
+            "model with the notes withheld scored {:.3f}. Reading "
+            "was worth {:+.3f}."
+            .format(result["reading"], result["blind"],
+                    result["value_of_reading"]))
+    else:
+        lines.append(
+            "Our own model scored {:.3f} against that ceiling."
+            .format(result["reading"]))
+    if hidden:
+        lines.append(
+            "The causes you weighted were removed from the "
+            "columns and written only into the prose ({}), so a "
+            "model that cannot read is missing them by "
+            "construction rather than by accident."
+            .format(", ".join(hidden)))
+    if "vendor" in result:
+        lines.append(
+            "The vendor model scored {:.3f} \u2014 {} our own."
+            .format(result["vendor"],
+                    "better than" if result["vendor_beats_ours"]
+                    else "short of"))
+    if result.get("vendor_error"):
+        lines.append("The vendor model could not be loaded: {}"
+                     .format(result["vendor_error"]))
+    return {"showdown": result, "planted": {
+        "label": name, "intercept": planted["intercept"],
+        "prevalence": planted["realized_prevalence"],
+        "weights": planted["weights"],
+        "note": planted["note"]},
+        "hidden_columns": hidden, "plain": lines}
 
 
 def api_learn_score(payload: dict) -> dict:
@@ -850,6 +952,9 @@ _ROUTES = {
     "/api/learn-generate": api_learn_generate,
     "/api/learn-export": api_learn_export,
     "/api/learn-score": api_learn_score,
+    "/api/learn-plant": api_learn_plant,
+    "/api/learn-plant-async": lambda payload: {
+        "job": _start_job(api_learn_plant, payload)},
     "/api/learn-score-async": lambda payload: {
         "job": _start_job(api_learn_score, payload)},
 }
@@ -1621,6 +1726,44 @@ label{font-size:13.5px;color:#2c3a45;font-weight:600}
     <div id="learn-score-report"></div>
     <div id="learn-preview"></div>
   </div>
+  <div class="panel" id="learn-exam-panel" style="display:none">
+    <label><span class="stepno">6.5</span>
+    <span class="badge opt">optional</span> turn this into an
+    exam</label>
+    <div class="explain">Realistic data is not yet a test. A test
+    needs an answer key &mdash; and an answer key needs causes
+    that a PERSON stated, not causes inferred from the same data
+    the models will be shown. Give the fields below the weights
+    you believe they should carry, and the bench computes the
+    outcome from them. Because you stated the causes, the
+    probability behind every record is known, and so is the best
+    score any model could possibly reach.</div>
+    <div id="learn-weights"></div>
+    <label for="lprev">target prevalence (how often the outcome
+    should occur)</label>
+    <input id="lprev" value="0.15">
+    <div class="hint">The intercept is solved for you to hit this
+    &mdash; that is only a base rate. Your weights are the causal
+    claims and are never adjusted.</div>
+    <label><input type="checkbox" id="lhide" checked> put the
+    causes ONLY in the notes</label>
+    <div class="hint">With this on, the fields you weighted are
+    removed from the columns and written into the prose instead.
+    That is what makes the comparison meaningful: a model that
+    cannot read is then missing part of the signal by
+    construction, and the gap measures exactly what reading is
+    worth. With it off, both models can see everything and the
+    gap will be zero.</div>
+    <label for="lvendor">a vendor model to grade as well
+    (optional)</label>
+    <input id="lvendor" placeholder="vendor_model:predict">
+    <button class="act" onclick="learnPlant()">Plant the truth and
+    grade</button>
+    <div class="outlabel">the verdict</div>
+    <div class="out" id="learn-exam-out">Weight at least one field
+    above, then grade.</div>
+    <div id="learn-exam-report"></div>
+  </div>
 </section>
 <section id="s-showdown">
   <div class="stepbanner">Step 5 of 5 &mdash; The verdict: vendor vs
@@ -1946,6 +2089,7 @@ async function learnRun(){
   document.getElementById('learn-dials-panel').style.display=
     d.dials.length?'block':'none';
   document.getElementById('learn-gen-panel').style.display='block';
+  buildWeights(d.outcome_candidates||[]);
   tick('learn');}
 function dialMove(el){
   LEARN_DIALS[el.dataset.dial]=parseFloat(el.value);
@@ -1972,6 +2116,61 @@ async function learnGenerate(){
   out('learn-gen-out',msg,'ok');
   document.getElementById('learn-preview').innerHTML=
     previewTable(d.preview,d.columns_list);}
+var LEARN_WEIGHTS={};
+function buildWeights(cands){
+  var h='<div class="hint">Weight the fields you believe drive '+
+    'the outcome. Leave the rest at zero \u2014 an unweighted '+
+    'field still appears in the data, it just carries no '+
+    'signal.</div>';
+  for(var i=0;i<cands.length;i++){
+    var c=cands[i];
+    LEARN_WEIGHTS[c.column]=0;
+    h+='<div class="modelrow"><span style="min-width:260px">'+
+      esc(c.label)+' <span class="badge opt">'+esc(c.kind)+
+      '</span></span><input type="range" min="-2" max="2" '+
+      'step="0.1" value="0" data-w="'+esc(c.column)+
+      '" oninput="weightMove(this)"> <code>0.0</code></div>';}
+  document.getElementById('learn-weights').innerHTML=h;
+  document.getElementById('learn-exam-panel').style.display=
+    cands.length?'block':'none';}
+function weightMove(el){
+  LEARN_WEIGHTS[el.dataset.w]=parseFloat(el.value);
+  var c=el.parentNode.querySelector('code');
+  if(c)c.textContent=parseFloat(el.value).toFixed(1);}
+async function learnPlant(){
+  out('learn-exam-out','planting the outcome and grading both '+
+    'models against it...');
+  const j=await api('/api/learn-plant-async',{
+    weights:LEARN_WEIGHTS,
+    rows:parseInt(document.getElementById('lrows').value)||2000,
+    prevalence:parseFloat(document.getElementById('lprev').value),
+    hide_in_notes:document.getElementById('lhide').checked,
+    vendor:document.getElementById('lvendor').value,
+    dials:LEARN_DIALS});
+  poll(j.job,'learn-exam-out',function(d){
+    if(d.error){out('learn-exam-out',d.error,'bad');return;}
+    var s=d.showdown;
+    out('learn-exam-out','ceiling '+s.ceiling.toFixed(3)+
+      '   our model '+s.reading.toFixed(3)+
+      (s.blind!==null?('   blind '+s.blind.toFixed(3)):'' )+
+      (s.vendor!==undefined?('   vendor '+
+        s.vendor.toFixed(3)):''),'ok');
+    var h='<div class="vstrip"><b>VERDICT:</b> the best score '+
+      'reachable on this data is '+s.ceiling.toFixed(3)+
+      ', and it is known exactly because the causes were '+
+      'stated rather than guessed.</div>';
+    h+='<div class="summarycard"><b>What the exam showed</b>';
+    for(var i=0;i<d.plain.length;i++){
+      h+='<div class="pstep"><span class="nchip" '+
+        'style="background:#17803D">'+(i+1)+'</span><span>'+
+        esc(d.plain[i])+'</span></div>';}
+    h+='<div class="hint" style="margin-top:8px">Planted at '+
+      (100*d.planted.prevalence).toFixed(1)+'% prevalence '+
+      '(intercept solved to '+d.planted.intercept+
+      '). Weights: '+esc(JSON.stringify(d.planted.weights))+
+      '</div>';
+    h+='<div class="hint">'+esc(d.planted.note)+'</div></div>';
+    document.getElementById('learn-exam-report').innerHTML=h;});}
 async function learnScore(){
   out('learn-score-out','comparing the synthetic data against '+
     'the real file, field by field and relationship by '+

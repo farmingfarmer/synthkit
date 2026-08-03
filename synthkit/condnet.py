@@ -202,7 +202,7 @@ class Binning:
 
     def __init__(self, name, kind, edges=None, levels=None,
                  integer=False, missing_rate=0.0, fine=None,
-                 atoms=None):
+                 atoms=None, clamp=None, nonneg=False):
         self.name = name
         self.kind = kind                  # numeric | categorical
         self.edges = edges or []          # len = nbins + 1
@@ -223,6 +223,18 @@ class Binning:
         # 4% of rows", so repeated values are stored as atoms with
         # their own probability and emitted verbatim.
         self.atoms = atoms or {}
+        # Plausibility bounds. Tail extrapolation exists so the
+        # generated distribution keeps its spread after the outer
+        # bin edges were pulled in to p1/p99 — but on a sparse bin
+        # it can overshoot into values that cannot occur. A
+        # diastolic pressure of 37 in a clinical demo undermines
+        # every credible number beside it, so emitted values are
+        # held inside a band the data itself supports: the
+        # published percentiles widened by half an interquartile
+        # range, and never through zero for a quantity that is
+        # never observed negative.
+        self.clamp = clamp or []
+        self.nonneg = nonneg
 
     # -- learning ------------------------------------------------
     @staticmethod
@@ -290,6 +302,13 @@ class Binning:
                     ded.append(e)
             if len(ded) < 2:
                 ded = [ded[0], ded[0] + 1.0]
+            q1_c, q3_c = _quantile(xs, 0.25), _quantile(xs, 0.75)
+            iqr_c = max(q3_c - q1_c, 0.0)
+            lo_clamp = lo_c - 0.5 * iqr_c
+            hi_clamp = hi_c + 0.5 * iqr_c
+            nonneg_c = min(xs) >= 0
+            if nonneg_c:
+                lo_clamp = max(lo_clamp, 0.0)
             nf = max(4, min(40, len(xs) // max(2 * k, 1)))
             fine = [_quantile(xs, i / nf) for i in range(nf + 1)]
             fine[0], fine[-1] = ded[0], ded[-1]
@@ -322,7 +341,9 @@ class Binning:
                            integer=all(float(x).is_integer()
                                        for x in xs),
                            missing_rate=miss, fine=fine,
-                           atoms=atoms)
+                           atoms=atoms,
+                           clamp=[lo_clamp, hi_clamp],
+                           nonneg=nonneg_c)
         c = Counter(str(v).strip() for v in present)
         by_level = defaultdict(set)
         for v, g in pairs:
@@ -422,6 +443,10 @@ class Binning:
                 x = rng.uniform(sub[j], sub[j + 1])
             else:
                 x = rng.uniform(lo, hi)
+            if self.clamp:
+                x = max(self.clamp[0], min(self.clamp[1], x))
+            if self.nonneg:
+                x = max(0.0, x)
             return int(round(x)) if self.integer else round(x, 4)
         return sym
 
@@ -432,6 +457,8 @@ class Binning:
                 "atoms": {b: [[round(v, 6), round(pp, 6)]
                               for v, pp in lst]
                           for b, lst in self.atoms.items()},
+                "clamp": [round(c, 6) for c in self.clamp],
+                "nonneg": self.nonneg,
                 "levels": self.levels, "integer": self.integer,
                 "missing_rate": round(self.missing_rate, 6)}
 
@@ -443,7 +470,8 @@ class Binning:
                        d.get("fine"),
                        {b: [(v, pp) for v, pp in lst]
                         for b, lst in (d.get("atoms")
-                                       or {}).items()})
+                                       or {}).items()},
+                       d.get("clamp"), d.get("nonneg", False))
 
 
 # ---------------------------------------------------------------

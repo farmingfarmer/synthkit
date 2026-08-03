@@ -678,9 +678,63 @@ def main():
                   and not any(c in sc["failing_columns"]
                               for c in
                               sc["expected_differences"])))
-        check("scoring before generating is refused with a usable "
-              "message",
-              True)
+        # ---------- turning learned data into an EXAM ----------
+        check("the bench offers the learned columns as things an "
+              "outcome could be built from, excluding its own "
+              "arithmetic",
+              got["outcome_candidates"]
+              and all("weight" in c and "kind" in c
+                      for c in got["outcome_candidates"]))
+        check("the exam panel explains why the causes must be "
+              "stated by a person rather than inferred",
+              "not causes inferred from the same data"
+              in flat_html)
+        check("it explains what hiding the causes in the notes "
+              "actually does to the comparison",
+              "missing part of the signal by construction"
+              in flat_html
+              and "the gap will be zero" in flat_html)
+
+        W = {}
+        for c in got["outcome_candidates"]:
+            if "chf" in c["column"]:
+                W[c["column"]] = 1.4
+            if "furosemide" in c["column"]:
+                W[c["column"]] = 0.9
+        ex = post("/api/learn-plant",
+                  {"weights": W, "rows": 1800,
+                   "prevalence": 0.15, "hide_in_notes": True,
+                   "vendor": "vendor_model:predict"})
+        check("planting an outcome and grading models on it runs "
+              "from the bench", "showdown" in ex)
+        sd = ex["showdown"]
+        check("the ceiling is known exactly, because the causes "
+              "were authored rather than inferred",
+              0.5 < sd["ceiling"] <= 1.0)
+        check("no model exceeds the ceiling",
+              sd["reading"] <= sd["ceiling"] + 0.05)
+        check("with the causes hidden in the prose, a model that "
+              "READS beats one that cannot — by construction, and "
+              "measurably",
+              sd["blind"] is not None
+              and sd["value_of_reading"] > 0.05)
+        check("the columns that were hidden are named, so the gap "
+              "is explainable rather than mysterious",
+              ex["hidden_columns"])
+        check("the intercept is solved to hit the declared "
+              "prevalence while the authored weights are left "
+              "alone",
+              abs(ex["planted"]["prevalence"] - 0.15) < 0.06
+              and ex["planted"]["weights"] == W)
+        check("a vendor model can be graded on the same exam",
+              "vendor" in sd)
+        check("the verdict is explained in plain English",
+              len(ex["plain"]) >= 3
+              and "known" in ex["plain"][0])
+        check("planting with no weights is refused — the weights "
+              "ARE the planted truth",
+              "error" in post("/api/learn-plant",
+                              {"weights": {}, "rows": 100}))
 
         # ---------- errors stay JSON ----------
         d = post("/api/campaign-run",

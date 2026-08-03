@@ -154,7 +154,8 @@ def apply_dials(net, settings: Dict[str, float]):
 
 # -------------------------------------------------------------------
 def facts_from_model(net, max_facts: int = 12,
-                     note_column: str = "clinical_note"
+                     note_column: str = "clinical_note",
+                     text_only: Optional[List[str]] = None
                      ) -> List[FactSpec]:
     """Derive a note plan from the columns the model actually has.
 
@@ -165,6 +166,13 @@ def facts_from_model(net, max_facts: int = 12,
     hedged — so the generated prose is messy in ways that match
     what the field really is.
     """
+    # Facts named in `text_only` are REMOVED from the structured
+    # record and written only into the prose. Without this the
+    # reading-versus-blind comparison is meaningless: if a cause
+    # of the outcome is still sitting in a column, a model that
+    # cannot read scores just as well by looking it up, and the
+    # value of reading measures as zero.
+    hide = set(text_only or [])
     facts: List[FactSpec] = []
     for col in net.order:
         if col in getattr(net, "derived", {}):
@@ -179,26 +187,55 @@ def facts_from_model(net, max_facts: int = 12,
             facts.append(FactSpec(
                 col, _pretty(col), kind,
                 section=("plan" if kind == "med" else "assessment"),
-                placement="both_agree",
+                placement=("text_only" if col in hide
+                           else "both_agree"),
                 corruptions=["abbreviation", "negation_simple",
                              "negation_scope_trap", "hedge",
                              "temporal_history"]))
         elif b.kind == "numeric":
             facts.append(FactSpec(
                 col, _pretty(col), "measurement",
-                section="vitals", placement="both_agree",
+                section="vitals", placement=("text_only" if col in hide
+                           else "both_agree"),
                 corruptions=["transcription_error",
                              "omitted_units", "copy_forward",
                              "abbreviation"]))
         elif b.kind == "discrete" and len(b.levels) == 2:
             facts.append(FactSpec(
                 col, _pretty(col), "condition",
-                placement="both_agree",
+                placement=("text_only" if col in hide
+                           else "both_agree"),
                 corruptions=["negation_simple",
                              "negation_scope_trap", "hedge"]))
         if len(facts) >= max_facts:
             break
     return facts
+
+
+def columns_to_hide(net, text_only: List[str]) -> List[str]:
+    """Everything that would leak a hidden fact back into a column.
+
+    Hiding the indicator `active_drugs::furosemide` is not enough:
+    the medication list is rebuilt in every generated row, and it
+    still spells the drug out. A model that cannot read prose
+    would simply look it up there, and the whole reading-versus-
+    blind comparison would measure nothing. So the parent list
+    goes too.
+    """
+    hide = set(text_only or [])
+    for col in list(hide):
+        if "::" in col:
+            hide.add(col.split("::", 1)[0])
+    return sorted(hide)
+
+
+def blank_columns(rows: List[Dict[str, Any]],
+                  cols: List[str]) -> List[Dict[str, Any]]:
+    for r in rows:
+        for c in cols:
+            if c in r:
+                r[c] = ""
+    return rows
 
 
 def default_rates() -> Dict[str, float]:
@@ -225,3 +262,167 @@ def plan_summary(facts: List[FactSpec]) -> Dict[str, Any]:
                                                "" if v == 1 else "s")
                               for k, v in sorted(by_kind.items())))),
     }
+
+
+# -------------------------------------------------------------------
+# Planting truth on learned data, and grading against it
+# -------------------------------------------------------------------
+def outcome_candidates(net) -> List[Dict[str, Any]]:
+    """Columns a person could plausibly build an outcome from.
+
+    Derived columns are excluded: an outcome computed from the
+    pipeline's own arithmetic would be predictable for reasons
+    that have nothing to do with the patient.
+    """
+    out = []
+    for col in net.order:
+        if col in getattr(net, "derived", {}):
+            continue
+        b = net.binnings.get(col)
+        if b is None:
+            continue
+        if b.kind == "numeric":
+            kind = "measurement"
+        elif "::" in col:
+            kind = "finding"
+        elif b.kind == "discrete" and len(b.levels) <= 4:
+            kind = "flag"
+        else:
+            continue
+        out.append({"column": col, "label": _pretty(col),
+                    "kind": kind, "weight": 0.0})
+    return out
+
+
+def _standardize(rows, col):
+    xs = []
+    for r in rows:
+        try:
+            xs.append(float(str(r.get(col, "")).strip()))
+        except (TypeError, ValueError):
+            xs.append(None)
+    got = [x for x in xs if x is not None]
+    if not got:
+        return [0.0] * len(rows)
+    m = sum(got) / len(got)
+    var = sum((x - m) ** 2 for x in got) / max(len(got) - 1, 1)
+    sd = var ** 0.5 or 1.0
+    return [(0.0 if x is None else (x - m) / sd) for x in xs]
+
+
+def plant_outcome(rows: List[Dict[str, Any]],
+                  weights: Dict[str, float],
+                  name: str = "outcome",
+                  prevalence: Optional[float] = None,
+                  intercept: float = 0.0,
+                  seed: int = 20260803) -> Dict[str, Any]:
+    """Compute an outcome from coefficients the user chose.
+
+    This is what turns generated data into an EXAM. The weights
+    are a human's causal claims — nothing infers them — so the
+    probability behind every row is known exactly, and therefore
+    so is the best score any model could possibly achieve on it.
+
+    The intercept is only a base rate, so when a prevalence is
+    declared it is solved for rather than guessed.
+    """
+    import math
+    import random as _rnd
+    cols = [c for c, w in (weights or {}).items() if w]
+    if not cols:
+        return {"error": "Give at least one column a weight — "
+                         "those weights are the planted truth."}
+    z = {c: _standardize(rows, c) for c in cols}
+    base = [sum(weights[c] * z[c][i] for c in cols)
+            for i in range(len(rows))]
+
+    def realize(b0):
+        return [1.0 / (1.0 + math.exp(-max(-30.0,
+                                           min(30.0, b0 + v))))
+                for v in base]
+
+    solved = intercept
+    if prevalence:
+        lo, hi = -25.0, 25.0
+        for _ in range(40):
+            mid = (lo + hi) / 2.0
+            p = realize(mid)
+            if sum(p) / len(p) < prevalence:
+                lo = mid
+            else:
+                hi = mid
+        solved = round((lo + hi) / 2.0, 4)
+    probs = realize(solved)
+    r = _rnd.Random(seed)
+    labels = [1 if r.random() < p else 0 for p in probs]
+    for row, lab in zip(rows, labels):
+        row[name] = lab
+    return {"rows": rows, "probs": probs, "label": name,
+            "intercept": solved,
+            "realized_prevalence": round(
+                sum(labels) / len(labels), 4),
+            "weights": {c: weights[c] for c in cols},
+            "note": "the coefficients are stated by a person, not "
+                    "inferred; that is what makes the answer key "
+                    "exact and the ceiling knowable"}
+
+
+def showdown(rows: List[Dict[str, Any]], probs: List[float],
+             label: str, note_column: str = "clinical_note",
+             vendor: str = "") -> Dict[str, Any]:
+    """Ceiling, a model that reads, and a model that cannot.
+
+    The ceiling is the score of the planted probabilities
+    themselves — the best any model could achieve. Everything else
+    is measured against it rather than against imagination.
+    """
+    from .autosolver import autosolver, autosolver_hybrid
+    from .mlmetrics import auroc, auroc_interval
+    y = [1 if str(r.get(label)) in ("1", "True", "true") else 0
+         for r in rows]
+    if sum(y) in (0, len(y)):
+        return {"error": "The outcome is all one value, so nothing "
+                         "can be scored. Adjust the weights or the "
+                         "prevalence."}
+    ceiling = auroc(probs, y)
+    cut = int(len(rows) * 0.7)
+    ytr = [v == 1 for v in y[:cut]]
+    yte = y[cut:]
+    npos, nneg = sum(yte), len(yte) - sum(yte)
+    if npos == 0 or nneg == 0:
+        return {"error": "Too few positive cases to grade. Raise "
+                         "the prevalence or generate more rows."}
+
+    def feats(rs, blind):
+        drop = {label} | ({note_column} if blind else set())
+        return [{k: v for k, v in r.items() if k not in drop}
+                for r in rs]
+
+    has_notes = note_column in rows[0]
+    reading = auroc(autosolver_hybrid()(
+        feats(rows[:cut], False), ytr, feats(rows[cut:], False)),
+        yte)
+    blind = auroc(autosolver()(
+        feats(rows[:cut], True), ytr, feats(rows[cut:], True)),
+        yte) if has_notes else None
+    lo_r, hi_r = auroc_interval(reading, npos, nneg)
+    res = {"ceiling": round(ceiling, 4),
+           "reading": round(reading, 4),
+           "reading_ci": [round(lo_r, 4), round(hi_r, 4)],
+           "blind": round(blind, 4) if blind is not None else None,
+           "value_of_reading": (round(reading - blind, 4)
+                                if blind is not None else None),
+           "test_rows": len(yte), "test_positives": npos,
+           "has_notes": has_notes}
+    if vendor:
+        try:
+            from .gui import _solver
+            fn = _solver(vendor)
+            v = auroc(fn(feats(rows[:cut], True), ytr,
+                         feats(rows[cut:], True)), yte)
+            res["vendor"] = round(v, 4)
+            res["vendor_name"] = vendor
+            res["vendor_beats_ours"] = v > reading
+        except Exception as e:
+            res["vendor_error"] = str(e)[:200]
+    return res
