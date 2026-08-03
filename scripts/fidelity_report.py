@@ -41,6 +41,8 @@ import math
 import random
 import sys
 from collections import Counter, defaultdict
+
+LIST_SEP = "; "
 from datetime import datetime
 from pathlib import Path
 
@@ -411,6 +413,53 @@ def main() -> None:
               if not is_missing(r.get(c))]
         ys = [(r.get(c) or "").strip() for r in G
               if not is_missing(r.get(c))]
+
+        # A LIST column cannot match as a whole string, and should
+        # not. Its combinations are near-unique per visit, and only
+        # items shared by enough patients are ever published — the
+        # rare ones are dropped deliberately, because a
+        # combination unique to one person identifies them. Judging
+        # such a column on whole-string agreement reports a
+        # failure for the privacy rule doing its job, and a
+        # scorecard that cries wolf teaches people to ignore it.
+        #
+        # The meaningful comparison is at the ITEM level: does each
+        # item appear at about the right rate?
+        listish = (sum(1 for v in xs[:400] if LIST_SEP in v)
+                   > 0.15 * max(len(xs[:400]), 1))
+        if listish:
+            def items_of(vals):
+                out = Counter()
+                for v in vals:
+                    for it in {t.strip() for t in v.split(LIST_SEP)
+                               if t.strip()}:
+                        out[it] += 1
+                return out
+            si, gi = items_of(xs), items_of(ys)
+            common = [i for i in si if si[i] >= 0.02 * len(xs)]
+            worst, worst_item = 0.0, ""
+            for it in common:
+                dd = abs(si[it] / max(len(xs), 1)
+                         - gi.get(it, 0) / max(len(ys), 1))
+                if dd > worst:
+                    worst, worst_item = dd, it
+            ltol = prop_tolerance(0.2, len(xs), len(ys))
+            ok = worst <= ltol
+            fails += 0 if ok else 1
+            marg.append({
+                "column": c, "type": "list", "metric":
+                "worst item rate difference",
+                "value": round(worst, 4),
+                "tolerance": round(ltol, 4), "pass": ok,
+                "worst_item": worst_item,
+                "items_compared": len(common),
+                "source_items": len(si), "synth_items": len(gi),
+                "note": "compared item by item, not as whole "
+                        "strings: rare combinations are suppressed "
+                        "on purpose, so exact agreement on the "
+                        "full list would mean the privacy rule "
+                        "had failed"})
+            continue
         d = tvd(xs, ys)
         big = max((Counter(xs).most_common(1) or [("", 0)])[0][1]
                   / max(1, len(xs)), 0.05)
@@ -754,6 +803,13 @@ def main() -> None:
                               m["tolerance"], m["source_mean"],
                               m["synth_mean"], m["source_sd"],
                               m["synth_sd"]))
+            elif m["type"] == "list":
+                print("  {} {:26s} worst item rate diff {:.3f} "
+                      "(<= {:.2f})   {} items compared, {} of {} "
+                      "published".format(
+                          mark, m["column"], m["value"],
+                          m["tolerance"], m["items_compared"],
+                          m["synth_items"], m["source_items"]))
             else:
                 print("  {} {:26s} TVD {:.3f} (<= {:.2f})   levels "
                       "{} vs {}".format(

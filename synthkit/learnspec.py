@@ -153,6 +153,64 @@ def apply_dials(net, settings: Dict[str, float]):
 
 
 # -------------------------------------------------------------------
+def facts_from_columns(rows: List[Dict[str, Any]],
+                      max_facts: int = 12,
+                      text_only: Optional[List[str]] = None,
+                      skip: Optional[List[str]] = None
+                      ) -> List[FactSpec]:
+    """Derive a note plan from data alone, with no model.
+
+    The pipeline and the bench were each sniffing columns their
+    own way, which is two implementations of one idea and a
+    guarantee they will drift. This is the single one; the
+    model-based version adds what the model knows on top.
+    """
+    hide = set(text_only or [])
+    avoid = set(skip or []) | {"person_id", "visit_id",
+                               "visit_number"}
+    facts: List[FactSpec] = []
+    sample = rows[:400]
+    for col in (rows[0] if rows else {}):
+        if col in avoid or col.startswith("_"):
+            continue
+        vals = {str(r.get(col, "")).strip() for r in sample}
+        vals.discard("")
+        if not vals:
+            continue
+        place = "text_only" if col in hide else "both_agree"
+        if vals <= {"0", "1", "True", "False", "true", "false"} \
+                and len(vals) == 2:
+            kind = ("med" if ("drug" in col or "med" in col)
+                    else "condition")
+            facts.append(FactSpec(
+                col, _pretty(col), kind,
+                section=("plan" if kind == "med"
+                         else "assessment"),
+                placement=place,
+                corruptions=["abbreviation", "negation_simple",
+                             "negation_scope_trap", "hedge",
+                             "temporal_history"]))
+        elif all(_isnum(v) for v in list(vals)[:40]) \
+                and len(vals) > 8:
+            facts.append(FactSpec(
+                col, _pretty(col), "measurement",
+                section="vitals", placement=place,
+                corruptions=["transcription_error",
+                             "omitted_units", "copy_forward",
+                             "abbreviation"]))
+        if len(facts) >= max_facts:
+            break
+    return facts
+
+
+def _isnum(v) -> bool:
+    try:
+        float(str(v).replace(",", ""))
+        return True
+    except ValueError:
+        return False
+
+
 def facts_from_model(net, max_facts: int = 12,
                      note_column: str = "clinical_note",
                      text_only: Optional[List[str]] = None

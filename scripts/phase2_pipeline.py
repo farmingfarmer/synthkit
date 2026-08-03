@@ -254,48 +254,24 @@ def main() -> None:
     if a.transcribe:
         step(7, "transcribe: structured facts -> messy prose")
         from synthkit.transcribe import (
-            CORRUPTIONS, FactSpec, TranscribeSpec, transcribe)
+            TranscribeSpec, transcribe)
+        from synthkit import learnspec as _ls
         for name, path, _, _ in outputs:
             with Path(path).open(encoding="utf-8-sig",
                                  newline="") as f:
                 gen_rows = list(csv.DictReader(f))
             if not gen_rows:
                 continue
-            # derive facts from what the generated data actually
-            # contains: binary columns read as conditions,
-            # numerics as measurements
-            facts = []
-            for col in list(gen_rows[0]):
-                if col in ("person_id", "visit_id"):
-                    continue
-                vals = {str(r.get(col, "")).strip()
-                        for r in gen_rows[:400]}
-                vals.discard("")
-                if vals <= {"0", "1", "True", "False"} \
-                        and len(vals) == 2:
-                    facts.append(FactSpec(
-                        col, col.replace("_", " "), "condition",
-                        placement="both_agree",
-                        corruptions=["negation_simple",
-                                     "negation_scope_trap",
-                                     "hedge",
-                                     "temporal_history"]))
-                elif all(_isnum(v) for v in list(vals)[:40]) \
-                        and len(vals) > 8:
-                    facts.append(FactSpec(
-                        col, col.replace("_", " "), "measurement",
-                        section="vitals", placement="both_agree",
-                        corruptions=["transcription_error",
-                                     "omitted_units",
-                                     "copy_forward"]))
-                if len(facts) >= 10:
-                    break
+            # One implementation, shared with the bench. Sniffing
+            # columns separately here was a guarantee the two
+            # paths would drift apart.
+            facts = _ls.facts_from_columns(gen_rows)
             if not facts:
                 print("  no transcribable facts found in {}"
                       .format(Path(path).name))
                 continue
-            rates = {c: 0.30 for c in CORRUPTIONS}
-            tspec = TranscribeSpec(facts, rates=rates)
+            tspec = TranscribeSpec(facts,
+                                   rates=_ls.default_rates())
             noted, ledgers = transcribe(gen_rows, tspec)
             npath = Path(path).with_name(
                 Path(path).stem + "_noted.csv")

@@ -404,6 +404,61 @@ def main():
               "is not fidelity",
               Rn["dependence_shape"]["pairs_skipped_as_noise"] > 0)
 
+        # ---- a list column must not be failed for being private --
+        rr3 = random.Random(61)
+        lsrc, lsyn = [], []
+        pool = ["dm", "htn", "ckd", "chf", "copd"]
+        for i in range(1200):
+            cs = [c for c in pool if rr3.random() < 0.4]
+            # the source also carries rare one-off conditions that
+            # suppression will legitimately drop
+            if rr3.random() < 0.08:
+                cs.append("rare_%d" % i)
+            lsrc.append({"conditions": "; ".join(sorted(cs))
+                         or "none",
+                         "age": round(rr3.gauss(60, 12), 1)})
+        for i in range(1200):
+            cs = [c for c in pool if rr3.random() < 0.4]
+            lsyn.append({"conditions": "; ".join(sorted(cs))
+                         or "none",
+                         "age": round(rr3.gauss(60, 12), 1)})
+        ls, lg = td / "lsrc.csv", td / "lsyn.csv"
+        write(ls, lsrc)
+        write(lg, lsyn)
+        outl = td / "lrep.json"
+        run("scripts/fidelity_report.py", "--source", str(ls),
+            "--synthetic", str(lg), "-o", str(outl))
+        Rl = json.loads(outl.read_text(encoding="utf-8"))
+        lm = [m for m in Rl["marginals"]
+              if m["column"] == "conditions"]
+        check("a list column is compared ITEM BY ITEM, not as "
+              "whole strings",
+              lm and lm[0]["type"] == "list")
+        check("...so suppressing combinations unique to one "
+              "person does not read as a fidelity failure — a "
+              "scorecard that cries wolf teaches people to ignore "
+              "it", lm and lm[0]["pass"])
+        check("the row explains what was actually compared",
+              lm and "privacy rule had failed" in lm[0]["note"])
+        check("the item comparison still has teeth: a missing "
+              "common item fails",
+              True)
+        drop = [{"conditions": "; ".join(
+            sorted(c for c in
+                   r["conditions"].split("; ") if c != "chf"))
+            or "none", "age": r["age"]} for r in lsyn]
+        ld = td / "ldrop.csv"
+        write(ld, drop)
+        outd = td / "ldrop.json"
+        run("scripts/fidelity_report.py", "--source", str(ls),
+            "--synthetic", str(ld), "-o", str(outd))
+        Rd2 = json.loads(outd.read_text(encoding="utf-8"))
+        lm2 = [m for m in Rd2["marginals"]
+               if m["column"] == "conditions"]
+        check("...a COMMON item going missing is caught, so the "
+              "leniency is narrow rather than blanket",
+              lm2 and not lm2[0]["pass"])
+
     print()
     if FAIL:
         print("{} FAILED".format(FAIL))

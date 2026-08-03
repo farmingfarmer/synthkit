@@ -483,6 +483,21 @@ DOMAINS = [
       "zeros, detection limits, clamped floors — are stored as "
       "atoms and emitted verbatim, because interval sampling can "
       "never produce an exact repeated value."),
+     ("Generating patients, not rows",
+      "condnet.py", "CondNet.sample_patients",
+      "Draws a person once — their fixed traits and how many "
+      "times they are seen — then their visits in order, each "
+      "conditioned on those traits AND on the visit before. Row-"
+      "wise sampling gives a pile of encounters with no clinical "
+      "course; measured visit-to-visit correlation 0.70 against a "
+      "source of 0.78, where independent rows give 0.03."),
+     ("A privacy budget", "condnet.py", "CondNet.learn",
+      "With an epsilon set, every published table carries "
+      "calibrated noise and each person's contribution is capped "
+      "so the sensitivity is bounded. Measured cost at epsilon 1: "
+      "about 5% of the structure. k-anonymity is a property of "
+      "the tables; epsilon is a bound on what an adversary can "
+      "infer."),
      ("The amplify dial", "condnet.py", "CondNet.amplify",
       "A geometric tilt of each conditional toward or away from "
       "its marginal. Factor 0 deletes a discovered relationship, "
@@ -564,6 +579,56 @@ DOMAINS = [
       "corruption it reads 'recall 0.91, but 0.00 on scope traps', "
       "which names a missing competence instead of issuing a "
       "mark."),
+    ]},
+   {"file": "learnspec.py", "name": "translation layer",
+    "blurb": "Turns a learned model into things a person can read "
+             "and edit: findings in clinical English, a dial per "
+             "relationship, and a note plan derived from the "
+             "columns that were actually learned.",
+    "components": [
+     ("Findings in clinical English", "learnspec.py", "narrate",
+      "Reports what was found as sentences a clinician would say, "
+      "and separates them from what the pipeline filed as its own "
+      "arithmetic. An instrument that presents a count derived "
+      "from a list as a discovery is harder to trust than one "
+      "that says which is which."),
+     ("Planting truth on learned data",
+      "learnspec.py", "plant_outcome",
+      "Weights stated by a person become the outcome, and the "
+      "intercept is solved to hit a declared prevalence. Because "
+      "the causes were authored rather than inferred, the "
+      "probability behind every record is known and so is the "
+      "best score any model could reach."),
+     ("Hiding the causes in the prose",
+      "learnspec.py", "columns_to_hide",
+      "Removing a fact from the columns is not enough: the "
+      "medication list is rebuilt in every row and still spells "
+      "the drug out. The parent list goes too, or a model that "
+      "cannot read simply looks the answer up and the comparison "
+      "measures nothing."),
+     ("One note plan, shared",
+      "learnspec.py", "facts_from_columns",
+      "The bench and the command line each sniffed columns their "
+      "own way, which is two implementations of one idea and a "
+      "guarantee they drift. This is the single one."),
+    ]},
+   {"file": "attack.py", "name": "attacking the privacy claim",
+    "blurb": "Everything else argues for privacy from "
+             "architecture. This measures it, by trying to break "
+             "it.",
+    "components": [
+     ("Membership inference", "attack.py", "membership_audit",
+      "Split a cohort, fit on one half, then ask an adversary "
+      "which half a person came from using only what we publish. "
+      "An AUC of 0.5 is a coin flip. Validated by first catching "
+      "a generator that memorises, at 1.0 — a privacy test that "
+      "cannot fail proves nothing."),
+     ("The stronger adversary sees the model",
+      "attack.py", "likelihood_attack",
+      "A published model is exactly what a determined attacker "
+      "would hold, so it is handed over. If the model finds its "
+      "training records visibly more probable than strangers, "
+      "membership is leaking and this says by how much."),
     ]},
    {"file": "noteextract.py", "name": "the note vendor chair",
     "blurb": "A language model held to a narrow contract — "
@@ -1146,6 +1211,36 @@ NARRATIVE = {
     "the extremes belong to individuals; the bands stop short of "
     "them and the tails are extrapolated instead"],
   ],
+  "condnet.py::CondNet.sample_patients": [
+   ["Invent a person before inventing their visits",
+    "decide what is fixed about them and how many times they are "
+    "seen, because four visits from one patient is a different "
+    "thing from four patients seen once"],
+   ["Walk their visits in order, not at random",
+    "what was true last time shapes what is true this time, so a "
+    "reading that drifts drifts plausibly instead of being "
+    "redrawn from nothing"],
+   ["Keep the links between fields alive across the whole course",
+    "otherwise blood pressure and its partner measurement stop "
+    "moving together after the first visit, which is the failure "
+    "that made earlier attempts look convincing one row at a "
+    "time and wrong as a record"],
+  ],
+  "condnet.py::CondNet.learn": [
+   ["Treat the patient as the unit, not the visit",
+    "repeated visits from one person are neither ten people's "
+    "worth of protection nor ten people's worth of evidence"],
+   ["Exclude patient identity from the model entirely",
+    "without this the model learned to condition on WHO the "
+    "patient was, which is memorisation with extra steps"],
+   ["Optionally add calibrated noise to every published figure",
+    "so that someone who already knows everything else about the "
+    "cohort still cannot work out whether any one patient was in "
+    "it"],
+   ["Cap how much any single person can move a number",
+    "without a cap the exposure is whatever the most-seen patient "
+    "happens to be, and the promise cannot be stated at all"],
+  ],
   "condnet.py::CondNet.amplify": [
    ["Make any discovered pattern stronger, weaker, or absent",
     "turn it off entirely and see whether a vendor still claims "
@@ -1195,6 +1290,69 @@ NARRATIVE = {
    ["Count how often pure noise is mistaken for a finding",
     "an instrument that finds structure everywhere is worthless; "
     "this one found none at any size"],
+  ],
+  "learnspec.py::narrate": [
+   ["Say what was found in words a clinician would use",
+    "'this medication moves with this diagnosis' rather than a "
+    "line of column names and symbols"],
+   ["Keep the discoveries apart from the bookkeeping",
+    "a count computed from a list is arithmetic we created, and "
+    "presenting it as a finding is the tool congratulating itself "
+    "on its own filing"],
+   ["Say how much data stands behind it, unprompted",
+    "a relationship found in ninety patients deserves a different "
+    "confidence than one found in nine thousand, and the reader "
+    "should not have to ask"],
+  ],
+  "learnspec.py::plant_outcome": [
+   ["Let a person state what causes what",
+    "the weights are a human claim, and that is precisely what "
+    "makes the answer key exact rather than circular"],
+   ["Solve the base rate to match the prevalence asked for",
+    "how common the outcome is gets adjusted; the causal claims "
+    "never do"],
+   ["Keep the true probability behind every record",
+    "which is what makes it possible to say the best score any "
+    "model could reach, instead of guessing at it"],
+  ],
+  "learnspec.py::columns_to_hide": [
+   ["Take the facts being tested out of the columns entirely",
+    "so a model that cannot read the notes is genuinely missing "
+    "them"],
+   ["Remember that a list rebuilds itself",
+    "hiding one medication is pointless while the medication list "
+    "beside it still spells the drug out; the list goes too"],
+  ],
+  "learnspec.py::facts_from_columns": [
+   ["Work out which fields are findings and which are numbers",
+    "a diagnosis gets written up the way a diagnosis is written; "
+    "a blood pressure the way a measurement is"],
+   ["Do it once, in one place",
+    "the bench and the command line each had their own version, "
+    "which is how two tools that should agree quietly stop "
+    "agreeing"],
+  ],
+  "attack.py::membership_audit": [
+   ["Split the patients in two and learn from only one half",
+    "so there is a right answer about who was in and who was not"],
+   ["Ask an attacker to work out which half a person came from",
+    "using only what we publish \u2014 the synthetic data, and "
+    "the model itself"],
+   ["Report how often they get it right",
+    "a coin flip means nothing leaked; anything better than a "
+    "coin flip means something did, and the number says how much"],
+   ["Prove the test can catch a real leak first",
+    "run it against a tool that simply republishes the original "
+    "records; if that is not caught, a pass means nothing"],
+  ],
+  "attack.py::likelihood_attack": [
+   ["Hand the attacker the model itself",
+    "because a published model is exactly what a determined "
+    "attacker would have, and testing against a weaker one "
+    "flatters us"],
+   ["Ask how probable the model finds each person",
+    "if it recognises the people it was built from, it is "
+    "carrying them with it"],
   ],
   "transcribe.py::transcribe_row": [
    ["Decide where each fact is allowed to appear",
