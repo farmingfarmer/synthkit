@@ -1283,6 +1283,59 @@ class CondNet:
                 chosen_log.append(entry)
             self.parents[c] = parents
 
+        # ---- every parent must precede its child ----
+        # Sampling walks the columns in order and looks each one's
+        # parents up in what has already been assigned, so a
+        # parent positioned after its child is a crash waiting for
+        # the right schema. The greedy search only ever chose
+        # parents from earlier columns, but the DERIVED and
+        # pair-derived paths assign parents directly and bypass
+        # that guarantee — which is exactly how a real extract
+        # produced a parent that had not been drawn yet.
+        #
+        # Rather than trust the construction, the order is
+        # re-derived from the edges that actually exist. Any edge
+        # that would close a cycle is dropped, because a cycle
+        # cannot be sampled at all and losing one edge is far
+        # better than failing.
+        indeg = {c: 0 for c in self.order}
+        children = defaultdict(list)
+        for c in self.order:
+            for pc in self.parents.get(c, []):
+                if pc in indeg:
+                    children[pc].append(c)
+                    indeg[c] += 1
+        ready = [c for c in self.order if not indeg[c]]
+        ordered = []
+        while ready:
+            nxt = ready.pop(0)
+            ordered.append(nxt)
+            for ch in children[nxt]:
+                indeg[ch] -= 1
+                if not indeg[ch]:
+                    ready.append(ch)
+        if len(ordered) < len(self.order):
+            # a cycle: keep the remaining columns but strip the
+            # parents that cannot be satisfied
+            placed = set(ordered)
+            for c in self.order:
+                if c in placed:
+                    continue
+                self.parents[c] = [pc for pc in
+                                   self.parents.get(c, [])
+                                   if pc in placed]
+                ordered.append(c)
+                placed.add(c)
+        self.order = ordered
+        # and drop any parent that still fails to precede its
+        # child, so the invariant holds by construction
+        seen = set()
+        for c in self.order:
+            kept = [pc for pc in self.parents.get(c, [])
+                    if pc in seen]
+            self.parents[c] = kept
+            seen.add(c)
+
         # conditional tables, with k-suppression
         # The budget must cover EVERY published quantity, not only
         # the conditional tables. A transition table is published
@@ -1735,13 +1788,23 @@ class CondNet:
 
     # -- sampling ------------------------------------------------
     def _lookup(self, c, assign):
-        ps = self.parents[c]
+        # Belt as well as braces. The column order is now derived
+        # topologically so every parent is drawn first, but this
+        # is the generation path: if some future change breaks
+        # that invariant, backing off to the parents that ARE
+        # available produces slightly less specific data, while
+        # raising produces none at all.
+        ps = [pc for pc in self.parents[c] if pc in assign]
+        if len(ps) != len(self.parents[c]):
+            self._order_warnings = getattr(
+                self, "_order_warnings", 0) + 1
+        full = self.parents[c]
         for depth in range(len(ps), -1, -1):
             use = ps[:depth]
             if not use:
                 return self.marginal[c], depth
             cfg = "|".join(assign[p] for p in use)
-            if depth == len(ps):
+            if depth == len(full) and ps == full:
                 d = self.cpt[c].get(cfg)
                 if d:
                     return d, depth

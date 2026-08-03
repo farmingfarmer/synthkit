@@ -870,6 +870,56 @@ def main():
           "with visit histories",
           len(dp_h.sample_patients(60, seed=2)) > 60)
 
+    # ---- every parent must be drawn before its child ----
+    # A real extract crashed generation here: the derived and
+    # pair-derived paths assign parents directly, bypassing the
+    # search that guaranteed a parent came earlier in the order.
+    ROUTE2 = {"ondansetron": "IV Push", "fentanyl": "IV Push",
+              "sodium chloride": "Flush", "propofol": "IV",
+              "acetaminophen": "Oral", "lidocaine": "Topical"}
+    r17 = random.Random(31)
+    tangled = []
+    for pid in range(150):
+        htn = r17.random() < 0.4
+        for _ in range(r17.randint(2, 9)):
+            drugs = [d for d in ROUTE2 if r17.random() < 0.35]
+            cs = ["Essential hypertension"] if htn else []
+            if htn and r17.random() < 0.7:
+                cs.append("Hyperlipidemia")
+            age = round(r17.gauss(66, 12), 1)
+            tangled.append({
+                "person_id": "P%04d" % pid,
+                "age_at_visit": age,
+                "year_of_birth": round(2026 - age, 1),
+                "procedure_quantity": len(drugs),
+                "procedures": "; ".join(
+                    sorted(ROUTE2[d] for d in drugs)) or "none",
+                "active_drugs": "; ".join(sorted(drugs)) or "none",
+                "drug_routes": "; ".join(
+                    sorted({ROUTE2[d] for d in drugs})) or "none",
+                "conditions": "; ".join(sorted(cs)) or "none",
+                "sbp": round(r17.gauss(132, 15), 1)})
+    for ml in (False, True):
+        nt = CondNet(k=10, max_parents=3).learn(
+            tangled, group_by="person_id", multilevel=ml)
+        drawn = set()
+        violations = []
+        for c in nt.order:
+            for pc in nt.parents.get(c, []):
+                if pc not in drawn:
+                    violations.append((c, pc))
+            drawn.add(c)
+        check("every parent precedes its child in the sampling "
+              "order (multilevel={})".format(ml), not violations)
+        check("both samplers run on a schema with cross-family "
+              "and within-family determination (multilevel={})"
+              .format(ml),
+              len(nt.sample(200, seed=3)) == 200
+              and len(nt.sample_patients(50, seed=3)) >= 50)
+        check("no parent had to be backed off at generation time "
+              "(multilevel={})".format(ml),
+              getattr(nt, "_order_warnings", 0) == 0)
+
     print()
     if FAIL:
         print("{} FAILED".format(FAIL))
