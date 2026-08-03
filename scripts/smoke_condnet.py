@@ -862,10 +862,17 @@ def main():
           "people are seen is itself a fact about them",
           "visit-count histogram"
           in dp_h.report["differential_privacy"]["covers"])
-    check("persistence ratios are coarsened rather than published "
-          "exactly",
-          all(abs(v * 10 - round(v * 10)) < 1e-9
-              for v in dp_h.persistence.values()))
+    # The persistence weights are TUNED from generated data, so
+    # what needs covering is the target they are tuned toward —
+    # that is the quantity measured from real patients.
+    check("the steadiness measured from real patients is "
+          "coarsened before it is used to steer generation",
+          dp_h.target_autocorr
+          and all(abs(v * 10 - round(v * 10)) < 1e-9
+                  for v in dp_h.target_autocorr.values()))
+    check("...and the budget says it covers them",
+          any("steadiness" in x for x in
+              dp_h.report["differential_privacy"]["covers"]))
     check("a budgeted hierarchical model still generates patients "
           "with visit histories",
           len(dp_h.sample_patients(60, seed=2)) > 60)
@@ -919,6 +926,39 @@ def main():
         check("no parent had to be backed off at generation time "
               "(multilevel={})".format(ml),
               getattr(nt, "_order_warnings", 0) == 0)
+
+    # ---- steadiness must MATCH the source, not exceed it ----
+    r18 = random.Random(41)
+    steady = []
+    for pid in range(240):
+        lvl = r18.gauss(130, 15)
+        for _ in range(r18.randint(3, 9)):
+            steady.append({
+                "person_id": "P%04d" % pid,
+                "sbp": round(r18.gauss(lvl, 5), 1),
+                "noise": round(r18.gauss(0, 1), 3)})
+    ns = CondNet(k=10, max_parents=2).learn(
+        steady, group_by="person_id", multilevel=True)
+    check("the source's own visit-to-visit steadiness is measured "
+          "and kept as a target",
+          ns.report["persistence_targets"].get("sbp", 0) > 0.4)
+    check("a column with no real steadiness gets no target worth "
+          "chasing",
+          abs(ns.report["persistence_targets"].get("noise", 0))
+          < 0.2)
+    gen_s = ns.sample_patients(220, seed=6)
+    got = ns._measure_autocorr(gen_s, "sbp")
+    want = ns.report["persistence_targets"]["sbp"]
+    check("generated patients are about as steady as real ones",
+          got > 0.35)
+    check("...and NOT steadier — synthetic patients that hold "
+          "their values more tightly than real ones would make "
+          "any model grouping by patient look better behaved "
+          "than it will be",
+          got <= want + 0.08)
+    got_n = ns._measure_autocorr(gen_s, "noise")
+    check("steadiness is not invented where the source has none",
+          got_n is None or abs(got_n) < 0.25)
 
     print()
     if FAIL:
