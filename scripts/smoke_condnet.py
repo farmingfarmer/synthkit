@@ -519,6 +519,73 @@ def main():
     check("the artifact explains why leakage columns are barred",
           "learning nothing" in rl["leakage_note"])
 
+    # ---- one list determining another; arithmetic on pairs ----
+    ROUTE = {"ondansetron": "IV Push", "fentanyl": "IV Push",
+             "sodium chloride": "Flush", "propofol": "IV",
+             "acetaminophen": "Oral", "lidocaine": "Topical"}
+    r11 = random.Random(11)
+    fam = []
+    for pid in range(92):
+        byear = r11.randint(1935, 1995)
+        base = r11.gauss(132, 16)
+        for _ in range(r11.randint(2, 20)):
+            vyear = r11.randint(2015, 2024)
+            sbp = r11.gauss(base, 8)
+            drugs = [d for d in ROUTE if r11.random() < 0.35]
+            fam.append({
+                "person_id": "P%03d" % pid,
+                "visit_year": vyear, "year_of_birth": byear,
+                "age_at_visit": vyear - byear,
+                "systolic_blood_pressure": round(sbp, 1),
+                "diastolic_blood_pressure":
+                    round(0.55 * sbp + r11.gauss(0, 5), 1),
+                "active_drugs":
+                    "; ".join(sorted(drugs)) or "none",
+                "drug_routes": "; ".join(
+                    sorted({ROUTE[d] for d in drugs})) or "none"})
+    nf = CondNet(k=10, max_parents=3).learn(
+        fam, group_by="person_id")
+    rf = nf.report
+    check("both list columns are expanded into per-item "
+          "indicators", len(rf["list_columns_expanded"]) == 2)
+    check("a list DETERMINED BY another list is filed as a family "
+          "— the route a drug is given by is a property of the "
+          "drug, not a discovery about patients",
+          rf["derived_families"].get("drug_routes")
+          == "active_drugs")
+    check("...so none of its indicators surface as findings, "
+          "which is where seven of thirteen live edges came from",
+          not any(e["child"].startswith("drug_routes::")
+                  for e in rf["edges"]))
+    check("a column that is exact arithmetic on TWO others is "
+          "filed too, whether caught singly or as a pair",
+          any(d["column"] in ("year_of_birth", "age_at_visit")
+              for d in rf["derived_columns"]))
+    bp = {"systolic_blood_pressure", "diastolic_blood_pressure"}
+    check("what remains is the physiology",
+          rf["edge_count"] <= 3
+          and any(bp <= ({e["child"]} | set(e["parents"]))
+                  for e in rf["edges"]))
+    check("the artifact explains the family rule in plain terms",
+          "property" in rf["family_note"])
+
+    # the arithmetic test must be exact, not approximate
+    r12 = random.Random(5)
+    arith = [{"person_id": "P%03d" % (i // 6),
+              "a": round(r12.gauss(50, 10), 2),
+              "b": round(r12.gauss(20, 4), 2),
+              "unrelated": round(r12.gauss(0, 1), 3)}
+             for i in range(600)]
+    for row in arith:
+        row["total"] = round(row["a"] + row["b"], 2)
+    na = CondNet(k=10, max_parents=2).learn(
+        arith, group_by="person_id")
+    dnames = {d["column"] for d in na.report["derived_columns"]}
+    check("a sum of two columns is recognised as arithmetic",
+          "total" in dnames or "a" in dnames or "b" in dnames)
+    check("an unrelated column is NOT swept up with it",
+          "unrelated" not in dnames)
+
     print()
     if FAIL:
         print("{} FAILED".format(FAIL))

@@ -632,6 +632,95 @@ def _showdown_report(camp, tiers, vendor_name, baseline_name):
                  if camp.tiers else [])}
 
 
+_LEARNED = {}
+
+
+def api_learn(payload: dict) -> dict:
+    """Learn the joint distribution of an existing tidy dataset.
+
+    This is the other way into synthkit: instead of describing a
+    dataset in English, point at one that exists and let the bench
+    measure it. What crosses back is PARAMETERS — counts, curves
+    and conditional tables, every published figure covering at
+    least k patients — never records.
+    """
+    import csv as _csv
+    from .condnet import CondNet
+    from . import learnspec as _ls
+    path = Path(payload["path"]).expanduser()
+    if not path.exists():
+        return {"error": "No file at {}. Give the full path to a "
+                         "tidy CSV — one row per visit."
+                         .format(path)}
+    with path.open(encoding="utf-8-sig", newline="") as f:
+        rows = list(_csv.DictReader(f))
+    if not rows:
+        return {"error": "That file has no rows."}
+    group = payload.get("group_by") or "person_id"
+    if group not in rows[0]:
+        group = None
+    k = int(payload.get("k") or 10)
+    net = CondNet(k=k, max_parents=3).learn(
+        rows, group_by=group,
+        targets=[payload["target"]] if payload.get("target")
+        else None)
+    _LEARNED["net"] = net
+    _LEARNED["rows"] = len(rows)
+    nar = _ls.narrate(net)
+    facts = _ls.facts_from_model(net)
+    _LEARNED["facts"] = facts
+    return {"narrative": nar, "dials": _ls.dials(net),
+            "note_plan": _ls.plan_summary(facts),
+            "privacy": ("Nothing from this file is stored. The "
+                        "model holds counts and bin edges only, "
+                        "each covering at least {} patients."
+                        .format(k)),
+            "grouped_by": group or "(none — each row counted as "
+                                   "its own patient)"}
+
+
+def api_learn_generate(payload: dict) -> dict:
+    """Generate from the learned model, with the dials applied."""
+    import csv as _csv
+    import io
+    from .condnet import CondNet
+    from . import learnspec as _ls
+    net = _LEARNED.get("net")
+    if net is None:
+        return {"error": "Learn from a dataset first."}
+    net = CondNet.from_json(net.to_json())     # never mutate the
+    _ls.apply_dials(net, payload.get("dials") or {})   # original
+    rows = int(payload.get("rows") or _LEARNED.get("rows") or 500)
+    syn = net.sample(rows, seed=int(payload.get("seed") or 7))
+    notes = 0
+    if payload.get("transcribe"):
+        from .transcribe import TranscribeSpec, transcribe
+        spec = TranscribeSpec(_LEARNED.get("facts") or [],
+                              rates=_ls.default_rates())
+        syn, ledgers = transcribe(syn, spec)
+        notes = sum(len(x) for x in ledgers)
+        _LEARNED["ledgers"] = ledgers
+    buf = io.StringIO()
+    w = _csv.DictWriter(buf, fieldnames=list(syn[0]))
+    w.writeheader()
+    w.writerows(syn)
+    _LEARNED["generated"] = buf.getvalue()
+    preview = syn[:40]
+    return {"rows": len(syn), "columns": len(syn[0]),
+            "ledgered_mentions": notes,
+            "columns_list": list(syn[0]),
+            "preview": preview,
+            "dials_applied": payload.get("dials") or {}}
+
+
+def api_learn_export(payload: dict) -> dict:
+    blob = _LEARNED.get("generated")
+    if not blob:
+        return {"error": "Generate first."}
+    return {"filename": "learned_synthetic.csv", "content": blob,
+            "mime": "text/csv"}
+
+
 _ROUTES = {
     "/api/presets": lambda payload: api_presets(),
     "/api/validate": api_validate,
@@ -651,6 +740,11 @@ _ROUTES = {
     "/api/job": api_job,
     "/api/job-cancel": api_job_cancel,
     "/api/showdown": api_showdown,
+    "/api/learn": api_learn,
+    "/api/learn-async": lambda payload: {
+        "job": _start_job(api_learn, payload)},
+    "/api/learn-generate": api_learn_generate,
+    "/api/learn-export": api_learn_export,
 }
 
 
@@ -1050,6 +1144,8 @@ label{font-size:13.5px;color:#2c3a45;font-weight:600}
     Campaign<small class="subt">configure the evaluation</small></button>
   <button class="station" data-s="showdown"><b>05</b>
     Showdown<small class="subt">compare results</small></button>
+  <button class="station" data-s="learn"><b>06</b>
+    Learn<small class="subt">start from real data</small></button>
 </nav>
 <main>
 <header class="bar">
@@ -1338,6 +1434,81 @@ label{font-size:13.5px;color:#2c3a45;font-weight:600}
   </div>
 </section>
 
+<section id="s-learn">
+  <div class="stepbanner">Start from data you already have</div>
+  <div class="explain">The five steps above INVENT a population
+  from a description. This one learns from a dataset that already
+  exists: it measures each field's distribution, how often values
+  go missing, and &mdash; the part a spreadsheet cannot show you
+  &mdash; how the fields move together, including relationships
+  that reverse direction or only appear in combination.
+  <b>The file is never copied.</b> What the bench keeps is counts
+  and curves, each one covering at least ten patients, and it
+  generates from those. No synthetic record descends from a real
+  one.</div>
+  <div class="gov"><span>&#128274; Parameters only &mdash; no record
+  is stored</span><span>&#128101; Every figure covers at least 10
+  patients</span><span>&#127903; Every pattern found becomes a
+  dial you can turn</span></div>
+  <div class="panel">
+    <label for="lpath"><span class="stepno">6.1</span>
+    <span class="badge req">required</span> full path to a tidy
+    CSV &mdash; one row per visit</label>
+    <input id="lpath" placeholder="/path/to/tidy_visits.csv">
+    <div class="hint">If you have raw clinical tables rather than
+    one tidy file, the command line can join them for you first:
+    <code>python scripts/omop_wrangle.py --src FOLDER -o
+    tidy_visits.csv</code></div>
+    <label for="lgroup"><span class="stepno">6.2</span>
+    <span class="badge rec">recommended</span> which column
+    identifies the PATIENT</label>
+    <input id="lgroup" value="person_id">
+    <div class="hint">This matters more than it looks. Ten visits
+    from one patient are not ten patients&#39; worth of privacy
+    protection, and not ten patients&#39; worth of evidence
+    either &mdash; naming this column makes the bench count people
+    rather than rows.</div>
+    <button class="act" onclick="learnRun()">Learn from this
+    data</button>
+    <div class="outlabel">what the bench found</div>
+    <div class="out" id="learn-out">Point at a file and press
+    Learn.</div>
+    <div id="learn-report"></div>
+  </div>
+  <div class="panel" id="learn-dials-panel" style="display:none">
+    <label><span class="stepno">6.3</span>
+    <span class="badge opt">optional</span> turn what was
+    found</label>
+    <div class="hint">Every relationship the bench discovered can
+    be made stronger, weaker, or removed entirely. Set one to 0
+    and see whether a vendor still claims to find it; set it to 2
+    and see whether they catch it when it is twice as strong.
+    This is the difference between a copy of your data and an
+    instrument you can aim.</div>
+    <div id="learn-dials"></div>
+  </div>
+  <div class="panel" id="learn-gen-panel" style="display:none">
+    <label for="lrows"><span class="stepno">6.4</span>
+    <span class="badge req">required</span> how many records to
+    create</label>
+    <input id="lrows" value="1000">
+    <label><input type="checkbox" id="lnotes"> also write a
+    clinical note for each record</label>
+    <div class="hint">The note is assembled from the same facts
+    the model learned, written the way clinicians write &mdash;
+    shorthand, denials, hedges, findings carried forward &mdash;
+    with a hidden answer key recording what each sentence really
+    claims, so an extraction vendor can be graded on it.</div>
+    <button class="act" onclick="learnGenerate()">Create the
+    data</button>
+    <button class="act ghost" onclick="learnDownload()">Download
+    CSV</button>
+    <div class="outlabel">result</div>
+    <div class="out" id="learn-gen-out">Learn first, then create.
+    </div>
+    <div id="learn-preview"></div>
+  </div>
+</section>
 <section id="s-showdown">
   <div class="stepbanner">Step 5 of 5 &mdash; The verdict: vendor vs
   our model</div>
@@ -1584,6 +1755,117 @@ function closeCell(){
   document.getElementById('cellmodal').style.display='none';}
 document.addEventListener('keydown',function(e){
   if(e.key==='Escape')closeCell();});
+function previewTable(rows, cols){
+  if(!rows||!rows.length)return '';
+  var html='<div class="pvwrap"><table><tr>';
+  for(var c=0;c<cols.length;c++){
+    html+='<th>'+esc(cols[c])+'</th>';}
+  html+='</tr>';
+  for(var r=0;r<rows.length;r++){
+    html+='<tr>';
+    for(var c2=0;c2<cols.length;c2++){
+      var v=String(rows[r][cols[c2]]===undefined?'':
+        rows[r][cols[c2]]);
+      var short=v.length>90?v.slice(0,90)+'\u2026':v;
+      html+='<td title="'+esc(v)+'">'+
+        (v===''?'&empty;':esc(short))+'</td>';}
+    html+='</tr>';}
+  return html+'</table></div><div class="pvhint">First '+
+    rows.length+' records \u2014 scroll in both directions; '+
+    'hover any cell to read it in full.</div>';}
+var LEARN_DIALS={};
+async function learnRun(){
+  if(!gate(['lpath'],'learn-out'))return;
+  out('learn-out','reading the file and measuring it... this '+
+    'takes a moment on a large dataset');
+  const d=await api('/api/learn',{
+    path:document.getElementById('lpath').value,
+    group_by:document.getElementById('lgroup').value});
+  if(d.error){out('learn-out',d.error,'bad');return;}
+  out('learn-out',d.narrative.headline+'  |  counted by: '+
+    d.grouped_by,'ok');
+  var h='<div class="summarycard"><b>What the bench found in '+
+    'your data</b>';
+  if(d.narrative.findings.length){
+    h+='<div style="margin-top:8px">';
+    for(var i=0;i<d.narrative.findings.length;i++){
+      h+='<div class="pstep"><span class="nchip" '+
+        'style="background:#7B4B94">'+(i+1)+'</span><span>'+
+        esc(d.narrative.findings[i].sentence)+
+        '<span class="why"> \u2014 a real relationship between '+
+        'fields</span></span></div>';}
+    h+='</div>';
+  }else{
+    h+='<div style="margin-top:8px">No relationship survived the '+
+      'statistical check. That is a finding, not a failure: with '+
+      'this many patients, anything weaker than the check '+
+      'demands could just as easily be chance.</div>';}
+  if(d.narrative.bookkeeping.length){
+    h+='<div style="margin-top:10px"><b>Filed as arithmetic, '+
+      'not findings</b><div class="hint">These follow from how '+
+      'the data was assembled &mdash; a count computed from a '+
+      'list, a route that belongs to a drug. Reporting them as '+
+      'discoveries would be the tool congratulating itself on '+
+      'its own bookkeeping.</div>';
+    for(var b=0;b<d.narrative.bookkeeping.length;b++){
+      h+='<div class="hint">&middot; '+
+        esc(d.narrative.bookkeeping[b].sentence)+'</div>';}
+    h+='</div>';}
+  h+='<div class="hint" style="margin-top:10px">'+
+    esc(d.narrative.caveat)+'</div>';
+  h+='<div class="hint">'+esc(d.privacy)+'</div>';
+  h+='<div class="hint" style="margin-top:6px">'+
+    esc(d.note_plan.sentence)+'</div></div>';
+  document.getElementById('learn-report').innerHTML=h;
+  LEARN_DIALS={};
+  var dh='';
+  for(var k=0;k<d.dials.length;k++){
+    var dl=d.dials[k];
+    LEARN_DIALS[dl.column]=1.0;
+    dh+='<div class="modelrow"><span style="min-width:300px">'+
+      esc(dl.label)+'</span><input type="range" min="0" max="3" '+
+      'step="0.25" value="1" data-dial="'+esc(dl.column)+
+      '" oninput="dialMove(this)"> <code id="dv-'+k+'">1.00'+
+      '</code></div>';}
+  document.getElementById('learn-dials').innerHTML=
+    dh||'<div class="hint">No relationships were found, so there '+
+      'is nothing to turn.</div>';
+  document.getElementById('learn-dials-panel').style.display=
+    d.dials.length?'block':'none';
+  document.getElementById('learn-gen-panel').style.display='block';
+  tick('learn');}
+function dialMove(el){
+  LEARN_DIALS[el.dataset.dial]=parseFloat(el.value);
+  var code=el.parentNode.querySelector('code');
+  if(code)code.textContent=parseFloat(el.value).toFixed(2);}
+async function learnGenerate(){
+  out('learn-gen-out','creating records from the learned '+
+    'patterns...');
+  const d=await api('/api/learn-generate',{
+    rows:parseInt(document.getElementById('lrows').value)||1000,
+    transcribe:document.getElementById('lnotes').checked,
+    dials:LEARN_DIALS});
+  if(d.error){out('learn-gen-out',d.error,'bad');return;}
+  var msg='Created '+d.rows+' records with '+d.columns+
+    ' fields, drawn from the learned patterns.';
+  if(d.ledgered_mentions){
+    msg+=' '+d.ledgered_mentions+' facts were written into '+
+      'clinical notes, each one recorded in the answer key.';}
+  var turned=[];
+  for(var kk in d.dials_applied){
+    if(d.dials_applied[kk]!==1)turned.push(kk+' \u00d7'+
+      d.dials_applied[kk]);}
+  if(turned.length)msg+=' Dials turned: '+turned.join(', ')+'.';
+  out('learn-gen-out',msg,'ok');
+  document.getElementById('learn-preview').innerHTML=
+    previewTable(d.preview,d.columns_list);}
+function learnDownload(){
+  api('/api/learn-export',{}).then(function(d){
+    if(d.error){out('learn-gen-out',d.error,'bad');return;}
+    var a=document.createElement('a');
+    a.href='data:'+d.mime+';charset=utf-8,'+
+      encodeURIComponent(d.content);
+    a.download=d.filename;a.click();});}
 function specSummary(){
   var box=document.getElementById('spec-summary');
   if(!box)return;

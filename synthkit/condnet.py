@@ -98,7 +98,20 @@ NEIGHBOUR_WEIGHT = 0.0
 # pressure move together strongly and still leave most of the
 # entropy unexplained — so the wider band separates arithmetic from
 # findings without swallowing any.
-DERIVED_ENTROPY_RATIO = 0.20
+# Strict on purpose. The exact tests carry the load now — a tally
+# is checked against the list's length, an arithmetic column
+# against the actual sum or difference, a list family against its
+# determining family — so this heuristic is only a backstop for
+# threshold rules like "is this the last visit".
+#
+# It must stay strict because CLINICAL relationships can be very
+# strong without being arithmetic. A planted rule giving 85% of
+# heart-failure patients a diuretic scored 0.22 here and was filed
+# as bookkeeping — which would have deleted the most interesting
+# finding in the data and called it tidying up. Anything a
+# clinician would recognise as a fact about patients must survive
+# to the findings.
+DERIVED_ENTROPY_RATIO = 0.05
 
 # Columns that must never serve as a parent. These are not merely
 # redundant — they are the OUTCOME'S OWN DEFINITION. An outcome
@@ -702,6 +715,49 @@ class CondNet:
         # discovery instead of as arithmetic.
         raw = {c: [str(r.get(c, "")).strip() for r in rows]
                for c in self.order}
+        # Some bookkeeping needs TWO columns to explain it. A birth
+        # year is fixed while an age changes visit to visit, so
+        # neither determines the other on its own — but the pair
+        # (age, visit date) determines the birth year exactly. Live,
+        # `year_of_birth <- age_at_visit` kept surfacing as a
+        # finding for want of this test.
+        # The test is ARITHMETIC, not entropy. An entropy test on a
+        # pair is worthless here: two high-cardinality columns
+        # carve the data into near-singletons and then "determine"
+        # everything, so the guard against that would also reject
+        # the genuine formulas. Checking the arithmetic directly is
+        # both cheaper and impossible to fool — a birth year IS the
+        # visit year minus the age, on every row or none.
+        def _pair_determines(b_col, cand_a, cand_c):
+            xb = num_of.get(b_col)
+            xa = num_of.get(cand_a)
+            xc = num_of.get(cand_c)
+            if xb is None or xa is None or xc is None:
+                return None
+            for label, f in (("difference",
+                              lambda u, v: u - v),
+                             ("difference",
+                              lambda u, v: v - u),
+                             ("sum", lambda u, v: u + v),
+                             ("product", lambda u, v: u * v)):
+                ok = 0
+                for j in range(n):
+                    try:
+                        want = f(xa[j], xc[j])
+                    except (TypeError, OverflowError):
+                        break
+                    if abs(xb[j] - want) <= 1e-6 + 1e-3 * abs(want):
+                        ok += 1
+                if ok >= 0.95 * n:
+                    return label
+            return None
+
+        num_of = {}
+        for c2 in self.order:
+            xs2 = [_num(v) for v in raw[c2]]
+            if all(x is not None for x in xs2):
+                num_of[c2] = xs2
+
         # Two tracks, because "A determines B" means different
         # things depending on how coarse A is.
         #
@@ -751,9 +807,63 @@ class CondNet:
                     self.derived[cand] = lc
                     self.tally_of[cand] = lc
 
+        # ---- families of indicators from the same list ----
+        # Expansion moves a relationship DOWN a level. `drug_routes`
+        # is determined by `active_drugs` — ondansetron is given IV
+        # push, sodium chloride is a flush — but once both are
+        # expanded into per-item indicators, the column-level test
+        # can no longer see it, and the pharmacology reappears as a
+        # dozen separate "findings" about the pipeline's own
+        # encoding. Live, seven of thirteen edges were this.
+        #
+        # So families are tested as families: if most of B's
+        # indicators are determined by some indicator of A, the
+        # whole of B is derived from A.
+        fam_of = {}
+        for lc, items in getattr(self, "list_columns", {}).items():
+            for it in items:
+                fam_of["{}::{}".format(lc, it)] = lc
+        fams = defaultdict(list)
+        for col, lc in fam_of.items():
+            if col in self.order:
+                fams[lc].append(col)
+
+        def _determines(a_col, b_col):
+            """binary indicators: coarse conditional entropy"""
+            hb_ = _entropy(list(Counter(raw[b_col]).values()))
+            if hb_ <= 0:
+                return False
+            g = defaultdict(Counter)
+            for j in range(n):
+                g[raw[a_col][j]][raw[b_col][j]] += 1
+            hc = sum((sum(cc.values()) / n)
+                     * _entropy(list(cc.values()))
+                     for cc in g.values())
+            return hc / hb_ < DERIVED_ENTROPY_RATIO
+
+        self.pair_derived = {}
+        self.derived_families = {}
+        fam_names = list(fams)
+        for bf in fam_names:
+            for af in fam_names:
+                if af == bf or bf in self.derived_families:
+                    continue
+                hit = sum(1 for bcol in fams[bf]
+                          if any(_determines(acol, bcol)
+                                 for acol in fams[af]))
+                if hit >= 0.5 * len(fams[bf]):
+                    # the richer family explains the poorer one
+                    if len(fams[af]) >= len(fams[bf]):
+                        self.derived_families[bf] = af
+                        for bcol in fams[bf]:
+                            self.derived[bcol] = af
+                        break
+
         for b in self.order:
             hb = _entropy(list(Counter(raw[b]).values()))
             if hb <= 0:
+                continue
+            if b in self.derived:
                 continue
             for a_ in self.order:
                 if a_ == b:
@@ -789,6 +899,30 @@ class CondNet:
                     if ha >= hb:
                         self.derived[b] = a_
                         break
+
+            # nothing single-handedly explains it — try the pairs
+            if b not in self.derived:
+                pool = [c2 for c2 in self.order
+                        if c2 != b and c2 not in self.derived][:14]
+                found, how = None, ""
+                if b in num_of:
+                    numeric_pool = [c2 for c2 in pool
+                                    if c2 in num_of]
+                    for x in range(len(numeric_pool)):
+                        for y in range(x + 1, len(numeric_pool)):
+                            lab = _pair_determines(
+                                b, numeric_pool[x], numeric_pool[y])
+                            if lab:
+                                found = (numeric_pool[x],
+                                         numeric_pool[y])
+                                how = lab
+                                break
+                        if found:
+                            break
+                if found:
+                    self.derived[b] = "{} ({} of {})".format(
+                        found[0], how, found[1])
+                    self.pair_derived[b] = list(found)
 
         hyp = {c: [x for x in v if x in self.order]
                for c, v in (hypotheses or {}).items()
@@ -830,6 +964,12 @@ class CondNet:
             # the findings.)
             candidates = [x for x in candidates
                           if x not in self.derived]
+            if c in getattr(self, "pair_derived", {}):
+                # its two determinants say everything about it
+                self.parents[c] = [
+                    x for x in self.pair_derived[c]
+                    if x in self.order][:self.max_parents]
+                continue
             parents: List[str] = []
             while len(parents) < self.max_parents and candidates:
                 best, best_gain, best_df = None, 0.0, 1
@@ -1064,6 +1204,22 @@ class CondNet:
             "derived_columns": [
                 {"column": b, "determined_by": a_}
                 for b, a_ in self.derived.items()],
+            "pair_derived": {k2: list(v) for k2, v in
+                             getattr(self, "pair_derived",
+                                     {}).items()},
+            "pair_note": "some bookkeeping needs two columns to "
+                         "explain it: a birth year is fixed while "
+                         "an age moves visit to visit, so neither "
+                         "determines the other alone, but the pair "
+                         "(age, visit date) fixes it exactly",
+            "derived_families": dict(
+                getattr(self, "derived_families", {})),
+            "family_note": "when one list determines another — the "
+                           "route a drug is given by is a property "
+                           "of the drug — the whole family is filed "
+                           "as arithmetic rather than surfacing as "
+                           "a dozen separate findings about the "
+                           "pipeline's own encoding",
             "never_parent_excluded": [c for c in NEVER_PARENT
                                       if c in self.order],
             "leakage_note": "a column that DEFINES the outcome is "

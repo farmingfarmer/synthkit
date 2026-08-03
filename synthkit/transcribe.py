@@ -161,7 +161,17 @@ def _phrase(fact, value, corrs, r) -> Tuple[str, Dict[str, Any]]:
         label = ABBREV[label.lower()]
 
     if fact.kind == "measurement":
+        # Clinicians do not write four decimal places. A generated
+        # value carrying the full precision of its draw reads as
+        # machine output and undermines the prose it sits in, so
+        # numbers are rounded the way they would be charted.
         shown = str(value)
+        try:
+            fv = float(str(value).strip())
+            shown = (str(int(round(fv))) if abs(fv) >= 10
+                     else "{:.1f}".format(fv))
+        except (TypeError, ValueError):
+            pass
         if "transcription_error" in corrs:
             shown = _transpose(shown)
             truth["asserted_value"] = shown

@@ -541,6 +541,117 @@ def main():
                   "inset 0 2px 4px", "translateY(-1px)",
                   "font-size:15.5px")))
 
+        # ---------- station 06: learning from real data ----------
+        check("the bench offers a sixth station for starting from "
+              "data that already exists",
+              'data-s="learn"' in html
+              and 'id="s-learn"' in html
+              and "start from real data" in html)
+        # source line breaks are not rendered breaks, so text
+        # assertions collapse whitespace before matching
+        flat_html = " ".join(html.split())
+        check("it states the privacy position where the user will "
+              "read it, not in a footnote",
+              "The file is never copied" in flat_html
+              and "no record is stored" in flat_html)
+        check("it asks which column identifies the PATIENT and "
+              "explains why that matters",
+              'id="lgroup"' in flat_html
+              and "not ten patients" in flat_html)
+        check("every discovered relationship is offered as a dial "
+              "with a plain explanation of what turning it does",
+              "learn-dials" in flat_html
+              and "dialMove" in flat_html
+              and "see whether a vendor still claims to find it"
+              in flat_html)
+        check("the learn station can also write clinical notes "
+              "from what it learned",
+              'id="lnotes"' in flat_html
+              and "hidden answer key" in flat_html)
+
+        import csv as _csv
+        import random as _rnd
+        rr = _rnd.Random(3)
+        lrows = []
+        for pid in range(120):
+            chf = rr.random() < 0.3
+            # NOT `base` — that name holds the server URL in this
+            # scope, and shadowing it breaks every later request
+            patient_bp = rr.gauss(132, 16)
+            for _ in range(rr.randint(2, 10)):
+                sbp = rr.gauss(patient_bp, 8)
+                cs = [c for c in ("dm", "htn", "ckd")
+                      if rr.random() < 0.4]
+                if chf:
+                    cs.append("chf")
+                dr = [d for d in ("lisinopril", "metformin")
+                      if rr.random() < 0.5]
+                if chf and rr.random() < 0.85:
+                    dr.append("furosemide")
+                lrows.append({
+                    "person_id": "P%03d" % pid,
+                    "systolic_blood_pressure": round(sbp, 1),
+                    "diastolic_blood_pressure":
+                        round(0.55 * sbp + rr.gauss(0, 5), 1),
+                    "conditions": "; ".join(sorted(cs)) or "none",
+                    "active_drugs":
+                        "; ".join(sorted(dr)) or "none"})
+        lf = Path(tmp) / "learn_tidy.csv"
+        with lf.open("w", newline="", encoding="utf-8") as fh:
+            w2 = _csv.DictWriter(fh, fieldnames=list(lrows[0]))
+            w2.writeheader()
+            w2.writerows(lrows)
+
+        got = post("/api/learn", {"path": str(lf),
+                                  "group_by": "person_id"})
+        check("learning from a real file returns what was found in "
+              "clinical English, not symbol names",
+              got["narrative"]["findings"]
+              and " moves with " in
+              got["narrative"]["findings"][0]["sentence"])
+        check("a PLANTED clinical relationship survives to the "
+              "findings instead of being filed as arithmetic",
+              any("furosemide" in f["sentence"]
+                  or "chf" in f["sentence"]
+                  for f in got["narrative"]["findings"]))
+        check("the headline counts patients, not rows",
+              "120 patients" in got["narrative"]["headline"])
+        check("the caveat states how many patients each kind of "
+              "pattern actually needs",
+              "3,200" in got["narrative"]["caveat"])
+        check("a note plan is derived from the learned columns, so "
+              "free text comes from real structure rather than "
+              "hand-authored guesses",
+              got["note_plan"]["facts"] >= 4)
+        check("a bad path is refused with a usable message",
+              "error" in post("/api/learn",
+                              {"path": "/nope/missing.csv"}))
+
+        gen = post("/api/learn-generate",
+                   {"rows": 200, "transcribe": True, "dials": {}})
+        check("generating from the learned model produces records "
+              "with a clinical note attached",
+              gen["rows"] == 200
+              and "clinical_note" in gen["columns_list"]
+              and gen["ledgered_mentions"] > 0)
+        check("measurements are written the way they would be "
+              "charted, not at the full precision of the draw",
+              not any("." in str(x.get("clinical_note", "")).split(
+                  "blood pressure ")[-1][:6]
+                  and len(str(x.get("clinical_note", "")).split(
+                      "blood pressure ")[-1].split()[0]
+                      .split(".")[-1]) > 1
+                  for x in gen["preview"][:5]
+                  if "blood pressure " in str(
+                      x.get("clinical_note", ""))))
+        dial_col = got["dials"][0]["column"]
+        flat = post("/api/learn-generate",
+                    {"rows": 200, "dials": {dial_col: 0.0}})
+        check("a dial set to zero is applied and reported back",
+              flat["dials_applied"].get(dial_col) == 0.0)
+        check("the generated data can be downloaded",
+              "content" in post("/api/learn-export", {}))
+
         # ---------- errors stay JSON ----------
         d = post("/api/campaign-run",
                  {"campaign_dir": str(tmp / "nowhere"),
