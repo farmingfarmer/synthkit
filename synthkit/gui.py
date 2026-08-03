@@ -634,6 +634,29 @@ def _showdown_report(camp, tiers, vendor_name, baseline_name):
 
 
 _LEARNED = {}
+_HISTORY = []
+
+
+def _remember(action: str, summary: str, detail=None) -> None:
+    """Keep a short record of what was done and what came back.
+
+    A bench that forgets is hard to trust: yesterday's number is
+    gone, and there is no way to see whether a change helped. This
+    is deliberately small — what was done, when, and the figures
+    that mattered — and it lives only for the session.
+    """
+    import datetime
+    _HISTORY.insert(0, {
+        "when": datetime.datetime.now().strftime("%H:%M:%S"),
+        "action": action, "summary": summary,
+        "detail": detail or {}})
+    del _HISTORY[40:]
+
+
+def api_learn_history(payload: dict) -> dict:
+    return {"history": _HISTORY,
+            "note": "this session only \u2014 saving a model "
+                    "keeps the work itself, this keeps the trail"}
 
 
 def api_learn(payload: dict) -> dict:
@@ -648,7 +671,17 @@ def api_learn(payload: dict) -> dict:
     import csv as _csv
     from .condnet import CondNet
     from . import learnspec as _ls
-    path = Path(payload["path"]).expanduser()
+    if payload.get("content"):
+        # The browser read the file and sent its text, so a person
+        # can point at a spreadsheet without knowing its path.
+        # It is written to a scratch file the same way any other
+        # source would be, and is deleted with the session.
+        import tempfile
+        td = Path(tempfile.mkdtemp(prefix="synthkit_upload_"))
+        path = td / (payload.get("filename") or "uploaded.csv")
+        path.write_text(payload["content"], encoding="utf-8")
+    else:
+        path = Path(payload["path"]).expanduser()
     if not path.exists():
         return {"error": "No file at {}. Give the full path to a "
                          "tidy CSV — one row per visit."
@@ -671,6 +704,11 @@ def api_learn(payload: dict) -> dict:
     nar = _ls.narrate(net)
     facts = _ls.facts_from_model(net)
     _LEARNED["facts"] = facts
+    _remember("learned", nar["headline"],
+              {"file": path.name,
+               "epsilon": net.report["differential_privacy"][
+                   "epsilon"],
+               "findings": len(nar["findings"])})
     return {"narrative": nar, "dials": _ls.dials(net),
             "outcome_candidates": _ls.outcome_candidates(net),
             "note_plan": _ls.plan_summary(facts),
@@ -719,6 +757,14 @@ def api_learn_generate(payload: dict) -> dict:
     w.writerows(syn)
     _LEARNED["generated"] = buf.getvalue()
     preview = syn[:40]
+    _remember("generated",
+              "{} records{}".format(
+                  len(syn),
+                  " with notes" if notes else ""),
+              {"rows": len(syn), "notes": notes,
+               "dials": {k: v for k, v in
+                         (payload.get("dials") or {}).items()
+                         if v != 1}})
     return {"rows": len(syn), "columns": len(syn[0]),
             "ledgered_mentions": notes,
             "columns_list": list(syn[0]),
@@ -819,6 +865,12 @@ def api_learn_plant(payload: dict) -> dict:
     if result.get("vendor_error"):
         lines.append("The vendor model could not be loaded: {}"
                      .format(result["vendor_error"]))
+    _remember("graded",
+              "ceiling {:.3f}, ours {:.3f}{}".format(
+                  result["ceiling"], result["reading"],
+                  ", blind {:.3f}".format(result["blind"])
+                  if result.get("blind") is not None else ""),
+              {"weights": planted["weights"]})
     return {"showdown": result, "planted": {
         "label": name, "intercept": planted["intercept"],
         "prevalence": planted["realized_prevalence"],
@@ -893,6 +945,26 @@ def api_learn_score(payload: dict) -> dict:
                          "before checking."}
     td = Path(tempfile.mkdtemp(prefix="synthkit_score_"))
     syn = td / "generated.csv"
+    # Identifiers are not comparable and must not be scored. A
+    # synthetic patient number has nothing to do with a real one,
+    # and comparing the two columns reports a failure that means
+    # nothing while burying the failures that do.
+    import csv as _csv2
+    import io as _io2
+    _net = _LEARNED.get("net")
+    # The identifier stays: the scorecard needs it to work out how
+    # many independent people the rows represent. It is excluded
+    # from the column comparisons on the scorecard's own side.
+    drop = {"visit_number"}
+    rdr = list(_csv2.DictReader(_io2.StringIO(blob)))
+    if rdr and drop & set(rdr[0]):
+        keep = [c for c in rdr[0] if c not in drop]
+        out2 = _io2.StringIO()
+        wr2 = _csv2.DictWriter(out2, fieldnames=keep)
+        wr2.writeheader()
+        for row in rdr:
+            wr2.writerow({c: row[c] for c in keep})
+        blob = out2.getvalue()
     syn.write_text(blob, encoding="utf-8")
     out = td / "fidelity.json"
     proc = subprocess.run(
@@ -900,7 +972,9 @@ def api_learn_score(payload: dict) -> dict:
          str(Path(__file__).resolve().parent.parent / "scripts"
              / "fidelity_report.py"),
          "--source", str(srcp), "--synthetic", str(syn),
-         "-o", str(out)],
+         "-o", str(out)]
+        + (["--group-by", getattr(_net, "group_by", "")]
+           if getattr(_net, "group_by", None) else []),
         capture_output=True, text=True)
     if not out.exists():
         return {"error": "The scorecard could not run: {}".format(
@@ -962,6 +1036,10 @@ def api_learn_score(payload: dict) -> dict:
             "least ten were kept. That gap is the privacy rule "
             "working, not a fault in the model.".format(
                 ", ".join(by_design)))
+    _remember("checked",
+              "fidelity {} / privacy {} ({} of {} checks)".format(
+                  s["fidelity_verdict"], s["privacy_verdict"],
+                  s["passed"], s["checks"]))
     return {
         "expected_differences": by_design,
         "fidelity_verdict": s["fidelity_verdict"],
@@ -1011,6 +1089,7 @@ _ROUTES = {
     "/api/learn-export": api_learn_export,
     "/api/learn-score": api_learn_score,
     "/api/learn-save": api_learn_save,
+    "/api/learn-history": api_learn_history,
     "/api/learn-load": api_learn_load,
     "/api/learn-plant": api_learn_plant,
     "/api/learn-plant-async": lambda payload: {
@@ -1727,6 +1806,10 @@ label{font-size:13.5px;color:#2c3a45;font-weight:600}
     <span class="badge req">required</span> full path to a tidy
     CSV &mdash; one row per visit</label>
     <input id="lpath" placeholder="/path/to/tidy_visits.csv">
+    <div class="hint">Or choose the file directly:
+    <input type="file" id="lfile" accept=".csv,.tsv,.txt"
+    onchange="learnPickFile(this)"> <span id="lfilename"></span>
+    </div>
     <div class="hint">If you have raw clinical tables rather than
     one tidy file, the command line can join them for you first:
     <code>python scripts/omop_wrangle.py --src FOLDER -o
@@ -1763,6 +1846,17 @@ label{font-size:13.5px;color:#2c3a45;font-weight:600}
     <div class="out" id="learn-out">Point at a file and press
     Learn.</div>
     <div id="learn-report"></div>
+  </div>
+  <div class="panel">
+    <label>what has been done this session</label>
+    <div class="hint">A bench that forgets is hard to trust:
+    without this, yesterday&#39;s number is gone and there is no
+    way to see whether a change helped. Saving a model keeps the
+    work; this keeps the trail.</div>
+    <button class="act ghost" onclick="learnHistory()">Refresh
+    </button>
+    <div id="learn-history"><div class="hint">Nothing yet this
+    session.</div></div>
   </div>
   <div class="panel" id="learn-dials-panel" style="display:none">
     <label><span class="stepno">6.3</span>
@@ -2117,13 +2211,15 @@ function previewTable(rows, cols){
     'hover any cell to read it in full.</div>';}
 var LEARN_DIALS={};
 async function learnRun(){
-  if(!gate(['lpath'],'learn-out'))return;
+  if(!UPLOADED&&!gate(['lpath'],'learn-out'))return;
   out('learn-out','reading the file and measuring it... this '+
     'takes a moment on a large dataset');
-  const d=await api('/api/learn',{
-    path:document.getElementById('lpath').value,
-    group_by:document.getElementById('lgroup').value,
-    epsilon:parseFloat(document.getElementById('leps').value)||0});
+  var req={group_by:document.getElementById('lgroup').value,
+    epsilon:parseFloat(document.getElementById('leps').value)||0};
+  if(UPLOADED&&!document.getElementById('lpath').value){
+    req.filename=UPLOADED.filename;req.content=UPLOADED.content;
+  }else{req.path=document.getElementById('lpath').value;}
+  const d=await api('/api/learn',req);
   if(d.error){out('learn-out',d.error,'bad');return;}
   renderLearn(d);}
 function renderLearn(d){
@@ -2180,6 +2276,7 @@ function renderLearn(d){
     d.dials.length?'block':'none';
   document.getElementById('learn-gen-panel').style.display='block';
   buildWeights(d.outcome_candidates||[]);
+  learnHistory();
   tick('learn');}
 function dialMove(el){
   LEARN_DIALS[el.dataset.dial]=parseFloat(el.value);
@@ -2206,7 +2303,32 @@ async function learnGenerate(){
   if(turned.length)msg+=' Dials turned: '+turned.join(', ')+'.';
   out('learn-gen-out',msg,'ok');
   document.getElementById('learn-preview').innerHTML=
-    previewTable(d.preview,d.columns_list);}
+    previewTable(d.preview,d.columns_list);
+  learnHistory();}
+var UPLOADED=null;
+function learnPickFile(el){
+  var f=el.files&&el.files[0];
+  if(!f)return;
+  var rd=new FileReader();
+  rd.onload=function(){
+    UPLOADED={filename:f.name,content:rd.result};
+    document.getElementById('lfilename').textContent=
+      f.name+' ('+Math.round(f.size/1024)+' KB) \u2014 ready';
+    document.getElementById('lpath').value='';};
+  rd.readAsText(f);}
+async function learnHistory(){
+  const d=await api('/api/learn-history',{});
+  var h='';
+  if(!d.history.length){
+    h='<div class="hint">Nothing yet this session.</div>';
+  }else{
+    for(var i=0;i<d.history.length;i++){
+      var e=d.history[i];
+      h+='<div class="modelrow"><code>'+esc(e.when)+'</code>'+
+        '<span class="badge opt">'+esc(e.action)+'</span>'+
+        '<span>'+esc(e.summary)+'</span></div>';}
+    h+='<div class="hint">'+esc(d.note)+'</div>';}
+  document.getElementById('learn-history').innerHTML=h;}
 var LEARN_WEIGHTS={};
 function buildWeights(cands){
   var h='<div class="hint">Weight the fields you believe drive '+

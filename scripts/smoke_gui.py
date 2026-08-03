@@ -757,6 +757,29 @@ def main():
         check("the same patient appears across several visits",
               max(seen.values()) > 1)
 
+        check("a file can be chosen directly instead of typing a "
+              "path",
+              'id="lfile"' in flat_html
+              and "learnPickFile" in flat_html)
+        up = post("/api/learn", {
+            "filename": "uploaded.csv",
+            "content": lf.read_text(encoding="utf-8"),
+            "group_by": "person_id"})
+        check("learning works from uploaded content, with no path "
+              "on disk", up["narrative"]["findings"])
+
+        hist = post("/api/learn-history", {})
+        check("the bench keeps a trail of what was done this "
+              "session",
+              hist["history"]
+              and {"learned", "generated"} <= {
+                  e["action"] for e in hist["history"]})
+        check("each entry carries the figures that mattered, not "
+              "just that something happened",
+              all(e["summary"] for e in hist["history"]))
+        check("the history is honest about being session-only",
+              "session only" in hist["note"])
+
         saved = post("/api/learn-save", {})
         check("a learned model saves as parameters, and says so",
               "content" in saved

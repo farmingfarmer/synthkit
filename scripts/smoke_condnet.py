@@ -725,6 +725,36 @@ def main():
           "nonsense — 'we do not know' is the right failure",
           0.4 * o_sd < s_sd < 2.5 * o_sd)
 
+    # ---- a patient's position inside a bin persists ----
+    check("the model measures how much of a column's variation is "
+          "between people rather than within one person's course",
+          nh.persistence.get("sbp", 0) > 0.3)
+    check("that persistence survives saving and reloading",
+          CondNet.from_json(nh.to_json()).persistence.get("sbp"))
+    ppl2 = nh.sample_patients(300, seed=9)
+    g2 = _dd(list)
+    for row in ppl2:
+        g2[row["person_id"]].append(row)
+    check("carrying a patient's position within their bin raises "
+          "the visit-to-visit correlation well above what bin "
+          "membership alone can give",
+          autocorr(g2) > 0.45)
+    # the position must stay UNIFORM or every marginal shifts
+    pos_vals = []
+    for v in g2.values():
+        for row in v:
+            pos_vals.append(float(row["sbp"]))
+    lo_q = sorted(pos_vals)[len(pos_vals) // 10]
+    hi_q = sorted(pos_vals)[9 * len(pos_vals) // 10]
+    src_vals = sorted(float(x["sbp"]) for x in longit)
+    check("...without pulling values toward the middle of their "
+          "bins: averaging two uniforms would do that and would "
+          "quietly distort every marginal",
+          abs(lo_q - src_vals[len(src_vals) // 10])
+          < 0.25 * (src_vals[-1] - src_vals[0])
+          and abs(hi_q - src_vals[9 * len(src_vals) // 10])
+          < 0.25 * (src_vals[-1] - src_vals[0]))
+
     print()
     if FAIL:
         print("{} FAILED".format(FAIL))

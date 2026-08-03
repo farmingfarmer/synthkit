@@ -164,6 +164,12 @@ def _quantile(xs: Sequence[float], q: float) -> float:
     return ys[i]
 
 
+def _norm_cdf(z: float) -> float:
+    """Standard normal CDF, so a Gaussian latent maps back to a
+    position that is exactly uniform on [0, 1]."""
+    return 0.5 * (1.0 + math.erf(z / math.sqrt(2.0)))
+
+
 def _noisy(counts: Counter, scale: float, rng) -> Counter:
     """Laplace noise on a histogram, clipped at zero."""
     out = Counter()
@@ -408,7 +414,17 @@ class Binning:
                     for i in range(len(self.edges) - 1)]
         return list(self.levels) + ["OTHER_SUPPRESSED"]
 
-    def decode(self, sym: str, rng: random.Random):
+    def decode(self, sym: str, rng: random.Random, pos=None):
+        """`pos` in [0,1] fixes WHERE inside the chosen bin the
+        value falls, instead of drawing it fresh.
+
+        This is what carries a patient's position from one visit
+        to the next. Without it the bin is stable across visits
+        but the value inside it is redrawn every time, so a
+        patient's pressure jumps across the whole band each
+        encounter and the visit-to-visit correlation is capped by
+        the bin width rather than by the physiology.
+        """
         if sym == MISSING:
             return ""
         if self.kind == "discrete":
@@ -436,6 +452,20 @@ class Binning:
                         return (int(round(val)) if self.integer
                                 else round(val, 4))
             sub = [v for v in self.fine if lo <= v <= hi]
+            if pos is not None and len(sub) >= 2:
+                span = sub[-1] - sub[0]
+                if self.clamp:
+                    _lo = max(self.clamp[0], sub[0] - TAIL_REACH
+                              * (sub[1] - sub[0]))
+                    _hi = min(self.clamp[1], sub[-1] + TAIL_REACH
+                              * (sub[-1] - sub[-2]))
+                else:
+                    _lo, _hi = sub[0], sub[-1]
+                x = _lo + max(0.0, min(1.0, pos)) * (_hi - _lo)
+                if self.nonneg:
+                    x = max(0.0, x)
+                return (int(round(x)) if self.integer
+                        else round(x, 4))
             # Tail extrapolation. Because the outer edges clamp to
             # p1/p99 to avoid publishing anyone's true extreme, the
             # synthetic distribution would come out narrower than
@@ -1293,6 +1323,40 @@ class CondNet:
                         / (m + a_s + w_s) for s in syms}
             self.cpt[c] = table
 
+        # How much of a column's variation is BETWEEN people rather
+        # than within one person's course. A pressure that mostly
+        # reflects who the patient is should stay near that
+        # patient's own level across their visits; one that is
+        # mostly noise should not. This ratio is what decides how
+        # strongly a patient's position inside a bin persists.
+        self.persistence = {}
+        for c in self.order:
+            if self.level.get(c) != "visit":
+                continue
+            b = self.binnings.get(c)
+            if b is None or b.kind != "numeric":
+                continue
+            vals, gs = [], []
+            for j in range(n):
+                x = _num(rows[j].get(c, ""))
+                if x is not None:
+                    vals.append(x)
+                    gs.append(self.groups[j])
+            if len(vals) < 2 * self.k:
+                continue
+            grand = sum(vals) / len(vals)
+            by_p = defaultdict(list)
+            for x, g in zip(vals, gs):
+                by_p[g].append(x)
+            total = sum((x - grand) ** 2 for x in vals)
+            within = 0.0
+            for xs in by_p.values():
+                m = sum(xs) / len(xs)
+                within += sum((x - m) ** 2 for x in xs)
+            if total > 0:
+                self.persistence[c] = max(
+                    0.0, min(0.95, 1.0 - within / total))
+
         # transition tables: how a value moves visit to visit
         for c in self.order:
             if self.level.get(c) != "visit":
@@ -1575,6 +1639,7 @@ class CondNet:
             pid = "SYN{:06d}".format(pi)
             traits: Dict[str, str] = {}
             prev: Dict[str, str] = {}
+            anchors: Dict[str, float] = {}
             for vi in range(max(1, nvis)):
                 assign: Dict[str, str] = {}
                 for c in self.order:
@@ -1597,8 +1662,31 @@ class CondNet:
                         traits[c] = assign[c]
                 row = {}
                 for c in self.order:
+                    pos = None
+                    per = self.persistence.get(c)
+                    if per:
+                        # A Gaussian latent, NOT a blend of two
+                        # uniforms. Averaging two uniforms gives a
+                        # triangular distribution that pulls every
+                        # value toward the middle of its bin and
+                        # quietly distorts the marginal — measured
+                        # as a drop from 7 of 11 fidelity checks
+                        # to 4. Mixing in normal space and mapping
+                        # back through the normal CDF leaves the
+                        # position exactly uniform while giving
+                        # successive visits the intended
+                        # correlation.
+                        zp = anchors.setdefault(
+                            c, _rng(seed, pi, c,
+                                    "anchor").gauss(0.0, 1.0))
+                        ze = _rng(seed, pi, vi, c,
+                                  "pos").gauss(0.0, 1.0)
+                        z = (per ** 0.5) * zp + \
+                            ((1.0 - per) ** 0.5) * ze
+                        pos = _norm_cdf(z)
                     row[c] = self.binnings[c].decode(
-                        assign[c], _rng(seed, pi, vi, c, "dec"))
+                        assign[c], _rng(seed, pi, vi, c, "dec"),
+                        pos)
                 for lc, items in getattr(self, "list_columns",
                                          {}).items():
                     present = [it for it in items
@@ -1643,6 +1731,7 @@ class CondNet:
                              getattr(self, "visit_counts",
                                      {}).items()},
             "lag": getattr(self, "lag", {}),
+            "persistence": dict(getattr(self, "persistence", {})),
             "level": dict(getattr(self, "level", {})),
             "group_by": getattr(self, "group_by", None),
             "tally_of": dict(getattr(self, "tally_of", {})),
@@ -1676,5 +1765,6 @@ class CondNet:
         net.lag = {c: {p: dict(dist) for p, dist in t.items()}
                    for c, t in (d.get("lag") or {}).items()}
         net.level = dict(d.get("level") or {})
+        net.persistence = dict(d.get("persistence") or {})
         net.group_by = d.get("group_by")
         return net

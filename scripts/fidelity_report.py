@@ -343,6 +343,12 @@ def main() -> None:
     ap.add_argument("--profile", default="")
     ap.add_argument("-o", "--out", default="fidelity_report.json")
     ap.add_argument("--nn-sample", type=int, default=400)
+    ap.add_argument("--group-by", default="",
+                    help="column identifying the PATIENT. "
+                         "Repeated visits from one person are not "
+                         "independent draws, so tolerances are "
+                         "computed from the number of people "
+                         "rather than the number of rows.")
     ap.add_argument("--target", default="",
                     help="outcome column: interactions affecting "
                          "it are tested explicitly")
@@ -354,7 +360,20 @@ def main() -> None:
     S, G = read(a.source), read(a.synthetic)
     if not S or not G:
         sys.exit("empty input")
-    shared = [c for c in S[0] if c in G[0]]
+    shared = [c for c in S[0] if c in G[0]
+              if c != a.group_by]
+
+    # Effective sample size. Repeated visits from one patient are
+    # not independent draws, so a tolerance derived from the row
+    # count would fail honest data for having exactly the
+    # clustered structure it was asked to reproduce.
+    def _eff(rowset):
+        if not a.group_by or not rowset \
+                or a.group_by not in rowset[0]:
+            return len(rowset)
+        return max(len({r.get(a.group_by) for r in rowset}), 1)
+
+    eff_s, eff_g = _eff(S), _eff(G)
 
     numcols, catcols = [], []
     for c in shared:
@@ -374,7 +393,9 @@ def main() -> None:
         xs = [x for x in xs if x is not None]
         ys = [y for y in ys if y is not None]
         d = ks_distance(xs, ys)
-        tol = ks_tolerance(len(xs), len(ys))
+        tol = ks_tolerance(
+            max(int(len(xs) * eff_s / max(len(S), 1)), 2),
+            max(int(len(ys) * eff_g / max(len(G), 1)), 2))
         ok = d <= tol
         fails += 0 if ok else 1
         marg.append({"column": c, "type": "numeric", "metric": "KS",
