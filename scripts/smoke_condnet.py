@@ -755,6 +755,48 @@ def main():
           and abs(hi_q - src_vals[9 * len(src_vals) // 10])
           < 0.25 * (src_vals[-1] - src_vals[0]))
 
+    # ---- structure must survive INTO the visit sequence ----
+    r15 = random.Random(19)
+    linked = []
+    for pid in range(150):
+        lvl = r15.gauss(132, 15)
+        for _ in range(r15.randint(3, 9)):
+            s_ = r15.gauss(lvl, 6)
+            linked.append({
+                "person_id": "P%04d" % pid,
+                "sbp": round(s_, 1),
+                "dbp": round(0.55 * s_ + r15.gauss(0, 3), 1)})
+    nl2 = CondNet(k=10, max_parents=2).learn(
+        linked, group_by="person_id", multilevel=True)
+    check("the model measures how positions INSIDE the bins move "
+          "together, not just which bins co-occur",
+          nl2.pos_corr)
+
+    def xcorr(rs):
+        xs = [float(x["sbp"]) for x in rs]
+        ys = [float(x["dbp"]) for x in rs]
+        mx, my = sum(xs) / len(xs), sum(ys) / len(ys)
+        nu = sum((a_ - mx) * (b_ - my) for a_, b_ in zip(xs, ys))
+        de = (sum((a_ - mx) ** 2 for a_ in xs)
+              * sum((b_ - my) ** 2 for b_ in ys)) ** 0.5
+        return nu / de if de else 0.0
+
+    hier2 = nl2.sample_patients(220, seed=8)
+    flat2 = nl2.sample(len(hier2), seed=8)
+    check("a relationship between two columns survives into the "
+          "visit sequence — letting the transition table replace "
+          "the parent conditioning destroyed this entirely",
+          xcorr(hier2) > 0.45)
+    check("...and generating patients is no worse at it than "
+          "generating loose rows",
+          xcorr(hier2) >= xcorr(flat2) - 0.08)
+    check("neither sampler invents correlation the source does "
+          "not have",
+          xcorr(hier2) <= xcorr(linked) + 0.1
+          and xcorr(flat2) <= xcorr(linked) + 0.1)
+    check("the within-bin correlations survive save and reload",
+          CondNet.from_json(nl2.to_json()).pos_corr == nl2.pos_corr)
+
     print()
     if FAIL:
         print("{} FAILED".format(FAIL))

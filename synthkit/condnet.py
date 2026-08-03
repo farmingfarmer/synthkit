@@ -164,6 +164,41 @@ def _quantile(xs: Sequence[float], q: float) -> float:
     return ys[i]
 
 
+def _norm_ppf(u: float) -> float:
+    """Inverse standard normal, so a position in [0,1] can be
+    mixed in the space where mixing preserves the marginal."""
+    u = max(1e-6, min(1.0 - 1e-6, u))
+    # Beasley-Springer-Moro
+    a = [-3.969683028665376e+01, 2.209460984245205e+02,
+         -2.759285104469687e+02, 1.383577518672690e+02,
+         -3.066479806614716e+01, 2.506628277459239e+00]
+    b = [-5.447609879822406e+01, 1.615858368580409e+02,
+         -1.556989798598866e+02, 6.680131188771972e+01,
+         -1.328068155288572e+01]
+    c_ = [-7.784894002430293e-03, -3.223964580411365e-01,
+          -2.400758277161838e+00, -2.549732539343734e+00,
+          4.374664141464968e+00, 2.938163982698783e+00]
+    d = [7.784695709041462e-03, 3.224671290700398e-01,
+         2.445134137142996e+00, 3.754408661907416e+00]
+    pl, ph = 0.02425, 1 - 0.02425
+    if u < pl:
+        q = math.sqrt(-2 * math.log(u))
+        return (((((c_[0] * q + c_[1]) * q + c_[2]) * q + c_[3])
+                 * q + c_[4]) * q + c_[5]) / \
+            ((((d[0] * q + d[1]) * q + d[2]) * q + d[3]) * q + 1)
+    if u > ph:
+        q = math.sqrt(-2 * math.log(1 - u))
+        return -(((((c_[0] * q + c_[1]) * q + c_[2]) * q + c_[3])
+                  * q + c_[4]) * q + c_[5]) / \
+            ((((d[0] * q + d[1]) * q + d[2]) * q + d[3]) * q + 1)
+    q = u - 0.5
+    r = q * q
+    return (((((a[0] * r + a[1]) * r + a[2]) * r + a[3]) * r
+             + a[4]) * r + a[5]) * q / \
+        (((((b[0] * r + b[1]) * r + b[2]) * r + b[3]) * r
+          + b[4]) * r + 1)
+
+
 def _norm_cdf(z: float) -> float:
     """Standard normal CDF, so a Gaussian latent maps back to a
     position that is exactly uniform on [0, 1]."""
@@ -1357,6 +1392,58 @@ class CondNet:
                 self.persistence[c] = max(
                     0.0, min(0.95, 1.0 - within / total))
 
+        # ---- correlation of positions INSIDE the bins ----
+        # Two columns can be linked in two separate ways: which
+        # bins they land in together, and where inside those bins
+        # they sit. The conditional tables capture the first. The
+        # second is thrown away by drawing each column's position
+        # independently — and it is not a small residue: source
+        # systolic and diastolic pressure correlate at 0.873,
+        # while bin membership alone reproduces only 0.652.
+        #
+        # So the within-bin position of a child is drawn correlated
+        # with its parent's, using the correlation measured here.
+        self.pos_corr = {}
+        pos_of = {}
+        for c in self.order:
+            b = self.binnings.get(c)
+            if b is None or b.kind != "numeric":
+                continue
+            per_bin = defaultdict(list)
+            for j in range(n):
+                x = _num(rows[j].get(c, ""))
+                if x is not None:
+                    per_bin[enc[c][j]].append((x, j))
+            u = [None] * n
+            for sym, items in per_bin.items():
+                items.sort()
+                m = len(items)
+                for rank, (_, j) in enumerate(items):
+                    u[j] = (rank + 0.5) / m
+            pos_of[c] = u
+        for c, u_c in pos_of.items():
+            for pcol in self.parents.get(c, []):
+                u_p = pos_of.get(pcol)
+                if u_p is None:
+                    continue
+                both = [(a_, b_) for a_, b_ in zip(u_c, u_p)
+                        if a_ is not None and b_ is not None]
+                if len(both) < 2 * self.k:
+                    continue
+                za = [_norm_ppf(x) for x, _ in both]
+                zb = [_norm_ppf(y) for _, y in both]
+                ma = sum(za) / len(za)
+                mb = sum(zb) / len(zb)
+                num = sum((x - ma) * (y - mb)
+                          for x, y in zip(za, zb))
+                den = (sum((x - ma) ** 2 for x in za)
+                       * sum((y - mb) ** 2 for y in zb)) ** 0.5
+                if den:
+                    rho = max(-0.95, min(0.95, num / den))
+                    if abs(rho) > 0.1:
+                        self.pos_corr[c] = (pcol, round(rho, 4))
+                        break
+
         # transition tables: how a value moves visit to visit
         for c in self.order:
             if self.level.get(c) != "visit":
@@ -1553,9 +1640,22 @@ class CondNet:
                 ws = [dist[x] for x in syms]
                 assign[c] = r.choices(syms, weights=ws, k=1)[0]
             row = {}
+            zpos: Dict[str, float] = {}
             for c in self.order:
+                pos = None
+                if self.binnings[c].kind == "numeric":
+                    link = self.pos_corr.get(c)
+                    e = _rng(s, i, c, "pos").gauss(0.0, 1.0)
+                    if link and link[0] in zpos:
+                        rho = link[1]
+                        z = rho * zpos[link[0]] + \
+                            ((1.0 - rho * rho) ** 0.5) * e
+                    else:
+                        z = e
+                    zpos[c] = z
+                    pos = _norm_cdf(z)
                 row[c] = self.binnings[c].decode(
-                    assign[c], _rng(s, i, c, "decode"))
+                    assign[c], _rng(s, i, c, "decode"), pos)
             # Rebuild the list columns from their indicators, so
             # generated data has the same shape as the source
             # rather than a pile of expanded flags. The indicators
@@ -1646,13 +1746,34 @@ class CondNet:
                     if c in traits:               # fixed trait
                         assign[c] = traits[c]
                         continue
+                    # Two sources of structure, and BOTH must
+                    # apply. Letting the transition table replace
+                    # the parent conditioning was silently
+                    # discarding every cross-column relationship
+                    # after the first visit — systolic-diastolic
+                    # correlation fell from 0.66 to 0.15, because
+                    # diastolic stopped depending on systolic at
+                    # all. They are combined instead: each source
+                    # contributes its departure from the column's
+                    # own marginal, which is the standard way to
+                    # merge two conditional beliefs about the same
+                    # quantity.
+                    dist, _ = self._lookup(c, assign)
                     lag_tbl = self.lag.get(c)
                     if vi and lag_tbl and c in prev \
                             and prev[c] in lag_tbl:
-                        # how this value moves from the last visit
-                        dist = lag_tbl[prev[c]]
-                    else:
-                        dist, _ = self._lookup(c, assign)
+                        lagd = lag_tbl[prev[c]]
+                        marg = self.marginal[c]
+                        merged, tot = {}, 0.0
+                        for sym in set(dist) | set(lagd):
+                            m0 = marg.get(sym, 1e-9) or 1e-9
+                            v = (dist.get(sym, 0.0)
+                                 * lagd.get(sym, 0.0) / m0)
+                            merged[sym] = v
+                            tot += v
+                        if tot > 0:
+                            dist = {s: v / tot
+                                    for s, v in merged.items()}
                     rr = _rng(seed, pi, vi, c, "pick")
                     syms = list(dist.keys())
                     ws = [dist[x] for x in syms]
@@ -1661,10 +1782,15 @@ class CondNet:
                     if c in patient_cols:
                         traits[c] = assign[c]
                 row = {}
+                fresh_z: Dict[str, float] = {}
                 for c in self.order:
                     pos = None
                     per = self.persistence.get(c)
-                    if per:
+                    if per is None and \
+                            self.binnings[c].kind == "numeric" \
+                            and c in self.pos_corr:
+                        per = 0.0        # still needs the link
+                    if per is not None:
                         # A Gaussian latent, NOT a blend of two
                         # uniforms. Averaging two uniforms gives a
                         # triangular distribution that pulls every
@@ -1676,12 +1802,36 @@ class CondNet:
                         # position exactly uniform while giving
                         # successive visits the intended
                         # correlation.
-                        zp = anchors.setdefault(
-                            c, _rng(seed, pi, c,
-                                    "anchor").gauss(0.0, 1.0))
-                        ze = _rng(seed, pi, vi, c,
-                                  "pos").gauss(0.0, 1.0)
-                        z = (per ** 0.5) * zp + \
+                        # Both halves of the latent must carry the
+                        # link to the parent column. Anchoring
+                        # each column independently was what
+                        # collapsed systolic-diastolic correlation
+                        # from 0.652 to 0.152: it added a large
+                        # persistent component that the two
+                        # columns did not share.
+                        link = self.pos_corr.get(c)
+                        rho = link[1] if link else 0.0
+                        par = link[0] if link else None
+                        if c not in anchors:
+                            a_e = _rng(seed, pi, c,
+                                       "anchor").gauss(0.0, 1.0)
+                            if par and par in anchors:
+                                anchors[c] = (
+                                    rho * anchors[par]
+                                    + ((1.0 - rho * rho) ** 0.5)
+                                    * a_e)
+                            else:
+                                anchors[c] = a_e
+                        f_e = _rng(seed, pi, vi, c,
+                                   "pos").gauss(0.0, 1.0)
+                        if par and par in fresh_z:
+                            ze = (rho * fresh_z[par]
+                                  + ((1.0 - rho * rho) ** 0.5)
+                                  * f_e)
+                        else:
+                            ze = f_e
+                        fresh_z[c] = ze
+                        z = (per ** 0.5) * anchors[c] + \
                             ((1.0 - per) ** 0.5) * ze
                         pos = _norm_cdf(z)
                     row[c] = self.binnings[c].decode(
@@ -1732,6 +1882,8 @@ class CondNet:
                                      {}).items()},
             "lag": getattr(self, "lag", {}),
             "persistence": dict(getattr(self, "persistence", {})),
+            "pos_corr": {k: list(v) for k, v in
+                         getattr(self, "pos_corr", {}).items()},
             "level": dict(getattr(self, "level", {})),
             "group_by": getattr(self, "group_by", None),
             "tally_of": dict(getattr(self, "tally_of", {})),
@@ -1766,5 +1918,7 @@ class CondNet:
                    for c, t in (d.get("lag") or {}).items()}
         net.level = dict(d.get("level") or {})
         net.persistence = dict(d.get("persistence") or {})
+        net.pos_corr = {k: (v[0], v[1]) for k, v in
+                        (d.get("pos_corr") or {}).items()}
         net.group_by = d.get("group_by")
         return net
