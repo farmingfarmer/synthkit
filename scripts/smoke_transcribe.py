@@ -61,7 +61,15 @@ TERMS = {"has_chf": ["congestive heart failure", "CHF"],
          "has_ckd": ["chronic kidney disease", "CKD"],
          "has_afib": ["atrial fibrillation", "AFib"],
          "sbp": ["blood pressure", "BP"]}
-NEG = ("no ", "denies ", "not present", "is not")
+# A competent clause-scoped reader knows more than two negation
+# words. Clinical prose says "negative for", "no evidence of",
+# "ruled out", and — for medications — "discontinued" or "not
+# currently on". A stand-in that knows only "no" and "denies" is a
+# strawman, and beating a strawman proves nothing.
+NEG = ("no ", "denies ", "not present", "is not",
+       "negative for", "no evidence of", "ruled out",
+       "not currently on", "discontinued", "not on active",
+       "off ")
 
 
 def clauses(note):
@@ -138,6 +146,19 @@ def main():
           entries("negation_scope_trap")
           and all(e["asserts_present"]
                   for e in entries("negation_scope_trap")))
+    trap_lines = [c for n in notes
+                  for c in clauses(n)
+                  if any(t in c for t in
+                         ("No improvement", "No change",
+                          "no resolution", "No relief",
+                          "no better", "no response",
+                          "No response", "No benefit"))]
+    check("EVERY scope-trap phrasing carries a negation word — a "
+          "trap without one is not a trap, and would quietly make "
+          "the benchmark easier",
+          trap_lines and all(
+              any(neg in c.lower() for neg in ("no ", "no "))
+              for c in trap_lines))
     check("hedged mentions are marked uncertain, not confirmed",
           entries("hedge")
           and all(not e["is_certain"] for e in entries("hedge")))

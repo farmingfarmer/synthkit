@@ -26,12 +26,41 @@ from typing import Any, Dict, List, Optional
 from .transcribe import CORRUPTIONS, FactSpec
 
 
+# Real notes spell a diagnosis out at least once and abbreviate it
+# thereafter. Coded column values ("chf", "htn") read as database
+# fields rather than clinical prose, so the label is expanded to
+# the full term and the `abbreviation` corruption shortens it back
+# where a clinician would.
+TERM_EXPANSIONS = {
+    "chf": "congestive heart failure",
+    "htn": "hypertension",
+    "ckd": "chronic kidney disease",
+    "dm": "diabetes mellitus",
+    "copd": "chronic obstructive pulmonary disease",
+    "cad": "coronary artery disease",
+    "afib": "atrial fibrillation",
+    "mi": "myocardial infarction",
+    "cva": "cerebrovascular accident",
+    "gerd": "gastroesophageal reflux disease",
+    "ckd3": "chronic kidney disease stage 3",
+    "esrd": "end stage renal disease",
+    "sob": "shortness of breath",
+    "uti": "urinary tract infection",
+    "dvt": "deep vein thrombosis",
+    "pe": "pulmonary embolism",
+    "osa": "obstructive sleep apnea",
+    "ptsd": "post-traumatic stress disorder",
+}
+
+
 def _pretty(col: str) -> str:
     """A column name as a clinician would say it."""
     if "::" in col:
         base, item = col.split("::", 1)
-        return item
-    return col.replace("_", " ")
+        return TERM_EXPANSIONS.get(item.strip().lower(),
+                                   item)
+    plain = col.replace("_", " ")
+    return TERM_EXPANSIONS.get(plain.strip().lower(), plain)
 
 
 def _is_indicator(col: str) -> bool:

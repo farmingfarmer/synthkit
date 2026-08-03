@@ -71,7 +71,10 @@ def link_strength(rows, note_key=None):
                 if term in clause:
                     if any(neg in clause for neg in
                            ("no ", "denies ", "not present",
-                            "is not")):
+                            "is not", "negative for",
+                            "no evidence of", "ruled out",
+                            "not currently on", "discontinued",
+                            "not on active", "off ")):
                         return False
                     return True
             return False

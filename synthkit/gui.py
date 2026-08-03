@@ -17,6 +17,7 @@ Python 3.8 compatible.
 from __future__ import annotations
 
 import json
+import sys
 import threading
 import webbrowser
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
@@ -666,6 +667,7 @@ def api_learn(payload: dict) -> dict:
         else None)
     _LEARNED["net"] = net
     _LEARNED["rows"] = len(rows)
+    _LEARNED["path"] = str(path)
     nar = _ls.narrate(net)
     facts = _ls.facts_from_model(net)
     _LEARNED["facts"] = facts
@@ -713,6 +715,108 @@ def api_learn_generate(payload: dict) -> dict:
             "dials_applied": payload.get("dials") or {}}
 
 
+def api_learn_score(payload: dict) -> dict:
+    """Check the generated data against the file it was learned
+    from — on fidelity AND on privacy.
+
+    Generation without verification is decoration. This runs the
+    same scorecard the command line uses, so the numbers a person
+    sees in the bench are the numbers a reviewer would reproduce.
+    """
+    import json as _json
+    import subprocess
+    import tempfile
+    blob = _LEARNED.get("generated")
+    srcp = _LEARNED.get("path")
+    if not blob or not srcp:
+        return {"error": "Learn from a dataset and generate "
+                         "before checking."}
+    td = Path(tempfile.mkdtemp(prefix="synthkit_score_"))
+    syn = td / "generated.csv"
+    syn.write_text(blob, encoding="utf-8")
+    out = td / "fidelity.json"
+    proc = subprocess.run(
+        [sys.executable,
+         str(Path(__file__).resolve().parent.parent / "scripts"
+             / "fidelity_report.py"),
+         "--source", str(srcp), "--synthetic", str(syn),
+         "-o", str(out)],
+        capture_output=True, text=True)
+    if not out.exists():
+        return {"error": "The scorecard could not run: {}".format(
+            (proc.stderr or proc.stdout or "")[-400:])}
+    rep = _json.loads(out.read_text(encoding="utf-8"))
+    s = rep["summary"]
+    marg = rep.get("marginals", [])
+    shape = rep.get("dependence_shape", {})
+    shape_bad = [d for d in shape.get("detail", [])
+                 if not d["pass"]]
+    priv = rep["privacy"]
+    lines = []
+    lines.append(
+        "Each field's own distribution: {} of {} matched the "
+        "source within what a fresh sample of the same size would "
+        "differ by anyway.".format(
+            sum(1 for m in marg if m["pass"]), len(marg)))
+    scored = shape.get("pairs_tested", 0)
+    if scored:
+        lines.append(
+            "Relationships between fields: {} were strong enough "
+            "in the source to be worth checking, {} of them "
+            "reversed direction somewhere (which a correlation "
+            "cannot describe at all), and {} were not reproduced "
+            "closely enough.".format(
+                scored,
+                shape.get("nonlinear_relationships_in_source", 0),
+                len(shape_bad)))
+    else:
+        lines.append(
+            "No relationship in the source was strong enough to "
+            "check: at this many patients, what looks like "
+            "structure could as easily be chance. Asking the "
+            "synthetic data to reproduce it would be scoring a "
+            "coin flip.")
+    lines.append(
+        "Privacy: {} synthetic record{} matched a real one, and "
+        "{:.0%} of synthetic records sit closer to a real patient "
+        "than real patients sit to each other \u2014 an "
+        "independent sample would put about 5% there.".format(
+            priv["exact_matches"],
+            "" if priv["exact_matches"] == 1 else "s",
+            priv.get("closeness_test", {}).get(
+                "synthetic_fraction_below", 0.0)))
+    # A list column cannot match exactly, and should not. Only
+    # items shared by at least k patients are kept, so the rare
+    # combinations are deliberately absent — that suppression is
+    # the privacy guarantee doing its job, and reporting it as a
+    # fidelity fault would teach the reader to distrust the wrong
+    # number.
+    net = _LEARNED.get("net")
+    expanded = set(getattr(net, "list_columns", {}) or {})
+    by_design = [m["column"] for m in marg
+                 if not m["pass"] and m["column"] in expanded]
+    if by_design:
+        lines.append(
+            "Expected difference: {} held combinations unique to "
+            "one or two patients, and only items shared by at "
+            "least ten were kept. That gap is the privacy rule "
+            "working, not a fault in the model.".format(
+                ", ".join(by_design)))
+    return {
+        "expected_differences": by_design,
+        "fidelity_verdict": s["fidelity_verdict"],
+        "privacy_verdict": s["privacy_verdict"],
+        "passed": s["passed"], "checks": s["checks"],
+        "plain": lines,
+        "failing_columns": [m["column"] for m in marg
+                            if not m["pass"]
+                            and m["column"] not in expanded][:8],
+        "failing_relationships": [
+            "{} across {}".format(d["column"], d["given"])
+            for d in shape_bad][:8],
+    }
+
+
 def api_learn_export(payload: dict) -> dict:
     blob = _LEARNED.get("generated")
     if not blob:
@@ -745,6 +849,9 @@ _ROUTES = {
         "job": _start_job(api_learn, payload)},
     "/api/learn-generate": api_learn_generate,
     "/api/learn-export": api_learn_export,
+    "/api/learn-score": api_learn_score,
+    "/api/learn-score-async": lambda payload: {
+        "job": _start_job(api_learn_score, payload)},
 }
 
 
@@ -1501,11 +1608,17 @@ label{font-size:13.5px;color:#2c3a45;font-weight:600}
     claims, so an extraction vendor can be graded on it.</div>
     <button class="act" onclick="learnGenerate()">Create the
     data</button>
+    <button class="act" onclick="learnScore()">Check it against
+    the real data</button>
     <button class="act ghost" onclick="learnDownload()">Download
     CSV</button>
     <div class="outlabel">result</div>
     <div class="out" id="learn-gen-out">Learn first, then create.
     </div>
+    <div class="outlabel">how faithful, and how private</div>
+    <div class="out" id="learn-score-out">Create the data, then
+    check it.</div>
+    <div id="learn-score-report"></div>
     <div id="learn-preview"></div>
   </div>
 </section>
@@ -1859,6 +1972,40 @@ async function learnGenerate(){
   out('learn-gen-out',msg,'ok');
   document.getElementById('learn-preview').innerHTML=
     previewTable(d.preview,d.columns_list);}
+async function learnScore(){
+  out('learn-score-out','comparing the synthetic data against '+
+    'the real file, field by field and relationship by '+
+    'relationship...');
+  const j=await api('/api/learn-score-async',{});
+  poll(j.job,'learn-score-out',function(d){
+    if(d.error){out('learn-score-out',d.error,'bad');return;}
+    var okAll=(d.fidelity_verdict==='PASS'&&
+      d.privacy_verdict==='PASS');
+    out('learn-score-out',d.passed+' of '+d.checks+
+      ' checks passed  |  fidelity '+d.fidelity_verdict+
+      '  |  privacy '+d.privacy_verdict, okAll?'ok':'');
+    var h='<div class="summarycard"><b>What the check found'+
+      '</b>';
+    for(var i=0;i<d.plain.length;i++){
+      h+='<div class="pstep"><span class="nchip" '+
+        'style="background:#7B4B94">'+(i+1)+'</span><span>'+
+        esc(d.plain[i])+'</span></div>';}
+    if(d.failing_columns.length){
+      h+='<div class="hint" style="margin-top:8px"><b>Fields '+
+        'that did not match closely enough:</b> '+
+        esc(d.failing_columns.join(', '))+'</div>';}
+    if(d.failing_relationships.length){
+      h+='<div class="hint"><b>Relationships not reproduced:'+
+        '</b> '+esc(d.failing_relationships.join('; '))+
+        '</div>';}
+    h+='<div class="hint" style="margin-top:8px">A failing check '+
+      'is not always a fault. Tolerances are set by how much two '+
+      'samples of this size would differ by chance, so a narrow '+
+      'miss on one field usually means the source itself is '+
+      'thin there \u2014 and a relationship you deliberately '+
+      'turned off with a dial SHOULD fail to reproduce.</div>';
+    h+='</div>';
+    document.getElementById('learn-score-report').innerHTML=h;});}
 function learnDownload(){
   api('/api/learn-export',{}).then(function(d){
     if(d.error){out('learn-gen-out',d.error,'bad');return;}

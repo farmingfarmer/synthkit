@@ -214,7 +214,11 @@ class ScriptedBackend:
                     if clause:
                         break
                 if any(n in clause for n in
-                       ("no ", "denies ", "not present", "is not")):
+                       ("no ", "denies ", "not present",
+                        "is not", "negative for",
+                        "no evidence of", "ruled out",
+                        "not currently on", "discontinued",
+                        "not on active", "off ")):
                     item["present"] = False
                 if any(h in clause for h in
                        ("possible", "cannot rule out",

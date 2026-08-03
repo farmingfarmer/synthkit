@@ -95,18 +95,139 @@ class TranscribeSpec:
     seed: int = 20260731
 
 
-FILLERS = [
-    "Patient seen and examined at bedside.",
-    "Vitals reviewed; no acute distress.",
-    "Discussed plan with patient and family.",
-    "Nursing notes reviewed.",
-    "Will continue current management.",
-    "Follow-up arranged with primary care.",
-    "Labs pending at time of dictation.",
-]
+# Filler by section, because a note does not read the same way
+# throughout — a history reads as narrative, an assessment as
+# judgement, a plan as instruction. Uniform filler is the tell
+# that gives generated prose away.
+FILLERS = {
+    "hpi": [
+        "Patient reports symptoms began several days prior to "
+        "presentation.",
+        "Seen in clinic today for scheduled follow-up.",
+        "Accompanied by family member who provides collateral "
+        "history.",
+        "Reports good adherence to prescribed regimen.",
+        "No interval hospitalizations since last visit.",
+        "Denies fever, chills, or night sweats.",
+    ],
+    "vitals": [
+        "Afebrile throughout.",
+        "Vitals stable and within patient baseline.",
+        "Weight unchanged from prior visit.",
+        "Oxygen saturation adequate on room air.",
+    ],
+    "assessment": [
+        "Overall clinically stable.",
+        "No acute distress on examination.",
+        "Findings reviewed with patient.",
+        "Clinical picture consistent with prior documentation.",
+        "Reviewed outside records and prior imaging.",
+    ],
+    "plan": [
+        "Continue current management.",
+        "Follow up in clinic in 4 weeks.",
+        "Labs to be repeated at next visit.",
+        "Return precautions discussed; patient verbalizes "
+        "understanding.",
+        "Medication list reconciled with pharmacy.",
+        "Will reassess after results return.",
+    ],
+}
 SECTIONS = ["hpi", "vitals", "assessment", "plan"]
 SECTION_TITLES = {"hpi": "HPI", "vitals": "Vitals",
-                  "assessment": "Assessment", "plan": "Plan"}
+                  "assessment": "Assessment/Impression",
+                  "plan": "Plan"}
+
+# Phrasings by fact kind, so a medication does not get written up
+# the way a physical finding is. Real notes vary the construction
+# constantly; a single template repeated across every fact reads
+# as machine output no matter how good that one template is.
+SAY_CONDITION = [
+    "{} noted on examination.",
+    "Findings consistent with {}.",
+    "{} present.",
+    "Known {}, stable.",
+    "Assessment notable for {}.",
+    "Continues to carry a diagnosis of {}.",
+    "Documented {} on review.",
+]
+SAY_MED = [
+    "Continues {}.",
+    "Maintained on {}.",
+    "{} per home regimen.",
+    "Currently prescribed {}.",
+    "{} continued without change.",
+    "Remains on {} as previously ordered.",
+]
+SAY_NEGATED = [
+    "No {}.",
+    "Denies {}.",
+    "{} is not present.",
+    "Negative for {}.",
+    "No evidence of {} at this time.",
+    "{} ruled out on this evaluation.",
+]
+SAY_HEDGED = [
+    "Possible {}.",
+    "Cannot rule out {}.",
+    "{} suspected but unconfirmed.",
+    "Query {} \u2014 further evaluation pending.",
+    "Findings may represent {}.",
+    "Concern for {}, not yet established.",
+]
+SAY_HISTORY = [
+    "History of {}.",
+    "Prior {}, resolved.",
+    "{} in the past.",
+    "Remote history of {}.",
+    "Previously treated for {}.",
+    "{} documented on earlier admission.",
+]
+# A medication is not written up the way a finding is. "No
+# improvement in furosemide" is nonsense; "no improvement on
+# furosemide" is a real sentence that still asserts the patient is
+# taking it. Getting this wrong makes the prose read as generated
+# no matter how varied the templates are, so each corruption has a
+# medication-shaped form as well.
+SAY_MED_NEGATED = [
+    "Not currently on {}.",
+    "{} discontinued.",
+    "Denies taking {}.",
+    "{} not on active medication list.",
+    "Off {} at this time.",
+]
+SAY_MED_HEDGED = [
+    "May be taking {}; unable to confirm.",
+    "{} per patient report, not verified.",
+    "Possibly on {} \u2014 pharmacy record pending.",
+    "Unclear whether {} was continued.",
+]
+SAY_MED_HISTORY = [
+    "Previously on {}.",
+    "{} discontinued prior to admission.",
+    "Past use of {}.",
+    "{} stopped some time ago.",
+]
+# Every one of these MUST contain a negation that does not govern
+# the medication. Two earlier drafts ("symptoms persist despite
+# X", "remains symptomatic on X") carried no negation at all, so
+# they were not traps — a clause-scoped reader answered them
+# correctly and the trap's measured difficulty quietly fell.
+SAY_MED_SCOPE_TRAP = [
+    "No improvement on {}.",
+    "No response to {} to date.",
+    "No benefit from {} so far.",
+    "No change in symptoms on {}.",
+]
+
+SAY_SCOPE_TRAP = [
+    "No improvement in {}.",
+    "No change in {} since admission.",
+    "{} with no resolution to date.",
+    "No relief of {} with current therapy.",
+    "Persistent {} despite treatment; no better today.",
+    "{} unchanged \u2014 no response to current regimen.",
+]
 
 
 def _rng(seed: int, *parts) -> random.Random:
@@ -181,43 +302,38 @@ def _phrase(fact, value, corrs, r) -> Tuple[str, Dict[str, Any]]:
             " " + fact.unit if fact.unit else "")
         if "copy_forward" in corrs:
             truth["is_current"] = False
-            return ("{} {}{} (per prior note)".format(
-                label, shown, unit), truth)
-        return ("{} {}{}".format(label, shown, unit), truth)
+            return (r.choice([
+                "{} {}{} (per prior note).",
+                "{} {}{}, carried forward from last visit.",
+                "{} documented as {}{} on previous encounter.",
+            ]).format(label, shown, unit), truth)
+        return (r.choice([
+            "{} {}{}.",
+            "{} recorded at {}{}.",
+            "{}: {}{}.",
+        ]).format(label, shown, unit), truth)
 
     # conditions and medications
     if "negation_scope_trap" in corrs:
         # the finding IS present; the negation governs something
         # else entirely
-        return (r.choice([
-            "No improvement in {}.".format(label),
-            "No change in {} since admission.".format(label),
-            "{} with no resolution to date.".format(label),
-            "No relief of {} with current therapy.".format(
-                label)]), truth)
+        return (r.choice(SAY_MED_SCOPE_TRAP if fact.kind == "med"
+                        else SAY_SCOPE_TRAP).format(label), truth)
     if "negation_simple" in corrs:
         truth["asserts_present"] = False
-        return (r.choice([
-            "No {}.".format(label),
-            "Denies {}.".format(label),
-            "{} is not present.".format(label)]), truth)
+        return (r.choice(SAY_MED_NEGATED if fact.kind == "med"
+                        else SAY_NEGATED).format(label), truth)
     if "hedge" in corrs:
         truth["is_certain"] = False
-        return (r.choice([
-            "Possible {}.".format(label),
-            "Cannot rule out {}.".format(label),
-            "{} suspected but unconfirmed.".format(label)]), truth)
+        return (r.choice(SAY_MED_HEDGED if fact.kind == "med"
+                        else SAY_HEDGED).format(label), truth)
     if "temporal_history" in corrs:
         truth["is_current"] = False
-        return (r.choice([
-            "History of {}.".format(label),
-            "Prior {}, resolved.".format(label),
-            "{} in the past.".format(label)]), truth)
+        return (r.choice(SAY_MED_HISTORY if fact.kind == "med"
+                        else SAY_HISTORY).format(label), truth)
     if fact.kind == "med":
-        return ("Continues {}.".format(label), truth)
-    return (r.choice(["{} noted.".format(label),
-                      "Findings consistent with {}.".format(label),
-                      "{} present on exam.".format(label)]), truth)
+        return (r.choice(SAY_MED).format(label), truth)
+    return (r.choice(SAY_CONDITION).format(label), truth)
 
 
 def transcribe_row(row: Dict[str, Any], spec: TranscribeSpec,
@@ -329,7 +445,7 @@ def transcribe_row(row: Dict[str, Any], spec: TranscribeSpec,
     for s in SECTIONS:
         body = list(by_section[s])
         if r.random() < spec.filler_rate:
-            body.append(r.choice(FILLERS))
+            body.append(r.choice(FILLERS.get(s, FILLERS["plan"])))
         if not body:
             continue
         r.shuffle(body)

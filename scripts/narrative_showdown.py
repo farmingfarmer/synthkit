@@ -81,7 +81,15 @@ TERMS = {
     "lives_alone": ["lives alone with no home support"],
     "has_copd": ["chronic obstructive pulmonary disease", "COPD"],
 }
-NEG = ("no ", "denies ", "not present", "is not")
+# A competent clause-scoped reader knows more than two negation
+# words. Clinical prose says "negative for", "no evidence of",
+# "ruled out", and — for medications — "discontinued" or "not
+# currently on". A stand-in that knows only "no" and "denies" is a
+# strawman, and beating a strawman proves nothing.
+NEG = ("no ", "denies ", "not present", "is not",
+       "negative for", "no evidence of", "ruled out",
+       "not currently on", "discontinued", "not on active",
+       "off ")
 HEDGE = ("possible", "cannot rule out", "suspected")
 PAST = ("history of", "prior ", "in the past", "resolved")
 

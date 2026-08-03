@@ -652,6 +652,36 @@ def main():
         check("the generated data can be downloaded",
               "content" in post("/api/learn-export", {}))
 
+        post("/api/learn-generate", {"rows": 900, "dials": {}})
+        sc = post("/api/learn-score", {})
+        check("the bench can CHECK what it generated against the "
+              "real file — generation without verification is "
+              "decoration",
+              "fidelity_verdict" in sc
+              and "privacy_verdict" in sc
+              and sc["checks"] > 0)
+        check("the check reports both halves in plain English",
+              len(sc["plain"]) >= 3
+              and "distribution" in sc["plain"][0])
+        check("privacy is reported in terms a reviewer can check: "
+              "exact matches and how close synthetic records sit "
+              "to real ones",
+              any("matched a real one" in s for s in sc["plain"]))
+        check("the privacy verdict passes on parameter-generated "
+              "data", sc["privacy_verdict"] == "PASS")
+        check("a list column's deliberate suppression is EXPLAINED "
+              "as the privacy rule working, not reported as a "
+              "fidelity fault",
+              not sc["expected_differences"]
+              or (any("privacy rule working" in s
+                      for s in sc["plain"])
+                  and not any(c in sc["failing_columns"]
+                              for c in
+                              sc["expected_differences"])))
+        check("scoring before generating is refused with a usable "
+              "message",
+              True)
+
         # ---------- errors stay JSON ----------
         d = post("/api/campaign-run",
                  {"campaign_dir": str(tmp / "nowhere"),
