@@ -731,6 +731,51 @@ def main():
         check("the verdict is explained in plain English",
               len(ex["plain"]) >= 3
               and "known" in ex["plain"][0])
+        # ---------- privacy budget, people, save/reload ----------
+        check("the bench offers a privacy budget and explains "
+              "what setting one buys over k-anonymity",
+              'id="leps"' in flat_html
+              and "cannot tell whether any ONE patient"
+              in flat_html
+              and "wash out" in flat_html)
+        check("it offers generation of PATIENTS rather than loose "
+              "rows, and says why that matters",
+              'id="lhier"' in flat_html
+              and "behaves like real longitudinal data"
+              in flat_html)
+        hier = post("/api/learn-generate",
+                   {"rows": 600, "hierarchical": True,
+                    "dials": {}})
+        check("generating hierarchically returns records carrying "
+              "a patient and a visit number",
+              "visit_number" in hier["columns_list"]
+              and "person_id" in hier["columns_list"])
+        seen = {}
+        for row in hier["preview"]:
+            seen[row.get("person_id")] = seen.get(
+                row.get("person_id"), 0) + 1
+        check("the same patient appears across several visits",
+              max(seen.values()) > 1)
+
+        saved = post("/api/learn-save", {})
+        check("a learned model saves as parameters, and says so",
+              "content" in saved
+              and "no record" in saved["note"])
+        mp = Path(tmp) / "saved_model.json"
+        mp.write_text(saved["content"], encoding="utf-8")
+        back = post("/api/learn-load", {"path": str(mp)})
+        check("a saved model reloads without the original file",
+              back.get("restored")
+              and back["narrative"]["findings"])
+        check("reloading restores the dials and the outcome "
+              "candidates too, so work continues where it left "
+              "off",
+              back["dials"] and back["outcome_candidates"])
+        check("loading something that is not a model is refused "
+              "clearly",
+              "error" in post("/api/learn-load",
+                              {"content": "not a model"}))
+
         check("planting with no weights is refused — the weights "
               "ARE the planted truth",
               "error" in post("/api/learn-plant",

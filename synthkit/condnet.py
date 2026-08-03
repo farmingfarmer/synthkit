@@ -51,6 +51,14 @@ MISSING = "\u2205"          # its own bin: missingness is a pattern
 # tail spread with extrapolated — never observed — extremes.
 TAIL_REACH = 2.0
 
+# How many rows one person may contribute before their extra rows
+# are dropped. Differential privacy needs a bound on how much any
+# single individual can move a published count; without one the
+# sensitivity is whatever the heaviest utiliser happens to be, and
+# the guarantee is unstateable. Capping costs a little fidelity on
+# high-utilisation patients and buys a number you can defend.
+DP_MAX_ROWS_PER_PERSON = 12
+
 # Dirichlet smoothing strength for conditional tables. A cell
 # supported by twelve people should not yield a point estimate as
 # confident as one supported by twelve hundred, so every table is
@@ -154,6 +162,20 @@ def _quantile(xs: Sequence[float], q: float) -> float:
     ys = sorted(xs)
     i = min(len(ys) - 1, max(0, int(round(q * (len(ys) - 1)))))
     return ys[i]
+
+
+def _noisy(counts: Counter, scale: float, rng) -> Counter:
+    """Laplace noise on a histogram, clipped at zero."""
+    out = Counter()
+    for s, v in counts.items():
+        u = rng.random() - 0.5
+        lap = -scale * math.copysign(1.0, u) * \
+            math.log(max(1.0 - 2.0 * abs(u), 1e-12))
+        out[s] = max(0.0, v + lap)
+    if not sum(out.values()):
+        for s in counts:
+            out[s] = 1.0
+    return out
 
 
 def _rank(xs):
@@ -552,7 +574,8 @@ class CondNet:
               targets: Optional[List[str]] = None,
               group_by: Optional[str] = None,
               hypotheses: Optional[Dict[str, List[str]]] = None,
-              multilevel: bool = False) -> "CondNet":
+              multilevel: bool = False,
+              epsilon: float = 0.0) -> "CondNet":
         """`hypotheses` maps a column to the columns allowed to
         explain it — the clinical questions actually being asked.
 
@@ -659,6 +682,29 @@ class CondNet:
         # Degrees of freedom for a within-person comparison: every
         # observation, less one absorbed mean per person.
         self.n_within = max(n - self.n_groups, 1)
+
+        # ---- differential privacy ----
+        # k-anonymity is a property of the published tables;
+        # epsilon is a promise about what an ADVERSARY can learn.
+        # It is the stronger claim and the one a privacy office
+        # can reason about, so it is offered as an explicit budget
+        # rather than an implicit hope.
+        self.epsilon = float(epsilon or 0.0)
+        self.dp_dropped = 0
+        if self.epsilon > 0 and group_by:
+            seen = defaultdict(int)
+            keep_idx = []
+            for j in range(n):
+                g = self.groups[j]
+                if seen[g] < DP_MAX_ROWS_PER_PERSON:
+                    seen[g] += 1
+                    keep_idx.append(j)
+            if len(keep_idx) < n:
+                self.dp_dropped = n - len(keep_idx)
+                rows = [rows[j] for j in keep_idx]
+                self.groups = [self.groups[j] for j in keep_idx]
+                n = len(rows)
+                self.n_within = max(n - self.n_groups, 1)
         if self.max_bins and self.max_bins > 0:
             nbins, auto = self.max_bins, False
         else:
@@ -691,6 +737,24 @@ class CondNet:
         # mean makes associations between centred columns
         # within-person BY CONSTRUCTION: stable patient traits are
         # differenced away and cannot confound them.
+        # ---- how a patient's course unfolds ----
+        # Sampling rows independently produces a pile of
+        # encounters, not patients. Real records have people in
+        # them: someone with high pressure at one visit tends to
+        # have high pressure at the next, and a patient with four
+        # visits is a different thing from four patients with one.
+        # So generation needs three facts a row-wise model never
+        # stores — how many visits a person has, which of their
+        # values are FIXED traits, and how a changing value moves
+        # from one visit to the next.
+        per_person = defaultdict(int)
+        for g in self.groups:
+            per_person[g] += 1
+        self.visit_counts = Counter(per_person.values())
+        self.lag = {}
+        seq = defaultdict(list)
+        for j in range(n):
+            seq[self.groups[j]].append(j)
         self.enc_within = {}
         if self.multilevel:
             for c in cols:
@@ -1138,6 +1202,12 @@ class CondNet:
             self.parents[c] = parents
 
         # conditional tables, with k-suppression
+        n_tables = max(sum(1 for c in self.order
+                           if self.parents.get(c)), 1)
+        self._dp_scale = (DP_MAX_ROWS_PER_PERSON
+                          / (self.epsilon / n_tables)
+                          if self.epsilon > 0 else 0.0)
+        dp_rng = random.Random(self.seed ^ 0x5EED)
         suppressed = 0
         for c in self.order:
             ps = self.parents[c]
@@ -1193,7 +1263,26 @@ class CondNet:
                         for s, v in nb.items():
                             nb_acc[s] += v / nm
                         nb_tot += 1
+                    if self.epsilon > 0:
+                        # Laplace noise sized to the budget. One
+                        # person can move any count by at most
+                        # their capped contribution, so that cap
+                        # IS the sensitivity.
+                        cnt = _noisy(cnt, self._dp_scale, dp_rng)
+                        m = max(sum(cnt.values()), 1e-9)
                     a_s = SMOOTHING
+                    if self.epsilon > 0:
+                        # When the noise is large relative to the
+                        # counts, the table holds no information —
+                        # and clipping negatives at zero would
+                        # leave it a CONFIDENT point mass, which
+                        # is worse than no table at all. Shrinking
+                        # toward the column's own marginal in
+                        # proportion to the noise makes a swamped
+                        # table degrade to "we don't know" instead
+                        # of to "we're certain", which is what a
+                        # privacy budget should buy.
+                        a_s = SMOOTHING + self._dp_scale
                     w_s = NEIGHBOUR_WEIGHT if nb_tot else 0.0
                     syms = set(cnt) | set(marg) | set(nb_acc)
                     table[cfg] = {
@@ -1203,6 +1292,30 @@ class CondNet:
                                      / max(nb_tot, 1)))
                         / (m + a_s + w_s) for s in syms}
             self.cpt[c] = table
+
+        # transition tables: how a value moves visit to visit
+        for c in self.order:
+            if self.level.get(c) != "visit":
+                continue
+            trans = defaultdict(Counter)
+            people = defaultdict(set)
+            for g, idxs in seq.items():
+                for a_i, b_i in zip(idxs, idxs[1:]):
+                    trans[enc[c][a_i]][enc[c][b_i]] += 1
+                    people[enc[c][a_i]].add(g)
+            tbl = {}
+            for prev, cnt in trans.items():
+                if len(people[prev]) < self.k:
+                    continue           # too few people to publish
+                m = sum(cnt.values())
+                marg = self.marginal[c]
+                syms = set(cnt) | set(marg)
+                tbl[prev] = {s: (cnt.get(s, 0)
+                                 + SMOOTHING * marg.get(s, 0.0))
+                             / (m + SMOOTHING) for s in syms}
+            if tbl:
+                self.lag[c] = tbl
+
 
         self.report = {
             "rows": n,
@@ -1248,6 +1361,29 @@ class CondNet:
                            "as arithmetic rather than surfacing as "
                            "a dozen separate findings about the "
                            "pipeline's own encoding",
+            "differential_privacy": (
+                {"epsilon": self.epsilon,
+                 "max_rows_per_person": DP_MAX_ROWS_PER_PERSON,
+                 "rows_dropped_to_bound_contribution":
+                     self.dp_dropped,
+                 "noise_scale": round(self._dp_scale, 3),
+                 "reading": "every published table carries "
+                            "calibrated noise. The model "
+                            "satisfies {}-differential privacy "
+                            "with respect to any single patient: "
+                            "an adversary holding everything else "
+                            "about the cohort still cannot tell "
+                            "whether one particular person was in "
+                            "it, beyond a factor bounded by that "
+                            "number.".format(self.epsilon)}
+                if self.epsilon > 0 else
+                {"epsilon": None,
+                 "reading": "no differential-privacy budget was "
+                            "set: protection rests on "
+                            "k-anonymity and percentile clamping, "
+                            "which are properties of the tables "
+                            "rather than a bound on what an "
+                            "adversary can infer"}),
             "never_parent_excluded": [c for c in NEVER_PARENT
                                       if c in self.order],
             "leakage_note": "a column that DEFINES the outcome is "
@@ -1404,6 +1540,87 @@ class CondNet:
         return self
 
     # -- persistence ---------------------------------------------
+    def sample_patients(self, n_patients: int, seed: int = 0,
+                        max_visits: int = 0
+                        ) -> List[Dict[str, Any]]:
+        """Generate PEOPLE, each with a course of visits.
+
+        A patient is drawn once — their fixed traits, and how many
+        times they are seen. Their visits are then drawn in order,
+        each one conditioned on the patient's traits and on the
+        visit before it, so a value that drifts drifts plausibly
+        instead of being redrawn from scratch every row.
+
+        Row-wise sampling cannot produce this. It is also what
+        makes a synthetic dataset behave like real longitudinal
+        data under any analysis that groups by patient — which is
+        most of them.
+        """
+        rng = random.Random(seed)
+        counts = list(self.visit_counts.items()) or [(1, 1)]
+        total = float(sum(w for _, w in counts))
+        out: List[Dict[str, Any]] = []
+        patient_cols = [c for c in self.order
+                        if self.level.get(c) == "patient"]
+        for pi in range(n_patients):
+            u = rng.random() * total
+            acc, nvis = 0.0, counts[0][0]
+            for v, w in counts:
+                acc += w
+                if u <= acc:
+                    nvis = v
+                    break
+            if max_visits:
+                nvis = min(nvis, max_visits)
+            pid = "SYN{:06d}".format(pi)
+            traits: Dict[str, str] = {}
+            prev: Dict[str, str] = {}
+            for vi in range(max(1, nvis)):
+                assign: Dict[str, str] = {}
+                for c in self.order:
+                    if c in traits:               # fixed trait
+                        assign[c] = traits[c]
+                        continue
+                    lag_tbl = self.lag.get(c)
+                    if vi and lag_tbl and c in prev \
+                            and prev[c] in lag_tbl:
+                        # how this value moves from the last visit
+                        dist = lag_tbl[prev[c]]
+                    else:
+                        dist, _ = self._lookup(c, assign)
+                    rr = _rng(seed, pi, vi, c, "pick")
+                    syms = list(dist.keys())
+                    ws = [dist[x] for x in syms]
+                    assign[c] = rr.choices(syms, weights=ws,
+                                           k=1)[0]
+                    if c in patient_cols:
+                        traits[c] = assign[c]
+                row = {}
+                for c in self.order:
+                    row[c] = self.binnings[c].decode(
+                        assign[c], _rng(seed, pi, vi, c, "dec"))
+                for lc, items in getattr(self, "list_columns",
+                                         {}).items():
+                    present = [it for it in items
+                               if str(row.get("{}::{}".format(
+                                   lc, it), "0")).strip() == "1"]
+                    row[lc] = LIST_SEP.join(sorted(present))
+                for tally, lc in getattr(self, "tally_of",
+                                         {}).items():
+                    items = self.list_columns.get(lc)
+                    if items is None:
+                        continue
+                    row[tally] = sum(
+                        1 for it in items
+                        if str(row.get("{}::{}".format(lc, it),
+                                       "0")).strip() == "1")
+                if self.group_by:
+                    row[self.group_by] = pid
+                row["visit_number"] = vi + 1
+                out.append(row)
+                prev = dict(assign)
+        return out
+
     def to_json(self) -> str:
         return json.dumps({
             "k": self.k, "max_parents": self.max_parents,
@@ -1416,6 +1633,18 @@ class CondNet:
                          for c, b in self.binnings.items()},
             "parents": self.parents,
             "cpt": self.cpt, "marginal": self.marginal,
+            # The hierarchical tables must travel with the model.
+            # Without them a reloaded model can still draw rows
+            # but no longer draws PEOPLE — and the bench reloads
+            # the model on every generate to avoid mutating it,
+            # so dropping these silently disabled patient
+            # generation everywhere it mattered.
+            "visit_counts": {str(k): v for k, v in
+                             getattr(self, "visit_counts",
+                                     {}).items()},
+            "lag": getattr(self, "lag", {}),
+            "level": dict(getattr(self, "level", {})),
+            "group_by": getattr(self, "group_by", None),
             "tally_of": dict(getattr(self, "tally_of", {})),
             "list_columns": {c: list(v) for c, v in
                              getattr(self, "list_columns",
@@ -1441,4 +1670,11 @@ class CondNet:
         net.list_columns = {c: list(v) for c, v in
                             (d.get("list_columns") or {}).items()}
         net.tally_of = dict(d.get("tally_of") or {})
+        net.visit_counts = Counter(
+            {int(k): v for k, v in
+             (d.get("visit_counts") or {}).items()})
+        net.lag = {c: {p: dict(dist) for p, dist in t.items()}
+                   for c, t in (d.get("lag") or {}).items()}
+        net.level = dict(d.get("level") or {})
+        net.group_by = d.get("group_by")
         return net

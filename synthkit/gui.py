@@ -694,7 +694,17 @@ def api_learn_generate(payload: dict) -> dict:
     net = CondNet.from_json(net.to_json())     # never mutate the
     _ls.apply_dials(net, payload.get("dials") or {})   # original
     rows = int(payload.get("rows") or _LEARNED.get("rows") or 500)
-    syn = net.sample(rows, seed=int(payload.get("seed") or 7))
+    if payload.get("hierarchical") and getattr(
+            net, "visit_counts", None):
+        # people with a course of visits, not loose encounters
+        per = max(1.0, sum(k * v for k, v in
+                           net.visit_counts.items())
+                  / max(sum(net.visit_counts.values()), 1))
+        syn = net.sample_patients(max(1, int(rows / per)),
+                                  seed=int(payload.get("seed")
+                                           or 7))
+    else:
+        syn = net.sample(rows, seed=int(payload.get("seed") or 7))
     notes = 0
     if payload.get("transcribe"):
         from .transcribe import TranscribeSpec, transcribe
@@ -815,6 +825,54 @@ def api_learn_plant(payload: dict) -> dict:
         "weights": planted["weights"],
         "note": planted["note"]},
         "hidden_columns": hidden, "plain": lines}
+
+
+def api_learn_save(payload: dict) -> dict:
+    """Hand back the learned model as a file.
+
+    Relearning a large extract every session is wasted time, and
+    worse, it means the numbers in a demo cannot be reproduced
+    exactly. The model is parameters, so it saves as text — and
+    because it holds no records, the saved file is as safe to keep
+    as the report written from it.
+    """
+    net = _LEARNED.get("net")
+    if net is None:
+        return {"error": "Learn from a dataset first."}
+    return {"filename": "learned_model.json",
+            "content": net.to_json(), "mime": "application/json",
+            "note": "parameters only; no record from the source "
+                    "file is present in this model"}
+
+
+def api_learn_load(payload: dict) -> dict:
+    """Restore a saved model and pick up where it left off."""
+    from .condnet import CondNet
+    from . import learnspec as _ls
+    raw = payload.get("content") or ""
+    path = payload.get("path")
+    if path and not raw:
+        pp = Path(path).expanduser()
+        if not pp.exists():
+            return {"error": "No file at {}".format(pp)}
+        raw = pp.read_text(encoding="utf-8")
+    if not raw.strip():
+        return {"error": "Give a saved model file to load."}
+    try:
+        net = CondNet.from_json(raw)
+    except Exception as e:
+        return {"error": "That does not look like a saved model: "
+                         "{}".format(str(e)[:160])}
+    _LEARNED["net"] = net
+    _LEARNED["facts"] = _ls.facts_from_model(net)
+    _LEARNED.setdefault("rows", net.report.get("rows", 1000))
+    return {"narrative": _ls.narrate(net), "dials": _ls.dials(net),
+            "outcome_candidates": _ls.outcome_candidates(net),
+            "note_plan": _ls.plan_summary(_LEARNED["facts"]),
+            "privacy": "Restored from parameters. The original "
+                       "file is not needed and was never stored.",
+            "grouped_by": net.report.get("grouped_by", "(none)"),
+            "restored": True}
 
 
 def api_learn_score(payload: dict) -> dict:
@@ -952,6 +1010,8 @@ _ROUTES = {
     "/api/learn-generate": api_learn_generate,
     "/api/learn-export": api_learn_export,
     "/api/learn-score": api_learn_score,
+    "/api/learn-save": api_learn_save,
+    "/api/learn-load": api_learn_load,
     "/api/learn-plant": api_learn_plant,
     "/api/learn-plant-async": lambda payload: {
         "job": _start_job(api_learn_plant, payload)},
@@ -1680,8 +1740,25 @@ label{font-size:13.5px;color:#2c3a45;font-weight:600}
     protection, and not ten patients&#39; worth of evidence
     either &mdash; naming this column makes the bench count people
     rather than rows.</div>
+    <label for="leps"><span class="stepno">6.3</span>
+    <span class="badge opt">optional</span> privacy budget
+    (epsilon) &mdash; leave blank for none</label>
+    <input id="leps" placeholder="1.0">
+    <div class="hint">Leaving this blank still protects the data
+    by k-anonymity and by never publishing a true minimum or
+    maximum. Setting a number goes further: it adds calibrated
+    noise so that an adversary who already knows everything else
+    about the cohort still cannot tell whether any ONE patient was
+    in it. Lower is stronger. At 1.0 the cost to accuracy is
+    usually negligible; below about 0.3 relationships start to
+    wash out, and the bench will show you that rather than hide
+    it.</div>
     <button class="act" onclick="learnRun()">Learn from this
     data</button>
+    <button class="act ghost" onclick="learnSave()">Save this
+    model</button>
+    <button class="act ghost" onclick="learnLoadPrompt()">Load a
+    saved model</button>
     <div class="outlabel">what the bench found</div>
     <div class="out" id="learn-out">Point at a file and press
     Learn.</div>
@@ -1706,6 +1783,15 @@ label{font-size:13.5px;color:#2c3a45;font-weight:600}
     <input id="lrows" value="1000">
     <label><input type="checkbox" id="lnotes"> also write a
     clinical note for each record</label>
+    <label><input type="checkbox" id="lhier" checked> generate
+    PATIENTS with a course of visits, not loose rows</label>
+    <div class="hint">With this on, each synthetic person gets
+    their own visit history: their fixed traits stay fixed, and a
+    value that drifts drifts from one visit to the next instead of
+    being redrawn from nothing every row. Any analysis that groups
+    by patient &mdash; which is most clinical analysis &mdash;
+    behaves like real longitudinal data only when this is on.
+    </div>
     <div class="hint">The note is assembled from the same facts
     the model learned, written the way clinicians write &mdash;
     shorthand, denials, hedges, findings carried forward &mdash;
@@ -2036,10 +2122,14 @@ async function learnRun(){
     'takes a moment on a large dataset');
   const d=await api('/api/learn',{
     path:document.getElementById('lpath').value,
-    group_by:document.getElementById('lgroup').value});
+    group_by:document.getElementById('lgroup').value,
+    epsilon:parseFloat(document.getElementById('leps').value)||0});
   if(d.error){out('learn-out',d.error,'bad');return;}
+  renderLearn(d);}
+function renderLearn(d){
   out('learn-out',d.narrative.headline+'  |  counted by: '+
-    d.grouped_by,'ok');
+    d.grouped_by+(d.restored?'  |  restored from a saved model':''),
+    'ok');
   var h='<div class="summarycard"><b>What the bench found in '+
     'your data</b>';
   if(d.narrative.findings.length){
@@ -2101,6 +2191,7 @@ async function learnGenerate(){
   const d=await api('/api/learn-generate',{
     rows:parseInt(document.getElementById('lrows').value)||1000,
     transcribe:document.getElementById('lnotes').checked,
+    hierarchical:document.getElementById('lhier').checked,
     dials:LEARN_DIALS});
   if(d.error){out('learn-gen-out',d.error,'bad');return;}
   var msg='Created '+d.rows+' records with '+d.columns+
@@ -2205,6 +2296,21 @@ async function learnScore(){
       'turned off with a dial SHOULD fail to reproduce.</div>';
     h+='</div>';
     document.getElementById('learn-score-report').innerHTML=h;});}
+function learnSave(){
+  api('/api/learn-save',{}).then(function(d){
+    if(d.error){out('learn-out',d.error,'bad');return;}
+    var a=document.createElement('a');
+    a.href='data:'+d.mime+';charset=utf-8,'+
+      encodeURIComponent(d.content);
+    a.download=d.filename;a.click();
+    out('learn-out','saved \u2014 '+d.note,'ok');});}
+function learnLoadPrompt(){
+  var pth=prompt('Full path to a saved model file:');
+  if(!pth)return;
+  out('learn-out','restoring the saved model...');
+  api('/api/learn-load',{path:pth}).then(function(d){
+    if(d.error){out('learn-out',d.error,'bad');return;}
+    renderLearn(d);});}
 function learnDownload(){
   api('/api/learn-export',{}).then(function(d){
     if(d.error){out('learn-gen-out',d.error,'bad');return;}

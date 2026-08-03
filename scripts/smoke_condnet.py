@@ -11,6 +11,12 @@ ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT))
 from synthkit.condnet import CondNet, MISSING   # noqa: E402
 
+def _sd(xs):
+    m = sum(xs) / len(xs)
+    return (sum((x - m) ** 2 for x in xs) / max(len(xs) - 1,
+                                                1)) ** 0.5
+
+
 PASS = FAIL = 0
 
 
@@ -620,6 +626,104 @@ def main():
                  - min(float(x["sbp"]) for x in vit)))
           < 0.5 * (max(float(x["sbp"]) for x in vit)
                    - min(float(x["sbp"]) for x in vit)))
+
+    # ---- patients with a clinical course ----
+    from collections import defaultdict as _dd
+    r14 = random.Random(77)
+    longit = []
+    for pid in range(140):
+        bp = r14.gauss(132, 15)
+        for _ in range(r14.randint(2, 10)):
+            longit.append({"person_id": "P%04d" % pid,
+                           "sex": "F" if pid % 2 else "M",
+                           "sbp": round(r14.gauss(bp, 6), 1)})
+    nh = CondNet(k=10, max_parents=2).learn(
+        longit, group_by="person_id", multilevel=True)
+    check("the model records how many visits people have and "
+          "which of their values are fixed traits",
+          nh.visit_counts and nh.level.get("sex") == "patient"
+          and nh.level.get("sbp") == "visit")
+    check("it learns how a changing value moves from one visit to "
+          "the next", "sbp" in nh.lag)
+    people = nh.sample_patients(200, seed=3)
+    grp = _dd(list)
+    for row in people:
+        grp[row["person_id"]].append(row)
+    check("generation produces PEOPLE with visit histories, not "
+          "loose rows",
+          len(grp) == 200 and len(people) > 200
+          and all("visit_number" in row for row in people))
+    check("a fixed trait stays fixed across a patient's visits",
+          all(len({row["sex"] for row in v}) == 1
+              for v in grp.values()))
+
+    def autocorr(groups):
+        pr = []
+        for v in groups.values():
+            xs = [float(row["sbp"]) for row in v]
+            pr += list(zip(xs, xs[1:]))
+        if len(pr) < 30:
+            return 0.0
+        a = [x for x, _ in pr]
+        b = [y for _, y in pr]
+        ma, mb = sum(a) / len(a), sum(b) / len(b)
+        num = sum((x - ma) * (y - mb) for x, y in pr)
+        den = (sum((x - ma) ** 2 for x in a)
+               * sum((y - mb) ** 2 for y in b)) ** 0.5
+        return num / den if den else 0.0
+
+    src_grp = _dd(list)
+    for row in longit:
+        src_grp[row["person_id"]].append(row)
+    flat = nh.sample(len(people), seed=3)
+    flat_grp = _dd(list)
+    for i, row in enumerate(flat):
+        flat_grp[i // 5].append(row)
+    check("a patient's values are CORRELATED visit to visit, as "
+          "in real longitudinal data — row-wise sampling produces "
+          "none of this",
+          autocorr(grp) > 0.25 > autocorr(flat_grp))
+    check("...without exceeding the correlation actually present "
+          "in the source",
+          autocorr(grp) <= autocorr(src_grp) + 0.15)
+    rt = CondNet.from_json(nh.to_json())
+    check("the hierarchical tables survive saving and reloading — "
+          "without them a restored model draws rows but no longer "
+          "draws people",
+          rt.visit_counts and rt.lag
+          and len(rt.sample_patients(50, seed=1)) > 50)
+
+    # ---- differential privacy ----
+    base_net = CondNet(k=10, max_parents=3).learn(
+        longit, group_by="person_id")
+    check("with no budget set, the model says plainly that it "
+          "offers k-anonymity rather than a bound on inference",
+          base_net.report["differential_privacy"]["epsilon"]
+          is None
+          and "adversary" in
+          base_net.report["differential_privacy"]["reading"])
+    dp_net = CondNet(k=10, max_parents=3).learn(
+        longit, group_by="person_id", epsilon=1.0)
+    dpr = dp_net.report["differential_privacy"]
+    check("a budget produces a stated epsilon and a noise scale "
+          "derived from it",
+          dpr["epsilon"] == 1.0 and dpr["noise_scale"] > 0)
+    check("one person's contribution is bounded, because without "
+          "a bound the sensitivity is whatever the heaviest "
+          "utiliser happens to be",
+          dpr["max_rows_per_person"] > 0)
+    check("the claim is stated in terms of what an adversary "
+          "cannot learn",
+          "whether one particular person was in it"
+          in dpr["reading"])
+    strong = CondNet(k=10, max_parents=3).learn(
+        longit, group_by="person_id", epsilon=0.05)
+    s_sd = _sd([float(x["sbp"]) for x in strong.sample(2000, 4)])
+    o_sd = _sd([float(x["sbp"]) for x in longit])
+    check("a very tight budget degrades the model toward its own "
+          "marginal rather than collapsing it into confident "
+          "nonsense — 'we do not know' is the right failure",
+          0.4 * o_sd < s_sd < 2.5 * o_sd)
 
     print()
     if FAIL:
