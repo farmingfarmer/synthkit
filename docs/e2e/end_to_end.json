@@ -1,0 +1,132 @@
+{
+ "config": {
+  "patients": 500,
+  "epsilon": null
+ },
+ "learn": {
+  "headline": "Learned from 1474 records covering 250 patients. 2 real relationships found; 0 columns filed as arithmetic the data pipeline itself created.",
+  "findings": [
+   "diastolic blood pressure moves with systolic blood pressure",
+   "furosemide moves with congestive heart failure"
+  ],
+  "bookkeeping": [],
+  "resolution": 3,
+  "refined_columns": {
+   "diastolic_blood_pressure": 8,
+   "age_at_visit": 12,
+   "creatinine": 12
+  },
+  "differential_privacy": {
+   "epsilon": null,
+   "reading": "no differential-privacy budget was set: protection rests on k-anonymity and percentile clamping, which are properties of the tables rather than a bound on what an adversary can infer"
+  }
+ },
+ "generate": {
+  "rows": 1419,
+  "patients": 250,
+  "visits_per_patient": 5.68,
+  "autocorrelation_source": 0.775,
+  "autocorrelation_generated": 0.723,
+  "note": "a patient's values are correlated visit to visit; sampling rows independently gives none of this"
+ },
+ "score": {
+  "passed": 24,
+  "checks": 26,
+  "fidelity": "FAIL",
+  "privacy": "PASS",
+  "failing": [],
+  "exact_matches": 0
+ },
+ "attack": {
+  "members": 1474,
+  "nonmembers": 1419,
+  "likelihood": {
+   "auc": 0.4894,
+   "attacker_sees": "the published model itself"
+  },
+  "nearest_neighbour": {
+   "auc": 0.5057,
+   "attacker_sees": "the synthetic data only"
+  },
+  "worst_auc": 0.5057,
+  "verdict": "PASS",
+  "reading": "The strongest adversary scored 0.506, where 0.5 is a coin flip and 1.0 would mean every member identified. That is no better than guessing, so membership in this cohort is not recoverable from what we publish."
+ },
+ "exam": {
+  "weights": {
+   "conditions::chf": 1.3,
+   "active_drugs::furosemide": 0.8,
+   "lives_alone": 0.7
+  },
+  "prevalence": 0.1404,
+  "hidden_in_prose": [
+   "active_drugs",
+   "active_drugs::furosemide",
+   "conditions",
+   "conditions::chf"
+  ],
+  "showdown": {
+   "ceiling": 0.9104,
+   "reading": 0.8997,
+   "reading_ci": [
+    0.8638,
+    0.9355
+   ],
+   "blind": 0.7308,
+   "value_of_reading": 0.1689,
+   "test_rows": 898,
+   "test_positives": 132,
+   "has_notes": true,
+   "vendor": 0.7308,
+   "vendor_name": "vendor_model:predict",
+   "vendor_beats_ours": false
+  },
+  "extraction_by_corruption": {
+   "abbreviation": {
+    "mentions": 1576,
+    "recall": 0.789,
+    "false_positive_rate": 0.415
+   },
+   "clean": {
+    "mentions": 525,
+    "recall": 1.0,
+    "false_positive_rate": null
+   },
+   "copy_forward": {
+    "mentions": 442,
+    "recall": 1.0,
+    "false_positive_rate": null
+   },
+   "hedge": {
+    "mentions": 266,
+    "recall": 0.722,
+    "false_positive_rate": null
+   },
+   "negation_scope_trap": {
+    "mentions": 305,
+    "recall": 0.787,
+    "false_positive_rate": null
+   },
+   "negation_simple": {
+    "mentions": 655,
+    "recall": null,
+    "false_positive_rate": 0.753
+   },
+   "omitted_units": {
+    "mentions": 483,
+    "recall": 1.0,
+    "false_positive_rate": null
+   },
+   "temporal_history": {
+    "mentions": 140,
+    "recall": 0.75,
+    "false_positive_rate": null
+   },
+   "transcription_error": {
+    "mentions": 494,
+    "recall": 1.0,
+    "false_positive_rate": null
+   }
+  }
+ }
+}

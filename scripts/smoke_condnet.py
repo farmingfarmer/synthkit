@@ -842,6 +842,34 @@ def main():
     check("the report explains why resolution differs by column",
           "own parent" in nr.report["refinement_note"])
 
+    # ---- the budget must reach the transition tables ----
+    dp_h = CondNet(k=10, max_parents=2).learn(
+        longit, group_by="person_id", multilevel=True,
+        epsilon=1.0)
+    plain_h = CondNet(k=10, max_parents=2).learn(
+        longit, group_by="person_id", multilevel=True)
+    check("a transition table under a budget is not identical to "
+          "one without — publishing untouched transitions while "
+          "claiming an epsilon would state a guarantee that does "
+          "not hold",
+          dp_h.lag.get("sbp") != plain_h.lag.get("sbp"))
+    check("the budget is split over the transition tables too, "
+          "so more published quantities means less noise budget "
+          "each",
+          dp_h.report["differential_privacy"]["budget_split_over"]
+          > sum(1 for c in dp_h.order if dp_h.parents.get(c)))
+    check("the visit-count histogram is noised as well: how often "
+          "people are seen is itself a fact about them",
+          "visit-count histogram"
+          in dp_h.report["differential_privacy"]["covers"])
+    check("persistence ratios are coarsened rather than published "
+          "exactly",
+          all(abs(v * 10 - round(v * 10)) < 1e-9
+              for v in dp_h.persistence.values()))
+    check("a budgeted hierarchical model still generates patients "
+          "with visit histories",
+          len(dp_h.sample_patients(60, seed=2)) > 60)
+
     print()
     if FAIL:
         print("{} FAILED".format(FAIL))

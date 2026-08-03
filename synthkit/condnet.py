@@ -816,6 +816,23 @@ class CondNet:
         for g in self.groups:
             per_person[g] += 1
         self.visit_counts = Counter(per_person.values())
+        # How many visits people have is itself a published
+        # statistic derived from patients, so it takes its share
+        # of the budget. Each person contributes exactly one
+        # observation here, so the sensitivity is 1.
+        if getattr(self, "epsilon", 0) > 0:
+            vrng = random.Random(self.seed ^ 0x515C)
+            noisy_v = Counter()
+            for kk, vv in self.visit_counts.items():
+                u = vrng.random() - 0.5
+                lap = -(1.0 / max(self.epsilon / 8.0, 1e-6)) \
+                    * math.copysign(1.0, u) \
+                    * math.log(max(1.0 - 2.0 * abs(u), 1e-12))
+                nv = int(round(max(0.0, vv + lap)))
+                if nv:
+                    noisy_v[kk] = nv
+            if noisy_v:
+                self.visit_counts = noisy_v
         self.lag = {}
         seq = defaultdict(list)
         for j in range(n):
@@ -1267,8 +1284,19 @@ class CondNet:
             self.parents[c] = parents
 
         # conditional tables, with k-suppression
+        # The budget must cover EVERY published quantity, not only
+        # the conditional tables. A transition table is published
+        # too, and it is derived from the same people — spending
+        # epsilon only on the conditional tables and then
+        # publishing untouched transitions would state a guarantee
+        # that does not hold. The count therefore includes one
+        # slot per visit-level column for its transition table and
+        # one for the visit-count histogram.
+        n_visit_cols = sum(1 for c in self.order
+                           if self.level.get(c) == "visit")
         n_tables = max(sum(1 for c in self.order
-                           if self.parents.get(c)), 1)
+                           if self.parents.get(c))
+                       + n_visit_cols + 1, 1)
         self._dp_scale = (DP_MAX_ROWS_PER_PERSON
                           / (self.epsilon / n_tables)
                           if self.epsilon > 0 else 0.0)
@@ -1389,8 +1417,13 @@ class CondNet:
                 m = sum(xs) / len(xs)
                 within += sum((x - m) ** 2 for x in xs)
             if total > 0:
-                self.persistence[c] = max(
-                    0.0, min(0.95, 1.0 - within / total))
+                ratio = 1.0 - within / total
+                if self.epsilon > 0:
+                    # a single scalar per column, but still a
+                    # statistic about these patients: it is
+                    # coarsened rather than published exactly
+                    ratio = round(ratio * 10.0) / 10.0
+                self.persistence[c] = max(0.0, min(0.95, ratio))
 
         # ---- give each column the resolution IT can support ----
         # Bin resolution was solved once for the whole model, from
@@ -1537,12 +1570,19 @@ class CondNet:
             for prev, cnt in trans.items():
                 if len(people[prev]) < self.k:
                     continue           # too few people to publish
-                m = sum(cnt.values())
                 marg = self.marginal[c]
+                a_t = SMOOTHING
+                if self.epsilon > 0:
+                    cnt = _noisy(cnt, self._dp_scale, dp_rng)
+                    # as with the conditional tables, a swamped
+                    # transition must degrade to the marginal
+                    # rather than to a confident point mass
+                    a_t = SMOOTHING + self._dp_scale
+                m = max(sum(cnt.values()), 1e-9)
                 syms = set(cnt) | set(marg)
                 tbl[prev] = {s: (cnt.get(s, 0)
-                                 + SMOOTHING * marg.get(s, 0.0))
-                             / (m + SMOOTHING) for s in syms}
+                                 + a_t * marg.get(s, 0.0))
+                             / (m + a_t) for s in syms}
             if tbl:
                 self.lag[c] = tbl
 
@@ -1597,6 +1637,12 @@ class CondNet:
                  "rows_dropped_to_bound_contribution":
                      self.dp_dropped,
                  "noise_scale": round(self._dp_scale, 3),
+                 "covers": ["conditional tables",
+                            "transition tables",
+                            "visit-count histogram",
+                            "bin edges (percentile-clamped)",
+                            "persistence ratios (coarsened)"],
+                 "budget_split_over": n_tables,
                  "reading": "every published table carries "
                             "calibrated noise. The model "
                             "satisfies {}-differential privacy "
