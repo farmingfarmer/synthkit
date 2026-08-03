@@ -757,6 +757,10 @@ def api_learn_generate(payload: dict) -> dict:
     w.writerows(syn)
     _LEARNED["generated"] = buf.getvalue()
     preview = syn[:40]
+    temporal = {}
+    if payload.get("hierarchical") and getattr(
+            net, "target_autocorr", None):
+        temporal = net.temporal_check(syn)
     _remember("generated",
               "{} records{}".format(
                   len(syn),
@@ -766,6 +770,7 @@ def api_learn_generate(payload: dict) -> dict:
                          (payload.get("dials") or {}).items()
                          if v != 1}})
     return {"rows": len(syn), "columns": len(syn[0]),
+            "temporal": temporal,
             "ledgered_mentions": notes,
             "columns_list": list(syn[0]),
             "preview": preview,
@@ -877,6 +882,64 @@ def api_learn_plant(payload: dict) -> dict:
         "weights": planted["weights"],
         "note": planted["note"]},
         "hidden_columns": hidden, "plain": lines}
+
+
+def api_learn_audit(payload: dict) -> dict:
+    """Attack the model the bench just built.
+
+    The command line could do this and the bench could not, which
+    is the wrong way round: the bench is where most people work,
+    and a privacy claim nobody tested is the one most likely to be
+    repeated.
+    """
+    import csv as _csv
+    import random as _rnd
+    from .attack import membership_audit
+    from .condnet import CondNet
+    net = _LEARNED.get("net")
+    srcp = _LEARNED.get("path")
+    if net is None or not srcp:
+        return {"error": "Learn from a dataset first."}
+    with Path(srcp).open(encoding="utf-8-sig", newline="") as f:
+        rows = list(_csv.DictReader(f))
+    gb = getattr(net, "group_by", None) or "person_id"
+    by = {}
+    for r in rows:
+        by.setdefault(r.get(gb, id(r)), []).append(r)
+    keys = sorted(by, key=str)
+    _rnd.Random(7).shuffle(keys)
+    cut = len(keys) // 2
+    if cut < 5:
+        return {"error": "Too few patients to test membership: "
+                         "the split would leave nothing to "
+                         "compare."}
+    mem = [r for k in keys[:cut] for r in by[k]]
+    non = [r for k in keys[cut:] for r in by[k]]
+    # fit on HALF, so there is a right answer about who was in
+    half = CondNet(k=net.k, max_parents=net.max_parents).learn(
+        mem, group_by=gb,
+        multilevel=bool(getattr(net, "multilevel", False)),
+        epsilon=getattr(net, "epsilon", 0.0))
+    aud = membership_audit(half, mem, non,
+                           half.sample(1500, seed=3),
+                           nn_sample=120)
+    lines = [
+        "The model was rebuilt from half the patients, and an "
+        "adversary was asked which half each person came from.",
+        "The strongest one scored {:.3f}, where 0.500 is a coin "
+        "flip and 1.000 would mean every patient identified."
+        .format(aud["worst_auc"]),
+    ]
+    if aud.get("context"):
+        lines.append(aud["context"])
+    else:
+        lines.append(aud["reading"].split(". ", 1)[-1])
+    return {"verdict": aud["verdict"], "auc": aud["worst_auc"],
+            "likelihood": aud["likelihood"]["auc"],
+            "nearest_neighbour": aud.get(
+                "nearest_neighbour", {}).get("auc"),
+            "people": aud.get("members_are_people"),
+            "plain": lines}
 
 
 def api_learn_save(payload: dict) -> dict:
@@ -1089,6 +1152,9 @@ _ROUTES = {
     "/api/learn-export": api_learn_export,
     "/api/learn-score": api_learn_score,
     "/api/learn-save": api_learn_save,
+    "/api/learn-audit": api_learn_audit,
+    "/api/learn-audit-async": lambda payload: {
+        "job": _start_job(api_learn_audit, payload)},
     "/api/learn-history": api_learn_history,
     "/api/learn-load": api_learn_load,
     "/api/learn-plant": api_learn_plant,
@@ -1895,6 +1961,8 @@ label{font-size:13.5px;color:#2c3a45;font-weight:600}
     data</button>
     <button class="act" onclick="learnScore()">Check it against
     the real data</button>
+    <button class="act" onclick="learnAudit()">Try to break the
+    privacy</button>
     <button class="act ghost" onclick="learnDownload()">Download
     CSV</button>
     <div class="outlabel">result</div>
@@ -1904,6 +1972,12 @@ label{font-size:13.5px;color:#2c3a45;font-weight:600}
     <div class="out" id="learn-score-out">Create the data, then
     check it.</div>
     <div id="learn-score-report"></div>
+    <div class="outlabel">can anyone tell who was in the
+    cohort?</div>
+    <div class="out" id="learn-audit-out">A privacy claim nobody
+    tested is the one most likely to be repeated. Press the button
+    above to test this one.</div>
+    <div id="learn-audit-report"></div>
     <div id="learn-preview"></div>
   </div>
   <div class="panel" id="learn-exam-panel" style="display:none">
@@ -2304,6 +2378,18 @@ async function learnGenerate(){
   out('learn-gen-out',msg,'ok');
   document.getElementById('learn-preview').innerHTML=
     previewTable(d.preview,d.columns_list);
+  if(d.temporal&&d.temporal.warning){
+    document.getElementById('learn-gen-out').innerHTML+=
+      '<div style="margin-top:10px;border-left:2px solid #B45309;'+
+      'padding-left:12px"><b>The visit histories came out flat.'+
+      '</b> '+esc(d.temporal.warning)+'</div>';
+  }else if(d.temporal&&d.temporal.reproduced&&
+           d.temporal.reproduced.length){
+    var t=d.temporal.reproduced.map(function(x){
+      return x.column+' '+x.generated+' (source '+x.source+')';});
+    document.getElementById('learn-gen-out').innerHTML+=
+      '<div class="hint" style="margin-top:8px">Visit-to-visit '+
+      'steadiness reproduced: '+esc(t.join('; '))+'</div>';}
   learnHistory();}
 var UPLOADED=null;
 function learnPickFile(el){
@@ -2384,6 +2470,33 @@ async function learnPlant(){
       '</div>';
     h+='<div class="hint">'+esc(d.planted.note)+'</div></div>';
     document.getElementById('learn-exam-report').innerHTML=h;});}
+async function learnAudit(){
+  out('learn-audit-out','rebuilding the model from half the '+
+    'patients, then asking an adversary which half each person '+
+    'came from...');
+  const j=await api('/api/learn-audit-async',{});
+  poll(j.job,'learn-audit-out',function(d){
+    if(d.error){out('learn-audit-out',d.error,'bad');return;}
+    out('learn-audit-out','strongest adversary '+
+      d.auc.toFixed(3)+'  |  '+d.verdict,
+      d.verdict==='PASS'?'ok':'');
+    var h='<div class="summarycard"><b>What the attack found'+
+      '</b>';
+    for(var i=0;i<d.plain.length;i++){
+      h+='<div class="pstep"><span class="nchip" '+
+        'style="background:'+(d.verdict==='PASS'?'#17803D':
+        '#B45309')+'">'+(i+1)+'</span><span>'+esc(d.plain[i])+
+        '</span></div>';}
+    h+='<div class="hint" style="margin-top:8px">Two adversaries '+
+      'were run. One saw only the generated data ('+
+      (d.nearest_neighbour===null?'not run':
+       d.nearest_neighbour.toFixed(3))+'); the other was handed '+
+      'the model itself ('+d.likelihood.toFixed(3)+'), because '+
+      'that is what a determined attacker would have. The '+
+      'verdict takes the stronger of the two.</div>';
+    h+='</div>';
+    document.getElementById('learn-audit-report').innerHTML=h;
+    learnHistory();});}
 async function learnScore(){
   out('learn-score-out','comparing the synthetic data against '+
     'the real file, field by field and relationship by '+

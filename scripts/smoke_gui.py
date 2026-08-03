@@ -780,6 +780,34 @@ def main():
         check("the history is honest about being session-only",
               "session only" in hist["note"])
 
+        # ---------- the bench must attack its own output ----------
+        check("the bench offers to attack the privacy of what it "
+              "just built — a claim nobody tested is the one most "
+              "likely to be repeated",
+              "learnAudit" in flat_html
+              and "Try to break the privacy" in flat_html)
+        aud = post("/api/learn-audit", {})
+        check("the audit rebuilds from half the patients so there "
+              "is a right answer about who was in",
+              "verdict" in aud and aud["people"] > 0)
+        check("it reports the stronger of two adversaries",
+              aud["auc"] >= aud["likelihood"] - 1e-9)
+        check("parameter-based generation survives it",
+              aud["verdict"] == "PASS" and aud["auc"] < 0.60)
+        check("the finding is explained rather than left as a "
+              "number", len(aud["plain"]) >= 3
+              and "coin flip" in " ".join(aud["plain"]))
+
+        hg = post("/api/learn-generate",
+                  {"rows": 700, "hierarchical": True,
+                   "dials": {}})
+        check("generating patients reports whether the visit "
+              "histories actually carry a course, so nobody holds "
+              "flat data believing it is longitudinal",
+              "temporal" in hg
+              and (hg["temporal"].get("reproduced")
+                   or hg["temporal"].get("warning")))
+
         saved = post("/api/learn-save", {})
         check("a learned model saves as parameters, and says so",
               "content" in saved

@@ -39,6 +39,100 @@ compile, generate, score. Add `--transcribe` to render the
 structured facts into messy clinical notes with a truth ledger, so
 extraction can be graded by the KIND of mess that defeated it.
 
+## Patients, not rows
+
+Real records have people in them. Someone whose blood pressure runs
+high at one visit tends to run high at the next; a patient with
+four visits is a different thing from four patients with one. Any
+analysis that groups by patient — which is most clinical analysis —
+only behaves correctly when the data has that structure.
+
+```
+python scripts/phase2_pipeline.py --src DIR -o OUT --engine condnet --hierarchical
+```
+
+Each synthetic person gets fixed traits that stay fixed, a visit
+count drawn from the real distribution, and values that drift from
+one visit to the next. The steadiness is calibrated against the
+source: measured visit-to-visit correlation 0.67 against a source
+of 0.78, where sampling rows independently gives 0.03. Overshooting
+is treated as a failure too — synthetic patients steadier than real
+ones would flatter every model tested on them.
+
+## Free text, and grading what reads it
+
+Most clinical value is locked in prose, and an exam made only of
+columns cannot test for it. Add `--transcribe` and the structured
+facts are written into notes the way clinicians write — shorthand,
+denials, hedges, findings carried forward, transposed digits — with
+a hidden ledger of what each sentence actually asserts.
+
+That ledger makes it possible to grade a reader by the KIND of mess
+that beat it. On 800 generated notes, two readers that both look
+competent fail in opposite directions: a keyword matcher scores
+perfect recall and falls for every negated mention, while a
+clause-scoped reader fixes negation entirely and then misses every
+scope trap — a sentence like "no improvement in heart failure",
+where the negation does not reach the finding.
+
+Nothing here learns language from real notes. Facts are authored
+and rendered, so no phrasing can be traced to a patient.
+
+## Privacy, attacked rather than asserted
+
+Architecture arguments are not measurements. An adversary is handed
+the published model and asked which patients it was built from;
+0.5 is a coin flip.
+
+```
+python scripts/end_to_end.py --patients 500 --epsilon 1.0 --report
+```
+
+`--epsilon` adds calibrated noise covering every published
+quantity — conditional tables, transition tables, the visit-count
+histogram, the bin edges and the steadiness targets — with each
+person's contribution capped so the sensitivity is bounded.
+
+Both the attack and the cost of a budget depend strongly on cohort
+size:
+
+| patients | attack | structure kept at ε=1 |
+|---------:|-------:|----------------------:|
+|       92 |  0.619 |                   11% |
+|      250 |  0.478 |                   67% |
+|      600 |  0.501 |                   69% |
+|    1,500 |  0.502 |                   87% |
+|    4,000 |  0.509 |                   95% |
+
+Above roughly 250 patients membership stops being recoverable at
+all. Above roughly 600 a formal ε=1 guarantee becomes affordable,
+and at 4,000 it is nearly free. The noise protects one person's
+contribution, so it overwhelms a small cohort and rounds to nothing
+in a large one.
+
+## One command, end to end
+
+Every capability above has its own tests. This takes a single
+cohort the whole way and reports the lot, which makes it both the
+deliverable and the integration test — a feature that works alone
+and breaks in company shows up here and nowhere else.
+
+```
+python scripts/end_to_end.py --patients 500 -o docs/e2e --report
+```
+
+```
+patients learned from              250
+real relationships found           2
+visit-to-visit correlation         0.723 vs source 0.775
+fidelity checks passed             24/26
+privacy                            0 exact matches, PASS
+strongest membership attack        0.506  (PASS)
+ceiling (known exactly)            0.910
+our model reading the notes        0.897
+our model, notes withheld          0.713  (reading worth +0.184)
+```
+
 ## How much data does it need?
 
 Measured against planted truth rather than asserted
@@ -48,6 +142,12 @@ for an interaction between two factors — with zero noise columns
 ever adopted as structure at any cohort size.
 
 ## Where to start reading
+
+`docs/synthkit_presentation.html` — an interactive walkthrough of
+what this is, what it does and where it goes. Self-contained; open
+it in a browser. Start here if you have fifteen minutes and no
+context.
+
 
 `docs/system_map.html` is a generated, self-contained map of the
 whole system: hub to domains to modules to live source, with a

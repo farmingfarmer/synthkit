@@ -498,6 +498,23 @@ DOMAINS = [
       "about 5% of the structure. k-anonymity is a property of "
       "the tables; epsilon is a bound on what an adversary can "
       "infer."),
+     ("Calibrating a patient's steadiness",
+      "condnet.py", "CondNet.calibrate_persistence",
+      "The transition tables and the within-bin anchor both make a "
+      "patient look steady, and they do not combine in any closed "
+      "form worth deriving. Applying both at full strength "
+      "produced synthetic patients STEADIER than real ones — "
+      "0.87 against a source of 0.78 — which would flatter every "
+      "model tested on them. The anchor weights are tuned against "
+      "the source instead."),
+     ("Saying when the visit histories came out flat",
+      "condnet.py", "CondNet.temporal_check",
+      "A privacy budget can erase temporal structure entirely "
+      "while generation still reports patients and visit numbers. "
+      "Someone would then hold data that LOOKS longitudinal and "
+      "behaves like independent rows — a worse position than "
+      "knowing you have loose rows, because nothing in the output "
+      "says so."),
      ("The amplify dial", "condnet.py", "CondNet.amplify",
       "A geometric tilt of each conditional toward or away from "
       "its marginal. Factor 0 deletes a discovered relationship, "
@@ -1240,6 +1257,28 @@ NARRATIVE = {
    ["Cap how much any single person can move a number",
     "without a cap the exposure is whatever the most-seen patient "
     "happens to be, and the promise cannot be stated at all"],
+  ],
+  "condnet.py::CondNet.calibrate_persistence": [
+   ["Measure how steady the real patients actually are",
+    "and treat that as the target rather than something to be "
+    "derived from theory"],
+   ["Tune until the invented patients match it",
+    "two separate mechanisms both make a patient look steady, and "
+    "guessing how they add up produced people who held their "
+    "readings more tightly than any real patient does"],
+   ["Treat overshooting as a failure too",
+    "synthetic patients steadier than real ones would make every "
+    "model tested on them look better than it will be in "
+    "practice"],
+  ],
+  "condnet.py::CondNet.temporal_check": [
+   ["Check the visit histories actually came out with a course",
+    "a privacy budget can flatten them completely while the "
+    "output still shows a patient and a visit number"],
+   ["Say so plainly when they did not",
+    "holding data that looks longitudinal and behaves like loose "
+    "rows is worse than knowing you have loose rows, because "
+    "nothing about it announces the problem"],
   ],
   "condnet.py::CondNet.amplify": [
    ["Make any discovered pattern stronger, weaker, or absent",

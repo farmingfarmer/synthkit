@@ -1,0 +1,929 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>synthkit — synthetic data with a known answer key</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=IBM+Plex+Sans:wght@300;400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+:root{
+  --ground:#0A1A1E;
+  --panel:#0F262B;
+  --panel-2:#123036;
+  --rule:#1C3B42;
+  --body:#C6D9D5;
+  --dim:#7C9793;
+  --faint:#4E6D69;
+  --signal:#5EE6C4;      /* measured values only */
+  --limit:#E5A33C;       /* costs, caveats, limits */
+  --paper:#F2EFE6;
+  --ink:#101A1C;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html{scroll-behavior:smooth}
+body{
+  background:var(--ground);
+  color:var(--body);
+  font-family:"IBM Plex Sans",system-ui,sans-serif;
+  font-weight:300;
+  font-size:17px;
+  line-height:1.6;
+  -webkit-font-smoothing:antialiased;
+  overflow:hidden;
+}
+
+/* ---------- ambient grid: instrument paper ---------- */
+.grid-bg{
+  position:fixed; inset:0; pointer-events:none; z-index:0;
+  background-image:
+    linear-gradient(var(--rule) 1px,transparent 1px),
+    linear-gradient(90deg,var(--rule) 1px,transparent 1px);
+  background-size:64px 64px;
+  opacity:.16;
+  mask-image:radial-gradient(ellipse 90% 70% at 50% 45%,#000 30%,transparent 100%);
+}
+.glow{
+  position:fixed; z-index:0; pointer-events:none;
+  width:60vw; height:60vw; left:60%; top:-15%;
+  background:radial-gradient(circle,rgba(94,230,196,.10),transparent 62%);
+  filter:blur(30px);
+}
+
+/* ---------- deck mechanics ---------- */
+#deck{position:relative;z-index:2;height:100vh;width:100%}
+.slide{
+  position:absolute; inset:0;
+  display:flex; align-items:center; justify-content:center;
+  padding:72px 7vw 96px;
+  opacity:0; visibility:hidden;
+  transform:translateY(14px);
+  transition:opacity .5s ease, transform .5s ease, visibility .5s;
+  overflow-y:auto;
+}
+.slide.on{opacity:1;visibility:visible;transform:none}
+.wrap{width:100%;max-width:1120px}
+
+/* ---------- type ---------- */
+.eyebrow{
+  font-family:"IBM Plex Mono",monospace;
+  font-size:11.5px; letter-spacing:.22em; text-transform:uppercase;
+  color:var(--faint); margin-bottom:22px;
+  display:flex; align-items:center; gap:12px;
+}
+.eyebrow::after{content:"";flex:1;height:1px;background:var(--rule)}
+h1{
+  font-family:"Instrument Serif",Georgia,serif;
+  font-weight:400; font-size:clamp(42px,6.6vw,86px);
+  line-height:1.02; letter-spacing:-.015em; color:#EAF6F2;
+}
+h1 em{font-style:italic;color:var(--signal)}
+h2{
+  font-family:"Instrument Serif",Georgia,serif;
+  font-weight:400; font-size:clamp(30px,4.2vw,54px);
+  line-height:1.08; letter-spacing:-.01em; color:#EAF6F2;
+  margin-bottom:20px;
+}
+h2 em{font-style:italic;color:var(--signal)}
+h3{
+  font-size:13px; font-weight:600; letter-spacing:.05em;
+  text-transform:uppercase; color:var(--dim); margin-bottom:10px;
+}
+p{max-width:64ch;color:var(--body)}
+p+p{margin-top:14px}
+.lede{font-size:clamp(18px,2vw,21px);line-height:1.55;color:#D9E9E5;font-weight:300}
+.sub{color:var(--dim);font-size:15.5px}
+strong{font-weight:500;color:#E6F3F0}
+
+/* measured values glow; asserted ones do not */
+.m{
+  font-family:"IBM Plex Mono",monospace;
+  color:var(--signal); font-weight:500;
+  font-variant-numeric:tabular-nums;
+}
+.lim{font-family:"IBM Plex Mono",monospace;color:var(--limit);font-weight:500}
+
+/* ---------- layout helpers ---------- */
+.cols{display:grid;grid-template-columns:1fr 1fr;gap:56px;align-items:center}
+.cols-3{display:grid;grid-template-columns:repeat(3,1fr);gap:22px}
+.stack{display:flex;flex-direction:column;gap:26px}
+.panel{
+  background:var(--panel); border:1px solid var(--rule);
+  border-radius:3px; padding:26px 28px;
+}
+.panel.tight{padding:18px 20px}
+
+/* ---------- hero ---------- */
+.hero-mark{
+  font-family:"IBM Plex Mono",monospace; font-size:12px;
+  letter-spacing:.34em; text-transform:uppercase; color:var(--signal);
+  margin-bottom:30px;
+}
+.hero-sub{margin-top:28px;max-width:56ch}
+.hero-meta{
+  margin-top:44px; display:flex; gap:38px; flex-wrap:wrap;
+  padding-top:26px; border-top:1px solid var(--rule);
+}
+.meta-item .k{
+  font-family:"IBM Plex Mono",monospace; font-size:24px;
+  color:var(--signal); font-variant-numeric:tabular-nums;
+}
+.meta-item .l{font-size:12.5px;color:var(--dim);margin-top:2px}
+
+/* ---------- the dial (signature) ---------- */
+.dial-shell{
+  background:linear-gradient(180deg,var(--panel-2),var(--panel));
+  border:1px solid var(--rule); border-radius:4px; padding:26px 28px 22px;
+}
+.dial-row{display:flex;align-items:center;gap:18px;margin-top:18px}
+input[type=range]{
+  -webkit-appearance:none;appearance:none;flex:1;height:2px;
+  background:var(--rule);outline:none;border-radius:2px;
+}
+input[type=range]::-webkit-slider-thumb{
+  -webkit-appearance:none;width:20px;height:20px;border-radius:50%;
+  background:var(--signal);cursor:grab;border:3px solid var(--ground);
+  box-shadow:0 0 0 1px var(--signal),0 0 16px rgba(94,230,196,.5);
+}
+input[type=range]::-moz-range-thumb{
+  width:20px;height:20px;border-radius:50%;background:var(--signal);
+  cursor:grab;border:3px solid var(--ground);
+  box-shadow:0 0 0 1px var(--signal),0 0 16px rgba(94,230,196,.5);
+}
+input[type=range]:focus-visible::-webkit-slider-thumb{outline:2px solid #fff;outline-offset:3px}
+.dial-val{
+  font-family:"IBM Plex Mono",monospace;font-size:15px;color:var(--signal);
+  min-width:74px;text-align:right;font-variant-numeric:tabular-nums;
+}
+.dial-caption{
+  margin-top:16px;font-size:14px;color:var(--dim);min-height:44px;
+  border-left:2px solid var(--rule);padding-left:14px;
+}
+.dial-ticks{
+  display:flex;justify-content:space-between;
+  font-family:"IBM Plex Mono",monospace;font-size:10.5px;
+  color:var(--faint);margin-top:8px;letter-spacing:.08em;
+}
+
+/* ---------- data table ---------- */
+table{border-collapse:collapse;width:100%;font-size:14.5px}
+th{
+  font-family:"IBM Plex Mono",monospace;font-size:10.5px;
+  letter-spacing:.14em;text-transform:uppercase;color:var(--faint);
+  text-align:right;padding:0 0 10px;font-weight:400;
+  border-bottom:1px solid var(--rule);
+}
+th:first-child{text-align:left}
+td{padding:10px 0;border-bottom:1px solid rgba(28,59,66,.55);text-align:right}
+td:first-child{text-align:left;color:var(--body)}
+tr:hover td{background:rgba(94,230,196,.045)}
+.num{font-family:"IBM Plex Mono",monospace;font-variant-numeric:tabular-nums}
+.ok{color:var(--signal)}
+.warn{color:var(--limit)}
+.nil{color:var(--faint)}
+
+/* ---------- note demo ---------- */
+.note{
+  background:var(--paper);color:var(--ink);border-radius:2px;
+  padding:22px 24px;font-size:14.5px;line-height:1.72;
+  font-family:"IBM Plex Sans",sans-serif;
+  box-shadow:0 14px 40px rgba(0,0,0,.4);
+}
+.note .sec{
+  font-family:"IBM Plex Mono",monospace;font-size:10.5px;
+  letter-spacing:.14em;text-transform:uppercase;color:#6B7C7A;
+  display:block;margin-top:12px;
+}
+.note .sec:first-child{margin-top:0}
+.mark{border-bottom:2px solid transparent;padding-bottom:1px}
+.mark.hot{border-bottom-color:#C2410C;background:rgba(194,65,12,.11)}
+.chips{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:16px}
+.chip{
+  font-family:"IBM Plex Mono",monospace;font-size:11px;letter-spacing:.06em;
+  padding:6px 11px;border:1px solid var(--rule);border-radius:2px;
+  color:var(--dim);cursor:pointer;background:transparent;
+  transition:all .18s ease;
+}
+.chip:hover{border-color:var(--faint);color:var(--body)}
+.chip.on{border-color:var(--signal);color:var(--signal);background:rgba(94,230,196,.08)}
+.chip:focus-visible{outline:2px solid var(--signal);outline-offset:2px}
+
+/* ---------- verdict strip ---------- */
+.verdict{
+  display:flex;gap:0;border:1px solid var(--rule);border-radius:3px;
+  overflow:hidden;margin-top:8px;
+}
+.vcell{flex:1;padding:18px 20px;border-right:1px solid var(--rule)}
+.vcell:last-child{border-right:none}
+.vcell .n{font-family:"IBM Plex Mono",monospace;font-size:27px;font-variant-numeric:tabular-nums}
+.vcell .t{font-size:12px;color:var(--dim);margin-top:4px;line-height:1.35}
+.vcell.hi{background:rgba(94,230,196,.07)}
+
+/* ---------- nav ---------- */
+#rail{
+  position:fixed;left:26px;top:50%;transform:translateY(-50%);
+  z-index:20;display:flex;flex-direction:column;gap:2px;
+}
+.rdot{
+  width:26px;height:26px;border:none;background:transparent;cursor:pointer;
+  display:flex;align-items:center;padding:0;
+}
+.rdot i{
+  display:block;width:14px;height:2px;background:var(--rule);
+  transition:all .28s ease;
+}
+.rdot:hover i{background:var(--faint);width:20px}
+.rdot.on i{background:var(--signal);width:26px}
+.rdot:focus-visible{outline:2px solid var(--signal);outline-offset:2px}
+#rail .rlabel{
+  position:absolute;left:34px;white-space:nowrap;
+  font-family:"IBM Plex Mono",monospace;font-size:10.5px;
+  letter-spacing:.12em;text-transform:uppercase;color:var(--signal);
+  opacity:0;transition:opacity .2s;pointer-events:none;
+}
+.rdot:hover+.rlabel{opacity:1}
+
+#hud{
+  position:fixed;right:28px;bottom:24px;z-index:20;
+  display:flex;align-items:center;gap:14px;
+  font-family:"IBM Plex Mono",monospace;font-size:11.5px;
+  letter-spacing:.1em;color:var(--faint);
+}
+#hud button{
+  background:transparent;border:1px solid var(--rule);color:var(--dim);
+  width:32px;height:32px;border-radius:2px;cursor:pointer;font-size:14px;
+  transition:all .18s;
+}
+#hud button:hover{border-color:var(--signal);color:var(--signal)}
+#hud button:focus-visible{outline:2px solid var(--signal);outline-offset:2px}
+#bar{position:fixed;top:0;left:0;height:2px;background:var(--signal);z-index:30;
+  transition:width .45s cubic-bezier(.4,0,.2,1);box-shadow:0 0 12px rgba(94,230,196,.6)}
+.brand{
+  position:fixed;left:26px;top:24px;z-index:20;
+  font-family:"IBM Plex Mono",monospace;font-size:11.5px;
+  letter-spacing:.26em;text-transform:uppercase;color:var(--faint);
+}
+.hint{
+  position:fixed;left:50%;bottom:24px;transform:translateX(-50%);z-index:20;
+  font-family:"IBM Plex Mono",monospace;font-size:10.5px;letter-spacing:.14em;
+  color:var(--faint);transition:opacity .4s;
+}
+
+svg{display:block;max-width:100%;overflow:visible}
+.axis{font-family:"IBM Plex Mono",monospace;font-size:10.5px;fill:var(--faint)}
+.axlabel{font-family:"IBM Plex Sans",sans-serif;font-size:11.5px;fill:var(--dim)}
+
+.callout{
+  border-left:2px solid var(--limit);padding:4px 0 4px 16px;
+  color:var(--dim);font-size:15px;max-width:62ch;
+}
+.callout strong{color:var(--limit);font-weight:500}
+
+ul.clean{list-style:none;display:flex;flex-direction:column;gap:14px}
+ul.clean li{display:flex;gap:14px;font-size:15.5px;color:var(--body);line-height:1.5}
+ul.clean li::before{
+  content:"";flex:none;width:6px;height:6px;margin-top:9px;
+  background:var(--signal);border-radius:50%;
+}
+ul.clean li.later::before{background:var(--rule)}
+
+@media (max-width:900px){
+  body{font-size:16px}
+  .slide{padding:64px 24px 96px}
+  .cols,.cols-3{grid-template-columns:1fr;gap:28px}
+  #rail{display:none}
+  .verdict{flex-direction:column}
+  .vcell{border-right:none;border-bottom:1px solid var(--rule)}
+  .hero-meta{gap:24px}
+}
+@media (prefers-reduced-motion:reduce){
+  *{transition-duration:.01ms!important;animation-duration:.01ms!important}
+  html{scroll-behavior:auto}
+}
+</style>
+</head>
+<body>
+
+<div class="grid-bg"></div>
+<div class="glow"></div>
+<div id="bar" style="width:0"></div>
+<div class="brand">synthkit</div>
+
+<nav id="rail" aria-label="Sections"></nav>
+
+<main id="deck"></main>
+
+<div id="hud">
+  <button id="prev" aria-label="Previous">&#8592;</button>
+  <span id="count">01 / 11</span>
+  <button id="next" aria-label="Next">&#8594;</button>
+</div>
+<div class="hint" id="hint">&#8592; &#8594; or scroll</div>
+
+<script>
+/* ================================================================
+   Data. Every figure here was measured on a run, not estimated.
+   ================================================================ */
+var COHORT = [
+  {n:92,   attack:0.619, verdict:"MARGINAL", dpLink:0.11, findings:2},
+  {n:250,  attack:0.478, verdict:"PASS",     dpLink:0.67, findings:2},
+  {n:600,  attack:0.501, verdict:"PASS",     dpLink:0.69, findings:2},
+  {n:1500, attack:0.502, verdict:"PASS",     dpLink:0.87, findings:2},
+  {n:4000, attack:0.509, verdict:"PASS",     dpLink:0.95, findings:5}
+];
+var POWER = [
+  {kind:"A simple rising relationship",        need:400},
+  {kind:"A threshold — risk jumps past a cut-point", need:800},
+  {kind:"A U-shape — dangerous at both extremes",    need:800},
+  {kind:"Two factors that only matter together",     need:3200}
+];
+
+/* ================================================================
+   The dial. This runs the real mechanic: a geometric tilt of the
+   conditional distribution toward or away from the marginal.
+   ================================================================ */
+function tilt(p, marginal, a){
+  var x = Math.pow(p, a) * Math.pow(marginal, 1-a);
+  var y = Math.pow(1-p, a) * Math.pow(1-marginal, 1-a);
+  return x / (x + y);
+}
+
+var SLIDES = [];
+
+/* ---------------- 1. hero ---------------- */
+SLIDES.push({tag:"Thesis", html:
+'<div class="wrap">'+
+  '<div class="hero-mark">Clinical synthetic data</div>'+
+  '<h1>You cannot grade a model<br>without <em>knowing the answer.</em></h1>'+
+  '<p class="lede hero-sub">synthkit builds datasets where the truth was planted on purpose &mdash; '+
+  'so the best score any model could possibly reach is known exactly, and a vendor&rsquo;s claim '+
+  'can be checked instead of believed.</p>'+
+  '<div class="hero-meta">'+
+    '<div class="meta-item"><div class="k">27</div><div class="l">test suites</div></div>'+
+    '<div class="meta-item"><div class="k">738</div><div class="l">automated checks</div></div>'+
+    '<div class="meta-item"><div class="k">0</div><div class="l">real records copied</div></div>'+
+    '<div class="meta-item"><div class="k">1</div><div class="l">command, end to end</div></div>'+
+  '</div>'+
+'</div>'});
+
+/* ---------------- 2. problem ---------------- */
+SLIDES.push({tag:"Problem", html:
+'<div class="wrap cols">'+
+  '<div>'+
+    '<div class="eyebrow">The problem</div>'+
+    '<h2>A vendor says their model finds it. <em>Finds what?</em></h2>'+
+    '<p>Evaluating a data tool, an extraction model, or a vendor&rsquo;s risk score '+
+    'means comparing their answer against the right one. On real clinical data '+
+    'nobody has the right one. You get a number with nothing to hold it against.</p>'+
+    '<p class="sub" style="margin-top:16px">So the usual approaches both fail: real data '+
+    'has no answer key, and hand-made test data has no realism. Neither tells you '+
+    'whether a model would work here.</p>'+
+  '</div>'+
+  '<div class="stack">'+
+    '<div class="panel">'+
+      '<h3>What a bare score tells you</h3>'+
+      '<p style="font-size:15px">&ldquo;Our model scores <span class="lim">0.71</span>.&rdquo;</p>'+
+      '<p class="sub" style="margin-top:10px">Good? The best achievable might be 0.72, '+
+      'or it might be 0.95. Without the ceiling the number is unreadable.</p>'+
+    '</div>'+
+    '<div class="panel">'+
+      '<h3>What synthkit reports instead</h3>'+
+      '<p style="font-size:15px">Ceiling <span class="m">0.904</span> &middot; '+
+      'ours <span class="m">0.888</span> &middot; vendor <span class="m">0.471</span></p>'+
+      '<p class="sub" style="margin-top:10px">The ceiling is not an estimate. The causes '+
+      'were written down by a person, so the probability behind every record is known.</p>'+
+    '</div>'+
+  '</div>'+
+'</div>'});
+
+/* ---------------- 3. the rule ---------------- */
+SLIDES.push({tag:"The rule", html:
+'<div class="wrap">'+
+  '<div class="eyebrow">The one rule everything follows</div>'+
+  '<h2>Learn the patterns. <em>Never copy the records.</em></h2>'+
+  '<p class="lede" style="margin-bottom:34px">Write down the recipe, not a photograph of the meal. '+
+  'synthkit measures distributions, rates and relationships &mdash; then cooks new patients from '+
+  'those numbers. No synthetic record descends from a real one, because generation never '+
+  'touches a record.</p>'+
+  '<div class="cols-3">'+
+    '<div class="panel tight"><h3>Count people, not rows</h3>'+
+    '<p class="sub">Every published figure covers at least ten <em>patients</em>. Ten visits '+
+    'from one person is a cell of one &mdash; a rule counting rows would have published '+
+    'one heavy user&rsquo;s ward as a category.</p></div>'+
+    '<div class="panel tight"><h3>Never publish an extreme</h3>'+
+    '<p class="sub">Bounds stop at the 1st and 99th percentile. The true minimum and maximum '+
+    'belong to individuals; tails are extrapolated rather than copied.</p></div>'+
+    '<div class="panel tight"><h3>Refuse unconfirmed structure</h3>'+
+    '<p class="sub">With hundreds of field pairs, roughly nineteen look significant by pure '+
+    'chance. Those are reported and never imposed.</p></div>'+
+  '</div>'+
+  '<div class="callout" style="margin-top:30px"><strong>Why this matters beyond privacy.</strong> '+
+  'A copy of your data can only ever ask the question reality already asked. Parameters let you '+
+  'ask harder ones &mdash; which is the difference between a dataset and an instrument.</div>'+
+'</div>'});
+
+/* ---------------- 4. THE DIAL (signature) ---------------- */
+SLIDES.push({tag:"The dial", html:
+'<div class="wrap cols">'+
+  '<div>'+
+    '<div class="eyebrow">Signature</div>'+
+    '<h2>Every pattern it finds<br>becomes <em>something you turn.</em></h2>'+
+    '<p>synthkit learned that heart-failure patients in this cohort are usually on a diuretic. '+
+    'Now turn it off and see whether a vendor still claims to find it. Turn it up and see '+
+    'whether they catch it when it is twice as strong.</p>'+
+    '<p class="sub" style="margin-top:14px">The control below runs the real mechanic &mdash; a '+
+    'geometric tilt of the learned distribution toward or away from the population rate. '+
+    'Strength changes; shape survives.</p>'+
+  '</div>'+
+  '<div class="dial-shell">'+
+    '<h3 style="margin-bottom:18px">Relationship strength</h3>'+
+    '<svg id="dialviz" viewBox="0 0 420 210" role="img" aria-label="Diuretic rate with and without heart failure"></svg>'+
+    '<div class="dial-row">'+
+      '<input type="range" id="dial" min="0" max="2" step="0.05" value="1" '+
+      'aria-label="Relationship strength">'+
+      '<span class="dial-val" id="dialval">1.00&times;</span>'+
+    '</div>'+
+    '<div class="dial-ticks"><span>REMOVED</span><span>AS FOUND</span><span>DOUBLED</span></div>'+
+    '<div class="dial-caption" id="dialcap"></div>'+
+  '</div>'+
+'</div>'});
+
+/* ---------------- 5. beyond correlation ---------------- */
+SLIDES.push({tag:"Nonlinear", html:
+'<div class="wrap cols">'+
+  '<div>'+
+    '<div class="eyebrow">Why a recipe is not enough</div>'+
+    '<h2>Some things are dangerous<br>at <em>both</em> extremes.</h2>'+
+    '<p>Sodium is a good example: risk rises when it is too high <em>and</em> when it is too low. '+
+    'Measured as a correlation that comes out at <span class="m">&minus;0.019</span> &mdash; '+
+    'essentially zero. Any method built on correlations throws the relationship away and '+
+    'reports that nothing was there.</p>'+
+    '<p class="sub" style="margin-top:14px">synthkit models the joint distribution instead, so the '+
+    'shape survives whatever form it takes: a curve that reverses, a cut-point, or two factors '+
+    'that only matter in combination.</p>'+
+  '</div>'+
+  '<div class="panel">'+
+    '<h3>Event rate across sodium</h3>'+
+    '<svg id="ushape" viewBox="0 0 440 250" role="img" aria-label="U-shaped risk across sodium bands"></svg>'+
+    '<div style="display:flex;gap:22px;margin-top:14px;font-size:12.5px;color:var(--dim)">'+
+      '<span><span style="display:inline-block;width:20px;height:2px;background:var(--signal);'+
+      'vertical-align:middle;margin-right:7px"></span>real data</span>'+
+      '<span><span style="display:inline-block;width:20px;height:2px;background:var(--limit);'+
+      'vertical-align:middle;margin-right:7px"></span>correlation-based method</span>'+
+    '</div>'+
+  '</div>'+
+'</div>'});
+
+/* ---------------- 6. patients not rows ---------------- */
+SLIDES.push({tag:"Patients", html:
+'<div class="wrap">'+
+  '<div class="eyebrow">Longitudinal structure</div>'+
+  '<h2>Real records have <em>people</em> in them.</h2>'+
+  '<p class="lede" style="margin-bottom:30px">Draw rows independently and you get a pile of '+
+  'encounters. Someone whose pressure runs high at one visit tends to run high at the next; a '+
+  'patient with four visits is a different thing from four patients with one. Any analysis that '+
+  'groups by patient &mdash; which is most clinical analysis &mdash; behaves correctly only when '+
+  'the data has that structure.</p>'+
+  '<div class="verdict">'+
+    '<div class="vcell"><div class="n m">0.78</div><div class="t">Visit-to-visit correlation in the real data</div></div>'+
+    '<div class="vcell hi"><div class="n m">0.67</div><div class="t">Reproduced by generating patients with a course of visits</div></div>'+
+    '<div class="vcell"><div class="n" style="color:var(--faint)">0.03</div><div class="t">Reproduced by sampling rows independently</div></div>'+
+  '</div>'+
+  '<p class="sub" style="margin-top:26px;max-width:70ch">Each synthetic person gets fixed traits '+
+  'that stay fixed, a visit count drawn from the real distribution, and values that drift from '+
+  'one visit to the next rather than being redrawn from nothing. The steadiness is '+
+  '<strong>calibrated against the source</strong> &mdash; overshooting matters as much as '+
+  'undershooting, because synthetic patients steadier than real ones would flatter every model '+
+  'you tested on them.</p>'+
+'</div>'});
+
+/* ---------------- 7. the notes ---------------- */
+SLIDES.push({tag:"Free text", html:
+'<div class="wrap cols">'+
+  '<div>'+
+    '<div class="eyebrow">The hard part</div>'+
+    '<h2>Most clinical value is <em>locked in prose.</em></h2>'+
+    '<p>An exam made only of columns cannot test for it. So synthkit writes the facts into notes '+
+    'the way clinicians actually write &mdash; and keeps a hidden record of what every sentence '+
+    'really claims.</p>'+
+    '<p class="sub" style="margin-top:14px">Switch the kinds of mess on and off. The last one is '+
+    'the trap: a negation sitting right beside a finding that it does not apply to.</p>'+
+    '<div class="chips" style="margin-top:20px" id="chips"></div>'+
+    '<div class="callout" id="notecap"></div>'+
+  '</div>'+
+  '<div>'+
+    '<div class="note" id="notebody"></div>'+
+    '<p class="sub" style="margin-top:16px;font-size:13.5px">Nothing here is learned from real '+
+    'notes. Facts are authored and rendered, so no phrasing can be traced back to a patient.</p>'+
+  '</div>'+
+'</div>'});
+
+/* ---------------- 8. graded by failure kind ---------------- */
+SLIDES.push({tag:"Grading", html:
+'<div class="wrap">'+
+  '<div class="eyebrow">What a vendor report looks like</div>'+
+  '<h2>One score hides <em>which skill is missing.</em></h2>'+
+  '<p class="lede" style="margin-bottom:28px">Because synthkit wrote the notes, it knows what each '+
+  'sentence asserts &mdash; so a reader can be graded by the kind of mess that beat it. Two '+
+  'readers, neither good, failing in opposite directions:</p>'+
+  '<table>'+
+    '<thead><tr><th>Kind of mess in the note</th><th>Keyword matcher</th><th>Careful clause reader</th></tr></thead>'+
+    '<tbody>'+
+      '<tr><td>Plainly stated</td><td class="num ok">found 1.00</td><td class="num ok">found 0.93</td></tr>'+
+      '<tr><td>Denied &mdash; &ldquo;no evidence of&rdquo;</td><td class="num warn">wrong every time</td><td class="num ok">correct</td></tr>'+
+      '<tr><td>Two findings denied at once</td><td class="num warn">wrong every time</td><td class="num ok">correct</td></tr>'+
+      '<tr><td>Denial that does not apply &mdash; &ldquo;no improvement in&rdquo;</td><td class="num ok">correct</td><td class="num warn">missed every one</td></tr>'+
+      '<tr><td>Written as a past finding</td><td class="num warn">taken as current</td><td class="num ok">correct</td></tr>'+
+      '<tr><td>Answer format not held</td><td class="num nil">&mdash;</td><td class="num nil">&mdash;</td></tr>'+
+    '</tbody>'+
+  '</table>'+
+  '<p class="sub" style="margin-top:24px;max-width:74ch">The last row matters more than it looks. '+
+  'In an earlier study a small model failed to produce a usable answer on 17 of 24 attempts &mdash; '+
+  'while writing perfectly good clinical prose. <strong>Being wrong and being unusable are '+
+  'different procurement problems</strong>, and they are counted separately.</p>'+
+'</div>'});
+
+/* ---------------- 9. how much data ---------------- */
+SLIDES.push({tag:"Data needed", html:
+'<div class="wrap cols">'+
+  '<div>'+
+    '<div class="eyebrow">Measured, not asserted</div>'+
+    '<h2>How many patients<br>does a pattern <em>need?</em></h2>'+
+    '<p>The only honest way to answer is to plant relationships of known kinds and strengths, then '+
+    'grow the cohort until each is reliably recovered.</p>'+
+    '<p class="sub" style="margin-top:14px">At every size tested, <strong>no noise column was ever '+
+    'mistaken for a finding</strong>. An instrument that finds structure everywhere is worthless; '+
+    'this one stays silent when there is nothing there.</p>'+
+    '<div class="callout" style="margin-top:24px"><strong>The shape is the finding.</strong> '+
+    'These figures come from a synthetic cohort, because that is the only place the truth is '+
+    'known. Real data will differ in the specifics.</div>'+
+  '</div>'+
+  '<div class="panel">'+
+    '<h3>Patients needed to recover a relationship</h3>'+
+    '<svg id="power" viewBox="0 0 460 250" role="img" aria-label="Patients needed by relationship type"></svg>'+
+  '</div>'+
+'</div>'});
+
+/* ---------------- 10. privacy by scale ---------------- */
+SLIDES.push({tag:"Privacy", html:
+'<div class="wrap">'+
+  '<div class="eyebrow">Attacked, not asserted</div>'+
+  '<h2>The privacy guarantee <em>gets stronger with scale.</em></h2>'+
+  '<p class="lede" style="margin-bottom:26px">We do not claim privacy from architecture alone. An '+
+  'adversary is handed the published model and asked which patients it was built from. '+
+  '<span class="m">0.50</span> means a coin flip &mdash; they learned nothing.</p>'+
+  '<div class="cols" style="gap:44px;align-items:start">'+
+    '<div><svg id="privchart" viewBox="0 0 440 250" role="img" aria-label="Attack success and privacy cost by cohort size"></svg></div>'+
+    '<div>'+
+      '<table>'+
+        '<thead><tr><th>Patients</th><th>Attack</th><th>Structure kept at &epsilon;=1</th></tr></thead>'+
+        '<tbody id="privrows"></tbody>'+
+      '</table>'+
+      '<p class="sub" style="margin-top:20px">A formal privacy budget adds calibrated noise so that '+
+      'someone who knows everything else about the cohort still cannot tell whether one person was '+
+      'in it. That noise protects an individual&rsquo;s contribution &mdash; so with few people it '+
+      'overwhelms the signal, and with many it is a rounding error.</p>'+
+    '</div>'+
+  '</div>'+
+'</div>'});
+
+/* ---------------- 11. where it stands ---------------- */
+SLIDES.push({tag:"From here", html:
+'<div class="wrap cols">'+
+  '<div>'+
+    '<div class="eyebrow">Where it stands</div>'+
+    '<h2>Built and tested.<br><em>Waiting on patients.</em></h2>'+
+    '<h3 style="margin-top:30px">Working now</h3>'+
+    '<ul class="clean">'+
+      '<li>Learn from an existing extract, or describe a dataset in plain English</li>'+
+      '<li>Generate patients with a clinical course, and notes to match</li>'+
+      '<li>Turn any discovered pattern up, down, or off</li>'+
+      '<li>Plant an outcome and grade any model against a known ceiling</li>'+
+      '<li>Score fidelity and privacy, and attack the result</li>'+
+      '<li>One command from the terminal, or five steps in a browser</li>'+
+    '</ul>'+
+  '</div>'+
+  '<div>'+
+    '<h3>Next</h3>'+
+    '<ul class="clean">'+
+      '<li class="later">A cohort large enough to exercise what is already built</li>'+
+      '<li class="later">Vocabulary learned from real notes &mdash; safely, and only phrasings shared by many patients</li>'+
+      '<li class="later">Vendor evaluations run against planted truth rather than opinion</li>'+
+    '</ul>'+
+    '<div class="panel" style="margin-top:32px">'+
+      '<h3>The one honest limit</h3>'+
+      '<p class="sub">Every capability here has been validated against data where the truth was '+
+      'planted, because that is the only way to check an instrument. The largest real extract it '+
+      'has seen holds <span class="lim">92 patients</span> &mdash; enough to prove the machinery '+
+      'runs, too few to exercise most of it.</p>'+
+      '<p class="sub" style="margin-top:12px">At that size membership is partly recoverable and a '+
+      'privacy budget erases the longitudinal structure. Both point the same way, and both are '+
+      'measured rather than argued.</p>'+
+    '</div>'+
+  '</div>'+
+'</div>'});
+
+/* ================================================================
+   Render + navigation
+   ================================================================ */
+var deck = document.getElementById('deck');
+var rail = document.getElementById('rail');
+SLIDES.forEach(function(s,i){
+  var sec = document.createElement('section');
+  sec.className = 'slide' + (i===0?' on':'');
+  sec.innerHTML = s.html;
+  sec.setAttribute('aria-hidden', i===0?'false':'true');
+  deck.appendChild(sec);
+
+  var b = document.createElement('button');
+  b.className = 'rdot' + (i===0?' on':'');
+  b.innerHTML = '<i></i>';
+  b.setAttribute('aria-label', s.tag);
+  b.onclick = function(){ go(i); };
+  var lab = document.createElement('span');
+  lab.className = 'rlabel';
+  lab.textContent = s.tag;
+  rail.appendChild(b);
+  rail.appendChild(lab);
+});
+
+var cur = 0;
+var slides = document.querySelectorAll('.slide');
+var dots = document.querySelectorAll('.rdot');
+
+function go(n){
+  n = Math.max(0, Math.min(SLIDES.length-1, n));
+  if(n===cur) return;
+  slides[cur].classList.remove('on');
+  slides[cur].setAttribute('aria-hidden','true');
+  dots[cur].classList.remove('on');
+  cur = n;
+  slides[cur].classList.add('on');
+  slides[cur].setAttribute('aria-hidden','false');
+  dots[cur].classList.add('on');
+  update();
+}
+function update(){
+  document.getElementById('bar').style.width =
+    ((cur+1)/SLIDES.length*100)+'%';
+  document.getElementById('count').textContent =
+    String(cur+1).padStart(2,'0')+' / '+String(SLIDES.length).padStart(2,'0');
+  document.getElementById('hint').style.opacity = cur===0 ? '1' : '0';
+  if(cur===3) drawDial();
+  if(cur===4) drawU();
+  if(cur===8) drawPower();
+  if(cur===9) drawPriv();
+}
+document.getElementById('next').onclick = function(){ go(cur+1); };
+document.getElementById('prev').onclick = function(){ go(cur-1); };
+document.addEventListener('keydown', function(e){
+  if(e.key==='ArrowRight'||e.key==='PageDown'||e.key===' '){ e.preventDefault(); go(cur+1); }
+  if(e.key==='ArrowLeft'||e.key==='PageUp'){ e.preventDefault(); go(cur-1); }
+  if(e.key==='Home'){ go(0); }
+  if(e.key==='End'){ go(SLIDES.length-1); }
+});
+var wheelLock = false;
+window.addEventListener('wheel', function(e){
+  var s = slides[cur];
+  if(s.scrollHeight > s.clientHeight + 8){
+    var atTop = s.scrollTop <= 0, atBot = s.scrollTop + s.clientHeight >= s.scrollHeight - 2;
+    if(!(atTop && e.deltaY < 0) && !(atBot && e.deltaY > 0)) return;
+  }
+  if(wheelLock) return;
+  if(Math.abs(e.deltaY) < 18) return;
+  wheelLock = true;
+  go(cur + (e.deltaY > 0 ? 1 : -1));
+  setTimeout(function(){ wheelLock = false; }, 620);
+}, {passive:true});
+var tY = null;
+window.addEventListener('touchstart', function(e){ tY = e.touches[0].clientY; }, {passive:true});
+window.addEventListener('touchend', function(e){
+  if(tY===null) return;
+  var d = tY - e.changedTouches[0].clientY;
+  if(Math.abs(d) > 60) go(cur + (d > 0 ? 1 : -1));
+  tY = null;
+}, {passive:true});
+
+/* ================================================================
+   Charts
+   ================================================================ */
+var NS='http://www.w3.org/2000/svg';
+function el(t,a){ var n=document.createElementNS(NS,t);
+  for(var k in a) n.setAttribute(k,a[k]); return n; }
+function txt(x,y,s,cls,anchor){
+  var n=el('text',{x:x,y:y,class:cls||'axis'});
+  if(anchor) n.setAttribute('text-anchor',anchor);
+  n.textContent=s; return n;
+}
+
+/* ---- the dial ---- */
+var BASE_WITH = 0.88, BASE_WITHOUT = 0.05, MARGINAL = 0.31;
+function drawDial(){
+  var a = parseFloat(document.getElementById('dial').value);
+  var w = tilt(BASE_WITH, MARGINAL, a);
+  var wo = tilt(BASE_WITHOUT, MARGINAL, a);
+  var svg = document.getElementById('dialviz');
+  svg.innerHTML = '';
+  var x0=140, wMax=250, h=42, gap=34, top=32;
+  [['With heart failure',w,top],['Without',wo,top+h+gap]].forEach(function(row){
+    svg.appendChild(txt(x0-14,row[2]+h/2+5,row[0],'axlabel','end'));
+    svg.appendChild(el('rect',{x:x0,y:row[2],width:wMax,height:h,
+      fill:'rgba(28,59,66,.5)',rx:2}));
+    var bw = Math.max(2,row[1]*wMax);
+    var b = el('rect',{x:x0,y:row[2],width:bw,height:h,fill:'var(--signal)',rx:2,
+      opacity:0.85});
+    b.style.transition='width .18s ease';
+    svg.appendChild(b);
+    svg.appendChild(txt(x0+bw+12,row[2]+h/2+5,(row[1]*100).toFixed(0)+'%','axis'));
+  });
+  svg.appendChild(txt(x0,top+2*h+gap+30,'share on a diuretic','axlabel'));
+  var d = Math.abs(w-wo);
+  var cap;
+  if(a < 0.12) cap = 'The relationship is gone. Both groups now sit at the population rate — '+
+    'a vendor claiming to find it here is reporting noise.';
+  else if(a < 0.85) cap = 'Weakened. A harder version of the same test: the pattern is real '+
+    'but faint, and only a sensitive method will see it.';
+  else if(a < 1.15) cap = 'As found in the data. The gap between the two groups is '+
+    (d*100).toFixed(0)+' percentage points.';
+  else cap = 'Sharpened beyond what the data showed. Useful for checking that a model '+
+    'responds to strength, not just presence.';
+  document.getElementById('dialcap').textContent = cap;
+  document.getElementById('dialval').textContent = a.toFixed(2)+'\u00d7';
+}
+document.addEventListener('input', function(e){
+  if(e.target && e.target.id==='dial') drawDial();
+});
+
+/* ---- U-shape ---- */
+function drawU(){
+  var svg=document.getElementById('ushape'); svg.innerHTML='';
+  var real=[0.21,0.12,0.09,0.13,0.20], flat=[0.15,0.15,0.15,0.15,0.15];
+  var labels=['very low','low','normal','high','very high'];
+  var x0=52,y0=190,w=350,h=150,maxv=0.25;
+  [0,0.1,0.2].forEach(function(v){
+    var y=y0-v/maxv*h;
+    svg.appendChild(el('line',{x1:x0,y1:y,x2:x0+w,y2:y,stroke:'var(--rule)','stroke-width':1}));
+    svg.appendChild(txt(x0-10,y+4,(v*100).toFixed(0)+'%','axis','end'));
+  });
+  function path(vals,color,dash){
+    var d='';
+    vals.forEach(function(v,i){
+      var x=x0+(i+0.5)*(w/vals.length), y=y0-v/maxv*h;
+      d+=(i?'L':'M')+x+' '+y+' ';
+    });
+    var p=el('path',{d:d,fill:'none',stroke:color,'stroke-width':2.5,
+      'stroke-linecap':'round','stroke-linejoin':'round'});
+    if(dash) p.setAttribute('stroke-dasharray','5 5');
+    svg.appendChild(p);
+    vals.forEach(function(v,i){
+      var x=x0+(i+0.5)*(w/vals.length), y=y0-v/maxv*h;
+      svg.appendChild(el('circle',{cx:x,cy:y,r:4,fill:'var(--panel)',
+        stroke:color,'stroke-width':2}));
+    });
+  }
+  path(flat,'var(--limit)',true);
+  path(real,'var(--signal)',false);
+  labels.forEach(function(l,i){
+    svg.appendChild(txt(x0+(i+0.5)*(w/labels.length),y0+22,l,'axis','middle'));
+  });
+  svg.appendChild(txt(x0,y0+46,'sodium','axlabel'));
+}
+
+/* ---- power ---- */
+function drawPower(){
+  var svg=document.getElementById('power'); svg.innerHTML='';
+  var x0=8,y=26,barX=250,maxN=3200,barW=180;
+  POWER.forEach(function(p){
+    svg.appendChild(txt(x0,y+13,p.kind,'axlabel'));
+    var w=Math.max(4,Math.sqrt(p.need/maxN)*barW);
+    var r=el('rect',{x:barX,y:y,width:0,height:19,fill:'var(--signal)',rx:2,opacity:.8});
+    svg.appendChild(r);
+    setTimeout(function(){ r.style.transition='width .7s cubic-bezier(.2,.8,.3,1)';
+      r.setAttribute('width',w); }, 60);
+    svg.appendChild(txt(barX+w+10,y+14,p.need.toLocaleString(),'axis'));
+    y+=42;
+  });
+  svg.appendChild(el('line',{x1:barX,y1:14,x2:barX,y2:y-14,
+    stroke:'var(--rule)','stroke-width':1}));
+  svg.appendChild(txt(barX,y+14,'patients required','axlabel'));
+  var haveX=barX+Math.sqrt(92/maxN)*barW;
+  svg.appendChild(el('line',{x1:haveX,y1:14,x2:haveX,y2:y-14,
+    stroke:'var(--limit)','stroke-width':1.5,'stroke-dasharray':'4 4'}));
+  svg.appendChild(txt(haveX+6,y+14,'we have 92','axlabel'));
+}
+
+/* ---- privacy ---- */
+function drawPriv(){
+  var svg=document.getElementById('privchart'); svg.innerHTML='';
+  var x0=54,y0=180,w=340,h=140;
+  [0.5,0.75,1.0].forEach(function(v){
+    var y=y0-(v-0.4)/0.6*h;
+    svg.appendChild(el('line',{x1:x0,y1:y,x2:x0+w,y2:y,stroke:'var(--rule)','stroke-width':1}));
+    svg.appendChild(txt(x0-10,y+4,(v*100).toFixed(0)+'%','axis','end'));
+  });
+  function pt(i){ return x0+(i/(COHORT.length-1))*w; }
+  function yv(v){ return y0-(v-0.4)/0.6*h; }
+  var d1='',d2='';
+  COHORT.forEach(function(c,i){
+    d1+=(i?'L':'M')+pt(i)+' '+yv(c.attack)+' ';
+    d2+=(i?'L':'M')+pt(i)+' '+yv(0.4+c.dpLink*0.6)+' ';
+  });
+  svg.appendChild(el('path',{d:d2,fill:'none',stroke:'var(--limit)','stroke-width':2.5,
+    'stroke-linejoin':'round','stroke-linecap':'round'}));
+  svg.appendChild(el('path',{d:d1,fill:'none',stroke:'var(--signal)','stroke-width':2.5,
+    'stroke-linejoin':'round','stroke-linecap':'round'}));
+  COHORT.forEach(function(c,i){
+    svg.appendChild(el('circle',{cx:pt(i),cy:yv(0.4+c.dpLink*0.6),r:4,
+      fill:'var(--panel)',stroke:'var(--limit)','stroke-width':2}));
+    svg.appendChild(el('circle',{cx:pt(i),cy:yv(c.attack),r:4,
+      fill:'var(--panel)',stroke:'var(--signal)','stroke-width':2}));
+    svg.appendChild(txt(pt(i),y0+22,c.n>=1000?(c.n/1000)+'k':c.n,'axis','middle'));
+  });
+  svg.appendChild(txt(x0,y0+46,'patients in the cohort','axlabel'));
+  svg.appendChild(txt(x0+w,yv(0.509)-14,'attack success','axis','end'));
+  svg.appendChild(txt(x0+w,yv(0.4+0.95*0.6)-14,'structure kept at \u03b5=1','axis','end'));
+
+  var tb=document.getElementById('privrows');
+  if(tb && !tb.childElementCount){
+    COHORT.forEach(function(c){
+      var tr=document.createElement('tr');
+      tr.innerHTML='<td>'+c.n.toLocaleString()+'</td>'+
+        '<td class="num '+(c.verdict==='PASS'?'ok':'warn')+'">'+c.attack.toFixed(3)+'</td>'+
+        '<td class="num '+(c.dpLink>0.6?'ok':'warn')+'">'+(c.dpLink*100).toFixed(0)+'%</td>';
+      tb.appendChild(tr);
+    });
+  }
+}
+
+/* ---- note demo ---- */
+var CORRUPT = [
+  {id:'plain', label:'plainly stated', on:true},
+  {id:'abbrev', label:'shorthand', on:true},
+  {id:'denied', label:'denied', on:true},
+  {id:'hedged', label:'hedged', on:false},
+  {id:'past', label:'past finding', on:false},
+  {id:'trap', label:'the trap', on:false}
+];
+function noteState(){ var s={}; CORRUPT.forEach(function(c){s[c.id]=c.on;}); return s; }
+function renderNote(){
+  var s=noteState();
+  var chf = s.trap
+      ? '<span class="mark hot">No improvement in '+(s.abbrev?'CHF':'congestive heart failure')+'.</span>'
+      : s.past ? 'Prior congestive heart failure, resolved.'
+      : s.hedged ? 'Possible '+(s.abbrev?'CHF':'congestive heart failure')+', not yet established.'
+      : (s.abbrev?'CHF':'Congestive heart failure')+' noted on examination.';
+  var ckd = s.denied
+      ? 'No evidence of '+(s.abbrev?'CKD':'chronic kidney disease')+' at this time.'
+      : (s.abbrev?'CKD':'Chronic kidney disease')+' present.';
+  var med = s.past ? 'Previously on furosemide.'
+      : s.hedged ? 'May be taking furosemide; unable to confirm.'
+      : 'Continues furosemide.';
+  document.getElementById('notebody').innerHTML =
+    '<span class="sec">History</span>No interval hospitalizations since last visit.'+
+    '<span class="sec">Vitals</span>Blood pressure recorded at 148 mmHg. Afebrile throughout.'+
+    '<span class="sec">Assessment</span>'+chf+' '+ckd+
+    '<span class="sec">Plan</span>'+med+' Return precautions discussed.';
+  var cap;
+  if(s.trap) cap = '<strong>The trap.</strong> The patient HAS heart failure — the denial '+
+    'applies to the improvement, not the finding. A reader scanning for a negation nearby '+
+    'gets this exactly backwards, and a reader ignoring negation gets it right by accident.';
+  else if(s.denied) cap = '<strong>Denied.</strong> The finding is absent. A keyword matcher '+
+    'reports it as present every single time.';
+  else if(s.hedged) cap = '<strong>Hedged.</strong> Not a confirmed finding — recording it as '+
+    'one inflates every downstream count.';
+  else if(s.past) cap = '<strong>Historical.</strong> True once, not now. Treating it as '+
+    'current is how a resolved problem stays on a chart for years.';
+  else cap = '<strong>Plainly stated.</strong> The easy case — and the only one most '+
+    'demonstrations ever show.';
+  document.getElementById('notecap').innerHTML = cap;
+}
+function buildChips(){
+  var box=document.getElementById('chips');
+  if(!box || box.childElementCount) return;
+  CORRUPT.forEach(function(c,i){
+    var b=document.createElement('button');
+    b.className='chip'+(c.on?' on':'');
+    b.textContent=c.label;
+    b.setAttribute('aria-pressed', c.on?'true':'false');
+    b.onclick=function(){
+      c.on=!c.on;
+      if(c.id==='trap' && c.on){ CORRUPT[3].on=false; CORRUPT[4].on=false; }
+      if((c.id==='hedged'||c.id==='past') && c.on){ CORRUPT[5].on=false; }
+      box.querySelectorAll('.chip').forEach(function(n,j){
+        n.classList.toggle('on',CORRUPT[j].on);
+        n.setAttribute('aria-pressed',CORRUPT[j].on?'true':'false');
+      });
+      renderNote();
+    };
+    box.appendChild(b);
+  });
+  renderNote();
+}
+
+/* boot */
+update();
+setTimeout(function(){ buildChips(); drawDial(); }, 80);
+</script>
+</body>
+</html>
