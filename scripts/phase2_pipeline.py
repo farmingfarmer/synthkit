@@ -94,6 +94,27 @@ def main() -> None:
                          "person_id). k-anonymity counts these, "
                          "not rows.")
     ap.add_argument("--seed-out", type=int, default=20260731)
+    ap.add_argument("--hierarchical", action="store_true",
+                    help="generate PATIENTS with a course of "
+                         "visits rather than loose rows: fixed "
+                         "traits stay fixed and a drifting value "
+                         "drifts from one visit to the next")
+    ap.add_argument("--epsilon", type=float, default=0.0,
+                    help="differential privacy budget. Covers "
+                         "every published table. Lower is "
+                         "stronger; the fidelity cost is real and "
+                         "is reported")
+    ap.add_argument("--audit", action="store_true",
+                    help="attack the result: split the cohort, "
+                         "fit on half, and measure whether an "
+                         "adversary can tell who was in it")
+    ap.add_argument("--plant", default="",
+                    help="author an outcome and grade models "
+                         "against a known ceiling. Format: "
+                         "col=weight,col=weight")
+    ap.add_argument("--prevalence", type=float, default=0.15)
+    ap.add_argument("--vendor", default="",
+                    help="a vendor model to grade alongside ours")
     a = ap.parse_args()
     out = (ROOT / a.out) if not Path(a.out).is_absolute() \
         else Path(a.out)
@@ -211,7 +232,15 @@ def main() -> None:
         tgts = [label] if label in (rows_in[0] if rows_in else {}) \
             else []
         net = CondNet(k=a.k, max_parents=a.max_parents).learn(
-            rows_in, targets=tgts, group_by=(gb or None))
+            rows_in, targets=tgts, group_by=(gb or None),
+            multilevel=bool(a.hierarchical and gb),
+            epsilon=a.epsilon)
+        if a.epsilon:
+            dpr = net.report["differential_privacy"]
+            print("  privacy budget {} split over {} published "
+                  "tables".format(dpr["epsilon"],
+                                  dpr["budget_split_over"]))
+            print("  covers: {}".format(", ".join(dpr["covers"])))
         model = out / "condnet_model.json"
         model.write_text(net.to_json(), encoding="utf-8")
         rep = net.report
@@ -234,7 +263,17 @@ def main() -> None:
             print("     (no dependence survived correction — the "
                   "source columns are mutually independent)")
         step(6 if not do_spec else 7, "generate (condnet engine)")
-        syn = net.sample(want_rows, seed=a.seed_out)
+        if a.hierarchical and getattr(net, "visit_counts", None):
+            per = max(1.0, sum(kk * vv for kk, vv in
+                               net.visit_counts.items())
+                      / max(sum(net.visit_counts.values()), 1))
+            syn = net.sample_patients(
+                max(1, int(want_rows / per)), seed=a.seed_out)
+            print("  generated {} patients averaging {:.1f} "
+                  "visits each".format(
+                      len({r.get(gb) for r in syn}), per))
+        else:
+            syn = net.sample(want_rows, seed=a.seed_out)
         gen_n = out / "generated_condnet.csv"
         with gen_n.open("w", newline="", encoding="utf-8") as f:
             w = csv.DictWriter(f, fieldnames=list(syn[0]))
@@ -293,6 +332,32 @@ def main() -> None:
                       npath.name))
         print("  the ledger is the answer key: what each note "
               "asserts, and which corruption obscured it")
+
+    if a.audit and do_net:
+        step(7, "audit: can an adversary tell who was in it?")
+        from synthkit.attack import membership_audit
+        import random as _rnd
+        by_p = {}
+        for r in rows_in:
+            by_p.setdefault(r.get(gb, id(r)), []).append(r)
+        keys = sorted(by_p, key=str)
+        _rnd.Random(7).shuffle(keys)
+        cut2 = len(keys) // 2
+        mem = [r for kk in keys[:cut2] for r in by_p[kk]]
+        non = [r for kk in keys[cut2:] for r in by_p[kk]]
+        half_net = CondNet(
+            k=a.k, max_parents=a.max_parents).learn(
+                mem, group_by=(gb or None),
+                multilevel=bool(a.hierarchical and gb),
+                epsilon=a.epsilon)
+        aud = membership_audit(half_net, mem, non,
+                               half_net.sample(1500, seed=3),
+                               nn_sample=120)
+        print("  strongest adversary scored {:.3f} ({})".format(
+            aud["worst_auc"], aud["verdict"]))
+        print("  {}".format(aud["reading"]))
+        (out / "membership_audit.json").write_text(
+            json.dumps(aud, indent=1), encoding="utf-8")
 
     step(7, "score: fidelity and privacy")
     scores = {}
@@ -359,6 +424,67 @@ def main() -> None:
         if p.exists():
             print("  {:26s} {:>9,} bytes".format(
                 f, p.stat().st_size))
+    if a.plant and do_net:
+        step(7, "exam: plant an outcome and grade against it")
+        from synthkit import learnspec as _ls2
+        from synthkit.transcribe import (
+            TranscribeSpec as _TS, transcribe as _tx)
+        weights = {}
+        for piece in a.plant.split(","):
+            if "=" not in piece:
+                continue
+            col, val = piece.split("=", 1)
+            weights[col.strip()] = float(val)
+        known = {c["column"] for c in _ls2.outcome_candidates(net)}
+        unknown = [c for c in weights if c not in known]
+        if unknown:
+            print("  not columns this model has: {}".format(
+                ", ".join(unknown)))
+            print("  available: {}".format(
+                ", ".join(sorted(known))[:400]))
+        weights = {c: w for c, w in weights.items() if c in known}
+        if not weights:
+            print("  nothing to plant")
+        else:
+            data = net.sample(max(2000, want_rows),
+                              seed=a.seed_out + 5)
+            planted = _ls2.plant_outcome(
+                data, weights, name="planted_outcome",
+                prevalence=a.prevalence)
+            hide = [c for c in weights if "::" in c]
+            spec2 = _TS(_ls2.facts_from_model(net,
+                                              text_only=hide),
+                        rates=_ls2.default_rates())
+            planted["rows"], _ = _tx(planted["rows"], spec2)
+            hidden = _ls2.columns_to_hide(net, hide)
+            _ls2.blank_columns(planted["rows"], hidden)
+            res = _ls2.showdown(planted["rows"], planted["probs"],
+                                "planted_outcome",
+                                vendor=a.vendor)
+            print("  planted at {:.1%} prevalence (intercept "
+                  "solved to {})".format(
+                      planted["realized_prevalence"],
+                      planted["intercept"]))
+            if hidden:
+                print("  causes removed from the columns and "
+                      "written only into the prose: {}".format(
+                          ", ".join(hidden)))
+            print("  ceiling {:.3f} (known exactly) | ours "
+                  "{:.3f}".format(res["ceiling"], res["reading"]))
+            if res.get("blind") is not None:
+                print("  notes withheld {:.3f} | reading worth "
+                      "{:+.3f}".format(res["blind"],
+                                       res["value_of_reading"]))
+            if "vendor" in res:
+                print("  vendor {:.3f} — {} ours".format(
+                    res["vendor"],
+                    "beats" if res["vendor_beats_ours"]
+                    else "short of"))
+            (out / "exam.json").write_text(
+                json.dumps({"weights": planted["weights"],
+                            "hidden": hidden, "showdown": res},
+                           indent=1), encoding="utf-8")
+
     if do_spec:
         print("\nNEXT (spec engine): open draft_spec.json — every "
               "number is a dial. Author an outcome with known "

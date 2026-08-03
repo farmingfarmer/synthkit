@@ -119,7 +119,7 @@ component counts + the rebuild command.
 ## Reference implementation
 
 This pattern was first built for the synthkit project
-(the project repository, `scripts/build_system_map.py` +
+(this repository, `scripts/build_system_map.py` +
 `docs/system_map.html`): 8 domains (6 pipeline stages + 2 rails),
 34 ast-extracted components, 90 KB single file. Consult it if
 available; otherwise this spec is complete.

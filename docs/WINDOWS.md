@@ -6,17 +6,45 @@ python venv at `dev\` and no admin rights.
 
 ## 1. Pull the repo (no git needed)
 
-Private repo, so the fine-grained read-only token header applies:
+The repository is `git-datasciences-org-main/keck-synthkit` on
+Keck's GitHub. It is private, so either use a fine-grained
+read-only token or clone over HTTPS with your own credentials.
 
 ```bat
 cd %USERPROFILE%\dev
-curl -L -H "Authorization: Bearer YOUR_READONLY_TOKEN" -o synthkit.zip https://api.github.com/repos/the project repository/zipball/main
-tar -xf synthkit.zip
-ren <ORG>-synthkit-* synthkit
+rmdir /s /q synthkit
+rmdir /s /q git-datasciences-org-main-keck-synthkit-* 2>nul
+del /q synthkit.zip 2>nul
+curl -L -H "Authorization: Bearer YOUR_READONLY_TOKEN" -o synthkit.zip https://api.github.com/repos/git-datasciences-org-main/keck-synthkit/zipball/main
+dir synthkit.zip
 ```
 
-(Re-syncing later: delete the old folder first, or extract beside
-it and swap.)
+**Stop and read that size before going further.** A few hundred
+kilobytes or more means the download worked. Around 106 bytes
+means the token was rejected and what landed is an error page, not
+an archive — everything after this point will then fail in ways
+that look like something else entirely.
+
+```bat
+tar -xf synthkit.zip
+for /d %i in (git-datasciences-org-main-keck-synthkit-*) do ren "%i" synthkit
+```
+
+Two things about that rename, both learned the hard way. The
+extracted folder carries a commit hash, so its name changes every
+push and the wildcard is the only stable way to refer to it —
+Windows `ren` will not accept a wildcard on its own, hence the
+loop. And the `rmdir` of leftover folders above matters: an
+interrupted sync leaves an orphan with a different hash, the
+wildcard then matches two folders, and the second rename fails
+with "a duplicate file name exists".
+
+Inside a `.bat` file the loop variable doubles to `%%i`.
+
+If `tar` reports "Can't create ... Invalid argument" on paths
+containing `.venv`, a virtual environment has been committed to
+the repository by mistake: Windows cannot create the symlinks
+inside it. Fix that at the source rather than here.
 
 ## 2. Install + verify identity
 
