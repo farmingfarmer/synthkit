@@ -142,6 +142,24 @@ def membership_audit(net, members, nonmembers,
     # strict reading, not a flattering one.
     out["verdict"] = ("PASS" if worst < 0.60 else
                       "MARGINAL" if worst < 0.70 else "FAIL")
+    # How many people stood behind the model matters for reading
+    # this number. With a small cohort the model has little
+    # choice but to fit its members closely, so a raised AUC says
+    # as much about the size of the cohort as about the method —
+    # and saying so is the difference between a useful warning
+    # and a scary one.
+    n_people = len({r.get("person_id") for r in members
+                    if r.get("person_id")}) or len(members)
+    out["members_are_people"] = n_people
+    if worst >= 0.60 and n_people < 300:
+        out["context"] = (
+            "Only about {} people stood behind this model. At "
+            "that size a raised score is expected: there is not "
+            "enough of a crowd for anyone to hide in, and the "
+            "same method on a larger cohort would very likely "
+            "come back clean. Treat this as a reason to widen "
+            "the cohort, not to distrust the approach — and "
+            "check it again once it is wider.".format(n_people))
     out["reading"] = (
         "The strongest adversary scored {:.3f}, where 0.5 is a "
         "coin flip and 1.0 would mean every member identified. {}"

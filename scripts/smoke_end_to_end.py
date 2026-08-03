@@ -107,6 +107,24 @@ def main():
               "it rather than hiding it",
               Rp["score"]["passed"] <= R["score"]["passed"])
 
+        # ---- the cost must be VISIBLE, not just present ----
+        tc0 = R["generate"].get("temporal_check", {})
+        tcp = Rp["generate"].get("temporal_check", {})
+        check("without a budget, the visit-to-visit steadiness "
+              "the source had is reproduced",
+              tc0.get("reproduced") and not tc0.get("lost"))
+        check("when a budget erases that steadiness, the run SAYS "
+              "so — records carrying a patient and a visit number "
+              "while behaving like independent rows is a worse "
+              "position than knowing you have loose rows",
+              (not tcp.get("lost")) or tcp.get("warning"))
+        if tcp.get("warning"):
+            check("...and the warning names the columns affected "
+                  "and what to do about it",
+                  any(x["column"] in tcp["warning"]
+                      for x in tcp["lost"])
+                  and "raise epsilon" in tcp["warning"])
+
     # ---- the command line must reach what the bench reaches ----
     import csv as _csv
     import random as _rnd

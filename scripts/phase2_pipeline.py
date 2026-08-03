@@ -272,6 +272,12 @@ def main() -> None:
             print("  generated {} patients averaging {:.1f} "
                   "visits each".format(
                       len({r.get(gb) for r in syn}), per))
+            tc = net.temporal_check(syn)
+            for x in tc["reproduced"]:
+                print("     {} steadiness {} vs source {}".format(
+                    x["column"], x["generated"], x["source"]))
+            if tc.get("warning"):
+                print("  WARNING: {}".format(tc["warning"]))
         else:
             syn = net.sample(want_rows, seed=a.seed_out)
         gen_n = out / "generated_condnet.csv"
@@ -356,6 +362,8 @@ def main() -> None:
         print("  strongest adversary scored {:.3f} ({})".format(
             aud["worst_auc"], aud["verdict"]))
         print("  {}".format(aud["reading"]))
+        if aud.get("context"):
+            print("  {}".format(aud["context"]))
         (out / "membership_audit.json").write_text(
             json.dumps(aud, indent=1), encoding="utf-8")
 

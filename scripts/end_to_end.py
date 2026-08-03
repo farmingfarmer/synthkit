@@ -166,11 +166,16 @@ def main() -> None:
         "note": "a patient's values are correlated visit to "
                 "visit; sampling rows independently gives none of "
                 "this"}
+    tcheck = net.temporal_check(people)
+    R["generate"]["temporal_check"] = tcheck
     print("      {} visits for {} patients | visit-to-visit "
           "correlation {} against a source of {}".format(
               len(people), len(gb),
               R["generate"]["autocorrelation_generated"],
               R["generate"]["autocorrelation_source"]))
+
+    if tcheck.get("warning"):
+        print("      WARNING: {}".format(tcheck["warning"]))
 
     print("[4/6] score fidelity and privacy")
     td = Path(tempfile.mkdtemp(prefix="synthkit_e2e_"))
@@ -291,6 +296,12 @@ def main() -> None:
         print("  {:34s} {:.3f}  ({})".format(
             "strongest membership attack",
             R["attack"]["worst_auc"], R["attack"]["verdict"]))
+        if R["attack"].get("context"):
+            print("      {}".format(R["attack"]["context"]))
+        tw = R["generate"].get("temporal_check", {}).get("warning")
+        if tw:
+            print("\n  TEMPORAL STRUCTURE WAS LOST")
+            print("  {}".format(tw))
         if exam and "error" not in exam:
             print("  {:34s} {:.3f}".format(
                 "ceiling (known exactly)", exam["ceiling"]))

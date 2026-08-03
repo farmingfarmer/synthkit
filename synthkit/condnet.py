@@ -1986,6 +1986,42 @@ class CondNet:
               * sum((y - mb) ** 2 for y in b_)) ** 0.5
         return nu / de if de else None
 
+    def temporal_check(self, rows) -> Dict[str, Any]:
+        """Did the visit sequences actually come out with the
+        steadiness the source had?
+
+        A privacy budget can erase temporal structure entirely
+        while generation still reports patients and visit numbers.
+        Someone would then hold data that LOOKS longitudinal and
+        behaves like independent rows — a worse position than
+        knowing they have loose rows, because nothing about the
+        output says so.
+        """
+        lost, kept = [], []
+        for col, target in getattr(self,
+                                   "target_autocorr", {}).items():
+            if abs(target) < 0.2:
+                continue
+            got = self._measure_autocorr(rows, col)
+            if got is None:
+                continue
+            (kept if abs(got) >= 0.4 * abs(target)
+             else lost).append(
+                {"column": col, "source": round(target, 3),
+                 "generated": round(got, 3)})
+        out = {"reproduced": kept, "lost": lost}
+        if lost:
+            out["warning"] = (
+                "The visit-to-visit steadiness the source had was "
+                "largely erased for: {}. These records carry a "
+                "patient and a visit number but behave like "
+                "independent rows. If a privacy budget is set, "
+                "this is its cost — raise epsilon or generate "
+                "without one when the analysis depends on "
+                "patients having a course.".format(
+                    ", ".join(x["column"] for x in lost)))
+        return out
+
     def calibrate_persistence(self, trials: int = 4,
                               patients: int = 150) -> None:
         """Tune each column's anchor weight until generated data
@@ -2181,6 +2217,8 @@ class CondNet:
                 if self.group_by:
                     row[self.group_by] = pid
                 row["visit_number"] = vi + 1
+                self._emitted_visits = getattr(
+                    self, "_emitted_visits", 0) + 1
                 out.append(row)
                 prev = dict(assign)
         return out

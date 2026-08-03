@@ -88,6 +88,27 @@ def main():
     check("a model carrying a privacy budget also survives it",
           audit_dp["verdict"] == "PASS")
 
+    # ---- a raised score on a tiny cohort needs explaining ----
+    tiny = [r for r in members
+            if r["person_id"] < "P0060"]
+    tiny_non = [r for r in nonmembers
+                if r["person_id"] < "P0180"]
+    tnet = CondNet(k=10, max_parents=3).learn(
+        tiny, group_by="person_id")
+    taud = membership_audit(tnet, tiny, tiny_non,
+                            tnet.sample(600, seed=4),
+                            nn_sample=60)
+    check("the audit reports how many PEOPLE stood behind the "
+          "model, because that governs how the score should be "
+          "read",
+          taud["members_are_people"] > 0)
+    check("a raised score on a small cohort is explained rather "
+          "than left to alarm — with too few people there is no "
+          "crowd to hide in, and that is a reason to widen the "
+          "cohort rather than distrust the method",
+          taud["worst_auc"] < 0.60 or "widen the cohort"
+          in taud.get("context", ""))
+
     check("a model assigns no higher likelihood to a member than "
           "to a stranger by any wide margin",
           abs(net.log_likelihood(members[0])
