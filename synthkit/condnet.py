@@ -1392,6 +1392,85 @@ class CondNet:
                 self.persistence[c] = max(
                     0.0, min(0.95, 1.0 - within / total))
 
+        # ---- give each column the resolution IT can support ----
+        # Bin resolution was solved once for the whole model, from
+        # the worst case: a column with the maximum number of
+        # parents. But cells multiply only along a column's OWN
+        # parents, so a column with none can carry far finer bins
+        # at the same cell occupancy — and coarse bins are exactly
+        # what caps marginal accuracy and within-bin correlation.
+        #
+        # Only columns that no other column conditions on are
+        # refined. Refining a parent would invalidate every table
+        # built against its old encoding, and quietly wrong tables
+        # are worse than coarse ones.
+        # Only LEAF columns are refined — those nothing else
+        # conditions on.
+        #
+        # Refining a parent is tempting and was tried: it improved
+        # that column's own marginal and lifted the cross-column
+        # correlation. But finer parent bins multiply out into
+        # thinner cells for every child, those cells fall below
+        # the k-person floor, and the relationships that depended
+        # on them get suppressed. Measured, it destroyed U-shape
+        # and interaction recovery outright — trading the
+        # structure this model exists to capture for a better
+        # histogram. A leaf has no children to starve, so the win
+        # there is free.
+        used_as_parent = set()
+        for c in self.order:
+            for pc in self.parents.get(c, []):
+                used_as_parent.add(pc)
+        self.refined = {}
+        for c in self.order:
+            if c in self.derived or c in used_as_parent:
+                continue
+            b = self.binnings.get(c)
+            if b is None or b.kind != "numeric":
+                continue
+            width = 1
+            for pc in self.parents.get(c, []):
+                width *= max(len(set(enc[pc])), 1)
+            # a child's cells multiply along its parents, so the
+            # budget for its own bins is what is left after them
+            allowed = int(self.n_groups / (self.k * max(width, 1)))
+            if allowed <= nbins + 1:
+                continue
+            finer = min(allowed, 4 * nbins, 24)
+            nb = Binning.learn(c, [r.get(c, "") for r in rows],
+                               self.k, finer, groups=self.groups)
+            if len(nb.edges) - 1 > len(b.edges) - 1:
+                self.binnings[c] = nb
+                enc[c] = [nb.encode(r.get(c, "")) for r in rows]
+                self.refined[c] = len(nb.edges) - 1
+
+        # Only the refined columns need rebuilding: nothing
+        # conditions on them, so no other table is affected.
+        for c in list(self.refined):
+            ps = self.parents.get(c, [])
+            marg = Counter(enc[c])
+            tot = sum(marg.values())
+            self.marginal[c] = {s: marg[s] / tot for s in marg}
+            table = {}
+            if ps:
+                cells = defaultdict(Counter)
+                ppl2 = defaultdict(set)
+                for j in range(n):
+                    cfg = "|".join(enc[q][j] for q in ps)
+                    cells[cfg][enc[c][j]] += 1
+                    ppl2[cfg].add(self.groups[j])
+                for cfg, cnt in cells.items():
+                    if len(ppl2[cfg]) < self.k:
+                        continue
+                    m = sum(cnt.values())
+                    syms = set(cnt) | set(self.marginal[c])
+                    table[cfg] = {
+                        s: (cnt.get(s, 0)
+                            + SMOOTHING * self.marginal[c].get(
+                                s, 0.0)) / (m + SMOOTHING)
+                        for s in syms}
+            self.cpt[c] = table
+
         # ---- correlation of positions INSIDE the bins ----
         # Two columns can be linked in two separate ways: which
         # bins they land in together, and where inside those bins
@@ -1590,6 +1669,13 @@ class CondNet:
                             "the correction is over all {} of "
                             "them".format(n_tests)),
             "bins": nbins,
+            "refined_columns": dict(getattr(self, "refined", {})),
+            "refinement_note": "columns that nothing else "
+                               "conditions on were re-binned at "
+                               "the resolution their own parent "
+                               "count supports; a column with no "
+                               "parents can carry far more detail "
+                               "than the model-wide solve allows",
             "bins_chosen": ("auto — solved so cells stay populated "
                             "enough to detect dependence"
                             if auto else "set by caller"),
@@ -1858,6 +1944,29 @@ class CondNet:
                 out.append(row)
                 prev = dict(assign)
         return out
+
+    def log_likelihood(self, row: Dict[str, Any]) -> float:
+        """How probable this model finds a given record.
+
+        Published as an attack surface on purpose: a model that
+        assigns visibly higher probability to the people it was
+        trained on is leaking membership, and the only way to know
+        is to compute it.
+        """
+        total = 0.0
+        assign = {}
+        for c in self.order:
+            b = self.binnings.get(c)
+            if b is None:
+                continue
+            assign[c] = b.encode(row.get(c, ""))
+        for c in self.order:
+            if c not in assign:
+                continue
+            dist, _ = self._lookup(c, assign)
+            p = dist.get(assign[c], 1e-9)
+            total += math.log(max(p, 1e-12))
+        return total
 
     def to_json(self) -> str:
         return json.dumps({

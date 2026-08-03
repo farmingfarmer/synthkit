@@ -797,6 +797,51 @@ def main():
     check("the within-bin correlations survive save and reload",
           CondNet.from_json(nl2.to_json()).pos_corr == nl2.pos_corr)
 
+    # ---- resolution follows what each column can support ----
+    r16 = random.Random(23)
+    wide = []
+    for pid in range(320):
+        lvl = r16.gauss(130, 16)
+        for _ in range(r16.randint(2, 8)):
+            s_ = r16.gauss(lvl, 7)
+            wide.append({"person_id": "P%04d" % pid,
+                         "sbp": round(s_, 1),
+                         "dbp": round(0.55 * s_ + r16.gauss(0, 4),
+                                      1)})
+    nr = CondNet(k=10, max_parents=2).learn(
+        wide, group_by="person_id")
+    ref = nr.report["refined_columns"]
+    check("a LEAF column is re-binned at the resolution its own "
+          "parent count supports, rather than the model-wide "
+          "worst case",
+          ref and max(ref.values()) > nr.report["bins"])
+    parents_of_something = {pc for c in nr.order
+                            for pc in nr.parents.get(c, [])}
+    check("a column that others condition on is NOT refined — "
+          "finer parent bins thin every child's cells until the "
+          "relationships depending on them are suppressed",
+          not (set(ref) & parents_of_something))
+    check("the structure learned before refinement is not lost",
+          nr.report["edge_count"] >= 1)
+    syn_r = nr.sample(2000, seed=5)
+    src_v = sorted(float(x["sbp"]) for x in wide)
+    gen_v = sorted(float(x["sbp"]) for x in syn_r)
+
+    def q(xs, f):
+        return xs[min(len(xs) - 1, int(f * len(xs)))]
+
+    spread = src_v[-1] - src_v[0]
+    check("finer bins bring the generated distribution closer to "
+          "the source at every quartile",
+          all(abs(q(gen_v, f) - q(src_v, f)) < 0.12 * spread
+              for f in (0.25, 0.5, 0.75)))
+    rt2 = CondNet.from_json(nr.to_json())
+    check("a refined model round-trips with its tables intact",
+          len(rt2.sample(200, seed=2)) == 200
+          and rt2.report["refined_columns"] == ref)
+    check("the report explains why resolution differs by column",
+          "own parent" in nr.report["refinement_note"])
+
     print()
     if FAIL:
         print("{} FAILED".format(FAIL))

@@ -1,0 +1,52 @@
+{
+ "config": {
+  "patients": 400,
+  "seeds": 3
+ },
+ "results": [
+  {
+   "epsilon": null,
+   "link_source": 0.902,
+   "link_generated": 0.891,
+   "attack_auc": 0.524,
+   "verdict": "PASS"
+  },
+  {
+   "epsilon": 10.0,
+   "link_source": 0.902,
+   "link_generated": 0.886,
+   "attack_auc": 0.524,
+   "verdict": "PASS"
+  },
+  {
+   "epsilon": 3.0,
+   "link_source": 0.902,
+   "link_generated": 0.877,
+   "attack_auc": 0.523,
+   "verdict": "PASS"
+  },
+  {
+   "epsilon": 1.0,
+   "link_source": 0.902,
+   "link_generated": 0.852,
+   "attack_auc": 0.523,
+   "verdict": "PASS"
+  },
+  {
+   "epsilon": 0.3,
+   "link_source": 0.902,
+   "link_generated": 0.758,
+   "attack_auc": 0.522,
+   "verdict": "PASS"
+  },
+  {
+   "epsilon": 0.1,
+   "link_source": 0.902,
+   "link_generated": 0.59,
+   "attack_auc": 0.522,
+   "verdict": "PASS"
+  }
+ ],
+ "reading": "link_generated against link_source is what the budget COSTS. attack_auc is what it BUYS, where 0.5 means an adversary cannot tell who was in the cohort.",
+ "caveat": "measured on a synthetic cohort with a planted relationship, because a real one cannot supply known truth. The shape of the tradeoff is the finding; the exact numbers belong to this fixture."
+}
