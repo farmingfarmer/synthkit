@@ -94,7 +94,8 @@ histogram, the bin edges and the steadiness targets — with each
 person's contribution capped so the sensitivity is bounded.
 
 Both the attack and the cost of a budget depend strongly on cohort
-size:
+size — **at a fixed width of roughly 30 columns**, which is the
+condition under which every number below was measured:
 
 | patients | attack | structure kept at ε=1 |
 |---------:|-------:|----------------------:|
@@ -104,11 +105,30 @@ size:
 |    1,500 |  0.502 |                   87% |
 |    4,000 |  0.509 |                   95% |
 
-Above roughly 250 patients membership stops being recoverable at
-all. Above roughly 600 a formal ε=1 guarantee becomes affordable,
-and at 4,000 it is nearly free. The noise protects one person's
-contribution, so it overwhelms a small cohort and rounds to nothing
-in a large one.
+At that width, above roughly 250 patients membership stops being
+recoverable, above roughly 600 a formal ε=1 guarantee becomes
+affordable, and at 4,000 it is nearly free. The noise protects one
+person's contribution, so it overwhelms a small cohort and rounds to
+nothing in a large one.
+
+**The width condition is load-bearing and the table does not
+generalise without it.** Records get more identifying as columns are
+added, so a cohort size that puts the attack at chance in 30 columns
+need not do so in 88. Measured on an 88-column extract, 800 patients
+returned 0.600 — MARGINAL — with no budget set at all, where this
+table would predict roughly 0.501. Read the rows as "patients at ~30
+columns", never as "patients".
+
+Cohort size also sets how precisely the attack itself can be
+measured, and that is a separate question from how large the attack
+is. The audit scores cohort members against the held-out remainder,
+so its precision follows the PRODUCT of the two and is best at a
+50/50 split — not at the largest possible holdout. Against a
+5,467-patient source: 250 patients gives ±0.037 on the attack
+estimate, 800 gives ±0.022, 1,500 gives ±0.017, and 2,733 gives
+±0.015. A cohort of 800 is a weaker instrument than one of 4,000,
+which is the opposite of the intuition that a bigger holdout buys
+more confidence.
 
 ## One command, end to end
 
