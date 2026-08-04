@@ -627,8 +627,14 @@ def main():
         total_out = 0
         for st in census["tables"]:
             if st["table"] in VOCAB_TABLES:
-                b = st["bytes"]           # copied whole, never sampled
-                proj.append({"table": st["table"], "mode": "copied whole",
+                # Has no person_id, so it does not shrink with the
+                # cohort. This is its WHOLE size - the upper bound, and
+                # what makes the cohort lever nearly inert on its own.
+                # scripts/omop_sample.py filters it to the ids the
+                # sampled rows actually reference, which is far smaller.
+                b = st["bytes"]
+                proj.append({"table": st["table"],
+                             "mode": "whole (sampler filters)",
                              "bytes": b, "bytes_human": human_bytes(b)})
                 total_out += b
             elif st.get("has_person_id"):
