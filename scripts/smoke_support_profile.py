@@ -379,6 +379,35 @@ def main():
               keys["lag"]["bytes"] > keys["binnings"]["bytes"]
               and o2["model"]["keys"][0]["key"] == "lag"
               and sum(k["share"] for k in o2["model"]["keys"]) <= 1.0)
+        # A model can be enormous and have learned nothing. Size and
+        # cell counts cannot tell the difference; the edge list can.
+        mp2 = Path(td) / "model2.json"
+        mp2.write_text(json.dumps({
+            "lag": {"a": {"1": {"1": 1.0}}},
+            "report": {"edges": [{"child": "y", "parents": ["x"]},
+                                 {"child": "q", "parents": ["r", "s"]}],
+                       "columns_modelled": 9, "bins": 3,
+                       "effective_n": 120, "rows": 900,
+                       "comparisons_corrected_for": 36,
+                       "search_mode": "blind"}}),
+            encoding="utf-8")
+        o3 = Path(td) / "s3.json"
+        r3 = run("scripts/support_profile.py", "--in", str(src),
+                 "--model", str(mp2), "-o", str(o3))
+        L = json.loads(o3.read_text(encoding="utf-8"))["model"]["learned"]
+        check("the model report says WHAT IT LEARNED, not only how big "
+              "it is - a large model can have found nothing",
+              L["edge_count"] == 2
+              and {"child": "q", "parents": ["r", "s"]} in L["edges"]
+              and "y <- x" in r3.stdout)
+        check("blind search is named along with the correction it "
+              "pays, since that is the main thing suppressing edges",
+              L["comparisons_corrected_for"] == 36
+              and "blind search" in r3.stdout)
+        check("a model with no report degrades instead of crashing",
+              json.loads(out2.read_text(encoding="utf-8"))["model"]
+              .get("learned") is None)
+
         check("the heaviest column inside the heaviest key is named",
               keys["lag"]["heaviest_column"] == "a"
               and keys["lag"]["cells"] == 3)

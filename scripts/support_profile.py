@@ -513,6 +513,30 @@ def profile_model(path):
                 entry["heaviest_cells"] = worst[1]
         out["keys"].append(entry)
     out["keys"].sort(key=lambda d: -d["bytes"])
+    # What the model actually LEARNED. Size and cell counts say how
+    # big it is, not whether it found anything. A model can be
+    # enormous and have discovered nothing, which is exactly the
+    # shape a calendar-valued transition table produces.
+    # Absent only when the artifact carries no report at all. "No
+    # report" and "the report says it found nothing" are different
+    # facts and must not collapse into one.
+    rep = blob.get("report")
+    if isinstance(rep, dict):
+        edges = rep.get("edges") or []
+        out["learned"] = {
+            "edges": [{"child": e.get("child"),
+                       "parents": e.get("parents")}
+                      for e in edges if isinstance(e, dict)],
+            "edge_count": len(edges),
+            "columns_modelled": rep.get("columns_modelled"),
+            "comparisons_corrected_for":
+                rep.get("comparisons_corrected_for"),
+            "effective_n": rep.get("effective_n"),
+            "rows": rep.get("rows"),
+            "bins": rep.get("bins"),
+            "search_mode": rep.get("search_mode"),
+            "hypotheses_declared": rep.get("hypotheses_declared"),
+        }
     return out
 
 
@@ -902,6 +926,26 @@ def report(o, full):
         print("\nmodel artifact: {:,} bytes".format(m["bytes"]))
         if m.get("error"):
             print("  {}".format(m["error"]))
+        L = m.get("learned")
+        if L:
+            print("  WHAT IT LEARNED: {} relationship(s) across {} "
+                  "modelled columns".format(
+                      L["edge_count"], L.get("columns_modelled")))
+            print("  bins {} | effective n {} of {} rows | corrected "
+                  "for {} comparisons | search {}".format(
+                      L.get("bins"), L.get("effective_n"),
+                      L.get("rows"), L.get("comparisons_corrected_for"),
+                      L.get("search_mode")))
+            for e in L["edges"][:12]:
+                print("    {} <- {}".format(
+                    e["child"], ", ".join(e["parents"] or [])))
+            if not L["edges"]:
+                print("    (none - the model found no cross-column "
+                      "structure at all)")
+            if not L.get("hypotheses_declared"):
+                print("  blind search: every pair tested, so the "
+                      "correction is paid across all {} of them"
+                      .format(L.get("comparisons_corrected_for")))
         for e in m.get("keys", [])[:8]:
             extra = ""
             if e.get("cells"):
