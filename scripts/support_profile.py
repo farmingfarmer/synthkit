@@ -72,7 +72,8 @@ LIST_SEP = "; "
 LAG_BUCKETS = [(0, 7), (8, 30), (31, 90), (91, 180), (181, 365),
                (366, 10 ** 6)]
 
-TIERS = ["longitudinal", "cross_sectional", "presence", "drop"]
+TIERS = ["longitudinal", "cross_sectional", "expand",
+         "presence", "drop"]
 
 
 def num(v):
@@ -113,6 +114,13 @@ def classify(s, args, n_rows):
         return "drop", "fewer than k={} patients".format(args.k)
     if s["distinct"] <= 1:
         return "drop", "constant"
+    # condnet never bins a list column as a whole - it expands each
+    # frequent item into its own indicator. Tiering it "drop" for
+    # having too many levels describes something the model does not
+    # do, and hides the fact that its content IS modelled.
+    if s.get("list_valued"):
+        return "expand", ("list-valued: expanded into per-item "
+                          "indicators, never binned whole")
     if s["top_share"] is not None and s["top_share"] >= args.degenerate:
         return "drop", "degenerate: one value is {:.0%} of it".format(
             s["top_share"])
@@ -268,6 +276,53 @@ def parse_day(v):
     return None
 
 
+def varies_within(rows_by_patient, col):
+    """Share of patients who show more than one value. condnet uses
+    the same 0.25 test to call a column visit-level or patient-level."""
+    varying = seen = 0
+    for _pid, rows in rows_by_patient.items():
+        vals = set()
+        for r in rows:
+            s = str(r.get(col, "") or "").strip()
+            if s and s.lower() not in ("nan", "none", "null"):
+                vals.add(s)
+        if vals:
+            seen += 1
+            if len(vals) > 1:
+                varying += 1
+    return varying / float(seen) if seen else 0.0
+
+
+def variance_split(rows_by_patient, col):
+    """Share of a column's variance that is BETWEEN patients.
+
+    This is the ceiling on what any transition mechanism can buy.
+    Pooled autocorrelation tends to the between-patient share as the
+    gap grows, so only (1 - share) is available to decay at all. A
+    column whose variation is nearly all between patients is already
+    as steady as it will ever be, because its steadiness is an
+    artifact of WHO the patient is rather than of anything the model
+    could learn about how values move."""
+    groups, allv = [], []
+    for _pid, rows in rows_by_patient.items():
+        xs = [num(r.get(col, "")) for r in rows]
+        xs = [x for x in xs if x is not None]
+        if xs:
+            groups.append(xs)
+            allv += xs
+    if len(allv) < 2 or len(groups) < 2:
+        return None
+    grand = sum(allv) / len(allv)
+    total = sum((x - grand) ** 2 for x in allv)
+    if total <= 0:
+        return None
+    within = 0.0
+    for xs in groups:
+        m = sum(xs) / len(xs)
+        within += sum((x - m) ** 2 for x in xs)
+    return round(1.0 - within / total, 4)
+
+
 def lag_curve(rows_by_patient, cols, date_col, args):
     """Autocorrelation by ELAPSED-TIME bucket, pooled over columns.
 
@@ -327,27 +382,40 @@ def lag_curve(rows_by_patient, cols, date_col, args):
     # the average, hiding whatever decay the varying columns have. So
     # normalise each column against its own shortest bucket and report
     # the median RATIO - that is decay shape, independent of level.
-    ratios = defaultdict(list)
-    for _c, got in per_col.items():
-        keys = [b for b in LAG_BUCKETS
-                if "{}-{}".format(b[0], b[1]) in got]
-        if len(keys) < 2:
-            continue
-        base = got["{}-{}".format(keys[0][0], keys[0][1])][0]
-        if abs(base) < 0.1:
-            continue           # nothing to decay from
-        for b in keys:
-            lbl = "{}-{}".format(b[0], b[1])
-            ratios[lbl].append(got[lbl][0] / base)
-    decay = []
+    # Every column must be normalised against the SAME base bucket,
+    # or the rows are not comparable: with each column divided by its
+    # own first bucket, a row can rest on a different set of columns
+    # than the row above it and the curve is not a curve at all.
+    base_bucket = None
     for b in LAG_BUCKETS:
         lbl = "{}-{}".format(b[0], b[1])
-        if ratios.get(lbl):
-            xs = sorted(ratios[lbl])
-            decay.append({"bucket": lbl,
-                          "median_ratio": round(xs[len(xs) // 2], 4),
-                          "columns": len(xs)})
-    return {"pooled": pooled, "decay": decay, "by_column": per_col}
+        n = sum(1 for got in per_col.values()
+                if lbl in got and abs(got[lbl][0]) >= 0.1)
+        if n >= 3:
+            base_bucket = lbl
+            break
+    decay = []
+    if base_bucket:
+        ratios = defaultdict(list)
+        for _c, got in per_col.items():
+            if base_bucket not in got:
+                continue
+            base = got[base_bucket][0]
+            if abs(base) < 0.1:
+                continue       # nothing to decay from
+            for b in LAG_BUCKETS:
+                lbl = "{}-{}".format(b[0], b[1])
+                if lbl in got:
+                    ratios[lbl].append(got[lbl][0] / base)
+        for b in LAG_BUCKETS:
+            lbl = "{}-{}".format(b[0], b[1])
+            if ratios.get(lbl):
+                xs = sorted(ratios[lbl])
+                decay.append({"bucket": lbl,
+                              "median_ratio": round(xs[len(xs) // 2], 4),
+                              "columns": len(xs)})
+    return {"pooled": pooled, "decay": decay, "by_column": per_col,
+            "decay_base_bucket": base_bucket}
 
 
 def would_be_levels(rows_by_patient, col, k):
@@ -493,10 +561,27 @@ def main():
         {"column": s["column"], "as_measured": s["autocorr_as_measured"],
          "adjacent": s["autocorr_adjacent"], "error": s["lag_error"],
          "visit_coverage": s["visit_coverage"]} for s in lag]
-    numeric_cols = [s["column"] for s in stats if s["numeric"]]
+    for s in stats:
+        s["varies_within_share"] = round(
+            varies_within(by_patient, s["column"]), 4)
+        if s["numeric"]:
+            s["between_patient_variance"] = variance_split(
+                by_patient, s["column"])
+    # A patient-level constant has autocorrelation 1.0 at EVERY lag,
+    # so including it does not merely inflate the curve - its
+    # normalised ratio is exactly 1.0 in every bucket, which drags the
+    # median to 1.0 and hides real decay behind the statistic chosen
+    # to be robust. Only columns that actually move within a patient
+    # can say anything about how values decay.
+    numeric_cols = [s["column"] for s in stats
+                    if s["numeric"] and s["varies_within_share"] > 0.25]
+    out_excluded = [s["column"] for s in stats
+                    if s["numeric"] and s["varies_within_share"] <= 0.25]
     if a.date_col in header:
         out["lag_curve"] = lag_curve(by_patient, numeric_cols,
                                      a.date_col, a)
+        out["lag_curve"]["columns_used"] = len(numeric_cols)
+        out["lag_curve"]["excluded_patient_level"] = out_excluded
     else:
         out["lag_curve"] = {"error": "no {} column; elapsed time "
                                      "cannot be measured".format(
@@ -550,18 +635,23 @@ def report(o, full):
     print("\nwhat the data can support")
     for t in TIERS:
         print("  {:<18} {:>4} columns".format(t, tc.get(t, 0)))
-    print("\n{:<28} {:>6} {:>6} {:>7} {:>7} {:>8} {:>16}".format(
-        "column", "vis%", "pat%", "pat>=2", "adjpr", "distinct",
-        "tier"))
+    # patAdj is the field classify() actually gates on. It was absent
+    # from this table, which made a surprising tier impossible to
+    # check against the rules from the output alone.
+    print("\n{:<26} {:>5} {:>5} {:>7} {:>7} {:>7} {:>6} {:>15}".format(
+        "column", "vis%", "pat%", "pat>=2", "patAdj", "adjpr",
+        "distinct", "tier"))
     for s in sorted(o["columns"],
                     key=lambda s: (TIERS.index(s["tier"]),
                                    -s["visit_coverage"])):
         if not full and s["tier"] == "drop":
             continue
-        print("{:<28} {:>5.0%} {:>6.0%} {:>7} {:>7} {:>8} {:>16}".format(
-            s["column"][:28], s["visit_coverage"],
-            s["patient_coverage"], s["patients_2plus"],
-            s["adjacent_pairs"], s["distinct"], s["tier"]))
+        print("{:<26} {:>5.0%} {:>5.0%} {:>7} {:>7} {:>7} {:>6} "
+              "{:>15}".format(
+                  s["column"][:26], s["visit_coverage"],
+                  s["patient_coverage"], s["patients_2plus"],
+                  s["patients_adjacent"], s["adjacent_pairs"],
+                  s["distinct"], s["tier"]))
     if not full:
         print("  ({} dropped columns hidden; --report shows them)"
               .format(tc.get("drop", 0)))
@@ -582,16 +672,25 @@ def report(o, full):
 
     lc = o.get("lag_curve", {})
     if lc.get("pooled"):
-        print("\nautocorrelation by ELAPSED DAYS (pooled over "
-              "{} numeric columns)".format(len(lc.get("by_column", {}))))
+        print("\nautocorrelation by ELAPSED DAYS ({} columns that "
+              "actually vary within a patient)".format(
+                  lc.get("columns_used", len(lc.get("by_column", {})))))
+        ex = lc.get("excluded_patient_level") or []
+        if ex:
+            print("  excluded as patient-level ({}): {}{}".format(
+                len(ex), ", ".join(ex[:6]),
+                " ..." if len(ex) > 6 else ""))
+            print("  they sit at 1.0 in every bucket, so including "
+                  "them drags the median to 1.0 and hides real decay")
         print("  {:<12} {:>10} {:>12}".format("days apart", "autocorr",
                                               "pairs"))
         for b_ in lc["pooled"]:
             print("  {:<12} {:>10.3f} {:>12,}".format(
                 b_["bucket"], b_["autocorr"], b_["pairs"]))
         if lc.get("decay"):
-            print("  decay shape, each column normalised against its "
-                  "own shortest bucket (median ratio):")
+            print("  decay shape, every column normalised against "
+                  "the SAME base bucket {} (median ratio):".format(
+                      lc.get("decay_base_bucket")))
             for d in lc["decay"]:
                 print("    {:<12} {:>8.3f}  from {} columns".format(
                     d["bucket"], d["median_ratio"], d["columns"]))
@@ -599,6 +698,18 @@ def report(o, full):
               "column is enough")
         print("  plateauing or stepping -> the transition table has "
               "to be keyed on the gap")
+        bs = [c.get("between_patient_variance") for c in o["columns"]
+              if c.get("between_patient_variance") is not None
+              and c.get("varies_within_share", 0) > 0.25]
+        if bs:
+            bs.sort()
+            mid = bs[len(bs) // 2]
+            print("\n  between-patient share of variance, median "
+                  "{:.2f} over {} varying columns".format(mid, len(bs)))
+            print("  pooled autocorrelation tends to this as the gap "
+                  "grows, so only about {:.2f} of it can decay at all "
+                  "- that is the ceiling on what modelling elapsed "
+                  "time can buy".format(1.0 - mid))
     elif lc.get("error"):
         print("\n" + lc["error"])
 

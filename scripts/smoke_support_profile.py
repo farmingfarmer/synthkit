@@ -45,7 +45,8 @@ def run(*args):
 
 
 PLANTED = ["complete_ar", "sparse_ar", "onceonly", "rare", "toorare",
-           "constant", "degenerate", "cat_complete"]
+           "constant", "degenerate", "cat_complete", "meds",
+           "birth_year"]
 # visit_id and visit_start_date are described too. They used to be
 # skipped as "identifiers" while condnet modelled them, which is
 # exactly where a 424 MB fault hid. Only the group column is skipped.
@@ -78,7 +79,14 @@ def build(path):
                  "constant": 7,
                  "degenerate": (SENTINEL if rnd.random() < 0.995
                                 else "other"),
-                 "cat_complete": SENTINEL + ("A" if p % 2 else "B")}
+                 "cat_complete": SENTINEL + ("A" if p % 2 else "B"),
+                 # list-valued: condnet expands, never bins whole
+                 "meds": "; ".join(
+                     [SENTINEL + "drugA", SENTINEL + "drugB"][:1 + p % 2]),
+                 # PATIENT-LEVEL constant: identical at every visit, so
+                 # its autocorrelation is 1.0 at every lag. Including
+                 # it in the decay curve drags the median to 1.0.
+                 "birth_year": 1950 + (p % 60)}
             rows.append(r)
     with path.open("w", newline="", encoding="utf-8") as f:
         w_ = csv.DictWriter(f, fieldnames=list(rows[0].keys()))
@@ -200,6 +208,54 @@ def main():
         check("an impossible date is rejected rather than counted",
               SP.parse_day("2021-02-30") is None
               and SP.parse_day("not-a-date") is None)
+
+        # ---------- the decay curve must not be contaminated -------
+        lc = o["lag_curve"]
+        check("a PATIENT-LEVEL constant is kept out of the decay "
+              "curve - it sits at 1.0 in every bucket and drags the "
+              "median to 1.0",
+              "birth_year" in lc["excluded_patient_level"]
+              and "birth_year" not in lc["by_column"])
+        check("a column that really does vary within a patient IS "
+              "used", "complete_ar" not in lc["excluded_patient_level"])
+        check("the report says how many columns the curve rests on",
+              lc["columns_used"] >= 1
+              and "actually vary within a patient" in r.stdout)
+        bb = by["birth_year"]
+        check("a patient-level constant is 100% between-patient "
+              "variance", bb["between_patient_variance"] > 0.99)
+        ca_ = by["complete_ar"]
+        check("a within-varying column has a between-patient share "
+              "well below 1, which is the room elapsed time has to "
+              "work in",
+              ca_["between_patient_variance"] < 0.9)
+        check("the ceiling on what elapsed time can buy is stated",
+              "can decay at all" in r.stdout)
+
+        if lc.get("decay"):
+            base = lc["decay_base_bucket"]
+            check("every decay row is normalised against ONE base "
+                  "bucket, so the rows are comparable rather than "
+                  "each resting on its own baseline",
+                  base is not None
+                  and any(d["bucket"] == base
+                          and abs(d["median_ratio"] - 1.0) < 1e-9
+                          for d in lc["decay"]))
+
+        # ---------- list columns read as what condnet does ---------
+        check("a list column tiers as EXPAND, not drop - condnet "
+              "expands it into per-item indicators",
+              by["meds"]["tier"] == "expand"
+              and by["meds"]["list_valued"] is True)
+
+        # ---------- the field the tier rule gates on is shown -------
+        check("patients_adjacent is in the printed table, since it is "
+              "what decides the tier",
+              "patAdj" in r.stdout)
+        check("patients_adjacent never exceeds patients_2plus - a "
+              "pair needs two observations",
+              all(c["patients_adjacent"] <= c["patients_2plus"]
+                  for c in o["columns"]))
 
         # ---------- model sizing ----------
         mp = Path(td) / "model.json"
