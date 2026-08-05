@@ -389,7 +389,10 @@ def main():
                        "columns_modelled": 9, "bins": 3,
                        "effective_n": 120, "rows": 900,
                        "comparisons_corrected_for": 36,
-                       "search_mode": "blind"}}),
+                       "search_mode": "blind",
+                       "derived_columns": [
+                           {"column": "total", "determined_by": "part"}],
+                       "rows": 900, "persons": 120}}),
             encoding="utf-8")
         o3 = Path(td) / "s3.json"
         r3 = run("scripts/support_profile.py", "--in", str(src),
@@ -404,6 +407,33 @@ def main():
               "pays, since that is the main thing suppressing edges",
               L["comparisons_corrected_for"] == 36
               and "blind search" in r3.stdout)
+        nar = json.loads(o3.read_text(encoding="utf-8"))["model"] \
+            .get("narrative") or {}
+        check("the findings are narrated in plain English, reusing "
+              "learnspec rather than restating its phrasing here",
+              any("moves with" in f["sentence"]
+                  for f in nar.get("findings", []))
+              and any(f["kind"] == "interaction"
+                      for f in nar.get("findings", [])))
+        check("arithmetic the pipeline itself created is filed apart "
+              "from findings, not counted as discovery",
+              len(nar.get("findings", [])) == 2
+              and len(nar.get("bookkeeping", [])) == 1
+              and "computed from" in nar["bookkeeping"][0]["sentence"]
+              and "NOT findings" in r3.stdout)
+        check("the caveat carries its CONDITIONS - the correction "
+              "actually paid, and that a no-main-effect interaction "
+              "is never found at any n",
+              "36 comparisons" in nar.get("caveat", "")
+              and "no effect on their own" in nar.get("caveat", ""))
+        dl = json.loads(o3.read_text(encoding="utf-8"))["model"] \
+            .get("dials") or []
+        check("every relationship is exposed as something the user "
+              "can turn, starting at as-found",
+              len(dl) == 2
+              and all(d["factor"] == 1.0 and d["guide"] for d in dl)
+              and any("given" in d["label"] for d in dl))
+
         check("a model with no report degrades instead of crashing",
               json.loads(out2.read_text(encoding="utf-8"))["model"]
               .get("learned") is None)

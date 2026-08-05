@@ -117,12 +117,25 @@ def narrate(net) -> Dict[str, Any]:
         "bookkeeping": book,
         "resolution": rep.get("bins"),
         "effective_n": rep.get("effective_n", n_people),
+        # The 800 / 3,200 figures were measured on a NARROW schema.
+        # Blind search corrects across every pair, so a wide extract
+        # needs more of each - 3,828 comparisons on an 88-column one.
+        # And an interaction with no main effect is never found at any
+        # patient count: neither variable is marginally visible, so
+        # neither is proposed as a parent and the pair is never tested
+        # together. Stating the figures without their conditions is
+        # how a measurement becomes folklore.
         "caveat": (
             "Relationships are only as trustworthy as the number "
             "of patients behind them. At {} patients this model "
             "can support simple relationships; nonlinear ones need "
-            "roughly 800 and interactions roughly 3,200.".format(
-                rep.get("effective_n", n_people))),
+            "roughly 800 and interactions roughly 3,200 — measured "
+            "on a narrow schema, with {} comparisons corrected for "
+            "here, so a wider one needs more of each. An interaction "
+            "whose factors have no effect on their own is not found "
+            "at any patient count.".format(
+                rep.get("effective_n", n_people),
+                rep.get("comparisons_corrected_for", "?"))),
     }
 
 

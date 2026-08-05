@@ -48,11 +48,30 @@ from datetime import date
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 try:                       # console-safe on Windows terminals
     from _console import console_safe
     console_safe()
 except Exception:
     pass
+
+# Plain-English narration and the dial list are REUSED from
+# learnspec rather than restated here. Two places phrasing the same
+# finding is how they drift apart. Optional so the profiler still
+# runs where the package is not importable.
+try:
+    from synthkit.learnspec import narrate as _narrate, dials as _dials
+except Exception:                                        # pragma: no cover
+    _narrate = _dials = None
+
+
+class _ReportShim(object):
+    """narrate() and dials() need only `.report`, so a saved artifact
+    can be narrated without reconstructing a model."""
+
+    def __init__(self, report):
+        self.report = report
+
 
 csv.field_size_limit(1 << 22)
 
@@ -537,6 +556,12 @@ def profile_model(path):
             "search_mode": rep.get("search_mode"),
             "hypotheses_declared": rep.get("hypotheses_declared"),
         }
+        if _narrate is not None:
+            try:
+                out["narrative"] = _narrate(_ReportShim(rep))
+                out["dials"] = _dials(_ReportShim(rep))
+            except Exception as e:                       # pragma: no cover
+                out["narrative"] = {"error": str(e)}
     return out
 
 
@@ -943,6 +968,35 @@ def report(o, full):
                 print("  blind search: every pair tested, so the "
                       "correction is paid across all {} of them"
                       .format(L.get("comparisons_corrected_for")))
+        nar = m.get("narrative") or {}
+        if nar.get("headline"):
+            print("\n  IN PLAIN ENGLISH")
+            print("  " + nar["headline"])
+            # Findings and bookkeeping are kept apart on purpose. An
+            # instrument that presents its own arithmetic as a
+            # discovery is harder to trust than one that says which
+            # is which - two of the strongest edges on the real
+            # extract were the wrangler rediscovering its own
+            # derived columns.
+            if nar.get("findings"):
+                print("  found in the data:")
+                for f in nar["findings"][:12]:
+                    print("    - {}{}".format(
+                        f["sentence"],
+                        "  [interaction]" if f["kind"] == "interaction"
+                        else ""))
+            if nar.get("bookkeeping"):
+                print("  filed as arithmetic the pipeline itself "
+                      "created, NOT findings:")
+                for f in nar["bookkeeping"][:8]:
+                    print("    - {}".format(f["sentence"]))
+            if nar.get("caveat"):
+                print("  caveat: {}".format(nar["caveat"]))
+            d = m.get("dials") or []
+            if d:
+                print("  {} relationship(s) exposed as dials; each "
+                      "turns from 0 (remove) through 1 (as found) to "
+                      "2 (twice as strong)".format(len(d)))
         for e in m.get("keys", [])[:8]:
             extra = ""
             if e.get("cells"):
