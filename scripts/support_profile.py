@@ -827,19 +827,12 @@ def report(o, full):
               "column is enough")
         print("  plateauing or stepping -> the transition table has "
               "to be keyed on the gap")
-        bs = [c.get("between_patient_variance") for c in o["columns"]
-              if c.get("between_patient_variance") is not None
-              and c.get("varies_within_share", 0) > 0.25]
-        if bs:
-            bs.sort()
-            mid = bs[len(bs) // 2]
-            print("\n  between-patient share of variance, median "
-                  "{:.2f} over {} varying columns".format(mid, len(bs)))
-            print("  a column's autocorrelation tends to this as "
-                  "the gap "
-                  "grows, so only about {:.2f} of it can decay at all "
-                  "- that is the ceiling on what modelling elapsed "
-                  "time can buy".format(1.0 - mid))
+        # Reported once only, in the decomposition below, over the
+        # set that block actually uses. Printing the same quantity
+        # twice over two slightly different column sets reads as a
+        # contradiction - 0.19 here against 0.274 there.
+        print("  (between-patient share is reported once, in the "
+              "decomposition below)")
     elif lc.get("error"):
         print("\n" + lc["error"])
 
@@ -860,6 +853,10 @@ def report(o, full):
                   "steadiness".format(
                       dec["median_between"], dec["median_r1"],
                       dec["anchor_share_of_r1"]))
+            print("  a column's autocorrelation tends to `between` as "
+                  "the gap grows, so only about {:.2f} of it can decay "
+                  "at all - the ceiling on what modelling elapsed time "
+                  "can buy".format(1.0 - dec["median_between"]))
         else:
             print("  median between {:.3f}, median r(lag1) {:.3f} - "
                   "too little steadiness to split; rho is only "
