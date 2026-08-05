@@ -242,6 +242,35 @@ def main():
                           and abs(d["median_ratio"] - 1.0) < 1e-9
                           for d in lc["decay"]))
 
+        # Two columns on very different scales, each with NO real
+        # persistence. Pooling their value pairs into one correlation
+        # would read near 1.0 purely because the pairs cluster by
+        # column; a median of per-column correlations reads near 0.
+        scaled = Path(td) / "scaled.csv"
+        rnd2 = random.Random(9)
+        with scaled.open("w", newline="", encoding="utf-8") as f:
+            w2 = csv.DictWriter(f, fieldnames=[
+                "person_id", "visit_start_date", "big", "small"])
+            w2.writeheader()
+            for p_ in range(120):
+                for v_ in range(8):
+                    w2.writerow({
+                        "person_id": "P{:04d}".format(p_),
+                        "visit_start_date": "2021-{:02d}-{:02d}".format(
+                            (v_ % 12) + 1, (v_ % 27) + 1),
+                        "big": round(1700 + rnd2.gauss(0, 30), 2),
+                        "small": round(3.7 + rnd2.gauss(0, 0.4), 3)})
+        so = Path(td) / "scaled.json"
+        run("scripts/support_profile.py", "--in", str(scaled),
+            "-o", str(so))
+        sj = json.loads(so.read_text(encoding="utf-8"))
+        pooled = sj["lag_curve"].get("pooled") or []
+        check("columns on different scales with no persistence do NOT "
+              "read as persistent - the curve medians per-column "
+              "correlations instead of pooling raw pairs",
+              bool(pooled)
+              and all(abs(b_["autocorr"]) < 0.35 for b_ in pooled))
+
         # ---------- list columns read as what condnet does ---------
         check("a list column tiers as EXPAND, not drop - condnet "
               "expands it into per-item indicators",

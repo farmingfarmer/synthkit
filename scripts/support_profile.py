@@ -369,14 +369,23 @@ def lag_curve(rows_by_patient, cols, date_col, args):
         if len(got) >= 2:
             per_col[col] = dict(
                 ("{}-{}".format(b[0], b[1]), v) for b, v in got.items())
+    # MEDIAN of per-column correlations, never a correlation over
+    # pairs pooled across columns. Pooling mixes scales - height near
+    # 170 against temperature near 37 - so the cloud is dominated by
+    # which column a pair came from, and that structure is identical
+    # in every bucket. It reads high and flat whatever the columns
+    # are actually doing, which is how a curve that could not be
+    # reconciled with a between-patient share of 0.38 still read 0.79.
     pooled = []
     for b in LAG_BUCKETS:
-        if len(buckets[b]) >= 30:
-            c = corr(buckets[b])
-            if c is not None:
-                pooled.append({"bucket": "{}-{}".format(b[0], b[1]),
-                               "autocorr": round(c, 4),
-                               "pairs": len(buckets[b])})
+        lbl = "{}-{}".format(b[0], b[1])
+        percol = sorted(got[lbl][0] for got in per_col.values()
+                        if lbl in got)
+        if percol:
+            pooled.append({"bucket": lbl,
+                           "autocorr": round(percol[len(percol) // 2], 4),
+                           "columns": len(percol),
+                           "pairs": len(buckets[b])})
     # Pooling raw correlations across columns is misleading: a
     # patient-level constant sits at 1.0 in every bucket and flattens
     # the average, hiding whatever decay the varying columns have. So
@@ -682,11 +691,12 @@ def report(o, full):
                 " ..." if len(ex) > 6 else ""))
             print("  they sit at 1.0 in every bucket, so including "
                   "them drags the median to 1.0 and hides real decay")
-        print("  {:<12} {:>10} {:>12}".format("days apart", "autocorr",
-                                              "pairs"))
+        print("  {:<12} {:>12} {:>8} {:>12}".format(
+            "days apart", "median r", "columns", "pairs"))
         for b_ in lc["pooled"]:
-            print("  {:<12} {:>10.3f} {:>12,}".format(
-                b_["bucket"], b_["autocorr"], b_["pairs"]))
+            print("  {:<12} {:>12.3f} {:>8} {:>12,}".format(
+                b_["bucket"], b_["autocorr"], b_.get("columns", 0),
+                b_["pairs"]))
         if lc.get("decay"):
             print("  decay shape, every column normalised against "
                   "the SAME base bucket {} (median ratio):".format(
@@ -706,7 +716,8 @@ def report(o, full):
             mid = bs[len(bs) // 2]
             print("\n  between-patient share of variance, median "
                   "{:.2f} over {} varying columns".format(mid, len(bs)))
-            print("  pooled autocorrelation tends to this as the gap "
+            print("  a column's autocorrelation tends to this as "
+                  "the gap "
                   "grows, so only about {:.2f} of it can decay at all "
                   "- that is the ceiling on what modelling elapsed "
                   "time can buy".format(1.0 - mid))
