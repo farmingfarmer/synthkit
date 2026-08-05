@@ -44,8 +44,12 @@ def run(*args):
                           capture_output=True, text=True, cwd=str(ROOT))
 
 
-COLS = ["complete_ar", "sparse_ar", "onceonly", "rare", "toorare",
-        "constant", "degenerate", "cat_complete"]
+PLANTED = ["complete_ar", "sparse_ar", "onceonly", "rare", "toorare",
+           "constant", "degenerate", "cat_complete"]
+# visit_id and visit_start_date are described too. They used to be
+# skipped as "identifiers" while condnet modelled them, which is
+# exactly where a 424 MB fault hid. Only the group column is skipped.
+COLS = PLANTED + ["visit_id", "visit_start_date"]
 
 
 def build(path):
@@ -90,8 +94,13 @@ def main():
         check("profiler runs", r.returncode == 0)
         o = json.loads(outp.read_text(encoding="utf-8"))
         by = dict((c["column"], c) for c in o["columns"])
-        check("every non-id column is profiled",
+        check("EVERY column is profiled except the group column - no "
+              "hand-kept skip list to hide behind",
               set(by) == set(COLS))
+        check("identifier and date columns are described rather than "
+              "skipped, since the model does not skip them",
+              by["visit_id"]["tier"] == "drop"
+              and "visit_start_date" in by)
         check("patients and visits counted exactly",
               o["patients"] == N_PAT and o["rows"] == N_PAT * N_VIS)
 

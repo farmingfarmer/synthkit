@@ -39,6 +39,7 @@ import hashlib
 import json
 import math
 import random
+import re
 from collections import Counter, defaultdict
 from typing import Any, Dict, List, Optional, Sequence, Tuple
 
@@ -130,6 +131,36 @@ DERIVED_ENTROPY_RATIO = 0.05
 # looks like a finding.
 NEVER_PARENT = ("days_to_next_visit", "is_last_visit",
                 "visit_id", "record_id")
+
+# Smallest categorical level budget, so a small extract does not have
+# ordinary categoricals pruned away by the transition-table bound.
+MIN_LEVEL_BUDGET = 20
+
+# Separators are required, so a bare year like 1950 is a number and
+# not a date. Matching on digits alone would swallow year_of_birth.
+_DATE_PATTERNS = (
+    r"^\d{4}-\d{1,2}-\d{1,2}([ T]\d{1,2}:\d{2}(:\d{2})?)?$",
+    r"^\d{1,2}/\d{1,2}/\d{2,4}( \d{1,2}:\d{2}(:\d{2})?)?$",
+    r"^\d{4}/\d{1,2}/\d{1,2}$",
+    r"^\d{1,2}-[A-Za-z]{3}-\d{2,4}$",
+)
+
+
+def _looks_like_date(present, threshold=0.9):
+    """A column is a date when nearly all of its values are dates.
+
+    Nearly, not all: real extracts carry a stray sentinel or a
+    malformed row, and one bad value must not turn a date column back
+    into a category."""
+    if not present:
+        return False
+    hits = 0
+    for v in present:
+        for pat in _DATE_PATTERNS:
+            if re.match(pat, v):
+                hits += 1
+                break
+    return hits / float(len(present)) >= threshold
 
 # Separator for list-valued columns (medication lists, condition
 # lists). These need expanding, not binning — see below.
@@ -634,6 +665,47 @@ class CondNet:
                               max(n_strata, 1))
         return total, max(df, 1)
 
+    def _unmodellable(self, col, values, n_rows, groups=None):
+        """None if the column may be modelled, else why not.
+
+        Bound: a categorical's transition table has levels^2 cells, so
+        levels^2 must not exceed the observations available to fill
+        them at k apiece. The floor of MIN_LEVEL_BUDGET keeps a small
+        extract from having ordinary categoricals pruned out of it."""
+        gs = groups if groups is not None else list(range(len(values)))
+        pairs = [(str(v).strip(), g) for v, g in zip(values, gs)]
+        pairs = [(v, g) for v, g in pairs
+                 if v and v.lower() not in ("nan", "none", "null")]
+        present = [v for v, _g in pairs]
+        if not present:
+            return None
+        if _looks_like_date(present):
+            return ("date: not a category. The calendar carries "
+                    "identity; the signal is in ELAPSED TIME, which "
+                    "is NOT YET modelled - so this column is a net "
+                    "LOSS of temporal information until it is")
+        # A numeric column is quantile-binned, so its transition table
+        # is bins^2 and already bounded. Applying the level bound to it
+        # would strip ordinary numerics - age_at_visit and
+        # year_of_birth were both excluded before this check existed.
+        if all(_num(v) is not None for v in present):
+            return None
+        # Counted by distinct PATIENTS, exactly as Binning.learn does.
+        # Counting occurrences instead would not predict the levels
+        # that actually survive, and the guard would fire on the wrong
+        # columns - one patient's fifty visits are not fifty holders.
+        holders = defaultdict(set)
+        for v, g in pairs:
+            holders[v].add(g)
+        levels = [lv for lv, hs in holders.items() if len(hs) >= self.k]
+        budget = max(MIN_LEVEL_BUDGET,
+                     int((n_rows / max(self.k, 1)) ** 0.5))
+        if len(levels) > budget:
+            return ("{} levels above k exceeds the {} its transition "
+                    "table can support at {} rows".format(
+                        len(levels), budget, n_rows))
+        return None
+
     def learn(self, rows: List[Dict[str, Any]],
               columns: Optional[List[str]] = None,
               targets: Optional[List[str]] = None,
@@ -742,6 +814,43 @@ class CondNet:
             cols.extend("{}::{}".format(c, i) for i in keep)
         if self.list_columns:
             rows = expanded_rows
+
+        # ---- columns that must not be modelled as categories ----
+        # Runs AFTER list expansion so the indicators it produces are
+        # judged, not the raw list columns it consumes.
+        #
+        # A date is not a category. Modelled as one, its transition
+        # table is levels^2 over the calendar, and the size of that
+        # depends on the COHORT: at 92 patients no single date clears
+        # the k-patient floor, so every date column collapses to one
+        # level and the fault is invisible; at 800 patients over six
+        # years the dates clear it easily and the same code produced
+        # ~2,230 levels, a 4,975,074-cell transition table for ONE
+        # column, and a 424 MB model - larger than the extract it was
+        # learned from, with 90% of it being two date columns.
+        #
+        # It is a privacy fault as much as a size one: that table
+        # publishes "at least k patients moved from date X to date Y",
+        # and exact dates are the most identifying thing in a clinical
+        # record.
+        #
+        # The general rule is the guard, not the date rule: a
+        # categorical may not carry more levels than its transition
+        # table can support at k observations per cell. The date test
+        # is kept as well because a date is the wrong TYPE regardless
+        # of how many levels it happens to have in this cohort - which
+        # is exactly what made this latent rather than visible.
+        self.excluded_columns = {}
+        keep_cols = []
+        for c in cols:
+            reason = self._unmodellable(c, [r.get(c, "") for r in rows],
+                                        n, self.groups)
+            if reason:
+                self.excluded_columns[c] = reason
+            else:
+                keep_cols.append(c)
+        cols = keep_cols
+
         self.n_groups = len(set(self.groups))
         self.multilevel = bool(multilevel and group_by)
         # Degrees of freedom for a within-person comparison: every
@@ -1778,6 +1887,8 @@ class CondNet:
                             "adversary can infer"}),
             "never_parent_excluded": [c for c in NEVER_PARENT
                                       if c in self.order],
+            "unmodellable_excluded": dict(
+                getattr(self, "excluded_columns", {})),
             "leakage_note": "a column that DEFINES the outcome is "
                             "never offered as a parent: an outcome "
                             "meaning 'the next visit fell within "

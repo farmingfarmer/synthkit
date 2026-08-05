@@ -297,10 +297,20 @@ def main():
           "WARD_7B" in n_row.binnings["unit"].levels)
     check("counting PEOPLE toward k suppresses it",
           "WARD_7B" not in n_per.binnings["unit"].levels)
-    check("without a privacy unit the model may condition on "
-          "PATIENT IDENTITY itself — memorization wearing a graph",
-          any("person_id" in e["parents"]
-              for e in n_row.report["edges"]))
+    # This used to assert that person_id became a PARENT without a
+    # privacy unit — memorization wearing a graph. The cardinality
+    # guard now keeps it out of the model entirely, so that edge can
+    # no longer form. The protection is INCIDENTAL, not a privacy
+    # rule: it fires because an identifier has many levels, and an
+    # identity-like column with few levels would still get through.
+    # The privacy argument itself is carried by the WARD_7B pair
+    # above, which is about counting people rather than rows.
+    check("an identifier is refused as a category even with no "
+          "privacy unit — incidental protection, not a substitute "
+          "for one",
+          "person_id" in n_row.excluded_columns
+          and not any("person_id" in e["parents"]
+                      for e in n_row.report["edges"]))
     check("with a privacy unit, identity is excluded and the real "
           "relationship is learned instead",
           "person_id" not in n_per.order
@@ -959,6 +969,74 @@ def main():
     got_n = ns._measure_autocorr(gen_s, "noise")
     check("steadiness is not invented where the source has none",
           got_n is None or abs(got_n) < 0.25)
+
+    # ---- a date is not a category ----------------------------------
+    # Modelled as one, its transition table is levels^2 over the
+    # calendar. The fault is LATENT: at few patients no single date
+    # clears the k-patient floor and every date column collapses to
+    # one level, so it looks harmless. At 400 patients over six years
+    # the dates clear it and one column produced a 4,975,074-cell
+    # table and a 424 MB model. So the fixture must be large enough
+    # for dates to clear k, or it proves nothing.
+    rnd = random.Random(11)
+    drows = []
+    for p in range(400):
+        mu = rnd.gauss(0, 1)
+        day = rnd.randint(0, 300)
+        for _v in range(12):
+            day += rnd.randint(1, 60)
+            y, rem = 2018 + day // 365, day % 365
+            drows.append({
+                "person_id": "P{:04d}".format(p),
+                "visit_start_date": "{:04d}-{:02d}-{:02d}".format(
+                    y, (rem // 31) + 1, (rem % 31) + 1),
+                "age_at_visit": 30 + (p % 55),
+                "sex": "F" if p % 2 else "M",
+                "lab": round(mu + rnd.gauss(0, 0.6), 3)})
+    dn = CondNet(k=10).learn(drows, group_by="person_id",
+                             multilevel=True)
+    exc = dn.excluded_columns
+    check("the fixture is large enough that dates WOULD have cleared "
+          "k - otherwise this proves nothing",
+          len(set(r["visit_start_date"] for r in drows)) > 200)
+    check("a date column is refused as a category",
+          "visit_start_date" in exc and "date" in exc["visit_start_date"])
+    check("the date column is not modelled at all",
+          "visit_start_date" not in dn.binnings)
+    check("ordinary NUMERIC columns are NOT swept up by the bound - "
+          "they are binned, so their table is bins^2 already",
+          "age_at_visit" not in exc and "lab" not in exc
+          and "age_at_visit" in dn.binnings)
+    check("an ordinary low-cardinality categorical survives",
+          "sex" not in exc and "sex" in dn.binnings)
+    check("the exclusion is reported, not silent",
+          dn.report.get("unmodellable_excluded", {}).get(
+              "visit_start_date"))
+    blob = json.loads(dn.to_json())
+    check("the model stays small once dates are out",
+          len(json.dumps(blob)) < 400000)
+    lagcells = sum(len(v) * max((len(x) for x in v.values()), default=0)
+                   for v in blob.get("lag", {}).values())
+    check("no transition table is levels^2 over a calendar",
+          lagcells < 5000)
+
+    # the general guard, independent of the date test
+    # Each code is held by exactly 10 distinct patients, so it clears
+    # the k-patient floor and really would become a level - 480 of
+    # them, far past what a transition table can carry.
+    hrows = []
+    for p in range(400):
+        for v in range(12):
+            hrows.append({"person_id": "P{:04d}".format(p),
+                          "code": "C{:04d}".format((p % 40) * 12 + v),
+                          "lab": round(random.Random(p * 99 + v)
+                                       .gauss(0, 1), 3)})
+    hn = CondNet(k=10).learn(hrows, group_by="person_id",
+                             multilevel=True)
+    check("a high-cardinality categorical that is NOT a date is "
+          "refused too, on the transition-table bound",
+          "code" in hn.excluded_columns
+          and "levels" in hn.excluded_columns["code"])
 
     print()
     if FAIL:

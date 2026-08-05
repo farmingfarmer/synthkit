@@ -55,9 +55,21 @@ except Exception:
 
 csv.field_size_limit(1 << 22)
 
-ID_COLS = {"visit_id", "person_id", "visit_start_date",
-           "visit_end_date"}
+# Nothing is excluded by name. An earlier version skipped visit_id and
+# the two date columns as "identifiers", and condnet was modelling all
+# three - which is precisely where a 424 MB fault hid for as long as it
+# did. The profiler must describe everything the model might touch and
+# let the tier rules say what is unusable; a hand-kept skip list fails
+# open exactly as NEVER_PARENT does.
+ID_COLS = set()
 LIST_SEP = "; "
+
+# Elapsed-day buckets for the decay curve. If autocorrelation falls
+# geometrically across these, persistence can be modelled with one
+# decay constant per column; if it plateaus or steps, the transition
+# table has to be keyed on the gap instead, which costs far more.
+LAG_BUCKETS = [(0, 7), (8, 30), (31, 90), (91, 180), (181, 365),
+               (366, 10 ** 6)]
 
 TIERS = ["longitudinal", "cross_sectional", "presence", "drop"]
 
@@ -89,7 +101,7 @@ def corr(pairs):
     return nu / de
 
 
-def classify(s, args):
+def classify(s, args, n_rows):
     """Which role can this column's support sustain?
 
     Deliberately a demotion ladder rather than a single cutoff. A
@@ -103,6 +115,32 @@ def classify(s, args):
     if s["top_share"] is not None and s["top_share"] >= args.degenerate:
         return "drop", "degenerate: one value is {:.0%} of it".format(
             s["top_share"])
+    # The same bound condnet applies, so the tiers PREDICT what the
+    # model will actually do rather than describing something else.
+    # Without it an identifier passes every rule: visit_id has full
+    # coverage and an adjacent pair for every visit, and tiered as
+    # longitudinal.
+    lv = s.get("levels_above_k")
+    if lv is not None:
+        # Too unique to model is the mirror of too many levels, and a
+        # "too many levels" bound cannot see it: visit_id is distinct
+        # on every row, so NO value clears k and its level count is
+        # zero. condnet collapses such a column to a single fallback
+        # level, which carries nothing. Whether anything survives
+        # depends on presence: a column measured everywhere says
+        # nothing by being present, a sparse one still does.
+        if lv == 0:
+            if s["visit_coverage"] >= 0.99:
+                return "drop", ("no value is held by k patients and it "
+                                "is present on every row - an "
+                                "identifier, not a variable")
+            return "presence", ("no value is held by k patients; only "
+                                "the fact of measurement survives")
+        budget = max(20, int((n_rows / max(args.k, 1)) ** 0.5))
+        if lv > budget:
+            return "drop", ("{} levels above k exceeds the {} a "
+                            "transition table can support".format(
+                                lv, budget))
     if (s["patients_adjacent"] >= args.min_pair_patients
             and s["adjacent_pairs"] >= 4 * args.k):
         return "longitudinal", "{} patients give {} adjacent pairs".format(
@@ -202,10 +240,125 @@ def profile_column(col, rows_by_patient, n_rows, args):
             else None
         if a is not None and lo is not None:
             s["lag_error"] = round(lo - a, 4)
-    tier, why = classify(s, args)
-    s["tier"] = tier
-    s["reason"] = why
     return s
+
+
+def parse_day(v):
+    """Days since epoch from a date string, or None."""
+    s = str(v or "").strip()[:10]
+    if len(s) != 10:
+        return None
+    for sep, order in (("-", (0, 1, 2)), ("/", (2, 0, 1))):
+        parts = s.split(sep)
+        if len(parts) == 3:
+            try:
+                y = int(parts[order[0]])
+                m = int(parts[order[1]])
+                d = int(parts[order[2]])
+            except ValueError:
+                return None
+            if not (1900 <= y <= 2100 and 1 <= m <= 12 and 1 <= d <= 31):
+                return None
+            return y * 372 + m * 31 + d
+    return None
+
+
+def lag_curve(rows_by_patient, cols, date_col, args):
+    """Autocorrelation by ELAPSED-TIME bucket, pooled over columns.
+
+    This is the measurement that decides how elapsed time enters the
+    model. Row adjacency is not time: two consecutive visits can be a
+    week or a year apart, and the transition tables currently treat
+    those identically."""
+    buckets = dict((b, []) for b in LAG_BUCKETS)
+    per_col = {}
+    for col in cols:
+        cb = dict((b, []) for b in LAG_BUCKETS)
+        for _pid, rows in rows_by_patient.items():
+            seq = []
+            for r in rows:
+                d = parse_day(r.get(date_col, ""))
+                x = num(r.get(col, ""))
+                if d is not None:
+                    seq.append((d, x))
+            seq.sort()
+            for i in range(len(seq)):
+                if seq[i][1] is None:
+                    continue
+                for j in range(i + 1, len(seq)):
+                    if seq[j][1] is None:
+                        continue
+                    gap = seq[j][0] - seq[i][0]
+                    for b in LAG_BUCKETS:
+                        if b[0] <= gap <= b[1]:
+                            cb[b].append((seq[i][1], seq[j][1]))
+                            break
+                    break          # nearest later observation only
+        got = {}
+        for b in LAG_BUCKETS:
+            if len(cb[b]) >= 30:
+                c = corr(cb[b])
+                if c is not None:
+                    got[b] = (round(c, 4), len(cb[b]))
+                    buckets[b] += cb[b]
+        if len(got) >= 2:
+            per_col[col] = dict(
+                ("{}-{}".format(b[0], b[1]), v) for b, v in got.items())
+    pooled = []
+    for b in LAG_BUCKETS:
+        if len(buckets[b]) >= 30:
+            c = corr(buckets[b])
+            if c is not None:
+                pooled.append({"bucket": "{}-{}".format(b[0], b[1]),
+                               "autocorr": round(c, 4),
+                               "pairs": len(buckets[b])})
+    # Pooling raw correlations across columns is misleading: a
+    # patient-level constant sits at 1.0 in every bucket and flattens
+    # the average, hiding whatever decay the varying columns have. So
+    # normalise each column against its own shortest bucket and report
+    # the median RATIO - that is decay shape, independent of level.
+    ratios = defaultdict(list)
+    for _c, got in per_col.items():
+        keys = [b for b in LAG_BUCKETS
+                if "{}-{}".format(b[0], b[1]) in got]
+        if len(keys) < 2:
+            continue
+        base = got["{}-{}".format(keys[0][0], keys[0][1])][0]
+        if abs(base) < 0.1:
+            continue           # nothing to decay from
+        for b in keys:
+            lbl = "{}-{}".format(b[0], b[1])
+            ratios[lbl].append(got[lbl][0] / base)
+    decay = []
+    for b in LAG_BUCKETS:
+        lbl = "{}-{}".format(b[0], b[1])
+        if ratios.get(lbl):
+            xs = sorted(ratios[lbl])
+            decay.append({"bucket": lbl,
+                          "median_ratio": round(xs[len(xs) // 2], 4),
+                          "columns": len(xs)})
+    return {"pooled": pooled, "decay": decay, "by_column": per_col}
+
+
+def would_be_levels(rows_by_patient, col, k):
+    """Levels condnet would keep for this column if it treated it as a
+    categorical: distinct values held by at least k patients. The
+    transition table it implies is that count squared."""
+    holders = defaultdict(set)
+    numericish = 0
+    present = 0
+    for pid, rows in rows_by_patient.items():
+        for r in rows:
+            s = str(r.get(col, "") or "").strip()
+            if not s or s.lower() in ("nan", "none", "null"):
+                continue
+            present += 1
+            holders[s].add(pid)
+            if num(s) is not None:
+                numericish += 1
+    if present and numericish == present:
+        return None            # numeric: binned, not levelled
+    return sum(1 for v in holders.values() if len(v) >= k)
 
 
 def profile_model(path):
@@ -253,6 +406,9 @@ def main():
     ap.add_argument("--model", help="condnet_model.json to size up")
     ap.add_argument("-o", "--out", default="support.json")
     ap.add_argument("--group", default="person_id")
+    ap.add_argument("--date-col", default="visit_start_date",
+                    help="date column used to measure ELAPSED time "
+                         "between visits, not just their order")
     ap.add_argument("--order-by", default="visit_start_date",
                     help="column defining visit order within a patient")
     ap.add_argument("--k", type=int, default=10)
@@ -295,6 +451,16 @@ def main():
 
     cols = [c for c in header if c not in ID_COLS and c != a.group]
     stats = [profile_column(c, by_patient, len(rows), a) for c in cols]
+    for s in stats:
+        lv = would_be_levels(by_patient, s["column"], a.k)
+        if lv is not None:
+            s["levels_above_k"] = lv
+            s["transition_cells"] = lv * lv
+        # Tiering happens AFTER the level count exists, so the
+        # cardinality rule can see it.
+        tier, why = classify(s, a, len(rows))
+        s["tier"] = tier
+        s["reason"] = why
 
     out = {
         "generated_by": "scripts/support_profile.py",
@@ -317,11 +483,45 @@ def main():
         {"column": s["column"], "as_measured": s["autocorr_as_measured"],
          "adjacent": s["autocorr_adjacent"], "error": s["lag_error"],
          "visit_coverage": s["visit_coverage"]} for s in lag]
+    numeric_cols = [s["column"] for s in stats if s["numeric"]]
+    if a.date_col in header:
+        out["lag_curve"] = lag_curve(by_patient, numeric_cols,
+                                     a.date_col, a)
+    else:
+        out["lag_curve"] = {"error": "no {} column; elapsed time "
+                                     "cannot be measured".format(
+                                         a.date_col)}
+    adj = sorted(s["adjacent_pairs"] for s in stats)
+    if adj:
+        out["adjacent_pair_distribution"] = {
+            "min": adj[0], "p25": adj[len(adj) // 4],
+            "p50": adj[len(adj) // 2],
+            "p75": adj[(3 * len(adj)) // 4], "max": adj[-1],
+            "possible": len(rows) - len(by_patient)}
     if a.model:
         mp = Path(a.model)
         if not mp.exists():
             sys.exit("--model not found: {}".format(mp))
         out["model"] = profile_model(mp)
+        # The coverage gap. visit_start_date and visit_end_date hid
+        # here: described by nobody, modelled by condnet. Diff both
+        # ways rather than assume the gap is closed.
+        modelled = set()
+        try:
+            blob = json.loads(mp.read_text(encoding="utf-8"))
+            for key in ("binnings", "marginal", "level"):
+                v = blob.get(key)
+                if isinstance(v, dict):
+                    modelled |= set(v)
+        except ValueError:
+            pass
+        if modelled:
+            described = set(s["column"] for s in stats)
+            out["coverage_gap"] = {
+                "modelled_not_described": sorted(modelled - described),
+                "described_not_modelled": sorted(described - modelled),
+                "both": len(modelled & described),
+            }
 
     Path(a.out).write_text(json.dumps(out, indent=1),
                            encoding="utf-8")
@@ -369,6 +569,57 @@ def report(o, full):
                 s["error"], s["visit_coverage"]))
         print("  a NEGATIVE error means the steadiness target the "
               "model calibrates against is UNDERSTATED")
+
+    lc = o.get("lag_curve", {})
+    if lc.get("pooled"):
+        print("\nautocorrelation by ELAPSED DAYS (pooled over "
+              "{} numeric columns)".format(len(lc.get("by_column", {}))))
+        print("  {:<12} {:>10} {:>12}".format("days apart", "autocorr",
+                                              "pairs"))
+        for b_ in lc["pooled"]:
+            print("  {:<12} {:>10.3f} {:>12,}".format(
+                b_["bucket"], b_["autocorr"], b_["pairs"]))
+        if lc.get("decay"):
+            print("  decay shape, each column normalised against its "
+                  "own shortest bucket (median ratio):")
+            for d in lc["decay"]:
+                print("    {:<12} {:>8.3f}  from {} columns".format(
+                    d["bucket"], d["median_ratio"], d["columns"]))
+        print("  falling geometrically -> one decay constant per "
+              "column is enough")
+        print("  plateauing or stepping -> the transition table has "
+              "to be keyed on the gap")
+    elif lc.get("error"):
+        print("\n" + lc["error"])
+
+    ap_ = o.get("adjacent_pair_distribution")
+    if ap_:
+        print("\nadjacent pairs per column: min {:,} p25 {:,} p50 {:,} "
+              "p75 {:,} max {:,}  (of {:,} possible)".format(
+                  ap_["min"], ap_["p25"], ap_["p50"], ap_["p75"],
+                  ap_["max"], ap_["possible"]))
+
+    heavy = [s for s in o["columns"] if s.get("transition_cells")]
+    heavy.sort(key=lambda s: -s["transition_cells"])
+    if heavy and heavy[0]["transition_cells"] > 100:
+        print("\ncategoricals by transition cost (levels above k, "
+              "squared)")
+        for s in heavy[:8]:
+            print("  {:<28} {:>6} levels {:>12,} cells".format(
+                s["column"][:28], s["levels_above_k"],
+                s["transition_cells"]))
+
+    cg = o.get("coverage_gap")
+    if cg:
+        print("\ncoverage gap against the model")
+        print("  described AND modelled     {}".format(cg["both"]))
+        print("  MODELLED, NOT DESCRIBED    {}{}".format(
+            len(cg["modelled_not_described"]),
+            "  <-- blind spot" if cg["modelled_not_described"] else ""))
+        for c in cg["modelled_not_described"][:12]:
+            print("      {}".format(c))
+        print("  described, not modelled    {}".format(
+            len(cg["described_not_modelled"])))
 
     m = o.get("model")
     if m:
