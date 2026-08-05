@@ -63,8 +63,13 @@ def build(path):
             val = round(mu + w, 4)
             r = {"person_id": "P{:04d}".format(p),
                  "visit_id": "V{:05d}".format(len(rows)),
+                 # Visits PAIR UP on dates. Real patients are seen
+                 # twice in a day; mimic never was, so a bare
+                 # tuple sort over (day, value) never had to
+                 # compare a float against a None and the crash
+                 # could not appear here.
                  "visit_start_date": "2021-{:02d}-{:02d}".format(
-                     (v % 12) + 1, (v % 27) + 1),
+                     ((v // 2) % 12) + 1, ((v // 2) % 27) + 1),
                  "complete_ar": val,
                  "sparse_ar": val if rnd.random() > 0.75 else "",
                  "onceonly": round(rnd.gauss(0, 1), 3) if v == 0 else "",
@@ -85,7 +90,7 @@ def build(path):
 def main():
     with tempfile.TemporaryDirectory() as td:
         src = Path(td) / "tidy.csv"
-        build(src)
+        fixture_rows = build(src)
         outp = Path(td) / "support.json"
         r = run("scripts/support_profile.py", "--in", str(src),
                 "-o", str(outp), "--report")
@@ -171,6 +176,30 @@ def main():
               "and sparsity destroys the adjacent ones",
               sa["adjacent_pairs"] < sa["loose_pairs"] / 2
               and ca["adjacent_pairs"] == ca["loose_pairs"])
+
+        # ---------- same-day visits and real calendar gaps ----------
+        # Both of these crashed or silently mismeasured on the real
+        # extract while passing here, because mimic has one visit per
+        # date per patient and no month boundaries in play.
+        import support_profile as SP
+        check("a patient seen TWICE IN A DAY does not crash the "
+              "elapsed-time pass",
+              r.returncode == 0 and "lag_curve" in o)
+        one = [x for x in fixture_rows if x["person_id"] == "P0000"]
+        check("the fixture really does contain same-day visits, or "
+              "the check above proves nothing",
+              len(set(x["visit_start_date"] for x in one)) < len(one))
+        gaps = [("2021-02-28", "2021-03-01", 1),
+                ("2021-01-31", "2021-02-01", 1),
+                ("2020-12-31", "2021-01-01", 1),
+                ("2021-01-01", "2022-01-01", 365)]
+        check("elapsed days use real calendar arithmetic, so pairs "
+              "land in the right bucket across month and year ends",
+              all(SP.parse_day(b_) - SP.parse_day(a_) == want
+                  for a_, b_, want in gaps))
+        check("an impossible date is rejected rather than counted",
+              SP.parse_day("2021-02-30") is None
+              and SP.parse_day("not-a-date") is None)
 
         # ---------- model sizing ----------
         mp = Path(td) / "model.json"

@@ -44,6 +44,7 @@ import csv
 import json
 import sys
 from collections import defaultdict
+from datetime import date
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
@@ -244,7 +245,13 @@ def profile_column(col, rows_by_patient, n_rows, args):
 
 
 def parse_day(v):
-    """Days since epoch from a date string, or None."""
+    """A real day number, or None.
+
+    Uses calendar arithmetic rather than y*372+m*31+d. That shortcut
+    is wrong by up to three days at every month boundary and drifts by
+    about a month across a year, which lands pairs in the wrong
+    elapsed-time bucket - and the whole point of the bucket curve is
+    to decide how elapsed time should enter the model."""
     s = str(v or "").strip()[:10]
     if len(s) != 10:
         return None
@@ -255,11 +262,9 @@ def parse_day(v):
                 y = int(parts[order[0]])
                 m = int(parts[order[1]])
                 d = int(parts[order[2]])
+                return date(y, m, d).toordinal()
             except ValueError:
-                return None
-            if not (1900 <= y <= 2100 and 1 <= m <= 12 and 1 <= d <= 31):
-                return None
-            return y * 372 + m * 31 + d
+                return None      # covers Feb 30 and friends
     return None
 
 
@@ -281,7 +286,12 @@ def lag_curve(rows_by_patient, cols, date_col, args):
                 x = num(r.get(col, ""))
                 if d is not None:
                     seq.append((d, x))
-            seq.sort()
+            # Sort on the DAY only. A bare tuple sort falls through to
+            # the second element whenever two visits share a date, and
+            # that element is None for a missing observation - so a
+            # patient seen twice in one day crashes it. Common in a
+            # real extract, absent from mimic.
+            seq.sort(key=lambda t: t[0])
             for i in range(len(seq)):
                 if seq[i][1] is None:
                     continue
