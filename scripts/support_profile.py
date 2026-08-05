@@ -294,7 +294,9 @@ def varies_within(rows_by_patient, col):
 
 
 def variance_split(rows_by_patient, col):
-    """Share of a column's variance that is BETWEEN patients.
+    """ICC(1): the correlation between two observations from the SAME
+    patient - which is exactly the share of variance that is between
+    patients.
 
     This is the ceiling on what any transition mechanism can buy.
     Pooled autocorrelation tends to the between-patient share as the
@@ -302,7 +304,14 @@ def variance_split(rows_by_patient, col):
     column whose variation is nearly all between patients is already
     as steady as it will ever be, because its steadiness is an
     artifact of WHO the patient is rather than of anything the model
-    could learn about how values move."""
+    could learn about how values move.
+
+    The naive 1 - SSW/SST is NOT this. It is biased upward whenever
+    patients have few observations, because each patient's mean is
+    estimated from a handful of points and absorbs noise into the
+    between term. On a column seen 2-3 times per patient the bias is
+    large enough to push the implied within-patient dynamics negative,
+    which is impossible and was how this was caught."""
     groups, allv = [], []
     for _pid, rows in rows_by_patient.items():
         xs = [num(r.get(col, "")) for r in rows]
@@ -312,15 +321,25 @@ def variance_split(rows_by_patient, col):
             allv += xs
     if len(allv) < 2 or len(groups) < 2:
         return None
-    grand = sum(allv) / len(allv)
-    total = sum((x - grand) ** 2 for x in allv)
-    if total <= 0:
+    k = len(groups)
+    n = len(allv)
+    if n <= k:
         return None
-    within = 0.0
+    grand = sum(allv) / len(allv)
+    ssb = ssw = 0.0
     for xs in groups:
         m = sum(xs) / len(xs)
-        within += sum((x - m) ** 2 for x in xs)
-    return round(1.0 - within / total, 4)
+        ssb += len(xs) * (m - grand) ** 2
+        ssw += sum((x - m) ** 2 for x in xs)
+    msb = ssb / (k - 1)
+    msw = ssw / (n - k)
+    # n0, the effective group size for unbalanced groups.
+    n0 = (n - sum(len(xs) ** 2 for xs in groups) / float(n)) / (k - 1)
+    den = msb + (n0 - 1) * msw
+    if den <= 0:
+        return None
+    icc = (msb - msw) / den
+    return round(max(0.0, min(1.0, icc)), 4)
 
 
 def lag_curve(rows_by_patient, cols, date_col, args):
@@ -595,6 +614,43 @@ def main():
         out["lag_curve"] = {"error": "no {} column; elapsed time "
                                      "cannot be measured".format(
                                          a.date_col)}
+    # Split each column's lag-1 autocorrelation into the part that is
+    # the patient's own level and the part that is genuine
+    # visit-to-visit movement. This decides whether modelling how
+    # values MOVE is worth anything, or whether the anchor is doing
+    # all the work - a distinction the aggregate curve cannot make.
+    dec_cols = []
+    varying = set(out["lag_curve"].get("by_column") or {})
+    for st in stats:
+        b_ = st.get("between_patient_variance")
+        r1 = st.get("autocorr_adjacent")
+        if (b_ is None or r1 is None or st["column"] not in varying
+                or b_ >= 0.99):
+            continue
+        dec_cols.append({"column": st["column"], "between": b_,
+                         "r1": r1,
+                         "rho": round((r1 - b_) / (1.0 - b_), 4)})
+    if dec_cols:
+        dec_cols.sort(key=lambda d: d["rho"])
+        rr = [d["rho"] for d in dec_cols]
+        bb = sorted(d["between"] for d in dec_cols)
+        med_b = bb[len(bb) // 2]
+        med_r1 = sorted(d["r1"] for d in dec_cols)[len(dec_cols) // 2]
+        out["steadiness_decomposition"] = {
+            "columns": dec_cols,
+            "rho_quartiles": [rr[0], rr[len(rr) // 4],
+                              rr[len(rr) // 2], rr[(3 * len(rr)) // 4],
+                              rr[-1]],
+            "median_between": med_b,
+            "median_r1": med_r1,
+            # Only meaningful when there is steadiness to split. A
+            # ratio of two near-zero numbers is noise, and printing it
+            # as a percentage makes noise look like a finding.
+            "anchor_share_of_r1": (round(med_b / med_r1, 4)
+                                   if med_r1 >= 0.10 else None),
+            "interpretable": sum(1 for d in dec_cols if d["r1"] >= 0.10),
+        }
+
     adj = sorted(s["adjacent_pairs"] for s in stats)
     if adj:
         out["adjacent_pair_distribution"] = {
@@ -723,6 +779,36 @@ def report(o, full):
                   "time can buy".format(1.0 - mid))
     elif lc.get("error"):
         print("\n" + lc["error"])
+
+    dec = o.get("steadiness_decomposition") or {}
+    if dec.get("columns"):
+        print("\nWHERE STEADINESS COMES FROM, per column")
+        print("  autocorr(lag 1) = between + (1 - between) * rho, so")
+        print("  `between` is the patient's own level and `rho` is "
+              "what is left for")
+        print("  visit-to-visit dynamics to explain.")
+        q = dec["rho_quartiles"]
+        print("  {} columns | rho  min {:.3f}  p25 {:.3f}  median "
+              "{:.3f}  p75 {:.3f}  max {:.3f}".format(
+                  len(dec["columns"]), q[0], q[1], q[2], q[3], q[4]))
+        if dec.get("anchor_share_of_r1") is not None:
+            print("  median between {:.3f}, median r(lag1) {:.3f} -> "
+                  "the anchor alone accounts for {:.0%} of a column's "
+                  "steadiness".format(
+                      dec["median_between"], dec["median_r1"],
+                      dec["anchor_share_of_r1"]))
+        else:
+            print("  median between {:.3f}, median r(lag1) {:.3f} - "
+                  "too little steadiness to split; rho is only "
+                  "interpretable on the {} columns with r(lag1) at "
+                  "least 0.10".format(dec["median_between"],
+                                      dec["median_r1"],
+                                      dec.get("interpretable", 0)))
+        print("  {:<24} {:>8} {:>8} {:>8}".format(
+            "largest rho", "between", "r(lag1)", "rho"))
+        for c in dec["columns"][-5:]:
+            print("  {:<24} {:>8.3f} {:>8.3f} {:>8.3f}".format(
+                c["column"][:24], c["between"], c["r1"], c["rho"]))
 
     ap_ = o.get("adjacent_pair_distribution")
     if ap_:

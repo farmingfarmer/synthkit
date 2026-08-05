@@ -271,6 +271,26 @@ def main():
               bool(pooled)
               and all(abs(b_["autocorr"]) < 0.35 for b_ in pooled))
 
+        # ---------- the between-patient estimator ------------------
+        # ICC(1), not 1 - SSW/SST. The naive share is biased upward
+        # when patients have few observations - at two apiece it read
+        # 0.754 where the truth was 0.500 - and that bias flows
+        # straight into how much room within-patient dynamics appear
+        # to have.
+        import support_profile as SP2
+        rnd3 = random.Random(4)
+        for sb, sw, per, truth in ((1.0, 1.0, 3, 0.5),
+                                   (0.5, 1.0, 3, 0.2)):
+            icc_rows = {}
+            for p_ in range(400):
+                mu = rnd3.gauss(0, sb)
+                icc_rows["P%d" % p_] = [{"v": mu + rnd3.gauss(0, sw)}
+                                        for _ in range(per)]
+            got = SP2.variance_split(icc_rows, "v")
+            check("between-patient share recovers a known ICC of {} "
+                  "from only {} observations per patient".format(
+                      truth, per),
+                  got is not None and abs(got - truth) < 0.08)
         # ---------- list columns read as what condnet does ---------
         check("a list column tiers as EXPAND, not drop - condnet "
               "expands it into per-item indicators",
