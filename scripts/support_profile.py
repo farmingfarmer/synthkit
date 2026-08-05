@@ -342,6 +342,45 @@ def variance_split(rows_by_patient, col):
     return round(max(0.0, min(1.0, icc)), 4)
 
 
+def decay_from(per_col):
+    """Normalised decay shape over a set of columns.
+
+    Split out so the same shape can be measured on SUBSETS. A median
+    across every column mixes two populations that behave oppositely -
+    a quantity that is steady because of who the patient is does not
+    decay at all, while a drifting one decays a great deal - and the
+    median of the two describes neither."""
+    base_bucket = None
+    for b in LAG_BUCKETS:
+        lbl = "{}-{}".format(b[0], b[1])
+        n = sum(1 for got in per_col.values()
+                if lbl in got and abs(got[lbl][0]) >= 0.1)
+        if n >= 3:
+            base_bucket = lbl
+            break
+    decay = []
+    if base_bucket:
+        ratios = defaultdict(list)
+        for _c, got in per_col.items():
+            if base_bucket not in got:
+                continue
+            base = got[base_bucket][0]
+            if abs(base) < 0.1:
+                continue       # nothing to decay from
+            for b in LAG_BUCKETS:
+                lbl = "{}-{}".format(b[0], b[1])
+                if lbl in got:
+                    ratios[lbl].append(got[lbl][0] / base)
+        for b in LAG_BUCKETS:
+            lbl = "{}-{}".format(b[0], b[1])
+            if ratios.get(lbl):
+                xs = sorted(ratios[lbl])
+                decay.append({"bucket": lbl,
+                              "median_ratio": round(xs[len(xs) // 2], 4),
+                              "columns": len(xs)})
+    return base_bucket, decay
+
+
 def lag_curve(rows_by_patient, cols, date_col, args):
     """Autocorrelation by ELAPSED-TIME bucket, pooled over columns.
 
@@ -414,34 +453,7 @@ def lag_curve(rows_by_patient, cols, date_col, args):
     # or the rows are not comparable: with each column divided by its
     # own first bucket, a row can rest on a different set of columns
     # than the row above it and the curve is not a curve at all.
-    base_bucket = None
-    for b in LAG_BUCKETS:
-        lbl = "{}-{}".format(b[0], b[1])
-        n = sum(1 for got in per_col.values()
-                if lbl in got and abs(got[lbl][0]) >= 0.1)
-        if n >= 3:
-            base_bucket = lbl
-            break
-    decay = []
-    if base_bucket:
-        ratios = defaultdict(list)
-        for _c, got in per_col.items():
-            if base_bucket not in got:
-                continue
-            base = got[base_bucket][0]
-            if abs(base) < 0.1:
-                continue       # nothing to decay from
-            for b in LAG_BUCKETS:
-                lbl = "{}-{}".format(b[0], b[1])
-                if lbl in got:
-                    ratios[lbl].append(got[lbl][0] / base)
-        for b in LAG_BUCKETS:
-            lbl = "{}-{}".format(b[0], b[1])
-            if ratios.get(lbl):
-                xs = sorted(ratios[lbl])
-                decay.append({"bucket": lbl,
-                              "median_ratio": round(xs[len(xs) // 2], 4),
-                              "columns": len(xs)})
+    base_bucket, decay = decay_from(per_col)
     return {"pooled": pooled, "decay": decay, "by_column": per_col,
             "decay_base_bucket": base_bucket}
 
@@ -524,6 +536,10 @@ def main():
     ap.add_argument("--min-cross-patients", type=int, default=50,
                     help="patients with a value before a column may "
                          "be modelled cross-sectionally")
+    ap.add_argument("--drift-rho", type=float, default=0.5,
+                    help="rho at or above which a column is treated as "
+                         "drifting rather than anchored to a patient "
+                         "level, for the split decay curves")
     ap.add_argument("--degenerate", type=float, default=0.99,
                     help="one value holding this share is degenerate")
     ap.add_argument("--max-sample", type=int, default=200000,
@@ -649,7 +665,30 @@ def main():
             "anchor_share_of_r1": (round(med_b / med_r1, 4)
                                    if med_r1 >= 0.10 else None),
             "interpretable": sum(1 for d in dec_cols if d["r1"] >= 0.10),
+            # Near-deterministic columns. age_at_visit reads r(lag1)
+            # 1.00 because it is a function of the date, not a
+            # measurement - it should be DERIVED at generation time,
+            # not learned, and it distorts any average it enters.
+            "near_deterministic": [d["column"] for d in dec_cols
+                                   if d["r1"] >= 0.99],
         }
+        # Decay measured separately for the two populations. A column
+        # whose steadiness is the patient's own level cannot decay; a
+        # drifting one decays a lot. Averaging them describes neither,
+        # and it was that average that made elapsed time look
+        # worthless.
+        drift = set(d["column"] for d in dec_cols
+                    if d["rho"] >= a.drift_rho)
+        anchored = set(d["column"] for d in dec_cols
+                       if d["rho"] < a.drift_rho)
+        bycol = out["lag_curve"].get("by_column") or {}
+        for name, keep in (("drift", drift), ("anchored", anchored)):
+            sub = dict((c, v) for c, v in bycol.items() if c in keep)
+            if len(sub) >= 3:
+                base, dc = decay_from(sub)
+                out["steadiness_decomposition"][name + "_decay"] = {
+                    "columns": sorted(sub), "base_bucket": base,
+                    "decay": dc}
 
     adj = sorted(s["adjacent_pairs"] for s in stats)
     if adj:
@@ -809,6 +848,25 @@ def report(o, full):
         for c in dec["columns"][-5:]:
             print("  {:<24} {:>8.3f} {:>8.3f} {:>8.3f}".format(
                 c["column"][:24], c["between"], c["r1"], c["rho"]))
+        nd = dec.get("near_deterministic") or []
+        if nd:
+            print("  near-deterministic (r(lag1) >= 0.99), likely "
+                  "DERIVED rather than measured: {}".format(
+                      ", ".join(nd[:6])))
+        for name, label in (("drift_decay",
+                             "DRIFTING columns (rho high): steadiness "
+                             "is recent history"),
+                            ("anchored_decay",
+                             "ANCHORED columns (rho low): steadiness "
+                             "is the patient's own level")):
+            g = dec.get(name)
+            if not g:
+                continue
+            print("\n  {} - {} columns, base {}".format(
+                label, len(g["columns"]), g["base_bucket"]))
+            for d in g["decay"]:
+                print("    {:<14} {:>8.3f}  from {} columns".format(
+                    d["bucket"], d["median_ratio"], d["columns"]))
 
     ap_ = o.get("adjacent_pair_distribution")
     if ap_:

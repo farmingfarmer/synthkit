@@ -46,7 +46,7 @@ def run(*args):
 
 PLANTED = ["complete_ar", "sparse_ar", "onceonly", "rare", "toorare",
            "constant", "degenerate", "cat_complete", "meds",
-           "birth_year"]
+           "birth_year", "walk", "stable", "stable2", "stable3"]
 # visit_id and visit_start_date are described too. They used to be
 # skipped as "identifiers" while condnet modelled them, which is
 # exactly where a 424 MB fault hid. Only the group column is skipped.
@@ -59,7 +59,10 @@ def build(path):
     for p in range(N_PAT):
         w = rnd.gauss(0, 1.0)
         mu = rnd.gauss(0, 0.3)
+        walk = 0.0
+        anchor = rnd.gauss(0, 1.0)
         for v in range(N_VIS):
+            walk += rnd.gauss(0, 0.25)
             w = RHO * w + math.sqrt(1 - RHO ** 2) * rnd.gauss(0, 1.0)
             val = round(mu + w, 4)
             r = {"person_id": "P{:04d}".format(p),
@@ -86,7 +89,21 @@ def build(path):
                  # PATIENT-LEVEL constant: identical at every visit, so
                  # its autocorrelation is 1.0 at every lag. Including
                  # it in the decay curve drags the median to 1.0.
-                 "birth_year": 1950 + (p % 60)}
+                 "birth_year": 1950 + (p % 60),
+                 # DRIFTING: no stable patient level, but each visit
+                 # is close to the one before. Steadiness here is
+                 # recent history, and it decays with elapsed time.
+                 "walk": round(walk, 4),
+                 # ANCHORED: steady because of who the patient is.
+                 # Cannot decay - there is no dynamics to decay.
+                 "stable": round(anchor + rnd.gauss(0, 0.15), 4),
+                 # Two more anchored columns, so the anchored group
+                 # clears the three-column floor and the comparison
+                 # against the drifting group actually runs. With one
+                 # column it was silently skipped.
+                 "stable2": round(anchor * 2 + rnd.gauss(0, 0.2), 4),
+                 "stable3": round(anchor * 0.5 + 10
+                                  + rnd.gauss(0, 0.1), 4)}
             rows.append(r)
     with path.open("w", newline="", encoding="utf-8") as f:
         w_ = csv.DictWriter(f, fieldnames=list(rows[0].keys()))
@@ -291,6 +308,42 @@ def main():
                   "from only {} observations per patient".format(
                       truth, per),
                   got is not None and abs(got - truth) < 0.08)
+        # ---------- the two populations must not be averaged --------
+        dcols = dict((x["column"], x)
+                     for x in o["steadiness_decomposition"]["columns"])
+        check("a DRIFTING column - no stable patient level, each "
+              "visit close to the last - is classified by rho, not "
+              "by how steady it looks",
+              dcols["walk"]["rho"] >= 0.5
+              and dcols["walk"]["r1"] > 0.8)
+        check("an ANCHORED column - steady because of who the patient "
+              "is - lands on the other side despite a HIGHER r(lag1)",
+              dcols["stable"]["rho"] < 0.5
+              and dcols["stable"]["r1"] > dcols["walk"]["r1"])
+        check("the two are told apart by rho even though r(lag1) "
+              "would rank them the wrong way round",
+              dcols["stable"]["between"] > dcols["walk"]["between"])
+        dd = o["steadiness_decomposition"].get("drift_decay")
+        ad = o["steadiness_decomposition"].get("anchored_decay")
+        # Asserted present, not skipped when missing. With only one
+        # anchored column the comparison below quietly did not run,
+        # which is the same fault as a fixture that cannot reproduce
+        # what it is meant to test.
+        check("BOTH populations are measured separately, so the "
+              "comparison is not silently skipped",
+              bool(dd) and bool(ad)
+              and len(dd["columns"]) >= 3 and len(ad["columns"]) >= 3)
+        if dd and ad:
+            last_d = dd["decay"][-1]["median_ratio"]
+            last_a = ad["decay"][-1]["median_ratio"]
+            check("drifting columns DECAY and anchored ones do not - "
+                  "the split the median was hiding",
+                  last_d < last_a)
+        check("near-deterministic columns are named so they can be "
+              "derived rather than learned",
+              isinstance(o["steadiness_decomposition"]
+                         .get("near_deterministic"), list))
+
         # ---------- list columns read as what condnet does ---------
         check("a list column tiers as EXPAND, not drop - condnet "
               "expands it into per-item indicators",
