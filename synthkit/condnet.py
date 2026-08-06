@@ -597,7 +597,8 @@ class Binning:
 # ---------------------------------------------------------------
 class CondNet:
     def __init__(self, k=10, max_parents=3, max_bins=0,
-                 alpha=0.01, seed=20260731):
+                 alpha=0.01, seed=20260731,
+                 correction="bonferroni"):
         """max_bins=0 means AUTO: resolution is chosen from how
         much data there is to condition on. Finer bins describe
         each column better but fragment the table — with three
@@ -605,6 +606,15 @@ class CondNet:
         four thousand cells and no dependence can be detected at
         all. Auto solves bins^(parents+1) ~ n/k, the point where
         cells stay populated enough to test."""
+        # How the search pays for looking at many pairs. "bonferroni"
+        # divides alpha by every comparison made, which guarantees
+        # almost no false structure and, on a wide extract, suppresses
+        # a great deal of real structure too - 3,828 comparisons at an
+        # effective n of 800. "none" tests each pair at alpha and is
+        # for SCREENING ONLY: candidates found that way must be
+        # confirmed on patients the search never saw, which is a
+        # referee the threshold cannot be.
+        self.correction = correction
         self.k = k
         self.max_parents = max_parents
         self.max_bins = max_bins
@@ -1243,7 +1253,9 @@ class CondNet:
             n_tests = sum(len(v) for v in hyp.values()) or 1
         else:
             n_tests = sum(range(len(self.order))) or 1
-        alpha_c = self.alpha / n_tests
+        alpha_c = (self.alpha / n_tests
+                   if getattr(self, "correction", "bonferroni")
+                   == "bonferroni" else self.alpha)
 
         chosen_log = []
         for i, c in enumerate(self.order):
@@ -1958,7 +1970,10 @@ class CondNet:
                 if self.multilevel else
                 "not enabled — every relationship is tested on "
                 "the patient count"),
-            "comparisons_corrected_for": n_tests,
+            "comparisons_corrected_for": (
+                n_tests if getattr(self, "correction", "bonferroni")
+                == "bonferroni" else 0),
+            "correction": getattr(self, "correction", "bonferroni"),
             "search_mode": ("targeted — only the declared "
                             "relationships were tested, so the "
                             "multiple-comparison correction is "
