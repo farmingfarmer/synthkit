@@ -1020,6 +1020,34 @@ def main():
     check("no transition table is levels^2 over a calendar",
           lagcells < 5000)
 
+    # An identifier: one distinct value per row. No value is held by
+    # k patients, so the level count is ZERO and a "too many levels"
+    # bound cannot see it. Observed live: visit_id was modelled and
+    # generated, coming out steadier visit to visit (0.591) than the
+    # source it was learned from (0.209).
+    irows = []
+    for p in range(200):
+        for v in range(10):
+            irows.append({"person_id": "P{:04d}".format(p),
+                          "visit_id": "V{:06d}".format(len(irows)),
+                          "lab": round(random.Random(p * 7 + v)
+                                       .gauss(0, 1), 3)})
+    inet = CondNet(k=10).learn(irows, group_by="person_id",
+                               multilevel=True)
+    check("an identifier with a distinct value on EVERY row is "
+          "refused - the mirror of having too many levels, which a "
+          "level bound cannot see",
+          "visit_id" in inet.excluded_columns
+          and "identifier" in inet.excluded_columns["visit_id"])
+    check("...and it is therefore never generated, so it cannot come "
+          "out steadier than the source it was learned from",
+          "visit_id" not in inet.binnings
+          and all("visit_id" not in r for r in
+                  inet.sample_patients(20, seed=1)[:5]))
+    check("a SPARSE column where no value clears k is not swept up by "
+          "the identifier rule - absence is not identity",
+          "lab" not in inet.excluded_columns)
+
     # the general guard, independent of the date test
     # Each code is held by exactly 10 distinct patients, so it clears
     # the k-patient floor and really would become a level - 480 of

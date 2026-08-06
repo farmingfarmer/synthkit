@@ -698,6 +698,18 @@ class CondNet:
         for v, g in pairs:
             holders[v].add(g)
         levels = [lv for lv, hs in holders.items() if len(hs) >= self.k]
+        # Too UNIQUE is the mirror of too many levels, and a
+        # "too many levels" bound cannot see it. visit_id is distinct
+        # on every row, so no value is held by k patients, the level
+        # count is zero, and it sailed through this guard - then got
+        # modelled and GENERATED, coming out steadier visit to visit
+        # (0.591) than the source it was learned from (0.209). A
+        # column present on every row that no k patients share a value
+        # of is an identifier, not a variable.
+        if not levels and len(present) >= 0.99 * max(n_rows, 1):
+            return ("identifier: present on every row, yet no value is "
+                    "held by k={} patients - nothing to model".format(
+                        self.k))
         budget = max(MIN_LEVEL_BUDGET,
                      int((n_rows / max(self.k, 1)) ** 0.5))
         if len(levels) > budget:
