@@ -2240,6 +2240,11 @@ class CondNet:
             pid = "SYN{:06d}".format(pi)
             traits: Dict[str, str] = {}
             prev: Dict[str, str] = {}
+            # The last symbol actually OBSERVED for this patient, as
+            # distinct from whatever the last row held. They differ
+            # whenever a visit did not measure the column, which for
+            # a 44%-covered vital is most visits.
+            last_seen: Dict[str, str] = {}
             anchors: Dict[str, float] = {}
             for vi in range(max(1, nvis)):
                 assign: Dict[str, str] = {}
@@ -2261,9 +2266,34 @@ class CondNet:
                     # quantity.
                     dist, _ = self._lookup(c, assign)
                     lag_tbl = self.lag.get(c)
-                    if vi and lag_tbl and c in prev \
-                            and prev[c] in lag_tbl:
-                        lagd = lag_tbl[prev[c]]
+                    # Key on the last OBSERVED value, not the last
+                    # row. When the previous visit did not measure
+                    # this column, prev[c] is MISSING and
+                    # lag_tbl[MISSING] answers "what follows a gap" -
+                    # essentially the column's marginal, carrying
+                    # nothing about THIS patient's level. The anchor
+                    # cannot rescue it either: the anchor sets
+                    # position WITHIN a bin, and the bin has already
+                    # been drawn from a memoryless key.
+                    #
+                    # Measured on a real extract: complete columns
+                    # kept 74-93% of their source steadiness while
+                    # 44%-covered ones kept 40-47%. Retention tracked
+                    # coverage, which is this and nothing else.
+                    #
+                    # It also settles the "variable-lag" mismatch.
+                    # target_autocorr pairs consecutive PRESENT
+                    # values, so it always measured
+                    # last-observed-to-current; generation keyed on
+                    # last-row. They were describing different
+                    # transitions, which is why the achieved value
+                    # could not converge on the target.
+                    key = prev.get(c)
+                    if key is None or key == MISSING:
+                        key = last_seen.get(c)
+                    if vi and lag_tbl and key is not None \
+                            and key in lag_tbl:
+                        lagd = lag_tbl[key]
                         marg = self.marginal[c]
                         merged, tot = {}, 0.0
                         for sym in set(dist) | set(lagd):
@@ -2360,6 +2390,12 @@ class CondNet:
                     self, "_emitted_visits", 0) + 1
                 out.append(row)
                 prev = dict(assign)
+                # Only a real observation updates the memory. A
+                # missing visit leaves the patient's last known level
+                # standing rather than erasing it.
+                for c, sym in assign.items():
+                    if sym != MISSING:
+                        last_seen[c] = sym
         return out
 
     def log_likelihood(self, row: Dict[str, Any]) -> float:

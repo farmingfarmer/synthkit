@@ -970,6 +970,74 @@ def main():
     check("steadiness is not invented where the source has none",
           got_n is None or abs(got_n) < 0.25)
 
+    # ---- steadiness must survive a GAP -----------------------------
+    # Transitions used to be keyed on the last ROW. When the previous
+    # visit did not measure a column, that key is MISSING and the
+    # table answers "what follows a gap" - near the marginal, carrying
+    # nothing about this patient's level. The anchor cannot rescue it:
+    # it sets position WITHIN a bin already drawn from a memoryless
+    # key. Measured on a real extract, retention of source steadiness
+    # tracked coverage - complete columns kept 74-93%, 44%-covered
+    # ones kept 40-47%. Reproduced here: 97% / 73% / 47% / 11% as
+    # masking rose. Keyed on the last OBSERVATION instead, it holds
+    # flat.
+    def _ac(rs, col):
+        by = {}
+        for r in rs:
+            by.setdefault(r.get("person_id"), []).append(r)
+        pr = []
+        for v in by.values():
+            xs = []
+            for r in v:
+                try:
+                    xs.append(float(r.get(col, "")))
+                except (TypeError, ValueError):
+                    pass
+            pr += list(zip(xs, xs[1:]))
+        if len(pr) < 30:
+            return None
+        aa = [x for x, _ in pr]
+        bb = [y for _, y in pr]
+        ma, mb = sum(aa) / len(aa), sum(bb) / len(bb)
+        nu = sum((x - ma) * (y - mb) for x, y in pr)
+        de = (sum((x - ma) ** 2 for x in aa)
+              * sum((y - mb) ** 2 for y in bb)) ** 0.5
+        return nu / de if de else None
+
+    gaps = {}
+    for miss in (0.0, 0.75):
+        gr = random.Random(11)
+        grows = []
+        for p in range(250):
+            w = gr.gauss(0, 1.0)
+            mu = gr.gauss(0, 1.0)
+            for _v in range(14):
+                w = 0.85 * w + (1 - 0.85 ** 2) ** 0.5 * gr.gauss(0, 1)
+                val = round(mu + w, 4)
+                grows.append({"person_id": "P{:05d}".format(p),
+                              "age": 30 + (p % 55),
+                              "lab": ("" if miss and gr.random() < miss
+                                      else val)})
+        gnet = CondNet(k=10).learn(grows, group_by="person_id",
+                                   multilevel=True)
+        ggen = gnet.sample_patients(250, seed=99)
+        src, got = _ac(grows, "lab"), _ac(ggen, "lab")
+        gaps[miss] = (got / src) if (src and got) else None
+
+    check("the fixture really does lose most observations at the "
+          "masked rate, or the check below proves nothing",
+          sum(1 for r in grows if r["lab"] == "") > len(grows) * 0.6)
+    check("steadiness SURVIVES a gap: a 75%-missing column keeps as "
+          "much of its source steadiness as a complete one",
+          gaps[0.0] is not None and gaps[0.75] is not None
+          and gaps[0.75] >= 0.75)
+    check("...and retention does not fall away with coverage - that "
+          "slope was the whole fault",
+          abs(gaps[0.0] - gaps[0.75]) < 0.25)
+    check("...without overshooting, which would flatter every model "
+          "tested on the output",
+          gaps[0.75] <= 1.15)
+
     # ---- a date is not a category ----------------------------------
     # Modelled as one, its transition table is levels^2 over the
     # calendar. The fault is LATENT: at few patients no single date
