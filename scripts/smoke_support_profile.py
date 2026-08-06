@@ -46,7 +46,8 @@ def run(*args):
 
 PLANTED = ["complete_ar", "sparse_ar", "onceonly", "rare", "toorare",
            "constant", "degenerate", "cat_complete", "meds",
-           "birth_year", "walk", "stable", "stable2", "stable3"]
+           "birth_year", "walk", "stable", "stable2", "stable3",
+           "int_repeats", "assay_unique"]
 # visit_id and visit_start_date are described too. They used to be
 # skipped as "identifiers" while condnet modelled them, which is
 # exactly where a 424 MB fault hid. Only the group column is skipped.
@@ -66,7 +67,14 @@ def build(path):
             w = RHO * w + math.sqrt(1 - RHO ** 2) * rnd.gauss(0, 1.0)
             val = round(mu + w, 4)
             r = {"person_id": "P{:04d}".format(p),
-                 "visit_id": "V{:05d}".format(len(rows)),
+                 # INTEGER, as in real OMOP. The string form was
+                 # caught by the level test; the integer form was
+                 # not, and that is the form the real extract has.
+                 "visit_id": 100000 + len(rows),
+                 # An integer that repeats, and a continuous value
+                 # unique on every row - neither is a key.
+                 "int_repeats": 30 + (p % 55),
+                 "assay_unique": round(rnd.gauss(0, 1), 9),
                  # Visits PAIR UP on dates. Real patients are seen
                  # twice in a day; mimic never was, so a bare
                  # tuple sort over (day, value) never had to
@@ -131,6 +139,16 @@ def main():
               "skipped, since the model does not skip them",
               by["visit_id"]["tier"] == "drop"
               and "visit_start_date" in by)
+        check("an INTEGER key is caught - the numeric path skipped "
+              "the identifier test entirely, and a real visit_id is "
+              "an integer",
+              "identifier" in by["visit_id"]["reason"]
+              and by["visit_id"]["integer_valued"] is True)
+        check("an integer that REPEATS is not mistaken for a key",
+              by["int_repeats"]["tier"] != "drop")
+        check("a continuous value unique on every row is not either - "
+              "integrality is what separates a key from a fine assay",
+              by["assay_unique"]["tier"] != "drop")
         check("patients and visits counted exactly",
               o["patients"] == N_PAT and o["rows"] == N_PAT * N_VIS)
 

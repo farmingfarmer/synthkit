@@ -688,7 +688,23 @@ class CondNet:
         # is bins^2 and already bounded. Applying the level bound to it
         # would strip ordinary numerics - age_at_visit and
         # year_of_birth were both excluded before this check existed.
-        if all(_num(v) is not None for v in present):
+        nums = [_num(v) for v in present]
+        if all(x is not None for x in nums):
+            # ...but a primary key is numeric too, and returning here
+            # let it straight through. The level test cannot see an
+            # integer key because a numeric column never becomes
+            # levels at all: visit_id survived the first version of
+            # this guard, was modelled, and was GENERATED, coming out
+            # steadier visit to visit (0.591) than its own source
+            # (0.209). Integer, unique on essentially every row,
+            # present on essentially every row: that is a key, not a
+            # measurement. Requiring integrality keeps a
+            # finely-resolved lab value from being mistaken for one.
+            if (len(present) >= 0.99 * max(n_rows, 1)
+                    and len(set(nums)) >= 0.999 * len(nums)
+                    and all(float(x).is_integer() for x in nums)):
+                return ("identifier: an integer unique on every row - "
+                        "a key, not a measurement")
             return None
         # Counted by distinct PATIENTS, exactly as Binning.learn does.
         # Counting occurrences instead would not predict the levels

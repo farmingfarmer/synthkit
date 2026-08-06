@@ -148,6 +148,16 @@ def classify(s, args, n_rows):
     # Without it an identifier passes every rule: visit_id has full
     # coverage and an adjacent pair for every visit, and tiered as
     # longitudinal.
+    # An integer unique on essentially every row is a primary key. The
+    # level test below cannot see it: would_be_levels returns None for
+    # numeric columns, so the whole identifier branch was skipped and
+    # visit_id tiered as LONGITUDINAL on the real extract - full
+    # coverage, an adjacent pair per visit, passing every rule.
+    if (s["integer_valued"] and s["visit_coverage"] >= 0.99
+            and s["rows_present"]
+            and s["distinct"] >= 0.999 * s["rows_present"]):
+        return "drop", ("identifier: an integer unique on every row - "
+                        "a key, not a measurement")
     lv = s.get("levels_above_k")
     if lv is not None:
         # Too unique to model is the mirror of too many levels, and a
@@ -192,6 +202,7 @@ def profile_column(col, rows_by_patient, n_rows, args):
     adj_pairs = []
     pat_adjacent = set()
     numeric_ok = 0
+    integer_ok = 0
     is_listish = False
     n_adj_present = [0]
 
@@ -219,6 +230,8 @@ def profile_column(col, rows_by_patient, n_rows, args):
             x = num(s)
             if x is not None:
                 numeric_ok += 1
+                if float(x).is_integer():
+                    integer_ok += 1
             present_seq.append(True)
             numeric_seq.append(x)
         got = [x for x in numeric_seq if x is not None]
@@ -258,6 +271,7 @@ def profile_column(col, rows_by_patient, n_rows, args):
         "top_share": round(top_share, 4) if top_share is not None
         else None,
         "numeric": numeric_ok > 0 and numeric_ok == present_rows,
+        "integer_valued": integer_ok > 0 and integer_ok == present_rows,
         "list_valued": is_listish,
     }
     if s["numeric"] and len(adj_pairs) >= 30 and len(loose_pairs) >= 30:

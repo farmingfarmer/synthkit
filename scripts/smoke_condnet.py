@@ -1025,13 +1025,18 @@ def main():
     # bound cannot see it. Observed live: visit_id was modelled and
     # generated, coming out steadier visit to visit (0.591) than the
     # source it was learned from (0.209).
+    # visit_id is an INTEGER here, as it is in real OMOP. The string
+    # form was caught by the level test; the integer form was not,
+    # because a numeric column never becomes levels at all - and that
+    # is the form the real extract has.
     irows = []
     for p in range(200):
         for v in range(10):
             irows.append({"person_id": "P{:04d}".format(p),
-                          "visit_id": "V{:06d}".format(len(irows)),
+                          "visit_id": 100000 + len(irows),
                           "lab": round(random.Random(p * 7 + v)
-                                       .gauss(0, 1), 3)})
+                                       .gauss(0, 1), 3),
+                          "age": 30 + (p % 55)})
     inet = CondNet(k=10).learn(irows, group_by="person_id",
                                multilevel=True)
     check("an identifier with a distinct value on EVERY row is "
@@ -1047,6 +1052,23 @@ def main():
     check("a SPARSE column where no value clears k is not swept up by "
           "the identifier rule - absence is not identity",
           "lab" not in inet.excluded_columns)
+    check("an ordinary integer column that REPEATS is not mistaken "
+          "for a key - uniqueness is the signal, not integrality",
+          "age" not in inet.excluded_columns and "age" in inet.binnings)
+    # A finely-resolved continuous column can be unique on every row
+    # too. Integrality is what separates it from a key.
+    frows = []
+    rr = random.Random(5)
+    for p in range(200):
+        mu = rr.gauss(0, 1)
+        for v in range(10):
+            frows.append({"person_id": "P{:04d}".format(p),
+                          "assay": round(mu + rr.gauss(0, 1), 9)})
+    fnet = CondNet(k=10).learn(frows, group_by="person_id",
+                               multilevel=True)
+    check("a continuous column unique on every row is NOT called an "
+          "identifier - a lab read to nine decimals is still a lab",
+          "assay" not in fnet.excluded_columns)
 
     # the general guard, independent of the date test
     # Each code is held by exactly 10 distinct patients, so it clears
