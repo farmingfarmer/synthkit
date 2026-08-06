@@ -2288,12 +2288,47 @@ class CondNet:
                     # last-row. They were describing different
                     # transitions, which is why the achieved value
                     # could not converge on the target.
-                    key = prev.get(c)
-                    if key is None or key == MISSING:
-                        key = last_seen.get(c)
-                    if vi and lag_tbl and key is not None \
-                            and key in lag_tbl:
-                        lagd = lag_tbl[key]
+                    # TWO processes, and they need different memories.
+                    # WHETHER this visit measures the column follows
+                    # the last ROW, because missingness clusters: a
+                    # panel not drawn last visit is unlikely to be
+                    # drawn now. WHAT the value is, if measured,
+                    # follows the last OBSERVATION, because the
+                    # patient's level persists across the gap.
+                    #
+                    # Keying both on the last observation - the first
+                    # version of this fix - asks "what follows an
+                    # observed value", which in clustered data means
+                    # "probably another observation". Measured on a
+                    # clustered fixture it under-generated missingness
+                    # by 27 points, 49% source against 22% generated,
+                    # and that is what collapsed fidelity from 119/499
+                    # to 74/520 while steadiness improved.
+                    row_key = prev.get(c)
+                    obs_key = last_seen.get(c)
+                    lagd = None
+                    if vi and lag_tbl:
+                        base = lag_tbl.get(row_key)
+                        if (row_key == MISSING and base
+                                and obs_key is not None
+                                and obs_key in lag_tbl):
+                            p_miss = base.get(MISSING, 0.0)
+                            val = lag_tbl[obs_key]
+                            rest = dict((s, v) for s, v in val.items()
+                                        if s != MISSING)
+                            tot = sum(rest.values())
+                            if tot > 0:
+                                lagd = dict(
+                                    (s, v * (1.0 - p_miss) / tot)
+                                    for s, v in rest.items())
+                                lagd[MISSING] = p_miss
+                            else:
+                                lagd = base
+                        elif base:
+                            lagd = base
+                        elif obs_key is not None and obs_key in lag_tbl:
+                            lagd = lag_tbl[obs_key]
+                    if lagd:
                         marg = self.marginal[c]
                         merged, tot = {}, 0.0
                         for sym in set(dist) | set(lagd):

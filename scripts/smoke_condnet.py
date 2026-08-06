@@ -1038,6 +1038,51 @@ def main():
           "tested on the output",
           gaps[0.75] <= 1.15)
 
+    # ---- missingness CLUSTERS, and is its own process --------------
+    # Carrying the last observed value across a gap fixed steadiness
+    # and broke missingness: keyed on "what follows an observed
+    # value", generation predicted another observation, so a
+    # 49%-missing column came out 22% missing. Steadiness looked
+    # excellent throughout. Both properties have to be asserted
+    # TOGETHER or the fix for one hides the break in the other.
+    cr = random.Random(21)
+    crows = []
+    for p in range(300):
+        w = cr.gauss(0, 1.0)
+        mu = cr.gauss(0, 1.0)
+        ms = False
+        for _v in range(18):
+            w = 0.85 * w + (1 - 0.85 ** 2) ** 0.5 * cr.gauss(0, 1)
+            # a panel not drawn last visit is unlikely to be drawn now
+            ms = cr.random() < (0.85 if ms else 0.20)
+            crows.append({"person_id": "P{:05d}".format(p),
+                          "age": 30 + (p % 55),
+                          "lab": "" if ms else round(mu + w, 4)})
+
+    def _miss(rs, col):
+        return sum(1 for r in rs
+                   if str(r.get(col, "")).strip() == "") / float(len(rs))
+
+    runs = 0
+    for i in range(len(crows) - 1):
+        if (crows[i]["person_id"] == crows[i + 1]["person_id"]
+                and (crows[i]["lab"] == "")
+                == (crows[i + 1]["lab"] == "")):
+            runs += 1
+    check("the fixture's missingness really does CLUSTER, or the "
+          "checks below prove nothing",
+          runs > 0.6 * (len(crows) - 300))
+    cnet = CondNet(k=10).learn(crows, group_by="person_id",
+                               multilevel=True)
+    cgen = cnet.sample_patients(300, seed=99)
+    csrc, cgot = _ac(crows, "lab"), _ac(cgen, "lab")
+    check("clustered missingness is REPRODUCED, not thinned out by "
+          "asking what follows an observed value",
+          abs(_miss(cgen, "lab") - _miss(crows, "lab")) < 0.10)
+    check("...while steadiness still survives the gap - both at once, "
+          "which is the actual requirement",
+          csrc and cgot and 0.75 <= (cgot / csrc) <= 1.15)
+
     # ---- a date is not a category ----------------------------------
     # Modelled as one, its transition table is levels^2 over the
     # calendar. The fault is LATENT: at few patients no single date
