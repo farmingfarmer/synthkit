@@ -135,7 +135,10 @@ def main():
               "can be broken out by kind rather than averaged",
               {"linear", "nonlinear-u", "threshold",
                "interaction-with-main-effect",
-               "interaction-no-main-effect"} <= kinds)
+               "interaction-no-main-effect",
+               "lagged-cross-column", "subgroup-conditional",
+               "saturating", "three-way", "heterogeneous",
+               "simpsons-reversal"} <= kinds)
         check("the no-main-effect interaction is recorded as expected "
               "to be MISSED, so the blind spot is measured rather "
               "than assumed",
@@ -162,6 +165,31 @@ def main():
               "to correlation - which is the point of it",
               abs(corr(ux, uy)) < 0.10
               and corr([abs(v - 0.5) for v in ux], uy) > 0.8)
+        # The Simpson pair must genuinely REVERSE, or it is not the
+        # test it claims to be: negative inside each stratum, positive
+        # when pooled.
+        sx = [num(x["planted_simpson_x"]) for x in rows]
+        sy = [num(x["planted_simpson_y"]) for x in rows]
+        pooled = corr(sx, sy)
+        within = []
+        for g in ("0", "1"):
+            gx = [num(x["planted_simpson_x"]) for x in rows
+                  if str(x["planted_simpson_g"]) == g]
+            gy = [num(x["planted_simpson_y"]) for x in rows
+                  if str(x["planted_simpson_g"]) == g]
+            if len(gx) > 30:
+                within.append(corr(gx, gy))
+        check("the Simpson pair really does REVERSE - positive pooled, "
+              "negative inside every stratum - or it is not testing "
+              "what it claims",
+              pooled > 0.3 and within and all(w < -0.3 for w in within))
+        # The lagged pair must be lagged: y follows the PREVIOUS x, so
+        # the same-visit correlation is near zero.
+        lx = [num(x["planted_lag_x"]) for x in rows]
+        ly = [num(x["planted_lag_y"]) for x in rows]
+        check("the lagged pair shows NO same-visit correlation, which "
+              "is what makes it invisible to a within-visit search",
+              abs(corr(lx, ly)) < 0.10)
         n0 = [num(x["noise_00"]) for x in rows]
         check("a noise column really is unrelated to a planted one",
               abs(corr(n0, ly)) < 0.10)

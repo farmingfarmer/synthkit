@@ -242,6 +242,44 @@ def main():
         {"child": "787_2", "parents": ["789_8", "4544_3"],
          "kind": "exact-identity",
          "note": "MCV = Hct/RBC, as in the real extract"},
+        # --- five kinds nothing here has ever been scored on, plus a
+        # --- sign reversal, which is the hardest realistic case ---
+        {"child": "planted_lag_y", "parents": ["planted_lag_x"],
+         "kind": "lagged-cross-column",
+         "note": "y at THIS visit follows x at the PREVIOUS one. The "
+                 "transition table is keyed on a column's OWN "
+                 "previous value and the conditional tables see only "
+                 "the current visit, so nothing in the model "
+                 "represents this. Counted as a miss rather than "
+                 "forgiven: it is a gap to close, and in longitudinal "
+                 "clinical data it is the substance - a drug started "
+                 "at one visit moving a lab at the next"},
+        {"child": "planted_sub_y",
+         "parents": ["planted_sub_x", "visit_type"],
+         "kind": "subgroup-conditional",
+         "note": "holds only inside one visit_type, absent elsewhere. "
+                 "The stratum test exists and has never been scored"},
+        {"child": "planted_sat_y", "parents": ["planted_sat_x"],
+         "kind": "saturating",
+         "note": "monotone but flattening - a dose-response knee that "
+                 "three bins may or may not resolve"},
+        {"child": "planted_3way_y",
+         "parents": ["planted_3way_a", "planted_3way_b",
+                     "planted_3way_c"],
+         "kind": "three-way",
+         "note": "exactly at the max_parents=3 ceiling"},
+        {"child": "planted_het_y", "parents": ["planted_het_x"],
+         "kind": "heterogeneous",
+         "note": "present in a fifth of patients and absent in the "
+                 "rest - what real effect heterogeneity looks like, "
+                 "and what the k-person floor may bury"},
+        {"child": "planted_simpson_y",
+         "parents": ["planted_simpson_x", "planted_simpson_g"],
+         "kind": "simpsons-reversal",
+         "note": "the sign REVERSES: negative within each stratum, "
+                 "positive when pooled. A model that finds the pooled "
+                 "relationship and stops has found the opposite of "
+                 "the truth"},
     ]
     truth["noise_columns"] = ["noise_{:02d}".format(i)
                               for i in range(N_NOISE)]
@@ -260,7 +298,15 @@ def main():
                  "planted_threshold_x", "planted_threshold_y",
                  "planted_inter_a", "planted_inter_b",
                  "planted_inter_y",
-                 "planted_xor_a", "planted_xor_b", "planted_xor_y"]
+                 "planted_xor_a", "planted_xor_b", "planted_xor_y",
+                 "planted_lag_x", "planted_lag_y",
+                 "planted_sub_x", "planted_sub_y",
+                 "planted_sat_x", "planted_sat_y",
+                 "planted_3way_a", "planted_3way_b",
+                 "planted_3way_c", "planted_3way_y",
+                 "planted_het_x", "planted_het_y",
+                 "planted_simpson_g", "planted_simpson_x",
+                 "planted_simpson_y"]
               + truth["noise_columns"])
 
     rows = []
@@ -285,6 +331,9 @@ def main():
         for name, _cov, _cl, icc, _l1, p1, p50, p99 in LABS:
             anchor[name] = rnd.gauss(0, anchor_sd(icc))
         missing_state = {}
+        prev_lag_x = None                  # carried across visits
+        het_patient = rnd.random() < 0.20  # the effect exists here
+        simpson_g = rnd.randint(0, 1)
         day = day0 + rnd.randint(0, 400)
         for v in range(nv):
             vid += 1
@@ -392,6 +441,48 @@ def main():
             r["planted_xor_y"] = round(
                 (1.0 if (xa > 0.5) != (xb > 0.5) else 0.0)
                 + rnd.gauss(0, 0.05), 4)
+            # LAGGED: this visit's y follows LAST visit's x
+            lx = rnd.uniform(0, 1)
+            r["planted_lag_x"] = round(lx, 4)
+            r["planted_lag_y"] = round(
+                (2.0 * prev_lag_x if prev_lag_x is not None
+                 else rnd.uniform(0, 2)) + rnd.gauss(0, 0.12), 4)
+            prev_lag_x = lx
+
+            # SUBGROUP-CONDITIONAL: only inside one visit_type
+            sx = rnd.uniform(0, 1)
+            r["planted_sub_x"] = round(sx, 4)
+            r["planted_sub_y"] = round(
+                (2.2 * sx if r["visit_type"] == "VT0"
+                 else rnd.uniform(0, 2)) + rnd.gauss(0, 0.12), 4)
+
+            # SATURATING: monotone, flattening
+            tx = rnd.uniform(0, 1)
+            r["planted_sat_x"] = round(tx, 4)
+            r["planted_sat_y"] = round(
+                1.0 - math.exp(-4.0 * tx) + rnd.gauss(0, 0.05), 4)
+
+            # THREE-WAY: no pair of the three suffices
+            t3 = [rnd.uniform(0, 1) for _ in range(3)]
+            (r["planted_3way_a"], r["planted_3way_b"],
+             r["planted_3way_c"]) = [round(v, 4) for v in t3]
+            r["planted_3way_y"] = round(
+                2.5 * t3[0] * t3[1] * t3[2] + rnd.gauss(0, 0.08), 4)
+
+            # HETEROGENEOUS: real for a fifth of patients only
+            hx = rnd.uniform(0, 1)
+            r["planted_het_x"] = round(hx, 4)
+            r["planted_het_y"] = round(
+                (3.0 * hx if het_patient else rnd.uniform(0, 3))
+                + rnd.gauss(0, 0.12), 4)
+
+            # SIMPSON: negative within stratum, positive pooled
+            usim = rnd.uniform(0, 1)
+            r["planted_simpson_g"] = simpson_g
+            r["planted_simpson_x"] = round(2.0 * simpson_g + usim, 4)
+            r["planted_simpson_y"] = round(
+                2.0 * simpson_g - 0.9 * usim + rnd.gauss(0, 0.08), 4)
+
             for i in range(N_NOISE):
                 r["noise_{:02d}".format(i)] = round(rnd.gauss(0, 1), 4)
             rows.append(r)
