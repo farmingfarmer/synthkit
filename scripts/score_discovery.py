@@ -68,6 +68,18 @@ def edges_from(path):
 
 
 LAG_SUFFIXES = ("__prev", "__delta")
+PRODUCT_SEP = "__x__"
+
+
+def expand(c):
+    """A parent may be an engineered feature standing for one or two
+    source columns. `a__x__b` is how a PURE interaction is found - the
+    only way, since neither factor has a marginal signal for a
+    pairwise search to latch onto - so it must count as both."""
+    if c and PRODUCT_SEP in c:
+        left, right = c.split(PRODUCT_SEP, 1)
+        return [base_name(left), base_name(right)]
+    return [base_name(c)]
 
 
 def base_name(c):
@@ -98,17 +110,25 @@ def group_of(e):
     `xor_b__prev <- xor_a__prev, xor_y__prev`. That reversal of a
     settled result is what exposed the error."""
     child = e.get("child")
-    if str(child).endswith(LAG_SUFFIXES):
-        # a lag feature as the child is a different relationship
-        return frozenset([child] + [base_name(c)
-                                    for c in (e.get("parents") or [])])
-    return frozenset([child] + [base_name(c)
-                                for c in (e.get("parents") or [])])
+    cols = [child]
+    for c in (e.get("parents") or []):
+        cols.extend(expand(c))
+    # An engineered feature as the CHILD is a different relationship -
+    # `y__prev <- x__prev` is about the previous visit, and
+    # `a__x__b <- a, b` is the product's own arithmetic. Neither is
+    # evidence the model can generate y here, so the child is never
+    # normalised.
+    return frozenset(cols)
 
 
 def used_lag(e):
     return any(str(c).endswith(LAG_SUFFIXES)
                for c in [e.get("child")] + list(e.get("parents") or []))
+
+
+def used_product(e):
+    return any(PRODUCT_SEP in str(c)
+               for c in (e.get("parents") or []))
 
 
 def main():
@@ -138,11 +158,12 @@ def main():
     for rel in planted:
         want = frozenset([rel["child"]] + list(rel["parents"]))
         hit = full = None
-        via_lag = False
+        via_lag = via_prod = False
         for e, g in zip(edges, found_groups):
             if want <= g:
                 full = g
                 via_lag = used_lag(e)
+                via_prod = used_product(e)
                 break
             if len(want & g) >= 2 and hit is None:
                 hit = g            # some of it, not all
@@ -154,6 +175,7 @@ def main():
             "expected_miss": "cannot see this" in (rel.get("note")
                                                    or ""),
             "via_lag_feature": via_lag,
+            "via_product_feature": via_prod,
         })
 
     planted_groups = [frozenset([r["child"]] + list(r["parents"]))
@@ -218,8 +240,10 @@ def render(o, width, full):
             mark = "MISSED (expected)"
         L.append("{} : {} <- {}{}".format(
             mark, r["child"], ", ".join(r["parents"]),
-            "   [via lag feature]" if r.get("via_lag_feature")
-            else ""))
+            ("   [via product feature]"
+             if r.get("via_product_feature")
+             else "   [via lag feature]" if r.get("via_lag_feature")
+             else "")))
     return "\n".join(L)
 
 
