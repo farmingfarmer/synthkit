@@ -75,7 +75,11 @@ def main():
     ap.add_argument("--products", action="store_true",
                     help="second pass: centred products among what "
                          "the first pass left unexplained")
-    ap.add_argument("--product-budget", type=int, default=200)
+    # Measured at the real extract's width: the first pass leaves 22
+    # columns unexplained, so 231 pairs exist and 400 covers all of
+    # them. 150 covered 65% and the planted interaction fell in the
+    # missing third - the budget, not the method, decided it.
+    ap.add_argument("--product-budget", type=int, default=600)
     ap.add_argument("--bins", type=int, default=0,
                     help="override the auto bin count; 0 keeps auto, "
                          "which solves bins^(parents+1)~n/k from the "

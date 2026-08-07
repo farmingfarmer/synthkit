@@ -115,7 +115,7 @@ def main():
           "silent - a partial search that reads as complete is worse "
           "than one that says so",
           r2["pairs_tried"] == 2 and r2["truncated"] is True
-          and "BUDGET REACHED" in r2["note"])
+          and "PARTIAL" in r2["note"])
     check("the note states what the rule cannot cover",
           "still missed" in r2["note"])
     # Taking the first N of a sorted pair list makes recoverability
@@ -136,6 +136,13 @@ def main():
           {c for c in o6[0] if PRODUCT_SEP in c} == n4)
     check("the note names the seed it sampled with",
           "seed 1" in r4["note"])
+    check("partial coverage is reported as the CEILING on interaction "
+          "recall, since a pair outside the sample cannot be found "
+          "however good the search is",
+          r4["coverage"] < 1.0 and "IS the ceiling" in r4["note"])
+    check("complete coverage is stated too, so a full search is "
+          "distinguishable from a lucky partial one",
+          rep["coverage"] == 1.0 and "COMPLETE" in rep["note"])
 
     # nothing to pair
     _o3, r3 = add_product_features(rows, [], budget=10)

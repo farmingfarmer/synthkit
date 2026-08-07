@@ -141,6 +141,7 @@ def add_product_features(rows: List[Dict[str, Any]],
         "pairs_tried": len(pairs),
         "budget": budget,
         "truncated": truncated,
+        "coverage": round(len(pairs) / float(possible), 4),
         "columns": cols,
         "note": ("products are CENTRED, which is what makes an "
                  "exclusive-or visible: the product is negative "
@@ -148,12 +149,18 @@ def add_product_features(rows: List[Dict[str, Any]],
                  "Coverage is partial - an interaction between two "
                  "columns that each already have some relationship is "
                  "still missed."
-                 + (" BUDGET REACHED: {} of {} pairs tried, sampled "
-                    "at seed {} rather than taken alphabetically - "
-                    "which interaction is recoverable should not "
-                    "depend on column naming.".format(
-                        len(pairs), possible, seed)
-                    if truncated else "")),
+                 + (" PARTIAL: {} of {} pairs, {:.0%} coverage, "
+                    "sampled at seed {} rather than taken "
+                    "alphabetically - which interaction is "
+                    "recoverable should not depend on column "
+                    "naming. An interaction outside the sample is "
+                    "unfindable, so this number IS the ceiling on "
+                    "interaction recall.".format(
+                        len(pairs), possible,
+                        len(pairs) / float(possible), seed)
+                    if truncated
+                    else " COMPLETE: all {} pairs covered.".format(
+                        possible))),
     }
 
 
