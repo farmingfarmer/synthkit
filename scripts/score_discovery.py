@@ -67,8 +67,48 @@ def edges_from(path):
     return [], "none"
 
 
+LAG_SUFFIXES = ("__prev", "__delta")
+
+
+def base_name(c):
+    """An engineered lag feature stands for its source column.
+
+    A lagged relationship can ONLY be found through the feature: the
+    search sees `y <- x__prev`, and the planted truth says `y <- x`.
+    Scored literally, a correct finding reads as a miss - which is
+    exactly what happened, and is the same class of error as demanding
+    a particular edge direction."""
+    for suf in LAG_SUFFIXES:
+        if c and c.endswith(suf):
+            return c[:-len(suf)]
+    return c
+
+
 def group_of(e):
-    return frozenset([e.get("child")] + list(e.get("parents") or []))
+    """PARENTS may be lag features; the CHILD may not.
+
+    `y <- x__prev` is how a lagged relationship is found, and is the
+    whole point of engineering the feature. But `y__prev <- x__prev`
+    is a relationship among previous-visit COPIES: the model has
+    learned nothing about generating y at this visit, so counting it
+    would credit a capability that is not there.
+
+    Normalising both ends scored the XOR as recovered - a
+    relationship established as structurally invisible - via
+    `xor_b__prev <- xor_a__prev, xor_y__prev`. That reversal of a
+    settled result is what exposed the error."""
+    child = e.get("child")
+    if str(child).endswith(LAG_SUFFIXES):
+        # a lag feature as the child is a different relationship
+        return frozenset([child] + [base_name(c)
+                                    for c in (e.get("parents") or [])])
+    return frozenset([child] + [base_name(c)
+                                for c in (e.get("parents") or [])])
+
+
+def used_lag(e):
+    return any(str(c).endswith(LAG_SUFFIXES)
+               for c in [e.get("child")] + list(e.get("parents") or []))
 
 
 def main():
@@ -98,9 +138,11 @@ def main():
     for rel in planted:
         want = frozenset([rel["child"]] + list(rel["parents"]))
         hit = full = None
-        for g in found_groups:
+        via_lag = False
+        for e, g in zip(edges, found_groups):
             if want <= g:
                 full = g
+                via_lag = used_lag(e)
                 break
             if len(want & g) >= 2 and hit is None:
                 hit = g            # some of it, not all
@@ -111,6 +153,7 @@ def main():
             "partial": full is None and hit is not None,
             "expected_miss": "cannot see this" in (rel.get("note")
                                                    or ""),
+            "via_lag_feature": via_lag,
         })
 
     planted_groups = [frozenset([r["child"]] + list(r["parents"]))
@@ -173,8 +216,10 @@ def render(o, width, full):
                 "partial" if r["partial"] else "MISSED")
         if not r["found"] and r["expected_miss"]:
             mark = "MISSED (expected)"
-        L.append("{} : {} <- {}".format(
-            mark, r["child"], ", ".join(r["parents"])))
+        L.append("{} : {} <- {}{}".format(
+            mark, r["child"], ", ".join(r["parents"]),
+            "   [via lag feature]" if r.get("via_lag_feature")
+            else ""))
     return "\n".join(L)
 
 
