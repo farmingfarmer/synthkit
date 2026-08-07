@@ -70,6 +70,10 @@ def main():
     ap.add_argument("--confirm", action="store_true",
                     help="also run the confirmed path and compare")
     ap.add_argument("--k", type=int, default=10)
+    ap.add_argument("--bins", type=int, default=0,
+                    help="override the auto bin count; 0 keeps auto, "
+                         "which solves bins^(parents+1)~n/k from the "
+                         "PATIENT count and gives 3 at this scale")
     a = ap.parse_args()
     seeds = [int(s) for s in a.seeds.split(",") if s.strip()]
     if len(seeds) < 2:
@@ -94,16 +98,17 @@ def main():
                          "{}".format(seed))
             with tidy.open(encoding="utf-8-sig", newline="") as f:
                 rows = list(csv.DictReader(f))
-            net = CondNet(k=a.k).learn(rows, group_by="person_id",
-                                       multilevel=True)
+            net = CondNet(k=a.k, max_bins=a.bins).learn(
+                rows, group_by="person_id", multilevel=True)
             (d / "plain.json").write_text(net.to_json(),
                                           encoding="utf-8")
             b, adj = recall_of(d / "ground_truth.json",
                                d / "plain.json")
             plain_b.append(b)
             plain_a.append(adj)
-            line = "seed {:<5} plain {:>4.0%}".format(
-                seed, b if b is not None else 0)
+            line = "seed {:<5} bins {:<3} plain {:>4.0%}".format(
+                seed, net.report.get("bins"),
+                b if b is not None else 0)
             if a.confirm:
                 from synthkit.confirmed import learn_confirmed
                 cn = learn_confirmed(rows, "person_id", k=a.k)
