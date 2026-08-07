@@ -109,6 +109,35 @@ def main():
               any("corrected over 3 comparisons" in x for x in lines))
         check("fidelity is read from the artifact, not the console",
               any("fidelity passed 41" in x for x in lines))
+        # The real artifact nests its counts under "summary". Looking
+        # only at the top level printed NOTHING, which reads as "this
+        # run had no fidelity data" rather than "the reader looked in
+        # the wrong place".
+        nested = Path(td) / "nested"
+        nested.mkdir()
+        for name in ("condnet_model.json", "generated_condnet.csv"):
+            (nested / name).write_bytes((d / name).read_bytes())
+        (nested / "fidelity_condnet.json").write_text(json.dumps(
+            {"summary": {"checks": 107, "passed": 60, "failed": 47,
+                         "fidelity_verdict": "FAIL"},
+             "marginals": {}}), encoding="utf-8")
+        rn = run("scripts/run_summary.py", "--run", str(nested),
+                 "--width", "56")
+        check("fidelity counts are found where the real artifact "
+              "actually keeps them, under summary",
+              "fidelity passed 60" in rn.stdout
+              and "fidelity checks 107" in rn.stdout)
+        bare = Path(td) / "bare"
+        bare.mkdir()
+        for name in ("condnet_model.json", "generated_condnet.csv"):
+            (bare / name).write_bytes((d / name).read_bytes())
+        (bare / "fidelity_condnet.json").write_text(
+            json.dumps({"marginals": {}}), encoding="utf-8")
+        rb = run("scripts/run_summary.py", "--run", str(bare),
+                 "--width", "56")
+        check("a fidelity file with no counts SAYS so rather than "
+              "printing nothing",
+              "no counts found" in rb.stdout)
 
         # ---- guards -------------------------------------------------
         r2 = run("scripts/run_summary.py", "--run",

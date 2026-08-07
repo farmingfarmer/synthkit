@@ -103,9 +103,21 @@ def main():
     if fid_p.exists():
         try:
             fid = json.loads(fid_p.read_text(encoding="utf-8"))
-            for key in ("passed", "checks", "fidelity"):
-                if key in fid:
-                    out.append("fidelity {} {}".format(key, fid[key]))
+            # The counts live under "summary". Looking only at the top
+            # level found nothing and printed nothing, which is worse
+            # than printing an error - the reader cannot tell a run
+            # with no fidelity data from a summary that quietly
+            # skipped it.
+            blk = fid.get("summary") if isinstance(
+                fid.get("summary"), dict) else fid
+            found = False
+            for key in ("passed", "checks", "failed",
+                        "fidelity_verdict"):
+                if key in blk:
+                    found = True
+                    out.append("fidelity {} {}".format(key, blk[key]))
+            if not found:
+                out.append("fidelity present but no counts found")
         except ValueError:
             out.append("fidelity json unreadable")
 

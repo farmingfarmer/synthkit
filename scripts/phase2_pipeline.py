@@ -94,6 +94,11 @@ def main() -> None:
                          "person_id). k-anonymity counts these, "
                          "not rows.")
     ap.add_argument("--seed-out", type=int, default=20260731)
+    ap.add_argument("--confirm", action="store_true",
+                    help="discover structure on one set of patients, "
+                         "re-test it on another, and keep only what "
+                         "reproduces; parameters are then fitted on "
+                         "all of them")
     ap.add_argument("--hierarchical", action="store_true",
                     help="generate PATIENTS with a course of "
                          "visits rather than loose rows: fixed "
@@ -231,10 +236,27 @@ def main() -> None:
             rows_in = list(csv.DictReader(f))
         tgts = [label] if label in (rows_in[0] if rows_in else {}) \
             else []
-        net = CondNet(k=a.k, max_parents=a.max_parents).learn(
-            rows_in, targets=tgts, group_by=(gb or None),
-            multilevel=bool(a.hierarchical and gb),
-            epsilon=a.epsilon)
+        if a.confirm and gb:
+            # Structure discovered on one set of patients and re-tested
+            # on another, then refitted on all of them. On the real
+            # extract the plain search found 58 relationships and 16
+            # reproduced out of sample; the other 42 were shaping
+            # generated data with nothing refereeing them.
+            from synthkit.confirmed import learn_confirmed
+            net = learn_confirmed(
+                rows_in, gb, k=a.k, max_parents=a.max_parents,
+                multilevel=bool(a.hierarchical), epsilon=a.epsilon,
+                targets=tgts or None)
+            cf = net.report["confirmation"]
+            print("  confirmed on held-out patients: {} of {} "
+                  "relationships reproduced ({} train / {} held out)"
+                  .format(cf["confirmed"], cf["discovered"],
+                          cf["train_patients"], cf["holdout_patients"]))
+        else:
+            net = CondNet(k=a.k, max_parents=a.max_parents).learn(
+                rows_in, targets=tgts, group_by=(gb or None),
+                multilevel=bool(a.hierarchical and gb),
+                epsilon=a.epsilon)
         if a.epsilon:
             dpr = net.report["differential_privacy"]
             print("  privacy budget {} split over {} published "
