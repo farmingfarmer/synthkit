@@ -113,7 +113,12 @@ def main():
             for i in range(len(st) - 1):
                 tot += 1
                 same += 1 if st[i] == st[i + 1] else 0
-        cov = 0.056
+        # Independence must be computed from the coverage MEASURED
+        # here, not the target. They differ by a point or two, and
+        # using the target makes the excess wrong by more than the
+        # excess itself.
+        cov = sum(1 for x in rows
+                  if str(x.get(name, "")).strip()) / float(len(rows))
         ind = cov * cov + (1 - cov) ** 2
         exc = (same / float(tot) - ind) / (1 - ind)
         # The real extract's EXCESS clustering runs 0.09-0.20. The raw

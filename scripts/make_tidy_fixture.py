@@ -112,6 +112,17 @@ LABS = [
 CATEGORICALS = [("visit_type", 9), ("admitted_from", 14),
                 ("gender", 3), ("race", 10), ("ethnicity", 6)]
 
+# List columns, which condnet EXPANDS into per-item indicators. The
+# real extract's 47 tidy columns become 85 modelled ones that way, and
+# width is what the multiple-comparison correction is paid over - 3,570
+# comparisons there against 2,145 on a 47-column fixture. A fixture
+# that is not as wide is not as hard.
+# name, coverage, mean items, distinct items
+LISTS = [("conditions", 0.842, 4.21, 5178),
+         ("active_drugs", 0.690, 3.68, 1907),
+         ("drug_routes", 0.640, 1.50, 94),
+         ("procedures", 0.190, 3.60, 3021)]
+
 N_NOISE = 8          # must NEVER be found
 
 
@@ -241,7 +252,9 @@ def main():
               + ["age_at_visit", "year_of_birth"]
               + [v[0] for v in VITALS]
               + [lab[0] for lab in LABS]
-              + ["condition_count", "conditions", "procedure_count",
+              + ["condition_count", "procedure_count"]
+              + [lname for lname, _c, _m, _d in LISTS]
+              + [
                  "planted_linear_x", "planted_linear_y",
                  "planted_ushape_x", "planted_ushape_y",
                  "planted_threshold_x", "planted_threshold_y",
@@ -336,10 +349,24 @@ def main():
                     pass
 
             r["condition_count"] = rnd.randint(0, 23)
-            r["conditions"] = "; ".join(
-                "C{}".format(rnd.randint(0, int(5178 * H)))
-                for _ in range(max(1, int(rnd.gauss(4.21, 2)))))
             r["procedure_count"] = rnd.randint(0, 12)
+            for lname, lcov, litems, ldist in LISTS:
+                if rnd.random() > lcov / H:
+                    r[lname] = ""
+                    continue
+                # A few items are common and most are rare, which is
+                # what puts 1,246 of 5,178 above the k floor while the
+                # rest never clear it.
+                n_it = max(1, int(rnd.gauss(litems, litems / 2.0)))
+                items = []
+                for _ in range(n_it):
+                    if rnd.random() < 0.55:
+                        items.append("{}_top{}".format(
+                            lname[:4], rnd.randint(0, 11)))
+                    else:
+                        items.append("{}_r{}".format(
+                            lname[:4], rnd.randint(0, int(ldist * H))))
+                r[lname] = "; ".join(items)
 
             xl = rnd.uniform(0, 1)
             r["planted_linear_x"] = round(xl, 4)
