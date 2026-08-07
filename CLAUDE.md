@@ -30,6 +30,12 @@ did harm, there.
 
 ## Numbers before conclusions
 
+- **Recall on the fixture varies 71%-86% across seeds with nothing
+  changed but the seed.** A single-seed comparison cannot detect any
+  improvement smaller than 15 points, which is one relationship out of
+  seven - the size of effect these changes actually produce. Use
+  `scripts/recall_sweep.py` and report the range, never a point.
+
 - **Do not report a derived quantity until a second, independent
   measurement agrees with it.** A pooled correlation across columns of
   different scales measured which column a pair came from. A naive
