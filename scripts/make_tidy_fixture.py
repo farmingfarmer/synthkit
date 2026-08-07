@@ -304,10 +304,20 @@ def main():
                     sk = 1.0 + (H - 1.0) * 0.5
                     r[name] = shaped(u, q1, q50, q99, integral, sk)
 
+            # The CBC panel is drawn as a PANEL: all six labs share
+            # one coverage (0.114) and one clustering (0.82) in the
+            # measured spec, which is what co-ordering looks like.
+            # Giving each its own missingness made co-present pairs
+            # far rarer than reality, and the scorer caught it - both
+            # planted lab relationships were missed here while the
+            # real extract found them.
+            panel_cov = max(0.001, LABS[0][1] / H)
+            panel_st = next_missing(rnd, missing_state.get("__cbc__",
+                                                           False),
+                                    panel_cov, LABS[0][2])
+            missing_state["__cbc__"] = panel_st
             for name, cov, clus, icc, l1, q1, q50, q99 in LABS:
-                cov_h = max(0.001, cov / H)
-                st = missing_state.get(name, False)
-                st = next_missing(rnd, st, cov_h, clus)
+                st = panel_st
                 missing_state[name] = st
                 r[name] = ("" if st else
                            round(q50 + anchor[name] * (q99 - q1) / 4.0
