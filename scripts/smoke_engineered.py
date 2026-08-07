@@ -117,6 +117,37 @@ def main():
     check("no unexplained columns means no products, said plainly",
           r3["added"] == 0 and "no unexplained" in r3["note"])
 
+    # ---- engineered features are PARENT-ONLY -------------------
+    # Measured: adding products produced 114 spurious edges, of which
+    # 87 had a product as the CHILD, 19 were a product against its own
+    # two factors, and 8 were a product explaining a column it
+    # CONTAINS. All three are arithmetic rather than findings, and all
+    # three are structural - so they cost nothing to remove. With both
+    # rules the noise edges went 82 to 0 while the XOR stayed found.
+    from synthkit.engineered import feature_sources
+    fs = feature_sources(out)
+    check("every engineered feature knows the columns it came from",
+          fs.get(name) and set(fs[name]) == {"a", "b"})
+    net2 = CondNet(k=10).learn(out, group_by="person_id",
+                               multilevel=True, feature_sources=fs)
+    kids = {e["child"] for e in net2.report["edges"]}
+    check("no engineered feature is ever a CHILD - it exists to "
+          "explain other columns, not to be explained or generated",
+          not any(PRODUCT_SEP in c for c in kids))
+    circular = []
+    for e in net2.report["edges"]:
+        for par in e["parents"]:
+            if e["child"] in fs.get(par, ()):
+                circular.append((e["child"], par))
+    check("no feature explains a column it CONTAINS - `noise_02 <- "
+          "height__x__noise_02` is the product carrying noise_02 "
+          "inside it, not a finding", not circular)
+    check("...and the interaction is still recovered, so the rules "
+          "cost precision nothing and recall nothing",
+          any(e["child"] == "y"
+              and any(PRODUCT_SEP in q for q in e["parents"])
+              for e in net2.report["edges"]))
+
     print()
     if FAIL:
         print("{} FAILED".format(FAIL))

@@ -4,7 +4,7 @@ Synthetic clinical data generator and model-evaluation instrument. Core rule: le
 
 ## Verify before claiming
 
-- Run `python scripts/run_all_smokes.py` before saying anything works. Expect 39 suites, 1062 checks, ALL GREEN.
+- Run `python scripts/run_all_smokes.py` before saying anything works. Expect 39 suites, 1066 checks, ALL GREEN.
 - `py_compile` every Python file you touch.
 - Assert count==1 before every string replacement — verify the edit, not just the compile.
 - Never state a number as measured unless you actually ran it.

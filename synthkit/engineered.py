@@ -142,6 +142,20 @@ def add_product_features(rows: List[Dict[str, Any]],
     }
 
 
+def feature_sources(rows) -> Dict[str, List[str]]:
+    """Map every engineered feature to the columns it was built from,
+    so the model can keep it parent-only and never let it explain its
+    own sources."""
+    out = {}
+    for c in (rows[0] if rows else {}):
+        if PRODUCT_SEP in c:
+            a_, b_ = c.split(PRODUCT_SEP, 1)
+            out[c] = [a_, b_]
+        elif c.endswith("__prev") or c.endswith("__delta"):
+            out[c] = [c.rsplit("__", 1)[0]]
+    return out
+
+
 def base_columns(name: str) -> Optional[Tuple[str, str]]:
     """The two columns a product feature was built from."""
     if PRODUCT_SEP in name:

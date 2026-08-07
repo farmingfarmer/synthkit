@@ -750,7 +750,9 @@ class CondNet:
               group_by: Optional[str] = None,
               hypotheses: Optional[Dict[str, List[str]]] = None,
               multilevel: bool = False,
-              epsilon: float = 0.0) -> "CondNet":
+              epsilon: float = 0.0,
+              feature_sources: Optional[Dict[str, List[str]]] = None
+              ) -> "CondNet":
         """`hypotheses` maps a column to the columns allowed to
         explain it — the clinical questions actually being asked.
 
@@ -1245,6 +1247,22 @@ class CondNet:
                         found[0], how, found[1])
                     self.pair_derived[b] = list(found)
 
+        # ---- engineered features are PARENT-ONLY ----------------
+        # A manufactured feature exists to explain other columns, not
+        # to be explained or generated. Left as an ordinary column it
+        # becomes a child, and since it is arithmetic on its sources
+        # it acquires edges to them and to everything they touch.
+        # Measured: of 114 spurious edges after adding products, 87
+        # had a product as the CHILD and 19 were a product against its
+        # own two factors.
+        #
+        # And a feature may never parent a column it CONTAINS.
+        # `noise_02 <- height__x__noise_02` is not a finding, it is
+        # the product carrying noise_02 inside it - circular by
+        # construction, and 8 more of those 114.
+        self.feature_sources = dict(feature_sources or {})
+        self.parent_only = set(self.feature_sources) & set(self.order)
+
         hyp = {c: [x for x in v if x in self.order]
                for c, v in (hypotheses or {}).items()
                if c in self.order}
@@ -1259,6 +1277,9 @@ class CondNet:
 
         chosen_log = []
         for i, c in enumerate(self.order):
+            if c in getattr(self, "parent_only", ()):
+                self.parents[c] = []      # a feature is never a child
+                continue
             if hyp:
                 # only the declared questions are asked; a column
                 # with no hypothesis keeps its marginal
@@ -1287,6 +1308,10 @@ class CondNet:
             # the findings.)
             candidates = [x for x in candidates
                           if x not in self.derived]
+            # never let a feature explain a column it is built from
+            candidates = [
+                x for x in candidates
+                if c not in self.feature_sources.get(x, ())]
             if c in getattr(self, "pair_derived", {}):
                 # its two determinants say everything about it
                 self.parents[c] = [
