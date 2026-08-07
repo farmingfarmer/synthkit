@@ -70,6 +70,12 @@ def main():
     ap.add_argument("--confirm", action="store_true",
                     help="also run the confirmed path and compare")
     ap.add_argument("--k", type=int, default=10)
+    ap.add_argument("--lags", action="store_true",
+                    help="detect the time axis and engineer x__prev")
+    ap.add_argument("--products", action="store_true",
+                    help="second pass: centred products among what "
+                         "the first pass left unexplained")
+    ap.add_argument("--product-budget", type=int, default=200)
     ap.add_argument("--bins", type=int, default=0,
                     help="override the auto bin count; 0 keeps auto, "
                          "which solves bins^(parents+1)~n/k from the "
@@ -98,8 +104,28 @@ def main():
                          "{}".format(seed))
             with tidy.open(encoding="utf-8-sig", newline="") as f:
                 rows = list(csv.DictReader(f))
+            fs = {}
+            if a.lags:
+                from synthkit.temporal import (
+                    detect_time_column, add_lag_features)
+                tc, tk, _ = detect_time_column(rows, "person_id")
+                rows, _lr = add_lag_features(rows, "person_id", tc, tk)
+            if a.products:
+                from synthkit.engineered import (
+                    unexplained_columns, add_product_features,
+                    feature_sources)
+                scout = CondNet(k=a.k, max_bins=a.bins).learn(
+                    rows, group_by="person_id", multilevel=True,
+                    feature_sources=feature_sources(rows))
+                un = unexplained_columns(scout, rows)
+                rows, _pr = add_product_features(
+                    rows, un, budget=a.product_budget)
+            if a.lags or a.products:
+                from synthkit.engineered import feature_sources
+                fs = feature_sources(rows)
             net = CondNet(k=a.k, max_bins=a.bins).learn(
-                rows, group_by="person_id", multilevel=True)
+                rows, group_by="person_id", multilevel=True,
+                feature_sources=fs)
             (d / "plain.json").write_text(net.to_json(),
                                           encoding="utf-8")
             b, adj = recall_of(d / "ground_truth.json",

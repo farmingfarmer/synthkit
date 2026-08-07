@@ -54,6 +54,13 @@ def main():
                 "flat": "1",
                 "sparse": (round(rnd.gauss(0, 1), 3)
                            if rnd.random() < 0.02 else ""),
+                # more unexplained columns, so a budget below the
+                # possible-pair count is a real truncation and the
+                # sampling can be tested at all
+                "u1": round(rnd.gauss(0, 1), 4),
+                "u2": round(rnd.gauss(0, 1), 4),
+                "u3": round(rnd.gauss(0, 1), 4),
+                "u4": round(rnd.gauss(0, 1), 4),
             })
 
     net = CondNet(k=10).learn(rows, group_by="person_id",
@@ -111,6 +118,24 @@ def main():
           and "BUDGET REACHED" in r2["note"])
     check("the note states what the rule cannot cover",
           "still missed" in r2["note"])
+    # Taking the first N of a sorted pair list makes recoverability
+    # depend on column naming: measured, the interaction was found at
+    # budget 400 and missed at 150 because its pair fell past the cut.
+    check("the fixture has enough unexplained columns for a budget "
+          "to actually truncate, or the sampling test is vacuous",
+          len(un) * (len(un) - 1) // 2 > 6)
+    o4, r4 = add_product_features(rows, sorted(un), budget=3, seed=1)
+    o5, r5 = add_product_features(rows, sorted(un), budget=3, seed=2)
+    n4 = {c for c in o4[0] if PRODUCT_SEP in c}
+    n5 = {c for c in o5[0] if PRODUCT_SEP in c}
+    check("a truncated budget SAMPLES the pairs rather than taking "
+          "them alphabetically - which interaction is findable must "
+          "not depend on column naming", n4 != n5)
+    o6, _r6 = add_product_features(rows, sorted(un), budget=3, seed=1)
+    check("...and the sample is reproducible from its seed",
+          {c for c in o6[0] if PRODUCT_SEP in c} == n4)
+    check("the note names the seed it sampled with",
+          "seed 1" in r4["note"])
 
     # nothing to pair
     _o3, r3 = add_product_features(rows, [], budget=10)

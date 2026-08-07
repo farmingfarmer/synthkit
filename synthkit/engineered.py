@@ -32,6 +32,7 @@ many pairs were tried against how many exist.
 """
 from __future__ import annotations
 
+import random
 from collections import defaultdict
 from typing import Any, Dict, List, Optional, Tuple
 
@@ -91,6 +92,7 @@ def unexplained_columns(net, rows, min_coverage=0.10):
 def add_product_features(rows: List[Dict[str, Any]],
                          columns: List[str],
                          budget: int = 400,
+                         seed: int = 20260731,
                          ) -> Tuple[List[Dict[str, Any]],
                                     Dict[str, Any]]:
     """Centred pairwise products among `columns`, up to `budget`."""
@@ -113,6 +115,15 @@ def add_product_features(rows: List[Dict[str, Any]],
         for j in range(i + 1, len(cols)):
             pairs.append((cols[i], cols[j]))
     truncated = len(pairs) > budget
+    if truncated:
+        # A SEEDED SAMPLE, not the first N. Taking pairs[:budget] from
+        # a sorted column list makes recoverability depend on
+        # alphabetical luck: measured, the interaction was found at
+        # budget 400 and missed at 150 because its pair fell past the
+        # cut, and nothing about that pair was worse - only its name.
+        # A sample is still partial, but it is unbiased and it is
+        # reproducible from the seed.
+        random.Random(seed).shuffle(pairs)
     pairs = pairs[:budget]
 
     out = []
@@ -137,8 +148,12 @@ def add_product_features(rows: List[Dict[str, Any]],
                  "Coverage is partial - an interaction between two "
                  "columns that each already have some relationship is "
                  "still missed."
-                 + (" BUDGET REACHED: {} of {} pairs tried.".format(
-                     len(pairs), possible) if truncated else "")),
+                 + (" BUDGET REACHED: {} of {} pairs tried, sampled "
+                    "at seed {} rather than taken alphabetically - "
+                    "which interaction is recoverable should not "
+                    "depend on column naming.".format(
+                        len(pairs), possible, seed)
+                    if truncated else "")),
     }
 
 
