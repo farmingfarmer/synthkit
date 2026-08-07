@@ -201,7 +201,15 @@ def main():
                 "distinct {}".format(distinct),
                 "levels_above_k {}".format(above_k)]
         if clus is not None:
-            bits.append("cluster {:.3f}".format(clus))
+            # EXCESS over what independence alone would give. A column
+            # that is 98% missing matches on 96% of adjacent pairs by
+            # chance, so the raw match rate says "heavily clustered"
+            # about a column that is not clustered at all. 0 is
+            # independent, 1 is perfectly run-length clustered.
+            ind = cov * cov + (1.0 - cov) * (1.0 - cov)
+            exc = ((clus - ind) / (1.0 - ind)) if ind < 1.0 else 0.0
+            bits.append("clusterx {:.3f}".format(max(0.0, exc)))
+            bits.append("matchrate {:.3f}".format(clus))
         if numeric:
             groups = []
             for g in by.values():

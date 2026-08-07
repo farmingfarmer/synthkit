@@ -113,9 +113,20 @@ def main():
                     return p[1]
             return None
 
-        check("clustered missingness is measured, and reads well "
-              "above the 0.5 that independent missingness gives",
-              float(field("clustered_lab", "cluster") or 0) > 0.7)
+        # The raw match rate is confounded by coverage: a column that
+        # is 98% missing agrees on 96% of adjacent pairs by chance.
+        # What carries information is the EXCESS over independence.
+        check("clustered missingness is measured as EXCESS over "
+              "independence, so a sparse column is not mistaken for a "
+              "clustered one",
+              float(field("clustered_lab", "clusterx") or 0) > 0.4)
+        check("the raw match rate is reported too, so the correction "
+              "is visible rather than silent",
+              float(field("clustered_lab", "matchrate") or 0) > 0.7)
+        check("a FULLY PRESENT column shows no excess clustering, "
+              "however high its raw match rate",
+              float(field("anchored", "matchrate") or 0) > 0.99
+              and float(field("anchored", "clusterx") or 1) < 0.05)
         check("a fully present column is distinguishable by coverage",
               float(field("anchored", "cov") or 0) > 0.99
               and float(field("clustered_lab", "cov") or 1) < 0.6)
