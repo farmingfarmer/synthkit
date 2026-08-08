@@ -16,7 +16,7 @@ sys.path.insert(0, str(ROOT))
 from synthkit.condnet import CondNet                  # noqa: E402
 from synthkit.engineered import (                     # noqa: E402
     add_product_features, unexplained_columns, base_columns,
-    PRODUCT_SEP)
+    _num, PRODUCT_SEP)
 
 PASS = FAIL = 0
 
@@ -179,6 +179,80 @@ def main():
           any(e["child"] == "y"
               and any(PRODUCT_SEP in q for q in e["parents"])
               for e in net2.report["edges"]))
+
+    # An XOR is SYMMETRIC - any two of {a, b, y} determine the third -
+    # so the search legitimately finds y <- a__x__b, b <- a__x__y and
+    # a <- b__x__y. All true, and together a cycle: nothing can be
+    # drawn first. Measured, the generic cycle-repair stranded all six
+    # columns and the XOR vanished from the generated data while the
+    # model went on reporting it.
+    back = [(e["child"], p) for e in net2.report["edges"]
+            for p in e["parents"] if PRODUCT_SEP in p
+            and not all(net2.order.index(s) < net2.order.index(e["child"])
+                        for s in fs.get(p, ()))]
+    check("a product only explains a column whose BOTH factors are "
+          "drawn before it, so the direction is decided rather than "
+          "left to form a cycle", not back)
+
+    # ---- the GENERATED data must carry them --------------------
+    # Parent-only settles learning and says nothing about generation,
+    # where the default is actively wrong: a feature drawn from its own
+    # marginal is a previous value belonging to no patient and a
+    # product of nothing. The model would REPORT the interaction and
+    # the data would not contain it - failure that reads as success.
+    gen = net2.sample_patients(400, seed=7)
+    check("engineered features are NOT emitted - they are scaffolding "
+          "for the search, not columns of the user's data",
+          gen and not any(PRODUCT_SEP in c for c in gen[0]))
+    lo = [float(r["y"]) for r in gen
+          if (float(r["a"]) > 0.5) == (float(r["b"]) > 0.5)]
+    hi = [float(r["y"]) for r in gen
+          if (float(r["a"]) > 0.5) != (float(r["b"]) > 0.5)]
+    check("the XOR survives INTO the generated data: y is higher when "
+          "exactly one factor is high, which is the relationship the "
+          "product was manufactured to find",
+          lo and hi and (sum(hi) / len(hi)) - (sum(lo) / len(lo)) > 0.3)
+
+    # and the same for a lag feature
+    from synthkit.temporal import add_lag_features, LAG_SUFFIX
+    lrows = []
+    lr = random.Random(11)
+    for p in range(220):
+        prev = None
+        for v in range(8):
+            x = round(lr.uniform(0, 1), 4)
+            lrows.append({"person_id": "P{:04d}".format(p),
+                          "t": v + 1, "x": x,
+                          "y": round((3.0 * prev if prev is not None
+                                      else lr.uniform(0, 3))
+                                     + lr.gauss(0, 0.08), 4)})
+            prev = x
+    lag_rows, _lrep = add_lag_features(lrows, "person_id", "t",
+                                       "sequence")
+    from synthkit.engineered import feature_sources as fsrc
+    lnet = CondNet(k=10).learn(lag_rows, group_by="person_id",
+                               multilevel=True,
+                               feature_sources=fsrc(lag_rows))
+    check("the lagged relationship is found, or the generation test "
+          "below has nothing to preserve",
+          any(e["child"] == "y"
+              and any(str(q).endswith(LAG_SUFFIX) for q in e["parents"])
+              for e in lnet.report["edges"]))
+    g2 = lnet.sample_patients(300, seed=7)
+    by = {}
+    for r in g2:
+        by.setdefault(r["person_id"], []).append(r)
+    pairs = []
+    for g in by.values():
+        for i in range(1, len(g)):
+            xp, yc = _num(g[i - 1].get("x")), _num(g[i].get("y"))
+            if xp is not None and yc is not None:
+                pairs.append((xp, yc))
+    check("the LAG survives into generated data too: y at a visit "
+          "tracks x at the PREVIOUS visit, so the feature was rebuilt "
+          "from this patient's own history rather than redrawn",
+          len(pairs) > 500
+          and corr([p for p, _ in pairs], [q for _, q in pairs]) > 0.45)
 
     print()
     if FAIL:

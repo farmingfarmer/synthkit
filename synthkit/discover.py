@@ -1,0 +1,448 @@
+"""Find what explains each column, without being the thing that
+generates it.
+
+WHY THIS EXISTS. The previous engine was one object that both searched
+for structure and generated data. Discovery therefore inherited every
+constraint generation has - values discretised into bins, every
+relationship given a direction, the graph kept acyclic - and paid for
+them in the search. Three consequences, all measured:
+
+  * one pass over 130 columns and 30,566 rows cost 916 seconds, of
+    which ~570 survived a 90% row cut. The cost was the interpreter
+    walking Python lists, not the statistics
+  * a conditional probability table over ten bins cannot see a lagged
+    effect or a pure interaction, so both had to be hand-manufactured
+    as columns - 210 products to recover what a boosted tree gets for
+    nothing
+  * an exclusive-or is SYMMETRIC, so the search correctly found
+    y <- a*b, b <- a*y and a <- b*y. All three are true and together
+    they are a cycle. Only a GENERATOR needs to pick one; a catalogue
+    of patterns does not
+
+So this module answers one question per column - what predicts it, how
+strongly, and does that hold on patients the search never saw - and
+answers it with a model that handles non-linearity and interactions
+natively. Nothing here is generative. Direction, acyclicity and
+discretisation are the generator's problems, and it gets to solve them
+against a finished catalogue instead of during the search.
+
+CONFIRMATION IS NOT A SEPARATE STEP ANY MORE. Skill and importance are
+both measured on held-out PATIENTS, so a relationship that only lived
+in the patients the search looked at scores zero by construction. The
+old pipeline needed a discover-then-confirm pass and a Bonferroni
+correction over thousands of pairs; neither is needed when the number
+being reported is already out-of-sample.
+
+TWO THINGS DELIBERATELY EXCLUDED as predictors:
+
+  the group id      it identifies the patient, and a model given it
+                    memorises rather than explains
+  a column's OWN
+  lag or delta      x__prev predicts x almost perfectly in anything
+                    that persists, and permutation importance would
+                    hand it the whole budget and mask every
+                    cross-column relationship behind it. Persistence
+                    is a separate mechanism the generator already
+                    models, so it is not a finding here
+"""
+from __future__ import annotations
+
+from typing import Any, Dict, List, Optional
+
+import numpy as np
+import pandas as pd
+from sklearn.ensemble import (HistGradientBoostingClassifier,
+                              HistGradientBoostingRegressor)
+
+# HistGradientBoosting bins categoricals into at most 255 slots.
+MAX_LEVELS = 200
+LAG_SUFFIXES = ("__prev", "__delta")
+
+
+def _is_numeric(s: pd.Series) -> bool:
+    if pd.api.types.is_numeric_dtype(s):
+        return True
+    conv = pd.to_numeric(s, errors="coerce")
+    present = s.notna() & (s.astype(str).str.strip() != "")
+    if present.sum() == 0:
+        return False
+    return bool(conv[present].notna().mean() >= 0.99)
+
+
+def _is_identifier(s: pd.Series, n_rows: int) -> bool:
+    """A key, not a measurement.
+
+    Present on essentially every row and near-unique. Given one, a
+    model memorises the row instead of explaining it, and every
+    importance it earns is leakage. The old engine learned this the
+    hard way twice: the first guard counted occurrences instead of
+    distinct holders, and the second returned early on numerics - so
+    it passed a string visit_id in a fixture and did nothing at all
+    against the real extract, where visit_id is an integer."""
+    present = s.dropna()
+    if len(present) < 0.99 * max(n_rows, 1):
+        return False
+    if not pd.api.types.is_numeric_dtype(present):
+        return bool(present.nunique() >= 0.999 * len(present))
+    v = present.to_numpy(dtype=float)
+    return bool(np.all(np.mod(v, 1.0) == 0.0)
+                and len(np.unique(v)) >= 0.999 * len(v))
+
+
+def prepare(df: pd.DataFrame,
+            group_by: Optional[str] = None,
+            drop_identifiers: bool = True):
+    """Typed frame: numerics as float with NaN, everything else as a
+    capped category. Blanks become NaN rather than a level, so
+    `missing` is one concept and not three spellings of it.
+
+    Built with a single concat. Assigning column by column leaves the
+    frame fragmented and every later `.loc` pays for it."""
+    cols, ident = {}, []
+    for c in df.columns:
+        if c == group_by:
+            continue
+        s = df[c]
+        if s.dtype == object:
+            s = s.astype(str).str.strip()
+            s = s.mask(s.str.lower().isin(
+                ["", "nan", "none", "null", "na", "n/a"]))
+        if _is_numeric(s):
+            cols[c] = pd.to_numeric(s, errors="coerce").astype(float)
+        else:
+            s = s.astype("object")
+            keep = s.value_counts().index[:MAX_LEVELS]
+            s = s.where(s.isin(keep) | s.isna(), "__other__")
+            cols[c] = s.astype("category")
+        if drop_identifiers and _is_identifier(cols[c], len(df)):
+            ident.append(c)
+            del cols[c]
+    if drop_identifiers and ident:
+        # Dropping a key is not enough - anything ENGINEERED from it
+        # carries the same information back in. `visit_id__prev` is a
+        # near-unique integer too, but it is blank on each patient's
+        # first visit, so its coverage falls below the guard's
+        # threshold and it survives. Measured: visit_id was correctly
+        # dropped and then reappeared as a predictor of age_at_visit,
+        # because importance is reported per SOURCE column and the
+        # source of visit_id__prev is visit_id.
+        keys = set(ident)
+        for c in [c for c in cols if _source(c) in keys]:
+            ident.append(c)
+            del cols[c]
+    out = pd.concat(cols, axis=1) if cols else pd.DataFrame(
+        index=df.index)
+    out.columns = list(cols)
+    return out, ident
+
+
+def _source(col: str) -> str:
+    """The real column an engineered feature stands for.
+
+    `x__prev` and `x__delta` are both scaffolding built from `x`. The
+    catalogue speaks in source names because that is what the reader
+    has: `x moved this`, not `x__prev moved this`."""
+    for suf in LAG_SUFFIXES:
+        if col.endswith(suf):
+            return col[:-len(suf)]
+    return col
+
+
+def _self_lags(col: str, columns) -> List[str]:
+    """A column's own lag and delta - excluded, see module docstring."""
+    return [c for c in columns
+            if any(c == col + suf for suf in LAG_SUFFIXES)]
+
+
+def _skill(kind, y_true, y_pred, base_pred) -> float:
+    """How much better than knowing nothing, on held-out patients.
+
+    Scaled so 0 means 'no better than the column's own marginal' and 1
+    means perfect, for both kinds - a regression R-squared and a
+    classification error reduction are otherwise not comparable, and
+    the catalogue ranks them side by side."""
+    if kind == "regression":
+        ss_res = float(np.sum((y_true - y_pred) ** 2))
+        ss_tot = float(np.sum((y_true - base_pred) ** 2))
+        return 1.0 - ss_res / ss_tot if ss_tot > 0 else 0.0
+    err = float(np.mean(y_true != y_pred))
+    base = float(np.mean(y_true != base_pred))
+    return 1.0 - err / base if base > 0 else 0.0
+
+
+def discover(df: pd.DataFrame,
+             group_by: Optional[str] = None,
+             targets: Optional[List[str]] = None,
+             holdout_frac: float = 0.3,
+             seed: int = 20260731,
+             min_skill: float = 0.02,
+             screen_top: int = 15,
+             n_repeats: int = 4,
+             max_iter: int = 60,
+             max_train_rows: int = 12000,
+             min_coverage: float = 0.05,
+             max_classes: int = 50,
+             min_importance: float = 0.002,
+             progress=None) -> Dict[str, Any]:
+    """A catalogue of what explains each column, confirmed out of
+    sample. Returns claims, not edges - no direction is implied beyond
+    'these predict that'."""
+    rng = np.random.RandomState(seed)
+    X_all, identifiers = prepare(df, group_by)
+
+    # Split BY PATIENT. Visits from one person are not independent, so
+    # a row-wise holdout leaks the same patient into both halves and
+    # confirms nearly anything - the single most expensive lesson the
+    # old engine learned.
+    if group_by is not None and group_by in df.columns:
+        groups = df[group_by].astype(str).to_numpy()
+        uniq = np.unique(groups)
+        rng.shuffle(uniq)
+        n_hold = max(1, int(len(uniq) * holdout_frac))
+        held = set(uniq[:n_hold].tolist())
+        is_hold = np.array([g in held for g in groups])
+        n_tr_g, n_te_g = len(uniq) - n_hold, n_hold
+    else:
+        is_hold = rng.rand(len(df)) < holdout_frac
+        n_tr_g, n_te_g = int((~is_hold).sum()), int(is_hold.sum())
+
+    cols = list(X_all.columns)
+    # An engineered feature is scaffolding, never a target. Modelling
+    # one asks "what explains last visit's age" and answers "this
+    # visit's age" - arithmetic dressed as a finding, and it topped
+    # the catalogue by skill on the first run that worked.
+    want = [c for c in (targets or cols)
+            if c in cols and (targets is not None or _source(c) == c)]
+    claims, unexplained, skipped = [], [], []
+
+    for idx, target in enumerate(want):
+        if progress:
+            progress(idx, len(want), target)
+        y_full = X_all[target]
+        observed = y_full.notna().to_numpy()
+        if observed.mean() < min_coverage:
+            skipped.append({"column": target,
+                            "why": "coverage {:.1%} is below the "
+                                   "floor".format(observed.mean())})
+            continue
+        kind = ("regression" if pd.api.types.is_numeric_dtype(y_full)
+                else "classification")
+        drop = [target] + _self_lags(target, cols)
+        feats = [c for c in cols if c not in drop]
+        if not feats:
+            continue
+
+        tr = observed & ~is_hold
+        te = observed & is_hold
+        if tr.sum() < 50 or te.sum() < 25:
+            skipped.append({"column": target,
+                            "why": "too few observed rows to train "
+                                   "and hold out"})
+            continue
+        Xtr, Xte = X_all.loc[tr, feats], X_all.loc[te, feats]
+        ytr, yte = y_full[tr], y_full[te]
+        # A cap on TRAINING rows only. Measured on this fixture: fit
+        # cost is roughly linear in rows and is half the per-column
+        # bill, while ranking which columns predict a target does not
+        # need every row - the holdout, which is what gets reported,
+        # is never touched. Rows are sampled at random rather than
+        # taken in order, because the file is sorted by patient and a
+        # head would be a few hundred people.
+        if len(Xtr) > max_train_rows:
+            pick = np.random.RandomState(seed).choice(
+                len(Xtr), max_train_rows, replace=False)
+            Xtr, ytr = Xtr.iloc[pick], ytr.iloc[pick]
+        # early_stopping OFF, deliberately. On by default above
+        # 10,000 rows, it carves its own validation split out of the
+        # training half - stratified for a classifier, which CRASHES
+        # the moment a class has one member, and a wide clinical
+        # extract has many. It also makes the fit non-deterministic
+        # with respect to the holdout the catalogue reports against.
+        if kind == "regression":
+            if float(ytr.std() or 0.0) == 0.0:
+                unexplained.append(target)
+                continue
+            model = HistGradientBoostingRegressor(
+                max_iter=max_iter, random_state=seed,
+                early_stopping=False,
+                categorical_features="from_dtype")
+            base_pred = np.full(int(te.sum()), float(ytr.mean()))
+        else:
+            n_cls = int(ytr.nunique(dropna=True))
+            if n_cls < 2:
+                unexplained.append(target)
+                continue
+            if n_cls > max_classes:
+                # A near-free-text column. Predicting one of hundreds
+                # of labels is a different problem from finding a
+                # pattern, and it costs a model per class to answer
+                # badly.
+                skipped.append({
+                    "column": target,
+                    "why": "{} distinct levels - too many to model "
+                           "as a class".format(n_cls)})
+                continue
+            model = HistGradientBoostingClassifier(
+                max_iter=max_iter, random_state=seed,
+                early_stopping=False,
+                categorical_features="from_dtype")
+            base_pred = np.full(int(te.sum()),
+                                ytr.mode(dropna=True).iloc[0])
+        ytr = ytr.astype(float) if kind == "regression" \
+            else ytr.astype(str)
+        yte_v = (yte.astype(float).to_numpy() if kind == "regression"
+                 else yte.astype(str).to_numpy())
+        model.fit(Xtr, ytr)
+        skill = _skill(kind, yte_v, model.predict(Xte), base_pred)
+        if skill < min_skill:
+            # Nothing available explains it. This IS the unexplained
+            # set, measured on held-out patients rather than inferred
+            # from an absence of edges.
+            unexplained.append(target)
+            continue
+
+        # Permutation importance is the honest ranking - it asks what
+        # the model LOSES without a column, on data it never saw -
+        # but it costs a pass per feature per repeat. Screening on the
+        # model's own split gains first keeps that affordable; the
+        # screen only chooses who gets measured, never what the
+        # measurement says.
+        # IMPORTANCE IS MEASURED PER SOURCE COLUMN, NOT PER FEATURE.
+        #
+        # Permuting one feature at a time asks "what is lost without
+        # this column, given every other column is still there" - and
+        # a column with a near-copy in the frame loses nothing,
+        # because its twin still carries the signal. Both then score
+        # zero and the relationship is invisible.
+        #
+        # This is not a hypothetical: adding lag features CREATES the
+        # twins. Measured on this fixture, planted_simpson_x
+        # correlates 0.924 with its own planted_simpson_x__prev. The
+        # first run of this module scored recall 0% while reporting
+        # skill 0.994 - the model had found the structure and the
+        # attribution could not see it.
+        #
+        # So a column and its lag and its delta are permuted TOGETHER,
+        # with the SAME row order, which destroys their joint link to
+        # the target while preserving their relationship to each
+        # other. The answer comes back in the user's own column names,
+        # which is what a person reading the catalogue needs anyway -
+        # `x` moved this, not `x__prev`.
+        groups: Dict[str, List[str]] = {}
+        for c in feats:
+            groups.setdefault(_source(c), []).append(c)
+        Xp = Xte if len(Xte) <= 4000 else Xte.sample(4000,
+                                                     random_state=seed)
+        yp = (yte_v if len(Xte) <= 4000
+              else yte_v[Xte.index.get_indexer(Xp.index)])
+        base_s = _skill(kind, yp, model.predict(Xp),
+                        np.full(len(yp), base_pred[0]))
+        # ONE copy, reused. Copying the frame per repeat cost more
+        # than every model fit put together.
+        Xs = Xp.copy()
+        flat = np.full(len(yp), base_pred[0])
+
+        # SCREEN BY THE SAME MEASURE, CHEAPLY - one permutation on a
+        # small slice - then measure the survivors properly.
+        #
+        # There is no native importance to screen on: a
+        # HistGradientBoosting estimator has no `feature_importances_`
+        # at all. Asking for one with getattr(..., None) silently
+        # returned None on every column, the fallback took the first
+        # fifteen groups in COLUMN ORDER, and the screen stopped being
+        # a screen. It reported visit_start_date, year_of_birth and
+        # gender as the drivers of every planted relationship - those
+        # are simply the leading columns of the schema - and recall
+        # was 0% while the model itself scored 0.93 on the same
+        # target. A silent no-op is worse than a crash; this version
+        # cannot no-op, because the screen and the measurement are the
+        # same computation at different budgets.
+        ns = min(1500, len(Xs))
+        Xq, yq = Xs.iloc[:ns], yp[:ns]
+        flat_q = np.full(ns, base_pred[0])
+        base_q = _skill(kind, yq, model.predict(Xq), flat_q)
+        rough = []
+        order_q = np.random.RandomState(seed).permutation(ns)
+        for src, members in groups.items():
+            keep = dict((c, Xq[c].to_numpy(copy=True)) for c in members)
+            for c in members:
+                Xq[c] = keep[c][order_q]
+            rough.append((base_q - _skill(kind, yq,
+                                          model.predict(Xq), flat_q),
+                          src))
+            for c in members:
+                Xq[c] = keep[c]
+        rough.sort(key=lambda t: -t[0])
+        pool = [s for _d, s in rough[:max(screen_top, 1)]]
+
+        preds = []
+        for src in pool:
+            members = groups[src]
+            keep = dict((c, Xs[c].to_numpy(copy=True)) for c in members)
+            drops = []
+            for rep in range(n_repeats):
+                order_r = np.random.RandomState(
+                    seed + rep).permutation(len(Xs))
+                for c in members:
+                    Xs[c] = keep[c][order_r]
+                drops.append(base_s - _skill(
+                    kind, yp, model.predict(Xs), flat))
+            for c in members:
+                Xs[c] = keep[c]
+            m, s = float(np.mean(drops)), float(np.std(drops))
+            # Two standard deviations clear of zero AND clear of an
+            # absolute floor. The sd rule alone admits pure noise the
+            # moment every repeat agrees: the first run reported an
+            # importance of 1e-05 with sd exactly 0, which passed.
+            if m >= min_importance and m > 2.0 * s:
+                preds.append({"column": src, "importance": round(m, 5),
+                              "sd": round(s, 5),
+                              "via": [c for c in members
+                                      if c != src] or None})
+        preds.sort(key=lambda d: -d["importance"])
+        if not preds:
+            unexplained.append(target)
+            continue
+        claims.append({
+            "child": target,
+            "kind": kind,
+            "skill": round(float(skill), 4),
+            "predictors": preds,
+            "n_train_rows": int(tr.sum()),
+            "n_holdout_rows": int(te.sum()),
+            "train_patients": n_tr_g,
+            "holdout_patients": n_te_g,
+        })
+
+    return {
+        "claims": claims,
+        "unexplained": sorted(unexplained),
+        "skipped": skipped,
+        "identifiers_dropped": identifiers,
+        "columns_considered": len(want),
+        "holdout": {"patients": n_te_g, "train_patients": n_tr_g,
+                    "by": "patient" if group_by else "row"},
+        "note": "skill and importance are both measured on held-out "
+                "patients, so a pattern that lived only in the "
+                "patients the search looked at scores zero by "
+                "construction. No multiple-comparison correction is "
+                "applied or needed: nothing here is a p-value from "
+                "the data that chose it.",
+    }
+
+
+def claims_as_edges(cat: Dict[str, Any],
+                    max_predictors: int = 3) -> List[Dict[str, Any]]:
+    """The catalogue in the shape the existing scorer reads.
+
+    Capped at `max_predictors` ON PURPOSE. The scorer counts a planted
+    relationship as recovered when its columns are a SUBSET of an
+    edge's, so a claim listing twenty predictors would swallow planted
+    pairs by breadth and read as recall. Three is what the old engine
+    could report, which is what makes the two comparable."""
+    out = []
+    for cl in cat.get("claims", []):
+        ps = [p["column"] for p in cl["predictors"][:max_predictors]]
+        if ps:
+            out.append({"child": cl["child"], "parents": ps})
+    return out

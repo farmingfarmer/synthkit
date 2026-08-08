@@ -4,7 +4,7 @@ Synthetic clinical data generator and model-evaluation instrument. Core rule: le
 
 ## Verify before claiming
 
-- Run `python scripts/run_all_smokes.py` before saying anything works. Expect 39 suites, 1072 checks, ALL GREEN.
+- Run `python scripts/run_all_smokes.py` before saying anything works. Expect 40 suites, 1092 checks, ALL GREEN.
 - `py_compile` every Python file you touch.
 - Assert count==1 before every string replacement — verify the edit, not just the compile.
 - Never state a number as measured unless you actually ran it.
@@ -59,7 +59,17 @@ did harm, there.
 
 ## Code
 
-- Python 3.8 target. No walrus, no match statements.
+- Python 3.8 target for the stdlib engine. No walrus, no match
+  statements.
+- **numpy, pandas and scikit-learn are allowed** as of 2026-08-07: the
+  Windows machine can pip install. `synthkit/discover.py` uses them.
+  The older stdlib modules stay stdlib until they are replaced.
+- **`getattr(obj, name, default)` on a library attribute is banned.**
+  `HistGradientBoosting` has no `feature_importances_`; the getattr
+  returned None on every column, the fallback ranked columns by
+  POSITION, and recall read 0% while the model scored 0.93 on the same
+  target. A silent no-op is worse than a crash. Prefer a screen that
+  is the same computation as the measurement, so it cannot no-op.
 - Every new capability gets smoke checks that can actually fail. A test that cannot fail proves nothing.
 - One CLI command per line, zsh-compatible, BSD `sed -i ''`.
 

@@ -96,7 +96,9 @@ def learn_confirmed(rows: List[Dict[str, Any]],
                     multilevel: bool = True,
                     epsilon: float = 0.0,
                     correction: str = "bonferroni",
-                    targets: Optional[List[str]] = None) -> CondNet:
+                    targets: Optional[List[str]] = None,
+                    feature_sources: Optional[
+                        Dict[str, List[str]]] = None) -> CondNet:
     """Discover, confirm out of sample, then refit on everything.
 
     Returns a CondNet whose structure is exactly what reproduced on
@@ -110,9 +112,16 @@ def learn_confirmed(rows: List[Dict[str, Any]],
             "train and {} held out at k={}. Lower k, or learn without "
             "confirmation.".format(n_tr, n_te, k))
 
+    # Engineered features must be declared on BOTH passes. The
+    # scout needs them to keep a feature parent-only and to settle
+    # a product's direction; the refit needs them to REGENERATE
+    # each feature from the data it makes rather than draw it from
+    # a marginal, which would report the pattern without producing
+    # it.
     scout = CondNet(k=k, max_parents=max_parents,
                     correction=correction).learn(
-        tr, group_by=group_by, multilevel=multilevel, targets=targets)
+        tr, group_by=group_by, multilevel=multilevel,
+        targets=targets, feature_sources=feature_sources)
 
     kept, dropped = [], []
     for e in scout.report.get("edges", []):
@@ -138,6 +147,7 @@ def learn_confirmed(rows: List[Dict[str, Any]],
     net = CondNet(k=k, max_parents=max_parents).learn(
         rows, group_by=group_by, multilevel=multilevel,
         epsilon=epsilon, targets=targets,
+        feature_sources=feature_sources,
         hypotheses=(dict(hyp) or None))
 
     net.report["confirmation"] = {

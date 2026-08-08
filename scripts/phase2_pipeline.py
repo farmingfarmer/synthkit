@@ -99,6 +99,25 @@ def main() -> None:
                          "re-test it on another, and keep only what "
                          "reproduces; parameters are then fitted on "
                          "all of them")
+    ap.add_argument("--lags", action="store_true",
+                    help="engineer col__prev features so a LAGGED "
+                         "cross-column effect becomes findable: x at "
+                         "one visit moving y at the next has no "
+                         "representation at all otherwise. The time "
+                         "axis is detected, not declared")
+    ap.add_argument("--products", action="store_true",
+                    help="engineer centred x*y features among the "
+                         "columns a first pass could not explain, so "
+                         "a PURE interaction becomes findable - one "
+                         "whose factors carry no effect on their own "
+                         "is invisible to a pairwise search at any "
+                         "sample size")
+    ap.add_argument("--product-budget", type=int, default=600,
+                    help="cap on manufactured products. At the real "
+                         "extract's width 22 columns came back "
+                         "unexplained, so 231 pairs; 600 covers that "
+                         "completely. Partial coverage is reported, "
+                         "and it IS the ceiling on interaction recall")
     ap.add_argument("--hierarchical", action="store_true",
                     help="generate PATIENTS with a course of "
                          "visits rather than loose rows: fixed "
@@ -236,6 +255,44 @@ def main() -> None:
             rows_in = list(csv.DictReader(f))
         tgts = [label] if label in (rows_in[0] if rows_in else {}) \
             else []
+        # ---- engineered features -------------------------------
+        # Two structural blind spots, both invisible to the search at
+        # any sample size rather than merely hard. A lagged
+        # cross-column effect has NO representation - transition
+        # tables key on a column's own previous value and the
+        # conditional tables see one visit. A pure interaction is
+        # missed because the candidate pool is ranked by total
+        # pairwise dependence, which is the one statistic blind to it.
+        feat_src = None
+        if a.lags and gb:
+            from synthkit.temporal import (detect_time_column,
+                                           add_lag_features)
+            tcol, tkind, tev = detect_time_column(rows_in, gb)
+            print("  time axis: {} ({}) - {}".format(
+                tcol or "file order", tkind, tev))
+            rows_in, lrep = add_lag_features(rows_in, gb, tcol, tkind)
+            print("  {} columns earned a lag feature".format(
+                len(lrep["lagged_columns"])))
+        if a.products:
+            # The two-pass rule: learn once, and pair only what that
+            # pass could NOT explain. Measured at the real extract's
+            # width, 173 modelled columns left 22 unexplained - 231
+            # pairs, which a budget of 400 covers completely.
+            from synthkit.engineered import (add_product_features,
+                                             unexplained_columns)
+            scout = CondNet(k=a.k, max_parents=a.max_parents).learn(
+                rows_in, targets=tgts, group_by=(gb or None),
+                multilevel=bool(a.hierarchical and gb))
+            un = unexplained_columns(scout, rows_in)
+            rows_in, prep = add_product_features(
+                rows_in, un, budget=a.product_budget)
+            print("  {} columns unexplained by the first pass -> {} "
+                  "product features ({:.0%} of possible pairs)".format(
+                      len(un), prep["added"],
+                      prep.get("coverage", 0.0)))
+        if a.lags or a.products:
+            from synthkit.engineered import feature_sources
+            feat_src = feature_sources(rows_in)
         if a.confirm and gb:
             # Structure discovered on one set of patients and re-tested
             # on another, then refitted on all of them. On the real
@@ -246,7 +303,7 @@ def main() -> None:
             net = learn_confirmed(
                 rows_in, gb, k=a.k, max_parents=a.max_parents,
                 multilevel=bool(a.hierarchical), epsilon=a.epsilon,
-                targets=tgts or None)
+                targets=tgts or None, feature_sources=feat_src)
             cf = net.report["confirmation"]
             print("  confirmed on held-out patients: {} of {} "
                   "relationships reproduced ({} train / {} held out)"

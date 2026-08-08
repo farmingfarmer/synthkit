@@ -166,6 +166,12 @@ def _looks_like_date(present, threshold=0.9):
 # lists). These need expanding, not binning — see below.
 LIST_SEP = "; "
 
+# Engineered-feature naming, duplicated from synthkit.temporal and
+# synthkit.engineered on purpose: the model must be able to REGENERATE
+# a feature without importing the modules that manufacture them.
+FEATURE_LAG = "__prev"
+FEATURE_PRODUCT = "__x__"
+
 # How many items from a list column become their own indicator.
 LIST_TOP_ITEMS = 12
 
@@ -181,6 +187,18 @@ def _num(v) -> Optional[float]:
         return float(s.replace(",", "").replace("$", ""))
     except ValueError:
         return None
+
+
+def _median_of(rows, col) -> float:
+    """The centring constant a product feature was built with.
+
+    It must match synthkit.engineered exactly - lower-middle element
+    of the sorted present values - or the regenerated product is
+    centred somewhere else and stops meaning what the learned table
+    says it means."""
+    vals = sorted(v for v in (_num(r.get(col)) for r in rows)
+                  if v is not None)
+    return vals[len(vals) // 2] if vals else 0.0
 
 
 def _rng(seed: int, *parts: str) -> random.Random:
@@ -598,7 +616,7 @@ class Binning:
 class CondNet:
     def __init__(self, k=10, max_parents=3, max_bins=0,
                  alpha=0.01, seed=20260731,
-                 correction="bonferroni"):
+                 correction="bonferroni", search_max_visits=0):
         """max_bins=0 means AUTO: resolution is chosen from how
         much data there is to condition on. Finer bins describe
         each column better but fragment the table — with three
@@ -615,6 +633,9 @@ class CondNet:
         # confirmed on patients the search never saw, which is a
         # referee the threshold cannot be.
         self.correction = correction
+        # Cap on visits per patient used to SEARCH for structure; 0
+        # uses every row. Tables are always fitted on every row.
+        self.search_max_visits = search_max_visits
         self.k = k
         self.max_parents = max_parents
         self.max_bins = max_bins
@@ -1262,6 +1283,32 @@ class CondNet:
         # construction, and 8 more of those 114.
         self.feature_sources = dict(feature_sources or {})
         self.parent_only = set(self.feature_sources) & set(self.order)
+        # HOW a feature is GENERATED, not just how it may be used.
+        #
+        # Parent-only settles learning. Generation is a separate
+        # question and the obvious answer is wrong: a feature left to
+        # the ordinary path gets drawn from its own marginal, which
+        # destroys the very relationship it was built to carry.
+        # `y <- x__prev` would condition y on a previous value
+        # belonging to no patient in particular, and `y <- a__x__b` on
+        # a product of nothing. The model would REPORT the pattern and
+        # the generated data would NOT contain it - the worst of the
+        # two failures, because the report looks like success.
+        #
+        # So a feature is RECOMPUTED during generation from the values
+        # already generated, by the same arithmetic that built it from
+        # the real data.
+        self.feature_recipe: Dict[str, tuple] = {}
+        for f, src in self.feature_sources.items():
+            if f not in self.order:
+                continue
+            src = [s for s in src if s in self.order]
+            if len(src) == 2 and FEATURE_PRODUCT in f:
+                self.feature_recipe[f] = (
+                    "product", src[0], src[1],
+                    _median_of(rows, src[0]), _median_of(rows, src[1]))
+            elif len(src) == 1 and f.endswith(FEATURE_LAG):
+                self.feature_recipe[f] = ("lag", src[0])
 
         hyp = {c: [x for x in v if x in self.order]
                for c, v in (hypotheses or {}).items()
@@ -1274,6 +1321,73 @@ class CondNet:
         alpha_c = (self.alpha / n_tests
                    if getattr(self, "correction", "bonferroni")
                    == "bonferroni" else self.alpha)
+
+        # ---- ROW SUBSAMPLING, FOR THE SEARCH ONLY ----------------
+        #
+        # Measured: one learn pass over 130 columns and 30,566 rows
+        # cost 916 seconds and 1.9GB, while every feature-engineering
+        # stage together cost 8 seconds. The search is the whole bill,
+        # and it is quadratic in width - so engineering features to
+        # find more structure makes it worse, not better.
+        #
+        # The cap is PER PATIENT, and that is the load-bearing choice.
+        # In multilevel mode the between-person G-test is 2 * n_groups
+        # * MI: its n is the PATIENT count, so dropping visits while
+        # keeping every patient leaves that test's power exactly
+        # intact. Sampling rows blindly would have cut patients too
+        # and quietly weakened the test the model leans on most.
+        #
+        # It is NOT free. Two things do degrade, and both are measured
+        # rather than hoped at:
+        #   - n_within falls with the row count, so within-person
+        #     effects are tested with less evidence
+        #   - MI on fewer rows is noisier, and small-sample MI is
+        #     biased UPWARD, which pushes toward false positives
+        #     rather than misses
+        #
+        # Visits are taken EVENLY SPACED, never the first N. A head
+        # keeps only early visits, and a value that drifts across a
+        # course would look steadier than it is.
+        sidx = None
+        cap = getattr(self, "search_max_visits", 0)
+        if cap and self.groups:
+            per = defaultdict(list)
+            for j in range(n):
+                per[self.groups[j]].append(j)
+            sidx = []
+            for js in per.values():
+                if len(js) <= cap:
+                    sidx.extend(js)
+                else:
+                    step = len(js) / float(cap)
+                    sidx.extend(js[int(t * step)] for t in range(cap))
+            sidx.sort()
+            if len(sidx) >= n:
+                sidx = None
+        full = None
+        if sidx is not None:
+            full = (enc, self.enc_within, self.groups, n,
+                    self.n_within)
+            enc = dict((c, [v[j] for j in sidx])
+                       for c, v in enc.items())
+            self.enc_within = dict((c, [v[j] for j in sidx])
+                                   for c, v in self.enc_within.items())
+            self.groups = [self.groups[j] for j in sidx]
+            n = len(sidx)
+            self.n_within = max(n - self.n_groups, 1)
+            self.report_search_sample = {
+                "rows_searched": n, "rows_total": full[3],
+                "max_visits_per_patient": cap,
+                "patients": self.n_groups,
+                "note": "structure was searched on {} of {} rows, "
+                        "capped at {} visits per patient. Every "
+                        "patient is still present, so the "
+                        "between-person test - 2 * patients * MI - "
+                        "keeps its full power; within-person tests "
+                        "and the MI estimates themselves are "
+                        "noisier. Tables are fitted on ALL "
+                        "rows.".format(n, full[3], cap),
+            }
 
         chosen_log = []
         for i, c in enumerate(self.order):
@@ -1312,6 +1426,31 @@ class CondNet:
             candidates = [
                 x for x in candidates
                 if c not in self.feature_sources.get(x, ())]
+            # A PRODUCT may only explain a column whose two factors are
+            # BOTH already available when that column is drawn.
+            #
+            # Not a statistical rule - a generative one. An exclusive-or
+            # is symmetric: any two of {a, b, y} determine the third, so
+            # the search legitimately finds `y <- a__x__b` AND
+            # `b <- a__x__y` AND `a <- b__x__y`. All three are true and
+            # together they are a CYCLE: b needs a__x__y, which needs y,
+            # which needs a__x__b, which needs b. Nothing can be
+            # generated first, and the generic cycle-repair resolved it
+            # by stranding all six columns - which lost the XOR from the
+            # generated data entirely while the model still reported it.
+            #
+            # Position in self.order settles the direction, and settles
+            # it well: the order is by total pairwise dependence, so the
+            # factors with the least to explain come first and the
+            # outcome they interact to produce comes last. Measured on
+            # the XOR fixture this keeps `y <- a__x__b` and drops the
+            # two backwards readings, which is exactly the right choice.
+            pos = {x: j for j, x in enumerate(self.order)}
+            candidates = [
+                x for x in candidates
+                if FEATURE_PRODUCT not in x
+                or all(pos.get(s, len(self.order)) < pos.get(c, -1)
+                       for s in self.feature_sources.get(x, ()))]
             if c in getattr(self, "pair_derived", {}):
                 # its two determinants say everything about it
                 self.parents[c] = [
@@ -1457,6 +1596,13 @@ class CondNet:
                 chosen_log.append(entry)
             self.parents[c] = parents
 
+        # The search is over; everything downstream - conditional
+        # tables, transitions, persistence, privacy accounting - is
+        # fitted on EVERY row. Discovery can afford a sample;
+        # estimating the numbers that get published cannot.
+        if full is not None:
+            enc, self.enc_within, self.groups, n, self.n_within = full
+
         # ---- every parent must precede its child ----
         # Sampling walks the columns in order and looks each one's
         # parents up in what has already been assigned, so a
@@ -1479,6 +1625,22 @@ class CondNet:
                 if pc in indeg:
                     children[pc].append(c)
                     indeg[c] += 1
+        # A PRODUCT feature is arithmetic on two columns of the SAME
+        # row, so both must be drawn before it. This is an ordering
+        # constraint, not an edge and not a finding - it never appears
+        # in self.parents and never counts as a relationship.
+        #
+        # A LAG feature gets no such constraint. It reads the PREVIOUS
+        # visit, which is already complete, so requiring its source
+        # first would be false - and could manufacture a cycle where
+        # the data has none.
+        for f, rec in getattr(self, "feature_recipe", {}).items():
+            if rec[0] != "product" or f not in indeg:
+                continue
+            for s in rec[1:3]:
+                if s in indeg:
+                    children[s].append(f)
+                    indeg[f] += 1
         ready = [c for c in self.order if not indeg[c]]
         ordered = []
         while ready:
@@ -2285,10 +2447,22 @@ class CondNet:
             # whenever a visit did not measure the column, which for
             # a 44%-covered vital is most visits.
             last_seen: Dict[str, str] = {}
+            # The last observed VALUE, as distinct from its bin symbol.
+            # A lag feature is rebuilt from the value, because the
+            # feature's bins were learned separately from its source's
+            # and the two symbol vocabularies need not agree.
+            last_value: Dict[str, float] = {}
             anchors: Dict[str, float] = {}
             for vi in range(max(1, nvis)):
                 assign: Dict[str, str] = {}
                 for c in self.order:
+                    rec = getattr(self, "feature_recipe", {}).get(c)
+                    if rec is not None:
+                        # recomputed, never drawn - see feature_recipe
+                        assign[c] = self._feature_symbol(
+                            c, rec, assign, last_value,
+                            _rng(seed, pi, vi, c, "feat"))
+                        continue
                     if c in traits:               # fixed trait
                         assign[c] = traits[c]
                         continue
@@ -2471,7 +2645,54 @@ class CondNet:
                 for c, sym in assign.items():
                     if sym != MISSING:
                         last_seen[c] = sym
+                        lv = _num(row.get(c))
+                        if lv is not None:
+                            last_value[c] = lv
+        # Engineered features are scaffolding for the search, not
+        # columns of the user's data. They carried their relationships
+        # into the drawn values and have no business in the output.
+        feats = set(getattr(self, "parent_only", ()) or ())
+        for r in out:
+            for f in feats:
+                r.pop(f, None)
         return out
+
+    def _bin_middle(self, col, sym, rng) -> Optional[float]:
+        """A representative value for a symbol: the middle of its bin.
+
+        Products have to be rebuilt while only SYMBOLS exist - the row
+        is decoded in a second pass - so the factors are stood in for
+        by their bin middles. The product is then re-binned itself, at
+        the same coarseness, so the approximation lands in the right
+        bin nearly always. It costs a little resolution inside a bin
+        and buys a product that actually tracks the drawn factors."""
+        b = self.binnings.get(col)
+        if b is None or sym == MISSING or sym is None:
+            return None
+        try:
+            return _num(b.decode(sym, rng, 0.5))
+        except Exception:
+            return None
+
+    def _feature_symbol(self, feat, rec, assign, last_value, rng):
+        """Rebuild an engineered feature from what has been generated.
+
+        Returns MISSING when the inputs are not there - a first visit
+        has no previous value, and a product whose factor was not
+        drawn has no product. Blank is the honest answer and the child
+        backs off to a thinner table, which is what happens on the
+        real data too."""
+        b = self.binnings.get(feat)
+        if b is None:
+            return MISSING
+        if rec[0] == "lag":
+            v = last_value.get(rec[1])
+        else:
+            va = self._bin_middle(rec[1], assign.get(rec[1]), rng)
+            vb = self._bin_middle(rec[2], assign.get(rec[2]), rng)
+            v = (None if va is None or vb is None
+                 else (va - rec[3]) * (vb - rec[4]))
+        return MISSING if v is None else b.encode(v)
 
     def log_likelihood(self, row: Dict[str, Any]) -> float:
         """How probable this model finds a given record.
