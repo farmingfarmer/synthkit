@@ -192,7 +192,7 @@ def main():
     d3 = pd.DataFrame(rows3)
     b3 = B.build(d3, discover(d3, group_by="person_id", seed=1),
                  group_by="person_id")
-    _o, _par, drops = _order(resolve(b3))
+    _o, _par, drops, _rep = _order(resolve(b3))
     check("three mutually predictive columns produce drops at all, or "
           "the check below proves nothing",
           len(drops) >= 1)
@@ -218,6 +218,55 @@ def main():
           "satisfy rather than discard the relationship whole",
           any(d.get("partial") for d in drops)
           or all(d["harmless"] for d in drops))
+
+    # ---- CO-PARENTS must not come out inverted -------------------
+    # Two columns that are both parents of a third are drawn
+    # independently unless something links them, and when a cycle
+    # trims one relationship down to a single parent it keeps a curve
+    # that was measured CONDITIONAL on the parent just removed. Mean
+    # arterial pressure is (S + 2D)/3, so holding it fixed diastolic
+    # FALLS as systolic rises - a genuinely negative curve. Used
+    # alone, it generated a correlation of -0.720 where the source
+    # had +0.888.
+    r4 = np.random.RandomState(11)
+    rows4 = []
+    for p in range(300):
+        for _v in range(6):
+            sbp = r4.normal(125, 18)
+            dbp = 0.55 * sbp + r4.normal(0, 5)
+            rows4.append({"person_id": "P{:04d}".format(p),
+                          "systolic": round(sbp, 1),
+                          "diastolic": round(dbp, 1),
+                          "map": round((sbp + 2 * dbp) / 3
+                                       + r4.normal(0, 1), 1)})
+    d4 = pd.DataFrame(rows4)
+    b4 = B.build(d4, discover(d4, group_by="person_id", seed=3),
+                 group_by="person_id")
+    rev = [e.get("reverses_when_controlled")
+           for rel in b4["relationships"]
+           for e in (rel["evidence"].get("effect") or {}).values()]
+    check("a parent whose effect REVERSES once the others are held "
+          "fixed is flagged - that disagreement is a finding, not an "
+          "inconvenience", any(rev))
+    check("...and each parent carries a curve measured on its OWN, "
+          "which is what a sampler needs when the others are gone",
+          any(e.get("alone")
+              for rel in b4["relationships"]
+              for e in (rel["evidence"].get("effect") or {}).values()))
+    g4 = generate(b4, n_patients=300, seed=5)
+
+    def sgn_corr(frame, x, y):
+        t = pd.DataFrame(
+            {"x": pd.to_numeric(frame[x], errors="coerce"),
+             "y": pd.to_numeric(frame[y], errors="coerce")}).dropna()
+        return float(t.x.corr(t.y))
+    for i, j in (("systolic", "diastolic"), ("systolic", "map"),
+                 ("diastolic", "map")):
+        srcc, genc = sgn_corr(d4, i, j), sgn_corr(g4, i, j)
+        check("{} against {} keeps its SIGN and most of its strength "
+              "- inverted output is worse than absent, because it "
+              "reads as a finding".format(i, j),
+              srcc * genc > 0 and abs(genc) > 0.5 * abs(srcc))
 
     # ---- a BENT curve must not drag the column's centre ----------
     # The systematic term is added as (curve - centre). Centring on

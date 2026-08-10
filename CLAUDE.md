@@ -4,7 +4,7 @@ Synthetic clinical data generator and model-evaluation instrument. Core rule: le
 
 ## Verify before claiming
 
-- Run `python scripts/run_all_smokes.py` before saying anything works. Expect 46 suites, 1239 checks, ALL GREEN.
+- Run `python scripts/run_all_smokes.py` before saying anything works. Expect 46 suites, 1244 checks, ALL GREEN.
 - `py_compile` every Python file you touch.
 - Assert count==1 before every string replacement — verify the edit, not just the compile.
 - **Read a file before Write overwrites it.** `Write` says "updated"
@@ -94,6 +94,14 @@ direction that stops work happening.
   a loop, a category with no section at all, so ten relationships lost
   a parent and nobody was told. An omitted category is invisible in
   any other way.
+- **A partial-dependence curve is CONDITIONAL on the other parents,
+  and with correlated columns that can flip its sign.** Mean arterial
+  pressure is (S + 2D)/3, so holding it fixed, diastolic falls as
+  systolic rises. Using that curve to generate diastolic from systolic
+  alone produced -0.720 where the source had +0.888. Inverted output
+  is worse than absent: it reads as a finding. Every parent also gets
+  a curve measured ON ITS OWN, and generation uses that whenever the
+  parents it was conditioned on are not all present.
 - **An internal contradiction is the signal.** Every measurement error
   here was caught by two numbers disagreeing, never by review — 0.735
   against an asymptote of 0.38; a negative rho that cannot exist.

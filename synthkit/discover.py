@@ -431,6 +431,53 @@ def discover(df: pd.DataFrame,
                 p["effect"].update(describe(cur, p["column"], target,
                                             spread))
 
+                # AND THE SAME PARENT ON ITS OWN.
+                #
+                # A partial-dependence curve is conditional on every
+                # other column the model can see, and with correlated
+                # parents that is not the relationship a reader means
+                # - nor one a sampler can use alone. Measured:
+                # mean arterial pressure is (S + 2D)/3, so holding it
+                # fixed, diastolic FALLS as systolic rises. The
+                # conditional curve is genuinely negative, and using
+                # it to generate diastolic from systolic by itself
+                # produced a correlation of -0.720 where the source
+                # had +0.888.
+                #
+                # So each parent also gets a curve from a model that
+                # sees ONLY that parent. It is what generation uses
+                # whenever the other parents are not there, and the
+                # two disagreeing in SIGN is itself a finding.
+                mcols = [c for c in groups[p["column"]]
+                         if c in Xtr.columns]
+                if mcols:
+                    try:
+                        mm = (HistGradientBoostingRegressor
+                              if kind == "regression"
+                              else HistGradientBoostingClassifier)(
+                            max_iter=40, random_state=seed,
+                            early_stopping=False,
+                            categorical_features="from_dtype")
+                        mm.fit(Xtr[mcols], ytr)
+                        cm = effect_curve(mm, Xp[mcols], mcols,
+                                          X_all[p["column"]], kind)
+                    except Exception:
+                        cm = None
+                    if cm:
+                        cm["centre"] = round(curve_centre(
+                            cm, X_all[p["column"]]), 6)
+                        d0 = describe(cm, p["column"], target, spread)
+                        cm["shape"] = d0["shape"]
+                        cm["description"] = d0["description"]
+                        p["effect"]["alone"] = cm
+                        a_r = np.asarray(cm["response"], dtype=float)
+                        c_r = np.asarray(cur["response"], dtype=float)
+                        if (a_r[-1] - a_r[0]) * (c_r[-1] - c_r[0]) < 0:
+                            p["effect"]["reverses_when_controlled"] = (
+                                "on its own {} moves the other way; "
+                                "holding the other parents fixed "
+                                "reverses it".format(p["column"]))
+
             # DOES THE COMBINATION MOVE THE CHILD FURTHER THAN EITHER
             # PARENT ALONE? That is a measurement, and it is the only
             # trustworthy trigger.

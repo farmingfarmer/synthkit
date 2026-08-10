@@ -228,6 +228,7 @@ def _order(bp: Dict[str, Any]):
                 kept.append(r)
             elif okp:
                 trimmed = dict(r)
+                trimmed["_original_parents"] = list(r["parents"])
                 trimmed["parents"] = okp
                 ev = dict(trimmed.get("evidence") or {})
                 # a surface names a pair; with half of it gone the
@@ -256,6 +257,78 @@ def _order(bp: Dict[str, Any]):
         order.append(c)
         placed.add(c)
 
+    # PAIR REPAIR: reconnect what the ordering pulled apart.
+    #
+    # Two columns that are both PARENTS of a third are drawn
+    # independently - nothing links them - so a dependence the report
+    # showed the user is absent from the data. On the real extract
+    # that cost systolic against diastolic blood pressure, which are
+    # co-parents of mean arterial pressure and would have come out
+    # uncorrelated; the old engine lost the same pair the same way and
+    # it read 0.66 down to 0.15.
+    #
+    # So after the order is fixed, every pair the catalogue related
+    # but the kept graph does not carry is offered a direct edge,
+    # oriented to respect the order already chosen. It uses that
+    # pair's own curve, never a surface, since only one parent is
+    # involved.
+    covered = set()
+    for c, rs in parents.items():
+        for r in rs:
+            for p in r["parents"]:
+                covered.add(frozenset([c, p]))
+    pos = dict((c, i) for i, c in enumerate(order))
+    want = {}
+    for r in rels:
+        ch = r.get("child")
+        sk = float((r.get("evidence") or {}).get(
+            "skill_out_of_sample") or 0.0)
+        for p in (r.get("parents") or []):
+            if ch in cols and p in cols and ch != p:
+                key = frozenset([ch, p])
+                if key not in want or sk > want[key][0]:
+                    want[key] = (sk, r)
+    repaired = []
+    for key in sorted(want, key=lambda k: -want[k][0]):
+        if key in covered:
+            continue
+        a, b = tuple(key)
+        # the one drawn later becomes the child, so the order holds
+        if pos.get(a, -1) < pos.get(b, -1):
+            par2, child2 = a, b
+        else:
+            par2, child2 = b, a
+        src = None
+        for r2 in rels:
+            if r2.get("child") != child2:
+                continue
+            if par2 in ((r2.get("evidence") or {}).get("effect") or {}):
+                src = r2
+                break
+        if src is None:
+            continue
+        add = dict(src)
+        add["_original_parents"] = list(src.get("parents") or [])
+        add["parents"] = [par2]
+        ev = dict(add.get("evidence") or {})
+        ev["interaction"] = None
+        add["evidence"] = ev
+        parents.setdefault(child2, []).append(add)
+        covered.add(key)
+        repaired.append({"child": child2, "parent": par2,
+                         "skill": round(want[key][0], 4)})
+
+    # What a trimmed parent actually cost, now that repair has run. A
+    # parent removed from one relationship but reconnected elsewhere
+    # is not missing from the data, and reporting it as a loss
+    # overstates the damage - `age_at_visit lost year_of_birth` while
+    # `year_of_birth <- age_at_visit` was kept all along.
+    for d in dropped:
+        still = [p for p in d["parents"]
+                 if frozenset([d["child"], p]) in covered]
+        d["reconnected"] = still
+        d["parents_lost"] = [p for p in d["parents"] if p not in still]
+
     # WHICH CHILDREN ARE LEFT WITH NOTHING. A dropped mirror is
     # harmless - the same relationship is generated the other way
     # round. A child that loses EVERY parent is drawn from its own
@@ -264,7 +337,7 @@ def _order(bp: Dict[str, Any]):
     # worth naming.
     for d in dropped:
         d["child_keeps_parents"] = bool(parents.get(d["child"]))
-    return order, parents, dropped
+    return order, parents, dropped, repaired
 
 
 def generate(blueprint: Dict[str, Any],
@@ -277,7 +350,7 @@ def generate(blueprint: Dict[str, Any],
     rng = np.random.RandomState(seed)
     cols = bp.get("columns") or {}
     pat = bp.get("patients") or {}
-    order, parents, dropped = _order(bp)
+    order, parents, dropped, repaired = _order(bp)
 
     n_pat = int(n_patients or pat.get("target_count")
                 or pat.get("count") or 100)
@@ -379,6 +452,7 @@ def generate(blueprint: Dict[str, Any],
             "relationships_applied": sum(len(v) for v in
                                          parents.values()),
             "edges_dropped": dropped,
+            "pairs_reconnected": repaired,
             "not_modelled": [
                 "a relationship between two columns is applied "
                 "within a visit; a lagged cross-column effect is "
@@ -407,10 +481,21 @@ def _apply_numeric(c, spec, m, base, rels, out):
             if a in out and b in out:
                 systematic += s * _surface_delta(it, out[a], out[b])
                 done.update([a, b])
+        # WHICH CURVE. A conditional curve is only meaningful when
+        # the parents it was conditioned on are all present. Where a
+        # cycle trimmed them away, the parent must use the curve
+        # measured on its own - otherwise a relationship generates
+        # with the wrong SIGN, which is what happened to systolic
+        # against diastolic through mean arterial pressure.
+        full = len(r["parents"]) >= len(
+            (r.get("_original_parents") or r["parents"]))
         for p in r["parents"]:
             if p in done or p not in out or p not in eff:
                 continue
-            systematic += s * _curve_delta(eff[p], out[p])
+            e = eff[p]
+            if (not full or len(r["parents"]) == 1) and e.get("alone"):
+                e = e["alone"]
+            systematic += s * _curve_delta(e, out[p])
         sk = float(ev.get("skill_out_of_sample") or 0.0)
         explained = max(explained, min(max(sk, 0.0), 0.99) * min(s, 1.0))
     shrink = float(np.sqrt(max(0.0, 1.0 - explained)))

@@ -258,6 +258,10 @@ def build(df: pd.DataFrame,
                             "turning_point"),
                         "centre": (p.get("effect") or {}).get(
                             "centre"),
+                        "alone": (p.get("effect") or {}).get("alone"),
+                        "reverses_when_controlled": (
+                            p.get("effect") or {}).get(
+                                "reverses_when_controlled"),
                         "grid": (p.get("effect") or {}).get("grid"),
                         "response": (p.get("effect") or {}).get(
                             "response"),
