@@ -431,3 +431,60 @@ def additive_departure(surf: Dict[str, Any], eff_a: Optional[dict],
     additive = float(r.mean()) + ca[:, None] + cb[None, :]
     d = r - additive
     return float(d.max() - d.min())
+
+
+def curve_centre(curve: Dict[str, Any], values) -> float:
+    """The curve's average over the parent's ACTUAL distribution.
+
+    Not the average over the grid. The grid is uniform in QUANTILE
+    space, so for any curve that bends, the two differ - and the
+    difference lands directly on the generated column's mean, because
+    the systematic term is added as (curve - centre) and a centre that
+    is off by d shifts every row by d.
+
+    Measured on planted curves, as a share of the child's own spread:
+
+        linear        0.00   grid centre 15.287, real centre 15.273
+        saturating   -0.05   grid centre 16.459, real centre 16.724
+        U-shaped     -0.08   grid centre  9.197, real centre  8.535
+
+    The shift matched the mechanism exactly, and straight lines were
+    untouched - which is what a bend-driven error looks like.
+
+    Stored from the SOURCE distribution rather than recomputed at
+    generation time on purpose: recentring on the generated population
+    would force the child's mean to stay put even when a user
+    deliberately shifts the parent, silently cancelling the dial."""
+    grid, resp = curve.get("grid"), curve.get("response")
+    if not grid or not resp:
+        return 0.0
+    r = np.asarray(resp, dtype=float)
+    if isinstance(grid[0], str):
+        table = dict(zip([str(g) for g in grid], r))
+        seen = [table[str(x)] for x in pd.Series(values).dropna()
+                if str(x) in table]
+        return float(np.mean(seen)) if seen else float(r.mean())
+    pv = pd.to_numeric(pd.Series(values), errors="coerce").to_numpy(
+        dtype=float)
+    pv = pv[~np.isnan(pv)]
+    if pv.size == 0:
+        return float(r.mean())
+    return float(np.mean(np.interp(pv, np.asarray(grid, dtype=float),
+                                   r, left=r[0], right=r[-1])))
+
+
+def surface_centre(surf: Dict[str, Any], va, vb) -> float:
+    """The joint surface's average over the parents' real pairs."""
+    ga = np.asarray(surf["grid_a"], dtype=float)
+    gb = np.asarray(surf["grid_b"], dtype=float)
+    r = np.asarray(surf["response"], dtype=float)
+    a = pd.to_numeric(pd.Series(va), errors="coerce").to_numpy(
+        dtype=float)
+    b = pd.to_numeric(pd.Series(vb), errors="coerce").to_numpy(
+        dtype=float)
+    ok = ~(np.isnan(a) | np.isnan(b))
+    if not ok.any():
+        return float(r.mean())
+    ia = np.abs(a[ok][:, None] - ga[None, :]).argmin(axis=1)
+    ib = np.abs(b[ok][:, None] - gb[None, :]).argmin(axis=1)
+    return float(np.mean(r[ia, ib]))

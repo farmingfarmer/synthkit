@@ -54,8 +54,9 @@ import pandas as pd
 from sklearn.ensemble import (HistGradientBoostingClassifier,
                               HistGradientBoostingRegressor)
 
-from .shapes import (FLAT_SHARE, additive_departure, describe,
-                     describe_joint, effect_curve, joint_surface)
+from .shapes import (FLAT_SHARE, additive_departure, curve_centre,
+                     describe, describe_joint, effect_curve,
+                     joint_surface, surface_centre)
 
 # HistGradientBoosting bins categoricals into at most 255 slots.
 MAX_LEVELS = 200
@@ -425,6 +426,8 @@ def discover(df: pd.DataFrame,
                 if cur is None:
                     continue
                 p["effect"] = dict(cur)
+                p["effect"]["centre"] = round(
+                    curve_centre(cur, X_all[p["column"]]), 6)
                 p["effect"].update(describe(cur, p["column"], target,
                                             spread))
 
@@ -501,6 +504,9 @@ def discover(df: pd.DataFrame,
                               FLAT_SHARE * max(spread, 1e-9))
                     joint["pair"] = [top[0]["column"],
                                      top[1]["column"]]
+                    joint["centre"] = round(surface_centre(
+                        surf, X_all[top[0]["column"]],
+                        X_all[top[1]["column"]]), 6)
                     if dep is not None and dep >= bar:
                         interaction = joint
 

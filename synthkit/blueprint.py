@@ -256,6 +256,8 @@ def build(df: pd.DataFrame,
                             "effect_size"),
                         "turning_point": (p.get("effect") or {}).get(
                             "turning_point"),
+                        "centre": (p.get("effect") or {}).get(
+                            "centre"),
                         "grid": (p.get("effect") or {}).get("grid"),
                         "response": (p.get("effect") or {}).get(
                             "response"),

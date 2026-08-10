@@ -171,6 +171,48 @@ def main():
           "if the joint surface is used",
           g_gap > 0.5 * s_gap)
 
+    # ---- a BENT curve must not drag the column's centre ----------
+    # The systematic term is added as (curve - centre). Centring on
+    # the mean over the GRID - uniform in quantile space - is not the
+    # mean over the parent's real distribution whenever the curve
+    # bends, and the difference lands straight on the generated mean.
+    # Measured before the fix: a U-shape came out 0.08 of a standard
+    # deviation low while a straight line was untouched, which is
+    # exactly what a bend-driven error looks like.
+    r2 = np.random.RandomState(21)
+    rows2 = []
+    for p in range(280):
+        for _v in range(6):
+            xx = r2.uniform(0, 10)
+            rows2.append({"person_id": "P{:04d}".format(p),
+                          "xx": round(xx, 4),
+                          "y_bend": round((xx - 5) ** 2
+                                          + r2.normal(0, 1), 4)})
+    d2 = pd.DataFrame(rows2)
+    c2 = discover(d2, group_by="person_id", seed=1)
+    b2 = B.build(d2, c2, group_by="person_id")
+    eff = None
+    for rel in b2["relationships"]:
+        if rel["child"] == "y_bend":
+            eff = (rel["evidence"].get("effect") or {}).get("xx")
+    check("a bent curve stores a centre taken over the parent's REAL "
+          "distribution, which differs from the grid mean - if these "
+          "matched, the fix would be doing nothing",
+          eff is not None and eff.get("centre") is not None
+          and abs(eff["centre"] - float(np.mean(eff["response"])))
+          > 0.05 * float(np.std(eff["response"])))
+    g2 = generate(b2, n_patients=280, seed=9)
+    src_y = pd.to_numeric(d2["y_bend"])
+    gen_y = pd.to_numeric(g2["y_bend"], errors="coerce")
+    check("...so the generated column keeps its CENTRE, within a "
+          "tenth of its own spread",
+          abs(float(gen_y.mean()) - float(src_y.mean()))
+          < 0.10 * float(src_y.std()))
+    check("...and its spread too, so recentring did not quietly "
+          "rescale it",
+          abs(float(gen_y.std()) - float(src_y.std()))
+          < 0.25 * float(src_y.std()))
+
     # ---- the round trip -------------------------------------------
     # Everything above can pass on data with correct-looking columns
     # and no usable structure. Rediscovery is the only check that the

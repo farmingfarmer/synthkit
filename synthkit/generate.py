@@ -96,7 +96,10 @@ def _curve_delta(eff: Dict[str, Any], parent_vals) -> np.ndarray:
     if not grid or not resp or len(grid) != len(resp):
         return np.zeros(len(parent_vals))
     r = np.asarray(resp, dtype=float)
-    centre = float(r.mean())
+    # The curve's average over the parent's REAL distribution, stored
+    # at build time. Falling back to the grid mean shifts the child's
+    # centre by the amount the curve bends - see shapes.curve_centre.
+    centre = float(eff.get("centre", r.mean()))
     if isinstance(grid[0], str):
         table = dict(zip([str(g) for g in grid], r))
         return np.asarray([table.get(str(v), centre) - centre
@@ -113,7 +116,7 @@ def _surface_delta(it: Dict[str, Any], va, vb) -> np.ndarray:
     ga = np.asarray(it["grid_a"], dtype=float)
     gb = np.asarray(it["grid_b"], dtype=float)
     r = np.asarray(it["response"], dtype=float)
-    centre = float(r.mean())
+    centre = float(it.get("centre", r.mean()))
     a = pd.to_numeric(pd.Series(va), errors="coerce").to_numpy(
         dtype=float)
     b = pd.to_numeric(pd.Series(vb), errors="coerce").to_numpy(
