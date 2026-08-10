@@ -54,8 +54,8 @@ import pandas as pd
 from sklearn.ensemble import (HistGradientBoostingClassifier,
                               HistGradientBoostingRegressor)
 
-from .shapes import (describe, describe_joint,
-                     effect_curve, joint_surface)
+from .shapes import (FLAT_SHARE, additive_departure, describe,
+                     describe_joint, effect_curve, joint_surface)
 
 # HistGradientBoosting bins categoricals into at most 255 slots.
 MAX_LEVELS = 200
@@ -444,7 +444,31 @@ def discover(df: pd.DataFrame,
             # does not depend on a shape name surviving noise. A
             # genuine interaction moves the child much further when
             # both parents move than when either does.
-            top = preds[:2]
+            # EVERY PAIR AMONG THE TOP THREE, not just the top two.
+            #
+            # `body_mass_index_measured <- height,
+            # peripheral_pulse_rate, temperature_oral` could never
+            # have its pulse-by-temperature pair examined, because
+            # only the leading two parents were ever put on a surface
+            # and height took one of those slots permanently. Screened
+            # coarsely, then the best pair measured properly - the
+            # same two-budget shape the importance screen uses.
+            cands = preds[:max(shape_top, 2)]
+            best_pair, best_dep = None, 0.0
+            for ia in range(len(cands)):
+                for ib in range(ia + 1, len(cands)):
+                    pa, pb = cands[ia], cands[ib]
+                    rough = joint_surface(
+                        model, Xp, groups[pa["column"]],
+                        groups[pb["column"]], X_all[pa["column"]],
+                        X_all[pb["column"]], kind, n=5)
+                    if rough is None:
+                        continue
+                    d = additive_departure(rough, pa.get("effect"),
+                                           pb.get("effect"))
+                    if d is not None and d > best_dep:
+                        best_dep, best_pair = d, (pa, pb)
+            top = list(best_pair) if best_pair else []
             if len(top) == 2:
                 surf = joint_surface(
                     model, Xp, groups[top[0]["column"]],
@@ -462,9 +486,41 @@ def discover(df: pd.DataFrame,
                     joint["beyond_single"] = (
                         round(joint["effect_size"] / alone, 3)
                         if alone > 0 else None)
-                    if joint["effect_size"] > \
-                            interaction_ratio * max(alone, 1e-9):
+                    dep = additive_departure(
+                        surf, top[0].get("effect"),
+                        top[1].get("effect"))
+                    joint["departure_from_additive"] = (
+                        None if dep is None else round(dep, 6))
+                    # An interaction is a departure from ADDITIVITY,
+                    # not a longer journey. Judged against the larger
+                    # of a quarter of the best single effect and the
+                    # floor below which any curve is called flat, so
+                    # it can fire beside a dominant parent and cannot
+                    # fire on noise.
+                    bar = max(0.25 * alone,
+                              FLAT_SHARE * max(spread, 1e-9))
+                    joint["pair"] = [top[0]["column"],
+                                     top[1]["column"]]
+                    if dep is not None and dep >= bar:
                         interaction = joint
+
+            # A PARENT THAT EARNS IMPORTANCE AND EXPLAINS NOTHING is
+            # said to be unresolved, rather than described in words
+            # that sound like an explanation. "carried by something
+            # other than this parent alone" reads as a finding and is
+            # not one.
+            named = set((interaction or {}).get("pair") or [])
+            for p in preds[:shape_top]:
+                e = p.get("effect") or {}
+                if e.get("shape") == "flat" and \
+                        p["column"] not in named:
+                    e["unresolved"] = True
+                    e["description"] = (
+                        "{} shows no readable response to {} on its "
+                        "own, and no pair this report tested explains "
+                        "it either - treat {} as unresolved rather "
+                        "than unimportant".format(
+                            target, p["column"], p["column"]))
         claims.append({
             "child": target,
             "kind": kind,

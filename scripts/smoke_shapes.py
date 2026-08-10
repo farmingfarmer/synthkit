@@ -199,6 +199,50 @@ def main():
           "about which shape name survived the noise",
           it is not None and it["beyond_single"] > 3.0)
 
+    # AN INTERACTION HIDING UNDER A DOMINANT MAIN EFFECT.
+    # The real extract produced exactly this and the report explained
+    # nothing: `body_mass_index_measured <- height,
+    # peripheral_pulse_rate, temperature_oral` named height saturating
+    # and then said only that the other two were "carried by something
+    # other than this parent alone". Two separate causes - a trigger
+    # that compared surface TRAVEL against the best single curve,
+    # which a dominant parent makes unclearable, and a pair search
+    # that only ever looked at the top two parents, one slot of which
+    # height held permanently.
+    r2 = np.random.RandomState(8)
+    rows2 = []
+    for p in range(300):
+        for _v in range(8):
+            big = r2.uniform(0, 10)
+            aa, bb = r2.uniform(0, 1), r2.uniform(0, 1)
+            rows2.append({
+                "person_id": "P{:04d}".format(p),
+                "big": round(big, 4), "a2": round(aa, 4),
+                "b2": round(bb, 4),
+                "y2": round(5.0 * big
+                            + 6.0 * ((aa > 0.5) != (bb > 0.5))
+                            + r2.normal(0, 0.5), 4)})
+    c2 = discover(pd.DataFrame(rows2), group_by="person_id", seed=2)
+    cl2 = [c for c in c2["claims"] if c["child"] == "y2"]
+    check("a dominant main effect is found beside the interaction, "
+          "and it is large enough that a travel-based trigger could "
+          "never clear it",
+          cl2 and max((p["effect"]["effect_size"]
+                       for p in cl2[0]["predictors"]), default=0) > 30)
+    it2 = cl2[0].get("interaction") if cl2 else None
+    check("the interaction is still found UNDER it, because the "
+          "trigger is departure from ADDITIVITY rather than distance "
+          "travelled",
+          it2 is not None and set(it2["pair"]) == {"a2", "b2"})
+    check("...and the departure is close to the interaction actually "
+          "planted, so the number means something",
+          it2 is not None
+          and abs(it2["departure_from_additive"] - 6.0) < 2.0)
+    check("...which required testing a pair NEITHER of which is the "
+          "strongest parent - the top two would have been the "
+          "dominant one and a factor",
+          it2 is not None and "big" not in it2["pair"])
+
     lin = [c for c in cat["claims"] if c["child"] == "y_rise"]
     check("a plainly ADDITIVE relationship reports no interaction, so "
           "the surface is not offered for everything with two parents",

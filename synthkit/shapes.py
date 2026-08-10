@@ -388,3 +388,46 @@ def describe_joint(surf: Dict[str, Any], a: str, b: str,
                         "high_low": round(hl, 6),
                         "high_high": round(hh, 6)},
             "effect_size": round(rng, 6)}
+
+
+def additive_departure(surf: Dict[str, Any], eff_a: Optional[dict],
+                       eff_b: Optional[dict]) -> Optional[float]:
+    """How far the joint response departs from the two curves ADDED.
+
+    This is what an interaction IS: the pair doing something their
+    separate effects do not predict. The first trigger asked instead
+    whether the surface travelled further than the better single
+    curve, which works only when neither parent has much of a main
+    effect - the exclusive-or case it was written against.
+
+    On the real extract it failed the moment a strong parent was
+    present. `body_mass_index_measured <- height,
+    peripheral_pulse_rate, temperature_oral` reported height
+    saturating and then said of both others only that the effect was
+    "carried by something other than this parent alone" - importance
+    earned, nothing explained, and no surface offered, because
+    height's own curve was far too big for the travel test to clear.
+
+    Returns the range of (surface - additive prediction), in the
+    child's own units."""
+    if not eff_a or not eff_b:
+        return None
+    ga = np.asarray(surf["grid_a"], dtype=float)
+    gb = np.asarray(surf["grid_b"], dtype=float)
+    r = np.asarray(surf["response"], dtype=float)
+    if r.ndim != 2:
+        return None
+
+    def centred(eff, at):
+        g, y = eff.get("grid"), eff.get("response")
+        if not g or not y or isinstance(g[0], str):
+            return None
+        y = np.asarray(y, dtype=float)
+        return np.interp(at, np.asarray(g, dtype=float), y) - y.mean()
+
+    ca, cb = centred(eff_a, ga), centred(eff_b, gb)
+    if ca is None or cb is None:
+        return None
+    additive = float(r.mean()) + ca[:, None] + cb[None, :]
+    d = r - additive
+    return float(d.max() - d.min())
