@@ -159,11 +159,15 @@ def _order(bp: Dict[str, Any]):
         if not ps:
             continue
         # skip the mirror image of an edge already taken
+        skill = float((r.get("evidence") or {}).get(
+            "skill_out_of_sample") or 0.0)
         if any(frozenset([child, p]) in used for p in ps) and \
                 len(ps) == 1:
             dropped.append({"child": child, "parents": ps,
+                            "skill": round(skill, 4),
                             "why": "the reverse direction was already "
-                                   "taken, and both cannot hold"})
+                                   "taken, and both cannot hold",
+                            "harmless": True})
             continue
         parents.setdefault(child, [])
         parents[child].append(r)
@@ -197,12 +201,25 @@ def _order(bp: Dict[str, Any]):
             else:
                 dropped.append({
                     "child": c, "parents": r["parents"],
+                    "skill": round(float(
+                        (r.get("evidence") or {}).get(
+                            "skill_out_of_sample") or 0.0), 4),
                     "why": "would close a cycle; a cycle cannot be "
                            "sampled, and losing one edge beats "
-                           "failing"})
+                           "failing",
+                    "harmless": False})
         parents[c] = kept
         order.append(c)
         placed.add(c)
+
+    # WHICH CHILDREN ARE LEFT WITH NOTHING. A dropped mirror is
+    # harmless - the same relationship is generated the other way
+    # round. A child that loses EVERY parent is drawn from its own
+    # marginal alone, so a relationship the report showed the user is
+    # simply not in the file they were handed. Those are the ones
+    # worth naming.
+    for d in dropped:
+        d["child_keeps_parents"] = bool(parents.get(d["child"]))
     return order, parents, dropped
 
 

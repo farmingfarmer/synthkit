@@ -181,6 +181,15 @@ def main():
     (out / "blueprint.json").write_text(
         json.dumps(bp, indent=1), encoding="utf-8")
     (out / "findings.txt").write_text(render(bp), encoding="utf-8")
+    # A MIRROR IS NEVER A LOSS, whatever else is true of it. The
+    # relationship is generated the other way round, so a mirrored
+    # edge whose child kept no other parent still reaches the data.
+    orphans = [d for d in _will_drop(bp)
+               if not d.get("harmless")
+               and not d.get("child_keeps_parents")]
+    if orphans:
+        say("{} relationship(s) will NOT reach the generated data - "
+            "see the end of findings.txt".format(len(orphans)))
     say("wrote catalogue.json, blueprint.json, findings.txt")
 
     if not a.generate:
@@ -214,6 +223,17 @@ def main():
     say("clustering within 0.15 on {}/{} partly-covered "
         "columns".format(s["cluster_ok"], s["partly_covered"]))
     say("done -> {}".format(out))
+
+
+def _will_drop(bp):
+    """What the sampler will have to discard, worked out before it
+    runs, so the reader is told in the document they actually read."""
+    try:
+        from synthkit.blueprint import resolve
+        from synthkit.generate import _order
+        return _order(resolve(bp))[2]
+    except Exception:
+        return []
 
 
 def render(bp):
@@ -303,6 +323,38 @@ def render(bp):
     L.append("")
     L.append("COLUMNS NOTHING EXPLAINED: {}".format(
         ", ".join(ex.get("unexplained") or []) or "(none)"))
+    dropped = _will_drop(bp)
+    orphans = [d for d in dropped if not d.get("harmless")
+               and not d.get("child_keeps_parents")]
+    mirrors = [d for d in dropped if d.get("harmless")]
+    L.append("")
+    L.append("WHAT WILL NOT REACH THE GENERATED DATA")
+    L.append("-" * 60)
+    L.append("A catalogue may hold a relationship in both directions "
+             "and may hold loops.")
+    L.append("A sampler cannot: something has to be drawn first. "
+             "These were dropped.")
+    L.append("")
+    if mirrors:
+        L.append("{} were mirrors of an edge already taken - the same "
+                 "relationship,".format(len(mirrors)))
+        L.append("generated the other way round. Nothing is lost.")
+        L.append("")
+    if orphans:
+        L.append("{} left their column with NO parent at all. Each of "
+                 "these was shown".format(len(orphans)))
+        L.append("above as a finding and is NOT in generated.csv - "
+                 "the column is drawn from")
+        L.append("its own distribution and nothing else:")
+        L.append("")
+        for d in sorted(orphans, key=lambda x: -x.get("skill", 0)):
+            L.append("    {} <- {}   ({:.0%}, {})".format(
+                d["child"], ", ".join(d["parents"]),
+                d.get("skill", 0.0), d["why"].split(";")[0]))
+        L.append("")
+    if not dropped:
+        L.append("(nothing was dropped)")
+        L.append("")
     L.append("")
     L.append("TO CHANGE ANY OF IT, edit blueprint.json. Each column "
              "and each")

@@ -142,6 +142,31 @@ def main():
     check("...and most columns keep their coverage",
           fid["coverage_ok"] >= 0.8 * fid["columns"])
 
+    # ---- what will NOT reach the generated data ------------------
+    # A catalogue holds relationships in both directions and can hold
+    # loops; a sampler cannot. On the real extract 12 of 22 were
+    # dropped and nothing told the reader which - so a relationship
+    # shown as a finding could be absent from the file they were
+    # handed, with no way to know.
+    check("findings.txt states what the sampler had to discard",
+          "WILL NOT REACH THE GENERATED DATA" in txt)
+    check("...and distinguishes a harmless mirror, which is the same "
+          "relationship generated the other way round, from a column "
+          "left with NO parent at all - only the second is a loss",
+          "Nothing is lost" in txt or "NO parent" in txt
+          or "(nothing was dropped)" in txt)
+    rep_d = json.loads(
+        (out / "fidelity.json").read_text())["generation"]
+    for d in rep_d.get("edges_dropped") or []:
+        check("every dropped edge says whether its child kept any "
+              "other parent, which is what decides if it matters",
+              "child_keeps_parents" in d and "skill" in d)
+        break
+    else:
+        check("nothing was dropped on this fixture, and the report "
+              "says so rather than omitting the section",
+              "(nothing was dropped)" in txt)
+
     # ---- arithmetic is sorted out of the findings ----------------
     # On the real extract the top two entries were
     # `returned_within_30d <- days_to_next_visit` at 100% and
