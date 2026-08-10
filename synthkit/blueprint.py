@@ -111,8 +111,20 @@ def build(df: pd.DataFrame,
             continue           # engineered scaffolding is not a column
         s = X[c]
         numeric = pd.api.types.is_numeric_dtype(s)
+        # PATIENT-LEVEL OR VISIT-LEVEL. A generator that does not know
+        # the difference gives a person a different gender at every
+        # visit. Measured as "constant within nearly every patient"
+        # rather than guessed from the name, because a name is not a
+        # measurement and `race` and `heart_rate` look alike to a
+        # string match.
+        level = "visit"
+        if group_by and group_by in df.columns:
+            per = df.groupby(group_by)[c].nunique(dropna=True)
+            if float((per <= 1).mean()) >= 0.95:
+                level = "patient"
         columns[c] = {
             "kind": "numeric" if numeric else "categorical",
+            "level": level,
             "coverage": round(float(s.notna().mean()), 6),
             "marginal": (_numeric_marginal(s) if numeric
                          else _categorical_marginal(s)),
