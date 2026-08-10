@@ -4,7 +4,7 @@ Synthetic clinical data generator and model-evaluation instrument. Core rule: le
 
 ## Verify before claiming
 
-- Run `python scripts/run_all_smokes.py` before saying anything works. Expect 46 suites, 1236 checks, ALL GREEN.
+- Run `python scripts/run_all_smokes.py` before saying anything works. Expect 46 suites, 1238 checks, ALL GREEN.
 - `py_compile` every Python file you touch.
 - Assert count==1 before every string replacement — verify the edit, not just the compile.
 - **Read a file before Write overwrites it.** `Write` says "updated"
@@ -103,6 +103,11 @@ direction that stops work happening.
   `run_missingfix` and `test9` reading as things to pull.
 - One command per line, no line wrapping: an unexpanded `%USERPROFILE%`
   wrote real-data output into the repo.
+- **That terminal mangles pasted commands.** Three times now: once a
+  wrapped paste put `--src` inside the filename, twice a flag never
+  reached the program while the log looked normal. Any script that
+  runs there must ECHO the settings it received, or a missing flag is
+  indistinguishable from a broken fix and costs a round trip.
 
 ## Code
 

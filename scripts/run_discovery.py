@@ -84,6 +84,24 @@ def main():
                          "reported is measured on them")
     a = ap.parse_args()
 
+    # ECHO WHAT ACTUALLY ARRIVED, before anything else runs.
+    #
+    # This terminal has mangled the command line three times - a
+    # wrapped paste once put `--src` inside the filename, and twice a
+    # flag simply never reached the program while the log looked
+    # normal. Reading the settings back is the difference between
+    # diagnosing that in one line and losing a round trip guessing
+    # whether the code or the invocation was at fault.
+    say("invocation: --src {} --out {}{}{}{}{}{}".format(
+        a.src, a.out,
+        " --group-by " + a.group_by if a.group_by != "person_id"
+        else "",
+        " --time-col " + a.time_col if a.time_col
+        else " (no --time-col: the axis will be DETECTED)",
+        " --lags" if a.lags else "",
+        " --generate" if a.generate else "",
+        " --exclude " + a.exclude if a.exclude else ""))
+
     try:
         import numpy  # noqa: F401
         import pandas as pd

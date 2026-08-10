@@ -96,6 +96,13 @@ def main():
                  "generated.csv", "fidelity.json"):
         check("it writes {}".format(name), (out / name).exists())
 
+    check("the run echoes the settings it actually received, so a "
+          "flag that never arrived is visible in the log instead of "
+          "being mistaken for a broken fix",
+          "invocation:" in r.stdout and "--src" in r.stdout)
+    check("...and says plainly when no --time-col was given, which is "
+          "the case that looked identical to the flag being ignored",
+          "the axis will be DETECTED" in r.stdout)
     check("progress is reported with a clock, so a run that takes "
           "minutes does not look hung",
           "columns," in r.stdout or "searching" in r.stdout)
