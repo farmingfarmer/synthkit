@@ -98,9 +98,11 @@ def _categorical_marginal(s: pd.Series) -> Dict[str, Any]:
 def build(df: pd.DataFrame,
           catalogue: Dict[str, Any],
           group_by: Optional[str] = None,
-          max_predictors: int = 3) -> Dict[str, Any]:
+          max_predictors: int = 3,
+          time_col: Optional[str] = None) -> Dict[str, Any]:
     """A spec from a frame and the catalogue discovered on it."""
     from .discover import _source, prepare
+    from .dynamics import measure as measure_dynamics
 
     X, identifiers = prepare(df, group_by)
     n_rows = len(df)
@@ -132,8 +134,24 @@ def build(df: pd.DataFrame,
                 "coverage": None,
                 "shift": None if numeric else "n/a",
                 "scale": None if numeric else "n/a",
+                "persistence": None,
+                "missing_clustering": None,
             },
         }
+
+    # HOW EACH COLUMN BEHAVES ACROSS VISITS. Without this the output
+    # has the right share of missing values scattered at random rather
+    # than arriving in runs, and a patient's level is redrawn from
+    # scratch at every visit.
+    if group_by and group_by in df.columns:
+        lvl_p = dict(
+            (c, [l["p"] for l in (columns[c]["marginal"].get("levels")
+                                  or [])])
+            for c in columns if columns[c]["kind"] == "categorical")
+        dyn = measure_dynamics(df, X, group_by, time_col, lvl_p)
+        for c in columns:
+            if c in dyn:
+                columns[c]["dynamics"] = dyn[c]
 
     rels: List[Dict[str, Any]] = []
     for cl in catalogue.get("claims", []):
@@ -340,6 +358,22 @@ def resolve(spec: Dict[str, Any]) -> Dict[str, Any]:
                                  else _f(d["shift"], 0.0))
             c["target_scale"] = (1.0 if d.get("scale") in (None, "n/a")
                                  else _f(d["scale"], 1.0))
+        dy = c.get("dynamics") or {}
+        # `persistence` scales BOTH sources of steadiness together -
+        # the patient's own level and the visit-to-visit drift - since
+        # a user asking for "steadier" means the column overall, not
+        # one variance component.
+        pf = 1.0 if d.get("persistence") is None \
+            else max(_f(d["persistence"], 1.0), 0.0)
+        c["target_icc"] = min(_f(dy.get("icc"), 0.0) * pf, 0.98)
+        c["target_within"] = min(_f(dy.get("within_lag1"), 0.0) * pf,
+                                 0.98)
+        c["target_stickiness"] = min(
+            _f(dy.get("stickiness"), 0.0) * pf, 0.98)
+        c["target_missing_clustering"] = (
+            min(_f(dy.get("missing_clustering"), 0.0), 0.98)
+            if d.get("missing_clustering") is None
+            else min(max(_f(d["missing_clustering"], 0.0), 0.0), 0.98))
     for r in out.get("relationships") or []:
         st = (r.get("dials") or {}).get("strength")
         r["target_strength"] = 1.0 if st is None else _f(st, 1.0)

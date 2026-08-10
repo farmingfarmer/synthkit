@@ -39,16 +39,15 @@ found, the joint response replaces the separate contributions of those
 two parents - otherwise an exclusive-or would generate as two flat
 nothings, which is exactly how it fails to survive.
 
-WHAT THIS DOES NOT MODEL, said plainly rather than left to be
-discovered downstream:
-  * missingness is drawn independently per row. Real clinical
-    missingness CLUSTERS - a panel not drawn last visit is unlikely to
-    be drawn now - and the blueprint does not carry that yet
-  * a value does not persist across a patient's visits unless the
-    column is patient-level. Visit-to-visit steadiness is not in the
-    blueprint either
-Both were modelled by the old engine and both are real. They are
-absent here, not solved.
+ACROSS VISITS, two properties the first version did not model and
+named as absent. Both now come from the blueprint's `dynamics`:
+  * missingness CLUSTERS - a panel not drawn last visit is unlikely
+    to be drawn now - as a two-state chain whose stationary share is
+    exactly the coverage, so runs appear without the share moving
+  * a value PERSISTS - partly because of the patient's own level
+    (icc) and partly because it drifts rather than jumps (within) -
+    carried as correlated uniforms so the marginal is untouched
+    however steady the column is asked to be
 """
 from __future__ import annotations
 
@@ -58,17 +57,25 @@ import numpy as np
 import pandas as pd
 
 from .blueprint import resolve
+from .dynamics import (clustered_presence, persistent_uniform,
+                       sticky_pick)
 
 
-def _draw_numeric(m: Dict[str, Any], n: int, rng) -> np.ndarray:
+def _draw_numeric(m: Dict[str, Any], u: np.ndarray) -> np.ndarray:
     """Inverse-transform from the recorded quantiles.
 
     Interpolating the quantile function reproduces a skewed or
     multi-modal column; drawing a normal from the mean and sd would
-    quietly turn every one of them into a bell."""
+    quietly turn every one of them into a bell.
+
+    Takes the uniforms rather than making them, so a PERSISTENT
+    sequence can be substituted without touching the marginal. That
+    substitution is the whole trick: steadiness enters as correlation
+    between uniforms, and the values that come out are distributed
+    exactly as before however steady they are."""
     q = np.asarray(m["q"], dtype=float)
     v = np.asarray(m["v"], dtype=float)
-    out = np.interp(rng.random_sample(n), q, v)
+    out = np.interp(u, q, v)
     return np.round(out) if m.get("integral") else out
 
 
@@ -238,8 +245,24 @@ def generate(blueprint: Dict[str, Any],
         per_patient = spec.get("level") == "patient"
         n_draw = n_pat if per_patient else n_rows
 
+        icc = float(spec.get("target_icc") or 0.0)
+        within = float(spec.get("target_within") or 0.0)
+        stick = float(spec.get("target_stickiness") or 0.0)
         if numeric:
-            base = _draw_numeric(m, n_draw, rng)
+            if per_patient or (icc <= 0.0 and within <= 0.0):
+                u = rng.random_sample(n_draw)
+            else:
+                # a patient level plus visit-to-visit drift, carried
+                # as correlated uniforms so the marginal is untouched
+                u = persistent_uniform(counts, icc, within, rng)
+            base = _draw_numeric(m, u)
+        elif (not per_patient) and stick > 0.0 and \
+                (m.get("levels") or []):
+            lv = [l["value"] for l in m["levels"]]
+            pr = np.asarray([max(float(l["p"]), 0.0) for l in
+                             m["levels"]])
+            pr = pr / pr.sum() if pr.sum() > 0 else pr
+            base = sticky_pick(counts, lv, pr, stick, rng)
         else:
             base = _draw_categorical(m, n_draw, rng)
         if per_patient:
@@ -262,9 +285,15 @@ def generate(blueprint: Dict[str, Any],
 
         cov = spec.get("target_coverage")
         if cov is not None and float(cov) < 1.0:
-            # INDEPENDENT per row - see the module docstring. Real
-            # missingness clusters and this does not reproduce that.
-            keep = rng.random_sample(len(base)) < float(cov)
+            clus = float(spec.get("target_missing_clustering") or 0.0)
+            if per_patient or clus <= 0.0:
+                keep = rng.random_sample(len(base)) < float(cov)
+            else:
+                # A two-state chain whose stationary share is exactly
+                # the coverage, so runs of missing visits appear
+                # without the overall share moving.
+                keep = clustered_presence(counts, float(cov), clus,
+                                          rng)
             base = pd.Series(base).where(pd.Series(keep))
         out[c] = np.asarray(base, dtype=object) \
             if not numeric else np.asarray(base, dtype=float)
@@ -281,10 +310,10 @@ def generate(blueprint: Dict[str, Any],
                                          parents.values()),
             "edges_dropped": dropped,
             "not_modelled": [
-                "missingness is independent per row; real clinical "
-                "missingness clusters",
-                "no visit-to-visit persistence for visit-level "
-                "columns",
+                "a relationship between two columns is applied "
+                "within a visit; a lagged cross-column effect is "
+                "carried only if a lag feature was present at "
+                "discovery",
             ],
         })
     return df

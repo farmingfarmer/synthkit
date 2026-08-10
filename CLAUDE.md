@@ -4,7 +4,7 @@ Synthetic clinical data generator and model-evaluation instrument. Core rule: le
 
 ## Verify before claiming
 
-- Run `python scripts/run_all_smokes.py` before saying anything works. Expect 43 suites, 1153 checks, ALL GREEN.
+- Run `python scripts/run_all_smokes.py` before saying anything works. Expect 44 suites, 1171 checks, ALL GREEN.
 - `py_compile` every Python file you touch.
 - Assert count==1 before every string replacement — verify the edit, not just the compile.
 - **Read a file before Write overwrites it.** `Write` says "updated"
@@ -46,6 +46,12 @@ did harm, there.
   different scales measured which column a pair came from. A naive
   between-patient share read 0.754 where the truth was 0.500. Both were
   reported, reasoned from, and withdrawn.
+- **A statistic fed back as a generative parameter is attenuated
+  twice.** Within-patient lag-1 measured by centring on each patient's
+  own mean read 0.453 where the truth was 0.700; generating with 0.453
+  and re-measuring gave 0.0, and the property vanished while every
+  neighbouring check passed. Derive the parameter from an unbiased
+  identity, then confirm the output measures back what went in.
 - **An internal contradiction is the signal.** Every measurement error
   here was caught by two numbers disagreeing, never by review — 0.735
   against an asymptote of 0.38; a negative rho that cannot exist.

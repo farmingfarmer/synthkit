@@ -190,9 +190,14 @@ def main():
     check("the report says what was applied and what was dropped",
           rep["relationships_applied"] >= 1
           and "edges_dropped" in rep)
-    check("...and names what is NOT modelled, rather than leaving it "
-          "to be discovered downstream",
-          any("clusters" in s for s in rep["not_modelled"]))
+    check("...and still names what is NOT modelled, rather than "
+          "leaving it to be discovered downstream. Missingness "
+          "clustering and visit-to-visit persistence used to be on "
+          "this list and are now measured into the blueprint, so this "
+          "check moved with them rather than being deleted",
+          rep["not_modelled"]
+          and any("lagged" in s for s in rep["not_modelled"])
+          and not any("clusters" in s for s in rep["not_modelled"]))
 
     print()
     if FAIL:
