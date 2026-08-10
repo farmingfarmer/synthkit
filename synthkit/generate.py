@@ -245,6 +245,12 @@ def generate(blueprint: Dict[str, Any],
         per_patient = spec.get("level") == "patient"
         n_draw = n_pat if per_patient else n_rows
 
+        if (m or {}).get("type") == "suppressed":
+            # Too few patients to publish a distribution without
+            # describing them. The column is emitted empty rather than
+            # invented, and the blueprint says why.
+            out[c] = np.array([None] * n_rows, dtype=object)
+            continue
         icc = float(spec.get("target_icc") or 0.0)
         within = float(spec.get("target_within") or 0.0)
         stick = float(spec.get("target_stickiness") or 0.0)

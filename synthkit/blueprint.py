@@ -61,27 +61,99 @@ QUANTILES = [0.0, 0.01, 0.05, 0.1, 0.25, 0.5, 0.75, 0.9, 0.95,
 MAX_LEVELS_KEPT = 60
 
 
-def _numeric_marginal(s: pd.Series) -> Dict[str, Any]:
-    v = s.dropna().to_numpy(dtype=float)
+def _safe_bounds(v: pd.Series, groups, k: int):
+    """Extremes that belong to at least k patients, not to one.
+
+    Storing the 0th and 100th percentile publishes the exact smallest
+    and largest values in the extract, and those are single people's
+    records. Measured on a lognormal column: the blueprint held 299.6
+    and exactly one row carried it. For a rare lab result or the
+    oldest patient in a small cohort that is identifying, and it sat
+    in a file this project has been calling aggregates-only.
+
+    The bound stored instead is the MEAN of the k most extreme
+    patients' own extremes - a number no individual holds. Counted in
+    PATIENTS, never rows, because one person with two hundred visits
+    can supply the ten most extreme values by themselves."""
+    if groups is None:
+        sv = np.sort(v.to_numpy(dtype=float))
+        if len(sv) < 2 * k:
+            return None
+        return float(sv[:k].mean()), float(sv[-k:].mean())
+    g = pd.DataFrame({"g": np.asarray(groups)[v.index],
+                      "v": v.to_numpy(dtype=float)})
+    lo_each = np.sort(g.groupby("g")["v"].min().to_numpy())
+    hi_each = np.sort(g.groupby("g")["v"].max().to_numpy())
+    if len(lo_each) < 2 * k:
+        return None
+    lo = float(lo_each[:k].mean())
+    hi = float(hi_each[-k:].mean())
+    return (lo, hi) if hi > lo else None
+
+
+def _numeric_marginal(s: pd.Series, groups=None,
+                      k: int = 10) -> Dict[str, Any]:
+    v = s.dropna()
+    arr = v.to_numpy(dtype=float)
+    bounds = _safe_bounds(v, groups, k)
+    if bounds is None:
+        return {
+            "type": "suppressed",
+            "why": "fewer than {} patients carry this column, so its "
+                   "extremes cannot be published without describing "
+                   "individuals".format(2 * k),
+            "mean": round(float(arr.mean()), 6),
+            "integral": bool(np.all(np.mod(arr, 1.0) == 0.0)),
+        }
+    lo, hi = bounds
+    inner = [q for q in QUANTILES if 0.0 < q < 1.0]
+    vals = [float(np.quantile(arr, q)) for q in inner]
+    # interior quantiles are clamped inside the safe bounds, so the
+    # published curve never reaches past what k patients support
+    vals = [min(max(x, lo), hi) for x in vals]
     return {
         "type": "quantiles",
-        "q": [round(float(x), 6) for x in QUANTILES],
-        "v": [round(float(np.quantile(v, x)), 6) for x in QUANTILES],
-        "mean": round(float(v.mean()), 6),
-        "sd": round(float(v.std()), 6),
-        "integral": bool(np.all(np.mod(v, 1.0) == 0.0)),
+        "q": [0.0] + [round(float(x), 6) for x in inner] + [1.0],
+        "v": ([round(lo, 6)] + [round(x, 6) for x in vals]
+              + [round(hi, 6)]),
+        "mean": round(float(arr.mean()), 6),
+        "sd": round(float(arr.std()), 6),
+        "integral": bool(np.all(np.mod(arr, 1.0) == 0.0)),
+        "bounds_are_k_anonymous": k,
     }
 
 
-def _categorical_marginal(s: pd.Series) -> Dict[str, Any]:
+def _categorical_marginal(s: pd.Series, groups=None,
+                          k: int = 10) -> Dict[str, Any]:
     counts = s.dropna().astype(str).value_counts()
-    kept = counts.iloc[:MAX_LEVELS_KEPT]
     total = float(counts.sum()) or 1.0
+    rare = []
+    if groups is not None:
+        # A LEVEL HELD BY FEW PATIENTS NAMES THEM. Counted in patients
+        # rather than rows for the same reason the bounds are: one
+        # person seen two hundred times would otherwise look like a
+        # crowd.
+        obs = s.dropna().astype(str)
+        holders = pd.DataFrame(
+            {"g": np.asarray(groups)[obs.index], "v": obs.to_numpy()}
+        ).groupby("v")["g"].nunique()
+        rare = [lv for lv in counts.index
+                if int(holders.get(str(lv), 0)) < k]
+        counts = counts.drop(index=rare, errors="ignore")
+    kept = counts.iloc[:MAX_LEVELS_KEPT]
     out = {
         "type": "levels",
-        "levels": [{"value": str(k), "p": round(float(v) / total, 6)}
-                   for k, v in kept.items()],
+        "levels": [{"value": str(k2), "p": round(float(v) / total, 6)}
+                   for k2, v in kept.items()],
     }
+    if rare:
+        out["suppressed_levels"] = {
+            "count": len(rare),
+            "min_patients": k,
+            "note": "levels carried by fewer than {} patients are not "
+                    "published and cannot be generated - a level one "
+                    "person holds identifies them".format(k),
+        }
     if len(counts) > MAX_LEVELS_KEPT:
         # Said plainly rather than silently truncated: a level outside
         # the list cannot be generated, so the tail is a real limit on
@@ -99,13 +171,16 @@ def build(df: pd.DataFrame,
           catalogue: Dict[str, Any],
           group_by: Optional[str] = None,
           max_predictors: int = 3,
-          time_col: Optional[str] = None) -> Dict[str, Any]:
+          time_col: Optional[str] = None,
+          k: int = 10) -> Dict[str, Any]:
     """A spec from a frame and the catalogue discovered on it."""
     from .discover import _source, prepare
     from .dynamics import measure as measure_dynamics
 
     X, identifiers = prepare(df, group_by)
     n_rows = len(df)
+    gvals = (df[group_by].astype(str).to_numpy()
+             if group_by and group_by in df.columns else None)
 
     columns: Dict[str, Any] = {}
     for c in X.columns:
@@ -128,8 +203,8 @@ def build(df: pd.DataFrame,
             "kind": "numeric" if numeric else "categorical",
             "level": level,
             "coverage": round(float(s.notna().mean()), 6),
-            "marginal": (_numeric_marginal(s) if numeric
-                         else _categorical_marginal(s)),
+            "marginal": (_numeric_marginal(s, gvals, k) if numeric
+                         else _categorical_marginal(s, gvals, k)),
             "dials": {
                 "coverage": None,
                 "shift": None if numeric else "n/a",
@@ -223,6 +298,36 @@ def build(df: pd.DataFrame,
                    "generating one would either collide or leak",
             "unexplained": catalogue.get("unexplained", []),
             "skipped": catalogue.get("skipped", []),
+        },
+        "privacy": {
+            "k": k,
+            "counted_in": "patients, never rows",
+            "numeric_bounds": "the published minimum and maximum of "
+                              "every numeric column are the MEAN of "
+                              "the {} most extreme patients own "
+                              "extremes, so no individual holds the "
+                              "number. Storing the true 0th and 100th "
+                              "percentile published single people's "
+                              "values.".format(k),
+            "rare_levels": "categorical levels carried by fewer than "
+                           "{} patients are not published and cannot "
+                           "be generated".format(k),
+            "columns_suppressed": sorted(
+                c for c, v in columns.items()
+                if (v.get("marginal") or {}).get("type")
+                == "suppressed"),
+            "levels_suppressed": dict(
+                (c, (v["marginal"]["suppressed_levels"]["count"]))
+                for c, v in columns.items()
+                if (v.get("marginal") or {}).get("suppressed_levels")),
+            "NOT_a_formal_guarantee": "this is k-anonymity on what "
+                                      "gets published, not "
+                                      "differential privacy, and the "
+                                      "effect curves and dynamics "
+                                      "have not been audited the same "
+                                      "way. No membership-inference "
+                                      "test has been run against this "
+                                      "path.",
         },
         "dial_semantics": {
             "null": "use the measured value - an untouched spec "

@@ -4,7 +4,7 @@ Synthetic clinical data generator and model-evaluation instrument. Core rule: le
 
 ## Verify before claiming
 
-- Run `python scripts/run_all_smokes.py` before saying anything works. Expect 45 suites, 1207 checks, ALL GREEN.
+- Run `python scripts/run_all_smokes.py` before saying anything works. Expect 46 suites, 1223 checks, ALL GREEN.
 - `py_compile` every Python file you touch.
 - Assert count==1 before every string replacement — verify the edit, not just the compile.
 - **Read a file before Write overwrites it.** `Write` says "updated"
@@ -48,6 +48,21 @@ direction that stops work happening.
   is not yet reported per-edge anywhere a reader would look
 - the identifier-derivative fix fired on real data: `visit_id` and its
   lag both dropped
+
+## What the blueprint may publish
+
+- **k counts PATIENTS, never rows.** One person seen 200 times can
+  supply the ten most extreme rows alone; a row-counted rule would let
+  them set the published bound and still call it anonymous.
+- **No published number may be an individual's value.** The stored
+  minimum and maximum are the MEAN of the k most extreme patients'
+  own extremes. Storing the true 0th/100th percentile published one
+  person's smallest and one person's largest value, and did so for
+  weeks in a file described as aggregates-only.
+- k-anonymity on what is published is NOT differential privacy, and
+  the effect curves, interaction surfaces and dynamics have NOT been
+  audited the same way. No membership-inference test has been run
+  against the new path. Say all of that whenever the posture comes up.
 
 ## Numbers before conclusions
 
