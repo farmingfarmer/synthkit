@@ -142,8 +142,25 @@ def build(df: pd.DataFrame,
                                    for p in parents),
                 "importance_sd": dict((p["column"], p.get("sd"))
                                       for p in parents),
+                "effect": dict(
+                    (p["column"], {
+                        "shape": (p.get("effect") or {}).get("shape"),
+                        "description": (p.get("effect") or {}).get(
+                            "description"),
+                        "effect_size": (p.get("effect") or {}).get(
+                            "effect_size"),
+                        "turning_point": (p.get("effect") or {}).get(
+                            "turning_point"),
+                        "grid": (p.get("effect") or {}).get("grid"),
+                        "response": (p.get("effect") or {}).get(
+                            "response"),
+                        "of_class": (p.get("effect") or {}).get(
+                            "class_of_interest"),
+                    })
+                    for p in parents if p.get("effect")),
                 "holdout_patients": cl.get("holdout_patients"),
                 "holdout_rows": cl.get("n_holdout_rows"),
+                "interaction": cl.get("interaction"),
                 "measured_as": cl.get("kind"),
             },
             "dials": {"strength": None},

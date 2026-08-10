@@ -54,6 +54,9 @@ import pandas as pd
 from sklearn.ensemble import (HistGradientBoostingClassifier,
                               HistGradientBoostingRegressor)
 
+from .shapes import (describe, describe_joint,
+                     effect_curve, joint_surface)
+
 # HistGradientBoosting bins categoricals into at most 255 slots.
 MAX_LEVELS = 200
 LAG_SUFFIXES = ("__prev", "__delta")
@@ -183,6 +186,9 @@ def discover(df: pd.DataFrame,
              min_coverage: float = 0.05,
              max_classes: int = 50,
              min_importance: float = 0.002,
+             with_shapes: bool = True,
+             shape_top: int = 3,
+             interaction_ratio: float = 1.5,
              progress=None) -> Dict[str, Any]:
     """A catalogue of what explains each column, confirmed out of
     sample. Returns claims, not edges - no direction is implied beyond
@@ -403,6 +409,61 @@ def discover(df: pd.DataFrame,
         if not preds:
             unexplained.append(target)
             continue
+
+        # THE SHAPE, extracted here because this is the only place the
+        # fitted model exists. Importance says a parent matters; the
+        # curve says what it does, which is the half a reader can act
+        # on and the half a sampler needs.
+        interaction = None
+        if with_shapes:
+            spread = (float(np.std(yp)) if kind == "regression"
+                      else 1.0)
+            for p in preds[:shape_top]:
+                cur = effect_curve(model, Xp, groups[p["column"]],
+                                   X_all[p["column"]], kind)
+                if cur is None:
+                    continue
+                p["effect"] = dict(cur)
+                p["effect"].update(describe(cur, p["column"], target,
+                                            spread))
+
+            # DOES THE COMBINATION MOVE THE CHILD FURTHER THAN EITHER
+            # PARENT ALONE? That is a measurement, and it is the only
+            # trustworthy trigger.
+            #
+            # The first version asked whether both one-parent curves
+            # came back "flat", reasoning that a pure interaction has
+            # no main effect. True in principle and fragile in fact:
+            # on a clean exclusive-or the curves picked up small
+            # asymmetries and were named inverted-u and u-shaped, so
+            # the interaction - the pattern this system exists to
+            # catch - was never reported at all.
+            #
+            # Comparing surface travel against the best single curve
+            # does not depend on a shape name surviving noise. A
+            # genuine interaction moves the child much further when
+            # both parents move than when either does.
+            top = preds[:2]
+            if len(top) == 2:
+                surf = joint_surface(
+                    model, Xp, groups[top[0]["column"]],
+                    groups[top[1]["column"]], X_all[top[0]["column"]],
+                    X_all[top[1]["column"]], kind)
+                if surf is not None:
+                    joint = dict(surf)
+                    joint.update(describe_joint(
+                        surf, top[0]["column"], top[1]["column"],
+                        target))
+                    alone = max(
+                        (p.get("effect") or {}).get("effect_size") or 0.0
+                        for p in top)
+                    joint["single_parent_best"] = round(alone, 6)
+                    joint["beyond_single"] = (
+                        round(joint["effect_size"] / alone, 3)
+                        if alone > 0 else None)
+                    if joint["effect_size"] > \
+                            interaction_ratio * max(alone, 1e-9):
+                        interaction = joint
         claims.append({
             "child": target,
             "kind": kind,
@@ -412,6 +473,7 @@ def discover(df: pd.DataFrame,
             "n_holdout_rows": int(te.sum()),
             "train_patients": n_tr_g,
             "holdout_patients": n_te_g,
+            "interaction": interaction,
         })
 
     return {
