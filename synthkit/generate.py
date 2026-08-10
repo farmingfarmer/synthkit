@@ -158,21 +158,44 @@ def _order(bp: Dict[str, Any]):
         ps = [p for p in (r.get("parents") or []) if p in cols]
         if not ps:
             continue
-        # skip the mirror image of an edge already taken
+        # SKIP A RESTATEMENT OF STRUCTURE ALREADY TAKEN.
+        #
+        # Matched on the whole COLUMN SET, not on one pair. The first
+        # version compared single parents, so it recognised a mirror
+        # only when a claim had exactly one - and on a real extract
+        # almost every claim has two or three. `A <- B, C` and
+        # `B <- A, C` went unrecognised, formed a cycle, and were
+        # reported to the reader as structure that had vanished from
+        # their data. All twelve drops on the 800-patient run were
+        # announced as losses on that basis.
+        #
+        # Generating A from B and C puts the dependence among those
+        # three columns into the output; drawing B from A and C
+        # afterwards would be the same information a second time.
         skill = float((r.get("evidence") or {}).get(
             "skill_out_of_sample") or 0.0)
-        if any(frozenset([child, p]) in used for p in ps) and \
-                len(ps) == 1:
+        # EVERY PAIR must already be covered, not merely the set.
+        #
+        # Matching on the column set alone called `B <- A, C` a
+        # restatement of `C <- B, A` and dropped it. But C is drawn
+        # FROM A and B, so A and B are both roots drawn independently
+        # - and the A-B dependence, which the report showed as a
+        # finding, was simply absent. Measured: source corr 0.995,
+        # generated -0.029. A restatement is only redundant when every
+        # pair it names is connected some other way.
+        pairs = [frozenset([child, p]) for p in ps]
+        if all(q in used for q in pairs):
             dropped.append({"child": child, "parents": ps,
                             "skill": round(skill, 4),
-                            "why": "the reverse direction was already "
-                                   "taken, and both cannot hold",
+                            "why": "every pair of these columns is "
+                                   "already related in another "
+                                   "direction, so the dependence "
+                                   "reaches the data once",
                             "harmless": True})
             continue
         parents.setdefault(child, [])
         parents[child].append(r)
-        for p in ps:
-            used.add(frozenset([child, p]))
+        used.update(pairs)
 
     order, placed = [], set()
     remaining = list(cols)
@@ -192,18 +215,38 @@ def _order(bp: Dict[str, Any]):
         if not progressed:
             break
     for c in remaining:
-        # a cycle: keep the column, drop the parents that cannot be
-        # satisfied, and say so
+        # A cycle. Keep the parents that CAN be satisfied rather than
+        # discarding the relationship whole: `B <- C, A` inside a loop
+        # still carries the A-B dependence once C is removed, and
+        # throwing it away leaves A and B independent in the output.
         kept = []
         for r in parents.get(c, []):
-            if set(r["parents"]) <= placed:
+            sk = round(float((r.get("evidence") or {}).get(
+                "skill_out_of_sample") or 0.0), 4)
+            okp = [p for p in r["parents"] if p in placed]
+            if len(okp) == len(r["parents"]):
                 kept.append(r)
+            elif okp:
+                trimmed = dict(r)
+                trimmed["parents"] = okp
+                ev = dict(trimmed.get("evidence") or {})
+                # a surface names a pair; with half of it gone the
+                # surface cannot be applied
+                ev["interaction"] = None
+                trimmed["evidence"] = ev
+                kept.append(trimmed)
+                dropped.append({
+                    "child": c,
+                    "parents": [p for p in r["parents"]
+                                if p not in placed],
+                    "skill": sk,
+                    "why": "would close a cycle; the parents that "
+                           "could be satisfied were kept and only "
+                           "these removed",
+                    "harmless": False, "partial": True})
             else:
                 dropped.append({
-                    "child": c, "parents": r["parents"],
-                    "skill": round(float(
-                        (r.get("evidence") or {}).get(
-                            "skill_out_of_sample") or 0.0), 4),
+                    "child": c, "parents": r["parents"], "skill": sk,
                     "why": "would close a cycle; a cycle cannot be "
                            "sampled, and losing one edge beats "
                            "failing",

@@ -120,6 +120,27 @@ def detect_time_column(rows: List[Dict[str, Any]],
     return best[1], best[2], best[3]
 
 
+def column_time_kind(rows, group_by, col):
+    """Classify a time column the CALLER chose.
+
+    detect_time_column answers "which column is the axis"; this
+    answers "what kind is this one", which is what an explicit
+    --time-col needs. Without it an override could be accepted and
+    then sorted with the wrong comparator."""
+    if not rows or col not in rows[0]:
+        return None
+    present = [r.get(col) for r in rows if not _blank(r.get(col))]
+    if not present:
+        return None
+    share = (sum(1 for v in present[:5000] if _is_date(v))
+             / float(min(len(present), 5000)))
+    if share >= 0.9:
+        return "date-like"
+    if all(_num(v) is not None for v in present[:5000]):
+        return "sequence"
+    return None
+
+
 def _sort_key(kind):
     if kind == "date-like":
         return lambda r, c: str(r.get(c) or "")

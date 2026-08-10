@@ -4,7 +4,7 @@ Synthetic clinical data generator and model-evaluation instrument. Core rule: le
 
 ## Verify before claiming
 
-- Run `python scripts/run_all_smokes.py` before saying anything works. Expect 46 suites, 1229 checks, ALL GREEN.
+- Run `python scripts/run_all_smokes.py` before saying anything works. Expect 46 suites, 1236 checks, ALL GREEN.
 - `py_compile` every Python file you touch.
 - Assert count==1 before every string replacement — verify the edit, not just the compile.
 - **Read a file before Write overwrites it.** `Write` says "updated"
@@ -83,6 +83,11 @@ direction that stops work happening.
   and re-measuring gave 0.0, and the property vanished while every
   neighbouring check passed. Derive the parameter from an unbiased
   identity, then confirm the output measures back what went in.
+- **A flag that is read but not used is worse than no flag.**
+  `--time-col` was carried into the blueprint and then ignored when
+  the lag features were built — which is what every temporal statistic
+  is measured on — so passing it changed nothing and the message still
+  named the detected column. Assert the override CHANGED something.
 - **An internal contradiction is the signal.** Every measurement error
   here was caught by two numbers disagreeing, never by review — 0.735
   against an asymptote of 0.38; a negative rho that cannot exist.

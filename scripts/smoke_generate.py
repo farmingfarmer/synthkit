@@ -171,6 +171,54 @@ def main():
           "if the joint surface is used",
           g_gap > 0.5 * s_gap)
 
+    # ---- a RESTATEMENT is not a loss, even with several parents --
+    # A catalogue reports `A <- B, C` and `B <- A, C` because both are
+    # true. Only one can be sampled, and the other is the same
+    # dependence read differently - not missing structure. Matching
+    # mirrors on a single parent recognised this only for one-parent
+    # claims, and on the real extract almost every claim has two or
+    # three: all twelve drops were announced to the reader as losses.
+    from synthkit.blueprint import resolve
+    from synthkit.generate import _order
+    r3 = np.random.RandomState(6)
+    rows3 = []
+    for p in range(260):
+        for _v in range(6):
+            aa = r3.uniform(0, 10)
+            bb = 2 * aa + r3.normal(0, 0.6)
+            rows3.append({"person_id": "P{:04d}".format(p),
+                          "A": round(aa, 3), "B": round(bb, 3),
+                          "C": round(aa + bb + r3.normal(0, 0.6), 3)})
+    d3 = pd.DataFrame(rows3)
+    b3 = B.build(d3, discover(d3, group_by="person_id", seed=1),
+                 group_by="person_id")
+    _o, _par, drops = _order(resolve(b3))
+    check("three mutually predictive columns produce drops at all, or "
+          "the check below proves nothing",
+          len(drops) >= 1)
+    check("a claim is only a RESTATEMENT when every PAIR it names is "
+          "already related some other way - matching on the column "
+          "set alone dropped `B <- A, C` as redundant to `C <- B, A`, "
+          "but C is drawn FROM A and B, so both are roots and the A-B "
+          "dependence was simply absent",
+          any(d["harmless"] for d in drops))
+    gA = generate(b3, n_patients=200, seed=2)
+
+    def pair_corr(frame, x, y):
+        t = pd.DataFrame(
+            {"x": pd.to_numeric(frame[x], errors="coerce"),
+             "y": pd.to_numeric(frame[y], errors="coerce")}).dropna()
+        return abs(float(t.x.corr(t.y)))
+    check("EVERY pair among three mutually predictive columns carries "
+          "its dependence into the output - measured before the fix, "
+          "A against B came out -0.029 where the source had 0.995",
+          all(pair_corr(gA, i, j) > 0.5
+              for i, j in (("A", "B"), ("A", "C"), ("B", "C"))))
+    check("...which needed a cycle to keep the parents it COULD "
+          "satisfy rather than discard the relationship whole",
+          any(d.get("partial") for d in drops)
+          or all(d["harmless"] for d in drops))
+
     # ---- a BENT curve must not drag the column's centre ----------
     # The systematic term is added as (curve - centre). Centring on
     # the mean over the GRID - uniform in quantile space - is not the

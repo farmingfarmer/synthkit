@@ -134,12 +134,37 @@ def main():
     time_col = a.time_col or None
     if a.lags:
         from synthkit.temporal import (add_lag_features,
+                                       column_time_kind,
                                        detect_time_column)
         rows = df.to_dict("records")
         tc, tk, ev = detect_time_column(rows, a.group_by)
-        say("time axis: {} ({}) - {}".format(tc or "file order",
-                                             tk, ev))
-        time_col = time_col or tc
+        # AN EXPLICIT --time-col MUST ACTUALLY BE USED. It was carried
+        # into the blueprint and then ignored when the lag features
+        # were built, which are what every temporal statistic is
+        # measured on - so passing it changed nothing and the message
+        # still named the detected column. Detection picks the date
+        # with the most distinct values, which chose visit_END_date on
+        # a real extract; an end date misorders overlapping stays.
+        if time_col:
+            if time_col not in df.columns:
+                die("--time-col {!r} is not a column in {}"
+                    .format(time_col, src.name))
+            kind = column_time_kind(rows, a.group_by, time_col)
+            if kind is None:
+                die("--time-col {!r} does not look like a date or a "
+                    "sequence, so it cannot order visits"
+                    .format(time_col))
+            if time_col != tc:
+                say("time axis: {} ({}) AS REQUESTED - detection "
+                    "would have chosen {}".format(time_col, kind, tc))
+            else:
+                say("time axis: {} ({}) - as requested, and detection "
+                    "agrees".format(time_col, kind))
+            tc, tk = time_col, kind
+        else:
+            say("time axis: {} ({}) - {}".format(tc or "file order",
+                                                 tk, ev))
+            time_col = tc
         rows, lrep = add_lag_features(rows, a.group_by, tc, tk)
         df = pd.DataFrame(rows)
         say("{} columns earned a lag feature -> {} columns".format(

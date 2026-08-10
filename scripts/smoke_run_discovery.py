@@ -196,6 +196,30 @@ def main():
           "numbers behind it, not stated as a law",
           "rule of thumb" in t3 and "96%" in t3)
 
+    # ---- --time-col must actually be used ------------------------
+    # It was carried into the blueprint and then ignored when the lag
+    # features were built - which is what every temporal statistic is
+    # measured on - so passing it changed nothing and the message
+    # still named the detected column. On the real extract detection
+    # chose visit_END_date, which misorders overlapping stays.
+    out6 = tmp / "tcol"
+    r6 = run(["--src", str(src), "--out", str(out6), "--lags",
+              "--time-col", "visit_start_date"])
+    check("an explicit --time-col is honoured and SAID to be, naming "
+          "what detection would have chosen instead",
+          r6.returncode == 0
+          and ("AS REQUESTED" in r6.stdout
+               or "as requested" in r6.stdout))
+    r7 = run(["--src", str(src), "--out", str(tmp / "z2"), "--lags",
+              "--time-col", "sex"])
+    check("...and a column that cannot order visits is refused with a "
+          "sentence rather than silently sorted by it",
+          r7.returncode == 2 and "sequence" in r7.stderr)
+    r8 = run(["--src", str(src), "--out", str(tmp / "z3"), "--lags",
+              "--time-col", "no_such_col"])
+    check("...and one that does not exist is refused too",
+          r8.returncode == 2 and "no_such_col" in r8.stderr)
+
     r4 = run(["--src", str(src), "--out", str(tmp / "z"),
               "--exclude", "not_there"])
     check("--exclude naming a column that does not exist is refused "
