@@ -102,6 +102,24 @@ def effect_curve(model, Xp, members: List[str], source: pd.Series,
                 p = model.predict_proba(X)
                 rows.append(np.asarray(p).mean(axis=0))
             continue
+    # WHAT HAPPENS WHEN THE PARENT IS NOT MEASURED AT ALL.
+    #
+    # The grid sweeps observed values only, so a relationship carried
+    # by the parent's ABSENCE reads as a flat curve under a skill of
+    # 1.00 - an internal contradiction, and the real extract produced
+    # one immediately: `is_last_visit <- days_to_next_visit` explains
+    # 100% of it, and days_to_next_visit is missing on exactly the
+    # last visit. The value never mattered; being measured did.
+    miss = None
+    for c in present:
+        X[c] = np.nan
+    try:
+        if child_kind == "regression":
+            miss = float(np.mean(model.predict(X)))
+        else:
+            miss = np.asarray(model.predict_proba(X)).mean(axis=0)
+    except Exception:
+        miss = None
     for c in present:
         X[c] = keep[c]
 
@@ -113,6 +131,7 @@ def effect_curve(model, Xp, members: List[str], source: pd.Series,
     if child_kind == "regression":
         resp = [float(r) for _, r in ok]
         label = None
+        miss_v = None if miss is None else float(miss)
     else:
         # One curve, and it must be the informative one: the class
         # whose probability MOVES most across the grid. Picking the
@@ -123,8 +142,11 @@ def effect_curve(model, Xp, members: List[str], source: pd.Series,
         j = int(np.argmax(mat.max(axis=0) - mat.min(axis=0)))
         resp = [float(x) for x in mat[:, j]]
         label = str(model.classes_[j])
+        miss_v = (None if miss is None
+                  else float(np.asarray(miss).ravel()[j]))
     return {"grid": grid, "response": resp, "grid_kind": gkind,
-            "class_of_interest": label}
+            "class_of_interest": label,
+            "response_when_missing": miss_v}
 
 
 def describe(curve: Dict[str, Any], parent: str, child: str,
@@ -154,6 +176,21 @@ def describe(curve: Dict[str, Any], parent: str, child: str,
                 "monotone": False}
 
     if rng < FLAT_SHARE * max(child_spread, 1e-9):
+        mv = curve.get("response_when_missing")
+        if mv is not None and abs(mv - float(r.mean())) > \
+                max(2.0 * rng, 0.2 * max(child_spread, 1e-9)):
+            # The value does nothing; being measured does everything.
+            return {"shape": "presence-only", "monotone": False,
+                    "effect_size": round(
+                        abs(mv - float(r.mean())), 6),
+                    "response_when_missing": round(mv, 6),
+                    "description": (
+                        "{} does not depend on the VALUE of {} at all "
+                        "- it depends on whether {} was measured. "
+                        "Observed it sits near {:.4g}; when {} is "
+                        "absent it is {:.4g}".format(
+                            what, parent, parent, float(r.mean()),
+                            parent, mv))}
         return {"shape": "flat", "monotone": False,
                 "effect_size": round(rng, 6),
                 "description": "{} hardly moves as {} varies - the "

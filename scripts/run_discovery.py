@@ -73,6 +73,11 @@ def main():
                     help="read only the first N rows - for a quick "
                          "first pass before committing to the full "
                          "extract")
+    ap.add_argument("--exclude", default="",
+                    help="comma-separated columns to leave out "
+                         "entirely - bookkeeping the wrangler "
+                         "computed rather than anything the clinic "
+                         "recorded")
     ap.add_argument("--seed", type=int, default=20260731)
     ap.add_argument("--holdout", type=float, default=0.3,
                     help="share of PATIENTS held out; every number "
@@ -114,6 +119,17 @@ def main():
                     ", ".join(list(df.columns)[:25])))
     say("{} rows x {} columns, {} patients".format(
         len(df), df.shape[1], df[a.group_by].nunique()))
+
+    drop = [c.strip() for c in a.exclude.split(",") if c.strip()]
+    unknown = [c for c in drop if c not in df.columns]
+    if unknown:
+        die("--exclude names {} which {} not in the file"
+            .format(", ".join(unknown),
+                    "is" if len(unknown) == 1 else "are"))
+    if drop:
+        df = df.drop(columns=drop)
+        say("excluded {} column(s): {}".format(len(drop),
+                                               ", ".join(drop)))
 
     time_col = a.time_col or None
     if a.lags:
@@ -235,6 +251,13 @@ def render(bp):
         seen[key] = r
         shown.append(r)
     rels = shown
+    # ARITHMETIC IS SEPARATED FROM DISCOVERY, not hidden. A column
+    # computed from another sits at the top of any ranking by skill
+    # and pushes the real findings off the first page. Both are
+    # printed; only one is called a finding.
+    arith = [r for r in rels
+             if (r.get("evidence") or {}).get("near_deterministic")]
+    rels = [r for r in rels if r not in arith]
     for r in rels:
         ev = r["evidence"]
         L.append("{} <- {}".format(r["child"], ", ".join(r["parents"])))
@@ -255,6 +278,28 @@ def render(bp):
     if not rels:
         L.append("(none)")
         L.append("")
+    if arith:
+        L.append("")
+        L.append("NEAR-DETERMINISTIC, listed separately. Each of "
+                 "these is one column")
+        L.append("computed from another - a subtraction, a threshold, "
+                 "a restatement. True,")
+        L.append("and not a discovery. The cut is at 97% and is a "
+                 "rule of thumb, not a law:")
+        L.append("on this data arithmetic measured 98-100% and the "
+                 "strongest genuine")
+        L.append("relationship measured 96%. Check any that surprise "
+                 "you.")
+        L.append("")
+        for r in arith:
+            ev = r["evidence"]
+            L.append("{} <- {}   ({:.0%})".format(
+                r["child"], ", ".join(r["parents"]),
+                ev["skill_out_of_sample"]))
+            for col, e in (ev.get("effect") or {}).items():
+                if e.get("description"):
+                    L.append("    {}".format(e["description"]))
+            L.append("")
     L.append("")
     L.append("COLUMNS NOTHING EXPLAINED: {}".format(
         ", ".join(ex.get("unexplained") or []) or "(none)"))

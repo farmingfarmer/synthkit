@@ -148,6 +148,27 @@ def main():
           "the failure this whole layer exists to prevent",
           d["shape"] == "flat")
 
+    # ---- a relationship carried by ABSENCE ----------------------
+    # The real extract produced `is_last_visit <- days_to_next_visit`
+    # explaining 100% of it with a FLAT curve - an internal
+    # contradiction, because days_to_next_visit is missing on exactly
+    # the last visit. The value never mattered; being measured did.
+    pres = {"grid": [1.0, 2.0, 3.0, 4.0],
+            "response": [5.0, 5.01, 4.99, 5.0],
+            "grid_kind": "numeric", "class_of_interest": None,
+            "response_when_missing": 30.0}
+    dp = describe(pres, "p", "c", child_spread=6.0)
+    check("a flat curve whose response JUMPS when the parent is "
+          "absent is named presence-only, not flat - the value does "
+          "nothing and being measured does everything",
+          dp["shape"] == "presence-only"
+          and "whether" in dp["description"])
+    pres2 = dict(pres, response_when_missing=5.0)
+    check("...and a flat curve that does NOT jump on absence is still "
+          "just flat, so the new reading is not handed out for free",
+          describe(pres2, "p", "c", child_spread=6.0)["shape"]
+          == "flat")
+
     # ---- the interaction, which no single curve can show ----
     # A one-parent curve for a pure exclusive-or is correctly flat,
     # and two flat curves under a relationship scoring 0.95 is a true

@@ -142,6 +142,48 @@ def main():
     check("...and most columns keep their coverage",
           fid["coverage_ok"] >= 0.8 * fid["columns"])
 
+    # ---- arithmetic is sorted out of the findings ----------------
+    # On the real extract the top two entries were
+    # `returned_within_30d <- days_to_next_visit` at 100% and
+    # `age_at_visit <- year_of_birth` at 98% - a threshold and a
+    # subtraction, both computed by the wrangler - which pushed
+    # haematocrit-from-haemoglobin at 96%, the one nobody planted,
+    # onto the second page.
+    src2 = tmp / "tidy2.csv"
+    d = pd.read_csv(src)
+    d["x_doubled"] = d["x"] * 2.0          # pure arithmetic
+    d.to_csv(src2, index=False)
+    out3 = tmp / "arith"
+    r3 = run(["--src", str(src2), "--out", str(out3)])
+    check("a run with an arithmetic column completes",
+          r3.returncode == 0)
+    t3 = (out3 / "findings.txt").read_text()
+    check("a column that is another one doubled is filed as "
+          "NEAR-DETERMINISTIC rather than reported as a discovery",
+          "NEAR-DETERMINISTIC" in t3)
+    head = t3.split("NEAR-DETERMINISTIC")[0]
+    check("...so it does not sit above the real relationship in the "
+          "findings section",
+          "x_doubled" not in head)
+    check("...and it is still PRINTED, because sorting is not hiding",
+          "x_doubled" in t3)
+    check("...and the cut is named as a rule of thumb with the "
+          "numbers behind it, not stated as a law",
+          "rule of thumb" in t3 and "96%" in t3)
+
+    r4 = run(["--src", str(src), "--out", str(tmp / "z"),
+              "--exclude", "not_there"])
+    check("--exclude naming a column that does not exist is refused "
+          "with a sentence",
+          r4.returncode == 2 and "not_there" in r4.stderr)
+    out5 = tmp / "excl"
+    r5 = run(["--src", str(src), "--out", str(out5), "--exclude",
+              "lab"])
+    check("--exclude actually removes the column from everything "
+          "downstream", r5.returncode == 0
+          and "lab" not in json.loads(
+              (out5 / "blueprint.json").read_text())["columns"])
+
     # ---- the quick first pass ------------------------------------
     out2 = tmp / "quick"
     r2 = run(["--src", str(src), "--out", str(out2), "--max-rows",

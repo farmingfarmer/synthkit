@@ -186,6 +186,7 @@ def discover(df: pd.DataFrame,
              min_coverage: float = 0.05,
              max_classes: int = 50,
              min_importance: float = 0.002,
+             deterministic_at: float = 0.97,
              with_shapes: bool = True,
              shape_top: int = 3,
              interaction_ratio: float = 1.5,
@@ -474,6 +475,23 @@ def discover(df: pd.DataFrame,
             "train_patients": n_tr_g,
             "holdout_patients": n_te_g,
             "interaction": interaction,
+            # NEAR-DETERMINISTIC: arithmetic, not a discovery.
+            #
+            # On the real extract the top of the report was
+            # `returned_within_30d <- days_to_next_visit` at 1.00 and
+            # `age_at_visit <- year_of_birth` at 0.98 - one is a
+            # threshold on the other, the second is a subtraction, and
+            # both are columns the wrangler computed rather than
+            # anything a clinic recorded. They buried the finding that
+            # mattered: haematocrit from haemoglobin at 0.96, which is
+            # physiology and which nobody put there on purpose.
+            #
+            # The boundary is a HEURISTIC and is stated as one. On
+            # that extract arithmetic measured 0.98-1.00 and the
+            # strongest genuine relationship measured 0.96, so 0.97
+            # separates them there. It is not a law, which is why
+            # nothing is hidden - only sorted.
+            "near_deterministic": bool(skill >= deterministic_at),
         })
 
     return {

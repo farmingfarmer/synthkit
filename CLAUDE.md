@@ -4,7 +4,7 @@ Synthetic clinical data generator and model-evaluation instrument. Core rule: le
 
 ## Verify before claiming
 
-- Run `python scripts/run_all_smokes.py` before saying anything works. Expect 45 suites, 1194 checks, ALL GREEN.
+- Run `python scripts/run_all_smokes.py` before saying anything works. Expect 45 suites, 1203 checks, ALL GREEN.
 - `py_compile` every Python file you touch.
 - Assert count==1 before every string replacement — verify the edit, not just the compile.
 - **Read a file before Write overwrites it.** `Write` says "updated"
@@ -32,6 +32,22 @@ did harm, there.
 - **When a fix changes one property, assert the neighbouring property
   in the same test.** Steadiness and missingness were fixed and broken
   in one commit because only one of them was checked.
+
+## What the 800-patient extract said about the new path
+
+Ran 2026-08-10 on run7's tidy file: 55,428 rows, 47 columns, 800
+patients. 274s with `--lags` (73 columns). I had predicted one to
+three hours — wrong by roughly 30x, and predicted upward, which is the
+direction that stops work happening.
+
+- coverage within 0.05 on 45/45 columns, clustering within 0.15 on
+  18/18, persistence within 0.15 on 28/34
+- **centre within 10% of spread on only 18/34 numeric columns** — the
+  open fidelity gap, not yet diagnosed
+- 16 of 26 relationships dropped to keep the graph sampleable, which
+  is not yet reported per-edge anywhere a reader would look
+- the identifier-derivative fix fired on real data: `visit_id` and its
+  lag both dropped
 
 ## Numbers before conclusions
 
