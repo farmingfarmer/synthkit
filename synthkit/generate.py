@@ -239,6 +239,7 @@ def _order(bp: Dict[str, Any]):
                     "child": c,
                     "parents": [p for p in r["parents"]
                                 if p not in placed],
+                    "kept_parents": list(okp),
                     "skill": sk,
                     "why": "would close a cycle; the parents that "
                            "could be satisfied were kept and only "

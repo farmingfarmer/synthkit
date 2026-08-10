@@ -367,21 +367,55 @@ def render(bp):
     L.append("COLUMNS NOTHING EXPLAINED: {}".format(
         ", ".join(ex.get("unexplained") or []) or "(none)"))
     dropped = _will_drop(bp)
-    orphans = [d for d in dropped if not d.get("harmless")
-               and not d.get("child_keeps_parents")]
     mirrors = [d for d in dropped if d.get("harmless")]
+    trimmed = [d for d in dropped if not d.get("harmless")
+               and d.get("partial")]
+    orphans = [d for d in dropped if not d.get("harmless")
+               and not d.get("partial")
+               and not d.get("child_keeps_parents")]
+    other = [d for d in dropped if d not in mirrors
+             and d not in trimmed and d not in orphans]
     L.append("")
     L.append("WHAT WILL NOT REACH THE GENERATED DATA")
     L.append("-" * 60)
     L.append("A catalogue may hold a relationship in both directions "
              "and may hold loops.")
     L.append("A sampler cannot: something has to be drawn first. "
-             "These were dropped.")
+             "{} were dropped,".format(len(dropped)))
+    L.append("in {} kinds - and the counts below add up to that "
+             "total.".format(
+                 sum(1 for g in (mirrors, trimmed, orphans, other)
+                     if g)))
     L.append("")
     if mirrors:
-        L.append("{} were mirrors of an edge already taken - the same "
-                 "relationship,".format(len(mirrors)))
-        L.append("generated the other way round. Nothing is lost.")
+        L.append("{} RESTATEMENTS of structure already taken - the "
+                 "same dependence,".format(len(mirrors)))
+        L.append("generated the other way round. Nothing is missing.")
+        L.append("")
+    if trimmed:
+        # Reported because it IS a partial loss. The column is still
+        # explained, but one specific parent's contribution to it is
+        # not in the data - and the first version of this section
+        # omitted the category entirely, so ten of twelve drops on the
+        # real extract were invisible to the reader.
+        L.append("{} had SOME PARENTS REMOVED to break a loop. The "
+                 "column is still".format(len(trimmed)))
+        L.append("explained by the parents that remain, but the ones "
+                 "listed here contribute")
+        L.append("nothing to it in the generated data:")
+        L.append("")
+        for d in sorted(trimmed, key=lambda x: -x.get("skill", 0)):
+            L.append("    {} lost {}   (kept {})".format(
+                d["child"], ", ".join(d["parents"]),
+                ", ".join(d.get("kept_parents") or []) or "nothing"))
+        L.append("")
+    if other:
+        L.append("{} were dropped for other reasons:".format(
+            len(other)))
+        for d in other:
+            L.append("    {} <- {}   ({})".format(
+                d["child"], ", ".join(d["parents"]),
+                d["why"].split(";")[0]))
         L.append("")
     if orphans:
         L.append("{} left their column with NO parent at all. Each of "

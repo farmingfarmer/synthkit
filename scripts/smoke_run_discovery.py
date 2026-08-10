@@ -157,11 +157,32 @@ def main():
     # handed, with no way to know.
     check("findings.txt states what the sampler had to discard",
           "WILL NOT REACH THE GENERATED DATA" in txt)
-    check("...and distinguishes a harmless mirror, which is the same "
-          "relationship generated the other way round, from a column "
-          "left with NO parent at all - only the second is a loss",
-          "Nothing is lost" in txt or "NO parent" in txt
-          or "(nothing was dropped)" in txt)
+    check("...and separates a RESTATEMENT, which loses nothing, from "
+          "a parent REMOVED to break a loop, which loses that "
+          "parent's contribution, from a column left with NO parent "
+          "at all",
+          "(nothing was dropped)" in txt
+          or any(w in txt for w in ("RESTATEMENTS", "SOME PARENTS "
+                                    "REMOVED", "NO parent")))
+    # THE COUNTS MUST ADD UP. On the real extract the section said
+    # "2 were mirrors" while the run reported 12 dropped: ten had some
+    # parents removed to break a loop, a category the report had no
+    # section for at all, so ten relationships lost a parent and the
+    # reader was never told. A total that a reader can check against
+    # the parts is what makes an omission visible.
+    import re as _re
+    if "WILL NOT REACH" in txt:
+        tail = txt.split("WILL NOT REACH")[1]
+        tot = _re.search(r"(\d+) were dropped", tail)
+        parts = [int(x) for x in _re.findall(
+            r"^(\d+) (?:RESTATEMENTS|had SOME|left their|were dropped "
+            r"for)", tail, _re.M)]
+        check("the dropped-edge section states a TOTAL and the "
+              "categories beneath it sum to exactly that - a category "
+              "with no section is invisible any other way",
+              tot is not None and parts
+              and sum(parts) == int(tot.group(1)))
+
     rep_d = json.loads(
         (out / "fidelity.json").read_text())["generation"]
     for d in rep_d.get("edges_dropped") or []:
