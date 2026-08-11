@@ -261,6 +261,27 @@ def main():
         s["coverage_ok"], s["columns"]))
     say("centre within 10% of spread on {}/{} numeric columns".format(
         s["centre_ok"], s["numeric"]))
+    # A COUNT CANNOT BE DIAGNOSED. 18/34 was reported once with
+    # nothing to say which mechanism moved them, so the misses are
+    # split here by whether the known one - a skewed column whose
+    # extreme segment had no published tail mean to shape it - could
+    # account for them at all.
+    misses = [(c["column"], c["centre_miss"]) for c in fid["columns"]
+              if c.get("centre_miss")]
+    if misses:
+        skewed = [m for _c, m in misses
+                  if abs(m.get("skew_source") or 0.0) >= 1.0]
+        unshaped = [m for _c, m in misses
+                    if not m["tail_shape_published"]]
+        say("  of the {} that missed: {} are skewed (|skew| >= 1), "
+            "{} had no tail shape published".format(
+                len(misses), len(skewed), len(unshaped)))
+        say("  worst: " + ", ".join(
+            "{} {:.2f}sd {}".format(c, m["by_sd"],
+                                    "skew {:.1f}".format(m["skew_source"])
+                                    if m.get("skew_source") is not None
+                                    else "")
+            for c, m in sorted(misses, key=lambda x: -x[1]["by_sd"])[:4]))
     say("persistence within 0.15 on {}/{} numeric columns".format(
         s["lag1_ok"], s["numeric_dynamic"]))
     say("clustering within 0.15 on {}/{} partly-covered "
@@ -613,6 +634,32 @@ def compare(df, g, bp, group_by, time_col):
             if sd > 0 and abs(row["mean_generated"]
                               - row["mean_source"]) <= 0.1 * sd:
                 n_ok["ctr"] += 1
+            elif sd > 0:
+                # WHY THIS ONE MISSED, not just that it did. The known
+                # mechanism is the quantile grid's extreme segment
+                # being drawn as a straight line to the safe bound,
+                # which overshoots on a skewed column and is corrected
+                # by the published tail mean. So a miss is only
+                # EXPLAINED by that mechanism if the column is skewed
+                # AND the correction was unavailable. Sixteen columns
+                # missed this bar on the 800-patient run with nothing
+                # to say why, and a count cannot be diagnosed twice.
+                mg = (((bp.get("columns") or {}).get(c) or {})
+                      .get("marginal") or {})
+                row["centre_miss"] = {
+                    "by_sd": round(abs(row["mean_generated"]
+                                       - row["mean_source"]) / sd, 4),
+                    "direction": ("generated above source"
+                                  if row["mean_generated"]
+                                  > row["mean_source"]
+                                  else "generated below source"),
+                    "skew_source": round(float(s.skew()), 4)
+                    if len(s) > 2 else None,
+                    "tail_shape_published": bool(
+                        "tail_mean_high" in mg
+                        or "tail_mean_low" in mg),
+                    "integral": bool(mg.get("integral")),
+                }
             a_, b_ = ds.get(c, {}), dg.get(c, {})
             row.update({"icc_source": a_.get("icc"),
                         "icc_generated": b_.get("icc"),
