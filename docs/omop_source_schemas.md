@@ -1,4 +1,5 @@
-# OMOP-mimic CSV schema registry (transcribed from ThinkPad photos)
+# OMOP-mimic CSV schema registry (transcribed from photographs of
+# the data machine's screen — it has no route out for text)
 # Convention observed: pandas-exported CSVs — unnamed index col 0
 # first; person_id moved to END; concept_id+concept_name PRE-JOINED
 # into each fact table (no vocab join needed).

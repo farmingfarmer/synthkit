@@ -87,3 +87,11 @@ campaigns/
 corpus/
 corpora/
 
+
+# ---------------------------------------------------------------
+# The working conventions live in CONVENTIONS.md, which is tracked
+# and neutral. CLAUDE.md is a local pointer at it for one person's
+# tooling: it names an assistant and a machine, and neither belongs
+# in a repository that gets mirrored to an enterprise remote.
+# ---------------------------------------------------------------
+CLAUDE.md

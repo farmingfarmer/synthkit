@@ -4,7 +4,7 @@ Synthetic clinical data generator and model-evaluation instrument. Core rule: le
 
 ## Verify before claiming
 
-- Run `python scripts/run_all_smokes.py` before saying anything works. Expect 46 suites, 1250 checks, ALL GREEN.
+- Run `python scripts/run_all_smokes.py` before claiming anything works. Expect 47 suites, 1257 checks, ALL GREEN.
 - `py_compile` every Python file you touch.
 - Assert count==1 before every string replacement — verify the edit, not just the compile.
 - **Read a file before Write overwrites it.** `Write` says "updated"
@@ -16,9 +16,9 @@ Synthetic clinical data generator and model-evaluation instrument. Core rule: le
 
 ## Fixing what the real extract found
 
-The Windows machine has the data; this machine has only its statistics.
-Every rule here exists because a fix passed here and did nothing, or
-did harm, there.
+The DATA MACHINE has the extract; the DEVELOPMENT MACHINE has only its
+statistics. Every rule here exists because a fix passed on the
+development machine and did nothing, or did harm, on the data machine.
 
 - **Make the fixture reproduce the fault BEFORE fixing it, and assert
   that it does.** A guard verified only against a shape invented here
@@ -36,9 +36,9 @@ did harm, there.
 ## What the 800-patient extract said about the new path
 
 Ran 2026-08-10 on run7's tidy file: 55,428 rows, 47 columns, 800
-patients. 274s with `--lags` (73 columns). I had predicted one to
-three hours — wrong by roughly 30x, and predicted upward, which is the
-direction that stops work happening.
+patients. 274s with `--lags` (73 columns). The estimate beforehand was
+one to three hours — wrong by roughly 30x, and wrong upward, which is
+the direction that stops work happening.
 
 - coverage within 0.05 on 45/45 columns, clustering within 0.15 on
   18/18, persistence within 0.15 on 28/34
@@ -92,7 +92,7 @@ direction that stops work happening.
   check against them.** The dropped-edge section said "2 were mirrors"
   while the run reported 12 dropped: ten had a parent removed to break
   a loop, a category with no section at all, so ten relationships lost
-  a parent and nobody was told. An omitted category is invisible in
+  a parent and no reader was told. An omitted category is invisible in
   any other way.
 - **A partial-dependence curve is CONDITIONAL on the other parents,
   and with correlated columns that can flip its sign.** Mean arterial
@@ -115,25 +115,24 @@ direction that stops work happening.
   Dates driving the attack: −0.001. Bonferroni as the main suppressor:
   +0, twice.
 
-## Talking to the Windows machine
+## Talking to the data machine
 
-- **That machine is NOT a git repository.** `docs/WINDOWS.md` section
-  1 is "Pull the repo (no git needed)": it downloads a zipball,
-  extracts it and renames the folder. `git pull`, `git remote`, `git
-  status` all fail there with `fatal: not a git repository`. Several
-  turns of instructions told the user to `git pull` on it. Read
-  WINDOWS.md before writing any command for that machine.
-- **It holds real clinical data and this Mac does not.** Anything that
-  can be done from either machine should be done from here. Pushing,
-  in particular, belongs on the machine with no PHI on it.
+- **The data machine may not be a git repository.** `docs/WINDOWS.md`
+  section 1 is "Pull the repo (no git needed)": it downloads a
+  zipball, extracts it and renames the folder. `git pull`, `git
+  remote` and `git status` then all fail with `fatal: not a git
+  repository`. Read WINDOWS.md before writing any command for it.
+- **It holds real clinical data and the development machine does
+  not.** Anything that can be done from either belongs on the one with
+  no PHI on it — pushing most of all.
 
 - **Code comes from git; output paths are chosen at run time.** Never
   give an invented directory name as if it were a deliverable — say
-  plainly that the user picks it. Four round trips were lost to `fix5`,
+  plainly that the operator picks it. Four round trips were lost to `fix5`,
   `run_missingfix` and `test9` reading as things to pull.
 - One command per line, no line wrapping: an unexpanded `%USERPROFILE%`
   wrote real-data output into the repo.
-- **That terminal mangles pasted commands.** Three times now: once a
+- **The data machine's terminal mangles pasted commands.** Three times: once a
   wrapped paste put `--src` inside the filename, twice a flag never
   reached the program while the log looked normal. Any script that
   runs there must ECHO the settings it received, or a missing flag is
@@ -144,7 +143,7 @@ direction that stops work happening.
 - Python 3.8 target for the stdlib engine. No walrus, no match
   statements.
 - **numpy, pandas and scikit-learn are allowed** as of 2026-08-07: the
-  Windows machine can pip install. `synthkit/discover.py` uses them.
+  data machine can pip install. `synthkit/discover.py` uses them.
   The older stdlib modules stay stdlib until they are replaced.
 - **`getattr(obj, name, default)` on a library attribute is banned.**
   `HistGradientBoosting` has no `feature_importances_`; the getattr
@@ -153,13 +152,21 @@ direction that stops work happening.
   target. A silent no-op is worse than a crash. Prefer a screen that
   is the same computation as the measurement, so it cannot no-op.
 - Every new capability gets smoke checks that can actually fail. A test that cannot fail proves nothing.
-- One CLI command per line, zsh-compatible, BSD `sed -i ''`.
+- One CLI command per line. The development shell is zsh with BSD
+  `sed`, so `sed -i ''` needs its empty argument.
 
 ## Environment
 
-- Claude Code runs ONLY on this Mac.
-- Real clinical extracts live on a separate Windows machine that pulls from git and runs there. It never runs Claude Code.
-- Code that touches real data must be written without access to it: stream, report progress, fail readably.
+Two machines, and the split is the whole reason these conventions
+exist.
+
+- The DEVELOPMENT MACHINE holds the code and no clinical data at all.
+  All authoring, all fixtures and all pushing happen here.
+- The DATA MACHINE holds the real extracts. It takes code from the
+  repository and runs it; nothing is authored on it.
+- Code that touches real data is therefore written WITHOUT access to
+  it: stream, report progress, fail readably, and echo the settings
+  actually received.
 
 ## Tone
 

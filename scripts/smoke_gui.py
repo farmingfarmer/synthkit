@@ -27,7 +27,7 @@ from synthkit.examples import reference_spec, reference_table
 # Interface labels must describe REQUIREMENTS, never the machines
 # a thing was developed on. A name like these is a provenance
 # leak: invisible to the builder, glaring to a fresh audience.
-_MACHINE_NAMES = ("Mac", "MacBook", "ThinkPad", "M3")
+_MACHINE_NAMES = ("Mac", "MacBook", "ThinkPad", "M3")  # noqa: personal-scan
 
 PASS = 0
 
