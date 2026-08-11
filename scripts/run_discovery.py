@@ -282,12 +282,21 @@ def main():
 def _will_drop(bp):
     """What the sampler will have to discard, worked out before it
     runs, so the reader is told in the document they actually read."""
+    return _will_drop_full(bp)[0]
+
+
+def _will_drop_full(bp):
+    """(dropped, reconnected). The repair list too, because a parent
+    removed from one relationship and reconnected by a direct edge is
+    NOT missing from the data, and the report has to be able to tell
+    the reader which of the two happened to each one."""
     try:
         from synthkit.blueprint import resolve
         from synthkit.generate import _order
-        return _order(resolve(bp))[2]
+        o = _order(resolve(bp))
+        return o[2], o[3]
     except Exception:
-        return []
+        return [], []
 
 
 def render(bp):
@@ -377,7 +386,9 @@ def render(bp):
     L.append("")
     L.append("COLUMNS NOTHING EXPLAINED: {}".format(
         ", ".join(ex.get("unexplained") or []) or "(none)"))
-    dropped = _will_drop(bp)
+    dropped, reconnected = _will_drop_full(bp)
+    direct = set(frozenset([r["child"], r["parent"]])
+                 for r in reconnected)
     mirrors = [d for d in dropped if d.get("harmless")]
     trimmed = [d for d in dropped if not d.get("harmless")
                and d.get("partial")]
@@ -404,22 +415,61 @@ def render(bp):
         L.append("generated the other way round. Nothing is missing.")
         L.append("")
     if trimmed:
-        # Reported because it IS a partial loss. The column is still
-        # explained, but one specific parent's contribution to it is
-        # not in the data - and the first version of this section
-        # omitted the category entirely, so ten of twelve drops on the
-        # real extract were invisible to the reader.
-        L.append("{} had SOME PARENTS REMOVED to break a loop. The "
-                 "column is still".format(len(trimmed)))
-        L.append("explained by the parents that remain, but the ones "
-                 "listed here contribute")
-        L.append("nothing to it in the generated data:")
-        L.append("")
+        # Reported because it IS a partial loss - and the first
+        # version of this section omitted the category entirely, so
+        # ten of twelve drops on the real extract were invisible.
+        #
+        # BUT NOT EVERY REMOVED PARENT IS A LOST ONE, and saying so
+        # was the next mistake. This section read "the ones listed
+        # here contribute nothing to it in the generated data" over a
+        # list that included `age_at_visit lost year_of_birth`, while
+        # fidelity.json recorded `parents_lost: []` for that same drop
+        # because the pair is generated the other way round. Two
+        # shipped files disagreeing about the same relationship. The
+        # split below is per PARENT rather than per relationship,
+        # since one drop can do both.
+        moved, gone = [], []
         for d in sorted(trimmed, key=lambda x: -x.get("skill", 0)):
-            L.append("    {} lost {}   (kept {})".format(
-                d["child"], ", ".join(d["parents"]),
-                ", ".join(d.get("kept_parents") or []) or "nothing"))
+            # `parents_lost` is computed after pair repair has run. An
+            # older report without the field cannot claim anything
+            # survived, so it falls back to naming them all.
+            lost = d.get("parents_lost")
+            if lost is None:
+                lost = list(d["parents"])
+            kept = ", ".join(d.get("kept_parents") or []) or "nothing"
+            for p in d["parents"]:
+                if p in lost:
+                    gone.append("    {} lost {}   (kept {})".format(
+                        d["child"], p, kept))
+                else:
+                    moved.append("    {} <- {}   ({})".format(
+                        d["child"], p,
+                        "kept as a direct edge"
+                        if frozenset([d["child"], p]) in direct
+                        else "generated the other way round"))
+        L.append("{} had SOME PARENTS REMOVED to break a loop, {} "
+                 "parent(s) between them.".format(
+                     len(trimmed), len(moved) + len(gone)))
+        L.append("Removing one is not the same as losing it, so both "
+                 "kinds are named")
+        L.append("below and {} + {} adds back to {}.".format(
+            len(moved), len(gone), len(moved) + len(gone)))
         L.append("")
+        if moved:
+            L.append("{} ARE STILL IN THE DATA, just not inside this "
+                     "relationship - the".format(len(moved)))
+            L.append("pair reaches the output another way:")
+            L.append("")
+            L.extend(moved)
+            L.append("")
+        if gone:
+            L.append("{} ARE GONE. The column is still explained by "
+                     "the parents that remain,".format(len(gone)))
+            L.append("but these contribute nothing to it in the "
+                     "generated data:")
+            L.append("")
+            L.extend(gone)
+            L.append("")
     if other:
         L.append("{} were dropped for other reasons:".format(
             len(other)))
