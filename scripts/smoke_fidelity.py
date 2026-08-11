@@ -6,6 +6,7 @@ tested against a DELIBERATE failure as well as a success.
 import csv
 import json
 import random
+import re
 import subprocess
 import sys
 import tempfile
@@ -273,6 +274,35 @@ def main():
                   encoding="utf-8")
                   for pat in ("data/phase2_run/", "data/real*/",
                               "tidy_visits*.csv")))
+        # EVERY FILE run_discovery WRITES MUST BE IGNORED BY NAME.
+        #
+        # The rules are name-based because a path-anchored set was
+        # already defeated once by an unexpanded %USERPROFILE% writing
+        # real-derived output into the repo root. That makes the list
+        # a promise about NAMES, and a new runner writing new names
+        # breaks it silently: `generated_*.csv` does not match
+        # `generated.csv`, so every artefact of the discover /
+        # blueprint / generate path staged cleanly from a repo-root
+        # run until this check existed.
+        #
+        # Scoped to that runner deliberately. The older pipeline's
+        # artefacts were audited when the section above was written;
+        # this is the one that changed.
+        import fnmatch
+        pats = [ln.strip() for ln in
+                (ROOT / ".gitignore").read_text(
+                    encoding="utf-8").splitlines()
+                if ln.strip() and not ln.strip().startswith("#")
+                and not ln.strip().startswith("!")]
+        writes = ("catalogue.json", "blueprint.json", "findings.txt",
+                  "generated.csv", "fidelity.json")
+        uncovered = [n for n in writes
+                     if not any(fnmatch.fnmatch(n, q) for q in pats)]
+        check("every file run_discovery writes is ignored by NAME, so "
+              "an artefact landing in the repo from a machine holding "
+              "real data cannot be committed: {}".format(
+                  ", ".join(writes)),
+              not uncovered)
         check("the pipeline reports its seven stages",
               res.stdout.count("[") >= 7 and "/7]" in res.stdout)
         for f in ("profile.json", "draft_spec.json",

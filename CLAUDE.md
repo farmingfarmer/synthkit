@@ -4,7 +4,7 @@ Synthetic clinical data generator and model-evaluation instrument. Core rule: le
 
 ## Verify before claiming
 
-- Run `python scripts/run_all_smokes.py` before saying anything works. Expect 46 suites, 1249 checks, ALL GREEN.
+- Run `python scripts/run_all_smokes.py` before saying anything works. Expect 46 suites, 1250 checks, ALL GREEN.
 - `py_compile` every Python file you touch.
 - Assert count==1 before every string replacement — verify the edit, not just the compile.
 - **Read a file before Write overwrites it.** `Write` says "updated"
@@ -116,6 +116,16 @@ direction that stops work happening.
   +0, twice.
 
 ## Talking to the Windows machine
+
+- **That machine is NOT a git repository.** `docs/WINDOWS.md` section
+  1 is "Pull the repo (no git needed)": it downloads a zipball,
+  extracts it and renames the folder. `git pull`, `git remote`, `git
+  status` all fail there with `fatal: not a git repository`. Several
+  turns of instructions told the user to `git pull` on it. Read
+  WINDOWS.md before writing any command for that machine.
+- **It holds real clinical data and this Mac does not.** Anything that
+  can be done from either machine should be done from here. Pushing,
+  in particular, belongs on the machine with no PHI on it.
 
 - **Code comes from git; output paths are chosen at run time.** Never
   give an invented directory name as if it were a deliverable — say

@@ -31,6 +31,25 @@ profile.json
 !data/mimic_omop/fidelity.json
 !docs/e2e/generated_patients.csv
 
+# The discover/blueprint/generate path writes DIFFERENT names, and
+# `generated_*.csv` does not match `generated.csv` - so every artifact
+# of the new pipeline was committable. Verified before this line
+# existed: blueprint.json, catalogue.json, findings.txt and
+# generated.csv all staged cleanly from a repo-root run.
+#
+# All four are derived from whatever was read. generated.csv is
+# synthetic but built from the source's shape; the blueprint holds
+# k-anonymised quantiles and response curves; findings.txt names real
+# columns and real values. Aggregates deserve a governance decision
+# rather than a habit, which is what the rule above already says.
+generated.csv
+blueprint.json
+catalogue.json
+findings.txt
+fidelity.json
+!data/mimic_omop/generated.csv
+!data/mimic_omop/fidelity.json
+
 # ---------------------------------------------------------------
 # PRIVATE — PRESENTER NOTES
 # docs/presenter_companion.html is a teleprompter: verbatim
