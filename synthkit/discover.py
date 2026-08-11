@@ -464,6 +464,18 @@ def discover(df: pd.DataFrame,
                     except Exception:
                         cm = None
                     if cm:
+                        # AND HOW MUCH THAT PARENT EXPLAINS ALONE.
+                        # The shrink term is sqrt(1 - skill), so
+                        # pairing a single-parent curve with the whole
+                        # claim's skill removes far too much noise and
+                        # the output comes out OVER-correlated: 0.978
+                        # generated against 0.888 in the source.
+                        try:
+                            cm["skill"] = round(float(_skill(
+                                kind, yte_v, mm.predict(Xte[mcols]),
+                                base_pred)), 4)
+                        except Exception:
+                            cm["skill"] = None
                         cm["centre"] = round(curve_centre(
                             cm, X_all[p["column"]]), 6)
                         d0 = describe(cm, p["column"], target, spread)

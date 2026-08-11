@@ -117,7 +117,50 @@ def detect_time_column(rows: List[Dict[str, Any]],
                                     "patient; falling back to file "
                                     "order, which is an assumption "
                                     "rather than a measurement")
-    return best[1], best[2], best[3]
+
+    # WHEN TWO DATES BOTH QUALIFY, PREFER THE ONE THAT COMES FIRST.
+    #
+    # Ranking by distinct count chose visit_END_date on a real extract
+    # - an end date orders a stay by when it finished, so overlapping
+    # or same-day admissions come out in the wrong sequence, and every
+    # lag feature and dynamics statistic is then measured across
+    # visits that were never adjacent.
+    #
+    # Which column is the START is a MEASUREMENT, not a name: if A is
+    # at or before B on essentially every row, A began the visit. That
+    # holds for visit_start_date against visit_end_date and needs no
+    # string matching, which would have been guessing.
+    chosen, kind, why = best[1], best[2], best[3]
+    if kind == "date-like":
+        for c in cols:
+            if c == chosen:
+                continue
+            pair = [(str(r.get(c) or "").strip(),
+                     str(r.get(chosen) or "").strip())
+                    for r in rows[:5000]]
+            pair = [(a, b) for a, b in pair
+                    if a and b and _is_date(a) and _is_date(b)]
+            if len(pair) < 0.9 * min(len(rows), 5000):
+                continue
+            at_or_before = sum(1 for a, b in pair if a <= b)
+            strictly = sum(1 for a, b in pair if a < b)
+            # STRICTLY earlier somewhere, not merely never later. Two
+            # columns holding the same date on every row order visits
+            # identically, and swapping between them while claiming to
+            # have found "when the visit began" is a measurement
+            # nobody made.
+            if at_or_before >= 0.95 * len(pair) and \
+                    strictly >= 0.05 * len(pair):
+                why = ("{:.0%} of values parse as dates, and it is at "
+                       "or before {} on {:.0%} of rows and strictly "
+                       "earlier on {:.0%} - so it is when the visit "
+                       "BEGAN, which is what orders a stay".format(
+                           1.0, chosen,
+                           at_or_before / float(len(pair)),
+                           strictly / float(len(pair))))
+                chosen = c
+                break
+    return chosen, kind, why
 
 
 def column_time_kind(rows, group_by, col):

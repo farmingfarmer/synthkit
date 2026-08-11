@@ -248,11 +248,19 @@ def main():
     check("a parent whose effect REVERSES once the others are held "
           "fixed is flagged - that disagreement is a finding, not an "
           "inconvenience", any(rev))
+    alones = [e["alone"] for rel in b4["relationships"]
+              for e in (rel["evidence"].get("effect") or {}).values()
+              if e.get("alone")]
     check("...and each parent carries a curve measured on its OWN, "
           "which is what a sampler needs when the others are gone",
-          any(e.get("alone")
-              for rel in b4["relationships"]
-              for e in (rel["evidence"].get("effect") or {}).values()))
+          bool(alones))
+    check("...carrying ITS OWN skill, since the noise added back is "
+          "sqrt(1 - skill) and the claim's figure belongs to a model "
+          "that saw every other column too",
+          all(a.get("skill") is not None for a in alones)
+          and any(a["skill"] < 0.95 * max(
+              rel["evidence"]["skill_out_of_sample"]
+              for rel in b4["relationships"]) for a in alones))
     g4 = generate(b4, n_patients=300, seed=5)
 
     def sgn_corr(frame, x, y):
@@ -263,10 +271,12 @@ def main():
     for i, j in (("systolic", "diastolic"), ("systolic", "map"),
                  ("diastolic", "map")):
         srcc, genc = sgn_corr(d4, i, j), sgn_corr(g4, i, j)
-        check("{} against {} keeps its SIGN and most of its strength "
-              "- inverted output is worse than absent, because it "
-              "reads as a finding".format(i, j),
-              srcc * genc > 0 and abs(genc) > 0.5 * abs(srcc))
+        check("{} against {} comes out close to the source, not "
+              "merely the right sign - pairing a single-parent curve "
+              "with the whole claim's skill removed too much noise "
+              "and over-correlated it to 0.978 against 0.888".format(
+                  i, j),
+              srcc * genc > 0 and abs(genc - srcc) < 0.15)
 
     # ---- a BENT curve must not drag the column's centre ----------
     # The systematic term is added as (curve - centre). Centring on

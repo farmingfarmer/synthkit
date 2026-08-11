@@ -489,14 +489,20 @@ def _apply_numeric(c, spec, m, base, rels, out):
         # against diastolic through mean arterial pressure.
         full = len(r["parents"]) >= len(
             (r.get("_original_parents") or r["parents"]))
+        used_sk = None
         for p in r["parents"]:
             if p in done or p not in out or p not in eff:
                 continue
             e = eff[p]
             if (not full or len(r["parents"]) == 1) and e.get("alone"):
                 e = e["alone"]
+                # the skill of the model that produced THIS curve, not
+                # of the claim it came from
+                if e.get("skill") is not None:
+                    used_sk = max(used_sk or 0.0, float(e["skill"]))
             systematic += s * _curve_delta(e, out[p])
-        sk = float(ev.get("skill_out_of_sample") or 0.0)
+        sk = (used_sk if used_sk is not None
+              else float(ev.get("skill_out_of_sample") or 0.0))
         explained = max(explained, min(max(sk, 0.0), 0.99) * min(s, 1.0))
     shrink = float(np.sqrt(max(0.0, 1.0 - explained)))
     return mean + systematic + shrink * (

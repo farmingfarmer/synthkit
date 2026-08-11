@@ -75,6 +75,53 @@ def main():
     check("...and says so in words a reader can act on",
           "rather than a measurement" in ev)
 
+    # ---- START before END, measured rather than named -------------
+    # Ranking date columns by distinct count chose visit_END_date on a
+    # real extract. An end date orders a stay by when it finished, so
+    # overlapping admissions come out in the wrong sequence and every
+    # lag and dynamics statistic is measured across visits that were
+    # never adjacent - measured on a fixture, 41 patients in 200 have
+    # a different visit ORDER under the two dates.
+    import datetime as _dt
+
+    def two_dates(spread, n_pat=200, seed=2):
+        rr = random.Random(seed)
+        base = _dt.date(2021, 1, 1)
+        out = []
+        for p in range(n_pat):
+            d = 0
+            for _v in range(8):
+                d += rr.randint(1, 10)
+                st = base + _dt.timedelta(days=d)
+                en = st + _dt.timedelta(days=rr.randint(0, spread))
+                out.append({"person_id": "P{:03d}".format(p),
+                            "visit_start_date": st.isoformat(),
+                            "visit_end_date": en.isoformat(),
+                            "lab": rr.random()})
+        return out
+
+    wide = two_dates(60)
+    n_end = len(set(r["visit_end_date"] for r in wide))
+    n_start = len(set(r["visit_start_date"] for r in wide))
+    check("the end date really does have more distinct values, which "
+          "is what made a distinct-count ranking choose it - without "
+          "this the fixture cannot reproduce the fault",
+          n_end > n_start)
+    col, kind, ev = detect_time_column(wide, "person_id")
+    check("the START date is chosen anyway, because which column "
+          "began the visit is a MEASUREMENT - at or before the other "
+          "on nearly every row - and not a guess from its name",
+          col == "visit_start_date")
+    check("...and the reason says so, with the share it was measured "
+          "on", "BEGAN" in ev and "strictly earlier" in ev)
+
+    same = two_dates(0)
+    c2, _k2, e2 = detect_time_column(same, "person_id")
+    check("two dates that are IDENTICAL on every row order visits the "
+          "same way, so neither is claimed to be the beginning - a "
+          "swap there would be a measurement nobody made",
+          "BEGAN" not in e2)
+
     # ---- what earns a lag -----------------------------------------
     rows = build("date")
     col, kind, _ = detect_time_column(rows, "person_id")

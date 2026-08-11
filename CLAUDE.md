@@ -4,7 +4,7 @@ Synthetic clinical data generator and model-evaluation instrument. Core rule: le
 
 ## Verify before claiming
 
-- Run `python scripts/run_all_smokes.py` before saying anything works. Expect 46 suites, 1244 checks, ALL GREEN.
+- Run `python scripts/run_all_smokes.py` before saying anything works. Expect 46 suites, 1249 checks, ALL GREEN.
 - `py_compile` every Python file you touch.
 - Assert count==1 before every string replacement — verify the edit, not just the compile.
 - **Read a file before Write overwrites it.** `Write` says "updated"
@@ -102,6 +102,12 @@ direction that stops work happening.
   is worse than absent: it reads as a finding. Every parent also gets
   a curve measured ON ITS OWN, and generation uses that whenever the
   parents it was conditioned on are not all present.
+- **A curve and the skill it is paired with must come from the SAME
+  model.** The noise added back is sqrt(1 - skill), so a single-parent
+  curve carrying the whole claim's skill removes far too much of it:
+  systolic against diastolic generated at 0.978 where the source had
+  0.888. Each curve now carries the skill of the model that produced
+  it.
 - **An internal contradiction is the signal.** Every measurement error
   here was caught by two numbers disagreeing, never by review — 0.735
   against an asymptote of 0.38; a negative rho that cannot exist.
