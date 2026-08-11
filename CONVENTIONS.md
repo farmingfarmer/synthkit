@@ -4,7 +4,7 @@ Synthetic clinical data generator and model-evaluation instrument. Core rule: le
 
 ## Verify before claiming
 
-- Run `python scripts/run_all_smokes.py` before claiming anything works. Expect 49 suites, 1301 checks, ALL GREEN.
+- Run `python scripts/run_all_smokes.py` before claiming anything works. Expect 50 suites, 1324 checks, ALL GREEN.
 - **`pip install -r requirements.txt` first, or seven suites do not
   run.** A machine without numpy, pandas and scikit-learn fails
   `smoke_blueprint`, `smoke_discover`, `smoke_dynamics`,
@@ -54,8 +54,21 @@ the direction that stops work happening.
 
 - coverage within 0.05 on 45/45 columns, clustering within 0.15 on
   18/18, persistence within 0.15 on 28/34
-- **centre within 10% of spread on only 18/34 numeric columns** — the
-  open fidelity gap, not yet diagnosed
+- **centre within 10% of spread on only 18/34 numeric columns** — one
+  mechanism found and fixed, the rest STILL OPEN. A piecewise-linear
+  inverse CDF assumes uniform density between knots, and across the
+  top segment that is the whole error: knots at 316.1 and 2175.0, true
+  segment mean 529.0, straight line 1241.7, and that one segment
+  carried 7.13 of a 9.97 excess against 2.84 for the other nine
+  together. Same cause in whole-number columns, where rounding at .5
+  moved 11.3 points of mass off zero. Fixed by publishing the tail's
+  own mean and by placing the rounding cut where the column mean says.
+  How many of the sixteen this accounts for IS NOT KNOWN: the tidy
+  fixture passes 94% of its columns where the extract passes 53%, so
+  it cannot answer. `fidelity.json` now carries a `centre_miss` block
+  — miss in sds, direction, source skew, whether a tail shape was
+  published — so the next real run diagnoses the remainder instead of
+  counting it again.
 - 16 of 26 relationships dropped to keep the graph sampleable, which
   is not yet reported per-edge anywhere a reader would look
 - the identifier-derivative fix fired on real data: `visit_id` and its

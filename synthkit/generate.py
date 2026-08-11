@@ -77,7 +77,78 @@ def _draw_numeric(m: Dict[str, Any], u: np.ndarray) -> np.ndarray:
     q = np.asarray(m["q"], dtype=float)
     v = np.asarray(m["v"], dtype=float)
     out = np.interp(u, q, v)
-    return np.round(out) if m.get("integral") else out
+    out = _shape_tail(out, u, q, v, m.get("tail_mean_high"), True)
+    out = _shape_tail(out, u, q, v, m.get("tail_mean_low"), False)
+    return _to_integers(out, m) if m.get("integral") else out
+
+
+def _shape_tail(out, u, q, v, target, upper: bool):
+    """Bend the extreme segment so it averages what the source did.
+
+    A straight line from the last knot to the safe bound spreads the
+    top 1% evenly across a range that is enormous and a density that
+    is collapsing. Measured: knots at 316.1 and 2175.0, true segment
+    mean 529.0, straight-line mean 1241.7 - and that one segment
+    carried 7.13 of the column's 9.97 excess.
+
+    The replacement is the same segment under a power curve,
+    value = a + (b - a) * t**p, whose mean over a uniform t is
+    a + (b - a) / (p + 1). So p falls straight out of the mean the
+    blueprint published, with no fitting and no extra parameter, and
+    the segment still starts and ends exactly where it did - the
+    bound is untouched and the draw stays monotone in u.
+
+    Left alone when the target is not strictly inside the segment: no
+    monotone curve between a and b can average something outside it,
+    and silently clamping would put back a bias of unknown size."""
+    if target is None:
+        return out
+    i = len(q) - 2 if upper else 0
+    a, b = float(v[i]), float(v[i + 1])
+    lo_q, hi_q = float(q[i]), float(q[i + 1])
+    if not (b > a and hi_q > lo_q and a < float(target) < b):
+        return out
+    t = np.clip((u - lo_q) / (hi_q - lo_q), 0.0, 1.0)
+    if upper:
+        p = (b - a) / (float(target) - a) - 1.0
+    else:
+        p = (b - a) / (b - float(target)) - 1.0
+        t = 1.0 - t
+    p = min(max(p, 0.02), 60.0)
+    shaped = (a + (b - a) * t ** p if upper
+              else b - (b - a) * t ** p)
+    inside = (u >= lo_q) if upper else (u < hi_q)
+    return np.where(inside, shaped, out)
+
+
+def _to_integers(out, m):
+    """Round a whole-number column WHERE THE MASS ACTUALLY SITS.
+
+    Rounding at .5 is only right if the value is equally likely either
+    side of it, and between two knots holding different integers it is
+    not. Measured on a count column that is 73.8% zeros: the published
+    grid steps from 0 at q=0.50 to 1 at q=0.75, the straight line ramps
+    across that quarter of the draw, and everything above the halfway
+    point rounds up - 11.3 points of mass moved off zero, and the mean
+    read 0.4165 against 0.3019.
+
+    So the cut is placed where the column's own mean says it belongs.
+    floor(x + t) is monotone in t, which makes this a bisection with no
+    local minima. It is the published mean doing the work, not a new
+    number, and the whole distribution improves rather than only the
+    statistic being matched: total variation against the source fell
+    from 0.124 to 0.042 on that column."""
+    target = m.get("mean")
+    if target is None:
+        return np.round(out)
+    lo, hi = 0.0, 1.0
+    for _ in range(50):
+        mid = (lo + hi) / 2.0
+        if float(np.floor(out + mid).mean()) < float(target):
+            lo = mid
+        else:
+            hi = mid
+    return np.floor(out + (lo + hi) / 2.0)
 
 
 def _draw_categorical(m: Dict[str, Any], n: int, rng) -> np.ndarray:

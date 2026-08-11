@@ -47,6 +47,9 @@ def build(seed=5):
             rows.append({
                 "person_id": "P{:04d}".format(p),
                 "lab": round(float(r.lognormal(2, 1)), 3),
+                # a skewed column NO single patient dominates, so the
+                # tail shape can be published and has to be checked
+                "clean_lab": round(float(r.lognormal(2, 1)), 3),
                 "age": int(r.normal(60, 12)),
                 # one level almost nobody has
                 "site": str(r.choice(["A", "B", "rare_site"],
@@ -88,6 +91,42 @@ def main():
     age = bp["columns"]["age"]["marginal"]
     check("...and the same holds for a second column that person also "
           "dominates", age["v"][-1] < 121)
+
+    # THE TAIL SHAPE IS A PUBLISHED NUMBER TOO. It says what the top
+    # of the distribution averages, which is what stops generation
+    # drawing a straight line to the bound - and counted over ROWS it
+    # would be exactly this one patient's value, since 60 visits at
+    # 9999 are the whole top segment.
+    lab_rows = lab[lab >= float(np.quantile(lab.to_numpy(float), 0.99))]
+    check("the tail shape is SUPPRESSED when one patient holds the "
+          "extreme rows - counted over rows it would have published "
+          "{:.0f}, which is that person's own value".format(
+              float(lab_rows.mean())),
+          "tail_mean_high" not in m
+          and abs(float(lab_rows.mean()) - 9999.0) < 1.0)
+    check("...and it is the PATIENT count that suppresses it: only "
+          "{} patient(s) reach that segment, under a k of 10".format(
+              df.loc[lab >= float(np.quantile(lab.to_numpy(float),
+                                              0.99)), "person_id"]
+              .nunique()),
+          df.loc[lab >= float(np.quantile(lab.to_numpy(float), 0.99)),
+                 "person_id"].nunique() < 10)
+
+    clean = pd.to_numeric(df["clean_lab"]).dropna()
+    cm = bp["columns"]["clean_lab"]["marginal"]
+    check("on a column no one patient dominates the tail shape IS "
+          "published - suppressing everything would be safe and "
+          "useless", "tail_mean_high" in cm)
+    check("...and it is not any single record's value, the same rule "
+          "the bounds are held to",
+          cm["tail_mean_high"] not in set(clean.tolist()))
+    check("...and it sits inside the real range, so it is a summary "
+          "rather than an invention",
+          float(clean.min()) <= cm["tail_mean_high"]
+          <= float(clean.max()))
+    check("...and inside the segment it describes, which is what "
+          "makes it usable at all",
+          cm["v"][-2] <= cm["tail_mean_high"] <= cm["v"][-1])
 
     site = bp["columns"]["site"]["marginal"]
     levels = [l["value"] for l in site["levels"]]

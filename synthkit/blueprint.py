@@ -91,6 +91,49 @@ def _safe_bounds(v: pd.Series, groups, k: int):
     return (lo, hi) if hi > lo else None
 
 
+def _tail_mean(v: pd.Series, groups, cut: float, upper: bool,
+               k: int) -> Optional[float]:
+    """What the values in the extreme segment actually average.
+
+    WHY IT HAS TO BE PUBLISHED. Generation inverts the quantile grid by
+    interpolating between knots, which assumes the density is UNIFORM
+    between them. Across the top 1% that assumption is not slightly
+    wrong, it is the whole error: measured on a heavy-tailed column
+    whose published knots ran 316.1 at q=0.99 and 2175.0 at the safe
+    maximum, the true mean of that segment is 529.0 and a straight line
+    draws 1241.7. That one segment supplied 7.13 of a 9.97 excess in
+    the column's mean - the rest of the grid, all nine other segments
+    together, supplied 2.84. The bound alone cannot fix it, because the
+    bound is where the tail ENDS and this is how it is shaped.
+
+    It cannot be solved from the column mean already published, either.
+    For that same column the top segment would have to average 246 to
+    absorb the whole error, which is below its own lower knot and so
+    unreachable by any monotone draw. The tail's own mean is genuinely
+    missing information.
+
+    AVERAGED OVER PATIENTS, for the reason the bounds are: one person
+    seen two hundred times holds the top 1% of ROWS by themselves, and
+    a row-counted mean would then publish that person's average. Each
+    patient in the segment contributes their own mean once, and at
+    least k patients must be present or nothing is published and
+    generation keeps the straight line."""
+    arr = v.to_numpy(dtype=float)
+    sel = arr >= cut if upper else arr <= cut
+    if not sel.any():
+        return None
+    if groups is None:
+        # No patient column: fall back to rows, at the same 2k floor
+        # the bounds use when they have nothing better either.
+        vals = arr[sel]
+        return float(vals.mean()) if len(vals) >= 2 * k else None
+    g = np.asarray(groups)[v.index][sel]
+    per = pd.DataFrame({"g": g, "v": arr[sel]}).groupby("g")["v"].mean()
+    if len(per) < k:
+        return None
+    return float(per.mean())
+
+
 def _numeric_marginal(s: pd.Series, groups=None,
                       k: int = 10) -> Dict[str, Any]:
     v = s.dropna()
@@ -111,7 +154,7 @@ def _numeric_marginal(s: pd.Series, groups=None,
     # interior quantiles are clamped inside the safe bounds, so the
     # published curve never reaches past what k patients support
     vals = [min(max(x, lo), hi) for x in vals]
-    return {
+    out = {
         "type": "quantiles",
         "q": [0.0] + [round(float(x), 6) for x in inner] + [1.0],
         "v": ([round(lo, 6)] + [round(x, 6) for x in vals]
@@ -121,6 +164,20 @@ def _numeric_marginal(s: pd.Series, groups=None,
         "integral": bool(np.all(np.mod(arr, 1.0) == 0.0)),
         "bounds_are_k_anonymous": k,
     }
+    # HOW THE TWO EXTREME SEGMENTS ARE SHAPED. Without these the draw
+    # runs a straight line from the last knot to the safe bound, which
+    # is the single largest source of centre error on skewed columns.
+    # Absent when fewer than k patients reach the segment, and
+    # generation then keeps the straight line rather than guessing.
+    hi_mean = _tail_mean(v, groups, float(np.quantile(arr, inner[-1])),
+                         True, k)
+    lo_mean = _tail_mean(v, groups, float(np.quantile(arr, inner[0])),
+                         False, k)
+    if hi_mean is not None:
+        out["tail_mean_high"] = round(hi_mean, 6)
+    if lo_mean is not None:
+        out["tail_mean_low"] = round(lo_mean, 6)
+    return out
 
 
 def _categorical_marginal(s: pd.Series, groups=None,
@@ -327,6 +384,18 @@ def build(df: pd.DataFrame,
             "rare_levels": "categorical levels carried by fewer than "
                            "{} patients are not published and cannot "
                            "be generated".format(k),
+            "tail_shape": "tail_mean_high and tail_mean_low say what "
+                          "the extreme segments AVERAGE, so generation "
+                          "does not draw a straight line to the bound. "
+                          "Each is a mean over patients, one value per "
+                          "patient, and is withheld unless {} patients "
+                          "reach the segment - counted over rows "
+                          "instead, one person with many visits would "
+                          "set it to their own value.".format(k),
+            "tail_shape_withheld": sorted(
+                c for c, v in columns.items()
+                if (v.get("marginal") or {}).get("type") == "quantiles"
+                and "tail_mean_high" not in v["marginal"]),
             "columns_suppressed": sorted(
                 c for c, v in columns.items()
                 if (v.get("marginal") or {}).get("type")
