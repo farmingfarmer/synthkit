@@ -99,6 +99,20 @@ def main():
           "to fix a documentation problem",
           "anthropic.claude" in body and "claude-sonnet" in body)
 
+    # OS METADATA IS A PROVENANCE LEAK TOO, and a text scan cannot
+    # see it. `docs/.DS_Store` was tracked: a binary Finder index
+    # holding the folder's layout and file listing from one person's
+    # desktop. It carries no banned string, so every check above
+    # passed while it sat in the tree.
+    junk = [f.relative_to(ROOT) for f in files
+            if f.name in (".DS_Store", "Thumbs.db", "desktop.ini")
+            or f.name.endswith(".swp")]
+    check("no operating-system metadata file is tracked - a binary "
+          "index of one person's folders passes every text scan{}"
+          .format("" if not junk
+                  else " -- " + ", ".join(str(j) for j in junk)),
+          not junk)
+
     check("the tracked conventions file exists and is the neutral "
           "one", (ROOT / "CONVENTIONS.md").exists())
     check("...and the assistant-specific file is NOT tracked",
