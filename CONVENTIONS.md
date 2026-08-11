@@ -4,7 +4,19 @@ Synthetic clinical data generator and model-evaluation instrument. Core rule: le
 
 ## Verify before claiming
 
-- Run `python scripts/run_all_smokes.py` before claiming anything works. Expect 47 suites, 1262 checks, ALL GREEN.
+- Run `python scripts/run_all_smokes.py` before claiming anything works. Expect 49 suites, 1301 checks, ALL GREEN.
+- **`pip install -r requirements.txt` first, or seven suites do not
+  run.** A machine without numpy, pandas and scikit-learn fails
+  `smoke_blueprint`, `smoke_discover`, `smoke_dynamics`,
+  `smoke_generate`, `smoke_privacy`, `smoke_run_discovery` and
+  `smoke_shapes` on the import line — every suite covering the new
+  path — and the runner reports seven FAILs that look like broken
+  code. Check the tail says ALL GREEN, not just that it exited.
+- **`smoke_gui` loses a race roughly one run in eight**, independently
+  of any change: the over-budget job check reads a status 0.1s after
+  starting the job and sees `error: Expecting value: line 1 column 1`.
+  Measured 7/8 in isolation. A single FAIL there is not evidence of
+  anything until it repeats; re-run before believing it.
 - `py_compile` every Python file you touch.
 - Assert count==1 before every string replacement — verify the edit, not just the compile.
 - **Read a file before Write overwrites it.** `Write` says "updated"
@@ -120,7 +132,33 @@ the direction that stops work happening.
   against an asymptote of 0.38; a negative rho that cannot exist.
 - **State predictions as hypotheses with a test, not as findings.**
   Dates driving the attack: −0.001. Bonferroni as the main suppressor:
-  +0, twice.
+  +0, twice. Cutting the cheapest edge to break a cycle: worse, below.
+- **A change that is obviously right on a hand-built fixture still has
+  to be measured on a real one.** Inside a cycle the sampler draws
+  columns in whatever order the blueprint lists them, so the same
+  graph with the same skills gives a different answer depending on how
+  the file was written — a genuine defect, and generate.py claims the
+  arrow is chosen by out-of-sample skill. The fix that follows from
+  that, cutting where the immediate skill loss is smallest, was built,
+  proven order-invariant on a four-column loop, and then measured with
+  `scripts/pair_fidelity_sweep.py` at 300 patients over four seeds:
+
+      sign kept   16.8 (16-17)  against  17.2 (17-18) before
+      close       15.8 (15-16)  against  16.2 (15-17) before
+      INVERTED     0-1, two seeds of four,  against  0-0, never
+
+  Every per-seed delta was zero or negative, and it produced sign
+  inversions where the arbitrary order produced none — the outcome the
+  pair checks exist to catch. Greedy cheapest-cut is locally optimal
+  and globally worse: on one seed it trimmed 12 relationships where
+  the old order trimmed 10. Reverted; the ordering defect stands.
+  Retry it only against that sweep, and beat 0 inversions rather than
+  the mean.
+- **`recall_sweep.py` cannot see the new path.** It drives CondNet and
+  measures whether DISCOVERY finds planted relationships. For anything
+  in discover / blueprint / generate, use `pair_fidelity_sweep.py`,
+  which measures whether the relationships survive GENERATION. Reading
+  a flat recall sweep as evidence about the sampler measures nothing.
 
 ## Talking to the data machine
 
@@ -159,6 +197,19 @@ the direction that stops work happening.
   target. A silent no-op is worse than a crash. Prefer a screen that
   is the same computation as the measurement, so it cannot no-op.
 - Every new capability gets smoke checks that can actually fail. A test that cannot fail proves nothing.
+- **Run the new check against the OLD code and watch it fail before
+  believing it.** Two guards written the same afternoon could not have
+  failed: one searched a wrapped heading for `"contribute nothing"`, a
+  phrase the line break splits so it never appears whatever the report
+  says; the other looked for a bare 5-digit ordinal when `{:.4g}`
+  renders 17920 as `1.792e+04`. Both sat beside a positive assertion
+  that did work, so the suite was green and half of each check was
+  decoration. Revert the fix, or feed the guard the old output
+  directly, and see red first.
+- **A fixture must contain the thing the check is about.** A "was
+  anything genuinely lost" check ran against a graph where nothing was
+  lost, so it passed on an empty list. If the check is `X or not Y`,
+  assert Y happened.
 - One CLI command per line. The development shell is zsh with BSD
   `sed`, so `sed -i ''` needs its empty argument.
 

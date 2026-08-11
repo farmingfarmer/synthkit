@@ -149,12 +149,28 @@ def effect_curve(model, Xp, members: List[str], source: pd.Series,
             "response_when_missing": miss_v}
 
 
+def _g4(v) -> str:
+    """How a number reads in a sentence when nothing better is known."""
+    return "{:.4g}".format(float(v))
+
+
 def describe(curve: Dict[str, Any], parent: str, child: str,
-             child_spread: float) -> Dict[str, Any]:
+             child_spread: float, fmt_parent=None,
+             fmt_child=None) -> Dict[str, Any]:
     """Name the shape and say it in a sentence.
 
     The names are the vocabulary a reader thinks in - rising,
-    U-shaped, threshold, saturating - not coefficients."""
+    U-shaped, threshold, saturating - not coefficients.
+
+    `fmt_parent` and `fmt_child` turn one of that column's values into
+    the text a person reads. They exist because a DATE is carried
+    through this module as days since an epoch - which is what lets it
+    be ordered and carry a curve at all - and "as visit_start_date
+    goes 18004 to 19878" is not a sentence anybody can act on. The
+    numbers in `grid`, `response` and `turning_point` stay numbers,
+    since the sampler reads those; only the sentence is translated."""
+    fp = fmt_parent or _g4
+    fc = fmt_child or _g4
     g, r = curve["grid"], np.asarray(curve["response"], dtype=float)
     lo, hi = float(r.min()), float(r.max())
     rng = hi - lo
@@ -167,10 +183,10 @@ def describe(curve: Dict[str, Any], parent: str, child: str,
             else "varies-by-level"
         text = ("{} barely differs across {}".format(what, parent)
                 if shape == "flat" else
-                "{} is lowest at {}={!r} ({:.4g}) and highest at "
-                "{}={!r} ({:.4g})".format(
-                    what, parent, g[order[0]], r[order[0]],
-                    parent, g[order[-1]], r[order[-1]]))
+                "{} is lowest at {}={!r} ({}) and highest at "
+                "{}={!r} ({})".format(
+                    what, parent, g[order[0]], fc(r[order[0]]),
+                    parent, g[order[-1]], fc(r[order[-1]])))
         return {"shape": shape, "description": text,
                 "effect_size": round(rng, 6),
                 "monotone": False}
@@ -187,10 +203,10 @@ def describe(curve: Dict[str, Any], parent: str, child: str,
                     "description": (
                         "{} does not depend on the VALUE of {} at all "
                         "- it depends on whether {} was measured. "
-                        "Observed it sits near {:.4g}; when {} is "
-                        "absent it is {:.4g}".format(
-                            what, parent, parent, float(r.mean()),
-                            parent, mv))}
+                        "Observed it sits near {}; when {} is "
+                        "absent it is {}".format(
+                            what, parent, parent, fc(float(r.mean())),
+                            parent, fc(mv)))}
         return {"shape": "flat", "monotone": False,
                 "effect_size": round(rng, 6),
                 "description": "{} hardly moves as {} varies - the "
@@ -201,8 +217,6 @@ def describe(curve: Dict[str, Any], parent: str, child: str,
     d = np.diff(r)
     up, down = bool(np.all(d >= -rng * 0.02)), bool(
         np.all(d <= rng * 0.02))
-    span = "{} from {:.4g} to {:.4g} as {} goes {:.4g} to {:.4g}"
-
     # an interior turning point beats every other reading
     imin, imax = int(np.argmin(r)), int(np.argmax(r))
     inner = range(1, len(r) - 1)
@@ -212,16 +226,16 @@ def describe(curve: Dict[str, Any], parent: str, child: str,
                 "effect_size": round(rng, 6),
                 "turning_point": round(float(g[imin]), 6),
                 "description": "{} falls then rises as {} increases - "
-                               "U-shaped, lowest near {}={:.4g}".format(
-                                   what, parent, parent, g[imin])}
+                               "U-shaped, lowest near {}={}".format(
+                                   what, parent, parent, fp(g[imin]))}
     if imax in inner and (hi - r[0]) > TURN_CLEARANCE * rng and \
             (hi - r[-1]) > TURN_CLEARANCE * rng:
         return {"shape": "inverted-u", "monotone": False,
                 "effect_size": round(rng, 6),
                 "turning_point": round(float(g[imax]), 6),
                 "description": "{} rises then falls as {} increases - "
-                               "peaks near {}={:.4g}".format(
-                                   what, parent, parent, g[imax])}
+                               "peaks near {}={}".format(
+                                   what, parent, parent, fp(g[imax]))}
 
     # A THRESHOLD IS A BIG STEP WITH FLAT GROUND ON BOTH SIDES.
     #
@@ -244,12 +258,12 @@ def describe(curve: Dict[str, Any], parent: str, child: str,
         return {"shape": "threshold", "monotone": up or down,
                 "effect_size": round(rng, 6),
                 "turning_point": round(float(at), 6),
-                "description": "{} steps {} sharply around {}={:.4g} - "
+                "description": "{} steps {} sharply around {}={} - "
                                "most of the change happens at that "
                                "one point rather than gradually"
                                .format(what,
                                        "up" if d[k] > 0 else "down",
-                                       parent, at)}
+                                       parent, fp(at))}
 
     if up or down:
         third = max(1, len(d) // 3)
@@ -260,21 +274,28 @@ def describe(curve: Dict[str, Any], parent: str, child: str,
                     "effect_size": round(rng, 6),
                     "description": ("{} rises steeply and then "
                                     "flattens as {} increases - past "
-                                    "about {:.4g} more {} buys little"
+                                    "about {} more {} buys little"
                                     ).format(what, parent,
-                                             g[max(third, 1)], parent)}
+                                             fp(g[max(third, 1)]),
+                                             parent)}
+        # Built with positional arguments rather than by formatting
+        # the sentence twice. The old form ran `.format(what)` over a
+        # string that already held the values, so a level containing a
+        # brace would have raised on the second pass.
         return {"shape": "increasing" if up else "decreasing",
                 "monotone": True, "effect_size": round(rng, 6),
-                "description": ("{} " + ("rises " if up else "falls ")
-                                + span.format("", r[0], r[-1], parent,
-                                              g[0], g[-1])).replace(
-                                    "  ", " ").format(what)}
+                "description": "{} {} from {} to {} as {} goes "
+                               "{} to {}".format(
+                                   what, "rises" if up else "falls",
+                                   fc(r[0]), fc(r[-1]), parent,
+                                   fp(g[0]), fp(g[-1]))}
 
     return {"shape": "non-monotone", "monotone": False,
             "effect_size": round(rng, 6),
             "description": "{} moves with {} but not in one direction "
-                           "- it ranges {:.4g} to {:.4g} without a "
-                           "simple trend".format(what, parent, lo, hi)}
+                           "- it ranges {} to {} without a "
+                           "simple trend".format(what, parent,
+                                                 fc(lo), fc(hi))}
 
 
 def joint_surface(model, Xp, members_a: List[str],

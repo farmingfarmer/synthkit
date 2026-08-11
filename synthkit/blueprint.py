@@ -177,7 +177,7 @@ def build(df: pd.DataFrame,
     from .discover import _source, prepare
     from .dynamics import measure as measure_dynamics
 
-    X, identifiers = prepare(df, group_by)
+    X, identifiers, dates = prepare(df, group_by)
     n_rows = len(df)
     gvals = (df[group_by].astype(str).to_numpy()
              if group_by and group_by in df.columns else None)
@@ -213,6 +213,15 @@ def build(df: pd.DataFrame,
                 "missing_clustering": None,
             },
         }
+        # A DATE STAYS NUMERIC AND CARRIES ITS FORMAT. Everything
+        # numeric - the quantile marginal, the effect curves, the
+        # dynamics, shift and scale in DAYS - then applies to it
+        # unchanged, and generation writes it back out as a date
+        # instead of as days since an epoch. A field beside `kind`
+        # rather than a third kind for exactly that reason: a new kind
+        # would need every one of those paths taught about it.
+        if c in dates:
+            columns[c]["date"] = dates[c]
 
     # HOW EACH COLUMN BEHAVES ACROSS VISITS. Without this the output
     # has the right share of missing values scattered at random rather

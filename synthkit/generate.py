@@ -57,6 +57,7 @@ import numpy as np
 import pandas as pd
 
 from .blueprint import resolve
+from .dates import DATE_ORIGIN, from_ordinal
 from .dynamics import (clustered_presence, persistent_uniform,
                        sticky_pick)
 
@@ -440,6 +441,26 @@ def generate(blueprint: Dict[str, Any],
             base = pd.Series(base).where(pd.Series(keep))
         out[c] = np.asarray(base, dtype=object) \
             if not numeric else np.asarray(base, dtype=float)
+
+    # A DATE GOES BACK OUT AS A DATE, AND NOT ONE STEP SOONER.
+    #
+    # It is generated as days since an epoch, which is what lets it
+    # carry a curve and take part in `end - start`; handing the
+    # operator that number would be a different way of destroying the
+    # column. But this runs AFTER the whole loop, because `out` is
+    # also where a child reads its parents. Formatting a date inside
+    # the loop left every later child reading text: `_curve_delta`
+    # coerces a parent to numeric, text becomes NaN, NaN falls back to
+    # the curve's centre, and the relationship applies exactly nothing
+    # while every column still looks right. A silent no-op is worse
+    # than a crash.
+    for c in order:
+        dspec = (cols[c] or {}).get("date")
+        if dspec and cols[c].get("kind") == "numeric":
+            out[c] = from_ordinal(
+                out[c], dspec.get("format") or "%Y-%m-%d",
+                dspec.get("origin") or DATE_ORIGIN).to_numpy(
+                    dtype=object)
 
     frame = {gid: person, "visit_number": visit_no}
     frame.update(out)

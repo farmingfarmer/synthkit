@@ -581,8 +581,8 @@ def compare(df, g, bp, group_by, time_col):
     from synthkit.discover import prepare
     from synthkit.dynamics import measure
 
-    Xs, _ = prepare(df, group_by)
-    Xg, _ = prepare(g, group_by)
+    Xs, _, _ = prepare(df, group_by)
+    Xg, _, _ = prepare(g, group_by)
     gt = "visit_number" if "visit_number" in g.columns else None
     ds = measure(df, Xs, group_by, time_col)
     dg = measure(g, Xg, group_by, gt)

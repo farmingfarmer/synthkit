@@ -85,7 +85,7 @@ def stats(df, col, time_col="visit_no", group="person_id"):
     # NOT a rename of the generated frame: `visit_no` is itself a
     # modelled column, so renaming visit_number onto it makes two
     # columns share a name and every later lookup returns a frame.
-    X, _ = prepare(df, group)
+    X, _, _ = prepare(df, group)
     d = measure(df, X, group, time_col)
     return d[col]
 

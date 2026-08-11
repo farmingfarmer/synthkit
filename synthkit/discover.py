@@ -54,6 +54,8 @@ import pandas as pd
 from sklearn.ensemble import (HistGradientBoostingClassifier,
                               HistGradientBoostingRegressor)
 
+from .dates import (DATE_ORIGIN, date_kind, from_datetime,
+                    labeller, to_ordinal)
 from .shapes import (FLAT_SHARE, additive_departure, curve_centre,
                      describe, describe_joint, effect_curve,
                      joint_surface, surface_centre)
@@ -61,6 +63,16 @@ from .shapes import (FLAT_SHARE, additive_departure, curve_centre,
 # HistGradientBoosting bins categoricals into at most 255 slots.
 MAX_LEVELS = 200
 LAG_SUFFIXES = ("__prev", "__delta")
+
+# A DATE IS NOT A CATEGORY. Without the branch in `prepare` a date
+# column arrived as text, failed the numeric test, and became a
+# category capped at MAX_LEVELS with everything outside the top 200
+# rewritten to `__other__`. On the 800-patient extract that was 88.1%
+# of visit_start_date, and `coverage_generated` still read 1.0 with
+# `coverage_delta` 0.0 - coverage counts PRESENCE, so the column was
+# destroyed with every per-column check green. What a date means as a
+# number lives in `dates.py`, because generation needs the inverse and
+# must not import a modelling library to format a string.
 
 
 def _is_numeric(s: pd.Series) -> bool:
@@ -96,17 +108,40 @@ def _is_identifier(s: pd.Series, n_rows: int) -> bool:
 def prepare(df: pd.DataFrame,
             group_by: Optional[str] = None,
             drop_identifiers: bool = True):
-    """Typed frame: numerics as float with NaN, everything else as a
-    capped category. Blanks become NaN rather than a level, so
-    `missing` is one concept and not three spellings of it.
+    """Typed frame: numerics as float with NaN, DATES as days since
+    DATE_ORIGIN, everything else as a capped category. Blanks become
+    NaN rather than a level, so `missing` is one concept and not three
+    spellings of it.
+
+    Returns (frame, identifiers, dates). `dates` maps each column that
+    was read as a date to the format it was read under, which is what
+    lets generation write it back as a date instead of as an ordinal
+    float. THREE return values rather than two so a caller that has
+    not been updated raises immediately: a date silently left as a
+    number in the output file is exactly the kind of silent no-op this
+    frame is supposed to make impossible.
 
     Built with a single concat. Assigning column by column leaves the
     frame fragmented and every later `.loc` pays for it."""
-    cols, ident = {}, []
+    cols, ident, dates = {}, [], {}
     for c in df.columns:
         if c == group_by:
             continue
         s = df[c]
+        if pd.api.types.is_datetime64_any_dtype(s):
+            # already typed by the reader; no text to parse
+            cols[c] = from_datetime(s)
+            dates[c] = {"format": "%Y-%m-%d",
+                        "parsed_format": "%Y-%m-%d",
+                        "origin": DATE_ORIGIN,
+                        "floored_to_day": True,
+                        "unparsed_share": 0.0,
+                        "ambiguous": False, "alternatives": []}
+            if drop_identifiers and _is_identifier(cols[c], len(df)):
+                ident.append(c)
+                del cols[c]
+                del dates[c]
+            continue
         if s.dtype == object:
             s = s.astype(str).str.strip()
             s = s.mask(s.str.lower().isin(
@@ -114,13 +149,24 @@ def prepare(df: pd.DataFrame,
         if _is_numeric(s):
             cols[c] = pd.to_numeric(s, errors="coerce").astype(float)
         else:
-            s = s.astype("object")
-            keep = s.value_counts().index[:MAX_LEVELS]
-            s = s.where(s.isin(keep) | s.isna(), "__other__")
-            cols[c] = s.astype("category")
+            d = date_kind(s)
+            if d is not None:
+                cols[c] = to_ordinal(s, d["parsed_format"])
+                dates[c] = d
+            else:
+                s = s.astype("object")
+                keep = s.value_counts().index[:MAX_LEVELS]
+                s = s.where(s.isin(keep) | s.isna(), "__other__")
+                cols[c] = s.astype("category")
         if drop_identifiers and _is_identifier(cols[c], len(df)):
+            # A date UNIQUE ON EVERY ROW is still a key, and was
+            # dropped as one before this branch existed. Typing it as
+            # a number must not quietly promote it back into the
+            # search, so the guard runs after the branch, not instead
+            # of it.
             ident.append(c)
             del cols[c]
+            dates.pop(c, None)
     if drop_identifiers and ident:
         # Dropping a key is not enough - anything ENGINEERED from it
         # carries the same information back in. `visit_id__prev` is a
@@ -134,10 +180,11 @@ def prepare(df: pd.DataFrame,
         for c in [c for c in cols if _source(c) in keys]:
             ident.append(c)
             del cols[c]
+            dates.pop(c, None)
     out = pd.concat(cols, axis=1) if cols else pd.DataFrame(
         index=df.index)
     out.columns = list(cols)
-    return out, ident
+    return out, ident, dates
 
 
 def _source(col: str) -> str:
@@ -196,7 +243,7 @@ def discover(df: pd.DataFrame,
     sample. Returns claims, not edges - no direction is implied beyond
     'these predict that'."""
     rng = np.random.RandomState(seed)
-    X_all, identifiers = prepare(df, group_by)
+    X_all, identifiers, dates = prepare(df, group_by)
 
     # Split BY PATIENT. Visits from one person are not independent, so
     # a row-wise holdout leaks the same patient into both halves and
@@ -428,8 +475,10 @@ def discover(df: pd.DataFrame,
                 p["effect"] = dict(cur)
                 p["effect"]["centre"] = round(
                     curve_centre(cur, X_all[p["column"]]), 6)
-                p["effect"].update(describe(cur, p["column"], target,
-                                            spread))
+                p["effect"].update(describe(
+                    cur, p["column"], target, spread,
+                    fmt_parent=labeller(dates.get(p["column"])),
+                    fmt_child=labeller(dates.get(target))))
 
                 # AND THE SAME PARENT ON ITS OWN.
                 #
@@ -478,7 +527,11 @@ def discover(df: pd.DataFrame,
                             cm["skill"] = None
                         cm["centre"] = round(curve_centre(
                             cm, X_all[p["column"]]), 6)
-                        d0 = describe(cm, p["column"], target, spread)
+                        d0 = describe(
+                            cm, p["column"], target, spread,
+                            fmt_parent=labeller(
+                                dates.get(p["column"])),
+                            fmt_child=labeller(dates.get(target)))
                         cm["shape"] = d0["shape"]
                         cm["description"] = d0["description"]
                         p["effect"]["alone"] = cm
