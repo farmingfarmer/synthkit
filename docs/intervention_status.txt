@@ -1,0 +1,5 @@
+CRITICAL MEDICATION-STATUS RULE: a medication that the note says
+was discontinued, stopped, held, switched from, or previously
+taken is NOT a current medication. Before emitting any
+current_medication item, verify the note states the patient is
+TAKING it NOW. When in doubt about status, omit the item.

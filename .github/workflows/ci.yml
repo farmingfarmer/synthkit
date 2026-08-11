@@ -1,0 +1,137 @@
+name: synthkit CI
+
+# The smoke net is deterministic and LLM-free by design (StubBackend
+# everywhere), so the core jobs need zero credentials or secrets —
+# they run on any fork, any PR, any runner. The Bedrock integration
+# job is dispatch-gated for the AWS-controlled environment and
+# assumes a role via OIDC (no long-lived keys).
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+    inputs:
+      run_bedrock:
+        description: "Run the Bedrock live-render integration job"
+        type: boolean
+        default: false
+
+jobs:
+  smoke:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: ["3.9", "3.11", "3.12"]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+      - name: Install
+        run: pip install -e .
+      - name: Smoke S1+S2 (spec, compiler, planner)
+        run: python scripts/smoke_s1_s2.py
+      - name: Smoke S3 (verified renderer, corpus IO)
+        run: python scripts/smoke_s3.py
+      - name: Smoke S4 (evaluator)
+        run: python scripts/smoke_s4.py
+      - name: Smoke S5 (experiment harness)
+        run: python scripts/smoke_s5.py
+      - name: Smoke CLI
+        run: python scripts/smoke_cli.py
+
+  pipeline-integration:
+    # The full pipeline as the notebook runs it: plan -> stub render
+    # -> evaluate -> experiment -> persist -> reload with integrity.
+    runs-on: ubuntu-latest
+    needs: smoke
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Install
+        run: pip install -e .
+      - name: End-to-end (deterministic)
+        run: |
+          synthkit experiment --backend stub --size 16 || test $? -eq 1
+          python - << 'PY'
+          from pathlib import Path
+          from synthkit.examples import (reference_spec,
+                                         reference_rules,
+                                         regex_extract)
+          from synthkit.planner import plan_corpus
+          from synthkit.harness import StubBackend
+          from synthkit.renderer import render_corpus
+          from synthkit.evaluator import FunctionExtractor, evaluate
+          from synthkit.corpus_io import write_corpus, load_corpus
+          spec = reference_spec(size=20)
+          bps = plan_corpus(spec)
+          docs, rr = render_corpus(spec, bps, StubBackend())
+          assert rr.fallbacks == 0
+          rep = evaluate(bps, docs,
+                         FunctionExtractor(regex_extract, "regex"),
+                         reference_rules())
+          assert 0.0 < rep.overall_recall < 1.0
+          run = write_corpus(Path("corpus/ci_run"), spec, bps, docs,
+                             rr, "stub")
+          _s, _b, docs2, _m = load_corpus(run)
+          assert docs2 == docs
+          print("pipeline integration OK:",
+                "recall={:.3f}".format(rep.overall_recall))
+          PY
+      - name: Upload corpus artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ci-corpus
+          path: corpus/ci_run
+
+  bedrock-integration:
+    # Gated: only on manual dispatch with run_bedrock=true, in the
+    # AWS-controlled environment. Requires a repo/environment
+    # variable AWS_CI_ROLE_ARN and the GitHub OIDC provider trusted
+    # by that role (bedrock:InvokeModel on the chosen model).
+    if: ${{ github.event_name == 'workflow_dispatch' && inputs.run_bedrock }}
+    runs-on: ubuntu-latest
+    needs: smoke
+    permissions:
+      id-token: write
+      contents: read
+    env:
+      BEDROCK_MODEL_ID: anthropic.claude-sonnet-4-6-v1:0
+      AWS_REGION: us-west-2
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ vars.AWS_CI_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+      - name: Install
+        run: pip install -e . boto3
+      - name: Live render + evaluate (small corpus)
+        run: |
+          python - << 'PY'
+          import os
+          from synthkit.examples import (reference_spec,
+                                         reference_rules,
+                                         regex_extract)
+          from synthkit.planner import plan_corpus
+          from synthkit.compiler import BedrockBackend
+          from synthkit.renderer import render_corpus
+          from synthkit.evaluator import FunctionExtractor, evaluate
+          spec = reference_spec(size=6)
+          bps = plan_corpus(spec)
+          backend = BedrockBackend(
+              model_id=os.environ["BEDROCK_MODEL_ID"],
+              region=os.environ["AWS_REGION"])
+          docs, rr = render_corpus(spec, bps, backend)
+          print(rr.format_text())
+          rep = evaluate(bps, docs,
+                         FunctionExtractor(regex_extract, "regex"),
+                         reference_rules())
+          print(rep.format_text())
+          PY

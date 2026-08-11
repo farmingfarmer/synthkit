@@ -1,0 +1,97 @@
+
+
+# ---------------------------------------------------------------
+# PHASE 2 DATA SAFETY
+# Pipeline outputs contain RECORDS, not parameters: the tidy and
+# labeled CSVs are the source data reshaped, and generated.csv is
+# derived from a profile of it. When the source is real clinical
+# data these must never leave the machine. Profiles and specs are
+# aggregates by construction, but they still deserve a governance
+# decision rather than a habit — so runs are ignored wholesale.
+# The mimic set is exempt: it is synthetic and regenerable by seed.
+# ---------------------------------------------------------------
+data/phase2_run/
+data/real*/
+*_real*.csv
+*_real*profile.json
+tidy_visits*.csv
+!data/mimic_omop/tidy_visits*.csv
+
+# The rules above are PATH-ANCHORED, and placement defeated them: a
+# --window run whose %USERPROFILE% failed to expand wrote 15 MB of
+# real-derived output to a stray folder in the repo root, where none
+# of data/phase2_run/ or data/real*/ matched it. A pipeline artifact
+# is identified by its NAME, so ignore these wherever they land and
+# exempt only the two synthetic fixtures that are meant to be tracked.
+condnet_model.json
+generated_*.csv
+fidelity_*.json
+profile.json
+!data/mimic_omop/profile.json
+!data/mimic_omop/fidelity.json
+!docs/e2e/generated_patients.csv
+
+# The discover/blueprint/generate path writes DIFFERENT names, and
+# `generated_*.csv` does not match `generated.csv` - so every artifact
+# of the new pipeline was committable. Verified before this line
+# existed: blueprint.json, catalogue.json, findings.txt and
+# generated.csv all staged cleanly from a repo-root run.
+#
+# All four are derived from whatever was read. generated.csv is
+# synthetic but built from the source's shape; the blueprint holds
+# k-anonymised quantiles and response curves; findings.txt names real
+# columns and real values. Aggregates deserve a governance decision
+# rather than a habit, which is what the rule above already says.
+generated.csv
+blueprint.json
+catalogue.json
+findings.txt
+fidelity.json
+!data/mimic_omop/generated.csv
+!data/mimic_omop/fidelity.json
+
+# ---------------------------------------------------------------
+# PRIVATE — PRESENTER NOTES
+# docs/presenter_companion.html is a teleprompter: verbatim
+# scripts, rehearsal notes, and answers written for one person to
+# read while presenting. It is not documentation and was never
+# meant for colleagues or for an enterprise mirror. Regenerate it
+# locally with scripts/build_presenter.py when needed.
+# ---------------------------------------------------------------
+docs/presenter_companion.html
+data/scratch_check/
+
+# build and run artifacts — never tracked
+__pycache__/
+*.py[cod]
+*.egg-info/
+.pytest_cache/
+.DS_Store
+build/
+dist/
+
+# generated output directories
+tables/
+campaigns/
+corpora/
+runs/
+out/
+gui_runs/
+*.egg-info/
+.venv/
+venv/
+env/
+.env
+.DS_Store
+campaigns/
+corpus/
+corpora/
+
+
+# ---------------------------------------------------------------
+# The working conventions live in CONVENTIONS.md, which is tracked
+# and neutral. CLAUDE.md is a local pointer at it for one person's
+# tooling: it names an assistant and a machine, and neither belongs
+# in a repository that gets mirrored to an enterprise remote.
+# ---------------------------------------------------------------
+CLAUDE.md

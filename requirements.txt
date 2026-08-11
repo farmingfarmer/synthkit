@@ -1,0 +1,7 @@
+# The discovery/blueprint/generate path needs these. The older stdlib
+# engine (condnet, the phase2 pipeline, the samplers) does not, and
+# still runs without them.
+numpy>=1.24
+pandas>=2.0
+scikit-learn>=1.4
+scipy>=1.10

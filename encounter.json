@@ -1,0 +1,45 @@
+{
+  "title": "Inpatient encounters (readmission study)",
+  "rows": 400,
+  "master_seed": 12345,
+  "duplicate_rate": 0.03,
+  "columns": [
+    {"name": "patient_id", "ctype": "str_id",
+     "distribution": {"kind": "sequence", "prefix": "P", "start": 20000}},
+    {"name": "patient_name", "ctype": "person_name",
+     "mess": {"case_rate": 0.05, "space_rate": 0.02}},
+    {"name": "age", "ctype": "int",
+     "distribution": {"kind": "normal", "mean": 62, "std": 15, "min": 18, "max": 100},
+     "mess": {"missing_rate": 0.12}},
+    {"name": "admitting_department", "ctype": "category",
+     "distribution": {"kind": "categorical",
+       "choices": ["internal medicine", "cardiology", "oncology", "emergency"],
+       "weights": [0.5, 0.2, 0.2, 0.1]},
+     "mess": {"typo_rate": 0.05}},
+    {"name": "length_of_stay", "ctype": "int",
+     "distribution": {"kind": "mixture",
+       "components": [{"kind": "uniform", "min": 1, "max": 4},
+                      {"kind": "uniform", "min": 10, "max": 18}],
+       "weights": [0.75, 0.25]},
+     "mess": {"outlier_rate": 0.01, "outlier_factor": 2}},
+    {"name": "total_charges", "ctype": "float",
+     "mess": {"outlier_rate": 0.02, "outlier_factor": 40.0}},
+    {"name": "admission_date", "ctype": "date",
+     "distribution": {"kind": "date_range", "start": "2026-01-01", "end": "2026-06-30"},
+     "mess": {"format_rate": 0.05}},
+    {"name": "discharge_date", "ctype": "date",
+     "mess": {"wrong_rate": 0.02}}
+  ],
+  "rules": [
+    {"kind": "date_after", "earlier": "admission_date", "later": "discharge_date",
+     "days_from": "length_of_stay"},
+    {"kind": "derived", "target": "total_charges", "source": "length_of_stay",
+     "factor": 2100, "noise_sigma": 0.15}
+  ],
+  "outcomes": [
+    {"name": "readmitted", "kind": "logistic", "intercept": -3.8,
+     "coefficients": {"length_of_stay": 0.1, "age": 0.02,
+                      "admitting_department=oncology": 0.8},
+     "target_prevalence": [0.10, 0.25]}
+  ]
+}
