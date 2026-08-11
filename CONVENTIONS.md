@@ -4,7 +4,7 @@ Synthetic clinical data generator and model-evaluation instrument. Core rule: le
 
 ## Verify before claiming
 
-- Run `python scripts/run_all_smokes.py` before claiming anything works. Expect 47 suites, 1257 checks, ALL GREEN.
+- Run `python scripts/run_all_smokes.py` before claiming anything works. Expect 47 suites, 1262 checks, ALL GREEN.
 - `py_compile` every Python file you touch.
 - Assert count==1 before every string replacement — verify the edit, not just the compile.
 - **Read a file before Write overwrites it.** `Write` says "updated"
@@ -108,6 +108,13 @@ the direction that stops work happening.
   systolic against diastolic generated at 0.978 where the source had
   0.888. Each curve now carries the skill of the model that produced
   it.
+- **Per-column checks cannot see a broken relationship.** Coverage,
+  centre, steadiness and clustering all pass on a table with no
+  structure between its columns at all — the classic way a synthetic
+  generator looks right and is useless. Measure the pairs too, and
+  report INVERTED separately: a generated relationship with the
+  opposite sign to the source is worse than a missing one, because it
+  reads as a finding.
 - **An internal contradiction is the signal.** Every measurement error
   here was caught by two numbers disagreeing, never by review — 0.735
   against an asymptote of 0.38; a negative rho that cannot exist.

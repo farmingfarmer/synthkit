@@ -265,6 +265,17 @@ def main():
         s["lag1_ok"], s["numeric_dynamic"]))
     say("clustering within 0.15 on {}/{} partly-covered "
         "columns".format(s["cluster_ok"], s["partly_covered"]))
+    say("RELATIONSHIPS: {}/{} keep their direction, {}/{} land within "
+        "0.2".format(s["pairs_sign_ok"], s["pairs"],
+                     s["pairs_close"], s["pairs"]))
+    if s["pairs_inverted"]:
+        say("  {} relationship(s) came out INVERTED - the opposite "
+            "sign to the source. This is worse than a missing one; it "
+            "reads as a finding:".format(s["pairs_inverted"]))
+        for r in fid["relationships"]["inverted"][:6]:
+            say("    {} ~ {}   source {:+.3f}   generated {:+.3f}"
+                .format(r["child"], r["parent"], r["source"],
+                        r["generated"]))
     say("done -> {}".format(out))
 
 
@@ -443,6 +454,76 @@ def render(bp):
     return "\n".join(L)
 
 
+def _pair_fidelity(Xs, Xg, bp):
+    """Did the RELATIONSHIPS survive, not just the columns?
+
+    Everything else here checks one column at a time - its coverage,
+    its centre, its steadiness. A table can pass all of it and carry
+    no structure between columns at all, which is the classic way a
+    synthetic generator looks right and is useless.
+
+    Worse than absent is INVERTED. A conditional effect curve used
+    without the parents it was conditioned on generated systolic
+    against diastolic at -0.720 where the source had +0.888, and every
+    per-column check passed while it did. A number with the wrong sign
+    reads as a finding.
+
+    Spearman rather than Pearson: a relationship may be a threshold or
+    a saturation rather than a line, and rank correlation follows any
+    monotone shape. A genuinely non-monotone pair reads near zero in
+    BOTH tables, so comparing them stays fair."""
+    import pandas as pd
+
+    seen, rows = set(), []
+    for rel in (bp.get("relationships") or []):
+        child = rel.get("child")
+        for par in (rel.get("parents") or []):
+            key = frozenset([child, par])
+            if key in seen or child == par:
+                continue
+            if child not in Xs.columns or par not in Xs.columns:
+                continue
+            if child not in Xg.columns or par not in Xg.columns:
+                continue
+            seen.add(key)
+
+            def rho(fr):
+                a = pd.to_numeric(fr[child], errors="coerce")
+                b = pd.to_numeric(fr[par], errors="coerce")
+                m = a.notna() & b.notna()
+                if int(m.sum()) < 30:
+                    return None
+                return float(a[m].corr(b[m], method="spearman"))
+            rs, rg = rho(Xs), rho(Xg)
+            if rs is None or rg is None:
+                continue
+            rows.append({"child": child, "parent": par,
+                         "source": round(rs, 4),
+                         "generated": round(rg, 4),
+                         "delta": round(rg - rs, 4)})
+
+    strong = [r for r in rows if abs(r["source"]) >= 0.1]
+    inverted = [r for r in strong
+                if r["source"] * r["generated"] < 0
+                and abs(r["generated"]) >= 0.1]
+    return {
+        "compared": len(strong),
+        "sign_kept": sum(1 for r in strong
+                         if r["source"] * r["generated"] > 0),
+        "close": sum(1 for r in strong if abs(r["delta"]) <= 0.2),
+        "inverted": sorted(inverted,
+                           key=lambda r: r["source"] - r["generated"],
+                           reverse=True),
+        "worst": sorted(rows, key=lambda r: -abs(r["delta"]))[:10],
+        "pairs": rows,
+        "note": "Spearman on pairs the blueprint related, counting "
+                "only those the SOURCE relates at 0.1 or more. "
+                "`inverted` is the serious column: a generated "
+                "relationship with the opposite sign reads as a "
+                "finding and is worse than one that is missing.",
+    }
+
+
 def compare(df, g, bp, group_by, time_col):
     """Source against generated, column by column."""
     import numpy as np
@@ -458,6 +539,7 @@ def compare(df, g, bp, group_by, time_col):
 
     cols, n_ok = [], dict(cov=0, ctr=0, lag=0, clu=0, num=0, dyn=0,
                           part=0)
+    pairs = _pair_fidelity(Xs, Xg, bp)
     for c in Xs.columns:
         if c not in Xg.columns:
             continue
@@ -504,12 +586,17 @@ def compare(df, g, bp, group_by, time_col):
 
     return {
         "columns": cols,
+        "relationships": pairs,
         "summary": {
             "columns": len(cols), "numeric": n_ok["num"],
             "numeric_dynamic": n_ok["dyn"],
             "partly_covered": n_ok["part"],
             "coverage_ok": n_ok["cov"], "centre_ok": n_ok["ctr"],
             "lag1_ok": n_ok["lag"], "cluster_ok": n_ok["clu"],
+            "pairs": pairs["compared"],
+            "pairs_sign_ok": pairs["sign_kept"],
+            "pairs_close": pairs["close"],
+            "pairs_inverted": len(pairs["inverted"]),
         },
         "note": "coverage_ok counts columns within 0.05 of the "
                 "source's share of present values; centre_ok within "

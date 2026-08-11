@@ -142,7 +142,32 @@ def main():
     check("...and the relationship actually survived into the file "
           "that gets handed on", float(s.a.corr(s.b)) > 0.6)
 
-    fid = json.loads((out / "fidelity.json").read_text())["summary"]
+    # RELATIONSHIP FIDELITY. Every other number in this file checks
+    # one column at a time, and a table can pass all of them while
+    # carrying no structure between columns - the classic way a
+    # synthetic generator looks right and is useless. Worse still is
+    # an INVERTED relationship, which reads as a finding.
+    fidall = json.loads((out / "fidelity.json").read_text())
+    rel = fidall.get("relationships") or {}
+    check("the run measures whether RELATIONSHIPS survived, not only "
+          "whether each column looks right on its own",
+          rel.get("compared", 0) >= 1)
+    check("...and none came out INVERTED - the opposite sign to the "
+          "source is worse than a missing relationship{}".format(
+              "" if not rel.get("inverted") else
+              " -- " + "; ".join(
+                  "{}~{} {:+.2f}->{:+.2f}".format(
+                      r["child"], r["parent"], r["source"],
+                      r["generated"])
+                  for r in rel["inverted"][:4])),
+          not rel.get("inverted"))
+    check("...most keep their direction",
+          rel["sign_kept"] >= 0.8 * rel["compared"])
+    check("the run PRINTS the relationship result, so it is visible "
+          "without opening a JSON file",
+          "RELATIONSHIPS:" in r.stdout)
+
+    fid = fidall["summary"]
     check("fidelity is reported as counts over columns, so a wide "
           "extract is readable at a glance",
           fid["columns"] > 0 and fid["coverage_ok"] <= fid["columns"])
