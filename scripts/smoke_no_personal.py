@@ -50,6 +50,62 @@ def tracked():
     return [ROOT / p for p in out.split("\n") if p.strip()]
 
 
+# WHERE THE MESSAGE SCAN STARTS, and why it is not the first commit.
+#
+# THE FILE SCAN WAS HALF THE SURFACE. A commit message reaches the
+# enterprise remote exactly like a tracked file does, and it is the
+# harder half to correct because fixing one rewrites published
+# history. But 52 of the 178 commits before this line already name the
+# assistant in a trailer, and four name a laptop. Scanning all of them
+# would paint the suite permanently red, which teaches everyone to
+# ignore it - worse than no guard at all.
+#
+# So history through this commit is GRANDFATHERED, deliberately and in
+# writing, and everything after it is held to the same list the
+# tracked files are. Rewriting 178 commits to clean a string that has
+# been in the log for months is not worth what it costs; keeping the
+# next 178 clean is.
+GRANDFATHERED_THROUGH = "a095f1fb072e7d3bd75ecde316acc7b1d2ddd202"
+
+
+def commit_messages():
+    """Commit messages after the grandfathered baseline.
+
+    Fails loudly rather than scanning nothing if that baseline is not
+    an ancestor of HEAD - a rewritten or shallow history would
+    otherwise turn this whole check into a silent no-op, which is the
+    failure mode the rest of this repository is built to avoid."""
+    ok = subprocess.run(
+        ["git", "merge-base", "--is-ancestor", GRANDFATHERED_THROUGH,
+         "HEAD"], cwd=str(ROOT), capture_output=True)
+    if ok.returncode != 0:
+        return None
+    out = subprocess.run(
+        ["git", "log", "--format=%H%x00%B%x01",
+         "{}..HEAD".format(GRANDFATHERED_THROUGH)],
+        cwd=str(ROOT), capture_output=True, text=True).stdout
+    msgs = []
+    for chunk in out.split("\x01"):
+        if "\x00" not in chunk:
+            continue
+        sha, body = chunk.split("\x00", 1)
+        msgs.append((sha.strip()[:9], body))
+    return msgs
+
+
+def scan_messages(pats, msgs):
+    rx = re.compile("|".join(pats))
+    hits = []
+    for sha, body in msgs:
+        for line in body.splitlines():
+            if "noqa: personal-scan" in line:
+                continue
+            m = rx.search(line)
+            if m:
+                hits.append("{}: {}".format(sha, m.group(0)))
+    return hits
+
+
 def scan(pats, files):
     hits = []
     rx = re.compile("|".join(pats))
@@ -85,6 +141,26 @@ def main():
                         ASSISTANT)):
         hits = scan(pats, files)
         check("no tracked file names {}{}".format(
+            name, "" if not hits else " -- " + "; ".join(hits[:5])),
+            not hits)
+
+    # THE SAME BAN, APPLIED TO COMMIT MESSAGES. They reach the mirror
+    # too, and a message is the harder half to fix: correcting one
+    # means rewriting history that has already been pushed.
+    msgs = commit_messages()
+    check("the grandfathered baseline is still an ancestor of HEAD - "
+          "if it is not, this scan would cover nothing and say so by "
+          "passing", msgs is not None)
+    msgs = msgs or []
+    check("there are commits after the baseline to scan ({}), or the "
+          "checks below prove nothing".format(len(msgs)), len(msgs) > 0)
+    for name, pats in (("a personal handle, surname, login or "
+                        "mailbox", PERSONAL),
+                       ("a machine model", MACHINES),
+                       ("the assistant that helped write it",
+                        ASSISTANT)):
+        hits = scan_messages(pats, msgs)
+        check("no COMMIT MESSAGE names {}{}".format(
             name, "" if not hits else " -- " + "; ".join(hits[:5])),
             not hits)
 
