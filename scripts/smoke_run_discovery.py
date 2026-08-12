@@ -54,6 +54,18 @@ def build(path, n_pat=90, n_vis=6, seed=4):
                 "visit_id": vid,
                 "visit_start_date": "2021-{:02d}-{:02d}".format(
                     (v % 12) + 1, (v % 27) + 1),
+                # ~6% IMPOSSIBLE DAYS - counted on vid, the per-ROW
+                # counter, not on v, which only runs 0..5 and would
+                # make one row in six bad. That is 16.7%, over the 0.9
+                # bar, so the column stops being a date at all and
+                # there is nothing left to warn about. Real extracts carry typing
+                # errors, those rows become MISSING, and a coverage
+                # loss that size passes the 0.05 bar silently - which
+                # is the direction a whole column was destroyed in
+                # once. The run has to say so out loud.
+                "collected_date": ("2021-02-30" if vid % 16 == 0
+                                   else "2021-{:02d}-{:02d}".format(
+                                       (v % 12) + 1, (v % 27) + 1)),
                 "sex": sex,
                 "x": round(x, 4),
                 "y": round(2.5 * x + r.normal(0, 0.8), 4),
@@ -106,6 +118,19 @@ def main():
     check("progress is reported with a clock, so a run that takes "
           "minutes does not look hung",
           "columns," in r.stdout or "searching" in r.stdout)
+    check("the run NAMES the columns it read as dates and the format "
+          "it read them under - a date silently typed as something "
+          "else is how 88% of one column became a sentinel",
+          "read as dates:" in r.stdout
+          and "visit_start_date (%Y-%m-%d)" in r.stdout)
+    check("...and WARNS when values did not parse, because those rows "
+          "become missing and a coverage loss that size clears the "
+          "0.05 bar without anyone seeing it",
+          "WARNING collected_date:" in r.stdout
+          and "became MISSING" in r.stdout)
+    check("...and does NOT warn about a column whose dates are all "
+          "valid, or the warning means nothing",
+          "WARNING visit_start_date:" not in r.stdout)
     check("nothing is written outside the directory the user chose",
           sorted(p.name for p in tmp.iterdir())
           == ["b", "run", "tidy.csv"])

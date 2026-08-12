@@ -4,7 +4,7 @@ Synthetic clinical data generator and model-evaluation instrument. Core rule: le
 
 ## Verify before claiming
 
-- Run `python scripts/run_all_smokes.py` before claiming anything works. Expect 50 suites, 1324 checks, ALL GREEN.
+- Run `python scripts/run_all_smokes.py` before claiming anything works. Expect 50 suites, 1332 checks, ALL GREEN.
 - **`pip install -r requirements.txt` first, or seven suites do not
   run.** A machine without numpy, pandas and scikit-learn fails
   `smoke_blueprint`, `smoke_discover`, `smoke_dynamics`,

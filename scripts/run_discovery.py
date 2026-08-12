@@ -215,6 +215,33 @@ def main():
 
     say("building the blueprint")
     bp = B.build(df, cat, group_by=a.group_by, time_col=time_col)
+    # WHICH COLUMNS WERE READ AS DATES, AND WHAT IT COST.
+    #
+    # A date that does not parse becomes missing, and missing is
+    # exactly the direction a whole column was once destroyed in while
+    # coverage still read 1.0. On the tidy fixture 1.9% of
+    # visit_start_date is impossible - 2002-09-31, 2002-02-29 in a
+    # non-leap year - and real extracts carry typing errors too. Under
+    # the 0.05 coverage bar it would pass silently, so it is said out
+    # loud here rather than left in blueprint.json for nobody to open.
+    dated = [(c, v["date"]) for c, v in (bp.get("columns") or {}).items()
+             if v.get("date")]
+    if dated:
+        say("read as dates: {}".format(", ".join(
+            "{} ({})".format(c, d["format"]) for c, d in dated)))
+        for c, d in dated:
+            if d.get("unparsed_share"):
+                say("  WARNING {}: {:.2%} of present values are not "
+                    "valid dates and became MISSING - check for a "
+                    "second format or impossible days".format(
+                        c, d["unparsed_share"]))
+            if d.get("ambiguous"):
+                say("  WARNING {}: day/month order is AMBIGUOUS; read "
+                    "as {} over {}".format(c, d["parsed_format"],
+                                           ", ".join(d["alternatives"])))
+            if d.get("floored_to_day"):
+                say("  {}: a time of day was present and floored to "
+                    "the day".format(c))
     probs = B.validate(bp)
     if probs:
         say("WARNING - the blueprint it just built does not validate, "
