@@ -347,14 +347,42 @@ def build(df: pd.DataFrame,
     patients: Dict[str, Any] = {"rows": int(n_rows)}
     if group_by and group_by in df.columns:
         per = df.groupby(group_by).size()
+        # HOW OFTEN SOMEONE WAS SEEN IS ITSELF IDENTIFYING, and this
+        # was the one distribution in the document that never went
+        # through the bound rule. Storing the 0th and 100th percentile
+        # of visits-per-patient publishes the exact visit count of the
+        # least and most frequently seen person: measured on a
+        # 400-patient fixture, `v[-1]` came out 438, held by exactly
+        # one patient, while every numeric COLUMN's maximum was
+        # correctly k-anonymised beside it. Someone seen 438 times is
+        # findable, and this sits in the file described as
+        # aggregates-only.
+        #
+        # Each value here belongs to one patient already, so
+        # `_safe_bounds` with no group argument is exactly the right
+        # rule: the bound becomes the MEAN of the k most extreme
+        # patients' counts, and the interior quantiles are clamped
+        # inside it, as they are for every other numeric column.
+        vb = _safe_bounds(per, None, k)
+        if vb is None:
+            # Too few patients to publish a shape without describing
+            # them. Everyone gets the average rather than nothing:
+            # suppressing the block entirely would give every patient
+            # a single visit and destroy the panel structure.
+            lo = hi = float(per.mean())
+        else:
+            lo, hi = vb
+        vv = [float(np.quantile(per.to_numpy(), x)) for x in QUANTILES]
+        vv = [min(max(x, lo), hi) for x in vv]
         patients.update({
             "id_column": group_by,
             "count": int(per.shape[0]),
             "visits": {
                 "mean": round(float(per.mean()), 4),
                 "q": [round(float(x), 4) for x in QUANTILES],
-                "v": [int(np.quantile(per.to_numpy(), x))
-                      for x in QUANTILES],
+                "v": [int(round(x)) for x in vv],
+                "bounds_are_k_anonymous": k,
+                "bounds_suppressed": vb is None,
             },
             "dials": {"count": None, "visits_scale": None},
         })
@@ -384,6 +412,14 @@ def build(df: pd.DataFrame,
             "rare_levels": "categorical levels carried by fewer than "
                            "{} patients are not published and cannot "
                            "be generated".format(k),
+            "visits_per_patient": "the visit-count distribution is "
+                                  "bounded the same way a column is: "
+                                  "its extremes are the MEAN of the "
+                                  "{} least and most frequently seen "
+                                  "patients, never one person's own "
+                                  "count. How often somebody was seen "
+                                  "identifies them as readily as what "
+                                  "was measured.".format(k),
             "tail_shape": "tail_mean_high and tail_mean_low say what "
                           "the extreme segments AVERAGE, so generation "
                           "does not draw a straight line to the bound. "

@@ -4,7 +4,7 @@ Synthetic clinical data generator and model-evaluation instrument. Core rule: le
 
 ## Verify before claiming
 
-- Run `python scripts/run_all_smokes.py` before claiming anything works. Expect 50 suites, 1332 checks, ALL GREEN.
+- Run `python scripts/run_all_smokes.py` before claiming anything works. Expect 50 suites, 1336 checks, ALL GREEN.
 - **`pip install -r requirements.txt` first, or seven suites do not
   run.** A machine without numpy, pandas and scikit-learn fails
   `smoke_blueprint`, `smoke_discover`, `smoke_dynamics`,
@@ -167,6 +167,23 @@ the direction that stops work happening.
   the old order trimmed 10. Reverted; the ordering defect stands.
   Retry it only against that sweep, and beat 0 inversions rather than
   the mean.
+- **A SINGLE RUN CANNOT TELL A BIAS FROM A DRAW.** The 800-patient
+  run generated 58,768 rows against 55,428 in the source, +6.0%, and
+  that was read as evidence of a systematic overshoot in the
+  visit-count draw. Over 40 seeds the delta is mean +1.5%, sd 4.6%,
+  range -6.9% to +11.4%: the observed +6.0% sits one standard
+  deviation from centre and is noise. Visit counts are heavy-tailed,
+  so a few hundred patients give the row total a standard error near
+  6% all by itself. The same mistake was then made twice more in one
+  afternoon - a fixture "reproducing" the inflation at +6.7%, and a
+  centre_ok of 84% that reads 90%-100% across twelve seeds. Anything
+  drawn from a heavy tail needs a seed sweep before it means anything.
+- **Routing visit counts through `_draw_numeric` changes nothing.**
+  Measured across 60 seeds on identical uniforms: -0.03 percentage
+  points, and the paired per-seed difference does not hold its sign.
+  The grid's own linear mean is only +0.71 visits off. Reverted rather
+  than shipped, because a change that does nothing still has to be
+  read by whoever comes next.
 - **`recall_sweep.py` cannot see the new path.** It drives CondNet and
   measures whether DISCOVERY finds planted relationships. For anything
   in discover / blueprint / generate, use `pair_fidelity_sweep.py`,

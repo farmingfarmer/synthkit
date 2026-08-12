@@ -112,6 +112,27 @@ def main():
           df.loc[lab >= float(np.quantile(lab.to_numpy(float), 0.99)),
                  "person_id"].nunique() < 10)
 
+    # HOW OFTEN SOMEONE WAS SEEN IS A PUBLISHED NUMBER TOO, and it
+    # was the one distribution that never went through the bound rule.
+    # OUTLIER is here 60 times where everybody else is here 5, so the
+    # true maximum of the visit-count distribution is that one
+    # person's attendance.
+    per = df.groupby("person_id").size()
+    vis = bp["patients"]["visits"]
+    check("the visit-count distribution is bounded like a column is - "
+          "the true maximum is {} visits and exactly one patient has "
+          "it, so publishing it would name them".format(int(per.max())),
+          vis["v"][-1] < int(per.max()))
+    check("...and the published bound is not any single patient's "
+          "own count",
+          vis["v"][-1] not in set(per.tolist())
+          or int((per == vis["v"][-1]).sum()) >= 10)
+    check("...and it says which k it was held to, beside the numbers "
+          "it protects", vis.get("bounds_are_k_anonymous") == 10)
+    check("the AVERAGE number of visits is still published - it is an "
+          "aggregate over every patient and the generator needs it",
+          vis["mean"] > 0)
+
     clean = pd.to_numeric(df["clean_lab"]).dropna()
     cm = bp["columns"]["clean_lab"]["marginal"]
     check("on a column no one patient dominates the tail shape IS "
