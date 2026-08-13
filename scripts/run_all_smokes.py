@@ -6,6 +6,22 @@ Replaces a shell for-loop (Windows has no POSIX shell):
 
 Exit 0 only if every suite passes. Output is captured as UTF-8
 regardless of console codepage.
+
+EVERY LINE IS FLUSHED, AND THE SUITE IS NAMED BEFORE IT RUNS.
+
+Python block-buffers stdout at about 8KB whenever it does not detect
+an interactive console, and a whole run of this net prints well under
+that. On a Windows terminal that meant an hour of blank screen with a
+blinking cursor, then every line at once when the process was
+interrupted - the suites had been passing the whole time. Nothing here
+wraps stdout; it is the interpreter's own default, and `python -u`
+also fixes it. But an operator should not have to know that, and a
+progress report that arrives only after the work is finished is not a
+progress report.
+
+So: the name goes out BEFORE the subprocess starts, so a slow suite
+shows which one it is rather than nothing at all, and every print
+flushes so the order on screen is the order things happened.
 """
 from __future__ import annotations
 
@@ -27,6 +43,7 @@ def main() -> int:
     failed = []
     t0 = time.time()
     for suite in suites:
+        print("....  {:<32} running".format(suite.name), flush=True)
         r = subprocess.run(
             [sys.executable, str(suite)],
             capture_output=True, encoding="utf-8",
@@ -39,22 +56,23 @@ def main() -> int:
             n = int(m.group(1))
             total += n
             print("PASS  {:<32} {:>3} checks".format(
-                suite.name, n))
+                suite.name, n), flush=True)
         else:
             failed.append(suite.name)
-            print("FAIL  {:<32} {}".format(suite.name, last))
+            print("FAIL  {:<32} {}".format(suite.name, last),
+                  flush=True)
             for line in (r.stdout or "").splitlines()[-6:]:
-                print("      " + line)
+                print("      " + line, flush=True)
             if r.stderr:
                 for line in r.stderr.splitlines()[-4:]:
-                    print("  err " + line)
-    print("-" * 52)
+                    print("  err " + line, flush=True)
+    print("-" * 52, flush=True)
     if failed:
         print("{} suite(s) FAILED: {}".format(
-            len(failed), ", ".join(failed)))
+            len(failed), ", ".join(failed)), flush=True)
         return 1
     print("ALL GREEN: {} suites, {} checks, {:.0f}s".format(
-        len(suites), total, time.time() - t0))
+        len(suites), total, time.time() - t0), flush=True)
     return 0
 
 
