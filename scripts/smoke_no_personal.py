@@ -34,6 +34,25 @@ MACHINES = (r"\bMacBook\b", r"\bM3 Max\b", r"\bThinkPad\b",   # noqa: personal-s
 ASSISTANT = (r"Claude Code", r"Co-Authored-By: Claude")  # noqa: personal-scan
 
 
+def in_git_repo() -> bool:
+    """Is this a git checkout at all?
+
+    THE DATA MACHINE IS NOT ONE. `docs/WINDOWS.md` section 1 is "Pull
+    the repo (no git needed)": it downloads a zipball, extracts it and
+    renames the folder. `git ls-files` and `git log` then return
+    nothing, and every scan below silently examines an empty list.
+
+    Measured on a zipball extract of this very commit: four checks
+    failed on the environment - no tracked files, no baseline, no
+    commits, no vendor strings - while SIX others passed reporting
+    "no tracked file names a person" and "no COMMIT MESSAGE names a
+    person" having read zero of each. The suite was noisy about the
+    wrong thing and quietly wrong about the right thing."""
+    r = subprocess.run(["git", "rev-parse", "--git-dir"],
+                       cwd=str(ROOT), capture_output=True)
+    return r.returncode == 0
+
+
 def check(label, cond):
     global PASS, FAIL
     if cond:
@@ -127,10 +146,32 @@ def scan(pats, files):
     return hits
 
 
+def gated(label, cond, repo):
+    """A check that can only run inside a git checkout.
+
+    Off one it is reported as SKIPPED and passes, rather than passing
+    on an empty scan. This gate belongs to the machine where commits
+    are made; nothing is committed on the machine that holds the
+    extract, so there is nothing here for it to catch. It still emits
+    a line, so the check count is the same in both places and the
+    expected total in WINDOWS.md stays one number."""
+    if repo:
+        return check(label, cond)
+    return check(label + "   [SKIPPED - not a git checkout]", True)
+
+
 def main():
+    repo = in_git_repo()
+    if not repo:
+        print("NOTE: this is not a git checkout, so the tracked-file and")
+        print("      commit scans cannot run. They gate what gets")
+        print("      COMMITTED, which happens on the development")
+        print("      machine. Each is reported below as skipped rather")
+        print("      than as clean - an empty scan is not a pass.")
+        print()
     files = tracked()
-    check("there are tracked files to scan, or this suite proves "
-          "nothing", len(files) > 50)
+    gated("there are tracked files to scan, or this suite proves "
+          "nothing", len(files) > 50, repo)
 
     for name, pats in (("a personal handle, surname, login or "
                         "mailbox", PERSONAL),
@@ -140,29 +181,30 @@ def main():
                         "opposed to the model the product calls",
                         ASSISTANT)):
         hits = scan(pats, files)
-        check("no tracked file names {}{}".format(
+        gated("no tracked file names {}{}".format(
             name, "" if not hits else " -- " + "; ".join(hits[:5])),
-            not hits)
+            not hits, repo)
 
     # THE SAME BAN, APPLIED TO COMMIT MESSAGES. They reach the mirror
     # too, and a message is the harder half to fix: correcting one
     # means rewriting history that has already been pushed.
     msgs = commit_messages()
-    check("the grandfathered baseline is still an ancestor of HEAD - "
+    gated("the grandfathered baseline is still an ancestor of HEAD - "
           "if it is not, this scan would cover nothing and say so by "
-          "passing", msgs is not None)
+          "passing", msgs is not None, repo)
     msgs = msgs or []
-    check("there are commits after the baseline to scan ({}), or the "
-          "checks below prove nothing".format(len(msgs)), len(msgs) > 0)
+    gated("there are commits after the baseline to scan ({}), or the "
+          "checks below prove nothing".format(len(msgs)),
+          len(msgs) > 0, repo)
     for name, pats in (("a personal handle, surname, login or "
                         "mailbox", PERSONAL),
                        ("a machine model", MACHINES),
                        ("the assistant that helped write it",
                         ASSISTANT)):
         hits = scan_messages(pats, msgs)
-        check("no COMMIT MESSAGE names {}{}".format(
+        gated("no COMMIT MESSAGE names {}{}".format(
             name, "" if not hits else " -- " + "; ".join(hits[:5])),
-            not hits)
+            not hits, repo)
 
     # The counterpart: the product's own vendor references MUST
     # survive. A scrub that removes them breaks the build, and this
@@ -170,10 +212,10 @@ def main():
     body = "\n".join(
         f.read_text(encoding="utf-8", errors="ignore")
         for f in files if f.suffix in (".py", ".yml", ".ipynb"))
-    check("model identifiers the product needs are still present - "
+    gated("model identifiers the product needs are still present - "
           "banning the vendor's name outright would break the build "
           "to fix a documentation problem",
-          "anthropic.claude" in body and "claude-sonnet" in body)
+          "anthropic.claude" in body and "claude-sonnet" in body, repo)
 
     # OS METADATA IS A PROVENANCE LEAK TOO, and a text scan cannot
     # see it. `docs/.DS_Store` was tracked: a binary Finder index
@@ -183,16 +225,16 @@ def main():
     junk = [f.relative_to(ROOT) for f in files
             if f.name in (".DS_Store", "Thumbs.db", "desktop.ini")
             or f.name.endswith(".swp")]
-    check("no operating-system metadata file is tracked - a binary "
+    gated("no operating-system metadata file is tracked - a binary "
           "index of one person's folders passes every text scan{}"
           .format("" if not junk
                   else " -- " + ", ".join(str(j) for j in junk)),
-          not junk)
+          not junk, repo)
 
     check("the tracked conventions file exists and is the neutral "
           "one", (ROOT / "CONVENTIONS.md").exists())
-    check("...and the assistant-specific file is NOT tracked",
-          not any(f.name == "CLAUDE.md" for f in files))
+    gated("...and the assistant-specific file is NOT tracked",
+          not any(f.name == "CLAUDE.md" for f in files), repo)
 
     print()
     if FAIL:
