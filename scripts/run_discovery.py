@@ -347,6 +347,13 @@ def _will_drop_full(bp):
         return [], []
 
 
+def _were(n, singular="was", plural="were"):
+    """Agreement, so a run with one of something does not read like a
+    typo in the one document meant for someone who has never seen the
+    data."""
+    return singular if n == 1 else plural
+
+
 def render(bp):
     """The blueprint in sentences. This is the part meant to be read
     by somebody who has never seen the data."""
@@ -451,15 +458,19 @@ def render(bp):
     L.append("A catalogue may hold a relationship in both directions "
              "and may hold loops.")
     L.append("A sampler cannot: something has to be drawn first. "
-             "{} were dropped,".format(len(dropped)))
+             "{} {} dropped,".format(len(dropped),
+                                     _were(len(dropped))))
     L.append("in {} kinds - and the counts below add up to that "
              "total.".format(
                  sum(1 for g in (mirrors, trimmed, orphans, other)
                      if g)))
     L.append("")
     if mirrors:
-        L.append("{} RESTATEMENTS of structure already taken - the "
-                 "same dependence,".format(len(mirrors)))
+        L.append("{} {} of structure already taken - the "
+                 "same dependence,".format(
+                     len(mirrors),
+                     "RESTATEMENT" if len(mirrors) == 1
+                     else "RESTATEMENTS"))
         L.append("generated the other way round. Nothing is missing.")
         L.append("")
     if trimmed:
@@ -504,15 +515,17 @@ def render(bp):
             len(moved), len(gone), len(moved) + len(gone)))
         L.append("")
         if moved:
-            L.append("{} ARE STILL IN THE DATA, just not inside this "
-                     "relationship - the".format(len(moved)))
+            L.append("{} {} STILL IN THE DATA, just not inside this "
+                     "relationship - the".format(
+                         len(moved), _were(len(moved), "IS", "ARE")))
             L.append("pair reaches the output another way:")
             L.append("")
             L.extend(moved)
             L.append("")
         if gone:
-            L.append("{} ARE GONE. The column is still explained by "
-                     "the parents that remain,".format(len(gone)))
+            L.append("{} {} GONE. The column is still explained by "
+                     "the parents that remain,".format(
+                         len(gone), _were(len(gone), "IS", "ARE")))
             L.append("but these contribute nothing to it in the "
                      "generated data:")
             L.append("")

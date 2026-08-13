@@ -184,7 +184,7 @@ def _categorical_marginal(s: pd.Series, groups=None,
                           k: int = 10) -> Dict[str, Any]:
     counts = s.dropna().astype(str).value_counts()
     total = float(counts.sum()) or 1.0
-    rare = []
+    rare, rare_share = [], 0.0
     if groups is not None:
         # A LEVEL HELD BY FEW PATIENTS NAMES THEM. Counted in patients
         # rather than rows for the same reason the bounds are: one
@@ -196,6 +196,13 @@ def _categorical_marginal(s: pd.Series, groups=None,
         ).groupby("v")["g"].nunique()
         rare = [lv for lv in counts.index
                 if int(holders.get(str(lv), 0)) < k]
+        # Measured BEFORE the drop: what share of the column leaves
+        # with those levels. Without it the published probabilities
+        # sum to less than one and nothing says why, so `validate`
+        # reported deliberate k-anonymity suppression as "a bug rather
+        # than an edit" on six columns of a real run - a warning that
+        # cries wolf every time teaches everyone to ignore warnings.
+        rare_share = float(counts.reindex(rare).fillna(0).sum()) / total
         counts = counts.drop(index=rare, errors="ignore")
     kept = counts.iloc[:MAX_LEVELS_KEPT]
     out = {
@@ -206,6 +213,7 @@ def _categorical_marginal(s: pd.Series, groups=None,
     if rare:
         out["suppressed_levels"] = {
             "count": len(rare),
+            "share": round(rare_share, 6),
             "min_patients": k,
             "note": "levels carried by fewer than {} patients are not "
                     "published and cannot be generated - a level one "
@@ -491,11 +499,26 @@ def validate(spec: Dict[str, Any]) -> List[str]:
                     "negative one inverts it".format(name, sc))
         else:
             m = c.get("marginal") or {}
+            # EVERY SHARE OF THE COLUMN HAS TO BE ACCOUNTED FOR, not
+            # just the published part. A categorical marginal loses
+            # mass two legitimate ways - levels held by fewer than k
+            # patients are suppressed, and levels past the cap are
+            # truncated - and both are recorded beside the numbers.
+            # Adding them back turns a warning that fired on every
+            # real run into a check of the arithmetic: published plus
+            # suppressed plus truncated must be the whole column.
+            #
+            # It previously waved through anything carrying a `tail`,
+            # which hid genuine mismatches on exactly the wide columns
+            # most likely to have one, and flagged suppression as "a
+            # bug rather than an edit" when suppression is the point.
             tot = sum(_f(l.get("p"), 0) for l in m.get("levels") or [])
-            if m.get("levels") and abs(tot - 1.0) > 0.02 and \
-                    not m.get("tail"):
+            tot += _f((m.get("suppressed_levels") or {}).get("share"), 0)
+            tot += _f((m.get("tail") or {}).get("share_omitted"), 0)
+            if m.get("levels") and abs(tot - 1.0) > 0.02:
                 problems.append(
-                    "{}: level probabilities sum to {:.3f}, not 1"
+                    "{}: published + suppressed + truncated level "
+                    "shares sum to {:.3f}, not 1"
                     .format(name, tot))
 
     for i, r in enumerate(spec.get("relationships") or []):

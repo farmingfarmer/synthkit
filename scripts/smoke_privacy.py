@@ -133,6 +133,33 @@ def main():
           "aggregate over every patient and the generator needs it",
           vis["mean"] > 0)
 
+    # SUPPRESSION IS NOT A DEFECT, AND THE VALIDATOR HAS TO KNOW IT.
+    # `site` has a level almost nobody holds, so its published shares
+    # cannot sum to 1 - and `validate` reported exactly that as "a bug
+    # rather than an edit" on six columns of a real run. A warning
+    # that fires every time is a warning nobody reads. What it checks
+    # now is the arithmetic: published plus suppressed plus truncated
+    # must be the whole column.
+    sm = bp["columns"]["site"]["marginal"]
+    pub = sum(l["p"] for l in sm["levels"])
+    sup = (sm.get("suppressed_levels") or {}).get("share", 0.0)
+    tru = (sm.get("tail") or {}).get("share_omitted", 0.0)
+    check("the share removed by suppression is RECORDED, not just the "
+          "count - {:.3f} of this column left with the rare levels"
+          .format(sup), sup > 0.0)
+    check("...and published {:.3f} + suppressed {:.3f} + truncated "
+          "{:.3f} accounts for the whole column"
+          .format(pub, sup, tru), abs(pub + sup + tru - 1.0) < 0.02)
+    check("...so a blueprint whose levels were suppressed for privacy "
+          "VALIDATES rather than reporting itself as a bug",
+          not [x for x in (B.validate(bp) or []) if "site" in x])
+    import copy as _copy
+    broken = _copy.deepcopy(bp)
+    broken["columns"]["site"]["marginal"]["levels"][0]["p"] = 0.01
+    check("...while mass that is genuinely unaccounted for is still "
+          "caught - the check was widened, not switched off",
+          any("site" in x for x in (B.validate(broken) or [])))
+
     clean = pd.to_numeric(df["clean_lab"]).dropna()
     cm = bp["columns"]["clean_lab"]["marginal"]
     check("on a column no one patient dominates the tail shape IS "

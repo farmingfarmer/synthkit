@@ -194,7 +194,7 @@ def main():
           "something - {}".format(really_lost),
           really_lost == ["p", "r"])
     check("...and they are reported as GONE, in their own section",
-          "ARE GONE" in s2 and "p lost r" in s2)
+          ("ARE GONE" in s2 or "IS GONE" in s2) and "p lost r" in s2)
     check("every parent named as lost is one the sampler actually "
           "removed, in both directions of the split",
           all(p in (x.get("parents") or [])
