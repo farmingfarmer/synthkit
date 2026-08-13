@@ -4,7 +4,7 @@ Synthetic clinical data generator and model-evaluation instrument. Core rule: le
 
 ## Verify before claiming
 
-- Run `python scripts/run_all_smokes.py` before claiming anything works. Expect 50 suites, 1340 checks, ALL GREEN.
+- Run `python scripts/run_all_smokes.py` before claiming anything works. Expect 50 suites, 1347 checks, ALL GREEN.
 - **`pip install -r requirements.txt` first, or seven suites do not
   run.** A machine without numpy, pandas and scikit-learn fails
   `smoke_blueprint`, `smoke_discover`, `smoke_dynamics`,
@@ -133,6 +133,25 @@ the direction that stops work happening.
   systolic against diastolic generated at 0.978 where the source had
   0.888. Each curve now carries the skill of the model that produced
   it.
+- **Pair correlation cannot see a broken IDENTITY.** `age_at_visit`
+  is the visit year minus `year_of_birth`, and the catalogue reports
+  that at 100%. Generated, the identity held on 21.4% of rows while
+  the correlation stayed strong, both means stayed right, and every
+  check in the fidelity report passed. Someone opening the file finds
+  patients whose age contradicts their birth year. Tightness measures
+  it - the child's spread left over after least squares on ALL its
+  parents - and it must be the whole parent set: the first version
+  binned one parent at a time, called 3/3 identities intact, and was
+  measuring nothing, because neither parent determines age alone.
+- **A shortfall that privacy explains is not a fault.** `6690_2` came
+  out at 27% of its source spread on the real run. Reproduced: when
+  three patients out of four hundred hold values above the published
+  bound, 86-89% of the column's magnitude sits up there and the k rule
+  removes it deliberately. Report the share outside the bound beside
+  the ratio, or the next person spends a day chasing the sampler for
+  something the privacy rule did on purpose. Five such patients only
+  drops spread to 86% and would not exercise the check at all - the
+  fixture has to be measured, not assumed.
 - **Per-column checks cannot see a broken relationship.** Coverage,
   centre, steadiness and clustering all pass on a table with no
   structure between its columns at all — the classic way a synthetic

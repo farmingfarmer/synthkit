@@ -309,6 +309,28 @@ def main():
                                     if m.get("skew_source") is not None
                                     else "")
             for c, m in sorted(misses, key=lambda x: -x[1]["by_sd"])[:4]))
+    say("spread within 25% on {}/{} numeric columns".format(
+        s["spread_ok"], s["numeric"]))
+    narrow = [(c["column"], c["spread_miss"]) for c in fid["columns"]
+              if c.get("spread_miss")]
+    if narrow:
+        # A SHORTFALL THE BOUND EXPLAINS IS NOT A FAULT. Naming the
+        # share of the column that sits outside the published bound is
+        # what stops this line being read as a bug when it is the k
+        # rule doing its job.
+        bounded = [m for _c, m in narrow
+                   if (m.get("share_of_magnitude_outside_bounds") or 0)
+                   > 0.1]
+        say("  of the {} that missed: {} lose most of their magnitude "
+            "to the published bound (privacy, not a fault)".format(
+                len(narrow), len(bounded)))
+        say("  worst: " + ", ".join(
+            "{} {:.0%} of source{}".format(
+                c, m["ratio"],
+                "" if not m.get("share_of_magnitude_outside_bounds")
+                else " ({:.0%} beyond bound)".format(
+                    m["share_of_magnitude_outside_bounds"]))
+            for c, m in sorted(narrow, key=lambda x: x[1]["ratio"])[:4]))
     say("persistence within 0.15 on {}/{} numeric columns".format(
         s["lag1_ok"], s["numeric_dynamic"]))
     say("clustering within 0.15 on {}/{} partly-covered "
@@ -316,6 +338,15 @@ def main():
     say("RELATIONSHIPS: {}/{} keep their direction, {}/{} land within "
         "0.2".format(s["pairs_sign_ok"], s["pairs"],
                      s["pairs_close"], s["pairs"]))
+    if s.get("deterministic_compared"):
+        say("near-deterministic identities hold on {}/{} pairs".format(
+            s["deterministic_kept"], s["deterministic_compared"]))
+        for r in (fid["relationships"].get("deterministic_loosened")
+                  or [])[:4]:
+            say("  {} <- {}: tightness {:.2f} -> {:.2f} - the identity "
+                "is looser in the generated data".format(
+                    r["child"], r["parent"], r["tightness_source"],
+                    r["tightness_generated"]))
     if s["pairs_inverted"]:
         say("  {} relationship(s) came out INVERTED - the opposite "
             "sign to the source. This is worse than a missing one; it "
@@ -565,6 +596,47 @@ def render(bp):
     return "\n".join(L)
 
 
+def _tightness(fr, child, parents):
+    """How much of the child is determined by ALL its parents at once.
+
+    1 minus the share of the child's spread left over after a least
+    squares fit on the parent set. Near 1 means the column is computed
+    from them.
+
+    MEASURED AGAINST THE WHOLE PARENT SET, not one parent at a time.
+    The first version binned a single parent, reported 3/3 identities
+    intact, and was wrong: `age_at_visit` is the visit year MINUS the
+    year of birth, so neither parent determines it alone and the
+    source never looked tight to begin with. The identity held on
+    21.4% of generated rows while that check called it kept.
+
+    Least squares because these are arithmetic - the catalogue calls
+    them "a subtraction, a threshold, a restatement" - and a
+    subtraction is exactly linear. A threshold will read looser than
+    it is, which errs toward reporting a problem rather than hiding
+    one."""
+    import numpy as np
+    import pandas as pd
+    cols = [child] + [p for p in parents if p != child]
+    if any(c not in fr.columns for c in cols):
+        return None
+    d = fr[cols].apply(pd.to_numeric, errors="coerce").dropna()
+    if len(d) < 50:
+        return None
+    y = d[child].to_numpy(dtype=float)
+    sd = float(y.std())
+    if sd <= 0:
+        return None
+    X = d[cols[1:]].to_numpy(dtype=float)
+    X = np.column_stack([X, np.ones(len(X))])
+    try:
+        beta, _r, _rk, _sv = np.linalg.lstsq(X, y, rcond=None)
+    except np.linalg.LinAlgError:
+        return None
+    resid = y - X.dot(beta)
+    return round(max(0.0, 1.0 - float(resid.std()) / sd), 4)
+
+
 def _pair_fidelity(Xs, Xg, bp):
     """Did the RELATIONSHIPS survive, not just the columns?
 
@@ -608,16 +680,63 @@ def _pair_fidelity(Xs, Xg, bp):
             rs, rg = rho(Xs), rho(Xg)
             if rs is None or rg is None:
                 continue
-            rows.append({"child": child, "parent": par,
-                         "source": round(rs, 4),
-                         "generated": round(rg, 4),
-                         "delta": round(rg - rs, 4)})
+            ev = rel.get("evidence") or {}
+            eff = (ev.get("effect") or {}).get(par) or {}
+            # WHY A PAIR CAME OUT INVERTED, on the record. Discovery
+            # already knows: it fits each parent a second time on its
+            # own, and sets `reverses_when_controlled` when that curve
+            # disagrees in SIGN with the conditional one. That is the
+            # documented cause - mean arterial pressure is (S + 2D)/3,
+            # so holding it fixed diastolic falls as systolic rises,
+            # and generating from the conditional curve produced
+            # -0.720 where the source had +0.888. Carrying the flag
+            # here means an inverted pair names its own mechanism
+            # instead of leaving the reader to rediscover it.
+            row = {"child": child, "parent": par,
+                   "source": round(rs, 4),
+                   "generated": round(rg, 4),
+                   "delta": round(rg - rs, 4),
+                   "reverses_when_controlled": bool(
+                       eff.get("reverses_when_controlled")),
+                   "near_deterministic": bool(
+                       ev.get("near_deterministic"))}
+            # HOW TIGHT THE RELATIONSHIP IS, not just which way it
+            # leans. A near-deterministic pair is an ARITHMETIC
+            # IDENTITY - age is the visit year minus the year of
+            # birth - and correlation cannot see it break. Measured on
+            # a fixture where the identity held on 100% of source
+            # rows: it held on 23.7% of generated rows while the
+            # correlation stayed strong, both means stayed right, and
+            # every check in this file passed. Someone opening the
+            # file would find patients whose age contradicts their
+            # birth year.
+            #
+            # Tightness is what survives that: bin the parent, remove
+            # the within-bin median, and see how much of the child's
+            # spread is left. An identity leaves almost none.
+            if row["near_deterministic"]:
+                ps = [x for x in (rel.get("parents") or [])]
+                row["parents_used"] = ps
+                row["tightness_source"] = _tightness(Xs, child, ps)
+                row["tightness_generated"] = _tightness(Xg, child, ps)
+            rows.append(row)
 
     strong = [r for r in rows if abs(r["source"]) >= 0.1]
     inverted = [r for r in strong
                 if r["source"] * r["generated"] < 0
                 and abs(r["generated"]) >= 0.1]
+    det = [r for r in rows if r.get("near_deterministic")
+           and r.get("tightness_source") is not None
+           and r.get("tightness_generated") is not None]
+    det_kept = [r for r in det
+                if r["tightness_generated"] >= r["tightness_source"] - 0.2]
     return {
+        "deterministic_compared": len(det),
+        "deterministic_kept": len(det_kept),
+        "deterministic_loosened": sorted(
+            [r for r in det if r not in det_kept],
+            key=lambda r: r["tightness_source"] - r["tightness_generated"],
+            reverse=True),
         "compared": len(strong),
         "sign_kept": sum(1 for r in strong
                          if r["source"] * r["generated"] > 0),
@@ -648,7 +767,7 @@ def compare(df, g, bp, group_by, time_col):
     ds = measure(df, Xs, group_by, time_col)
     dg = measure(g, Xg, group_by, gt)
 
-    cols, n_ok = [], dict(cov=0, ctr=0, lag=0, clu=0, num=0, dyn=0,
+    cols, n_ok = [], dict(cov=0, ctr=0, spr=0, lag=0, clu=0, num=0, dyn=0,
                           part=0)
     pairs = _pair_fidelity(Xs, Xg, bp)
     for c in Xs.columns:
@@ -671,6 +790,45 @@ def compare(df, g, bp, group_by, time_col):
                 "mean_generated": round(float(q.mean()), 4),
                 "sd_source": round(sd, 4),
                 "sd_generated": round(float(q.std() or 0.0), 4)})
+            # SPREAD WAS RECORDED AND NEVER ASSERTED. Coverage,
+            # centre, persistence and clustering all had a bar; the
+            # standard deviation sat in the file with nothing checking
+            # it. On the 800-patient run `6690_2` came out at 27% of
+            # its source spread - three quarters of the column's
+            # variance gone - and passed every check, because its
+            # CENTRE was fine at 7.05 against 7.05.
+            #
+            # A shortfall is not automatically a fault. Reproduced
+            # here: when five patients hold values above the published
+            # bound and 54% of the column's magnitude sits up there,
+            # the k rule removes it deliberately and the spread drops
+            # to a quarter. That is the protection working. So the
+            # miss is reported WITH the share of the source that sits
+            # outside the published bound, which is what separates
+            # "privacy did this" from "the sampler did this".
+            sd_g = float(q.std() or 0.0)
+            if sd > 0 and abs(sd_g / sd - 1.0) <= 0.25:
+                n_ok["spr"] += 1
+            elif sd > 0:
+                mg = (((bp.get("columns") or {}).get(c) or {})
+                      .get("marginal") or {})
+                vv = mg.get("v") or []
+                out_of_bounds = None
+                if vv:
+                    lo_b, hi_b = float(vv[0]), float(vv[-1])
+                    mag = float((s.astype(float) ** 2).sum())
+                    beyond = s.astype(float)[(s.astype(float) > hi_b)
+                                             | (s.astype(float) < lo_b)]
+                    out_of_bounds = (round(float((beyond ** 2).sum())
+                                           / mag, 4) if mag > 0 else None)
+                row["spread_miss"] = {
+                    "ratio": round(sd_g / sd, 4),
+                    "direction": ("generated wider" if sd_g > sd
+                                  else "generated narrower"),
+                    "share_of_magnitude_outside_bounds": out_of_bounds,
+                    "tail_shape_published": bool(
+                        "tail_mean_high" in mg or "tail_mean_low" in mg),
+                }
             if sd > 0 and abs(row["mean_generated"]
                               - row["mean_source"]) <= 0.1 * sd:
                 n_ok["ctr"] += 1
@@ -729,11 +887,14 @@ def compare(df, g, bp, group_by, time_col):
             "numeric_dynamic": n_ok["dyn"],
             "partly_covered": n_ok["part"],
             "coverage_ok": n_ok["cov"], "centre_ok": n_ok["ctr"],
+            "spread_ok": n_ok["spr"],
             "lag1_ok": n_ok["lag"], "cluster_ok": n_ok["clu"],
             "pairs": pairs["compared"],
             "pairs_sign_ok": pairs["sign_kept"],
             "pairs_close": pairs["close"],
             "pairs_inverted": len(pairs["inverted"]),
+            "deterministic_compared": pairs["deterministic_compared"],
+            "deterministic_kept": pairs["deterministic_kept"],
         },
         "note": "coverage_ok counts columns within 0.05 of the "
                 "source's share of present values; centre_ok within "

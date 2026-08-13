@@ -204,6 +204,93 @@ def main():
         e = abs(float(q2.mean()) - float(s2.mean())) / float(s2.std())
         check("end to end, {} lands within {:.0%} of spread ({:.3f})"
               .format(col, BAR, e), e <= BAR)
+    # ---- SPREAD IS ASSERTED NOW, AND EXPLAINED WHEN IT MISSES ----
+    # `6690_2` came out at 27% of its source spread on the real run
+    # and passed every check, because its centre was fine. A shortfall
+    # is not automatically a fault though: when the variance belongs
+    # to fewer than k patients, the published bound removes it on
+    # purpose. Both cases are planted here.
+    rr2 = np.random.RandomState(8)
+    n2 = 400 * 30
+    g2 = np.repeat(np.arange(400), 30)
+    tame = rr2.normal(50, 8, n2)
+    # THREE patients out of 400, well under k=10, so the published
+    # bound is the mean of ten patient maxima of which seven are tiny
+    # - it lands far below the real top and takes the variance with
+    # it. Measured across configurations: five such patients only
+    # drops the spread to 86% and would not exercise this at all;
+    # three drops it to 15%, which is the shape 6690_2 showed.
+    few = np.isin(g2, [0, 1, 2])
+    wild = np.where(few, rr2.lognormal(5.2, 1.3, n2),
+                    rr2.lognormal(0.6, 0.6, n2))
+    df2 = pd.DataFrame({"person_id": ["P{:04d}".format(x) for x in g2],
+                        "tame": np.round(tame, 2),
+                        "wild": np.round(wild, 3)})
+    bp2 = B.build(df2, {"claims": [], "unexplained": [], "skipped": []},
+                  group_by="person_id")
+    gen2 = generate(bp2, n_patients=400, seed=8)
+    from run_discovery import compare as _compare
+    fid2 = _compare(df2, gen2, bp2, "person_id", None)
+    by = dict((c["column"], c) for c in fid2["columns"])
+    check("a well-behaved column keeps its SPREAD, which nothing "
+          "checked until now - sd was recorded and never asserted",
+          not by["tame"].get("spread_miss"))
+    wm = by["wild"].get("spread_miss") or {}
+    check("a column whose variance belongs to 3 patients loses it - "
+          "spread falls to {:.0%} of source - and the report SAYS SO "
+          "instead of passing silently"
+          .format(wm.get("ratio", 1.0) if wm else 1.0),
+          bool(wm) and wm.get("ratio", 1.0) < 0.5)
+    check("...and attributes it to the published bound rather than to "
+          "the sampler - {:.0%} of that column's magnitude sits "
+          "outside what k allows to be published"
+          .format(wm.get("share_of_magnitude_outside_bounds") or 0),
+          (wm.get("share_of_magnitude_outside_bounds") or 0) > 0.1)
+
+    # ---- AN ARITHMETIC IDENTITY IS NOT A CORRELATION --------------
+    # age is the visit year minus the year of birth. Correlation stays
+    # strong when that breaks, both means stay right, and every other
+    # check in the fidelity report passes - measured, the identity held
+    # on 21.4% of generated rows while the report called it fine.
+    rr3 = np.random.RandomState(9)
+    npat3, nvis3 = 300, 20
+    g3 = np.repeat(np.arange(npat3), nvis3); n3 = len(g3)
+    yob = np.repeat(np.round(1962 + 16 * rr3.normal(0, 1, npat3)), nvis3)
+    vy = 2010 + np.floor(rr3.random_sample(n3) * 14)
+    df3 = pd.DataFrame({"person_id": ["P{:04d}".format(x) for x in g3],
+                        "year_of_birth": yob, "visit_year": vy,
+                        "age_at_visit": vy - yob,
+                        "hr": np.round(78 + 10 * rr3.normal(0, 1, n3))})
+    bp3 = B.build(df3, discover(df3, group_by="person_id", seed=3),
+                  group_by="person_id")
+    g3out = generate(bp3, n_patients=npat3, seed=3)
+    fid3 = _compare(df3, g3out, bp3, "person_id", None)
+    s3 = fid3["summary"]
+    ga = pd.to_numeric(g3out["age_at_visit"], errors="coerce")
+    gv = (pd.to_numeric(g3out["visit_year"], errors="coerce")
+          - pd.to_numeric(g3out["year_of_birth"], errors="coerce"))
+    held = float((ga == gv).mean())
+    check("THE FIXTURE BREAKS THE IDENTITY: age equals visit year "
+          "minus year of birth on 100% of source rows and {:.1%} of "
+          "generated ones".format(held), held < 0.6)
+    check("...and every OTHER check still passes on it, which is why "
+          "this one had to exist - centre {}/{} and spread {}/{}"
+          .format(s3["centre_ok"], s3["numeric"],
+                  s3["spread_ok"], s3["numeric"]),
+          s3["centre_ok"] == s3["numeric"])
+    check("the near-deterministic check CATCHES it: {}/{} identities "
+          "held".format(s3["deterministic_kept"],
+                        s3["deterministic_compared"]),
+          s3["deterministic_compared"] > 0
+          and s3["deterministic_kept"] < s3["deterministic_compared"])
+    loose = fid3["relationships"]["deterministic_loosened"]
+    check("...and names which one, with how far it slipped - {}"
+          .format(", ".join("{} <- {} {:.2f}->{:.2f}".format(
+              x["child"], x["parent"], x["tightness_source"],
+              x["tightness_generated"]) for x in loose[:2])),
+          loose and all(x["tightness_source"]
+                        > x["tightness_generated"] for x in loose))
+
     check("coverage is untouched by any of it", all(
         abs(float(pd.to_numeric(g[c], errors="coerce").notna().mean())
             - float(pd.to_numeric(df[c]).notna().mean())) <= 0.05
