@@ -152,6 +152,34 @@ def _to_integers(out, m):
     return np.floor(out + (lo + hi) / 2.0)
 
 
+def _draw_list(m: Dict[str, Any], n: int, rng) -> np.ndarray:
+    """Draw a SET per row and join it back into one field.
+
+    The size comes from its own observed distribution and the tokens
+    from theirs, sampled without replacement so a row never repeats a
+    drug. Co-occurrence is not modelled - the blueprint says so on the
+    marginal itself."""
+    toks = [t["value"] for t in (m.get("tokens") or [])]
+    if not toks:
+        return np.array([None] * n, dtype=object)
+    w = np.asarray([max(float(t["p"]), 0.0)
+                    for t in m["tokens"]], dtype=float)
+    w = w / w.sum() if w.sum() > 0 else np.full(len(toks),
+                                                1.0 / len(toks))
+    sz = m.get("set_size") or {}
+    sizes = np.asarray(sz.get("v") or [1], dtype=int)
+    sp = np.asarray(sz.get("p") or [1.0], dtype=float)
+    sp = sp / sp.sum() if sp.sum() > 0 else None
+    sep = m.get("separator", ";")
+    out = []
+    for _ in range(n):
+        k_ = int(rng.choice(sizes, p=sp)) if sp is not None else 1
+        k_ = max(1, min(k_, len(toks)))
+        picked = rng.choice(len(toks), size=k_, replace=False, p=w)
+        out.append(sep.join(sorted(toks[i] for i in picked)))
+    return np.asarray(out, dtype=object)
+
+
 def _draw_categorical(m: Dict[str, Any], n: int, rng) -> np.ndarray:
     levels = m.get("levels") or []
     if not levels:
@@ -584,6 +612,8 @@ def generate(blueprint: Dict[str, Any],
                              m["levels"]])
             pr = pr / pr.sum() if pr.sum() > 0 else pr
             base = sticky_pick(counts, lv, pr, stick, rng)
+        elif m.get("type") == "list":
+            base = _draw_list(m, n_draw, rng)
         else:
             base = _draw_categorical(m, n_draw, rng)
         if per_patient:

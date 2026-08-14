@@ -4,7 +4,7 @@ Synthetic clinical data generator and model-evaluation instrument. Core rule: le
 
 ## Verify before claiming
 
-- Run `python scripts/run_all_smokes.py` before claiming anything works. Expect 52 suites, 1419 checks, ALL GREEN.
+- Run `python scripts/run_all_smokes.py` before claiming anything works. Expect 52 suites, 1430 checks, ALL GREEN.
 - **`pip install -r requirements.txt` first, or seven suites do not
   run.** A machine without numpy, pandas and scikit-learn fails
   `smoke_blueprint`, `smoke_discover`, `smoke_dynamics`,
@@ -162,6 +162,22 @@ the direction that stops work happening.
   itself, because a spec that looks complete and has silently lost
   every relationship is the same failure as a column that looks
   present and is entirely sentinel.
+- **A DIAGNOSTIC MUST MEASURE THE THING IT NAMES.** The spread report
+  attributed a shortfall to the k rule by the share of squared RAW
+  values beyond the bound, which on any column not sitting near zero
+  is dominated by the mean. An spo2-shaped column centred at 98.6,
+  whose low tail the rule removes, reported 0.0% where the honest
+  answer is 26.5% - and a real run then read `spo2 48% of source (0%
+  beyond bound)`, which sent me hunting a sampler bug that was the
+  privacy rule all along. Spread is deviation from the centre, so its
+  attribution has to be too.
+- **A CONSTRAINT MUST BE EXACT AND COMMENSURATE.** At a 0.999
+  threshold a real run found 77 orderings, most of them scale
+  artefacts - `span_days <= spo2` at 0.999838 - and the one that
+  mattered was buried among them. A rule the source breaks at all is
+  not a rule, so exactness is required; and because the repair is a
+  SWAP, the two columns must come close on their own scale. Swapping a
+  five-day stay with an oxygen saturation of 97 would destroy both.
 - **A column read as the wrong type fails SILENTLY, and fixing one
   type does not fix that.** Dates became 200 labels with 88% sentinel
   and every check stayed green, because coverage counts presence and

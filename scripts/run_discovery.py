@@ -309,6 +309,17 @@ def main():
                 what = "numeric (whole numbers)"
         elif mg.get("type") == "suppressed":
             what = "SUPPRESSED - too few patients to publish"
+        elif mg.get("type") == "list":
+            # Named here rather than warned about. It was a warning
+            # while nothing could model these; now that the set is
+            # modelled as a set, the honest report is what it became.
+            sz = mg.get("set_size") or {}
+            avg = sum(float(v) * float(p_) for v, p_
+                      in zip(sz.get("v") or [1], sz.get("p") or [1.0]))
+            what = ("SET of {} tokens, {:.1f} per row, from {} "
+                    "distinct combinations".format(
+                        len(mg.get("tokens") or []), avg,
+                        mg.get("distinct_combinations", 0)))
         else:
             n = len(mg.get("levels") or [])
             sent = float(mg.get("sentinel_share") or 0.0)
@@ -354,6 +365,8 @@ def main():
         mg = spec.get("marginal") or {}
         lost = ((mg.get("suppressed_levels") or {}).get("share") or 0.0)
         lost += ((mg.get("tail") or {}).get("share_omitted") or 0.0)
+        # Only columns that fell back to being ONE LABEL. A column
+        # already modelled as a set is not a problem to report.
         if mg.get("type") != "levels" or lost < 0.05:
             continue
         if c not in df.columns:
@@ -369,8 +382,9 @@ def main():
                               int(vals.nunique())))
                 break
     if listy:
-        say("these look LIST-VALUED, not categorical - every "
-            "combination becomes its own level:")
+        say("these look LIST-VALUED but could NOT be modelled as sets "
+            "- too few tokens cleared k, so every combination is "
+            "still its own level:")
         for c, sep, share, lost, nun in listy:
             say("  {}: {:.0%} of values contain {!r}, {} distinct "
                 "combinations, {:.0%} of the column suppressed or "
@@ -1245,12 +1259,27 @@ def compare(df, g, bp, group_by, time_col, ordinals=None):
                 vv = mg.get("v") or []
                 out_of_bounds = None
                 if vv:
+                    # SHARE OF VARIANCE, NOT OF MAGNITUDE.
+                    #
+                    # Squared raw values are dominated by the mean on
+                    # any column that does not sit near zero, so a
+                    # clipped tail looks like nothing. Measured on an
+                    # spo2-shaped column centred at 98.6 whose low
+                    # tail the k rule removes: this reported 0.0%
+                    # where the honest answer is 26.5%, and a real
+                    # run then read `spo2 48% of source (0% beyond
+                    # bound)` and sent me looking for a sampler bug
+                    # that was the privacy rule all along.
+                    #
+                    # Spread is a statement about deviation from the
+                    # centre, so the attribution has to be too.
                     lo_b, hi_b = float(vv[0]), float(vv[-1])
-                    mag = float((s.astype(float) ** 2).sum())
-                    beyond = s.astype(float)[(s.astype(float) > hi_b)
-                                             | (s.astype(float) < lo_b)]
-                    out_of_bounds = (round(float((beyond ** 2).sum())
-                                           / mag, 4) if mag > 0 else None)
+                    sv = s.astype(float)
+                    total = float(((sv - sv.mean()) ** 2).sum())
+                    beyond = sv[(sv > hi_b) | (sv < lo_b)]
+                    out_of_bounds = (
+                        round(float(((beyond - sv.mean()) ** 2).sum())
+                              / total, 4) if total > 0 else None)
                 row["spread_miss"] = {
                     "ratio": round(sd_g / sd, 4),
                     "direction": ("generated wider" if sd_g > sd

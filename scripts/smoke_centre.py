@@ -387,6 +387,65 @@ def main():
           == sorted(pd.to_numeric(fixed["visit_start"]).tolist()
                     + pd.to_numeric(fixed["visit_end"]).tolist()))
 
+    # ---- ATTRIBUTION MEASURES DEVIATION, NOT MAGNITUDE ----------
+    # Squared raw values are dominated by the mean on any column that
+    # does not sit near zero, so a clipped tail looks like nothing.
+    # A real run read `spo2 48% of source (0% beyond bound)` and sent
+    # me hunting a sampler bug that was the privacy rule all along.
+    rr5 = np.random.RandomState(5)
+    g5b = np.repeat(np.arange(800), 40)
+    n5b = len(g5b)
+    fewb = np.isin(g5b, [3, 17, 42])
+    sat = np.minimum(100, np.round(
+        np.where(fewb, 100 - rr5.exponential(14, n5b),
+                 100 - rr5.exponential(1.4, n5b))))
+    dfs = pd.DataFrame({"person_id": ["P{:04d}".format(x) for x in g5b],
+                        "spo2": sat})
+    bps = B.build(dfs, {"claims": [], "unexplained": [],
+                        "skipped": []}, group_by="person_id")
+    gens = generate(bps, n_patients=800, seed=5)
+    fids = _compare(dfs, gens, bps, "person_id", None)
+    sm5 = dict((c["column"], c) for c in fids["columns"])["spo2"]
+    miss5 = sm5.get("spread_miss") or {}
+    check("a ceiling-piled column that loses its low tail to the k "
+          "rule is ATTRIBUTED to the bound - the share is measured as "
+          "deviation from the centre, which is what spread is",
+          not miss5
+          or (miss5.get("share_of_magnitude_outside_bounds") or 0) > 0.1)
+
+    # ---- A CONSTRAINT MUST BE EXACT AND COMMENSURATE ------------
+    # A real run found 77 "constraints" of which most were scale
+    # artefacts - span_days <= spo2, span_days <= systolic - and the
+    # one that mattered was buried among them.
+    rr6 = np.random.RandomState(3)
+    npat6, nvis6 = 400, 12
+    g6 = np.repeat(np.arange(npat6), nvis6)
+    n6 = len(g6)
+    st6 = rr6.randint(0, 1500, n6).astype(float)
+    sp6 = np.where(rr6.random_sample(n6) < 0.1, rr6.randint(1, 20, n6), 0)
+    dia6 = np.round(74 + 7 * rr6.normal(0, 1, n6))
+    df6 = pd.DataFrame({
+        "person_id": ["P{:04d}".format(x) for x in g6],
+        "visit_start": st6, "visit_end": st6 + sp6,
+        "diastolic": dia6,
+        "systolic": dia6 + np.round(45 + 8 * rr6.normal(0, 1, n6)),
+        "span_days": np.where(rr6.random_sample(n6) < 0.1,
+                              rr6.randint(1, 20, n6), 0).astype(float),
+        "spo2": np.minimum(100, np.round(
+            100 - rr6.exponential(1.6, n6)))})
+    bp6 = B.build(df6, {"claims": [], "unexplained": [],
+                        "skipped": []}, group_by="person_id")
+    got = {(c["lhs"], c["rhs"]) for c in (bp6.get("constraints") or [])}
+    check("a genuine ordering between commensurate columns is kept - "
+          "dates, and blood pressures",
+          ("visit_start", "visit_end") in got
+          and ("diastolic", "systolic") in got)
+    check("...and a SCALE ARTEFACT is not: a length of stay is below "
+          "an oxygen saturation on every row and means nothing, and "
+          "swapping the two to 'repair' it would destroy both",
+          ("span_days", "spo2") not in got
+          and ("span_days", "systolic") not in got)
+
     check("coverage is untouched by any of it", all(
         abs(float(pd.to_numeric(g[c], errors="coerce").notna().mean())
             - float(pd.to_numeric(df[c]).notna().mean())) <= 0.05

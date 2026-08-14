@@ -333,6 +333,79 @@ def _presence_model(X: pd.DataFrame, col: str, groups,
     }
 
 
+LIST_SEPARATORS = (";", "|", ",")
+
+
+def _list_marginal(raw: pd.Series, groups, k: int = 10):
+    """A column holding a SET, modelled as one.
+
+    CONFIRMED ON THE REAL EXTRACT, not assumed. `conditions` came out
+    69% `__other__` and `active_drugs` 53%, and the diagnostic said
+    why: 73% and 74% of their values contain a semicolon, across
+    31,522 and 16,882 distinct COMBINATIONS. Every combination had
+    become its own level, so almost all of them fell under k and the
+    column was suppressed for being the wrong shape rather than for
+    holding rare values.
+
+    It cost structure too. Of ten categorical associations measured
+    for the first time on that run, five were lost, and three of those
+    five involved these columns - `condition_count <- conditions` fell
+    from 0.54 to 0.03.
+
+    So the set is modelled as a set: which tokens appear, how often
+    each does, and how many of them a row carries. A token held by
+    fewer than k PATIENTS is not published, for the same reason a
+    level is not.
+
+    WHAT THIS DOES NOT DO. Tokens are drawn independently given the
+    set size, so co-occurrence is not modelled - two drugs always
+    prescribed together will appear together only by chance. Said here
+    rather than found later."""
+    txt = raw.dropna().astype(str).str.strip()
+    txt = txt[txt.str.len() > 0]
+    if len(txt) < 50:
+        return None
+    sep = None
+    for cand in LIST_SEPARATORS:
+        if float(txt.str.contains(cand, regex=False).mean()) >= 0.30:
+            sep = cand
+            break
+    if sep is None:
+        return None
+    parts = txt.str.split(sep)
+    sizes = parts.map(len)
+    if float(sizes.mean()) < 1.2:
+        return None
+    g = pd.Series(np.asarray(groups)[txt.index], index=txt.index)
+    holders: Dict[str, set] = {}
+    counts: Dict[str, int] = {}
+    for idx, toks in parts.items():
+        who = g.loc[idx]
+        for tok in set(x.strip() for x in toks if x.strip()):
+            holders.setdefault(tok, set()).add(who)
+            counts[tok] = counts.get(tok, 0) + 1
+    kept = [(tok, counts[tok]) for tok, who in holders.items()
+            if len(who) >= k]
+    if len(kept) < 2:
+        return None
+    kept.sort(key=lambda x: -x[1])
+    kept = kept[:MAX_LEVELS_KEPT]
+    n_rows = float(len(txt))
+    size_counts = sizes.value_counts(normalize=True).sort_index()
+    return {
+        "type": "list",
+        "separator": sep,
+        "tokens": [{"value": tok, "p": round(c / n_rows, 6)}
+                   for tok, c in kept],
+        "set_size": {"v": [int(x) for x in size_counts.index],
+                     "p": [round(float(x), 6) for x in size_counts]},
+        "distinct_combinations": int(txt.nunique()),
+        "tokens_are_k_anonymous": k,
+        "note": "tokens are drawn independently given the set size, "
+                "so co-occurrence between them is NOT modelled",
+    }
+
+
 def _constraints(X: pd.DataFrame, k: int = 10) -> List[Dict[str, Any]]:
     """Orderings that hold on every row of the source.
 
@@ -363,13 +436,28 @@ def _constraints(X: pd.DataFrame, k: int = 10) -> List[Dict[str, Any]]:
             if len(d) < 100:
                 continue
             va, vb = d[a].to_numpy(float), d[b].to_numpy(float)
+            scale = max(float(va.std()), float(vb.std()))
             for lhs, rhs, lo, hi in ((a, b, va, vb), (b, a, vb, va)):
                 share = float((lo <= hi).mean())
-                if share < 0.999:
+                # EXACT, NOT NEARLY EXACT. At 0.999 a real run found
+                # 77 "constraints" of which most were scale
+                # artefacts - span_days <= spo2 at 0.999838,
+                # span_days <= systolic_blood_pressure at 0.99963 -
+                # and the one that mattered was buried among them.
+                # A rule the source breaks at all is not a rule.
+                if share < 1.0:
                     continue
-                if float(lo.max()) <= float(hi.min()):
-                    continue          # disjoint scales, not a rule
                 gap = hi - lo
+                # AND COMMENSURATE, because the repair is a SWAP.
+                # Exchanging a span of 5 days with an oxygen
+                # saturation of 97 would destroy both columns, so an
+                # ordering only counts where the two quantities come
+                # close on the scale they are measured at. The gap
+                # between blood pressures gets within 1.4 standard
+                # deviations of zero; the gap between a length of
+                # stay and a saturation never gets within 14.
+                if scale <= 0 or float(gap.min()) > 2.0 * scale:
+                    continue
                 out.append({
                     "lhs": lhs, "op": "<=", "rhs": rhs,
                     "holds_in_source": round(share, 6),
@@ -426,7 +514,10 @@ def build(df: pd.DataFrame,
             "level": level,
             "coverage": round(float(s.notna().mean()), 6),
             "marginal": (_numeric_marginal(s, gvals, k) if numeric
-                         else _categorical_marginal(s, gvals, k)),
+                         else (_list_marginal(df[c], gvals, k)
+                               if (c in df.columns
+                                   and _list_marginal(df[c], gvals, k))
+                               else _categorical_marginal(s, gvals, k))),
             "dials": {
                 "coverage": None,
                 "shift": None if numeric else "n/a",

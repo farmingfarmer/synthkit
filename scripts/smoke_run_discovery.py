@@ -185,13 +185,19 @@ def main():
                     p_, combo, round(float(rr.normal(10, 2)), 3)))
     rl = run(["--src", str(lst), "--out", str(tmp / "lout"),
               "--group-by", "person_id"])
-    check("a column holding SEVERAL values in one field is reported "
-          "as list-valued rather than left looking like rare labels - "
-          "it is the wrong shape for a single category, not rare data",
-          "LIST-VALUED" in rl.stdout and "active_drugs" in rl.stdout)
-    check("...and a plain categorical is NOT reported that way, or "
-          "the message means nothing",
-          "LIST-VALUED" not in r.stdout)
+    # This was a WARNING while nothing could model a set-valued
+    # column. Now that one is modelled as a set, the honest report is
+    # what it became - and warning about a solved problem would be
+    # the validator mistake again.
+    check("a column holding SEVERAL values in one field is modelled "
+          "as a SET and the run says so, rather than leaving it to "
+          "look like rare labels",
+          "SET of" in rl.stdout and "active_drugs" in rl.stdout)
+    check("...and it is NOT still reported as a problem, because it "
+          "is no longer one",
+          "could NOT be modelled as sets" not in rl.stdout)
+    check("...while a plain categorical is not called a set either",
+          "SET of" not in r.stdout)
 
     txt = (out / "findings.txt").read_text()
     # THE COUNTS DO NOT NAME THE COLUMNS. Five different subsets of

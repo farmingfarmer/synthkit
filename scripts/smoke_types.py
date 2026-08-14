@@ -203,6 +203,61 @@ def main():
                                                   regex=False).all()
               and not (vals == OTHER).any())
 
+    # ---- A COLUMN HOLDING A SET IS MODELLED AS ONE ---------------
+    # Confirmed on the real extract, not assumed: `conditions` came
+    # out 69% `__other__` and `active_drugs` 53%, with 73% and 74% of
+    # their values carrying a semicolon across 31,522 and 16,882
+    # distinct COMBINATIONS. Every combination had become its own
+    # level, so almost all fell under k - suppressed for being the
+    # wrong shape, not for being rare. It cost structure too: three of
+    # the five categorical associations lost on that run involved
+    # these columns.
+    rl = np.random.RandomState(6)
+    npl, nvl = 400, 10
+    gl = np.repeat(np.arange(npl), nvl)
+    nl = len(gl)
+    drugs = ["asp", "met", "ins", "war", "sta", "ome", "fur", "lis"]
+
+    def combo():
+        return ";".join(sorted(rl.choice(drugs, rl.randint(1, 5),
+                                         replace=False)))
+    dfl = pd.DataFrame({
+        "person_id": ["P{:04d}".format(x) for x in gl],
+        "active_drugs": [combo() for _ in range(nl)],
+        "plain": rl.choice(["A", "B", "C"], nl),
+        "v": np.round(rl.normal(10, 2, nl), 2)})
+    bpl = B.build(dfl, {"claims": [], "unexplained": [],
+                        "skipped": []}, group_by="person_id")
+    ml = bpl["columns"]["active_drugs"]["marginal"]
+    check("a set-valued column is modelled as a SET - tokens and a "
+          "set size, not one label per combination",
+          ml.get("type") == "list" and len(ml.get("tokens") or []) >= 2)
+    check("...with the tokens held to the same k as every other "
+          "published number", ml.get("tokens_are_k_anonymous") == 10)
+    check("...and a plain categorical is NOT treated as a set",
+          bpl["columns"]["plain"]["marginal"].get("type") == "levels")
+    check("...and the blueprint says plainly that co-occurrence "
+          "between tokens is not modelled",
+          "co-occurrence" in (ml.get("note") or ""))
+
+    gl_out = generate(bpl, n_patients=npl, seed=5)
+    src_l = dfl["active_drugs"]
+    out_l = gl_out["active_drugs"].astype(str)
+    from synthkit.discover import OTHER as _OTH
+    check("THE SENTINEL IS GONE - this column was 69% `__other__` on "
+          "the real extract and is {} rows here"
+          .format(int((out_l == _OTH).sum())),
+          not (out_l == _OTH).any())
+    ssz = float(src_l.str.split(";").map(len).mean())
+    osz = float(out_l.str.split(";").map(len).mean())
+    check("...the number of items per row survives: {:.2f} against "
+          "{:.2f}".format(osz, ssz), abs(osz - ssz) < 0.25)
+    worst = max(abs(float(out_l.str.contains(d).mean())
+                    - float(src_l.str.contains(d).mean()))
+                for d in drugs)
+    check("...and every token's rate survives, worst off by {:.3f}"
+          .format(worst), worst < 0.06)
+
     print()
     if FAIL:
         print("{} FAILED".format(FAIL))
