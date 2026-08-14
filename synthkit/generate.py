@@ -533,6 +533,17 @@ def _enforce(df: pd.DataFrame, constraints, report=None):
             continue
         a = pd.to_numeric(df[lhs], errors="coerce")
         b = pd.to_numeric(df[rhs], errors="coerce")
+        if con.get("op") == "==":
+            # AN EQUALITY IS COPIED, NOT SWAPPED. Swapping two values
+            # that are supposed to match just exchanges the mismatch.
+            same = (a.notna() & b.notna()).to_numpy()
+            n_bad = int((same & (a != b).to_numpy()).sum())
+            if n_bad:
+                col = df[rhs].to_numpy().copy()
+                col[same] = df[lhs].to_numpy()[same]
+                df[rhs] = col
+                fixed["{} == {}".format(lhs, rhs)] = n_bad
+            continue
         bad = (a.notna() & b.notna() & (a > b)).to_numpy()
         if not bad.any():
             continue

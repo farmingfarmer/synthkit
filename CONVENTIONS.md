@@ -4,7 +4,7 @@ Synthetic clinical data generator and model-evaluation instrument. Core rule: le
 
 ## Verify before claiming
 
-- Run `python scripts/run_all_smokes.py` before claiming anything works. Expect 52 suites, 1433 checks, ALL GREEN.
+- Run `python scripts/run_all_smokes.py` before claiming anything works. Expect 52 suites, 1437 checks, ALL GREEN.
 - **`pip install -r requirements.txt` first, or seven suites do not
   run.** A machine without numpy, pandas and scikit-learn fails
   `smoke_blueprint`, `smoke_discover`, `smoke_dynamics`,
@@ -171,6 +171,22 @@ the direction that stops work happening.
   beyond bound)`, which sent me hunting a sampler bug that was the
   privacy rule all along. Spread is deviation from the centre, so its
   attribution has to be too.
+- **TWO CONSTRAINTS CAN CONTRADICT EACH OTHER, and the repair will
+  let them.** `a <= b` and `b <= a` both hold on every row exactly
+  when the columns are identical, so both were discovered and both
+  were enforced - the real run swapped 258 rows to satisfy one and
+  10,328 to satisfy the other, which undid the first and reported it
+  broken on 99.8% of rows. Last one wins and the sampler takes the
+  blame. They are one EQUALITY, repaired by copying rather than by
+  swapping, because swapping two values that should match only
+  exchanges the mismatch.
+- **The NARROWER column sets the scale.** Judging commensurability by
+  the wider one let anything through beside a broad column:
+  `glasgow_coma_score <= age_at_visit` comes within 12 of touching,
+  which is nothing next to age's spread and everything next to a coma
+  score's. Artefacts still get through - the filter is better, not
+  finished - which is why constraints are reported before they are
+  enforced and enforcement is opt-in.
 - **A CONSTRAINT MUST BE EXACT AND COMMENSURATE.** At a 0.999
   threshold a real run found 77 orderings, most of them scale
   artefacts - `span_days <= spo2` at 0.999838 - and the one that

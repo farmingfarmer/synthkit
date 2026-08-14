@@ -486,8 +486,9 @@ def main():
                                     s["constraints_checked"]))
         for c in fid.get("constraints") or []:
             if c["holds_in_generated"] < 0.999:
-                say("  {} <= {} broken on {} rows ({:.1%}){}".format(
-                    c["lhs"], c["rhs"], c["rows_violating"],
+                say("  {} {} {} broken on {} rows ({:.1%}){}".format(
+                    c["lhs"], c.get("op", "<="), c["rhs"],
+                    c["rows_violating"],
                     1.0 - c["holds_in_generated"],
                     "" if a.enforce_constraints
                     else " - --enforce-constraints repairs this by "
@@ -1383,11 +1384,16 @@ def compare(df, g, bp, group_by, time_col, ordinals=None):
         m_ = a_.notna() & b_.notna()
         if int(m_.sum()) < 30:
             continue
-        held = float((a_[m_] <= b_[m_]).mean())
-        cons.append({"lhs": lhs, "op": "<=", "rhs": rhs,
+        held = (float((a_[m_] == b_[m_]).mean())
+                if con.get("op") == "=="
+                else float((a_[m_] <= b_[m_]).mean()))
+        cons.append({"lhs": lhs, "op": con.get("op", "<="), "rhs": rhs,
                      "holds_in_source": con["holds_in_source"],
                      "holds_in_generated": round(held, 6),
-                     "rows_violating": int((~(a_[m_] <= b_[m_])).sum())})
+                     "rows_violating": int(
+                         (~(a_[m_] == b_[m_])).sum()
+                         if con.get("op") == "=="
+                         else (~(a_[m_] <= b_[m_])).sum())})
     return {
         "columns": cols,
         "constraints": cons,

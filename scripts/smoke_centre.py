@@ -446,6 +446,56 @@ def main():
           ("span_days", "spo2") not in got
           and ("span_days", "systolic") not in got)
 
+    # ---- BOTH DIRECTIONS MEANS EQUAL, NOT TWO RULES -------------
+    # `a <= b` and `b <= a` can only both hold on every row if the
+    # columns are identical wherever both are present. Emitted as two
+    # orderings they contradict each other in repair: the real run
+    # swapped 258 rows to satisfy one and 10,328 to satisfy the other,
+    # which undid the first and left it broken on 99.8% of rows.
+    rr7 = np.random.RandomState(4)
+    npat7, nvis7 = 400, 12
+    g7 = np.repeat(np.arange(npat7), nvis7)
+    n7 = len(g7)
+    cnt7 = rr7.poisson(2, n7).astype(float)
+    st7 = rr7.randint(0, 1500, n7).astype(float)
+    sp7 = np.where(rr7.random_sample(n7) < 0.1, rr7.randint(1, 20, n7), 0)
+    gcs7 = np.minimum(15, np.maximum(3, np.round(
+        15 - rr7.exponential(1.0, n7))))
+    df7 = pd.DataFrame({
+        "person_id": ["P{:04d}".format(x) for x in g7],
+        "visit_start": st7, "visit_end": st7 + sp7,
+        "procedure_count": cnt7,
+        "procedure_quantity": cnt7.copy(),
+        "gcs": gcs7,
+        "age_at_visit": np.round(58 + 16 * rr7.normal(0, 1, n7))})
+    bp7 = B.build(df7, {"claims": [], "unexplained": [],
+                        "skipped": []}, group_by="person_id")
+    cons7 = bp7.get("constraints") or []
+    pq = [c for c in cons7
+          if {c["lhs"], c["rhs"]} == {"procedure_count",
+                                      "procedure_quantity"}]
+    check("two columns identical on every row give ONE equality, not "
+          "two orderings that fight each other in repair",
+          len(pq) == 1 and pq[0]["op"] == "==")
+    check("...and a pair whose gap is wide on the TIGHTER of their "
+          "two scales is rejected - a coma score sits under an age on "
+          "every row and means nothing",
+          not any({c["lhs"], c["rhs"]} == {"gcs", "age_at_visit"}
+                  for c in cons7))
+    rep7 = {}
+    g7out = generate(bp7, n_patients=npat7, seed=5, report=rep7,
+                     enforce_constraints=True)
+    pc7 = pd.to_numeric(g7out["procedure_count"], errors="coerce")
+    pqv = pd.to_numeric(g7out["procedure_quantity"], errors="coerce")
+    vs7 = pd.to_numeric(g7out["visit_start"], errors="coerce")
+    ve7 = pd.to_numeric(g7out["visit_end"], errors="coerce")
+    check("an equality is repaired by COPYING - swapping two values "
+          "that should match only exchanges the mismatch",
+          float((pc7 == pqv).mean()) == 1.0)
+    check("...and the ordering it used to fight with still holds "
+          "afterwards, which is what failed on the real run",
+          float((vs7 <= ve7).mean()) == 1.0)
+
     check("coverage is untouched by any of it", all(
         abs(float(pd.to_numeric(g[c], errors="coerce").notna().mean())
             - float(pd.to_numeric(df[c]).notna().mean())) <= 0.05

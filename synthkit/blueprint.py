@@ -436,7 +436,14 @@ def _constraints(X: pd.DataFrame, k: int = 10) -> List[Dict[str, Any]]:
             if len(d) < 100:
                 continue
             va, vb = d[a].to_numpy(float), d[b].to_numpy(float)
-            scale = max(float(va.std()), float(vb.std()))
+            # THE NARROWER COLUMN SETS THE SCALE. Using the wider
+            # one let anything slip through beside a broad column:
+            # `glasgow_coma_score <= age_at_visit` came within 12 of
+            # touching, which is nothing next to age's spread of 16
+            # and everything next to a coma score's spread of 2. Two
+            # quantities are comparable only if the gap is small on
+            # the tighter of their scales.
+            scale = min(float(va.std()), float(vb.std()))
             for lhs, rhs, lo, hi in ((a, b, va, vb), (b, a, vb, va)):
                 share = float((lo <= hi).mean())
                 # EXACT, NOT NEARLY EXACT. At 0.999 a real run found
@@ -464,7 +471,36 @@ def _constraints(X: pd.DataFrame, k: int = 10) -> List[Dict[str, Any]]:
                     "rows": int(len(d)),
                     "equal_share": round(float((gap == 0).mean()), 4),
                 })
-    return out
+
+    # BOTH DIRECTIONS MEANS EQUAL, NOT TWO RULES.
+    #
+    # `a <= b` and `b <= a` can only both hold on every row if the two
+    # columns are the same wherever both are present. Emitted as two
+    # orderings they CONTRADICT each other in repair: the real run
+    # swapped 258 rows to satisfy one and then 10,328 to satisfy the
+    # other, which undid the first and left it broken on 99.8% of
+    # rows. Last one wins, and the report then blames the sampler.
+    #
+    # One column being a copy of another is worth saying outright, and
+    # it is repaired by copying rather than by swapping.
+    pairs = {(c["lhs"], c["rhs"]) for c in out}
+    merged, seen = [], set()
+    for c in out:
+        key = frozenset([c["lhs"], c["rhs"]])
+        if key in seen:
+            continue
+        if (c["rhs"], c["lhs"]) in pairs:
+            seen.add(key)
+            merged.append({
+                "lhs": c["lhs"], "op": "==", "rhs": c["rhs"],
+                "holds_in_source": c["holds_in_source"],
+                "rows": c["rows"], "equal_share": c["equal_share"],
+                "note": "the two columns are identical wherever both "
+                        "are present - one is a copy of the other",
+            })
+        else:
+            merged.append(c)
+    return merged
 
 
 def build(df: pd.DataFrame,
