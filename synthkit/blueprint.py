@@ -384,12 +384,14 @@ def build(df: pd.DataFrame,
           group_by: Optional[str] = None,
           max_predictors: int = 3,
           time_col: Optional[str] = None,
-          k: int = 10) -> Dict[str, Any]:
+          k: int = 10,
+          ordinals: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
     """A spec from a frame and the catalogue discovered on it."""
     from .discover import _source, prepare
     from .dynamics import measure as measure_dynamics
 
-    X, identifiers, dates, quantities = prepare(df, group_by)
+    X, identifiers, dates, quantities = prepare(
+        df, group_by, ordinals=ordinals)
     n_rows = len(df)
     gvals = (df[group_by].astype(str).to_numpy()
              if group_by and group_by in df.columns else None)

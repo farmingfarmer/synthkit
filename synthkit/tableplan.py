@@ -63,6 +63,26 @@ def _gen_clean(col: ColumnSpec, row: int, master: int) -> Any:
         return None    # rule-produced; the rules pass fills it
     if kind == "sequence":
         return "{}{}".format(p["prefix"], int(p["start"]) + row)
+    if kind == "quantiles":
+        # Inverse transform from the recorded grid, which is what
+        # keeps a skewed or multi-modal column the shape it was.
+        q = [float(x) for x in p["q"]]
+        v = [float(x) for x in p["v"]]
+        u = rng.random()
+        if u <= q[0]:
+            val = v[0]
+        elif u >= q[-1]:
+            val = v[-1]
+        else:
+            val = v[-1]
+            for i in range(len(q) - 1):
+                if q[i] <= u <= q[i + 1]:
+                    span = q[i + 1] - q[i]
+                    frac = 0.0 if span <= 0 else (u - q[i]) / span
+                    val = v[i] + (v[i + 1] - v[i]) * frac
+                    break
+        return int(round(val)) if col.ctype == "int" else round(
+            val, 4)
     if kind == "uniform":
         lo, hi = float(p["min"]), float(p["max"])
         val = rng.uniform(lo, hi)

@@ -56,7 +56,7 @@ from sklearn.ensemble import (HistGradientBoostingClassifier,
 
 from .dates import (DATE_ORIGIN, date_kind, from_datetime,
                     labeller, to_ordinal)
-from .quantities import quantity_kind, to_number
+from .quantities import ordinal_spec, quantity_kind, to_number
 from .shapes import (FLAT_SHARE, additive_departure, curve_centre,
                      describe, describe_joint, effect_curve,
                      joint_surface, surface_centre)
@@ -113,7 +113,8 @@ def _is_identifier(s: pd.Series, n_rows: int) -> bool:
 
 def prepare(df: pd.DataFrame,
             group_by: Optional[str] = None,
-            drop_identifiers: bool = True):
+            drop_identifiers: bool = True,
+            ordinals: Optional[Dict[str, Any]] = None):
     """Typed frame: numerics as float with NaN, DATES as days since
     DATE_ORIGIN, everything else as a capped category. Blanks become
     NaN rather than a level, so `missing` is one concept and not three
@@ -152,7 +153,14 @@ def prepare(df: pd.DataFrame,
             s = s.astype(str).str.strip()
             s = s.mask(s.str.lower().isin(
                 ["", "nan", "none", "null", "na", "n/a"]))
-        if _is_numeric(s):
+        # A DECLARED ORDER WINS OVER EVERY TEST BELOW. The operator
+        # said what the order is; nothing here is entitled to a second
+        # opinion, and no test on the strings could form one anyway.
+        if ordinals and c in ordinals:
+            q = ordinal_spec(ordinals[c], s)
+            cols[c] = to_number(s, q)
+            quantities[c] = q
+        elif _is_numeric(s):
             cols[c] = pd.to_numeric(s, errors="coerce").astype(float)
         else:
             d = date_kind(s)
@@ -262,12 +270,15 @@ def discover(df: pd.DataFrame,
              with_shapes: bool = True,
              shape_top: int = 3,
              interaction_ratio: float = 1.5,
-             progress=None) -> Dict[str, Any]:
+             progress=None,
+             ordinals: Optional[Dict[str, Any]] = None
+             ) -> Dict[str, Any]:
     """A catalogue of what explains each column, confirmed out of
     sample. Returns claims, not edges - no direction is implied beyond
     'these predict that'."""
     rng = np.random.RandomState(seed)
-    X_all, identifiers, dates, _q = prepare(df, group_by)
+    X_all, identifiers, dates, _q = prepare(
+        df, group_by, ordinals=ordinals)
 
     # Split BY PATIENT. Visits from one person are not independent, so
     # a row-wise holdout leaks the same patient into both halves and

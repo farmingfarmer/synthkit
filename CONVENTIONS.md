@@ -4,7 +4,7 @@ Synthetic clinical data generator and model-evaluation instrument. Core rule: le
 
 ## Verify before claiming
 
-- Run `python scripts/run_all_smokes.py` before claiming anything works. Expect 51 suites, 1387 checks, ALL GREEN.
+- Run `python scripts/run_all_smokes.py` before claiming anything works. Expect 52 suites, 1405 checks, ALL GREEN.
 - **`pip install -r requirements.txt` first, or seven suites do not
   run.** A machine without numpy, pandas and scikit-learn fails
   `smoke_blueprint`, `smoke_discover`, `smoke_dynamics`,
@@ -140,6 +140,22 @@ the direction that stops work happening.
   systolic against diastolic generated at 0.978 where the source had
   0.888. Each curve now carries the skill of the model that produced
   it.
+- **THE TWO HALVES NOW MEET, and what does not cross is written on
+  the artefact.** One half learns a blueprint from a real extract; the
+  other grades a vendor model against planted signal in a TableSpec.
+  Nothing connected them, so every evaluation so far used marginals
+  somebody guessed at. `bridge.py` crosses the measured ones - as a
+  new `quantiles` distribution kind, because TableSpec was parametric
+  only and fitting a normal to a clinical column is the exact loss the
+  fitted path exists to prevent. Measured across the bridge on a
+  column skewed 2.83: every decile within 0.03 of a source sd.
+  Effect curves, interactions, the relationship graph and the dynamics
+  have no vocabulary there and do NOT cross. `outcomes` never can - a
+  campaign grades against an answer known in advance, and nobody knows
+  the answer in real data. The emitted file says all of this about
+  itself, because a spec that looks complete and has silently lost
+  every relationship is the same failure as a column that looks
+  present and is entirely sentinel.
 - **A column read as the wrong type fails SILENTLY, and fixing one
   type does not fix that.** Dates became 200 labels with 88% sentinel
   and every check stayed green, because coverage counts presence and

@@ -18,11 +18,12 @@ Deliberately NOT here:
   booleans      TRUE/FALSE and Y/N make a two-level categorical, and
                 a two-level categorical is modelled correctly. There
                 is nothing to fix.
-  ordinals      mild/moderate/severe has an order and north/south/
-                east/west does not, and no inspection of the strings
-                tells them apart. Guessing invents structure that was
-                never in the data, which is worse than missing it -
-                that has to be declared, not detected.
+  ordinals      DECLARED, never detected. mild/moderate/severe has
+                an order and north/south/east/west does not, and no
+                inspection of the strings tells them apart. Guessing
+                invents structure that was never in the data, which
+                is worse than missing it. `--ordinal severity=mild,
+                moderate,severe` states it; nothing here infers it.
 
 Every parser here follows the shape `dates.py` set: detect on a
 seeded sample, convert to a number, record what it was so generation
@@ -122,10 +123,31 @@ def quantity_kind(s: pd.Series) -> Optional[Dict[str, Any]]:
     return None
 
 
+def ordinal_spec(levels, s: pd.Series) -> Dict[str, Any]:
+    """A declared order, turned into the same shape as a parser.
+
+    Not detected and never guessed. The operator names the levels in
+    order and this records how much of the column did not match one -
+    a typo or an unlisted level becomes missing, and a coverage loss
+    nobody was told about is the fault dates already taught."""
+    txt = _sample(s)
+    known = set(str(x) for x in levels)
+    share = float(txt.isin(known).mean()) if len(txt) else 0.0
+    return {
+        "kind": "ordinal",
+        "levels": [str(x) for x in levels],
+        "unparsed_share": round(1.0 - share, 6),
+    }
+
+
 def to_number(s: pd.Series, spec: Dict[str, Any]) -> pd.Series:
     """The column as a float, with NaN for whatever did not parse."""
     txt = s.astype(str).str.strip()
     kind = spec["kind"]
+    if kind == "ordinal":
+        rank = dict((lv, float(i))
+                    for i, lv in enumerate(spec["levels"]))
+        return txt.map(rank)
     if kind == "currency":
         num = txt.str.extract(_CURRENCY)["num"].str.replace(
             ",", "", regex=False)
@@ -147,6 +169,15 @@ def from_number(v, spec: Dict[str, Any]) -> pd.Series:
     """Back to text, wearing what it was wearing."""
     x = pd.Series(np.asarray(v, dtype=float))
     kind = spec["kind"]
+    if kind == "ordinal":
+        lv = spec["levels"]
+        hi = len(lv) - 1
+
+        def rank_back(z):
+            if z != z:
+                return None
+            return lv[int(min(max(round(z), 0), hi))]
+        return x.map(rank_back)
     if kind == "currency":
         dec = int(spec.get("decimals", 2))
         sym = spec.get("symbol", "$")

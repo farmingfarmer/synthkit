@@ -43,17 +43,24 @@ MISSING_TOKENS = ["", "NULL", "N/A", "?"]
 
 COLUMN_TYPES = ("int", "float", "category", "str_id",
                 "person_name", "date", "bool", "note")
+# `quantiles` is the EMPIRICAL kind, and it exists so a marginal
+# measured from real data can cross into a spec without being flattened
+# into a bell. Every other kind here is parametric; fitting one to a
+# skewed clinical column is exactly the loss the fitted path was built
+# to avoid - "drawing a normal from the mean and sd would quietly turn
+# every one of them into a bell", as the generator's own inverse
+# transform puts it.
 DIST_KINDS = ("uniform", "normal", "lognormal", "beta",
               "categorical", "date_range", "sequence", "bernoulli",
-              "mixture")
+              "mixture", "quantiles")
 
 RULE_KINDS = ("date_after", "derived")
 
 _TYPE_DISTS = {
     "int": {"uniform", "normal", "lognormal", "sequence",
-            "mixture"},
+            "mixture", "quantiles"},
     "float": {"uniform", "normal", "lognormal", "beta",
-              "mixture"},
+              "mixture", "quantiles"},
     "category": {"categorical"},
     "str_id": {"sequence"},
     "person_name": {"categorical"},   # ignored; names synthesized
@@ -522,7 +529,23 @@ class TableSpec:
                 if k not in p:
                     out.append("{}: `{}` requires param `{}`"
                                .format(tag, kind, k))
-        if kind == "uniform":
+        if kind == "quantiles":
+            need("q", "v")
+            q, v = p.get("q") or [], p.get("v") or []
+            if q and v:
+                if len(q) != len(v):
+                    out.append("{}: `quantiles` needs q and v of the "
+                               "same length".format(tag))
+                elif len(q) < 2:
+                    out.append("{}: `quantiles` needs at least two "
+                               "points".format(tag))
+                elif list(q) != sorted(q) or q[0] < 0 or q[-1] > 1:
+                    out.append("{}: `quantiles` q must ascend within "
+                               "0..1".format(tag))
+                elif list(v) != sorted(v):
+                    out.append("{}: `quantiles` v must not decrease - "
+                               "it is an inverse CDF".format(tag))
+        elif kind == "uniform":
             need("min", "max")
         elif kind == "normal":
             need("mean", "std")

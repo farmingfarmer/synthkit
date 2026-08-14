@@ -78,6 +78,21 @@ def main():
                          "entirely - bookkeeping the wrangler "
                          "computed rather than anything the clinic "
                          "recorded")
+    ap.add_argument("--ordinal", action="append", default=[],
+                    metavar="COL=a,b,c",
+                    help="declare an ORDER on a categorical, lowest "
+                         "first: --ordinal severity=mild,moderate,"
+                         "severe. Repeatable. Nothing infers this - "
+                         "mild/moderate/severe and north/south/east/"
+                         "west look identical to any test on the "
+                         "strings, and inventing an order the data "
+                         "never declared is worse than missing it")
+    ap.add_argument("--emit-spec", action="store_true",
+                    help="also write tablespec.json - the fitted "
+                         "marginals as an authorable TableSpec, so a "
+                         "campaign can run on measured shape instead "
+                         "of guessed. Relationships and dynamics do "
+                         "NOT cross; the file says so itself")
     ap.add_argument("--enforce-constraints", action="store_true",
                     help="repair orderings the source never broke, "
                          "such as a visit ending before it began, by "
@@ -99,7 +114,7 @@ def main():
     # normal. Reading the settings back is the difference between
     # diagnosing that in one line and losing a round trip guessing
     # whether the code or the invocation was at fault.
-    say("invocation: --src {} --out {}{}{}{}{}{}{}".format(
+    say("invocation: --src {} --out {}{}{}{}{}{}{}{}{}".format(
         a.src, a.out,
         " --group-by " + a.group_by if a.group_by != "person_id"
         else "",
@@ -108,6 +123,8 @@ def main():
         " --lags" if a.lags else "",
         " --generate" if a.generate else "",
         " --enforce-constraints" if a.enforce_constraints else "",
+        "".join(" --ordinal " + o for o in a.ordinal),
+        " --emit-spec" if a.emit_spec else "",
         " --exclude " + a.exclude if a.exclude else ""))
 
     try:
@@ -118,6 +135,20 @@ def main():
     except ImportError as e:
         die("a required package is missing ({}). Install them with:\n"
             "    python -m pip install -r requirements.txt".format(e))
+
+    ordinals = {}
+    for item in a.ordinal:
+        if "=" not in item:
+            die("--ordinal wants COL=level1,level2,... - got {!r}"
+                .format(item))
+        col, _, rest = item.partition("=")
+        levels = [x.strip() for x in rest.split(",") if x.strip()]
+        if len(levels) < 2:
+            die("--ordinal {} needs at least two levels, lowest first"
+                .format(col))
+        if len(set(levels)) != len(levels):
+            die("--ordinal {} repeats a level".format(col))
+        ordinals[col.strip()] = levels
 
     src = Path(a.src)
     if not src.exists():
@@ -139,6 +170,12 @@ def main():
                          nrows=(a.max_rows or None))
     except Exception as e:
         die("could not read {} as CSV: {}".format(src, e))
+    unknown_ord = [c for c in ordinals if c not in df.columns]
+    if unknown_ord:
+        die("--ordinal names {} which {} not a column in {}"
+            .format(", ".join(unknown_ord),
+                    "is" if len(unknown_ord) == 1 else "are",
+                    src.name))
     if a.group_by not in df.columns:
         die("--group-by {!r} is not a column in {}. Columns are: {}"
             .format(a.group_by, src.name,
@@ -213,7 +250,8 @@ def main():
                 i, n, rate * (n - i), col))
 
     cat = discover(df, group_by=a.group_by, seed=a.seed,
-                   holdout_frac=a.holdout, progress=progress)
+                   holdout_frac=a.holdout, progress=progress,
+                   ordinals=ordinals)
     say("{} claims | {} unexplained | {} skipped | {} identifiers "
         "dropped".format(len(cat["claims"]), len(cat["unexplained"]),
                          len(cat["skipped"]),
@@ -222,7 +260,8 @@ def main():
         json.dumps(cat, indent=1), encoding="utf-8")
 
     say("building the blueprint")
-    bp = B.build(df, cat, group_by=a.group_by, time_col=time_col)
+    bp = B.build(df, cat, group_by=a.group_by, time_col=time_col,
+                 ordinals=ordinals)
     # WHICH COLUMNS WERE READ AS DATES, AND WHAT IT COST.
     #
     # A date that does not parse becomes missing, and missing is
@@ -402,6 +441,21 @@ def main():
                 "file travels with the output and a path on that "
                 "machine carries a work login.",
     }
+    if a.emit_spec:
+        from synthkit.bridge import blueprint_to_tablespec
+        made = blueprint_to_tablespec(bp, title=src.stem)
+        (out / "tablespec.json").write_text(
+            json.dumps(made, indent=1), encoding="utf-8")
+        car = made["carried"]
+        say("wrote tablespec.json - {} column(s) crossed, {} dropped"
+            .format(len(made["tablespec"]["columns"]),
+                    len(car["columns_dropped"])))
+        say("  what did NOT cross: {}".format(
+            ", ".join(car["did_not_cross"][:5])))
+        say("  outcomes are EMPTY by construction - a campaign grades "
+            "against planted signal")
+        say("  whose answer is known, and no fitted blueprint can "
+            "supply one. Author them.")
     (out / "provenance.json").write_text(
         json.dumps(prov, indent=1), encoding="utf-8")
     say("wrote catalogue.json, blueprint.json, findings.txt, "
@@ -425,7 +479,8 @@ def main():
             "sampleable".format(len(rep["edges_dropped"])))
 
     say("comparing source against generated")
-    fid = compare(df, g, bp, a.group_by, time_col)
+    fid = compare(df, g, bp, a.group_by, time_col,
+                  ordinals=ordinals)
     fid["generation"] = rep
     (out / "fidelity.json").write_text(
         json.dumps(fid, indent=1), encoding="utf-8")
@@ -1121,15 +1176,19 @@ def _pair_fidelity(Xs, Xg, bp):
     }
 
 
-def compare(df, g, bp, group_by, time_col):
+def compare(df, g, bp, group_by, time_col, ordinals=None):
     """Source against generated, column by column."""
     import numpy as np
     import pandas as pd
     from synthkit.discover import prepare
     from synthkit.dynamics import measure
 
-    Xs, _, _, _ = prepare(df, group_by)
-    Xg, _, _, _ = prepare(g, group_by)
+    # THE SAME TYPING ON BOTH SIDES AND IN THE BLUEPRINT. A
+    # declared ordinal is numeric in the contract, so comparing
+    # it as a category here would measure a different column
+    # from the one that was generated.
+    Xs, _, _, _ = prepare(df, group_by, ordinals=ordinals)
+    Xg, _, _, _ = prepare(g, group_by, ordinals=ordinals)
     gt = "visit_number" if "visit_number" in g.columns else None
     ds = measure(df, Xs, group_by, time_col)
     dg = measure(g, Xg, group_by, gt)

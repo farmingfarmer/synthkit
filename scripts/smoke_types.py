@@ -132,6 +132,34 @@ def main():
     check("a column that is already numeric is left alone",
           "n_items" not in quant)
 
+    # ---- A DECLARED ORDER, NEVER AN INFERRED ONE -----------------
+    Xo, _i, _d, quo = prepare(df, "person_id",
+                              ordinals={"severity":
+                                        ["mild", "moderate", "severe"]})
+    check("a DECLARED order makes the column numeric, so a curve over "
+          "it means something and severe sits above moderate",
+          "severity" in quo and quo["severity"]["kind"] == "ordinal"
+          and pd.api.types.is_numeric_dtype(Xo["severity"]))
+    check("...ranked in the order the operator gave, not alphabetical "
+          "- mild < moderate < severe, where sorting would put "
+          "'severe' in the middle",
+          quo["severity"]["levels"] == ["mild", "moderate", "severe"])
+    check("...and a column NOT declared keeps no order, because "
+          "north/south/east/west has none to find",
+          "active" not in quo)
+    back = from_number(to_number(df["severity"], quo["severity"]
+                                 ).to_numpy(), quo["severity"])
+    check("...and the labels come back exactly, not as rank numbers",
+          list(back.dropna().unique()) and set(back.dropna())
+          <= {"mild", "moderate", "severe"})
+    odd = prepare(df.assign(severity=df["severity"].replace(
+        "moderate", "MODERATE")), "person_id",
+        ordinals={"severity": ["mild", "moderate", "severe"]})[3]
+    check("a value that does not match a declared level is REPORTED "
+          "as a coverage cost ({:.0%}), not absorbed"
+          .format(odd["severity"]["unparsed_share"]),
+          odd["severity"]["unparsed_share"] > 0.1)
+
     # ---- ROUND TRIP ----------------------------------------------
     for col in ("charge", "pct_complete", "seen_at"):
         spec = quant[col]
