@@ -122,7 +122,7 @@ def main():
               s.nunique(), REAL_DISTINCT, MAX_LEVELS),
           s.nunique() > REAL_DISTINCT)
 
-    X, ident, dates = prepare(df, "person_id")
+    X, ident, dates, _ = prepare(df, "person_id")
 
     # ---- THE FIX --------------------------------------------------
     check("a date column is recognised and typed as numeric, so it "
@@ -184,7 +184,7 @@ def main():
             else (EPOCH + timedelta(days=i % 900)).strftime("%Y-%m-%d")
             for i in range(n)],
     })
-    Xe, ident_e, dates_e = prepare(edge, "person_id")
+    Xe, ident_e, dates_e, _ = prepare(edge, "person_id")
 
     check("a date UNIQUE ON EVERY ROW is still dropped as a key - it "
           "was dropped as one before this branch existed, and typing "
@@ -249,7 +249,7 @@ def main():
           parsed.min().date() >= EPOCH
           and parsed.max().date() <= EPOCH + timedelta(days=2200))
 
-    Xg, _, dates_g = prepare(g, "person_id")
+    Xg, _, dates_g, _ = prepare(g, "person_id")
     check("FIDELITY COMPARES LIKE WITH LIKE: the generated frame is "
           "typed the same way the source was, so the comparison is "
           "date against date and not date against sentinel",
@@ -328,7 +328,7 @@ def main():
 
     bp2 = B.build(dep, cat2, group_by="person_id")
     g2 = generate(bp2, n_patients=400, seed=5)
-    X2, _, _ = prepare(g2, "person_id")
+    X2, _, _, _ = prepare(g2, "person_id")
     gen_rho = float(X2["visit_start_date"].corr(X2["backlog"]))
     check("...and it SURVIVES generation with the right sign: source "
           "{:+.3f}, generated {:+.3f}. A date formatted before its "

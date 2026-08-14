@@ -4,7 +4,7 @@ Synthetic clinical data generator and model-evaluation instrument. Core rule: le
 
 ## Verify before claiming
 
-- Run `python scripts/run_all_smokes.py` before claiming anything works. Expect 50 suites, 1371 checks, ALL GREEN.
+- Run `python scripts/run_all_smokes.py` before claiming anything works. Expect 51 suites, 1387 checks, ALL GREEN.
 - **`pip install -r requirements.txt` first, or seven suites do not
   run.** A machine without numpy, pandas and scikit-learn fails
   `smoke_blueprint`, `smoke_discover`, `smoke_dynamics`,
@@ -140,6 +140,22 @@ the direction that stops work happening.
   systolic against diastolic generated at 0.978 where the source had
   0.888. Each curve now carries the skill of the model that produced
   it.
+- **A column read as the wrong type fails SILENTLY, and fixing one
+  type does not fix that.** Dates became 200 labels with 88% sentinel
+  and every check stayed green, because coverage counts presence and
+  the sentinel is present. On a plainly tabular file afterwards, three
+  more: `$1,234.56` at 85% sentinel, `14:32` at 62%, `45%` as 60
+  unordered levels. The guard is `sentinel_share`, which reports the
+  failure whatever causes it, and the run now prints how EVERY column
+  was typed - one glance would have caught all four. Parsers for
+  currency, percent and clock remove three known causes; the guard
+  catches the next one nobody thought of.
+- **Do not infer an order that was never declared.** mild/moderate/
+  severe has one and north/south/east/west does not, and no test on
+  the strings tells them apart. A boolean needs no parser either: two
+  levels are modelled correctly as two levels. Inventing structure the
+  data never carried is worse than missing it - that is the
+  partial-dependence lesson again, and it has to be declared.
 - **Being MEASURED is a signal, and it was being thrown away.**
   Presence came from a coverage share and a clustering dial and
   nothing else, so whether a lab existed on a row was independent of

@@ -56,12 +56,18 @@ from sklearn.ensemble import (HistGradientBoostingClassifier,
 
 from .dates import (DATE_ORIGIN, date_kind, from_datetime,
                     labeller, to_ordinal)
+from .quantities import quantity_kind, to_number
 from .shapes import (FLAT_SHARE, additive_departure, curve_centre,
                      describe, describe_joint, effect_curve,
                      joint_surface, surface_centre)
 
 # HistGradientBoosting bins categoricals into at most 255 slots.
 MAX_LEVELS = 200
+# What a value becomes when it falls outside the cap. Named once so
+# the blueprint can look for it without a second spelling of the same
+# string - a column made entirely of this is a DESTROYED column, and
+# the check that finds it must be looking for the same thing.
+OTHER = "__other__"
 LAG_SUFFIXES = ("__prev", "__delta")
 
 # A DATE IS NOT A CATEGORY. Without the branch in `prepare` a date
@@ -123,7 +129,7 @@ def prepare(df: pd.DataFrame,
 
     Built with a single concat. Assigning column by column leaves the
     frame fragmented and every later `.loc` pays for it."""
-    cols, ident, dates = {}, [], {}
+    cols, ident, dates, quantities = {}, [], {}, {}
     for c in df.columns:
         if c == group_by:
             continue
@@ -150,13 +156,23 @@ def prepare(df: pd.DataFrame,
             cols[c] = pd.to_numeric(s, errors="coerce").astype(float)
         else:
             d = date_kind(s)
+            q = quantity_kind(s) if d is None else None
             if d is not None:
                 cols[c] = to_ordinal(s, d["parsed_format"])
                 dates[c] = d
+            elif q is not None:
+                # A NUMBER WEARING PUNCTUATION IS STILL A NUMBER.
+                # Currency, a percent sign and a clock all failed the
+                # numeric test and fell to the category branch, where
+                # a column with more distinct values than the cap
+                # becomes the sentinel - 85% and 62% on a plainly
+                # tabular file, both silent.
+                cols[c] = to_number(s, q)
+                quantities[c] = q
             else:
                 s = s.astype("object")
                 keep = s.value_counts().index[:MAX_LEVELS]
-                s = s.where(s.isin(keep) | s.isna(), "__other__")
+                s = s.where(s.isin(keep) | s.isna(), OTHER)
                 cols[c] = s.astype("category")
         if drop_identifiers and _is_identifier(cols[c], len(df)):
             # A date UNIQUE ON EVERY ROW is still a key, and was
@@ -167,6 +183,7 @@ def prepare(df: pd.DataFrame,
             ident.append(c)
             del cols[c]
             dates.pop(c, None)
+            quantities.pop(c, None)
     if drop_identifiers and ident:
         # Dropping a key is not enough - anything ENGINEERED from it
         # carries the same information back in. `visit_id__prev` is a
@@ -181,10 +198,17 @@ def prepare(df: pd.DataFrame,
             ident.append(c)
             del cols[c]
             dates.pop(c, None)
+            quantities.pop(c, None)
     out = pd.concat(cols, axis=1) if cols else pd.DataFrame(
         index=df.index)
     out.columns = list(cols)
-    return out, ident, dates
+    # A FOURTH RETURN VALUE, not a frame attribute. `DataFrame.attrs`
+    # is dropped by most operations without saying so, and a renderer
+    # that silently goes missing is how a column gets written out as a
+    # bare number where the source had money - the same silent-no-op
+    # class this file is built to avoid. An un-updated caller raises
+    # here instead.
+    return out, ident, dates, quantities
 
 
 def _source(col: str) -> str:
@@ -243,7 +267,7 @@ def discover(df: pd.DataFrame,
     sample. Returns claims, not edges - no direction is implied beyond
     'these predict that'."""
     rng = np.random.RandomState(seed)
-    X_all, identifiers, dates = prepare(df, group_by)
+    X_all, identifiers, dates, _q = prepare(df, group_by)
 
     # Split BY PATIENT. Visits from one person are not independent, so
     # a row-wise holdout leaks the same patient into both halves and

@@ -58,6 +58,7 @@ import pandas as pd
 
 from .blueprint import resolve
 from .dates import DATE_ORIGIN, from_ordinal
+from .quantities import from_number
 from .dynamics import (clustered_presence, persistent_uniform,
                        sticky_pick)
 
@@ -661,6 +662,11 @@ def generate(blueprint: Dict[str, Any],
         df = _enforce(df, bp.get("constraints"), report)
 
     for c in order:
+        qspec = (cols[c] or {}).get("quantity")
+        if qspec and cols[c].get("kind") == "numeric":
+            df[c] = from_number(
+                df[c].to_numpy(dtype=float), qspec).to_numpy(
+                    dtype=object)
         dspec = (cols[c] or {}).get("date")
         if dspec and cols[c].get("kind") == "numeric":
             df[c] = from_ordinal(

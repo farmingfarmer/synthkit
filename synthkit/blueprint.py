@@ -210,6 +210,26 @@ def _categorical_marginal(s: pd.Series, groups=None,
         "levels": [{"value": str(k2), "p": round(float(v) / total, 6)}
                    for k2, v in kept.items()],
     }
+    # HOW MUCH OF THIS COLUMN IS THE SENTINEL.
+    #
+    # A value outside the level cap becomes `__other__`, and a column
+    # made mostly of it has been DESTROYED - not thinned, destroyed.
+    # Dates did exactly this at 88% and every per-column check stayed
+    # green, because coverage counts presence and the sentinel is
+    # present. Measured since on a plainly tabular file: a currency
+    # column and a time-of-day column each came out at 100%, both
+    # generated as `__other__` on every row, both silent.
+    #
+    # This is the GENERAL form of that fault. Recording the share
+    # means the next unparsed type announces itself without anybody
+    # having anticipated it.
+    from .discover import OTHER
+    sentinel = 0.0
+    for lv in out["levels"]:
+        if lv["value"] == OTHER:
+            sentinel = float(lv["p"])
+    if sentinel > 0:
+        out["sentinel_share"] = round(sentinel, 6)
     if rare:
         out["suppressed_levels"] = {
             "count": len(rare),
@@ -369,7 +389,7 @@ def build(df: pd.DataFrame,
     from .discover import _source, prepare
     from .dynamics import measure as measure_dynamics
 
-    X, identifiers, dates = prepare(df, group_by)
+    X, identifiers, dates, quantities = prepare(df, group_by)
     n_rows = len(df)
     gvals = (df[group_by].astype(str).to_numpy()
              if group_by and group_by in df.columns else None)
@@ -414,6 +434,10 @@ def build(df: pd.DataFrame,
         # would need every one of those paths taught about it.
         if c in dates:
             columns[c]["date"] = dates[c]
+        # Same contract as `date`: the column is numeric here and
+        # wears its punctuation again on the way out.
+        if c in quantities:
+            columns[c]["quantity"] = quantities[c]
         pm = _presence_model(X, c, gvals, k)
         if pm is not None:
             columns[c]["presence"] = pm

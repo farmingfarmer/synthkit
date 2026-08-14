@@ -309,7 +309,7 @@ def main():
         "sex": sex, "site": site,
         "bmi": np.round(np.where(sex == "M", r4.normal(27, 3, n4),
                                  r4.normal(23, 3, n4)), 1)})
-    X4, _i4, _d4 = prepare(df4, "person_id")
+    X4, _i4, _d4, _q4 = prepare(df4, "person_id")
     bp4 = {"columns": {}, "relationships": [
         {"child": "site", "parents": ["sex"], "evidence": {}},
         {"child": "bmi", "parents": ["sex"], "evidence": {}}]}

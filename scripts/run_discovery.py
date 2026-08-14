@@ -250,6 +250,51 @@ def main():
             if d.get("floored_to_day"):
                 say("  {}: a time of day was present and floored to "
                     "the day".format(c))
+    # HOW EVERY COLUMN WAS TYPED, before an hour is spent on it.
+    #
+    # A column read as the wrong type is the most expensive fault this
+    # tool has: it is silent, it survives every per-column check, and
+    # it is only visible by opening the blueprint. Dates went that way
+    # at 88% sentinel; a currency column and a time-of-day column have
+    # since gone the same way at 100%. One glance at this list would
+    # have caught all three.
+    say("column types:")
+    destroyed = []
+    for c, spec in sorted((bp.get("columns") or {}).items()):
+        mg = spec.get("marginal") or {}
+        if spec.get("kind") == "numeric":
+            what = "numeric"
+            if spec.get("date"):
+                what = "date {}".format(spec["date"]["format"])
+            elif mg.get("integral"):
+                what = "numeric (whole numbers)"
+        elif mg.get("type") == "suppressed":
+            what = "SUPPRESSED - too few patients to publish"
+        else:
+            n = len(mg.get("levels") or [])
+            sent = float(mg.get("sentinel_share") or 0.0)
+            what = "categorical, {} level(s)".format(n)
+            if sent >= 0.5:
+                what += "  <-- {:.0%} is the `__other__` SENTINEL".format(
+                    sent)
+                destroyed.append((c, sent))
+        say("  {:<28} {}".format(c, what))
+    if destroyed:
+        say("")
+        say("STOP AND READ THIS. {} column(s) are mostly or entirely "
+            "the sentinel:".format(len(destroyed)))
+        for c, sent in sorted(destroyed, key=lambda x: -x[1]):
+            say("  {}: {:.0%} `__other__` - too many distinct values "
+                "to publish as labels".format(c, sent))
+        say("  These columns are DESTROYED in the output, and every "
+            "per-column check will still pass,")
+        say("  because coverage counts whether a value is present and "
+            "the sentinel is present.")
+        say("  A number wearing punctuation does this - currency, a "
+            "percent sign, a time of day, an")
+        say("  identifier. Check whether these are really categories "
+            "before trusting anything downstream.")
+
     # IS A SUPPRESSED CATEGORICAL ACTUALLY LIST-VALUED?
     #
     # Four columns lost 10-28% of their content to level suppression
@@ -530,6 +575,13 @@ def verdicts(fid):
     out = []
     for c in fid.get("columns") or []:
         name, notes = c["column"], []
+        sent = c.get("sentinel_share")
+        if sent and sent >= 0.5:
+            notes.append(
+                "{:.0%} of it is the `__other__` sentinel - too many "
+                "distinct values to publish as labels, so this column "
+                "is destroyed in the output. Check whether it is "
+                "really a category".format(sent))
         cov = c.get("coverage_delta")
         if cov is not None and abs(cov) > 0.05:
             notes.append("present on {:+.0%} of rows against the "
@@ -1076,8 +1128,8 @@ def compare(df, g, bp, group_by, time_col):
     from synthkit.discover import prepare
     from synthkit.dynamics import measure
 
-    Xs, _, _ = prepare(df, group_by)
-    Xg, _, _ = prepare(g, group_by)
+    Xs, _, _, _ = prepare(df, group_by)
+    Xg, _, _, _ = prepare(g, group_by)
     gt = "visit_number" if "visit_number" in g.columns else None
     ds = measure(df, Xs, group_by, time_col)
     dg = measure(g, Xg, group_by, gt)
@@ -1096,6 +1148,10 @@ def compare(df, g, bp, group_by, time_col):
             row["coverage_generated"] - row["coverage_source"], 4)
         if abs(row["coverage_delta"]) <= 0.05:
             n_ok["cov"] += 1
+        _mg = (((bp.get("columns") or {}).get(c) or {})
+               .get("marginal") or {})
+        if _mg.get("sentinel_share"):
+            row["sentinel_share"] = _mg["sentinel_share"]
         if pd.api.types.is_numeric_dtype(s) and \
                 pd.api.types.is_numeric_dtype(q):
             n_ok["num"] += 1
