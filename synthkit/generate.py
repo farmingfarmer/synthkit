@@ -412,10 +412,42 @@ def _order(bp: Dict[str, Any]):
     return order, parents, dropped, repaired
 
 
+def _enforce(df: pd.DataFrame, constraints, report=None):
+    """Put back the orderings the source never broke.
+
+    REPAIRED BY SWAPPING, not by clamping. Where `a <= b` is violated
+    the two values are exchanged, which fixes the row and leaves both
+    columns' marginals EXACTLY as they were - the same multiset of
+    values, redistributed. Clamping would pile mass on a bound and
+    move the very centre and spread the rest of this file works to
+    get right.
+
+    Off by default. It changes the output, so a run meant to be
+    compared against an earlier one should not have it on."""
+    fixed = {}
+    for con in (constraints or []):
+        lhs, rhs = con.get("lhs"), con.get("rhs")
+        if lhs not in df.columns or rhs not in df.columns:
+            continue
+        a = pd.to_numeric(df[lhs], errors="coerce")
+        b = pd.to_numeric(df[rhs], errors="coerce")
+        bad = (a.notna() & b.notna() & (a > b)).to_numpy()
+        if not bad.any():
+            continue
+        av, bv = df[lhs].to_numpy().copy(), df[rhs].to_numpy().copy()
+        av[bad], bv[bad] = bv[bad], av[bad]
+        df[lhs], df[rhs] = av, bv
+        fixed["{} <= {}".format(lhs, rhs)] = int(bad.sum())
+    if report is not None and fixed:
+        report["constraints_repaired"] = fixed
+    return df
+
+
 def generate(blueprint: Dict[str, Any],
              n_patients: Optional[int] = None,
              seed: int = 20260731,
-             report: Optional[Dict[str, Any]] = None
+             report: Optional[Dict[str, Any]] = None,
+             enforce_constraints: bool = False
              ) -> pd.DataFrame:
     """Build a table from a blueprint. Nothing else is consulted."""
     bp = resolve(blueprint)
@@ -525,17 +557,28 @@ def generate(blueprint: Dict[str, Any],
     # the curve's centre, and the relationship applies exactly nothing
     # while every column still looks right. A silent no-op is worse
     # than a crash.
-    for c in order:
-        dspec = (cols[c] or {}).get("date")
-        if dspec and cols[c].get("kind") == "numeric":
-            out[c] = from_ordinal(
-                out[c], dspec.get("format") or "%Y-%m-%d",
-                dspec.get("origin") or DATE_ORIGIN).to_numpy(
-                    dtype=object)
-
     frame = {gid: person, "visit_number": visit_no}
     frame.update(out)
     df = pd.DataFrame(frame)
+
+    # ORDER MATTERS HERE, AND GOT IT WRONG ONCE ALREADY. Constraints
+    # are arithmetic on the columns, so they have to be repaired while
+    # those columns are still NUMBERS. Rendering dates first turned
+    # `visit_start <= visit_end` into a comparison of two strings,
+    # `to_numeric` gave NaN, nothing looked violated, and the flag
+    # repaired nothing while reporting success - the same fault as
+    # formatting a date before its children were drawn.
+    if enforce_constraints:
+        df = _enforce(df, bp.get("constraints"), report)
+
+    for c in order:
+        dspec = (cols[c] or {}).get("date")
+        if dspec and cols[c].get("kind") == "numeric":
+            df[c] = from_ordinal(
+                df[c].to_numpy(dtype=float),
+                dspec.get("format") or "%Y-%m-%d",
+                dspec.get("origin") or DATE_ORIGIN).to_numpy(
+                    dtype=object)
     if report is not None:
         report.update({
             "patients": n_pat,

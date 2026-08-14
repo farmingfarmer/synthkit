@@ -4,7 +4,7 @@ Synthetic clinical data generator and model-evaluation instrument. Core rule: le
 
 ## Verify before claiming
 
-- Run `python scripts/run_all_smokes.py` before claiming anything works. Expect 50 suites, 1355 checks, ALL GREEN.
+- Run `python scripts/run_all_smokes.py` before claiming anything works. Expect 50 suites, 1365 checks, ALL GREEN.
 - **`pip install -r requirements.txt` first, or seven suites do not
   run.** A machine without numpy, pandas and scikit-learn fails
   `smoke_blueprint`, `smoke_discover`, `smoke_dynamics`,
@@ -140,6 +140,28 @@ the direction that stops work happening.
   systolic against diastolic generated at 0.978 where the source had
   0.888. Each curve now carries the skill of the model that produced
   it.
+- **Spearman cannot see a CATEGORICAL pair, and said nothing about
+  it.** `_pair_fidelity` coerced both sides to numeric and skipped
+  what became NaN, so a perfectly associated categorical pair compared
+  ZERO of them - and "25/28 relationships keep their direction"
+  counted only numeric ones. gender, race, ethnicity, visit_type,
+  admitted_from and the four list-shaped columns had never been
+  checked at all. Cramer's V and the correlation ratio now cover them,
+  counted SEPARATELY so the numeric numbers keep their old meaning.
+- **A constraint is a statement about a ROW; everything else here
+  describes a distribution.** Nothing could express "a visit does not
+  end before it begins", so nothing noticed it break on 49% of
+  generated rows. Discovered by looking for orderings the source never
+  violates, and repaired by SWAPPING the pair rather than clamping -
+  a swap leaves both columns holding the same multiset of values, so
+  the centre and spread the rest of this file works to get right are
+  untouched. Pairs on disjoint scales are not constraints: age is
+  below year_of_birth on every row and means nothing.
+- **Repair arithmetic BEFORE rendering dates.** The enforcement ran
+  after the write-back, compared two strings, got NaN, found no
+  violations and reported success while fixing nothing - the second
+  time in one week that formatting a date early broke a numeric
+  consumer downstream.
 - **Pair correlation cannot see a broken IDENTITY.** `age_at_visit`
   is the visit year minus `year_of_birth`, and the catalogue reports
   that at 100%. Generated, the identity held on 21.4% of rows while

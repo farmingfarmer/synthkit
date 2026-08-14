@@ -78,6 +78,13 @@ def main():
                          "entirely - bookkeeping the wrangler "
                          "computed rather than anything the clinic "
                          "recorded")
+    ap.add_argument("--enforce-constraints", action="store_true",
+                    help="repair orderings the source never broke, "
+                         "such as a visit ending before it began, by "
+                         "SWAPPING the two values - which leaves both "
+                         "columns' distributions exactly as they "
+                         "were. Off by default because it changes the "
+                         "output")
     ap.add_argument("--seed", type=int, default=20260731)
     ap.add_argument("--holdout", type=float, default=0.3,
                     help="share of PATIENTS held out; every number "
@@ -92,7 +99,7 @@ def main():
     # normal. Reading the settings back is the difference between
     # diagnosing that in one line and losing a round trip guessing
     # whether the code or the invocation was at fault.
-    say("invocation: --src {} --out {}{}{}{}{}{}".format(
+    say("invocation: --src {} --out {}{}{}{}{}{}{}".format(
         a.src, a.out,
         " --group-by " + a.group_by if a.group_by != "person_id"
         else "",
@@ -100,6 +107,7 @@ def main():
         else " (no --time-col: the axis will be DETECTED)",
         " --lags" if a.lags else "",
         " --generate" if a.generate else "",
+        " --enforce-constraints" if a.enforce_constraints else "",
         " --exclude " + a.exclude if a.exclude else ""))
 
     try:
@@ -362,7 +370,8 @@ def main():
     say("generating")
     rep = {}
     g = generate(bp, n_patients=(a.patients or None), seed=a.seed,
-                 report=rep)
+                 report=rep,
+                 enforce_constraints=a.enforce_constraints)
     g.to_csv(out / "generated.csv", index=False, encoding="utf-8")
     say("{} rows for {} patients -> generated.csv".format(
         rep["rows"], rep["patients"]))
@@ -435,6 +444,28 @@ def main():
     say("RELATIONSHIPS: {}/{} keep their direction, {}/{} land within "
         "0.2".format(s["pairs_sign_ok"], s["pairs"],
                      s["pairs_close"], s["pairs"]))
+    if s.get("constraints_checked"):
+        say("orderings the source never broke, held on {}/{} in the "
+            "generated data".format(s["constraints_held"],
+                                    s["constraints_checked"]))
+        for c in fid.get("constraints") or []:
+            if c["holds_in_generated"] < 0.999:
+                say("  {} <= {} broken on {} rows ({:.1%}){}".format(
+                    c["lhs"], c["rhs"], c["rows_violating"],
+                    1.0 - c["holds_in_generated"],
+                    "" if a.enforce_constraints
+                    else " - --enforce-constraints repairs this by "
+                         "swapping the pair, which leaves both "
+                         "distributions untouched"))
+    if s.get("categorical_compared"):
+        say("categorical and mixed associations kept on {}/{} pairs "
+            "- these were never measured before".format(
+                s["categorical_kept"], s["categorical_compared"]))
+        for r in (fid["relationships"].get("categorical_weakened")
+                  or [])[:4]:
+            say("  {} <- {}: {} {:.2f} -> {:.2f}".format(
+                r["child"], r["parent"], r["measure"],
+                r["source"], r["generated"]))
     if s.get("deterministic_compared"):
         say("near-deterministic identities hold on {}/{} pairs".format(
             s["deterministic_kept"], s["deterministic_compared"]))
@@ -784,6 +815,59 @@ def render(bp):
     return "\n".join(L)
 
 
+def _cramers_v(a, b):
+    """Association between two CATEGORICAL columns, 0 to 1.
+
+    Spearman cannot see this at all - it coerces both sides to numeric,
+    gets NaN, and the pair is skipped in silence. Measured on a
+    perfectly associated pair, `_pair_fidelity` compared ZERO of them,
+    which means every categorical relationship the catalogue reports
+    has been going unchecked: gender, race, ethnicity, visit_type,
+    admitted_from and the four list-shaped columns on the real
+    extract.
+
+    V is biased upward when a column has many levels, and that is
+    tolerable here because the SAME bias lands on the source and the
+    generated side and the number that matters is the difference."""
+    import numpy as np
+    import pandas as pd
+    ct = pd.crosstab(a, b)
+    if ct.shape[0] < 2 or ct.shape[1] < 2:
+        return None
+    obs = ct.to_numpy(dtype=float)
+    n = obs.sum()
+    if n < 30:
+        return None
+    exp = np.outer(obs.sum(axis=1), obs.sum(axis=0)) / n
+    with np.errstate(divide="ignore", invalid="ignore"):
+        chi2 = np.nansum(np.where(exp > 0, (obs - exp) ** 2 / exp, 0.0))
+    denom = n * (min(obs.shape) - 1)
+    if denom <= 0:
+        return None
+    return float(np.sqrt(max(chi2 / denom, 0.0)))
+
+
+def _eta(num, cat):
+    """Correlation ratio: how much of a NUMERIC column's spread is
+    explained by which level of a categorical it sits in. 0 to 1, and
+    unsigned - a category has no direction to invert."""
+    import numpy as np
+    import pandas as pd
+    d = pd.DataFrame({"y": pd.to_numeric(num, errors="coerce"),
+                      "g": cat.astype(str)}).dropna()
+    if len(d) < 30 or d["g"].nunique() < 2:
+        return None
+    y = d["y"].to_numpy(dtype=float)
+    grand = y.mean()
+    ss_tot = float(((y - grand) ** 2).sum())
+    if ss_tot <= 0:
+        return None
+    ss_b = 0.0
+    for _lv, grp in d.groupby("g", observed=False)["y"]:
+        ss_b += len(grp) * (float(grp.mean()) - grand) ** 2
+    return float(np.sqrt(max(min(ss_b / ss_tot, 1.0), 0.0)))
+
+
 def _tightness(fr, child, parents):
     """How much of the child is determined by ALL its parents at once.
 
@@ -858,14 +942,39 @@ def _pair_fidelity(Xs, Xg, bp):
                 continue
             seen.add(key)
 
-            def rho(fr):
-                a = pd.to_numeric(fr[child], errors="coerce")
-                b = pd.to_numeric(fr[par], errors="coerce")
-                m = a.notna() & b.notna()
-                if int(m.sum()) < 30:
-                    return None
-                return float(a[m].corr(b[m], method="spearman"))
-            rs, rg = rho(Xs), rho(Xg)
+            # WHICH MEASURE THE PAIR NEEDS. Spearman only speaks for
+            # two numeric columns; used on anything else it coerces to
+            # NaN and the pair vanishes without a word. Categorical
+            # pairs get Cramer's V and mixed pairs get the correlation
+            # ratio, both unsigned - a category has no direction, so
+            # they are reported as strength kept or lost rather than
+            # as inverted.
+            num_c = pd.api.types.is_numeric_dtype(Xs[child])
+            num_p = pd.api.types.is_numeric_dtype(Xs[par])
+            if num_c and num_p:
+                kind = "numeric"
+
+                def assoc(fr):
+                    a = pd.to_numeric(fr[child], errors="coerce")
+                    b = pd.to_numeric(fr[par], errors="coerce")
+                    m = a.notna() & b.notna()
+                    if int(m.sum()) < 30:
+                        return None
+                    return float(a[m].corr(b[m], method="spearman"))
+            elif not num_c and not num_p:
+                kind = "categorical"
+
+                def assoc(fr):
+                    return _cramers_v(fr[child].astype(str),
+                                      fr[par].astype(str))
+            else:
+                kind = "mixed"
+
+                def assoc(fr):
+                    if num_c:
+                        return _eta(fr[child], fr[par])
+                    return _eta(fr[par], fr[child])
+            rs, rg = assoc(Xs), assoc(Xg)
             if rs is None or rg is None:
                 continue
             ev = rel.get("evidence") or {}
@@ -881,6 +990,10 @@ def _pair_fidelity(Xs, Xg, bp):
             # here means an inverted pair names its own mechanism
             # instead of leaving the reader to rediscover it.
             row = {"child": child, "parent": par,
+                   "kind": kind,
+                   "measure": {"numeric": "spearman",
+                               "categorical": "cramers_v",
+                               "mixed": "correlation_ratio"}[kind],
                    "source": round(rs, 4),
                    "generated": round(rg, 4),
                    "delta": round(rg - rs, 4),
@@ -909,7 +1022,16 @@ def _pair_fidelity(Xs, Xg, bp):
                 row["tightness_generated"] = _tightness(Xg, child, ps)
             rows.append(row)
 
-    strong = [r for r in rows if abs(r["source"]) >= 0.1]
+    # THE NUMERIC COUNTERS KEEP THEIR OLD MEANING. Folding the new
+    # pairs into `compared` would silently change what "25/28 keep
+    # their direction" refers to and make this run incomparable with
+    # the last one. They are counted separately instead.
+    numeric_rows = [r for r in rows if r["kind"] == "numeric"]
+    other_rows = [r for r in rows if r["kind"] != "numeric"]
+    strong_other = [r for r in other_rows if r["source"] >= 0.15]
+    kept_other = [r for r in strong_other
+                  if r["generated"] >= 0.6 * r["source"]]
+    strong = [r for r in numeric_rows if abs(r["source"]) >= 0.1]
     inverted = [r for r in strong
                 if r["source"] * r["generated"] < 0
                 and abs(r["generated"]) >= 0.1]
@@ -919,6 +1041,11 @@ def _pair_fidelity(Xs, Xg, bp):
     det_kept = [r for r in det
                 if r["tightness_generated"] >= r["tightness_source"] - 0.2]
     return {
+        "categorical_compared": len(strong_other),
+        "categorical_kept": len(kept_other),
+        "categorical_weakened": sorted(
+            [r for r in strong_other if r not in kept_other],
+            key=lambda r: r["source"] - r["generated"], reverse=True),
         "deterministic_compared": len(det),
         "deterministic_kept": len(det_kept),
         "deterministic_loosened": sorted(
@@ -1067,13 +1194,35 @@ def compare(df, g, bp, group_by, time_col):
                 n_ok["clu"] += 1
         cols.append(row)
 
+    # DID THE ORDERINGS SURVIVE? A constraint is a statement about
+    # each ROW, and every other number in this file is a statement
+    # about a distribution, so nothing here could see one break.
+    cons = []
+    for con in (bp.get("constraints") or []):
+        lhs, rhs = con["lhs"], con["rhs"]
+        if lhs not in Xg.columns or rhs not in Xg.columns:
+            continue
+        a_ = pd.to_numeric(Xg[lhs], errors="coerce")
+        b_ = pd.to_numeric(Xg[rhs], errors="coerce")
+        m_ = a_.notna() & b_.notna()
+        if int(m_.sum()) < 30:
+            continue
+        held = float((a_[m_] <= b_[m_]).mean())
+        cons.append({"lhs": lhs, "op": "<=", "rhs": rhs,
+                     "holds_in_source": con["holds_in_source"],
+                     "holds_in_generated": round(held, 6),
+                     "rows_violating": int((~(a_[m_] <= b_[m_])).sum())})
     return {
         "columns": cols,
+        "constraints": cons,
         "relationships": pairs,
         "summary": {
             "columns": len(cols), "numeric": n_ok["num"],
             "numeric_dynamic": n_ok["dyn"],
             "partly_covered": n_ok["part"],
+            "constraints_checked": len(cons),
+            "constraints_held": sum(1 for c in cons
+                                    if c["holds_in_generated"] >= 0.999),
             "coverage_ok": n_ok["cov"], "centre_ok": n_ok["ctr"],
             "spread_ok": n_ok["spr"],
             "lag1_ok": n_ok["lag"], "cluster_ok": n_ok["clu"],
@@ -1081,6 +1230,8 @@ def compare(df, g, bp, group_by, time_col):
             "pairs_sign_ok": pairs["sign_kept"],
             "pairs_close": pairs["close"],
             "pairs_inverted": len(pairs["inverted"]),
+            "categorical_compared": pairs["categorical_compared"],
+            "categorical_kept": pairs["categorical_kept"],
             "deterministic_compared": pairs["deterministic_compared"],
             "deterministic_kept": pairs["deterministic_kept"],
         },

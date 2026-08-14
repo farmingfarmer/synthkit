@@ -232,6 +232,52 @@ def _categorical_marginal(s: pd.Series, groups=None,
     return out
 
 
+def _constraints(X: pd.DataFrame, k: int = 10) -> List[Dict[str, Any]]:
+    """Orderings that hold on every row of the source.
+
+    A visit does not end before it begins. Nothing in this document
+    could say so: the blueprint carries marginals, curves and
+    dynamics, and every one of them is a statement about a
+    DISTRIBUTION. `visit_end >= visit_start` is a statement about each
+    ROW, and generation drew the two columns from their own marginals
+    with no idea they were related that way.
+
+    That is the visible half of the identity problem. A file holding
+    visits that end before they start loses a reader in the first
+    minute whatever the statistics say.
+
+    DISJOINT COLUMNS ARE NOT CONSTRAINED, they are just on different
+    scales: `age_at_visit <= year_of_birth` holds on every row and
+    means nothing, because 83 is below 1936 by construction. A real
+    constraint needs the two ranges to overlap, so the ordering could
+    have been violated and was not."""
+    out: List[Dict[str, Any]] = []
+    num = [c for c in X.columns
+           if pd.api.types.is_numeric_dtype(X[c])]
+    for a in num:
+        for b in num:
+            if a >= b:
+                continue
+            d = X[[a, b]].dropna()
+            if len(d) < 100:
+                continue
+            va, vb = d[a].to_numpy(float), d[b].to_numpy(float)
+            for lhs, rhs, lo, hi in ((a, b, va, vb), (b, a, vb, va)):
+                share = float((lo <= hi).mean())
+                if share < 0.999:
+                    continue
+                if float(lo.max()) <= float(hi.min()):
+                    continue          # disjoint scales, not a rule
+                gap = hi - lo
+                out.append({
+                    "lhs": lhs, "op": "<=", "rhs": rhs,
+                    "holds_in_source": round(share, 6),
+                    "rows": int(len(d)),
+                    "equal_share": round(float((gap == 0).mean()), 4),
+                })
+    return out
+
+
 def build(df: pd.DataFrame,
           catalogue: Dict[str, Any],
           group_by: Optional[str] = None,
@@ -397,6 +443,7 @@ def build(df: pd.DataFrame,
 
     return {
         "blueprint_version": BLUEPRINT_VERSION,
+        "constraints": _constraints(X, k),
         "columns": columns,
         "relationships": rels,
         "patients": patients,

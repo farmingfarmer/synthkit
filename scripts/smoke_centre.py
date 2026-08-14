@@ -49,7 +49,8 @@ ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT))
 from synthkit import blueprint as B                      # noqa: E402
 from synthkit.blueprint import _numeric_marginal         # noqa: E402
-from synthkit.discover import discover                   # noqa: E402
+from synthkit.discover import (discover,             # noqa: E402
+                                prepare)
 from synthkit.generate import _draw_numeric, generate    # noqa: E402
 
 PASS = FAIL = 0
@@ -290,6 +291,101 @@ def main():
               x["tightness_generated"]) for x in loose[:2])),
           loose and all(x["tightness_source"]
                         > x["tightness_generated"] for x in loose))
+
+    # ---- CATEGORICAL PAIRS WERE NEVER MEASURED AT ALL -----------
+    # `_pair_fidelity` coerced both sides to numeric and took
+    # Spearman, so a categorical pair became NaN and was skipped in
+    # silence. Measured on a perfectly associated pair: ZERO compared.
+    # Every categorical relationship the catalogue reports has been
+    # going unchecked.
+    from run_discovery import _pair_fidelity
+    r4 = np.random.RandomState(1)
+    n4 = 3000
+    sex = r4.choice(["M", "F"], n4)
+    site = np.where(sex == "M", r4.choice(["A", "B"], n4, p=[.85, .15]),
+                    r4.choice(["A", "B"], n4, p=[.15, .85]))
+    df4 = pd.DataFrame({
+        "person_id": ["P{:03d}".format(i // 3) for i in range(n4)],
+        "sex": sex, "site": site,
+        "bmi": np.round(np.where(sex == "M", r4.normal(27, 3, n4),
+                                 r4.normal(23, 3, n4)), 1)})
+    X4, _i4, _d4 = prepare(df4, "person_id")
+    bp4 = {"columns": {}, "relationships": [
+        {"child": "site", "parents": ["sex"], "evidence": {}},
+        {"child": "bmi", "parents": ["sex"], "evidence": {}}]}
+    same = _pair_fidelity(X4, X4, bp4)
+    check("categorical and mixed pairs are COMPARED now - {} of them, "
+          "where a numeric-only measure compared none"
+          .format(same["categorical_compared"]),
+          same["categorical_compared"] == 2)
+    check("...and an association that survives is reported as kept",
+          same["categorical_kept"] == 2)
+    shuffled = X4.copy()
+    shuffled["sex"] = (shuffled["sex"].sample(frac=1.0, random_state=2)
+                       .to_numpy())
+    broke = _pair_fidelity(X4, shuffled, bp4)
+    check("...and one that is DESTROYED is caught, which a Spearman "
+          "on coerced text could never do - {} of {} kept"
+          .format(broke["categorical_kept"],
+                  broke["categorical_compared"]),
+          broke["categorical_kept"] == 0
+          and len(broke["categorical_weakened"]) == 2)
+    check("...naming the measure each pair was judged by, since a "
+          "category has no direction to invert",
+          {w["measure"] for w in broke["categorical_weakened"]}
+          == {"cramers_v", "correlation_ratio"})
+    check("the NUMERIC counters keep their old meaning, so this run "
+          "stays comparable with earlier ones",
+          same["compared"] == 0 and "sign_kept" in same)
+
+    # ---- A CONSTRAINT IS A STATEMENT ABOUT A ROW ----------------
+    # Every other number in the report describes a DISTRIBUTION.
+    # "a visit does not end before it begins" describes each row, and
+    # nothing could see it break.
+    r5 = np.random.RandomState(3)
+    npat5, nvis5 = 250, 10
+    g5 = np.repeat(np.arange(npat5), nvis5)
+    n5 = len(g5)
+    start = r5.randint(0, 1500, n5).astype(float)
+    span = np.where(r5.random_sample(n5) < 0.12, r5.randint(1, 20, n5), 0)
+    df5 = pd.DataFrame({
+        "person_id": ["P{:04d}".format(x) for x in g5],
+        "visit_start": start, "visit_end": start + span,
+        "age_at_visit": np.round(58 + 16 * r5.normal(0, 1, n5)),
+        "year_of_birth": np.round(1962 + 16 * r5.normal(0, 1, n5))})
+    bp5 = B.build(df5, {"claims": [], "unexplained": [], "skipped": []},
+                  group_by="person_id")
+    cons = bp5.get("constraints") or []
+    check("an ordering the source never breaks is DISCOVERED - {}"
+          .format(", ".join("{} <= {}".format(c["lhs"], c["rhs"])
+                            for c in cons) or "none"),
+          any(c["lhs"] == "visit_start" and c["rhs"] == "visit_end"
+              for c in cons))
+    check("...and a pair on DISJOINT scales is not mistaken for one: "
+          "age is below year_of_birth on every row and means nothing",
+          not any({c["lhs"], c["rhs"]} == {"age_at_visit",
+                                           "year_of_birth"}
+                  for c in cons))
+    plain = generate(bp5, n_patients=npat5, seed=4)
+    fixed = generate(bp5, n_patients=npat5, seed=4,
+                     enforce_constraints=True)
+
+    def broke_share(fr):
+        a_ = pd.to_numeric(fr["visit_start"], errors="coerce")
+        b_ = pd.to_numeric(fr["visit_end"], errors="coerce")
+        m_ = a_.notna() & b_.notna()
+        return float((a_[m_] > b_[m_]).mean())
+    check("THE FIXTURE REPRODUCES THE FAULT: without repair the "
+          "ordering breaks on {:.0%} of generated rows"
+          .format(broke_share(plain)), broke_share(plain) > 0.1)
+    check("...and --enforce-constraints puts it back",
+          broke_share(fixed) == 0.0)
+    check("...by SWAPPING, so both columns hold exactly the same "
+          "multiset of values and their distributions are untouched",
+          sorted(pd.to_numeric(plain["visit_start"]).tolist()
+                 + pd.to_numeric(plain["visit_end"]).tolist())
+          == sorted(pd.to_numeric(fixed["visit_start"]).tolist()
+                    + pd.to_numeric(fixed["visit_end"]).tolist()))
 
     check("coverage is untouched by any of it", all(
         abs(float(pd.to_numeric(g[c], errors="coerce").notna().mean())
