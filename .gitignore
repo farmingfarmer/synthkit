@@ -95,3 +95,8 @@ corpora/
 # in a repository that gets mirrored to an enterprise remote.
 # ---------------------------------------------------------------
 CLAUDE.md
+
+# Written by the sync ritual on the machine that has no git. It
+# names the commit that was extracted there; on a checkout git is
+# the better answer and this file would only go stale.
+BUILD_ID.txt

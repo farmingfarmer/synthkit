@@ -119,6 +119,12 @@ def main():
     # normal. Reading the settings back is the difference between
     # diagnosing that in one line and losing a round trip guessing
     # whether the code or the invocation was at fault.
+    # WHICH TREE IS THIS. The machine that holds the extract is not a
+    # git checkout, so nothing else in the output can answer it, and
+    # several rounds of results were read against fixes the running
+    # code did not contain.
+    from synthkit.build_id import describe as _build_line
+    say(_build_line())
     say("invocation: --src {} --out {}{}{}{}{}{}{}{}{}".format(
         a.src, a.out,
         " --group-by " + a.group_by if a.group_by != "person_id"
@@ -351,9 +357,17 @@ def main():
         code = build_fingerprint()
     except Exception:
         code = None
+    from synthkit.build_id import build_id as _build_id
+    _bid = _build_id()
     prov = {
         "made_at": _dt.datetime.now().replace(microsecond=0).isoformat(),
         "code_fingerprint": code,
+        # The fingerprint says whether two runs used the same bytes.
+        # This says WHICH COMMIT, which a content hash cannot - and
+        # the release gate is "proven on real data", so the tree that
+        # was proven has to be nameable. Owner and repo are stripped
+        # upstream: this file travels.
+        "build": _bid,
         "blueprint_version": bp.get("blueprint_version"),
         "source": {
             "name": src.name,

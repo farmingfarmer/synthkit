@@ -6,18 +6,48 @@ python venv at `dev\` and no admin rights.
 
 ## 1. Pull the repo (no git needed)
 
-The repository is `git-datasciences-org-main/keck-synthkit` on
-Keck's GitHub. It is private, so either use a fine-grained
-read-only token or clone over HTTPS with your own credentials.
+**WHICH REPOSITORY, and why this page does not name it.** There are
+two. Code is authored on the development machine, PROVEN here against
+a real extract, and only then published to the enterprise repository.
+So the release repo is DOWNSTREAM of this test and is guaranteed not
+to hold the code under test — pulling from it runs the previous
+build, and on a machine with no git history a stale build looks
+exactly like a current one. Pull from the STAGING repo; publish to
+the release repo after this page comes out green.
+
+The staging repo belongs to a personal account, and a tracked file
+here reaches the enterprise mirror, so writing that handle into this
+page is banned (`smoke_no_personal`). Set it yourself instead. Both
+are private, so use a fine-grained read-only token.
 
 ```bat
 cd %USERPROFILE%\dev
+set SYNTHKIT_REPO=OWNER/REPO
+set SYNTHKIT_TOKEN=YOUR_READONLY_TOKEN
+set SYNTHKIT_DIR=%SYNTHKIT_REPO:/=-%
+echo pulling %SYNTHKIT_REPO% into %SYNTHKIT_DIR%
+for /d %i in (%SYNTHKIT_DIR%-*) do rmdir /s /q "%i"
 rmdir /s /q synthkit
-rmdir /s /q git-datasciences-org-main-keck-synthkit-* 2>nul
 del /q synthkit.zip 2>nul
-curl -L -H "Authorization: Bearer YOUR_READONLY_TOKEN" -o synthkit.zip https://api.github.com/repos/git-datasciences-org-main/keck-synthkit/zipball/main
+curl -L -H "Authorization: Bearer %SYNTHKIT_TOKEN%" -o synthkit.zip https://api.github.com/repos/%SYNTHKIT_REPO%/zipball/main
 dir synthkit.zip
 ```
+
+**Read that `echo` line before anything else.** If it prints
+`%SYNTHKIT_REPO%` back at you literally rather than an owner and a
+repo, the variable never got set and every command after it is
+addressing nothing — the same failure an unexpanded `%USERPROFILE%`
+caused when it wrote real-data output into the repo. That echo is
+there because this terminal has mangled pasted commands three times,
+and a flag that never arrives is otherwise indistinguishable from
+broken code.
+
+The leftover-folder cleanup is a `for` loop now. `rmdir` accepts no
+wildcard, so the previous `rmdir /s /q <pattern>-*` could never have
+matched anything and its `2>nul` hid that it was failing every time —
+which is exactly the orphan-folder problem described below. This has
+not been run on Windows from here; if the loop misbehaves, deleting
+the stray folders by hand does the same job.
 
 **Stop and read that size before going further.** A few hundred
 kilobytes or more means the download worked. Around 106 bytes
@@ -27,8 +57,24 @@ that look like something else entirely.
 
 ```bat
 tar -xf synthkit.zip
-for /d %i in (git-datasciences-org-main-keck-synthkit-*) do ren "%i" synthkit
+for /d %i in (%SYNTHKIT_DIR%-*) do (echo %i)>build_id.txt
+for /d %i in (%SYNTHKIT_DIR%-*) do ren "%i" synthkit
+move /y build_id.txt synthkit\BUILD_ID.txt
 ```
+
+**That middle line is the only provenance this machine ever gets.**
+GitHub stamps the commit into the extracted folder's name, and the
+rename below was throwing it away — so a run here could not say which
+tree produced it, and several rounds of results were read against
+fixes the running code did not contain. `BUILD_ID.txt` is what every
+run now echoes on its first line and records in `provenance.json`.
+Only the sha is kept from it; the owner and repo are discarded,
+because that file travels with the output.
+
+The `(echo %i)` is parenthesised deliberately. Written bare as
+`echo %i>build_id.txt`, cmd reads a trailing digit as a redirection
+handle, and a sha ending in a digit would silently lose its last
+character — a build id that is quietly wrong is worse than none.
 
 Two things about that rename, both learned the hard way. The
 extracted folder carries a commit hash, so its name changes every
@@ -78,7 +124,7 @@ main(['version'])"` if -m is not wired).
 python scripts\run_all_smokes.py
 ```
 
-Expect: 50 suites, 1336 checks, ALL GREEN. It is no longer quick -
+Expect: 53 suites, 1452 checks, ALL GREEN. It is no longer quick -
 about 9 minutes on the development machine and several times that
 here, with the long pauses at `smoke_generate` and `smoke_shapes`.
 Each suite prints `running` before it starts and `PASS` when it
