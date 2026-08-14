@@ -4,7 +4,7 @@ Synthetic clinical data generator and model-evaluation instrument. Core rule: le
 
 ## Verify before claiming
 
-- Run `python scripts/run_all_smokes.py` before claiming anything works. Expect 50 suites, 1347 checks, ALL GREEN.
+- Run `python scripts/run_all_smokes.py` before claiming anything works. Expect 50 suites, 1355 checks, ALL GREEN.
 - **`pip install -r requirements.txt` first, or seven suites do not
   run.** A machine without numpy, pandas and scikit-learn fails
   `smoke_blueprint`, `smoke_discover`, `smoke_dynamics`,
@@ -113,6 +113,13 @@ the direction that stops work happening.
   the lag features were built — which is what every temporal statistic
   is measured on — so passing it changed nothing and the message still
   named the detected column. Assert the override CHANGED something.
+- **Do not add a column to a fixture other checks depend on.** The
+  CLI fixture plants `y = 2.5x + noise`, which explains 99% of y - two
+  points over the 97% cut that calls a relationship near-deterministic
+  rather than a discovery. Adding one unrelated column shifted the
+  estimate enough to cross it, the pair moved to a different section
+  of the report, and three checks broke that had nothing to do with
+  either. Give the new thing its own fixture and its own run.
 - **A report that lists categories must state a TOTAL the reader can
   check against them.** The dropped-edge section said "2 were mirrors"
   while the run reported 12 dropped: ten had a parent removed to break

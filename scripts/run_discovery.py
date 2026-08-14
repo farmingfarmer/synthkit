@@ -242,6 +242,50 @@ def main():
             if d.get("floored_to_day"):
                 say("  {}: a time of day was present and floored to "
                     "the day".format(c))
+    # IS A SUPPRESSED CATEGORICAL ACTUALLY LIST-VALUED?
+    #
+    # Four columns lost 10-28% of their content to level suppression
+    # on the real run - conditions, procedures, active_drugs,
+    # drug_routes. If a patient has several drugs recorded in one
+    # field, then every distinct COMBINATION becomes its own level,
+    # the combinations explode, and almost all of them fall under k.
+    # The column would then be suppressed not because its values are
+    # rare but because it is the wrong shape for a single categorical
+    # - the same class of fault as a date modelled as 200 labels.
+    #
+    # That is a HYPOTHESIS about those four columns and cannot be
+    # settled from a machine with no clinical data on it. So the run
+    # measures it: how many present values carry a separator, and how
+    # much of the column was suppressed. One run confirms or kills it.
+    listy = []
+    for c, spec in (bp.get("columns") or {}).items():
+        mg = spec.get("marginal") or {}
+        lost = ((mg.get("suppressed_levels") or {}).get("share") or 0.0)
+        lost += ((mg.get("tail") or {}).get("share_omitted") or 0.0)
+        if mg.get("type") != "levels" or lost < 0.05:
+            continue
+        if c not in df.columns:
+            continue
+        vals = df[c].astype(str).str.strip()
+        vals = vals[vals.str.len() > 0]
+        if not len(vals):
+            continue
+        for sep in (";", "|", ","):
+            share = float(vals.str.contains(sep, regex=False).mean())
+            if share >= 0.3:
+                listy.append((c, sep, share, lost,
+                              int(vals.nunique())))
+                break
+    if listy:
+        say("these look LIST-VALUED, not categorical - every "
+            "combination becomes its own level:")
+        for c, sep, share, lost, nun in listy:
+            say("  {}: {:.0%} of values contain {!r}, {} distinct "
+                "combinations, {:.0%} of the column suppressed or "
+                "truncated".format(c, share, sep, nun, lost))
+        say("  (modelling these as a set of indicators rather than one "
+            "label would recover most of that)")
+
     probs = B.validate(bp)
     if probs:
         say("WARNING - the blueprint it just built does not validate, "
@@ -260,7 +304,55 @@ def main():
     if orphans:
         say("{} relationship(s) will NOT reach the generated data - "
             "see the end of findings.txt".format(len(orphans)))
-    say("wrote catalogue.json, blueprint.json, findings.txt")
+    # WHAT MADE THIS, so a file found in six months can be placed.
+    #
+    # Nothing recorded which extract, which code, which seed or which
+    # flags produced an output directory. A synthetic file that
+    # circulates without that is one somebody eventually analyses
+    # believing it is real, or compares against a run it has nothing
+    # to do with.
+    #
+    # The source is recorded by NAME, not by path. The path on the
+    # machine holding the extract contains a work login, and this file
+    # is the one most likely to travel with the output - the same
+    # reason `smoke_no_personal` bans that pattern from everything
+    # tracked.
+    import datetime as _dt
+    try:
+        from synthkit.gui import build_fingerprint
+        code = build_fingerprint()
+    except Exception:
+        code = None
+    prov = {
+        "made_at": _dt.datetime.now().replace(microsecond=0).isoformat(),
+        "code_fingerprint": code,
+        "blueprint_version": bp.get("blueprint_version"),
+        "source": {
+            "name": src.name,
+            "rows_read": int(len(df)),
+            "columns_read": int(df.shape[1]),
+            "patients": int(df[a.group_by].nunique()),
+            "max_rows": a.max_rows or None,
+        },
+        "settings": {
+            "group_by": a.group_by,
+            "time_col_requested": a.time_col or None,
+            "time_col_used": time_col,
+            "lags": bool(a.lags),
+            "generate": bool(a.generate),
+            "seed": a.seed,
+            "holdout": a.holdout,
+            "excluded": drop,
+        },
+        "privacy": {"k": (bp.get("privacy") or {}).get("k")},
+        "note": "the source is named, not pathed, on purpose: this "
+                "file travels with the output and a path on that "
+                "machine carries a work login.",
+    }
+    (out / "provenance.json").write_text(
+        json.dumps(prov, indent=1), encoding="utf-8")
+    say("wrote catalogue.json, blueprint.json, findings.txt, "
+        "provenance.json")
 
     if not a.generate:
         say("done. Read findings.txt first; edit blueprint.json to "
@@ -283,6 +375,11 @@ def main():
     fid["generation"] = rep
     (out / "fidelity.json").write_text(
         json.dumps(fid, indent=1), encoding="utf-8")
+    # THE READABLE HALF, appended to the document people actually
+    # open. findings.txt is written before generation, so this is the
+    # only place the per-column verdicts can reach it.
+    with (out / "findings.txt").open("a", encoding="utf-8") as fh:
+        fh.write(render_verdicts(fid) + "\n")
     s = fid["summary"]
     say("coverage within 0.05 on {}/{} columns".format(
         s["coverage_ok"], s["columns"]))
@@ -376,6 +473,97 @@ def _will_drop_full(bp):
         return o[2], o[3]
     except Exception:
         return [], []
+
+
+def verdicts(fid):
+    """One line per column that failed something, naming what.
+
+    THE COUNTS DO NOT TELL A READER WHICH COLUMNS TO DISTRUST. A run
+    reports coverage 42/42, centre 29/33, spread 30/33, persistence
+    29/33 and clustering 18/18, and every one of those is a different
+    subset. Answering "can I use this column" meant opening
+    fidelity.json and cross-referencing five lists by hand, which is
+    why nobody did it.
+
+    Per column is also the honest granularity for the question people
+    actually ask. "Trust these 27, be careful with these 6" is a
+    statement this evidence supports; "the data is good" is not."""
+    rel = fid.get("relationships") or {}
+    inverted = {}
+    for r in (rel.get("inverted") or []):
+        inverted.setdefault(r["child"], []).append(r["parent"])
+        inverted.setdefault(r["parent"], []).append(r["child"])
+    loosened = {}
+    for r in (rel.get("deterministic_loosened") or []):
+        loosened[r["child"]] = r
+    out = []
+    for c in fid.get("columns") or []:
+        name, notes = c["column"], []
+        cov = c.get("coverage_delta")
+        if cov is not None and abs(cov) > 0.05:
+            notes.append("present on {:+.0%} of rows against the "
+                         "source".format(cov))
+        cm = c.get("centre_miss")
+        if cm:
+            notes.append("average off by {:.2f} of its own spread"
+                         .format(cm["by_sd"]))
+        sm = c.get("spread_miss")
+        if sm:
+            beyond = sm.get("share_of_magnitude_outside_bounds")
+            notes.append(
+                "spread {:.0%} of source{}".format(
+                    sm["ratio"],
+                    "" if not beyond or beyond <= 0.1 else
+                    " ({:.0%} of it sits beyond what k allows to be "
+                    "published, so this one is privacy rather than a "
+                    "fault)".format(beyond)))
+        ls, lg = c.get("lag1_source"), c.get("lag1_generated")
+        if ls is not None and lg is not None and abs(lg - ls) > 0.15:
+            notes.append("steadiness {:.2f} against {:.2f}"
+                         .format(lg, ls))
+        if name in inverted:
+            notes.append("INVERTED against {} - the generated "
+                         "relationship runs the opposite way to the "
+                         "source".format(", ".join(
+                             sorted(set(inverted[name]))[:3])))
+        if name in loosened:
+            r = loosened[name]
+            notes.append("an identity it is computed from is looser "
+                         "here: {:.2f} against {:.2f}".format(
+                             r["tightness_generated"],
+                             r["tightness_source"]))
+        if notes:
+            out.append((name, notes))
+    return out
+
+
+def render_verdicts(fid):
+    s = fid["summary"]
+    bad = verdicts(fid)
+    L = ["", "", "WHICH COLUMNS TO BE CAREFUL WITH", "-" * 60]
+    total = s.get("columns") or 0
+    L.append("{} of {} columns passed every check this run makes. The "
+             "rest are".format(total - len(bad), total))
+    L.append("named here with what went wrong, because a count cannot "
+             "tell you which")
+    L.append("column it was about.")
+    L.append("")
+    if not bad:
+        L.append("(none - every column passed)")
+        return "\n".join(L)
+    for name, notes in sorted(bad):
+        L.append("    {}".format(name))
+        for n in notes:
+            L.append("        {}".format(n))
+    L.append("")
+    L.append("A column absent from this list passed coverage, centre, "
+             "spread, steadiness")
+    L.append("and every relationship it takes part in. That is not the "
+             "same as being")
+    L.append("fit for any particular purpose - see fidelity.json for "
+             "the numbers behind")
+    L.append("each line.")
+    return "\n".join(L)
 
 
 def _were(n, singular="was", plural="were"):

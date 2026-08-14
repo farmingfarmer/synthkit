@@ -105,7 +105,7 @@ def main():
         print(r.stderr[-2000:])
 
     for name in ("catalogue.json", "blueprint.json", "findings.txt",
-                 "generated.csv", "fidelity.json"):
+                 "generated.csv", "fidelity.json", "provenance.json"):
         check("it writes {}".format(name), (out / name).exists())
 
     check("the run echoes the settings it actually received, so a "
@@ -145,7 +145,65 @@ def main():
           "reproduce missingness runs and steadiness",
           "dynamics" in bp["columns"]["lab"])
 
+    # WHAT MADE THIS. A synthetic file that circulates without its
+    # provenance is one somebody eventually analyses believing it is
+    # real, or compares against a run it has nothing to do with.
+    prov = json.loads((out / "provenance.json").read_text())
+    check("the run records what produced it - source, settings, seed "
+          "and the code fingerprint",
+          prov["source"]["name"] == src.name
+          and prov["settings"]["seed"] is not None
+          and prov["settings"]["group_by"] == "person_id"
+          and prov["source"]["rows_read"] > 0)
+    check("...and names the source rather than pathing it, because "
+          "this file travels with the output and the path on that "
+          "machine carries a work login",
+          "\\" not in prov["source"]["name"]
+          and "/" not in prov["source"]["name"]
+          and "Users" not in json.dumps(prov))
+    check("...and records the k its privacy rests on",
+          prov["privacy"]["k"] == 10)
+
+
+    # A LIST-VALUED COLUMN GETS ITS OWN FIXTURE AND ITS OWN RUN.
+    #
+    # It was briefly added to the shared one above, which shifted the
+    # skill estimate on the planted pair by about two points - enough
+    # to push it over the 97% near-deterministic cut and break three
+    # unrelated checks. A fixture many checks depend on is not the
+    # place to add a column.
+    lst = tmp / "listy.csv"
+    with lst.open("w", encoding="utf-8", newline="") as fh:
+        fh.write("person_id,active_drugs,v\n")
+        rr = np.random.RandomState(2)
+        opts = ["asp", "met", "ins", "war", "sta", "ome"]
+        for p_ in range(120):
+            for _v in range(6):
+                combo = ";".join(sorted(rr.choice(
+                    opts, rr.randint(1, 4), replace=False)))
+                fh.write("P{:04d},{},{}\n".format(
+                    p_, combo, round(float(rr.normal(10, 2)), 3)))
+    rl = run(["--src", str(lst), "--out", str(tmp / "lout"),
+              "--group-by", "person_id"])
+    check("a column holding SEVERAL values in one field is reported "
+          "as list-valued rather than left looking like rare labels - "
+          "it is the wrong shape for a single category, not rare data",
+          "LIST-VALUED" in rl.stdout and "active_drugs" in rl.stdout)
+    check("...and a plain categorical is NOT reported that way, or "
+          "the message means nothing",
+          "LIST-VALUED" not in r.stdout)
+
     txt = (out / "findings.txt").read_text()
+    # THE COUNTS DO NOT NAME THE COLUMNS. Five different subsets of
+    # columns fail five different checks, and answering "can I use
+    # this one" meant cross-referencing fidelity.json by hand.
+    check("findings.txt ends with a per-COLUMN verdict, so a reader "
+          "learns which columns to distrust rather than only how many",
+          "WHICH COLUMNS TO BE CAREFUL WITH" in txt)
+    check("...and says what a column's ABSENCE from that list means, "
+          "so a clean run is not read as a guarantee",
+          "passed every check this run makes" in txt
+          and "not the same as being" in txt)
     check("findings.txt states the relationship in words a reader can "
           "act on, naming the columns", "y <- x" in txt or "x <- y" in txt)
     check("...and says the evidence was measured on held-out patients",
