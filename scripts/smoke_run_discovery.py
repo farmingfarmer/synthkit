@@ -199,6 +199,25 @@ def main():
     check("...while a plain categorical is not called a set either",
           "SET of" not in r.stdout)
 
+    # THE CHEAP CHECK SHOULD NOT RUN LAST. Every silent fault this
+    # tool has had was a column read as the wrong type, and the
+    # listing that catches them sat behind minutes of discovery. On a
+    # file nobody has looked at, that is the wrong way round.
+    tout = tmp / "typesonly"
+    rt = run(["--src", str(src), "--out", str(tout),
+              "--group-by", "person_id", "--types-only"])
+    check("--types-only reports how every column was typed",
+          rt.returncode == 0 and "column types:" in rt.stdout
+          and "visit_start_date" in rt.stdout)
+    check("...and STOPS there - no catalogue, no blueprint, nothing "
+          "generated, which is the whole point of it being quick",
+          not (tout / "catalogue.json").exists()
+          and not (tout / "generated.csv").exists())
+    check("...and says so, rather than leaving a half-finished "
+          "directory looking like a failed run",
+          "Nothing was discovered" in rt.stdout
+          or "nothing was generated" in rt.stdout)
+
     txt = (out / "findings.txt").read_text()
     # THE COUNTS DO NOT NAME THE COLUMNS. Five different subsets of
     # columns fail five different checks, and answering "can I use

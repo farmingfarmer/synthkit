@@ -87,6 +87,11 @@ def main():
                          "west look identical to any test on the "
                          "strings, and inventing an order the data "
                          "never declared is worse than missing it")
+    ap.add_argument("--types-only", action="store_true",
+                    help="stop after reporting how every column was "
+                         "typed. Seconds instead of minutes, and it "
+                         "is the check most likely to catch a fault "
+                         "on a file nobody has looked at yet")
     ap.add_argument("--emit-spec", action="store_true",
                     help="also write tablespec.json - the fitted "
                          "marginals as an authorable TableSpec, so a "
@@ -194,6 +199,24 @@ def main():
         say("excluded {} column(s): {}".format(len(drop),
                                                ", ".join(drop)))
 
+    # TYPING IS THE CHEAP CHECK AND IT RAN LAST. Every silent fault
+    # this tool has had was a column read as the wrong type - a date
+    # as 200 labels, money as a sentinel, a set as one label per
+    # combination - and the listing that catches them sat behind five
+    # minutes of discovery. On a file nobody has looked at, that is
+    # the wrong way round.
+    if a.types_only:
+        say("typing columns - no discovery, this is the quick look")
+        bp = B.build(df, {"claims": [], "unexplained": [],
+                          "skipped": []},
+                     group_by=a.group_by, ordinals=ordinals)
+        _report_types(bp, df, say)
+        say("")
+        say("that is the typing only. Nothing was discovered and "
+            "nothing was generated - re-run without --types-only "
+            "once these look right.")
+        return
+
     time_col = a.time_col or None
     if a.lags:
         from synthkit.temporal import (add_lag_features,
@@ -289,108 +312,7 @@ def main():
             if d.get("floored_to_day"):
                 say("  {}: a time of day was present and floored to "
                     "the day".format(c))
-    # HOW EVERY COLUMN WAS TYPED, before an hour is spent on it.
-    #
-    # A column read as the wrong type is the most expensive fault this
-    # tool has: it is silent, it survives every per-column check, and
-    # it is only visible by opening the blueprint. Dates went that way
-    # at 88% sentinel; a currency column and a time-of-day column have
-    # since gone the same way at 100%. One glance at this list would
-    # have caught all three.
-    say("column types:")
-    destroyed = []
-    for c, spec in sorted((bp.get("columns") or {}).items()):
-        mg = spec.get("marginal") or {}
-        if spec.get("kind") == "numeric":
-            what = "numeric"
-            if spec.get("date"):
-                what = "date {}".format(spec["date"]["format"])
-            elif mg.get("integral"):
-                what = "numeric (whole numbers)"
-        elif mg.get("type") == "suppressed":
-            what = "SUPPRESSED - too few patients to publish"
-        elif mg.get("type") == "list":
-            # Named here rather than warned about. It was a warning
-            # while nothing could model these; now that the set is
-            # modelled as a set, the honest report is what it became.
-            sz = mg.get("set_size") or {}
-            avg = sum(float(v) * float(p_) for v, p_
-                      in zip(sz.get("v") or [1], sz.get("p") or [1.0]))
-            what = ("SET of {} tokens, {:.1f} per row, from {} "
-                    "distinct combinations".format(
-                        len(mg.get("tokens") or []), avg,
-                        mg.get("distinct_combinations", 0)))
-        else:
-            n = len(mg.get("levels") or [])
-            sent = float(mg.get("sentinel_share") or 0.0)
-            what = "categorical, {} level(s)".format(n)
-            if sent >= 0.5:
-                what += "  <-- {:.0%} is the `__other__` SENTINEL".format(
-                    sent)
-                destroyed.append((c, sent))
-        say("  {:<28} {}".format(c, what))
-    if destroyed:
-        say("")
-        say("STOP AND READ THIS. {} column(s) are mostly or entirely "
-            "the sentinel:".format(len(destroyed)))
-        for c, sent in sorted(destroyed, key=lambda x: -x[1]):
-            say("  {}: {:.0%} `__other__` - too many distinct values "
-                "to publish as labels".format(c, sent))
-        say("  These columns are DESTROYED in the output, and every "
-            "per-column check will still pass,")
-        say("  because coverage counts whether a value is present and "
-            "the sentinel is present.")
-        say("  A number wearing punctuation does this - currency, a "
-            "percent sign, a time of day, an")
-        say("  identifier. Check whether these are really categories "
-            "before trusting anything downstream.")
-
-    # IS A SUPPRESSED CATEGORICAL ACTUALLY LIST-VALUED?
-    #
-    # Four columns lost 10-28% of their content to level suppression
-    # on the real run - conditions, procedures, active_drugs,
-    # drug_routes. If a patient has several drugs recorded in one
-    # field, then every distinct COMBINATION becomes its own level,
-    # the combinations explode, and almost all of them fall under k.
-    # The column would then be suppressed not because its values are
-    # rare but because it is the wrong shape for a single categorical
-    # - the same class of fault as a date modelled as 200 labels.
-    #
-    # That is a HYPOTHESIS about those four columns and cannot be
-    # settled from a machine with no clinical data on it. So the run
-    # measures it: how many present values carry a separator, and how
-    # much of the column was suppressed. One run confirms or kills it.
-    listy = []
-    for c, spec in (bp.get("columns") or {}).items():
-        mg = spec.get("marginal") or {}
-        lost = ((mg.get("suppressed_levels") or {}).get("share") or 0.0)
-        lost += ((mg.get("tail") or {}).get("share_omitted") or 0.0)
-        # Only columns that fell back to being ONE LABEL. A column
-        # already modelled as a set is not a problem to report.
-        if mg.get("type") != "levels" or lost < 0.05:
-            continue
-        if c not in df.columns:
-            continue
-        vals = df[c].astype(str).str.strip()
-        vals = vals[vals.str.len() > 0]
-        if not len(vals):
-            continue
-        for sep in (";", "|", ","):
-            share = float(vals.str.contains(sep, regex=False).mean())
-            if share >= 0.3:
-                listy.append((c, sep, share, lost,
-                              int(vals.nunique())))
-                break
-    if listy:
-        say("these look LIST-VALUED but could NOT be modelled as sets "
-            "- too few tokens cleared k, so every combination is "
-            "still its own level:")
-        for c, sep, share, lost, nun in listy:
-            say("  {}: {:.0%} of values contain {!r}, {} distinct "
-                "combinations, {:.0%} of the column suppressed or "
-                "truncated".format(c, share, sep, nun, lost))
-        say("  (modelling these as a set of indicators rather than one "
-            "label would recover most of that)")
+    _report_types(bp, df, say)
 
     probs = B.validate(bp)
     if probs:
@@ -716,6 +638,116 @@ def render_verdicts(fid):
              "the numbers behind")
     L.append("each line.")
     return "\n".join(L)
+
+
+def _report_types(bp, df, say):
+    """How every column was read, and a stop-and-read block if
+    any of them became the sentinel.
+
+    Pulled out of the run so `--types-only` can reach it
+    without paying for discovery first."""
+    # HOW EVERY COLUMN WAS TYPED, before an hour is spent on it.
+    #
+    # A column read as the wrong type is the most expensive fault this
+    # tool has: it is silent, it survives every per-column check, and
+    # it is only visible by opening the blueprint. Dates went that way
+    # at 88% sentinel; a currency column and a time-of-day column have
+    # since gone the same way at 100%. One glance at this list would
+    # have caught all three.
+    say("column types:")
+    destroyed = []
+    for c, spec in sorted((bp.get("columns") or {}).items()):
+        mg = spec.get("marginal") or {}
+        if spec.get("kind") == "numeric":
+            what = "numeric"
+            if spec.get("date"):
+                what = "date {}".format(spec["date"]["format"])
+            elif mg.get("integral"):
+                what = "numeric (whole numbers)"
+        elif mg.get("type") == "suppressed":
+            what = "SUPPRESSED - too few patients to publish"
+        elif mg.get("type") == "list":
+            # Named here rather than warned about. It was a warning
+            # while nothing could model these; now that the set is
+            # modelled as a set, the honest report is what it became.
+            sz = mg.get("set_size") or {}
+            avg = sum(float(v) * float(p_) for v, p_
+                      in zip(sz.get("v") or [1], sz.get("p") or [1.0]))
+            what = ("SET of {} tokens, {:.1f} per row, from {} "
+                    "distinct combinations".format(
+                        len(mg.get("tokens") or []), avg,
+                        mg.get("distinct_combinations", 0)))
+        else:
+            n = len(mg.get("levels") or [])
+            sent = float(mg.get("sentinel_share") or 0.0)
+            what = "categorical, {} level(s)".format(n)
+            if sent >= 0.5:
+                what += "  <-- {:.0%} is the `__other__` SENTINEL".format(
+                    sent)
+                destroyed.append((c, sent))
+        say("  {:<28} {}".format(c, what))
+    if destroyed:
+        say("")
+        say("STOP AND READ THIS. {} column(s) are mostly or entirely "
+            "the sentinel:".format(len(destroyed)))
+        for c, sent in sorted(destroyed, key=lambda x: -x[1]):
+            say("  {}: {:.0%} `__other__` - too many distinct values "
+                "to publish as labels".format(c, sent))
+        say("  These columns are DESTROYED in the output, and every "
+            "per-column check will still pass,")
+        say("  because coverage counts whether a value is present and "
+            "the sentinel is present.")
+        say("  A number wearing punctuation does this - currency, a "
+            "percent sign, a time of day, an")
+        say("  identifier. Check whether these are really categories "
+            "before trusting anything downstream.")
+
+    # IS A SUPPRESSED CATEGORICAL ACTUALLY LIST-VALUED?
+    #
+    # Four columns lost 10-28% of their content to level suppression
+    # on the real run - conditions, procedures, active_drugs,
+    # drug_routes. If a patient has several drugs recorded in one
+    # field, then every distinct COMBINATION becomes its own level,
+    # the combinations explode, and almost all of them fall under k.
+    # The column would then be suppressed not because its values are
+    # rare but because it is the wrong shape for a single categorical
+    # - the same class of fault as a date modelled as 200 labels.
+    #
+    # That is a HYPOTHESIS about those four columns and cannot be
+    # settled from a machine with no clinical data on it. So the run
+    # measures it: how many present values carry a separator, and how
+    # much of the column was suppressed. One run confirms or kills it.
+    listy = []
+    for c, spec in (bp.get("columns") or {}).items():
+        mg = spec.get("marginal") or {}
+        lost = ((mg.get("suppressed_levels") or {}).get("share") or 0.0)
+        lost += ((mg.get("tail") or {}).get("share_omitted") or 0.0)
+        # Only columns that fell back to being ONE LABEL. A column
+        # already modelled as a set is not a problem to report.
+        if mg.get("type") != "levels" or lost < 0.05:
+            continue
+        if c not in df.columns:
+            continue
+        vals = df[c].astype(str).str.strip()
+        vals = vals[vals.str.len() > 0]
+        if not len(vals):
+            continue
+        for sep in (";", "|", ","):
+            share = float(vals.str.contains(sep, regex=False).mean())
+            if share >= 0.3:
+                listy.append((c, sep, share, lost,
+                              int(vals.nunique())))
+                break
+    if listy:
+        say("these look LIST-VALUED but could NOT be modelled as sets "
+            "- too few tokens cleared k, so every combination is "
+            "still its own level:")
+        for c, sep, share, lost, nun in listy:
+            say("  {}: {:.0%} of values contain {!r}, {} distinct "
+                "combinations, {:.0%} of the column suppressed or "
+                "truncated".format(c, share, sep, nun, lost))
+        say("  (modelling these as a set of indicators rather than one "
+            "label would recover most of that)")
 
 
 def _were(n, singular="was", plural="were"):

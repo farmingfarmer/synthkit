@@ -4,7 +4,7 @@ Synthetic clinical data generator and model-evaluation instrument. Core rule: le
 
 ## Verify before claiming
 
-- Run `python scripts/run_all_smokes.py` before claiming anything works. Expect 52 suites, 1430 checks, ALL GREEN.
+- Run `python scripts/run_all_smokes.py` before claiming anything works. Expect 52 suites, 1433 checks, ALL GREEN.
 - **`pip install -r requirements.txt` first, or seven suites do not
   run.** A machine without numpy, pandas and scikit-learn fails
   `smoke_blueprint`, `smoke_discover`, `smoke_dynamics`,
@@ -178,6 +178,12 @@ the direction that stops work happening.
   not a rule, so exactness is required; and because the repair is a
   SWAP, the two columns must come close on their own scale. Swapping a
   five-day stay with an oxygen saturation of 97 would destroy both.
+- **Put the cheap check first.** Every silent fault this tool has had
+  was a column read as the wrong type, and the listing that catches
+  them ran after five minutes of discovery. `--types-only` reports it
+  in seconds - 1.8s on a small file, 6s on a 77-column one - and
+  stops. On a dataset nobody has looked at, run that before spending
+  anything.
 - **A column read as the wrong type fails SILENTLY, and fixing one
   type does not fix that.** Dates became 200 labels with 88% sentinel
   and every check stayed green, because coverage counts presence and
