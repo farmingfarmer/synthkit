@@ -26,11 +26,16 @@ than the conversion:
                to it; categorical level sets with their shares;
                coverage, as a missing rate; date ranges; whether a
                column is whole-number
-  does NOT     effect curves, interaction surfaces, the relationship
-               graph, the dynamics (icc, persistence, missing
-               clustering) and informative missingness. A TableSpec
-               draws columns independently apart from declared
-               correlations, and none of that vocabulary exists there
+  partly       the relationship graph, as PAIRWISE rank correlation.
+               A TableSpec imposes those by reordering drawn values,
+               so the declared marginals survive exactly - structure
+               bought without spending fidelity. The SHAPE is what is
+               lost: a threshold, a saturation and a straight line
+               with the same rank correlation all arrive as the same
+               number, and a three-way interaction arrives as nothing
+  does NOT     effect curves, interaction surfaces, the dynamics (icc,
+               persistence, missing clustering) and informative
+               missingness - none of that vocabulary exists there
 
   and never    `outcomes`. The planted logistic signal is the ANSWER a
                vendor model is graded against, and no fitted blueprint
@@ -50,10 +55,14 @@ from typing import Any, Dict, List, Optional
 CARRIED = ("numeric marginals as empirical quantiles",
            "categorical levels and their shares",
            "coverage, as a missing rate",
-           "date ranges", "whole-number columns")
-NOT_CARRIED = ("effect curves", "interaction surfaces",
-               "the relationship graph", "icc and persistence",
-               "missing clustering", "informative missingness",
+           "date ranges", "whole-number columns",
+           "relationships, as pairwise rank correlation only")
+NOT_CARRIED = ("the SHAPE of an effect - a threshold, a saturation "
+               "and a line with the same rank correlation all arrive "
+               "as the same number",
+               "interaction surfaces, and any three-way effect",
+               "icc and persistence", "missing clustering",
+               "informative missingness",
                "outcomes - the planted answer must be authored")
 
 
@@ -146,6 +155,17 @@ def blueprint_to_tablespec(bp: Dict[str, Any], title: str = "",
         else:
             unrules.append("{} <= {}".format(con["lhs"], con["rhs"]))
 
+    # Only pairs where BOTH columns crossed as numbers. A rank
+    # correlation is imposed by reordering values, which a category
+    # has no order to be reordered by.
+    numeric_out = set(c["name"] for c in cols_out
+                      if c["ctype"] in ("int", "float"))
+    cors = [dict(c) for c in (bp.get("correlations") or [])
+            if c["a"] in numeric_out and c["b"] in numeric_out]
+    cors_lost = [c for c in (bp.get("correlations") or [])
+                 if not (c["a"] in numeric_out
+                         and c["b"] in numeric_out)]
+
     pat = bp.get("patients") or {}
     n = int(rows or pat.get("rows") or 1000)
     spec = {
@@ -154,7 +174,7 @@ def blueprint_to_tablespec(bp: Dict[str, Any], title: str = "",
         "columns": cols_out,
         "rules": rules,
         "outcomes": [],
-        "correlations": [],
+        "correlations": cors,
     }
     return {
         "tablespec": spec,
@@ -163,6 +183,9 @@ def blueprint_to_tablespec(bp: Dict[str, Any], title: str = "",
             "did_not_cross": list(NOT_CARRIED),
             "columns_dropped": dropped,
             "constraints_not_expressible": unrules,
+            "correlations_crossed": len(cors),
+            "correlations_not_expressible": [
+                "{} ~ {}".format(c["a"], c["b"]) for c in cors_lost],
             "outcomes": "EMPTY BY CONSTRUCTION. A campaign grades a "
                         "model against planted signal whose answer is "
                         "known; a fitted blueprint cannot supply one, "

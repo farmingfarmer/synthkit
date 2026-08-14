@@ -138,6 +138,67 @@ def main():
               "to the fixture and the SHAPE is the finding",
               "shape of the tradeoff" in P["caveat"])
 
+    # ---- THE NEW PATH HAD NEVER BEEN ATTACKED --------------------
+    # CONVENTIONS has said since the pivot that "no membership-
+    # inference test has been run against this path" - a design
+    # argument standing where evidence should be. The attacker gets
+    # exactly what leaves the machine: the blueprint and the synthetic
+    # rows, nothing else.
+    import numpy as _np
+    import pandas as _pd
+    from synthkit import blueprint as _B
+    from synthkit.attack import BlueprintLikelihood
+    from synthkit.generate import generate as _gen
+
+    _r = _np.random.RandomState(11)
+    _npat, _nvis = 400, 8
+    _g = _np.repeat(_np.arange(_npat), _nvis)
+    _n = len(_g)
+    _sev = _np.round(60 + 25 * _r.normal(0, 1, _n), 1)
+    _df = _pd.DataFrame({
+        "person_id": ["P{:05d}".format(x) for x in _g],
+        "severity": _sev,
+        "lab": _np.round(_r.lognormal(1.0, 0.7, _n), 2),
+        "site": _r.choice(["A", "B", "C"], _n, p=[.5, .3, .2])})
+    _ids = sorted(_df["person_id"].unique())
+    _rng = _np.random.RandomState(12)
+    _rng.shuffle(_ids)
+    _mem = set(_ids[:len(_ids) // 2])
+    _mdf = _df[_df["person_id"].isin(_mem)]
+    _ndf = _df[~_df["person_id"].isin(_mem)]
+    _bp = _B.build(_mdf, {"claims": [], "unexplained": [],
+                          "skipped": []}, group_by="person_id", k=10)
+    _syn = _gen(_bp, n_patients=len(_mem), seed=5)
+    _audit = membership_audit(BlueprintLikelihood(_bp),
+                              _mdf.to_dict("records"),
+                              _ndf.to_dict("records"),
+                              synthetic=_syn.to_dict("records"))
+    check("a blueprint can be SCORED as a model, so the likelihood "
+          "adversary works on the fitted path and not only on CondNet",
+          "likelihood" in _audit and "auc" in _audit["likelihood"])
+    check("membership inference against the fitted path is near a "
+          "coin flip - worst AUC {:.3f} across both adversaries"
+          .format(_audit["worst_auc"]), _audit["worst_auc"] < 0.60)
+
+    # THE GUARD HAS TO BE ABLE TO FAIL. An attack that always reports
+    # a coin flip proves nothing at all, so it is handed a generator
+    # that leaks everything: the members themselves as the synthetic
+    # data. A nearest-neighbour adversary must find that instantly.
+    _leak = membership_audit(BlueprintLikelihood(_bp),
+                             _mdf.to_dict("records"),
+                             _ndf.to_dict("records"),
+                             synthetic=_mdf.to_dict("records"))
+    check("...and the attack CATCHES a generator that leaks - handed "
+          "the members themselves as synthetic data it scores {:.3f} "
+          "and returns {}, so the pass above is a measurement rather "
+          "than a formality"
+          .format(_leak["worst_auc"], _leak["verdict"]),
+          _leak["worst_auc"] > 0.75 and _leak["verdict"] == "FAIL")
+    check("...and it reports how many PEOPLE stood behind the model, "
+          "because a raised score on a small cohort says as much "
+          "about the cohort as the method",
+          _audit.get("members_are_people", 0) > 0)
+
     print()
     if FAIL:
         print("{} FAILED".format(FAIL))

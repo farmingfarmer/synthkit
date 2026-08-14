@@ -106,6 +106,80 @@ def nearest_neighbour_attack(members, nonmembers, synthetic
             "attacker_sees": "the synthetic data only"}
 
 
+class BlueprintLikelihood:
+    """A published blueprint, scored as a model an attacker holds.
+
+    THE NEW PATH HAD NEVER BEEN ATTACKED. `privacy_curve.py` audits
+    CondNet, and `CONVENTIONS.md` has said since the pivot that "no
+    membership-inference test has been run against this path" - a
+    design argument where there should be evidence.
+
+    The nearest-neighbour adversary needs no model and works on the
+    new path unchanged. The likelihood adversary needs something that
+    scores a row, and a blueprint IS that: it publishes a quantile
+    grid per numeric column and level shares per categorical one, so
+    the density it implies can be read straight off the artefact that
+    leaves the machine. Nothing here uses the source data - that is
+    the point. An attacker has the blueprint and the synthetic rows,
+    and nothing else.
+
+    Piecewise-uniform between published knots, which is exactly what
+    generation inverts, so the attacker is reading the same shape the
+    generator drew from."""
+
+    def __init__(self, blueprint: Dict[str, Any]):
+        self.cols = (blueprint or {}).get("columns") or {}
+
+    def _numeric_logp(self, m, x):
+        q = [float(z) for z in (m.get("q") or [])]
+        v = [float(z) for z in (m.get("v") or [])]
+        if len(q) < 2 or len(q) != len(v):
+            return None
+        if x < v[0] or x > v[-1]:
+            # Outside everything the blueprint admits to. Rare rather
+            # than impossible, and a floor keeps one such column from
+            # deciding the whole row.
+            return -12.0
+        for i in range(len(v) - 1):
+            if v[i] <= x <= v[i + 1]:
+                width = v[i + 1] - v[i]
+                mass = q[i + 1] - q[i]
+                if width <= 0 or mass <= 0:
+                    return -12.0
+                return math.log(max(mass / width, 1e-12))
+        return -12.0
+
+    def log_likelihood(self, row: Dict[str, Any]) -> float:
+        total = 0.0
+        for name, spec in self.cols.items():
+            if name not in row:
+                continue
+            raw = row.get(name)
+            m = spec.get("marginal") or {}
+            present = not (raw is None or str(raw).strip() == ""
+                           or str(raw).lower() in ("nan", "none"))
+            cov = float(spec.get("coverage", 1.0) or 1.0)
+            if not present:
+                total += math.log(max(1.0 - cov, 1e-6))
+                continue
+            total += math.log(max(cov, 1e-6))
+            if m.get("type") == "quantiles":
+                x = _num(raw)
+                if x is None:
+                    continue
+                lp = self._numeric_logp(m, x)
+                if lp is not None:
+                    total += lp
+            elif m.get("type") == "levels":
+                share = 1e-6
+                for lv in (m.get("levels") or []):
+                    if str(lv.get("value")) == str(raw):
+                        share = max(float(lv.get("p", 0.0)), 1e-6)
+                        break
+                total += math.log(share)
+        return total
+
+
 def likelihood_attack(net, members, nonmembers) -> Dict[str, Any]:
     """Score by how probable the published model finds each row."""
     scores = [net.log_likelihood(r) for r in members] + \

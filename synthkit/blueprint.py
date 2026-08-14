@@ -390,6 +390,14 @@ def build(df: pd.DataFrame,
     from .discover import _source, prepare
     from .dynamics import measure as measure_dynamics
 
+    # A FILTERED FRAME STILL CARRIES ITS OLD INDEX, and everything
+    # below pairs `X` with `gvals` POSITIONALLY. Handed a subset -
+    # one cohort, a train/test split, anything a caller slices - the
+    # labels run past the end of the array and the build dies with an
+    # IndexError about a number nobody recognises. Found by fitting on
+    # half a cohort for a membership attack, which is an ordinary
+    # thing to want to do.
+    df = df.reset_index(drop=True)
     X, identifiers, dates, quantities = prepare(
         df, group_by, ordinals=ordinals)
     n_rows = len(df)
@@ -508,6 +516,45 @@ def build(df: pd.DataFrame,
             "dials": {"strength": None},
         })
 
+    # THE PAIRWISE STRENGTH OF EVERY RELATIONSHIP FOUND.
+    #
+    # The effect curves say what SHAPE a dependence has, and nothing
+    # downstream of this document can read them: a TableSpec draws its
+    # columns independently apart from declared correlations, so a
+    # blueprint that crossed into one arrived right about its columns
+    # and silent about their structure.
+    #
+    # A rank correlation is the part that CAN cross. It is imposed
+    # there by reordering drawn values, which leaves every declared
+    # marginal exactly as it was - so this buys structure without
+    # spending any of the fidelity the rest of this file works for.
+    # Spearman rather than Pearson for the same reason the fidelity
+    # report uses it: a threshold or a saturation is monotone and a
+    # line is not the point.
+    correlations: List[Dict[str, Any]] = []
+    seen_pair = set()
+    for r in rels:
+        child = r["child"]
+        for par in r["parents"]:
+            key = frozenset([child, par])
+            if key in seen_pair or child == par:
+                continue
+            seen_pair.add(key)
+            if child not in X.columns or par not in X.columns:
+                continue
+            if not (pd.api.types.is_numeric_dtype(X[child])
+                    and pd.api.types.is_numeric_dtype(X[par])):
+                continue
+            a_, b_ = X[child], X[par]
+            m_ = a_.notna() & b_.notna()
+            if int(m_.sum()) < 50:
+                continue
+            rho = a_[m_].corr(b_[m_], method="spearman")
+            if rho != rho or abs(float(rho)) < 0.1:
+                continue
+            correlations.append({"a": child, "b": par,
+                                 "spearman": round(float(rho), 4)})
+
     patients: Dict[str, Any] = {"rows": int(n_rows)}
     if group_by and group_by in df.columns:
         per = df.groupby(group_by).size()
@@ -554,6 +601,7 @@ def build(df: pd.DataFrame,
     return {
         "blueprint_version": BLUEPRINT_VERSION,
         "constraints": _constraints(X, k),
+        "correlations": correlations,
         "columns": columns,
         "relationships": rels,
         "patients": patients,

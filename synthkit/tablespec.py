@@ -381,8 +381,12 @@ class TableSpec:
                     problems.append("{}: target and source must "
                                     "differ".format(rtag))
         names = {c.name for c in self.columns}
+        # `quantiles` belongs here for the same reason the others do:
+        # it draws a NUMBER, and a correlation is imposed by
+        # reordering numbers. Leaving it out silently refused every
+        # relationship a fitted blueprint carries across.
         numeric_kinds = {"normal", "lognormal", "uniform", "beta",
-                         "mixture", "sequence"}
+                         "mixture", "sequence", "quantiles"}
         for i, pr in enumerate(self.correlations):
             where = "correlations[{}]".format(i)
             if not isinstance(pr, dict):

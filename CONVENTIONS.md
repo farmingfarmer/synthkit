@@ -4,7 +4,7 @@ Synthetic clinical data generator and model-evaluation instrument. Core rule: le
 
 ## Verify before claiming
 
-- Run `python scripts/run_all_smokes.py` before claiming anything works. Expect 52 suites, 1405 checks, ALL GREEN.
+- Run `python scripts/run_all_smokes.py` before claiming anything works. Expect 52 suites, 1416 checks, ALL GREEN.
 - **`pip install -r requirements.txt` first, or seven suites do not
   run.** A machine without numpy, pandas and scikit-learn fails
   `smoke_blueprint`, `smoke_discover`, `smoke_dynamics`,
@@ -86,8 +86,14 @@ the direction that stops work happening.
   weeks in a file described as aggregates-only.
 - k-anonymity on what is published is NOT differential privacy, and
   the effect curves, interaction surfaces and dynamics have NOT been
-  audited the same way. No membership-inference test has been run
-  against the new path. Say all of that whenever the posture comes up.
+  audited the same way. A membership-inference test HAS now been run
+  against the new path - `scripts/membership_new_path.py`, both
+  adversaries, worst AUC 0.52 where a coin flip is 0.50, and the SAME
+  attack scores 1.00 and returns FAIL when handed a generator that
+  leaks, so the pass is a measurement and not a formality. It remains
+  one cohort shape at one k on one fixture: a floor, not a
+  certificate, and not a release decision for a different cohort. Say
+  all of that whenever the posture comes up.
 
 ## Numbers before conclusions
 
