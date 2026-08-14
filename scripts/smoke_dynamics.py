@@ -208,6 +208,66 @@ def main():
           "vanishes from the output",
           abs(within_from(0.5 + 0.5 * 0.7, 0.5) - 0.7) < 1e-9)
 
+    # ---- BEING MEASURED IS ITSELF A SIGNAL ------------------------
+    # Presence was drawn from a coverage share and a clustering dial
+    # and nothing else, so whether a lab existed on a row was
+    # independent of everything on that row. In an extract the test
+    # was ordered BECAUSE the patient was unwell. Its own fixture,
+    # because adding a column to a shared one has already cost three
+    # unrelated checks this week.
+    rp = np.random.RandomState(11)
+    NPM, NVM = 400, 25
+    gm = np.repeat(np.arange(NPM), NVM)
+    nm = len(gm)
+    sev = np.round(60 + 25 * rp.normal(0, 1, nm), 1)
+    pr = 1.0 / (1.0 + np.exp(-(sev - 75) / 8.0))
+    lact = np.where(rp.random_sample(nm) < pr,
+                    np.round(rp.lognormal(0.3, 0.5, nm), 2), np.nan)
+    dfm = pd.DataFrame({"person_id": ["P{:04d}".format(x) for x in gm],
+                        "severity": sev, "lactate": lact,
+                        "noise": np.round(rp.normal(0, 1, nm), 3)})
+    bpm = B.build(dfm, {"claims": [], "unexplained": [], "skipped": []},
+                  group_by="person_id")
+    pm = bpm["columns"]["lactate"].get("presence")
+    check("what makes a column get MEASURED is discovered - {} drives "
+          "whether lactate exists at all".format(
+              None if not pm else pm["parent"]),
+          pm is not None and pm["parent"] == "severity")
+    check("...and every published bin is backed by k PATIENTS, like "
+          "every other number that leaves this machine",
+          pm is not None and pm.get("bins_are_k_anonymous") == 10)
+    check("a column whose presence depends on NOTHING gets no model, "
+          "or the mechanism would be invented everywhere",
+          bpm["columns"]["noise"].get("presence") is None)
+
+    bp_off = dict(bpm)
+    cols_off = dict((k2, dict(v)) for k2, v in bpm["columns"].items())
+    cols_off["lactate"].pop("presence", None)
+    bp_off["columns"] = cols_off
+    g_on = generate(bpm, n_patients=NPM, seed=5)
+    g_off = generate(bp_off, n_patients=NPM, seed=5)
+
+    def sev_gap(fr):
+        a = pd.to_numeric(fr["lactate"], errors="coerce")
+        s = pd.to_numeric(fr["severity"], errors="coerce")
+        pres = a.notna()
+        return float(s[pres].mean() - s[~pres].mean())
+
+    def cov_of(fr):
+        return float(pd.to_numeric(fr["lactate"],
+                                   errors="coerce").notna().mean())
+    gs, go, gn = sev_gap(dfm), sev_gap(g_off), sev_gap(g_on)
+    check("THE FIXTURE REPRODUCES THE FAULT: without a presence model "
+          "the measured and unmeasured rows differ by {:+.2f} in "
+          "severity where the source differs by {:+.2f} - the signal "
+          "is simply gone".format(go, gs), abs(go) < 0.15 * abs(gs))
+    check("...and with one it comes back at {:+.2f}".format(gn),
+          abs(gn - gs) < 0.35 * abs(gs))
+    check("COVERAGE IS NOT MOVED BY IT - informative missingness "
+          "changes WHICH rows are present, not how many: {:.3f} "
+          "against {:.3f}".format(cov_of(g_on), cov_of(dfm)),
+          abs(cov_of(g_on) - cov_of(dfm)) <= 0.05)
+
     print()
     if FAIL:
         print("{} FAILED".format(FAIL))

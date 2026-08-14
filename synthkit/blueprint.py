@@ -232,6 +232,87 @@ def _categorical_marginal(s: pd.Series, groups=None,
     return out
 
 
+def _presence_model(X: pd.DataFrame, col: str, groups,
+                    k: int = 10) -> Optional[Dict[str, Any]]:
+    """What makes this column get MEASURED at all.
+
+    Presence has been drawn from a coverage share and a clustering
+    dial and nothing else - so whether a lab exists on a row was
+    independent of everything on that row. In an extract it is the
+    opposite: the test was ordered BECAUSE the patient was unwell.
+    Being measured is a signal, often a stronger one than the value,
+    and generating it independently throws it away.
+
+    Discovery already sees this and says so - `shapes.describe` has a
+    presence-only shape reading "X does not depend on the VALUE of Y
+    at all; it depends on whether Y was measured". It was discovered
+    and never carried, which is the same gap that left dates as
+    categories and identities broken.
+
+    Non-parametric and cheap: bin a candidate, take the share present
+    in each bin, and keep the candidate whose share moves most. Every
+    published bin must be backed by k PATIENTS, for the same reason
+    every other published number is."""
+    from .discover import _source
+    present = X[col].notna()
+    cov = float(present.mean())
+    if cov >= 0.99 or cov <= 0.01 or groups is None:
+        return None
+    g = pd.Series(np.asarray(groups)[X.index], index=X.index)
+    best = None
+    for cand in X.columns:
+        if cand == col or _source(cand) == _source(col):
+            continue
+        s = X[cand]
+        if s.notna().mean() < 0.5:
+            continue
+        try:
+            if pd.api.types.is_numeric_dtype(s):
+                binned = pd.qcut(s, 6, duplicates="drop")
+            else:
+                binned = s.astype(str)
+        except (ValueError, TypeError):
+            continue
+        d = pd.DataFrame({"b": binned, "p": present, "g": g}).dropna(
+            subset=["b"])
+        if d.empty:
+            continue
+        grp = d.groupby("b", observed=True)
+        share = grp["p"].mean()
+        pats = grp["g"].nunique()
+        keep = pats[pats >= k].index
+        if len(keep) < 2:
+            continue
+        share = share.loc[keep]
+        spread = float(share.max() - share.min())
+        if best is None or spread > best[0]:
+            best = (spread, cand, share, binned)
+    if best is None or best[0] < 0.10:
+        return None
+    spread, cand, share, binned = best
+    numeric = pd.api.types.is_numeric_dtype(X[cand])
+    if numeric:
+        mids = [float(iv.mid) for iv in share.index]
+        order = np.argsort(mids)
+        grid = [round(mids[i], 6) for i in order]
+        resp = [round(float(share.iloc[i]), 6) for i in order]
+    else:
+        grid = [str(x) for x in share.index]
+        resp = [round(float(x), 6) for x in share.to_numpy()]
+    return {
+        "parent": cand,
+        "parent_kind": "numeric" if numeric else "categorical",
+        "grid": grid,
+        "response": resp,
+        "spread": round(spread, 6),
+        "base_coverage": round(cov, 6),
+        "bins_are_k_anonymous": k,
+        "note": "share of rows on which this column is present, by "
+                "the parent's value. Bins carried by fewer than {} "
+                "patients are not published.".format(k),
+    }
+
+
 def _constraints(X: pd.DataFrame, k: int = 10) -> List[Dict[str, Any]]:
     """Orderings that hold on every row of the source.
 
@@ -333,6 +414,9 @@ def build(df: pd.DataFrame,
         # would need every one of those paths taught about it.
         if c in dates:
             columns[c]["date"] = dates[c]
+        pm = _presence_model(X, c, gvals, k)
+        if pm is not None:
+            columns[c]["presence"] = pm
 
     # HOW EACH COLUMN BEHAVES ACROSS VISITS. Without this the output
     # has the right share of missing values scattered at random rather

@@ -4,7 +4,7 @@ Synthetic clinical data generator and model-evaluation instrument. Core rule: le
 
 ## Verify before claiming
 
-- Run `python scripts/run_all_smokes.py` before claiming anything works. Expect 50 suites, 1365 checks, ALL GREEN.
+- Run `python scripts/run_all_smokes.py` before claiming anything works. Expect 50 suites, 1371 checks, ALL GREEN.
 - **`pip install -r requirements.txt` first, or seven suites do not
   run.** A machine without numpy, pandas and scikit-learn fails
   `smoke_blueprint`, `smoke_discover`, `smoke_dynamics`,
@@ -140,6 +140,18 @@ the direction that stops work happening.
   systolic against diastolic generated at 0.978 where the source had
   0.888. Each curve now carries the skill of the model that produced
   it.
+- **Being MEASURED is a signal, and it was being thrown away.**
+  Presence came from a coverage share and a clustering dial and
+  nothing else, so whether a lab existed on a row was independent of
+  everything on that row. In an extract the test was ordered BECAUSE
+  the patient was unwell. Measured on a fixture where presence depends
+  on severity: the source separates measured from unmeasured rows by
+  35.8 points of severity, generation reproduced -0.2, and the signal
+  was simply absent. Discovery had been naming it all along - the
+  presence-only shape in `shapes.describe` - and nothing carried it.
+  Now the strongest predictor of presence gets a k-screened curve, and
+  generation thresholds correlated uniforms against it: informative,
+  coverage unmoved, clustering preserved.
 - **Spearman cannot see a CATEGORICAL pair, and said nothing about
   it.** `_pair_fidelity` coerced both sides to numeric and skipped
   what became NaN, so a perfectly associated categorical pair compared

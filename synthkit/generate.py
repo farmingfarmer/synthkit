@@ -412,6 +412,79 @@ def _order(bp: Dict[str, Any]):
     return order, parents, dropped, repaired
 
 
+def _presence_p(pm, parent_vals, target_cov):
+    """Per-row probability that this column is measured.
+
+    Rescaled so the mean is exactly the coverage the blueprint
+    published: informative missingness must not move the share of
+    rows that are present, only WHICH rows they are. The coverage
+    dial keeps meaning what it says."""
+    grid, resp = pm.get("grid") or [], pm.get("response") or []
+    if not grid or len(grid) != len(resp):
+        return None
+    r = np.asarray(resp, dtype=float)
+    if pm.get("parent_kind") == "categorical":
+        table = dict(zip([str(x) for x in grid], r))
+        p = np.asarray([table.get(str(v), float(r.mean()))
+                        for v in parent_vals], dtype=float)
+    else:
+        pv = pd.to_numeric(pd.Series(parent_vals),
+                           errors="coerce").to_numpy(dtype=float)
+        p = np.interp(pv, np.asarray(grid, dtype=float), r,
+                      left=r[0], right=r[-1])
+        p = np.where(np.isnan(pv), float(r.mean()), p)
+    m = float(p.mean())
+    if m <= 0:
+        return None
+    p = np.clip(p * (float(target_cov) / m), 0.0, 1.0)
+    # clipping can pull the mean off target; one correction pass is
+    # enough at these magnitudes and it is checked in the report
+    m2 = float(p.mean())
+    if m2 > 0:
+        p = np.clip(p * (float(target_cov) / m2), 0.0, 1.0)
+    return p
+
+
+def _informative_presence(pm, parent_vals, counts, cov, clus, rng):
+    """Presence that depends on the row, keeping the coverage share
+    and the run structure.
+
+    A per-row probability alone would scatter the missing values at
+    random and lose the clustering - a panel not drawn last visit is
+    unlikely to be drawn now. So the threshold varies by row and the
+    UNIFORMS carry the persistence, with the correlation solved so
+    the excess measured in the source comes back out. Same shape as
+    every other dial here: pick the parameter that reproduces the
+    measured statistic, then let the report check it did."""
+    p = _presence_p(pm, parent_vals, cov)
+    if p is None:
+        return None
+    if clus <= 0.0:
+        return rng.random_sample(len(p)) < p
+
+    def excess(rho):
+        u = persistent_uniform(counts, 0.0, rho, rng)
+        keep = u < p
+        idx = np.arange(len(keep) - 1)
+        starts = np.cumsum(counts) - counts
+        same = ~np.isin(idx + 1, starts)
+        a, b = idx[same], idx[same] + 1
+        prev, cur = keep[a], keep[b]
+        if prev.sum() < 15 or (~prev).sum() < 15:
+            return 0.0
+        return float(cur[prev].mean() - cur[~prev].mean())
+
+    lo, hi = 0.0, 0.97
+    for _ in range(12):
+        mid = (lo + hi) / 2.0
+        if excess(mid) < clus:
+            lo = mid
+        else:
+            hi = mid
+    u = persistent_uniform(counts, 0.0, (lo + hi) / 2.0, rng)
+    return u < p
+
+
 def _enforce(df: pd.DataFrame, constraints, report=None):
     """Put back the orderings the source never broke.
 
@@ -533,7 +606,23 @@ def generate(blueprint: Dict[str, Any],
         cov = spec.get("target_coverage")
         if cov is not None and float(cov) < 1.0:
             clus = float(spec.get("target_missing_clustering") or 0.0)
-            if per_patient or clus <= 0.0:
+            # WHETHER A COLUMN IS MEASURED CAN DEPEND ON THE ROW.
+            # Only when the parent has already been drawn - the order
+            # is fixed by the relationship graph and is not rearranged
+            # for this. Otherwise the flat path below, unchanged.
+            pm = spec.get("presence")
+            keep = None
+            if pm and not per_patient and pm.get("parent") in out:
+                keep = _informative_presence(
+                    pm, out[pm["parent"]], counts, float(cov), clus,
+                    rng)
+                if keep is not None and report is not None:
+                    report.setdefault("presence_modelled", []).append(
+                        {"column": c, "parent": pm["parent"],
+                         "spread": pm.get("spread")})
+            if keep is not None:
+                pass
+            elif per_patient or clus <= 0.0:
                 keep = rng.random_sample(len(base)) < float(cov)
             else:
                 # A two-state chain whose stationary share is exactly
