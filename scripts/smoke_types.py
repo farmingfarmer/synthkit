@@ -160,6 +160,25 @@ def main():
           .format(odd["severity"]["unparsed_share"]),
           odd["severity"]["unparsed_share"] > 0.1)
 
+    # ---- AN ELAPSED DURATION IS NOT A TIME OF DAY ----------------
+    # `\d{1,2}` accepted 36:20 and 48:00, read them as minutes since
+    # midnight, and rendered them back through a 24-hour wrap: 36:20
+    # came out 12:20 and 48:00 came out 00:00. Silent corruption of a
+    # column nobody was watching, found by asking what a clock parser
+    # does to data that is not a clock.
+    dur = pd.Series(["36:20", "12:05", "48:00", "07:30", "26:15"] * 40)
+    check("a duration past 23:59 is NOT claimed as a clock - it would "
+          "be wrapped into a different value on the way out",
+          quantity_kind(dur) is None)
+    tod = pd.Series(["08:15", "23:59", "00:00", "13:42"] * 40)
+    check("...while a real time of day still is, so the bound "
+          "protects rather than disables",
+          (quantity_kind(tod) or {}).get("kind") == "clock")
+    spec_c = quantity_kind(tod)
+    back_c = from_number(to_number(tod, spec_c).to_numpy(), spec_c)
+    check("...and 23:59 survives the round trip rather than wrapping "
+          "to 00:00", "23:59" in set(back_c.dropna()))
+
     # ---- ROUND TRIP ----------------------------------------------
     for col in ("charge", "pct_complete", "seen_at"):
         spec = quant[col]

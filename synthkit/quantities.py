@@ -50,8 +50,16 @@ _CURRENCY = re.compile(
     r"(?P<num>\d{1,3}(?:,\d{3})*(?:\.\d+)?|\d+(?:\.\d+)?)\s*$")
 _PERCENT = re.compile(
     r"^\s*(?P<num>-?\d+(?:\.\d+)?)\s*%\s*$")
+# HOURS 0-23 ONLY, and that bound is the whole safety of this one.
+# `\d{1,2}` accepted 36:20 and 48:00, which are ELAPSED DURATIONS and
+# not times of day; they were read as minutes-since-midnight and
+# rendered back through a 24-hour wrap, so 36:20 came out as 12:20 and
+# 48:00 as 00:00. Silent corruption of a column nobody was watching.
+# Past 23:59 a value is not a clock, so it now falls through to the
+# categorical branch where the sentinel guard can see it.
 _CLOCK = re.compile(
-    r"^\s*(?P<h>\d{1,2}):(?P<m>\d{2})(?::(?P<s>\d{2}))?\s*$")
+    r"^\s*(?P<h>2[0-3]|[01]?\d):(?P<m>[0-5]\d)"
+    r"(?::(?P<s>[0-5]\d))?\s*$")
 
 
 def _sample(s: pd.Series) -> pd.Series:
