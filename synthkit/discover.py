@@ -56,6 +56,7 @@ from sklearn.ensemble import (HistGradientBoostingClassifier,
 
 from .dates import (DATE_ORIGIN, date_kind, from_datetime,
                     labeller, to_ordinal)
+from . import sets as _sets
 from .quantities import ordinal_spec, quantity_kind, to_number
 from .shapes import (FLAT_SHARE, additive_departure, curve_centre,
                      describe, describe_joint, effect_curve,
@@ -114,13 +115,20 @@ def _is_identifier(s: pd.Series, n_rows: int) -> bool:
 def prepare(df: pd.DataFrame,
             group_by: Optional[str] = None,
             drop_identifiers: bool = True,
-            ordinals: Optional[Dict[str, Any]] = None):
+            ordinals: Optional[Dict[str, Any]] = None,
+            k: int = 10):
     """Typed frame: numerics as float with NaN, DATES as days since
     DATE_ORIGIN, everything else as a capped category. Blanks become
     NaN rather than a level, so `missing` is one concept and not three
     spellings of it.
 
-    Returns (frame, identifiers, dates). `dates` maps each column that
+    Returns (frame, identifiers, dates, quantities, sets). FIVE, not
+    four: a caller that has not been updated raises immediately, which
+    is the same reason there were three and then four. A set column
+    silently left unexpanded is a relationship quietly lost, and this
+    file already records what that costs.
+
+    `dates` maps each column that
     was read as a date to the format it was read under, which is what
     lets generation write it back as a date instead of as an ordinal
     float. THREE return values rather than two so a caller that has
@@ -130,7 +138,24 @@ def prepare(df: pd.DataFrame,
 
     Built with a single concat. Assigning column by column leaves the
     frame fragmented and every later `.loc` pays for it."""
-    cols, ident, dates, quantities = {}, [], {}, {}
+    cols, ident, dates, quantities, sets = {}, [], {}, {}, {}
+
+    # A REAL COLUMN THAT LOOKS LIKE SCAFFOLDING IS A SILENT DROP.
+    # `source_of` folds `foo__has__bar` into `foo`, and the blueprint
+    # skips anything whose source is not itself - so a column
+    # genuinely named that way would vanish from the output with every
+    # check green. Reported, never risked.
+    bad = _sets.collisions(df.columns)
+    if bad:
+        raise ValueError(
+            "these column names collide with set-indicator "
+            "scaffolding and would be silently dropped: {}. Rename "
+            "them, or run with a copy that does.".format(
+                ", ".join(sorted(bad))))
+
+    gv = (df[group_by].astype(str).to_numpy()
+          if group_by and group_by in df.columns
+          else np.arange(len(df)))
     for c in df.columns:
         if c == group_by:
             continue
@@ -182,6 +207,18 @@ def prepare(df: pd.DataFrame,
                 keep = s.value_counts().index[:MAX_LEVELS]
                 s = s.where(s.isin(keep) | s.isna(), OTHER)
                 cols[c] = s.astype("category")
+                # A SET IS A BAD CATEGORY AND A GOOD SET OF
+                # INDICATORS. The capped category above stays, because
+                # it is what the blueprint builds the list marginal
+                # from; the indicators are what anything LEARNS from.
+                # Measured on a fixture shaped after the real extract:
+                # the combination string carries r2 0.324 of a signal
+                # its own token carries at 0.733.
+                v = _sets.vocabulary(df[c], gv, k=k,
+                                     cap=_sets.EXPAND_CAP)
+                if v is not None:
+                    sets[c] = v
+                    cols.update(_sets.expand(df[c], v))
         if drop_identifiers and _is_identifier(cols[c], len(df)):
             # A date UNIQUE ON EVERY ROW is still a key, and was
             # dropped as one before this branch existed. Typing it as
@@ -216,7 +253,7 @@ def prepare(df: pd.DataFrame,
     # bare number where the source had money - the same silent-no-op
     # class this file is built to avoid. An un-updated caller raises
     # here instead.
-    return out, ident, dates, quantities
+    return out, ident, dates, quantities, sets
 
 
 def _source(col: str) -> str:
@@ -228,7 +265,39 @@ def _source(col: str) -> str:
     for suf in LAG_SUFFIXES:
         if col.endswith(suf):
             return col[:-len(suf)]
+    # A SET INDICATOR IS NOT FOLDED, deliberately. `x__prev` stands
+    # for `x` and has nothing of its own to say, but
+    # `conditions__has__t03` names WHICH token moved the child - which
+    # is the entire finding, and folding it to `conditions` would
+    # throw away the answer while reporting the question. It is a
+    # column in its own right: it gets a marginal, an effect curve
+    # over two levels rather than a 201-level grid, and generation
+    # derives it from the set it already drew.
     return col
+
+
+def _set_family(col: str, columns) -> List[str]:
+    """Everything derived from the same set column as `col`.
+
+    ONE FAMILY, EXCLUDED FROM ITSELF, exactly as a column and its lags
+    are. `conditions__n` predicts `conditions__has__t03` on any data
+    at all: draw more tokens and any given token is likelier to be
+    among them. That is arithmetic, and the first run with indicators
+    turned it into twenty-two claims - every token "explained" by its
+    own set size at skills of 0.02 to 0.47, crowding out the one
+    finding that mattered.
+
+    Siblings go too. Two tokens co-occurring IS a real thing to know,
+    but `sets.py` says plainly that co-occurrence is not modelled and
+    generation draws tokens independently - so discovering it would
+    put a relationship in the report that nothing downstream can
+    honour, and a finding that cannot be acted on reads exactly like
+    one that can."""
+    base = _sets.source_of(col)
+    if base is None:
+        return []
+    return [c for c in columns
+            if c != col and (_sets.source_of(c) == base or c == base)]
 
 
 def _self_lags(col: str, columns) -> List[str]:
@@ -277,7 +346,7 @@ def discover(df: pd.DataFrame,
     sample. Returns claims, not edges - no direction is implied beyond
     'these predict that'."""
     rng = np.random.RandomState(seed)
-    X_all, identifiers, dates, _q = prepare(
+    X_all, identifiers, dates, _q, _sets_found = prepare(
         df, group_by, ordinals=ordinals)
 
     # Split BY PATIENT. Visits from one person are not independent, so
@@ -297,12 +366,35 @@ def discover(df: pd.DataFrame,
         n_tr_g, n_te_g = int((~is_hold).sum()), int(is_hold.sum())
 
     cols = list(X_all.columns)
+
+    # THE RAW COMBINATION STRING IS DROPPED FROM THE SEARCH, both as a
+    # feature and as a target, and its indicators stand in for it.
+    #
+    # As a FEATURE it determines every one of its own indicators
+    # exactly, so permuting `conditions__has__t03` leaves the model
+    # free to read t03 straight back out of `conditions` and the
+    # importance comes back near zero. That is the lag leak again -
+    # `planted_simpson_x` correlating 0.924 with its own `__prev`,
+    # recall 0% while skill read 0.994 - and the answer there was to
+    # stop the two carrying each other.
+    #
+    # As a TARGET it is a 201-level category that is 49.5% sentinel on
+    # a fixture and 69% on the real extract; "what explains this
+    # combination string" is not a question anyone asked. The
+    # indicators are the targets now, which is also how a token comes
+    # to be explained by its neighbours.
+    #
+    # It stays in the frame: the blueprint builds the list marginal
+    # from it, and generation still emits the column itself.
+    set_sources = set(_sets_found)
+
     # An engineered feature is scaffolding, never a target. Modelling
     # one asks "what explains last visit's age" and answers "this
     # visit's age" - arithmetic dressed as a finding, and it topped
     # the catalogue by skill on the first run that worked.
     want = [c for c in (targets or cols)
-            if c in cols and (targets is not None or _source(c) == c)]
+            if c in cols and (targets is not None or _source(c) == c)
+            and c not in set_sources]
     claims, unexplained, skipped = [], [], []
 
     for idx, target in enumerate(want):
@@ -317,7 +409,8 @@ def discover(df: pd.DataFrame,
             continue
         kind = ("regression" if pd.api.types.is_numeric_dtype(y_full)
                 else "classification")
-        drop = [target] + _self_lags(target, cols)
+        drop = ([target] + _self_lags(target, cols)
+                + _set_family(target, cols) + sorted(set_sources))
         feats = [c for c in cols if c not in drop]
         if not feats:
             continue

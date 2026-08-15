@@ -269,9 +269,21 @@ def main():
         say("time axis: {} ({})".format(tc or "file order", tk))
 
     n_cols = df.shape[1]
-    say("searching {} columns - this is the slow part".format(n_cols))
+    say("searching {} columns of the file - this is the slow "
+        "part".format(n_cols))
+
+    # THE TWO NUMBERS HAVE TO AGREE, OR NEITHER IS BELIEVED. A set
+    # column becomes one indicator per token, so a four-column file
+    # was announced as "searching 4 columns" and then reported
+    # "10/27". Said once, the first time the real total is known.
+    seen_total = []
 
     def progress(i, n, col):
+        if not seen_total:
+            seen_total.append(n)
+            if n != n_cols:
+                say("  {} to search after set columns were expanded "
+                    "into one indicator per token".format(n))
         if i and i % 10 == 0:
             done = max(i, 1)
             rate = (time.time() - T0) / done
@@ -491,6 +503,10 @@ def main():
         s["lag1_ok"], s["numeric_dynamic"]))
     say("clustering within 0.15 on {}/{} partly-covered "
         "columns".format(s["cluster_ok"], s["partly_covered"]))
+    if s.get("set_tokens_compared"):
+        say("set tokens within 0.05 of their source share on {}/{} - "
+            "counted apart from the columns above, which are yours"
+            .format(s["set_tokens_ok"], s["set_tokens_compared"]))
     say("RELATIONSHIPS: {}/{} keep their direction, {}/{} land within "
         "0.2".format(s["pairs_sign_ok"], s["pairs"],
                      s["pairs_close"], s["pairs"]))
@@ -655,7 +671,7 @@ def render_verdicts(fid):
     return "\n".join(L)
 
 
-def _report_types(bp, df, say):
+def _report_types(bp, df, say):  # noqa: C901
     """How every column was read, and a stop-and-read block if
     any of them became the sentinel.
 
@@ -669,9 +685,21 @@ def _report_types(bp, df, say):
     # at 88% sentinel; a currency column and a time-of-day column have
     # since gone the same way at 100%. One glance at this list would
     # have caught all three.
+    from synthkit import sets as _SETS
     say("column types:")
     destroyed = []
+    # SCAFFOLDING IS SUMMARISED ON ITS SET'S OWN LINE, not listed.
+    # This block exists to be READ - one glance caught three silent
+    # type faults - and twenty-five `conditions__has__t07  numeric
+    # (whole numbers)` rows is how a list stops being glanced at.
+    derived_of = {}
+    for c, spec in (bp.get("columns") or {}).items():
+        d = spec.get("derived_from") or {}
+        if d.get("column"):
+            derived_of.setdefault(d["column"], []).append(c)
     for c, spec in sorted((bp.get("columns") or {}).items()):
+        if (spec.get("derived_from") or {}).get("column"):
+            continue
         mg = spec.get("marginal") or {}
         if spec.get("kind") == "numeric":
             what = "numeric"
@@ -688,10 +716,22 @@ def _report_types(bp, df, say):
             sz = mg.get("set_size") or {}
             avg = sum(float(v) * float(p_) for v, p_
                       in zip(sz.get("v") or [1], sz.get("p") or [1.0]))
+            n_tok = len(mg.get("tokens") or [])
+            # NO SILENT CAP. Only the expanded tokens can carry a
+            # relationship, so a reader who is not told how many were
+            # expanded cannot tell an absent finding from an
+            # unexamined one.
+            n_ind = len([x for x in (derived_of.get(c) or [])
+                         if not x.endswith(_SETS.SIZE)])
             what = ("SET of {} tokens, {:.1f} per row, from {} "
                     "distinct combinations".format(
-                        len(mg.get("tokens") or []), avg,
-                        mg.get("distinct_combinations", 0)))
+                        n_tok, avg, mg.get("distinct_combinations", 0)))
+            if n_ind:
+                what += "; {} expanded for the search".format(n_ind)
+                if n_tok > n_ind:
+                    what += (", {} NOT expanded (cap {}) so they "
+                             "cannot carry a relationship".format(
+                                 n_tok - n_ind, _SETS.EXPAND_CAP))
         else:
             n = len(mg.get("levels") or [])
             sent = float(mg.get("sentinel_share") or 0.0)
@@ -1241,6 +1281,7 @@ def compare(df, g, bp, group_by, time_col, ordinals=None):
     """Source against generated, column by column."""
     import numpy as np
     import pandas as pd
+    from synthkit import sets as _SETS
     from synthkit.discover import prepare
     from synthkit.dynamics import measure
 
@@ -1248,8 +1289,8 @@ def compare(df, g, bp, group_by, time_col, ordinals=None):
     # declared ordinal is numeric in the contract, so comparing
     # it as a category here would measure a different column
     # from the one that was generated.
-    Xs, _, _, _ = prepare(df, group_by, ordinals=ordinals)
-    Xg, _, _, _ = prepare(g, group_by, ordinals=ordinals)
+    Xs, _, _, _, _ = prepare(df, group_by, ordinals=ordinals)
+    Xg, _, _, _, _ = prepare(g, group_by, ordinals=ordinals)
     gt = "visit_number" if "visit_number" in g.columns else None
     ds = measure(df, Xs, group_by, time_col)
     dg = measure(g, Xg, group_by, gt)
@@ -1257,8 +1298,39 @@ def compare(df, g, bp, group_by, time_col, ordinals=None):
     cols, n_ok = [], dict(cov=0, ctr=0, spr=0, lag=0, clu=0, num=0, dyn=0,
                           part=0)
     pairs = _pair_fidelity(Xs, Xg, bp)
+
+    # SCAFFOLDING IS COUNTED SEPARATELY, or the headline is inflated.
+    # A four-column file expanded to twenty-seven, and the run
+    # reported "coverage within 0.05 on 27/27 columns" - a reader
+    # takes that for twenty-seven columns of their data. The
+    # indicators ARE worth measuring, since a token that did not
+    # survive generation is a real fault, so they are measured and
+    # reported under their own count rather than dropped. The same
+    # answer categorical pairs got: counted apart so the existing
+    # numbers keep the meaning they had.
+    derived_cols = set(
+        c for c, spec in ((bp.get("columns") or {}).items())
+        if (spec.get("derived_from") or {}).get("column"))
+    # Measured in their OWN pass below, with their own criterion.
+    # Recomputing the main loop's tests here would be two places to
+    # keep in step, and a diagnostic that drifts from what it names is
+    # the fault this file keeps finding.
+    tokens = []
+    for c in sorted(derived_cols):
+        if c not in Xs.columns or c not in Xg.columns:
+            continue
+        a_, b_ = Xs[c].dropna(), Xg[c].dropna()
+        if not len(a_) or not len(b_):
+            continue
+        if c.endswith(_SETS.SIZE):
+            continue
+        ps_, pg_ = float(a_.mean()), float(b_.mean())
+        tokens.append({"column": c, "share_source": round(ps_, 4),
+                       "share_generated": round(pg_, 4),
+                       "delta": round(pg_ - ps_, 4)})
+
     for c in Xs.columns:
-        if c not in Xg.columns:
+        if c not in Xg.columns or c in derived_cols:
             continue
         s, q = Xs[c], Xg[c]
         row = {"column": c,
@@ -1410,10 +1482,16 @@ def compare(df, g, bp, group_by, time_col, ordinals=None):
                          else (~(a_[m_] <= b_[m_])).sum())})
     return {
         "columns": cols,
+        "set_tokens": tokens,
         "constraints": cons,
         "relationships": pairs,
         "summary": {
             "columns": len(cols), "numeric": n_ok["num"],
+            # Counted APART from the columns above, which are the
+            # operator's own. These are indicators this tool built.
+            "set_tokens_compared": len(tokens),
+            "set_tokens_ok": sum(1 for x in tokens
+                                 if abs(x["delta"]) <= 0.05),
             "numeric_dynamic": n_ok["dyn"],
             "partly_covered": n_ok["part"],
             "constraints_checked": len(cons),

@@ -103,7 +103,7 @@ def main():
               "sentinel_share"))
 
     # ---- THE PARSERS ---------------------------------------------
-    X, _ident, _dates, quant = prepare(df, "person_id")
+    X, _ident, _dates, quant, _s = prepare(df, "person_id")
     for col, kind in (("charge", "currency"), ("pct_complete", "percent"),
                       ("seen_at", "clock")):
         check("{} is read as {} and typed NUMERIC, not as labels"
@@ -133,7 +133,7 @@ def main():
           "n_items" not in quant)
 
     # ---- A DECLARED ORDER, NEVER AN INFERRED ONE -----------------
-    Xo, _i, _d, quo = prepare(df, "person_id",
+    Xo, _i, _d, quo, _s2 = prepare(df, "person_id",
                               ordinals={"severity":
                                         ["mild", "moderate", "severe"]})
     check("a DECLARED order makes the column numeric, so a curve over "

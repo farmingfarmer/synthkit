@@ -4,7 +4,7 @@ Synthetic clinical data generator and model-evaluation instrument. Core rule: le
 
 ## Verify before claiming
 
-- Run `python scripts/run_all_smokes.py` before claiming anything works. Expect 53 suites, 1452 checks, ALL GREEN.
+- Run `python scripts/run_all_smokes.py` before claiming anything works. Expect 54 suites, 1474 checks, ALL GREEN.
 - **`pip install -r requirements.txt` first, or seven suites do not
   run.** A machine without numpy, pandas and scikit-learn fails
   `smoke_blueprint`, `smoke_discover`, `smoke_dynamics`,
@@ -228,6 +228,44 @@ the direction that stops work happening.
   Now the strongest predictor of presence gets a k-screened curve, and
   generation thresholds correlated uniforms against it: informative,
   coverage unmoved, clustering preserved.
+- **A SET COLUMN IS A BAD CATEGORY AND A GOOD SET OF INDICATORS.**
+  `_list_marginal` fixed what was GENERATED from a set; nothing fixed
+  what was LEARNED from it, because discovery still saw the
+  combination string. `t01;t03;t09` and `t03;t14` share the thing that
+  matters and share no level. Measured on a fixture shaped after the
+  extract - 2,064 combinations, 49.5% sentinel against 69% there -
+  `severity <- conditions` reads r2 0.324 through the capped category
+  and 0.733 through the one token that drives it. Each published token
+  now becomes its own column plus the set size, screened by PATIENTS
+  like every other bound, DERIVED at generation from the set already
+  drawn and dropped before the file is written. The vocabulary lives
+  in `sets.py` and BOTH halves call it: screening tokens twice, in two
+  files, is how the two sides come to disagree again. Co-occurrence
+  and informative token SELECTION are still not modelled, and the
+  module says so about itself.
+- **The expansion is capped and the cap is REPORTED.** Only an
+  expanded token can carry a relationship, so a reader who is not told
+  how many were expanded cannot tell an absent finding from an
+  unexamined one. Scaffolding is also counted APART from the
+  operator's own columns in the fidelity summary - a four-column file
+  expanded to twenty-seven and reported "coverage within 0.05 on
+  27/27 columns", which reads as twenty-seven columns of their data.
+- **AN INTERACTION SURFACE NAMES ITS OWN TWO COLUMNS - read them, do
+  not assume they are the first two parents.** `pair` is the top two
+  by IMPORTANCE and `parents` is the blueprint's order after
+  filtering, so they disagree whenever a parent is dropped or ranked
+  differently. A surface measured on (a, b) was applied to (c, a): a
+  0/1 indicator read against a grid of [1..5] floors onto one row, the
+  response comes out nearly constant, and it contributed nothing while
+  STILL marking both columns handled - so the 24.5-point curve on the
+  real driver never fired. This is not a set defect; sets only made
+  the orderings differ.
+- **AND ONE SEED HID IT.** The set fix measured 98% of the source
+  effect on seed 0 and was ready to ship. Across five seeds: 98, 99,
+  100, **-1**, 100. Seed 3 reproduced the exact pre-fix failure. A
+  single-seed measurement of a change to `generate.py` is worth
+  nothing, which this file already said about row counts and recall
+  and now says about effects.
 - **Spearman cannot see a CATEGORICAL pair, and said nothing about
   it.** `_pair_fidelity` coerced both sides to numeric and skipped
   what became NaN, so a perfectly associated categorical pair compared

@@ -57,6 +57,7 @@ import numpy as np
 import pandas as pd
 
 from .blueprint import resolve
+from . import sets as _sets
 from .dates import DATE_ORIGIN, from_ordinal
 from .quantities import from_number
 from .dynamics import (clustered_presence, persistent_uniform,
@@ -250,11 +251,54 @@ def _order(bp: Dict[str, Any]):
                   key=lambda r: -float(
                       (r.get("evidence") or {}).get(
                           "skill_out_of_sample") or 0.0))
+    # AN INDICATOR IS DERIVED, SO ITS SET MUST COME FIRST, and no
+    # discovered edge says so. `conditions__has__t03` is read off the
+    # set that was drawn; nothing relates the two, because a set and
+    # its own indicators are excluded from each other's search as
+    # arithmetic. Without this the topological order is free to place
+    # the indicator first and derive it from a column not yet drawn.
+    derived = {}
+    for c in cols:
+        b = _sets.source_of(c)
+        if b is not None and b in cols:
+            derived[c] = b
+
     parents: Dict[str, List[Dict[str, Any]]] = {}
     used, dropped = set(), []
     for r in rels:
         child = r.get("child")
         if child not in cols:
+            continue
+        # A DERIVED COLUMN CANNOT BE A CHILD, AND MUST NOT CLAIM THE
+        # PAIR ON ITS WAY OUT.
+        #
+        # An indicator is read off the set that was drawn, so nothing
+        # can be applied TO it - and both directions are discovered
+        # here, because "severity is high when t03 is present" and
+        # "t03 is present when severity is high" describe the same
+        # data. Sorted by skill the second one wins: 0.925 against
+        # 0.711 on the fixture. It was then accepted, the pair marked
+        # used, the honest direction dropped as a restatement, and
+        # generation applied nothing - severity separated on t03 by
+        # -0.3 where the source separated by +25.1.
+        #
+        # `continue` BEFORE the pair is recorded, so the reverse claim
+        # is still free to take it. Marking it used here is what made
+        # this silent.
+        if child in derived:
+            dropped.append({
+                "child": child,
+                "parents": [p for p in (r.get("parents") or [])
+                            if p in cols],
+                "skill": round(float((r.get("evidence") or {}).get(
+                    "skill_out_of_sample") or 0.0), 4),
+                "why": "the child is derived from a set column, so it "
+                       "is read off the generated set rather than "
+                       "drawn - a token cannot yet be SELECTED by "
+                       "another column. If the reverse direction was "
+                       "also found it is used instead and nothing is "
+                       "lost here.",
+                "harmless": False})
             continue
         ps = [p for p in (r.get("parents") or []) if p in cols]
         if not ps:
@@ -308,6 +352,8 @@ def _order(bp: Dict[str, Any]):
             need = set()
             for r in parents.get(c, []):
                 need.update(p for p in r["parents"] if p != c)
+            if c in derived:
+                need.add(derived[c])
             if need <= placed:
                 order.append(c)
                 placed.add(c)
@@ -438,7 +484,7 @@ def _order(bp: Dict[str, Any]):
     # worth naming.
     for d in dropped:
         d["child_keeps_parents"] = bool(parents.get(d["child"]))
-    return order, parents, dropped, repaired
+    return order, parents, dropped, repaired, derived
 
 
 def _presence_p(pm, parent_vals, target_cov):
@@ -567,7 +613,7 @@ def generate(blueprint: Dict[str, Any],
     rng = np.random.RandomState(seed)
     cols = bp.get("columns") or {}
     pat = bp.get("patients") or {}
-    order, parents, dropped, repaired = _order(bp)
+    order, parents, dropped, repaired, derived = _order(bp)
 
     n_pat = int(n_patients or pat.get("target_count")
                 or pat.get("count") or 100)
@@ -598,6 +644,24 @@ def generate(blueprint: Dict[str, Any],
         numeric = spec.get("kind") == "numeric"
         per_patient = spec.get("level") == "patient"
         n_draw = n_pat if per_patient else n_rows
+
+        # DERIVED, NOT DRAWN. The indicator is a fact about the set
+        # that was already generated, so drawing it from its own
+        # marginal would let a row say it contains a token that its
+        # own `conditions` string does not - the two halves
+        # disagreeing about the column's contents, which is the whole
+        # defect this path exists to close.
+        if c in derived and derived[c] in out:
+            src = pd.Series(out[derived[c]])
+            sep = ((cols[derived[c]].get("marginal") or {})
+                   .get("separator") or ";")
+            if c.endswith(_sets.SIZE):
+                out[c] = _sets.sizes_of(src, sep).to_numpy(dtype=float)
+            else:
+                tok = c.split(_sets.HAS, 1)[1]
+                out[c] = _sets.has_token(src, sep, tok).to_numpy(
+                    dtype=float)
+            continue
 
         if (m or {}).get("type") == "suppressed":
             # Too few patients to publish a distribution without
@@ -715,8 +779,18 @@ def generate(blueprint: Dict[str, Any],
                 dspec.get("format") or "%Y-%m-%d",
                 dspec.get("origin") or DATE_ORIGIN).to_numpy(
                     dtype=object)
+    # SCAFFOLDING DOES NOT REACH THE FILE. An indicator is a fact
+    # about a column the output already carries; written out it would
+    # read as twenty-four columns the extract never had, and anyone
+    # opening it would take them for data.
+    scaffold = [c for c in df.columns
+                if (cols.get(c) or {}).get("derived_from")]
+    if scaffold:
+        df = df.drop(columns=scaffold)
+
     if report is not None:
         report.update({
+            "set_indicators_derived": len(scaffold),
             "patients": n_pat,
             "rows": int(n_rows),
             "columns": len(order),
@@ -747,11 +821,32 @@ def _apply_numeric(c, spec, m, base, rels, out):
         eff = ev.get("effect") or {}
         it = ev.get("interaction")
         done = set()
-        if it and it.get("grid_a") and len(r["parents"]) >= 2:
-            a, b = r["parents"][0], r["parents"][1]
-            if a in out and b in out:
-                systematic += s * _surface_delta(it, out[a], out[b])
-                done.update([a, b])
+        # THE SURFACE NAMES ITS OWN TWO COLUMNS. Read them; do not
+        # assume they are the first two parents.
+        #
+        # `pair` is the top two by IMPORTANCE, and `parents` is the
+        # blueprint's own order after it has filtered out anything it
+        # does not model - so the two disagree whenever a parent is
+        # dropped or ranked differently. Positionally, a surface
+        # measured on (conditions__n, conditions__has__t18) was applied
+        # to (conditions__has__t03, conditions__n): a 0/1 indicator
+        # read against a grid of [1..5] floors onto one row, the
+        # response comes out nearly constant, and the surface
+        # contributes nothing - while STILL marking both columns done,
+        # so the 24.5-point curve on the real driver never fired.
+        # Severity separated on its token by -0.3 where the source
+        # separated by +25.1, on one seed in five, with every other
+        # check green.
+        #
+        # No pair, or a pair this relationship does not have, means
+        # the surface cannot be placed - and an individual curve is
+        # better than a surface applied to the wrong columns.
+        pair = [x for x in (it or {}).get("pair") or []]
+        if it and it.get("grid_a") and len(pair) == 2 \
+                and all(x in r["parents"] and x in out for x in pair):
+            a, b = pair[0], pair[1]
+            systematic += s * _surface_delta(it, out[a], out[b])
+            done.update([a, b])
         # WHICH CURVE. A conditional curve is only meaningful when
         # the parents it was conditioned on are all present. Where a
         # cycle trimmed them away, the parent must use the curve

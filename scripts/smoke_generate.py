@@ -22,7 +22,8 @@ ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT))
 from synthkit import blueprint as B                   # noqa: E402
 from synthkit.discover import discover                # noqa: E402
-from synthkit.generate import generate                # noqa: E402
+from synthkit.generate import (_apply_numeric,        # noqa: E402
+                               generate)
 
 PASS = FAIL = 0
 
@@ -192,7 +193,7 @@ def main():
     d3 = pd.DataFrame(rows3)
     b3 = B.build(d3, discover(d3, group_by="person_id", seed=1),
                  group_by="person_id")
-    _o, _par, drops, _rep = _order(resolve(b3))
+    _o, _par, drops, _rep, _der = _order(resolve(b3))
     check("three mutually predictive columns produce drops at all, or "
           "the check below proves nothing",
           len(drops) >= 1)
@@ -347,6 +348,64 @@ def main():
           rep["not_modelled"]
           and any("lagged" in s for s in rep["not_modelled"])
           and not any("clusters" in s for s in rep["not_modelled"]))
+
+    # ---- AN INTERACTION SURFACE NAMES ITS OWN TWO COLUMNS -------
+    #
+    # `pair` is the top two parents by IMPORTANCE; `parents` is the
+    # blueprint's own order after filtering. They disagree whenever a
+    # parent is dropped or ranked differently, and the surface was
+    # being applied to `parents[0], parents[1]` regardless.
+    #
+    # Applied to the wrong pair it contributes almost nothing - a 0/1
+    # indicator read against a grid of [1..5] floors onto a single row
+    # - and it still marked both columns as handled, so the real
+    # driver's own curve never fired. Measured on a set fixture:
+    # severity separated on its driving token by -0.3 where the source
+    # separated by +25.1, on one seed in five, every other check
+    # green.
+    n_i = 600
+    rs = np.random.RandomState(11)
+    p0 = rs.randint(0, 2, n_i).astype(float)     # the real driver
+    p1 = rs.randint(1, 6, n_i).astype(float)     # in the surface
+    p2 = rs.randint(0, 2, n_i).astype(float)     # in the surface
+    out_i = {"p0": p0, "p1": p1, "p2": p2}
+    rel = {
+        "parents": ["p0", "p1", "p2"],
+        "target_strength": 1.0,
+        "evidence": {
+            "skill_out_of_sample": 0.7,
+            "effect": {"p0": {"shape": "increasing",
+                              "grid": [0.0, 1.0],
+                              "response": [30.0, 54.0]}},
+            # NAMES p1 AND p2 - not the first two parents
+            "interaction": {"pair": ["p1", "p2"],
+                            "grid_a": [1.0, 2.0, 3.0, 4.0, 5.0],
+                            "grid_b": [0.0, 1.0],
+                            "response": [[40.0, 40.5]] * 5,
+                            "centre": 40.25},
+        },
+    }
+    base_i = np.full(n_i, 42.0)
+    got = _apply_numeric("child", {}, {"mean": 42.0}, base_i, [rel],
+                         out_i)
+    moved = float(got[p0 == 1].mean() - got[p0 == 0].mean())
+    check("a parent OUTSIDE the interaction still gets its own curve "
+          "- the surface names p1 and p2, so p0 must not be counted "
+          "as handled just for sitting first in the parent list "
+          "(moved {:+.1f}, curve says +24)".format(moved),
+          moved > 12.0)
+
+    flat_pair = dict(rel)
+    flat_pair["evidence"] = dict(rel["evidence"])
+    flat_pair["evidence"]["interaction"] = dict(
+        rel["evidence"]["interaction"], pair=["p1", "nosuchcolumn"])
+    got2 = _apply_numeric("child", {}, {"mean": 42.0}, base_i,
+                          [flat_pair], out_i)
+    moved2 = float(got2[p0 == 1].mean() - got2[p0 == 0].mean())
+    check("...and a surface naming a column this relationship does "
+          "not have is SKIPPED rather than placed by position - a "
+          "curve is better than a surface on the wrong columns",
+          moved2 > 12.0)
 
     print()
     if FAIL:

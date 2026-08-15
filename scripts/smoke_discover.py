@@ -67,7 +67,7 @@ def build(n_pat=260, n_vis=8, seed=5):
 def main():
     df = build()
 
-    X, ident, _, _ = prepare(df, "person_id")
+    X, ident, _, _, _ = prepare(df, "person_id")
     check("an INTEGER key unique on every row is recognised as an "
           "identifier and dropped - a model given one memorises the "
           "row instead of explaining it",
@@ -85,7 +85,7 @@ def main():
     # already been dropped.
     dfk = df.copy()
     dfk["visit_id__prev"] = dfk.groupby("person_id")["visit_id"].shift(1)
-    Xk, identk, _, _ = prepare(dfk, "person_id")
+    Xk, identk, _, _, _ = prepare(dfk, "person_id")
     check("anything ENGINEERED from an identifier goes with it - a "
           "lag of a key is still a key, and it evades the guard "
           "because its first visit is blank",

@@ -55,6 +55,8 @@ from typing import Any, Dict, List, Optional
 import numpy as np
 import pandas as pd
 
+from . import sets as _sets
+
 BLUEPRINT_VERSION = 1
 QUANTILES = [0.0, 0.01, 0.05, 0.1, 0.25, 0.5, 0.75, 0.9, 0.95,
              0.99, 1.0]
@@ -333,7 +335,6 @@ def _presence_model(X: pd.DataFrame, col: str, groups,
     }
 
 
-LIST_SEPARATORS = (";", "|", ",")
 
 
 def _list_marginal(raw: pd.Series, groups, k: int = 10):
@@ -361,45 +362,25 @@ def _list_marginal(raw: pd.Series, groups, k: int = 10):
     set size, so co-occurrence is not modelled - two drugs always
     prescribed together will appear together only by chance. Said here
     rather than found later."""
-    txt = raw.dropna().astype(str).str.strip()
-    txt = txt[txt.str.len() > 0]
-    if len(txt) < 50:
+    # THE VOCABULARY COMES FROM `sets.vocabulary`, NOT FROM A SECOND
+    # COPY OF IT HERE. The defect this whole path exists to close is
+    # discovery and generation disagreeing about what a set column
+    # contains; screening tokens twice, in two files, is how that
+    # disagreement comes back. This publishes MORE tokens than
+    # discovery expands - the expansion cap is a cost control on model
+    # fits and has nothing to do with what is safe to publish - so it
+    # asks for every token that clears k.
+    v = _sets.vocabulary(raw, groups, k=k, cap=MAX_LEVELS_KEPT)
+    if v is None:
         return None
-    sep = None
-    for cand in LIST_SEPARATORS:
-        if float(txt.str.contains(cand, regex=False).mean()) >= 0.30:
-            sep = cand
-            break
-    if sep is None:
-        return None
-    parts = txt.str.split(sep)
-    sizes = parts.map(len)
-    if float(sizes.mean()) < 1.2:
-        return None
-    g = pd.Series(np.asarray(groups)[txt.index], index=txt.index)
-    holders: Dict[str, set] = {}
-    counts: Dict[str, int] = {}
-    for idx, toks in parts.items():
-        who = g.loc[idx]
-        for tok in set(x.strip() for x in toks if x.strip()):
-            holders.setdefault(tok, set()).add(who)
-            counts[tok] = counts.get(tok, 0) + 1
-    kept = [(tok, counts[tok]) for tok, who in holders.items()
-            if len(who) >= k]
-    if len(kept) < 2:
-        return None
-    kept.sort(key=lambda x: -x[1])
-    kept = kept[:MAX_LEVELS_KEPT]
-    n_rows = float(len(txt))
-    size_counts = sizes.value_counts(normalize=True).sort_index()
     return {
         "type": "list",
-        "separator": sep,
-        "tokens": [{"value": tok, "p": round(c / n_rows, 6)}
-                   for tok, c in kept],
-        "set_size": {"v": [int(x) for x in size_counts.index],
-                     "p": [round(float(x), 6) for x in size_counts]},
-        "distinct_combinations": int(txt.nunique()),
+        "separator": v["separator"],
+        "tokens": v["tokens"],
+        "set_size": v["set_size"],
+        "distinct_combinations": v["distinct_combinations"],
+        "tokens_found": v["tokens_found"],
+        "tokens_above_k": v["tokens_above_k"],
         "tokens_are_k_anonymous": k,
         "note": "tokens are drawn independently given the set size, "
                 "so co-occurrence between them is NOT modelled",
@@ -522,8 +503,8 @@ def build(df: pd.DataFrame,
     # half a cohort for a membership attack, which is an ordinary
     # thing to want to do.
     df = df.reset_index(drop=True)
-    X, identifiers, dates, quantities = prepare(
-        df, group_by, ordinals=ordinals)
+    X, identifiers, dates, quantities, setspecs = prepare(
+        df, group_by, ordinals=ordinals, k=k)
     n_rows = len(df)
     gvals = (df[group_by].astype(str).to_numpy()
              if group_by and group_by in df.columns else None)
@@ -542,11 +523,36 @@ def build(df: pd.DataFrame,
         # string match.
         level = "visit"
         if group_by and group_by in df.columns:
-            per = df.groupby(group_by)[c].nunique(dropna=True)
+            # From X, not df. A derived indicator exists only in the
+            # prepared frame, and reaching into the raw one for it
+            # raises a KeyError naming a column the operator never
+            # wrote.
+            per = pd.DataFrame({group_by: df[group_by], c: s}) \
+                .groupby(group_by)[c].nunique(dropna=True)
             if float((per <= 1).mean()) >= 0.95:
                 level = "patient"
+        # SCAFFOLDING SAYS SO ABOUT ITSELF. An indicator is a fact
+        # about a set column, not a column of the source, and every
+        # consumer needs to know that without parsing a name: it is
+        # derived rather than drawn, and it must not reach the output
+        # file, where it would read as data the extract never had.
+        _base = _sets.source_of(c)
+        _derived = ({"column": _base,
+                     "token": (None if c.endswith(_sets.SIZE)
+                               else c.split(_sets.HAS, 1)[1]),
+                     "what": ("how many tokens the set holds"
+                              if c.endswith(_sets.SIZE)
+                              else "whether the set holds this token"),
+                     "note": "derived from the set column at "
+                             "generation time and dropped before the "
+                             "output is written; it exists so a "
+                             "relationship can name WHICH token moved "
+                             "a child"}
+                    if _base is not None and _base in X.columns
+                    else None)
         columns[c] = {
             "kind": "numeric" if numeric else "categorical",
+            "derived_from": _derived,
             "level": level,
             "coverage": round(float(s.notna().mean()), 6),
             "marginal": (_numeric_marginal(s, gvals, k) if numeric

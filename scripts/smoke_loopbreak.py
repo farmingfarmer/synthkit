@@ -116,7 +116,7 @@ AGE_FIRST = ["age_at_visit", "admitted_from", "gender",
 
 def main():
     bp = blueprint(AGE_FIRST)
-    _o, _p, dropped, _r = _order(resolve(bp))
+    _o, _p, dropped, _r, _d = _order(resolve(bp))
 
     # ---- THE FIXTURE REPRODUCES THE REAL LINE ---------------------
     check("THE FIXTURE REPRODUCES THE CONDITION: the graph is a real "
