@@ -54,6 +54,17 @@ def edges_from(path):
     blob = json.loads(Path(path).read_text(encoding="utf-8"))
     if isinstance(blob, list):
         return blob, "list"
+    # THE NEW PATH'S CATALOGUE, which this could not read - so the
+    # discover / blueprint / generate path had never been scored
+    # against the planted truth at all. The fixture has carried a
+    # U-shape, an XOR with no main effect, a Simpson's reversal, a
+    # lagged cross-column pair and a three-way since it was written,
+    # and nobody could say which of them the new search finds.
+    if blob.get("claims") is not None:
+        return ([{"child": c["child"],
+                  "parents": [p_["column"]
+                              for p_ in (c.get("predictors") or [])]}
+                 for c in blob["claims"]], "catalogue")
     rep = blob.get("report") or {}
     conf = rep.get("confirmation") or {}
     if conf.get("confirmed_edges"):

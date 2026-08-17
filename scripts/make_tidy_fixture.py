@@ -197,6 +197,35 @@ def main():
         description="Tidy fixture shaped like the real extract.")
     ap.add_argument("-o", "--out", required=True)
     ap.add_argument("--patients", type=int, default=REAL_PATIENTS)
+    # THE TWO AXES THE FIXTURE COULD NOT VARY, and they are the two
+    # the real extract fails on.
+    #
+    # Measured with scripts/bench_new_path.py: on this fixture the
+    # search recovers 12 of 13 planted relationships including the
+    # XOR, the Simpson reversal and the three-way, and 10 of 10
+    # scorable kinds SURVIVE generation. The real run does far worse -
+    # centre within 10% of spread on 18 of 34 columns, and 16 of 26
+    # relationships dropped to keep the graph sampleable.
+    #
+    # Neither loss is about pattern KIND, which is all this fixture
+    # varied. They are about SHAPE and about GRAPH DENSITY:
+    #
+    #   --skew-planted  every planted column here is a clean gaussian.
+    #                   Real clinical columns are skewed 2.8 and up,
+    #                   which is what the piecewise-linear inverse CDF
+    #                   loses the centre on
+    #   --tangled       the planted structure is disjoint pairs and
+    #                   triples - a FOREST. Nothing is ever dropped to
+    #                   break a cycle, so a survival score of 10/10
+    #                   says nothing about a graph that has them
+    ap.add_argument("--tangled", type=int, default=0,
+                    help="add N mutually-predicting columns in a "
+                         "ring, so the discovered graph HAS cycles "
+                         "and edges must be dropped to sample it")
+    ap.add_argument("--skew-planted", type=float, default=0.0,
+                    help="skew the planted columns instead of leaving "
+                         "them gaussian; 2.8 is what the real extract "
+                         "measured")
     ap.add_argument("--harder", type=float, default=1.0,
                     help="dial the MEASURED pathologies past their "
                          "observed values: >1 means sparser, more "
@@ -206,6 +235,21 @@ def main():
     ap.add_argument("--seed", type=int, default=5)
     ap.add_argument("--report", action="store_true")
     a = ap.parse_args()
+    # SOLVE THE SIGMA THAT DELIVERS THE SKEW ASKED FOR, rather than
+    # letting the flag mean whatever the transform happens to do.
+    # For a lognormal, skew = (w + 2) * sqrt(w - 1) with w = exp(s^2).
+    _SIG = 0.0
+    if a.skew_planted > 0:
+        lo, hi = 1e-4, 3.0
+        for _ in range(60):
+            mid = 0.5 * (lo + hi)
+            w = math.exp(mid * mid)
+            if (w + 2.0) * math.sqrt(max(w - 1.0, 0.0)) < a.skew_planted:
+                lo = mid
+            else:
+                hi = mid
+        _SIG = 0.5 * (lo + hi)
+
     if a.harder <= 0:
         sys.exit("--harder must be positive")
 
@@ -284,6 +328,26 @@ def main():
     truth["noise_columns"] = ["noise_{:02d}".format(i)
                               for i in range(N_NOISE)]
 
+    # A RING, so the graph genuinely cannot be a tree. tangle_k is
+    # driven by tangle_(k-1) AND tangle_(k+1 mod n): every column
+    # predicts and is predicted, which is what a real extract of
+    # mutually-related labs looks like and what forces the sampler to
+    # cut edges. Recorded as truth so a dropped one is a measured loss
+    # rather than a surprise.
+    TANGLE = ["tangle_{:02d}".format(i) for i in range(a.tangled)]
+    for i, name in enumerate(TANGLE):
+        truth["relationships"].append({
+            "child": name,
+            "parents": [TANGLE[(i - 1) % len(TANGLE)],
+                        TANGLE[(i + 1) % len(TANGLE)]],
+            "kind": "tangled-ring",
+            "note": "part of a {}-column cycle. Every member is both "
+                    "a parent and a child, so the graph cannot be "
+                    "ordered without cutting something - which is "
+                    "what drops 16 of 26 relationships on the real "
+                    "extract and what a forest-shaped fixture can "
+                    "never exercise".format(len(TANGLE))})
+
     header = (["person_id", "visit_id", "visit_start_date",
                "visit_end_date", "span_days"]
               + [c for c, _n in CATEGORICALS]
@@ -307,6 +371,7 @@ def main():
                  "planted_het_x", "planted_het_y",
                  "planted_simpson_g", "planted_simpson_x",
                  "planted_simpson_y"]
+              + TANGLE
               + truth["noise_columns"])
 
     rows = []
@@ -483,9 +548,71 @@ def main():
             r["planted_simpson_y"] = round(
                 2.0 * simpson_g - 0.9 * usim + rnd.gauss(0, 0.08), 4)
 
+            # THE RING. Each member is drawn from a shared latent
+            # plus its own noise, so every pair genuinely predicts
+            # every neighbouring pair and the discovered graph is
+            # cyclic rather than a tree.
+            if TANGLE:
+                latent = rnd.gauss(0, 1)
+                tvals = [latent + rnd.gauss(0, 0.55)
+                         for _ in TANGLE]
+                for i, nm in enumerate(TANGLE):
+                    nb = tvals[(i - 1) % len(TANGLE)]
+                    r[nm] = round(0.55 * tvals[i] + 0.45 * nb, 4)
+
             for i in range(N_NOISE):
                 r["noise_{:02d}".format(i)] = round(rnd.gauss(0, 1), 4)
             rows.append(r)
+
+    # SKEW, AS A POST-PASS OVER WHOLE COLUMNS.
+    #
+    # Done row by row it assumed every planted column was a standard
+    # normal. They are not - some are uniform - so the same transform
+    # gave tangle_00 a skew of 2.86 and planted_linear_x one of 0.25
+    # while both asked for 2.8. Standardising first makes the flag
+    # mean the same thing on every column.
+    #
+    # `exp` is MONOTONE, so rank order is untouched and every planted
+    # relationship survives the reshaping exactly. That is the whole
+    # point: it changes the marginal SHAPE, which is what the real
+    # extract loses the centre on, without touching the structure.
+    if a.skew_planted > 0 and rows:
+        # THE RING ONLY, and that restriction is a finding.
+        #
+        # Applied to the planted columns this DAMAGED them: the
+        # U-shape is specified as having zero linear correlation, and
+        # skewing its child took the pearson from ~0 to +0.27, so the
+        # ground truth stopped being true of the data. A transform
+        # that is monotone in y still reshapes the CURVE of x against
+        # y.
+        #
+        # And skew was not the missing axis anyway. The clinical
+        # columns here already carry their measured skew - up to 25.6
+        # - and this fixture still passes centre on 94% of its columns
+        # where the real extract passes 53%. So whatever loses the
+        # centre on real data, it is not simply that the column is
+        # skewed. The `centre_miss` block exists to diagnose the
+        # remainder and has not been run on a real extract yet.
+        targets = [c for c in header if c.startswith("tangle_")]
+        for nm in targets:
+            vals = []
+            for row in rows:
+                try:
+                    vals.append(float(row.get(nm)))
+                except (TypeError, ValueError):
+                    vals.append(None)
+            got = [v for v in vals if v is not None]
+            if len(got) < 20:
+                continue
+            mu = sum(got) / len(got)
+            var = sum((v - mu) ** 2 for v in got) / len(got)
+            sd = math.sqrt(var) if var > 0 else 0.0
+            if sd <= 0:
+                continue
+            for row, v in zip(rows, vals):
+                if v is None:
+                    continue
+                row[nm] = round(math.exp(_SIG * (v - mu) / sd), 5)
 
     tidy = out / "tidy_visits_labeled.csv"
     with tidy.open("w", newline="", encoding="utf-8") as f:

@@ -4,7 +4,7 @@ Synthetic clinical data generator and model-evaluation instrument. Core rule: le
 
 ## Verify before claiming
 
-- Run `python scripts/run_all_smokes.py` before claiming anything works. Expect 60 suites, 1604 checks, ALL GREEN.
+- Run `python scripts/run_all_smokes.py` before claiming anything works. Expect 61 suites, 1614 checks, ALL GREEN.
 - **`pip install -e .` is enough now, and Python must be 3.10+.**
   The numeric dependencies are declared in `pyproject.toml` rather
   than living only in `requirements.txt`, so the old footgun — skip
@@ -449,6 +449,39 @@ the direction that stops work happening.
 - **State predictions as hypotheses with a test, not as findings.**
   Dates driving the attack: −0.001. Bonferroni as the main suppressor:
   +0, twice. Cutting the cheapest edge to break a cycle: worse, below.
+- **THE SEARCH IS NOT THE WEAK PART, and nothing had measured it.**
+  `make_tidy_fixture` has planted a U-shape with zero linear
+  correlation, an XOR with no main effect, a Simpson's reversal, a
+  three-way and a lagged pair since it was written, and
+  `score_discovery` scores recall BY KIND - but it read condnet
+  models and confirmation reports only, so the fitted path had never
+  been scored against planted truth at all. Pointed at it
+  (`bench_new_path.py`): FOUND 12/13 with 0 noise edges, and 10/10 of
+  the kinds with an honest survival test SURVIVE generation -
+  including the XOR the fixture predicted would be missed. The only
+  miss is the lagged pair, which needs `--lags`.
+- **THE FIXTURE WAS A FOREST, AND THE REAL GRAPH IS A RING.** The
+  planted structure was disjoint pairs and triples, so nothing was
+  ever dropped to break a cycle and a survival score of 10/10 said
+  nothing about a graph that has them. The real extract drops 16 of
+  26 relationships to make itself sampleable, and a relationship that
+  is FOUND and then DROPPED is indistinguishable in the output from
+  one never found. `--tangled N` adds a ring where every column is
+  both parent and child: 27 of 42 dropped, 64%, against the real
+  62% - and `heterogeneous`, found and surviving at 0.196 -> 0.141 on
+  the forest, vanished entirely at 0.228 -> -0.004. That is the
+  mechanism to attack, not the search.
+- **SKEW WAS NOT THE MISSING AXIS, and adding it broke the fixture.**
+  The clinical columns already carry their measured skew - up to 25.6
+  - and this fixture still passes centre on 94% of its columns where
+  the extract passes 53%, so a skewed marginal is not by itself what
+  loses the centre. Applied to the planted columns it also took the
+  U-shape's linear correlation from ~0 to +0.27, and "zero linear
+  correlation" is the property that relationship exists to test - the
+  fixture stopped being true of itself. `--skew-planted` touches the
+  ring only. What loses the centre on 16 of 34 real columns is STILL
+  UNKNOWN; the `centre_miss` block exists to diagnose it and has not
+  been run on a real extract yet.
 - **A change that is obviously right on a hand-built fixture still has
   to be measured on a real one.** Inside a cycle the sampler draws
   columns in whatever order the blueprint lists them, so the same
