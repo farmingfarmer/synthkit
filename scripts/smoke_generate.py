@@ -139,6 +139,40 @@ def main():
     check("a scale dial widens the column by what it says",
           abs(gsc["x"].std() / max(g["x"].std(), 1e-9) - 2.0) < 0.35)
 
+    # THE TWO DIALS MUST BE INDEPENDENT, and they were not.
+    #
+    # Applied as `(x + shift) * scale`, the shift is multiplied by the
+    # scale and the scale drags the centre with it. Caught on the
+    # first real run of the dial report: severity.shift=12 with
+    # severity.scale=1.5 arrived as +35.8, because 1.5x + 18 moves the
+    # mean by half of it plus eighteen.
+    #
+    # Both checks above passed the whole time. They set ONE dial each,
+    # so the interaction was never exercised, and neither asserted the
+    # NEIGHBOURING property - that a spread dial leaves the centre
+    # alone. That is the rule this file already has, applied to the
+    # thing the rule was written about.
+    src_sd = float(df["x"].astype(float).std())
+    wide = json.loads(json.dumps(bp))
+    wide["columns"]["x"]["dials"]["scale"] = 2.0
+    gw = generate(wide, n_patients=200, seed=5)
+    check("a SCALE dial leaves the centre where it was - it is named "
+          "beside a measured spread, and multiplying raw values moves "
+          "the mean by the same factor",
+          abs(gw["x"].mean() - g["x"].mean()) < 0.35 * src_sd)
+
+    both = json.loads(json.dumps(bp))
+    both["columns"]["x"]["dials"]["shift"] = 100.0
+    both["columns"]["x"]["dials"]["scale"] = 2.0
+    gb = generate(both, n_patients=200, seed=5)
+    check("...and a shift means the same thing whether or not a "
+          "scale is set beside it - moved {:+.1f} against the 100 "
+          "asked for".format(float(gb["x"].mean() - g["x"].mean())),
+          abs((gb["x"].mean() - g["x"].mean()) - 100.0)
+          < 0.35 * src_sd)
+    check("...while the scale still does its own job in the same run",
+          abs(gb["x"].std() / max(g["x"].std(), 1e-9) - 2.0) < 0.35)
+
     fewer = json.loads(json.dumps(bp))
     fewer["patients"]["dials"]["count"] = 40
     check("the patient-count dial is honoured",

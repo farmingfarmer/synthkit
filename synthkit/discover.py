@@ -276,6 +276,89 @@ def _source(col: str) -> str:
     return col
 
 
+# How many bins the residual profile is cut into. Few, because each
+# one has to clear k PATIENTS before it can be published, and a
+# profile that is mostly suppressed is worse than none.
+SPREAD_BINS = 5
+
+
+def _residual_spread(y_true, y_pred, groups, k: int = 10):
+    """How the leftover spread changes with the predicted value.
+
+    WHY. Generation shrinks the drawn value by `sqrt(1 - skill)`,
+    which is ONE number for the whole column. Real clinical columns
+    are heteroscedastic - lab variance grows with level, stay length
+    varies far more for sick patients. Measured on a fixture whose
+    noise sd grows 4x across the range, over six seeds: the source
+    spread grows 3.7x and the generated grows 2.3x, with the top
+    slice understated by 25% every time. Marginal spread reads 1.03
+    throughout, so nothing catches it.
+
+    Published as a MULTIPLIER on the overall residual sd rather than
+    as an sd, so it travels with the column's own scale and a dial
+    that widens the column does not have to be applied twice.
+
+    OUT OF SAMPLE, on held-out patients: in-sample residuals are
+    shrunk by the fit itself, and a spread model built from them would
+    be confidently narrow.
+
+    K-SCREENED BY PATIENTS, like every other published number. A bin
+    carried by fewer than k patients publishes no multiplier, and its
+    entry is 1.0 - the honest fallback, which is what the column does
+    today."""
+    y_true = np.asarray(y_true, dtype=float)
+    y_pred = np.asarray(y_pred, dtype=float)
+    ok = np.isfinite(y_true) & np.isfinite(y_pred)
+    if int(ok.sum()) < 100:
+        return None
+    y_true, y_pred = y_true[ok], y_pred[ok]
+    g = np.asarray(groups)[ok] if groups is not None else None
+
+    resid = y_true - y_pred
+    overall = float(np.std(resid))
+    if not np.isfinite(overall) or overall <= 0:
+        return None
+
+    edges = np.quantile(y_pred, np.linspace(0, 1, SPREAD_BINS + 1))
+    edges = np.unique(edges)
+    if len(edges) < 3:
+        return None
+    idx = np.clip(np.searchsorted(edges, y_pred, side="right") - 1,
+                  0, len(edges) - 2)
+
+    centres, mults, published = [], [], 0
+    for b in range(len(edges) - 1):
+        m = idx == b
+        if int(m.sum()) < 20:
+            centres.append(float(np.mean(edges[b:b + 2])))
+            mults.append(1.0)
+            continue
+        if g is not None and len(np.unique(g[m])) < k:
+            centres.append(float(np.mean(edges[b:b + 2])))
+            mults.append(1.0)
+            continue
+        sd = float(np.std(resid[m]))
+        centres.append(float(np.mean(y_pred[m])))
+        mults.append(round(min(max(sd / overall, 0.1), 4.0), 4))
+        published += 1
+
+    if published < 2:
+        return None
+    # FLAT MEANS NOTHING TO CARRY. Publishing a profile that says
+    # "multiply by about one everywhere" adds a moving part and buys
+    # nothing, and the fallback already behaves that way.
+    if max(mults) / max(min(mults), 1e-9) < 1.25:
+        return None
+    return {"at": [round(c, 6) for c in centres],
+            "multiplier": mults,
+            "bins_published": published,
+            "bins": len(mults),
+            "bins_are_k_anonymous": k,
+            "note": "residual sd relative to this column's overall "
+                    "residual sd, by predicted value, measured on "
+                    "held-out patients"}
+
+
 def _set_family(col: str, columns) -> List[str]:
     """Everything derived from the same set column as `col`.
 
@@ -767,10 +850,27 @@ def discover(df: pd.DataFrame,
                         "it either - treat {} as unresolved rather "
                         "than unimportant".format(
                             target, p["column"], p["column"]))
+        # HOW THE LEFTOVER SPREAD MOVES WITH THE PREDICTION. Only
+        # meaningful for a numeric child; a classifier's residual is
+        # not a spread.
+        spread_profile = None
+        if kind == "regression":
+            # NOT `groups` - that name is rebound to the
+            # permutation-grouping dict earlier in this loop, so
+            # indexing it with a boolean mask raises `unhashable
+            # type` from a line that looks correct. Read from the
+            # frame, which cannot be shadowed.
+            _pids = (df[group_by].astype(str).to_numpy()[te]
+                     if group_by is not None and group_by in df.columns
+                     else None)
+            spread_profile = _residual_spread(
+                yte_v, model.predict(Xte), _pids)
+
         claims.append({
             "child": target,
             "kind": kind,
             "skill": round(float(skill), 4),
+            "residual_spread": spread_profile,
             "predictors": preds,
             "n_train_rows": int(tr.sum()),
             "n_holdout_rows": int(te.sum()),

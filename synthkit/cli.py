@@ -195,6 +195,70 @@ def cmd_table_compile(args) -> int:
     return 1
 
 
+# ---- THE FITTED PATH ------------------------------------------
+#
+# It was a 1,526-line script under `scripts/`, which `pip install`
+# does not ship - so the capability the README leads with was
+# reachable only from a git checkout, and `synthkit --help` listed
+# eighteen subcommands, none of them this one.
+#
+# The flags are NOT restated here. `pipeline.build_parser()` defines
+# them once and argparse adopts it with `parents=`; two copies of a
+# flag list is how they come to disagree, and this project already
+# has a rule about a flag that is accepted in one place and ignored
+# in another.
+
+
+def cmd_fit(args) -> int:
+    from .pipeline import main as pipeline_main
+    return pipeline_main(args=args) or 0
+
+
+def cmd_types(args) -> int:
+    """The cheap look, promoted to its own verb.
+
+    Every silent fault this tool has had was a column read as the
+    wrong type, and the listing that catches them used to run after
+    five minutes of discovery. It is seconds, and on a dataset nobody
+    has opened it should be the first thing run."""
+    from .pipeline import main as pipeline_main
+    args.types_only = True
+    return pipeline_main(args=args) or 0
+
+
+def cmd_dials(args) -> int:
+    """What is tunable on a blueprint, and what it currently is."""
+    import json as _json
+    from . import dials as _d
+    try:
+        bp = _json.loads(Path(args.blueprint).read_text(
+            encoding="utf-8"))
+    except (OSError, ValueError) as e:
+        print("could not read {}: {}".format(args.blueprint, e),
+              file=sys.stderr)
+        return 2
+    cols = bp.get("columns") or {}
+    print("dials on {} ({} columns)".format(args.blueprint, len(cols)))
+    print()
+    print("  patients.{{{}}}".format(",".join(_d.PATIENT_DIALS)))
+    for name in sorted(cols):
+        c = cols[name]
+        set_now = dict((k, v) for k, v in (c.get("dials") or {}).items()
+                       if v is not None and v != "n/a")
+        numeric = c.get("kind") == "numeric"
+        avail = [x for x in _d.COLUMN_DIALS
+                 if numeric or x not in ("shift", "scale")]
+        print("  {:<34} {}{}".format(
+            name, ",".join(avail),
+            "" if not set_now else "   SET: " + _json.dumps(set_now)))
+    print()
+    print("Set one with:  synthkit fit --src ... --out ... --generate "
+          "--dial COLUMN.NAME=VALUE")
+    print("What you asked for and what arrived are both reported in "
+          "findings.txt.")
+    return 0
+
+
 def cmd_version(args) -> int:
     from .gui import build_info
     info = build_info()
@@ -486,6 +550,24 @@ def main(argv=None) -> int:
     p.add_argument("--backend", default="ollama")
     p.add_argument("--model", default="")
     p.set_defaults(fn=cmd_table_compile)
+
+    from .pipeline import build_parser as _fit_parser
+    p = sub.add_parser(
+        "fit", parents=[_fit_parser(add_help=False)],
+        help="learn a blueprint from a real extract, and optionally "
+             "generate from it")
+    p.set_defaults(fn=cmd_fit)
+
+    p = sub.add_parser(
+        "types", parents=[_fit_parser(add_help=False)],
+        help="how every column was read, in seconds - run this "
+             "first on a dataset nobody has opened")
+    p.set_defaults(fn=cmd_types)
+
+    p = sub.add_parser("dials",
+                       help="what is tunable on a blueprint")
+    p.add_argument("blueprint")
+    p.set_defaults(fn=cmd_dials)
 
     p = sub.add_parser("version",
                        help="version, build date, and "

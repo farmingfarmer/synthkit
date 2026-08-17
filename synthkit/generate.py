@@ -703,9 +703,29 @@ def generate(blueprint: Dict[str, Any],
                                           rng)
 
         if numeric:
-            base = (np.asarray(base, dtype=float)
-                    + float(spec.get("target_shift") or 0.0)) \
-                * float(spec.get("target_scale") or 1.0)
+            # SCALE ABOUT THE CENTRE, THEN SHIFT. The two dials sit
+            # beside a measured centre and a measured spread, so each
+            # must move only its own one.
+            #
+            # `(x + shift) * scale` made them fight: the shift came
+            # out multiplied by the scale, and the scale dragged the
+            # mean along with it. Asking for shift 12 and scale 1.5 on
+            # a column centred at 34.8 moved the centre by 35.8, and
+            # the smoke checks passed throughout because each set ONE
+            # dial and neither asserted that a spread dial leaves the
+            # centre alone.
+            sh = float(spec.get("target_shift") or 0.0)
+            sc = float(spec.get("target_scale") or 1.0)
+            if sh or sc != 1.0:
+                arr = np.asarray(base, dtype=float)
+                # The published centre, not this draw's mean: the
+                # draw's own mean carries sampling noise, so tuning
+                # about it would make the dial's effect depend on the
+                # seed.
+                mid = float(m.get("mean", 0.0))
+                base = (arr - mid) * sc + mid + sh
+            else:
+                base = np.asarray(base, dtype=float)
             if m.get("integral"):
                 base = np.round(base)
 
@@ -813,6 +833,7 @@ def _apply_numeric(c, spec, m, base, rels, out):
     mean = float(m.get("mean", 0.0))
     systematic = np.zeros(len(base), dtype=float)
     explained = 0.0
+    profile = None
     for r in rels:
         s = float(r.get("target_strength", 1.0))
         if s == 0.0:
@@ -869,10 +890,40 @@ def _apply_numeric(c, spec, m, base, rels, out):
             systematic += s * _curve_delta(e, out[p])
         sk = (used_sk if used_sk is not None
               else float(ev.get("skill_out_of_sample") or 0.0))
-        explained = max(explained, min(max(sk, 0.0), 0.99) * min(s, 1.0))
+        share = min(max(sk, 0.0), 0.99) * min(s, 1.0)
+        if share >= explained:
+            # The profile belongs to whichever relationship is
+            # setting the shrink, so the two come from the same model
+            # - the rule the effect curves already follow.
+            explained = share
+            profile = ev.get("residual_spread")
     shrink = float(np.sqrt(max(0.0, 1.0 - explained)))
-    return mean + systematic + shrink * (
-        np.asarray(base, dtype=float) - mean)
+
+    # NOISE THAT VARIES WITH THE PREDICTION.
+    #
+    # A single shrink factor makes every row equally noisy. Measured
+    # on a fixture whose noise sd grows 4x across the range, over six
+    # seeds: the source's conditional spread grows 3.7x and the
+    # generated grows 2.3x, with the top slice understated 25% every
+    # time - while the MARGINAL spread reads 1.03 and passes, because
+    # marginal spread is all anything checked.
+    #
+    # NORMALISED so the total noise variance is unchanged. The
+    # multiplier redistributes spread across the range; it must not
+    # add or remove any, or this would fix the conditional spread by
+    # breaking the marginal one - which is the neighbouring property
+    # this codebase already has a rule about.
+    arr = np.asarray(base, dtype=float)
+    noise = arr - mean
+    if profile and profile.get("at") and profile.get("multiplier"):
+        at = np.asarray(profile["at"], dtype=float)
+        mult = np.asarray(profile["multiplier"], dtype=float)
+        order = np.argsort(at)
+        m = np.interp(mean + systematic, at[order], mult[order])
+        rms = float(np.sqrt(np.mean(m ** 2)))
+        if np.isfinite(rms) and rms > 0:
+            noise = noise * (m / rms)
+    return mean + systematic + shrink * noise
 
 
 def _apply_categorical(c, spec, m, base, rels, out, rng):

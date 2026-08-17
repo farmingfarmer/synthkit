@@ -614,6 +614,12 @@ def build(df: pd.DataFrame,
             "parents": [p["column"] for p in parents],
             "evidence": {
                 "skill_out_of_sample": cl["skill"],
+                # HOW THE LEFTOVER SPREAD MOVES WITH THE PREDICTION.
+                # Without it generation shrinks by one number for the
+                # whole column, and a heteroscedastic column comes
+                # out with the right marginal spread and the wrong
+                # spread everywhere in particular.
+                "residual_spread": cl.get("residual_spread"),
                 "importance": dict((p["column"], p["importance"])
                                    for p in parents),
                 "importance_sd": dict((p["column"], p.get("sd"))

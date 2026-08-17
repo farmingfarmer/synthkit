@@ -4,7 +4,7 @@ Synthetic clinical data generator and model-evaluation instrument. Core rule: le
 
 ## Verify before claiming
 
-- Run `python scripts/run_all_smokes.py` before claiming anything works. Expect 55 suites, 1491 checks, ALL GREEN.
+- Run `python scripts/run_all_smokes.py` before claiming anything works. Expect 58 suites, 1558 checks, ALL GREEN.
 - **`pip install -e .` is enough now, and Python must be 3.10+.**
   The numeric dependencies are declared in `pyproject.toml` rather
   than living only in `requirements.txt`, so the old footgun — skip
@@ -249,6 +249,61 @@ the direction that stops work happening.
   Now the strongest predictor of presence gets a k-screened curve, and
   generation thresholds correlated uniforms against it: informative,
   coverage unmoved, clustering preserved.
+- **The fitted path is `synthkit fit`, and it lives in the package.**
+  It was 1,526 lines under `scripts/`, which pip does not install, so
+  `pip install synthkit` shipped everything except the capability the
+  README leads with. `synthkit fit / types / dials` now exist;
+  `scripts/run_discovery.py` is a shim over `synthkit.pipeline` and
+  still works, because WINDOWS.md names it. The flags are defined
+  ONCE, in `pipeline.build_parser`, and adopted by argparse `parents=`.
+- **`--dial` reaches the dials, and the answer comes back MEASURED.**
+  They had been reachable only by hand-editing blueprint.json on the
+  machine holding the extract. `findings.txt` now carries requested
+  against achieved, because a dial can be capped by the k-anonymous
+  bound, clipped at 0.98, or swapped back by constraint repair - and
+  a silent difference is the `--time-col` failure again. An unknown
+  column or dial name is an ERROR, never a shrug.
+- **`shift` and `scale` were fighting each other.** Applied as
+  `(x + shift) * scale`, the shift came out multiplied by the scale
+  and the scale dragged the CENTRE with it - shift 12 beside scale
+  1.5 on a column centred at 34.8 arrived as +35.8. Both dials had
+  passed their checks for as long as they existed, because each check
+  set ONE dial and neither asserted the neighbouring property. It is
+  `(x - centre) * scale + centre + shift` now, about the PUBLISHED
+  centre rather than the draw's own, so the effect does not depend on
+  the seed.
+- **ONE ROW PER MEASUREMENT IS MODELLED WRONG, SILENTLY.** A long/EAV
+  extract - a concept column and one value column - arrives as a
+  numeric column whose distribution is a mixture. Measured on five
+  real concept scales: 94% of the pooled variance is BETWEEN concepts,
+  and the deciles run 1.1, 73.8, 139.8, which is not any lab.
+  Coverage reads 100%, the concept column is a legitimate categorical
+  so the sentinel guard has nothing to fire on, and centre and spread
+  both pass. `longshape.detect` reports it with the correlation ratio
+  - the harm stated directly - before any discovery runs, and `--long
+  CONCEPT=VALUE` pivots. The pivot key uses the REQUESTED `--time-col`
+  and never the detected one: detection is good enough to order rows
+  and not good enough to reshape somebody's extract on.
+- **SPREAD THAT VARIES WITH THE PREDICTION WAS THROWN AWAY.**
+  `sqrt(1 - skill)` is one number for a whole column, and clinical
+  data is heteroscedastic. Measured on a fixture whose noise grows 4x
+  along a parent, five seeds: source conditional spread grows 1.85x
+  (1.77-1.91), generated was FLAT at 1.02x (0.98-1.08), and with a
+  published residual profile it reaches 1.52x (1.41-1.64). MARGINAL
+  spread reads 1.02 either way, which is why nothing caught it - every
+  existing spread check is marginal, and a column can have exactly the
+  right overall spread and the wrong spread everywhere in particular.
+  The profile is a MULTIPLIER on the overall residual sd, measured out
+  of sample, k-screened by patients, normalised so total noise
+  variance is unchanged, and NOT published when the column is
+  homoscedastic.
+- **A one-parent fixture cannot test the child's noise model.** With
+  `y <- x` alone the graph is symmetric - `x <- y` scored 0.668
+  against 0.626 - so the sampler drew y from its marginal, y never
+  went through the relationship path, and the first version of that
+  measurement was reading a direction generation does not use. Give
+  the child several parents so the orientation is not a coin flip,
+  and ASSERT the child is a child.
 - **A SET COLUMN IS A BAD CATEGORY AND A GOOD SET OF INDICATORS.**
   `_list_marginal` fixed what was GENERATED from a set; nothing fixed
   what was LEARNED from it, because discovery still saw the

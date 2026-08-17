@@ -133,7 +133,7 @@ main(['version'])"` if -m is not wired).
 python scripts\run_all_smokes.py
 ```
 
-Expect: 54 suites, 1474 checks, ALL GREEN. It is no longer quick -
+Expect: 58 suites, 1558 checks, ALL GREEN. It is no longer quick -
 about 9 minutes on the development machine and several times that
 here, with the long pauses at `smoke_generate` and `smoke_shapes`.
 Each suite prints `running` before it starts and `PASS` when it
@@ -153,14 +153,46 @@ Put it OUTSIDE the repository — it holds real-data-derived output,
 and an unexpanded `%USERPROFILE%` has previously written such output
 into the working tree. Use a full absolute path and check it.
 
+**How every column was read, in seconds.** Run this FIRST on a
+dataset nobody has opened. Every silent fault this tool has had was a
+column read as the wrong type, and this is the listing that catches
+them — a date read as 200 categories, a currency column at 85%
+sentinel, a clock at 62%. It does no discovery and writes no data.
+
+```bat
+synthkit types --src C:\FULL\PATH\TO\EXTRACT.csv --out C:\FULL\PATH\YOU\CHOOSE --group-by person_id
+```
+
 A cheap first pass, to catch a wrong `--src` or the wrong id column
 in a minute instead of an hour:
 
 ```bat
-python -u scripts\run_discovery.py --src C:\FULL\PATH\TO\EXTRACT.csv --out C:\FULL\PATH\YOU\CHOOSE --group-by person_id --max-rows 5000
+synthkit fit --src C:\FULL\PATH\TO\EXTRACT.csv --out C:\FULL\PATH\YOU\CHOOSE --group-by person_id --max-rows 5000
 ```
 
 Then the full run:
+
+```bat
+synthkit fit --src C:\FULL\PATH\TO\EXTRACT.csv --out C:\FULL\PATH\YOU\CHOOSE --group-by person_id --lags --generate
+```
+
+To generate a TUNED version — a column moved, widened, made sparser,
+or a different number of patients — add `--dial`. What you asked for
+and what actually arrived are both written into `findings.txt`,
+because a dial can be capped by the k-anonymous bound or swapped back
+by constraint repair, and a silent difference is the failure this
+tool exists to refuse.
+
+```bat
+synthkit fit --src C:\FULL\PATH\TO\EXTRACT.csv --out C:\FULL\PATH\YOU\CHOOSE --group-by person_id --generate --dial patients.count=500
+```
+
+`synthkit dials C:\FULL\PATH\YOU\CHOOSE\blueprint.json` lists what
+that blueprint can be tuned on, so nobody has to open the JSON to
+find out.
+
+The older form still works and does the same thing, in case this
+page is newer than the copy you pulled:
 
 ```bat
 python -u scripts\run_discovery.py --src C:\FULL\PATH\TO\EXTRACT.csv --out C:\FULL\PATH\YOU\CHOOSE --group-by person_id --lags --generate
