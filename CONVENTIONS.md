@@ -4,7 +4,7 @@ Synthetic clinical data generator and model-evaluation instrument. Core rule: le
 
 ## Verify before claiming
 
-- Run `python scripts/run_all_smokes.py` before claiming anything works. Expect 61 suites, 1614 checks, ALL GREEN.
+- Run `python scripts/run_all_smokes.py` before claiming anything works. Expect 62 suites, 1625 checks, ALL GREEN.
 - **`pip install -e .` is enough now, and Python must be 3.10+.**
   The numeric dependencies are declared in `pyproject.toml` rather
   than living only in `requirements.txt`, so the old footgun — skip
@@ -482,6 +482,48 @@ the direction that stops work happening.
   ring only. What loses the centre on 16 of 34 real columns is STILL
   UNKNOWN; the `centre_miss` block exists to diagnose it and has not
   been run on a real extract yet.
+- **A CYCLE CANNOT BE ORDERED, BUT IT DOES NOT HAVE TO BE.** The
+  sampler trimmed parents until an order existed, and processed the
+  leftover columns in whatever order the BLUEPRINT LISTED them - so
+  the column listed first lost the most. Measured on a ring of eight
+  given IDENTICAL curves and near-identical skill, which must
+  therefore come out uniform: adjacent correlation ran 0.443 to 0.735,
+  and listing the same relationships in reverse moved a pair by 0.192.
+  The blueprint meant the same thing both times.
+
+  The fix is not a better cut - cutting by immediate skill loss was
+  tried and reverted, and it made both measures worse AND produced
+  inversions. The first pass needs an order to get any values at all;
+  once every column holds one, the trimmed parents are applied without
+  one. Two sweeps by default.
+
+      order-dependence   0.192 -> 0.021   (a ring, reversed listing)
+      spread across pairs 0.304 -> 0.187
+      mean adjacent |r|   0.594 -> 0.775
+
+  On `pair_fidelity_sweep`, four seeds, against the same-day baseline:
+  sign kept 17.0 -> 16.8, **close 16.2 -> 16.8**, INVERTED 0 -> 0.
+  One pair lost its sign on one seed; two moved into close on two
+  others. The reverted attempt failed the inversion gate; this one
+  holds it.
+- **RE-RANKING IS WHAT MAKES A SWEEP SAFE.** Each sweep feeds its own
+  output back in, so on a ring the values run away - with curves hot
+  enough, a single pass already reaches 9.0 against a published bound
+  of 2.6. Taking the exact multiset the marginal produced and changing
+  only the ARRANGEMENT means the marginal cannot drift and the sweep
+  cannot diverge, by construction. It also pins values back INSIDE
+  the k-anonymous bound, which the ordered pass could already exceed.
+- **AN ACYCLIC BLUEPRINT MUST COME OUT BIT-IDENTICAL.** Most have no
+  cycle; if this changed them it would be a sampler rewrite wearing a
+  bug fix's clothes. Asserted, and the assertion was mutation-tested
+  against a version that refines every column.
+- **TWO MECHANISMS CAN REACH THE SAME PROPERTY, and measuring them
+  together credits the wrong one.** Applying the previously-cut
+  parents also varies conditional spread: on the heteroscedastic
+  fixture the "no residual profile" arm went from 1.02x to 1.57x by
+  itself. `smoke_spread` holds `refine_sweeps=0` so it measures the
+  profile alone, and checks separately that the two together are not
+  worse than either.
 - **A change that is obviously right on a hand-built fixture still has
   to be measured on a real one.** Inside a cycle the sampler draws
   columns in whatever order the blueprint lists them, so the same

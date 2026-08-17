@@ -163,8 +163,17 @@ def main():
     for r_ in stripped["relationships"]:
         r_["evidence"]["residual_spread"] = None
 
-    g_on = generate(bp, n_patients=400, seed=70)
-    g_off = generate(stripped, n_patients=400, seed=70)
+    # REFINEMENT HELD AT ZERO, so this measures the PROFILE alone.
+    #
+    # This fixture is cyclic - `y <- x1,x2,x3` and `x1 <- y,x2,x3` are
+    # both found - so the cycle refinement applies parents that used
+    # to be cut, and that ALSO varies conditional spread: the "no
+    # profile" arm went from 1.02x to 1.57x on its own. Two mechanisms
+    # reaching the same property is fine; measuring them together and
+    # calling the result the profile's is not.
+    g_on = generate(bp, n_patients=400, seed=70, refine_sweeps=0)
+    g_off = generate(stripped, n_patients=400, seed=70,
+                     refine_sweeps=0)
     on = cond_spread(g_on, "x1", "y", edges)
     off = cond_spread(g_off, "x1", "y", edges)
     grow_on, grow_off = on[-1] / on[0], off[-1] / off[0]
@@ -186,6 +195,17 @@ def main():
               "it reads right either way, which is exactly why "
               "nothing caught the conditional miss".format(
                   name, ratio), abs(ratio - 1.0) < 0.15)
+
+    # AND THE TWO TOGETHER MUST NOT BE WORSE THAN EITHER. Refinement
+    # narrows the gap the profile was built to close, so the honest
+    # check is that the combination still carries the growth.
+    both = cond_spread(generate(bp, n_patients=400, seed=70,
+                                refine_sweeps=2), "x1", "y", edges)
+    grow_both = both[-1] / both[0]
+    check("with the cycle refinement on as well, the growth is still "
+          "carried ({:.2f}x against the source's {:.2f}x) - the two "
+          "mechanisms overlap and neither undoes the other".format(
+              grow_both, grow_src), grow_both > 1.3)
 
     # A column with no heteroscedasticity must come through unharmed.
     flat_df = fixture(seed=3, hetero=False)
