@@ -100,6 +100,48 @@ def main():
             except Exception:
                 floors[name] = None
 
+    # WHICH QUESTION IS BEING ASKED, because there are two and only
+    # one of them is a defect.
+    #
+    #   is our floor below what OUR DECLARED MINIMUMS need?
+    #       a real defect - `pip install` on the floor then resolves
+    #       something older than we ever tested, which is how a
+    #       silently different pandas reaches the machine with the
+    #       data on it. This is the bug that shipped: `>=3.8`
+    #       declared while the minimums needed 3.9.
+    #
+    #   do the INSTALLED versions need more than our floor?
+    #       not a defect. It means the operator has newer packages
+    #       than we require, which is the normal case and gets more
+    #       normal with time. Read on the data machine - numpy 2.5
+    #       and scipy 1.18 both want >=3.12 - it failed a suite that
+    #       had nothing wrong with it.
+    #
+    # The first is answered from the floors of the versions we
+    # DECLARE, which do not change when someone upgrades. They cannot
+    # be read from metadata for versions that are not installed, so
+    # they are recorded here - and a check below fails if a declared
+    # dependency is missing from the table, so adding one forces the
+    # entry rather than silently skipping it.
+    MIN_FLOORS = {"numpy": (3, 8),          # numpy 1.24
+                  "pandas": (3, 8),         # pandas 2.0
+                  "scikit-learn": (3, 9),   # scikit-learn 1.4
+                  "scipy": (3, 8)}          # scipy 1.10
+    missing_tbl = sorted(set(declared) - set(MIN_FLOORS))
+    check("every declared dependency has a recorded floor for the "
+          "MINIMUM version we allow, or this check silently skips "
+          "it{}".format("" if not missing_tbl
+                        else " -- " + ", ".join(missing_tbl)),
+          not missing_tbl)
+    need = max([MIN_FLOORS[d] for d in declared
+                if d in MIN_FLOORS] or [(0, 0)])
+    check("our floor {}.{} is at least what our own declared MINIMUM "
+          "dependency versions need ({}.{}) - below it, an install on "
+          "the floor resolves something older than was ever tested"
+          .format(ours[0] if ours else 0, ours[1] if ours else 0,
+                  need[0], need[1]),
+          ours is not None and ours >= need)
+
     known = dict((k, v) for k, v in floors.items() if v is not None)
     if not known:
         check("our Python floor is at least every dependency's own   "
@@ -110,11 +152,17 @@ def main():
     else:
         worst = max(known.values())
         who = sorted(k for k, v in known.items() if v == worst)
-        check("our Python floor {}.{} is at least every installed "
-              "dependency's own - highest is {}.{}, from {}".format(
-                  ours[0], ours[1], worst[0], worst[1],
-                  ", ".join(who)),
-              ours is not None and ours >= worst)
+        # REPORTED, NOT FAILED. See above: newer installed packages
+        # are the normal case and are not a defect in this package.
+        if ours is not None and ours < worst:
+            print("    note: the versions installed here need Python "
+                  "{}.{} ({}), above our declared floor of {}.{}. "
+                  "Anyone on the floor resolves older ones."
+                  .format(worst[0], worst[1], ", ".join(who),
+                          ours[0], ours[1]))
+        check("the installed dependencies' floors are readable, so "
+              "the note above is measured rather than assumed",
+              bool(known))
         check("...and every dependency named in pyproject reports a "
               "readable floor, or one of them could move under us "
               "unseen ({} of {} readable)".format(

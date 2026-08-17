@@ -4,7 +4,30 @@ Synthetic clinical data generator and model-evaluation instrument. Core rule: le
 
 ## Verify before claiming
 
-- Run `python scripts/run_all_smokes.py` before claiming anything works. Expect 62 suites, 1629 checks, ALL GREEN.
+- Run `python scripts/run_all_smokes.py` before claiming anything works. Expect 62 suites, 1631 checks, ALL GREEN.
+- **THE DEVELOPMENT MACHINE WAS BEHIND THE DATA MACHINE, and that is
+  how a green suite here failed there.** Dev was on Python 3.10 with
+  pandas 2.3; the data machine installs fresh and got pandas 3.0.5,
+  numpy 2.5, scipy 1.18. Writing a string into a float64 column is a
+  FutureWarning on 2.3 and a **TypeError** on 3.0, so `smoke_long`
+  passed here and crashed there - on the one machine where a crash
+  costs a round trip. Reproduced by building a 3.13 venv and running
+  the whole net against it; that was the only code incompatibility,
+  and CI now runs the net on 3.10 AND 3.13 so the newest library
+  behaviour is covered rather than whatever the author happens to
+  have. **Test against what the DATA machine will install, not what
+  is on this one.**
+- **A PACKAGING CHECK MUST ASK ABOUT THE PACKAGE, NOT THE MACHINE.**
+  `smoke_packaging` compared our floor against the floors of the
+  INSTALLED dependencies, so a machine with newer packages failed a
+  suite that had nothing wrong with it - numpy 2.5 and scipy 1.18
+  both want 3.12. The defect worth catching is our floor being below
+  what our own DECLARED MINIMUMS need, which does not move when
+  somebody upgrades. That is asserted from a recorded table, with a
+  check that every declared dependency appears in it so adding one
+  cannot silently skip. The installed-versions gap is REPORTED as a
+  note. Verified both ways: the original `>=3.8` bug still fails, and
+  3.13 with pandas 3 passes.
 - **`pip install -e .` is enough now, and Python must be 3.10+.**
   The numeric dependencies are declared in `pyproject.toml` rather
   than living only in `requirements.txt`, so the old footgun — skip

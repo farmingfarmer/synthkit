@@ -161,6 +161,13 @@ def main():
 
     # A value that will not parse is a coverage loss.
     dirty = df.copy()
+    # OBJECT DTYPE FIRST. Writing a string into a float64 column was
+    # a FutureWarning on pandas 2.3 and is a TypeError on newer ones -
+    # so this suite passed here and died on the machine that has the
+    # data, which is the one place a crash costs a round trip. A real
+    # unparseable extract arrives as text in the first place; the
+    # fixture has to arrive that way too.
+    dirty["value_as_number"] = dirty["value_as_number"].astype(object)
     dirty.loc[dirty.index[:150], "value_as_number"] = "not a number"
     rep2 = {}
     L.pivot(dirty, "measurement_concept", "value_as_number",

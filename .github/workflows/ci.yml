@@ -41,7 +41,14 @@ jobs:
         # 3.10 is the floor: scikit-learn, numpy and scipy all
         # declare `requires-python >=3.10`, which is why the old
         # `>=3.8` in pyproject was false rather than generous.
-        python-version: ["3.10", "3.12"]
+        # 3.13 IS NOT DECORATION - it is where pandas 3 lands, and
+        # the development machine was still on 3.10 with pandas 2.3.
+        # Two suites passed here and failed on the machine that holds
+        # the data: writing a string into a float64 column was a
+        # FutureWarning on 2.3 and is a TypeError on 3.0. Testing only
+        # what the author happens to have installed is how that
+        # reaches the one machine where a crash costs a round trip.
+        python-version: ["3.10", "3.13"]
         shard: [0, 1, 2, 3]
     name: smoke net ${{ matrix.python-version }} (shard ${{ matrix.shard }}/4)
     steps:
