@@ -239,7 +239,7 @@ def _surface_delta(it: Dict[str, Any], va, vb) -> np.ndarray:
     return np.where(np.isnan(a) | np.isnan(b), 0.0, out)
 
 
-def _order(bp: Dict[str, Any]):
+def _order(bp: Dict[str, Any], refine: bool = True):
     """Pick a direction per relationship and a safe drawing order.
 
     Strongest first: the better-explained column becomes the child,
@@ -402,17 +402,26 @@ def _order(bp: Dict[str, Any]):
                                 if p not in placed],
                     "kept_parents": list(okp),
                     "skill": sk,
-                    "why": "would close a cycle; the parents that "
-                           "could be satisfied were kept and only "
-                           "these removed",
-                    "harmless": False, "partial": True})
+                    "why": ("trimmed so the graph could be "
+                            "ordered, then RE-APPLIED by the "
+                            "refinement sweeps once every column had "
+                            "a value" if refine else
+                            "would close a cycle; the parents that "
+                            "could be satisfied were kept and only "
+                            "these removed"),
+                    "harmless": bool(refine), "partial": True,
+                    "restored_by_refinement": bool(refine)})
             else:
                 dropped.append({
                     "child": c, "parents": r["parents"], "skill": sk,
-                    "why": "would close a cycle; a cycle cannot be "
-                           "sampled, and losing one edge beats "
-                           "failing",
-                    "harmless": False})
+                    "why": ("trimmed so the graph could be "
+                            "ordered, then RE-APPLIED by the "
+                            "refinement sweeps" if refine else
+                            "would close a cycle; a cycle cannot be "
+                            "sampled, and losing one edge beats "
+                            "failing"),
+                    "harmless": bool(refine),
+                    "restored_by_refinement": bool(refine)})
         parents[c] = kept
         order.append(c)
         placed.add(c)
@@ -628,7 +637,7 @@ def generate(blueprint: Dict[str, Any],
     cols = bp.get("columns") or {}
     pat = bp.get("patients") or {}
     order, parents, dropped, repaired, derived, cyclic = \
-        _order(bp)
+        _order(bp, refine=int(refine_sweeps) > 0)
     marg_draw: Dict[str, Any] = {}
 
     n_pat = int(n_patients or pat.get("target_count")

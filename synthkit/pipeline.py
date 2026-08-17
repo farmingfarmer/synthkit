@@ -151,6 +151,13 @@ def build_parser(prog=None, add_help=True):
                          "5}} - the better shape, because it can be "
                          "written and reviewed on the machine with "
                          "no data on it")
+    ap.add_argument("--refine-sweeps", type=int, default=2,
+                    help="how many times to re-apply the parents that "
+                         "had to be trimmed to order a cycle. 0 "
+                         "restores the older behaviour exactly, which "
+                         "is the thing to try first if a cyclic "
+                         "column looks wrong on real data - this has "
+                         "not been measured on a real extract yet")
     ap.add_argument("--seed", type=int, default=20260731)
     ap.add_argument("--holdout", type=float, default=0.3,
                     help="share of PATIENTS held out; every number "
@@ -184,6 +191,8 @@ def main(argv=None, args=None):
         " --lags" if a.lags else "",
         " --generate" if a.generate else "",
         " --enforce-constraints" if a.enforce_constraints else "",
+        "" if a.refine_sweeps == 2
+        else " --refine-sweeps " + str(a.refine_sweeps),
         "".join(" --ordinal " + o for o in a.ordinal),
         " --emit-spec" if a.emit_spec else "",
         " --exclude " + a.exclude if a.exclude else ""))
@@ -595,13 +604,26 @@ def main(argv=None, args=None):
     rep = {}
     g = generate(bp, n_patients=(a.patients or None), seed=a.seed,
                  report=rep,
-                 enforce_constraints=a.enforce_constraints)
+                 enforce_constraints=a.enforce_constraints,
+                 refine_sweeps=a.refine_sweeps)
     g.to_csv(out / "generated.csv", index=False, encoding="utf-8")
     say("{} rows for {} patients -> generated.csv".format(
         rep["rows"], rep["patients"]))
-    if rep.get("edges_dropped"):
-        say("{} relationship(s) dropped to keep the graph "
-            "sampleable".format(len(rep["edges_dropped"])))
+    # TRIMMED IS NOT LOST, and saying "dropped" for both would tell
+    # the operator that sixteen relationships left their data when
+    # the refinement sweeps put them back.
+    dd = rep.get("edges_dropped") or []
+    back = [d for d in dd if d.get("restored_by_refinement")]
+    gone = [d for d in dd if not d.get("harmless")]
+    if back:
+        say("{} relationship(s) were trimmed so the graph could be "
+            "ordered, then APPLIED AGAIN by {} refinement sweep(s) "
+            "over {} column(s) in a cycle - they are in the output"
+            .format(len(back), rep.get("refinements_applied", 0),
+                    rep.get("cyclic_columns", 0)))
+    if gone:
+        say("{} relationship(s) genuinely do NOT reach the generated "
+            "data - see the end of findings.txt".format(len(gone)))
 
     # WHAT WAS ASKED FOR AGAINST WHAT ARRIVED. Re-measured on the
     # generated frame, not read back out of the blueprint: reading a
@@ -735,13 +757,13 @@ def main(argv=None, args=None):
     say("done -> {}".format(out))
 
 
-def _will_drop(bp):
+def _will_drop(bp, refine=True):
     """What the sampler will have to discard, worked out before it
     runs, so the reader is told in the document they actually read."""
-    return _will_drop_full(bp)[0]
+    return _will_drop_full(bp, refine)[0]
 
 
-def _will_drop_full(bp):
+def _will_drop_full(bp, refine=True):
     """(dropped, reconnected). The repair list too, because a parent
     removed from one relationship and reconnected by a direct edge is
     NOT missing from the data, and the report has to be able to tell
@@ -749,7 +771,7 @@ def _will_drop_full(bp):
     try:
         from synthkit.blueprint import resolve
         from synthkit.generate import _order
-        o = _order(resolve(bp))
+        o = _order(resolve(bp), refine=refine)
         return o[2], o[3]
     except Exception:
         return [], []
@@ -994,7 +1016,7 @@ def _were(n, singular="was", plural="were"):
     return singular if n == 1 else plural
 
 
-def render(bp):
+def render(bp, refine=True):
     """The blueprint in sentences. This is the part meant to be read
     by somebody who has never seen the data."""
     L = ["WHAT THE DATA SAYS", "=" * 60, ""]
@@ -1081,9 +1103,22 @@ def render(bp):
     L.append("")
     L.append("COLUMNS NOTHING EXPLAINED: {}".format(
         ", ".join(ex.get("unexplained") or []) or "(none)"))
-    dropped, reconnected = _will_drop_full(bp)
+    dropped, reconnected = _will_drop_full(bp, refine)
     direct = set(frozenset([r["child"], r["parent"]])
                  for r in reconnected)
+    # TRIMMED-THEN-RE-APPLIED IS ITS OWN CATEGORY, and leaving it out
+    # would make it invisible in every other way. These used to be
+    # counted as losses because the ordered pass was the only pass;
+    # the refinement sweeps put them back, so they are neither a loss
+    # nor a mirror and they belong under their own heading.
+    reapplied = [d for d in dropped
+                 if d.get("restored_by_refinement")]
+    # AND THEY LEAVE THE LOSS SECTION ENTIRELY. It ends with a
+    # catch-all bucket, so a record that is not a mirror and not a
+    # trim still gets listed there - which put every re-applied edge
+    # in BOTH sections, counted once as put back and once as lost.
+    dropped = [d for d in dropped
+               if not d.get("restored_by_refinement")]
     mirrors = [d for d in dropped if d.get("harmless")]
     trimmed = [d for d in dropped if not d.get("harmless")
                and d.get("partial")]
@@ -1093,6 +1128,34 @@ def render(bp):
     other = [d for d in dropped if d not in mirrors
              and d not in trimmed and d not in orphans]
     L.append("")
+    if reapplied:
+        n_par = sum(len(d.get("parents") or []) for d in reapplied)
+        L.append("")
+        L.append("TRIMMED TO ORDER A CYCLE, THEN PUT BACK")
+        L.append("-" * 52)
+        L.append("A cycle cannot be ordered, so the sampler removes "
+                 "parents until it can.")
+        L.append("Those parents are RE-APPLIED afterwards, once every "
+                 "column holds a value,")
+        L.append("so these are not losses - they are listed because "
+                 "an earlier version of")
+        L.append("this file reported them as losses and a reader had "
+                 "no way to tell.")
+        L.append("")
+        L.append("{} relationship(s), {} parent(s) in total:".format(
+            len(reapplied), n_par))
+        for d in reapplied:
+            L.append("  {} <- {}".format(
+                d["child"], ", ".join(d.get("parents") or [])))
+        L.append("")
+        L.append("Re-run with --refine-sweeps 0 to see the older "
+                 "behaviour, where these")
+        L.append("parents really were dropped. The difference between "
+                 "the two runs is the")
+        L.append("evidence for whether the sweeps help on YOUR data - "
+                 "they have not been")
+        L.append("measured on a real extract.")
+        L.append("")
     L.append("WHAT WILL NOT REACH THE GENERATED DATA")
     L.append("-" * 60)
     L.append("A catalogue may hold a relationship in both directions "

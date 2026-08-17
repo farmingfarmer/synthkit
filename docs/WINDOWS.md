@@ -133,7 +133,7 @@ main(['version'])"` if -m is not wired).
 python scripts\run_all_smokes.py
 ```
 
-Expect: 62 suites, 1625 checks, ALL GREEN. It is no longer quick -
+Expect: 62 suites, 1629 checks, ALL GREEN. It is no longer quick -
 about 9 minutes on the development machine and several times that
 here, with the long pauses at `smoke_generate` and `smoke_shapes`.
 Each suite prints `running` before it starts and `PASS` when it
@@ -186,6 +186,29 @@ tool exists to refuse.
 ```bat
 synthkit fit --src C:\FULL\PATH\TO\EXTRACT.csv --out C:\FULL\PATH\YOU\CHOOSE --group-by person_id --generate --dial patients.count=500
 ```
+
+**Four other flags worth knowing before you start.**
+
+`--time-col COLUMN` names the visit-ordering column. It is detected
+if omitted, and the run prints which one it chose — read that line.
+Every temporal statistic is measured on it.
+
+`--long CONCEPT=VALUE` reshapes a one-row-per-measurement extract to
+one column per concept. **The run detects this shape and tells you**
+before any discovery happens; if it does, the numbers from a run
+without it describe a column that is a mixture of unrelated
+quantities and mean very little.
+
+`--enforce-constraints` repairs orderings the source never broke,
+such as a visit ending before it began. Off by default because it
+changes the output. The constraints are REPORTED either way, so read
+them first and turn this on deliberately.
+
+`--refine-sweeps 0` restores the older cycle handling exactly. The
+sweeps that re-apply trimmed parents are new and have NOT been
+measured on a real extract — if a column that sits in a cycle looks
+wrong, this is the first thing to try, and the difference between the
+two runs is the evidence.
 
 `synthkit dials C:\FULL\PATH\YOU\CHOOSE\blueprint.json` lists what
 that blueprint can be tuned on, so nobody has to open the JSON to

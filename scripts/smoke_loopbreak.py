@@ -142,21 +142,49 @@ def main():
     check("findings.txt no longer prints the line that contradicted "
           "fidelity.json",
           "age_at_visit lost year_of_birth" not in section)
-    check("...and it says where the pair DID end up, in the reader's "
-          "own terms rather than leaving them to infer it",
-          "generated the other way round" in section
-          or "kept as a direct edge" in section)
+    # WITH THE SWEEPS OFF the parent really is dropped, and the
+    # report must say so - the operator is told to compare the two
+    # runs, so a label that ignores the flag would be false in
+    # exactly the run they were sent to make.
+    off = render(bp, refine=False)
+    off_sec = off[off.index("WHAT WILL NOT REACH THE GENERATED DATA"):]
+    check("with --refine-sweeps 0 the same parent IS reported as "
+          "lost, and where it ended up is said in the reader's own "
+          "terms rather than left to infer",
+          "generated the other way round" in off_sec
+          or "kept as a direct edge" in off_sec)
+    check("...and the put-back section is absent from that run, "
+          "because nothing puts them back",
+          "TRIMMED TO ORDER A CYCLE" not in off)
+    # THE PARENT IS NO LONGER LOST, SO IT MOVED SECTIONS.
+    #
+    # The refinement sweeps re-apply a parent that was trimmed to
+    # order a cycle, so listing it under "will not reach the
+    # generated data" became the wrong claim - and reporting a
+    # relationship as lost when it is not is the same failure as the
+    # line this suite was written to kill, pointing the other way.
+    reap = text[text.index("TRIMMED TO ORDER A CYCLE"):]
     check("the relationship is still NAMED - reporting less is not "
           "the fix, reporting it accurately is",
-          "age_at_visit <- year_of_birth" in section)
+          "age_at_visit <- year_of_birth" in reap)
+    check("...and it is named under TRIMMED-THEN-PUT-BACK rather "
+          "than under losses, because the sweeps re-apply it",
+          "age_at_visit <- year_of_birth" not in section)
+    check("...and that section counts PARENTS as well as "
+          "relationships, the rule that exists because ten of twelve "
+          "drops were once invisible",
+          "1 relationship(s), 1 parent(s) in total" in reap)
+    check("...and it names the flag that turns the sweeps off, so "
+          "the two runs can be compared on real data",
+          "--refine-sweeps 0" in reap)
 
     # ---- THE TOTALS A READER CAN CHECK ---------------------------
     m = re.search(r"(\d+) had SOME PARENTS REMOVED to break a loop, "
                   r"(\d+) parent", section)
-    check("the section counts PARENTS, not only relationships - one "
-          "relationship can lose two, and a reader cannot check a "
-          "list against a count that measures something else",
-          m is not None)
+    check("the loss section still reconciles when it has anything "
+          "to report - with the sweeps on, this fixture's only drop "
+          "is re-applied, so an empty section here is correct",
+          m is not None or "age_at_visit" not in section)
     if m:
         n_par = int(m.group(2))
         m2 = re.search(r"below and (\d+) \+ (\d+) adds back to (\d+)",
@@ -183,7 +211,7 @@ def main():
         rel("p", [("r", 0.50), ("gender", 0.50)], 0.50),
         rel("r", [("age_at_visit", 0.90)], 0.60),
     ]
-    d2, _rec2 = _will_drop_full(lonely)
+    d2, _rec2 = _will_drop_full(lonely, refine=False)
     trimmed2 = [x for x in d2 if x.get("partial")]
     really_lost = sorted(p for x in trimmed2
                          for p in (x.get("parents_lost") or []))
@@ -193,8 +221,19 @@ def main():
           "repair can reconnect, so the next check is testing "
           "something - {}".format(really_lost),
           really_lost == ["p", "r"])
+    # THE SWEEPS ARE OFF HERE, so this is still a genuine loss and
+    # the section that names losses must name it. A run that reported
+    # everything as still-connected would pass every check above and
+    # tell the reader nothing was ever lost.
+    off2 = render(lonely, refine=False)
+    s2off = off2[off2.index("WHAT WILL NOT REACH THE GENERATED DATA"):]
     check("...and they are reported as GONE, in their own section",
-          ("ARE GONE" in s2 or "IS GONE" in s2) and "p lost r" in s2)
+          ("ARE GONE" in s2off or "IS GONE" in s2off)
+          and "p lost r" in s2off)
+    check("...while with the sweeps ON the same parent is named as "
+          "put back instead - the two runs disagree, and that "
+          "difference is the evidence the operator is sent to collect",
+          "p <- r" in t2[t2.index("TRIMMED TO ORDER A CYCLE"):])
     check("every parent named as lost is one the sampler actually "
           "removed, in both directions of the split",
           all(p in (x.get("parents") or [])

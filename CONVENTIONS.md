@@ -4,7 +4,7 @@ Synthetic clinical data generator and model-evaluation instrument. Core rule: le
 
 ## Verify before claiming
 
-- Run `python scripts/run_all_smokes.py` before claiming anything works. Expect 62 suites, 1625 checks, ALL GREEN.
+- Run `python scripts/run_all_smokes.py` before claiming anything works. Expect 62 suites, 1629 checks, ALL GREEN.
 - **`pip install -e .` is enough now, and Python must be 3.10+.**
   The numeric dependencies are declared in `pyproject.toml` rather
   than living only in `requirements.txt`, so the old footgun — skip
@@ -236,6 +236,21 @@ the direction that stops work happening.
   worked, the heading kept the PREVIOUS step's name, and nothing said
   so. It was also numbered `06` inside a five-step run, which implied
   you arrive there last when it is another way to BEGIN.
+- **TRIMMED IS NOT LOST, AND THE REPORT SAID LOST.** The refinement
+  sweeps put the cut parents back, and every line of the run still
+  called them dropped - on the real extract that would have told the
+  operator sixteen relationships left their data when they had not.
+  They have their own heading now, with a parent count, and they are
+  removed from the loss section rather than appearing in both. The
+  loss section ends in a catch-all bucket, so a record that is
+  neither a mirror nor a trim lands there whatever else was done with
+  it.
+- **AND THE LABEL HAS TO FOLLOW THE FLAG.** `--refine-sweeps 0` is
+  the comparison the operator is told to run, and the report claimed
+  "re-applied" in that run too - false in exactly the place it was
+  sent to look. `_order` takes the flag now, and `smoke_loopbreak`
+  asserts the two runs disagree: one names the parent as put back,
+  the other as gone.
 - **A DIAGNOSTIC MUST MEASURE THE THING IT NAMES.** The spread report
   attributed a shortfall to the k rule by the share of squared RAW
   values beyond the bound, which on any column not sitting near zero
