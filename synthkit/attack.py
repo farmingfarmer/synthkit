@@ -189,6 +189,100 @@ def likelihood_attack(net, members, nonmembers) -> Dict[str, Any]:
             "attacker_sees": "the published model itself"}
 
 
+# ---- ATTRIBUTE DISCLOSURE ------------------------------------
+#
+# Membership inference asks "was this person in the cohort". It is
+# not the question a governance board asks. Theirs is: given what I
+# already know about someone - age, sex, site, the ordinary fields -
+# does your synthetic data help me work out the SENSITIVE one?
+#
+# And a generator whose entire purpose is to reproduce relationships
+# faithfully is, by construction, good at exactly that. The better it
+# works the better it predicts. So a raw accuracy number cannot
+# answer it: if creatinine genuinely predicts a diagnosis in the
+# population, ANY sample of that population reveals it, and that is
+# statistical inference rather than disclosure.
+#
+# THE CONTROL IS WHAT MAKES THIS A MEASUREMENT. Three predictors of
+# the same sensitive column, scored on the same held-back real
+# records:
+#
+#   marginal    the base rate. Knows nothing about the row
+#   control     trained on DIFFERENT REAL PEOPLE who were never in
+#               the cohort. Whatever it achieves is population
+#               structure, available to anyone with any sample
+#   synthetic   trained on the rows we published
+#
+# The number that matters is synthetic MINUS control. That is the
+# part the release added over what the world already offered, and it
+# is the only part that can be called disclosure.
+
+
+def _encode(rows, cols, sensitive):
+    import numpy as np
+    X, y = [], []
+    for r in rows:
+        if r.get(sensitive) in (None, ""):
+            continue
+        X.append([_num(r.get(c)) for c in cols])
+        y.append(str(r.get(sensitive)))
+    return np.asarray(X, dtype=float), np.asarray(y)
+
+
+def attribute_disclosure(sensitive, quasi, members, nonmembers,
+                         synthetic, seed=0):
+    """How much better does the release make guessing `sensitive`?
+
+    Returns accuracies for the marginal, the control and the
+    synthetic-trained adversary, plus the EXCESS - which is the only
+    one of the three that is about this release rather than about the
+    population."""
+    import numpy as np
+    from sklearn.ensemble import RandomForestClassifier
+
+    Xm, ym = _encode(members, quasi, sensitive)
+    Xn, yn = _encode(nonmembers, quasi, sensitive)
+    Xs, ys = _encode(synthetic, quasi, sensitive)
+    if len(ym) < 40 or len(yn) < 40 or len(ys) < 40:
+        return {"error": "too few usable rows to measure anything"}
+
+    # The base rate, from the attacker's own side of the split - an
+    # attacker does not get to read the answer off the members.
+    vals, counts = np.unique(yn, return_counts=True)
+    top = vals[int(np.argmax(counts))]
+    marginal = float(np.mean(ym == top))
+
+    def trained(X, y):
+        if len(np.unique(y)) < 2:
+            return None
+        m = RandomForestClassifier(n_estimators=120, random_state=seed,
+                                   min_samples_leaf=5)
+        m.fit(X, y)
+        return float(np.mean(m.predict(Xm) == ym))
+
+    control = trained(Xn, yn)
+    synth = trained(Xs, ys)
+    if control is None or synth is None:
+        return {"error": "the sensitive column has one level here"}
+
+    return {
+        "sensitive": sensitive,
+        "quasi_identifiers": list(quasi),
+        "marginal_accuracy": round(marginal, 4),
+        "control_accuracy": round(control, 4),
+        "synthetic_accuracy": round(synth, 4),
+        # The whole answer.
+        "excess_over_control": round(synth - control, 4),
+        "n_members_scored": int(len(ym)),
+        "note": "control is trained on DIFFERENT REAL PEOPLE who were "
+                "never in the cohort, so whatever it achieves is "
+                "population structure anyone could obtain. Only the "
+                "excess over it is attributable to this release. A "
+                "high synthetic accuracy with a near-zero excess is "
+                "the generator working, not leaking.",
+    }
+
+
 def membership_audit(net, members, nonmembers,
                      synthetic: Optional[List[Dict]] = None,
                      nn_sample: int = 150) -> Dict[str, Any]:

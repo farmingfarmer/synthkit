@@ -4,7 +4,7 @@ Synthetic clinical data generator and model-evaluation instrument. Core rule: le
 
 ## Verify before claiming
 
-- Run `python scripts/run_all_smokes.py` before claiming anything works. Expect 58 suites, 1558 checks, ALL GREEN.
+- Run `python scripts/run_all_smokes.py` before claiming anything works. Expect 60 suites, 1590 checks, ALL GREEN.
 - **`pip install -e .` is enough now, and Python must be 3.10+.**
   The numeric dependencies are declared in `pyproject.toml` rather
   than living only in `requirements.txt`, so the old footgun — skip
@@ -105,6 +105,40 @@ the direction that stops work happening.
   own extremes. Storing the true 0th/100th percentile published one
   person's smallest and one person's largest value, and did so for
   weeks in a file described as aggregates-only.
+- **THE TWO HALVES CAN NOW MEET WITH AN ANSWER KEY.** `outcomes`
+  could never cross the bridge - nobody knows the answer in real data
+  - so every vendor number this instrument has produced was on
+  covariates AND signal somebody invented. `semisynth.plant` keeps
+  the measured covariates and plants a KNOWN outcome on top, so the
+  ceiling is computable on data shaped like the customer's. Effects
+  are declared in STANDARD DEVIATIONS and converted with the
+  blueprint's own spread: a raw coefficient of 0.5 means one thing on
+  a creatinine of 1.1 +/- 0.35 and saturates the logit on a glucose
+  of 105 +/- 28. Verified end to end - planted +0.9/-0.5 sd recovered
+  at +0.86/-0.44, a column with no planted effect recovers +0.03, and
+  the covariate marginals come through unchanged. What a model is
+  asked here is NARROWER than "does this work on our data", and the
+  spec says so about itself.
+- **The intercept is SOLVED, not centred.** `sigmoid(E[z])` is not
+  `E[sigmoid(z)]`: centring analytically asked for 25% prevalence and
+  produced 29.4%. Bisection over draws from the columns' own
+  marginals gives 27.2%, and the residual is the correlations the
+  table applies afterwards - so `semisynth.verify` reports achieved
+  against requested rather than assuming.
+- **ATTRIBUTE DISCLOSURE IS MEASURED NOW, and it needed a CONTROL.**
+  Membership inference asks "was this person in the cohort"; a
+  governance board asks whether the release helps guess a SENSITIVE
+  field from the ordinary ones. Raw accuracy cannot answer that - a
+  generator that reproduces relationships faithfully is by
+  construction good at predicting one column from the others, and a
+  real relationship is revealed by any sample of the population. So a
+  second adversary is trained on DIFFERENT REAL PEOPLE who were never
+  in the cohort: whatever it achieves is population structure anyone
+  could obtain, and only the EXCESS over it belongs to this release.
+  Across three seeds the excess is -0.009 (-0.033 to +0.003); the
+  same attack on a generator that republishes the members' own
+  records reads +0.145. The positive control is what makes the clean
+  number worth anything.
 - k-anonymity on what is published is NOT differential privacy, and
   the effect curves, interaction surfaces and dynamics have NOT been
   audited the same way. A membership-inference test HAS now been run

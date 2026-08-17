@@ -119,6 +119,20 @@ def build_parser(prog=None, add_help=True):
                          "columns' distributions exactly as they "
                          "were. Off by default because it changes the "
                          "output")
+    ap.add_argument("--plant-outcome", action="append", default=[],
+                    metavar="COLUMN=EFFECT",
+                    help="with --emit-spec, plant a KNOWN outcome on "
+                         "the measured covariates, e.g. "
+                         "--plant-outcome creatinine=0.9 "
+                         "--plant-outcome sex=M:0.4. Effects are in "
+                         "STANDARD DEVIATIONS of that column. This is "
+                         "what lets a vendor be graded on realistic "
+                         "covariates against an answer key")
+    ap.add_argument("--outcome-name", default="outcome",
+                    help="what to call the planted outcome")
+    ap.add_argument("--outcome-prevalence", type=float, default=0.25,
+                    help="share of rows carrying the positive label; "
+                         "the intercept is solved for it")
     ap.add_argument("--long", default="", metavar="CONCEPT=VALUE",
                     help="reshape a one-row-per-measurement extract "
                          "to one column per concept, e.g. --long "
@@ -527,10 +541,46 @@ def main(argv=None, args=None):
                     len(car["columns_dropped"])))
         say("  what did NOT cross: {}".format(
             ", ".join(car["did_not_cross"][:5])))
-        say("  outcomes are EMPTY by construction - a campaign grades "
-            "against planted signal")
-        say("  whose answer is known, and no fitted blueprint can "
-            "supply one. Author them.")
+        if a.plant_outcome:
+            # REAL COVARIATES, A PLANTED ANSWER KEY. The only way this
+            # instrument can grade a model on data shaped like the
+            # customer's: the marginals are measured, the label is
+            # chosen here, and the ceiling is therefore computable.
+            from synthkit import semisynth as _ss
+            effects = {}
+            for item in a.plant_outcome:
+                # `sex=M:0.4` names a level; `age=0.5` names a column.
+                if ":" in item:
+                    key, _, val = item.rpartition(":")
+                elif "=" in item:
+                    key, _, val = item.rpartition("=")
+                else:
+                    die("--plant-outcome wants COLUMN=EFFECT or "
+                        "COLUMN=LEVEL:EFFECT - got {!r}".format(item))
+                try:
+                    effects[key.strip()] = float(val)
+                except ValueError:
+                    die("--plant-outcome {} needs a number, got {!r}"
+                        .format(key, val))
+            try:
+                made = _ss.plant(made, effects,
+                                 name=a.outcome_name,
+                                 prevalence=a.outcome_prevalence)
+            except ValueError as e:
+                die(str(e))
+            (out / "tablespec.json").write_text(
+                json.dumps(made, indent=1), encoding="utf-8")
+            for line in _ss.describe(made).splitlines():
+                say("  " + line)
+            for r_ in (made["planted"].get("refused") or []):
+                say("  REFUSED {}: {}".format(r_["effect"],
+                                              r_["why"]))
+        else:
+            say("  outcomes are EMPTY by construction - a campaign "
+                "grades against planted signal")
+            say("  whose answer is known, and no fitted blueprint can "
+                "supply one. Author them, or pass --plant-outcome "
+                "to plant one here.")
     (out / "provenance.json").write_text(
         json.dumps(prov, indent=1), encoding="utf-8")
     say("wrote catalogue.json, blueprint.json, findings.txt, "
