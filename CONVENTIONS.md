@@ -4,7 +4,7 @@ Synthetic clinical data generator and model-evaluation instrument. Core rule: le
 
 ## Verify before claiming
 
-- Run `python scripts/run_all_smokes.py` before claiming anything works. Expect 60 suites, 1590 checks, ALL GREEN.
+- Run `python scripts/run_all_smokes.py` before claiming anything works. Expect 60 suites, 1604 checks, ALL GREEN.
 - **`pip install -e .` is enough now, and Python must be 3.10+.**
   The numeric dependencies are declared in `pyproject.toml` rather
   than living only in `requirements.txt`, so the old footgun — skip
@@ -217,6 +217,25 @@ the direction that stops work happening.
   itself, because a spec that looks complete and has silently lost
   every relationship is the same failure as a column that looks
   present and is entirely sentinel.
+- **A SUB-NUMBER THAT LOOKS LIKE A VERSION IS NOT A LABEL.** The
+  bench numbered its controls 1.1, 4.7, 6.3 - and `6.3` appeared
+  TWICE, in the same station, which no amount of reading the page
+  would reveal. Letters restart inside each step now, so a repeat or
+  a gap is visible on sight and a check can assert the whole
+  sequence. Each step also owns a HUE carried by its tab, its banner
+  and its lettered chips: with one accent colour, nothing told you at
+  a glance which step you were in.
+- **A STEP MUST SAY WHAT IT NEEDS BEFORE IT RUNS.** Every station
+  explained what it was ABOUT and then stopped, so the only way to
+  learn what had to exist first was to press the button and read an
+  error. `you need` / `you get` on every step, and a `next` line at
+  the foot naming where to go.
+- **`learn` WAS MISSING FROM THE TITLE MAP, and threw.**
+  `titles['learn']` came back undefined, `t[0]` raised a TypeError,
+  and the handler died after switching the section - so the station
+  worked, the heading kept the PREVIOUS step's name, and nothing said
+  so. It was also numbered `06` inside a five-step run, which implied
+  you arrive there last when it is another way to BEGIN.
 - **A DIAGNOSTIC MUST MEASURE THE THING IT NAMES.** The spread report
   attributed a shortfall to the k rule by the share of squared RAW
   values beyond the bound, which on any column not sitting near zero

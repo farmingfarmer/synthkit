@@ -1544,6 +1544,171 @@ label{font-size:13.5px;color:#2c3a45;font-weight:600}
 .badge{font-size:10px}
 .stepno{font-size:11px;
   box-shadow:0 1px 3px rgba(14,110,100,.35)}
+
+/* ================================================
+   STEP SYSTEM LAYER (appended: later wins)
+
+   The bench had one accent colour and numbered every
+   control 1.1, 1.2, 4.7 - so nothing told you at a glance
+   WHICH step you were in, and a sub-number like 4.7 read
+   as a version rather than as "the seventh thing in step
+   four". Sub-numbering was also wrong: 6.3 appeared twice.
+
+   Now: each step owns a HUE, carried by its tab, its
+   banner and every lettered control inside it. Letters,
+   not decimals, because A/B/C cannot be mistaken for a
+   number that means something else.
+
+   The tabs are the one loud thing on the page. Everything
+   else stays quiet so the colour means "where am I".
+   ================================================ */
+:root{
+  --s1:#7C3AED; --s1lo:#9F67FF; --s1wash:#F2EDFE;
+  --s2:#0891B2; --s2lo:#22B8DC; --s2wash:#E6F6FA;
+  --s3:#059669; --s3lo:#10B981; --s3wash:#E6F7F0;
+  --s4:#D97706; --s4lo:#F59E0B; --s4wash:#FDF3E3;
+  --s5:#E11D48; --s5lo:#FB4570; --s5wash:#FDECF0;
+  --s6:#2563EB; --s6lo:#4F8BFF; --s6wash:#EAF1FE;
+}
+[data-step="1"]{--tab:var(--s1);--tablo:var(--s1lo);--wash:var(--s1wash)}
+[data-step="2"]{--tab:var(--s2);--tablo:var(--s2lo);--wash:var(--s2wash)}
+[data-step="3"]{--tab:var(--s3);--tablo:var(--s3lo);--wash:var(--s3wash)}
+[data-step="4"]{--tab:var(--s4);--tablo:var(--s4lo);--wash:var(--s4wash)}
+[data-step="5"]{--tab:var(--s5);--tablo:var(--s5lo);--wash:var(--s5wash)}
+[data-step="6"]{--tab:var(--s6);--tablo:var(--s6lo);--wash:var(--s6wash)}
+
+/* ---- the rail: bright reflective tabs ---- */
+nav{padding:18px 12px}
+.wordmark{padding:0 8px 16px}
+.station{
+  position:relative;display:block;width:100%;text-align:left;
+  margin:0 0 9px;padding:11px 13px 11px 15px;border:0;
+  border-radius:11px;cursor:pointer;color:#fff;
+  font-family:var(--sans);font-size:14.5px;font-weight:650;
+  letter-spacing:.005em;line-height:1.25;
+  background:linear-gradient(180deg,var(--tablo) 0%,
+             var(--tab) 58%,var(--tab) 100%);
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.55),
+             inset 0 -2px 0 rgba(0,0,0,.16),
+             0 2px 5px rgba(15,23,42,.20);
+  text-shadow:0 1px 1px rgba(0,0,0,.22);
+  filter:saturate(.86) brightness(.97);
+  transition:filter .12s,transform .08s,box-shadow .12s}
+/* the sheen: a specular band across the top half */
+.station::after{content:"";position:absolute;
+  left:0;right:0;top:0;height:46%;pointer-events:none;
+  border-radius:11px 11px 40% 40%/11px 11px 100% 100%;
+  background:linear-gradient(180deg,rgba(255,255,255,.34) 0%,
+             rgba(255,255,255,.06) 100%)}
+.station b{display:inline-block;font-family:var(--mono);
+  font-size:10.5px;font-weight:800;letter-spacing:.10em;
+  background:rgba(0,0,0,.24);border-radius:6px;
+  padding:2px 7px;margin-right:9px;vertical-align:1px;
+  text-shadow:none}
+.station .subt{display:block;font-size:11.5px;font-weight:500;
+  opacity:.93;margin-top:3px;letter-spacing:.01em;
+  text-shadow:0 1px 1px rgba(0,0,0,.18)}
+.station:hover{filter:saturate(1) brightness(1.05);
+  transform:translateY(-1px)}
+.station.active{filter:saturate(1.12) brightness(1.10);
+  border-left:0;background:linear-gradient(180deg,
+    var(--tablo) 0%,var(--tab) 70%);
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.7),
+             inset 0 -2px 0 rgba(0,0,0,.18),
+             0 0 0 2px #fff, 0 0 0 4px var(--tab),
+             0 6px 16px rgba(15,23,42,.30)}
+.station:focus-visible{outline:3px solid var(--ink);
+  outline-offset:3px}
+.station.done b::after{content:" \2713";color:#EAFBEF;
+  font-weight:900}
+/* Learn is not step 6 of the flow - it is another way to
+   START, and putting it in the same numbered run implied
+   you arrive there last. */
+.railsplit{font-family:var(--mono);font-size:9.5px;
+  letter-spacing:.14em;text-transform:uppercase;
+  color:var(--dim);margin:16px 8px 8px;
+  padding-top:14px;border-top:1px solid var(--rule)}
+
+/* ---- the step banner ---- */
+.stepbanner{display:flex;align-items:center;gap:12px;
+  flex-wrap:wrap;font-size:21px;font-weight:750;
+  letter-spacing:-.015em;color:var(--ink);
+  margin:2px 0 10px;padding:0}
+.stepbanner .stepchip{font-family:var(--mono);font-size:11px;
+  font-weight:800;letter-spacing:.10em;text-transform:uppercase;
+  color:#fff;padding:6px 12px;border-radius:8px;
+  background:linear-gradient(180deg,var(--tablo),var(--tab));
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.5),
+             0 2px 5px rgba(15,23,42,.22);
+  text-shadow:0 1px 1px rgba(0,0,0,.22)}
+/* WHAT YOU NEED AND WHAT YOU GET, on every step. The old
+   page explained what a step was ABOUT; it never said what
+   had to exist before you could run it, so the only way to
+   find out was to press the button and read an error. */
+.stepgoal{display:grid;grid-template-columns:auto 1fr;
+  gap:6px 12px;align-items:baseline;
+  background:var(--wash);border:1px solid var(--rule);
+  border-left:5px solid var(--tab);border-radius:0 10px 10px 0;
+  padding:12px 16px;margin:0 0 14px;font-size:14px;
+  line-height:1.5}
+.stepgoal dt{font-family:var(--mono);font-size:10px;
+  font-weight:800;letter-spacing:.13em;text-transform:uppercase;
+  color:var(--tab);white-space:nowrap}
+.stepgoal dd{margin:0;color:#33414E}
+.explain{background:#fff;border-left:4px solid var(--tab);
+  border-radius:0 10px 10px 0;font-size:14px;
+  padding:11px 15px;color:#3A4855}
+
+/* ---- lettered controls: A, B, C ---- */
+.stepno{display:inline-flex;align-items:center;
+  justify-content:center;min-width:23px;height:23px;
+  font-family:var(--mono);font-size:12.5px;font-weight:800;
+  border-radius:7px;padding:0 6px;margin-right:9px;
+  vertical-align:-5px;color:#fff;
+  background:linear-gradient(180deg,var(--tablo),var(--tab));
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.45),
+             0 1px 3px rgba(15,23,42,.28);
+  text-shadow:0 1px 1px rgba(0,0,0,.25)}
+.eyebrow{font-size:11.5px;letter-spacing:.10em;
+  color:#44525F;font-weight:700}
+.panel{border-top:3px solid var(--tab)}
+
+/* ---- required / optional, said louder ---- */
+.badge{font-size:10px;font-weight:800;letter-spacing:.07em;
+  padding:3px 9px;border-radius:7px;vertical-align:1px}
+.badge.req{background:#B3261E;color:#fff}
+.badge.rec{background:#8A5A0B;color:#fff}
+.badge.opt{background:#E3E9EE;color:#46545F;
+  border:1px solid #C9D3DB}
+
+/* ---- what to do next, at the foot of every step ---- */
+.nextup{display:flex;align-items:center;gap:11px;
+  flex-wrap:wrap;margin:18px 0 6px;padding:13px 16px;
+  border-radius:11px;background:#fff;
+  border:1px solid var(--rule);border-left:5px solid var(--tab);
+  font-size:14px;box-shadow:0 1px 2px rgba(23,34,44,.06)}
+.nextup .lbl{font-family:var(--mono);font-size:10px;
+  font-weight:800;letter-spacing:.13em;text-transform:uppercase;
+  color:var(--tab)}
+@media(max-width:860px){
+  nav{display:flex;gap:8px;padding:12px}
+  .station{margin:0;min-width:172px}
+  .railsplit{display:none}
+  .stepbanner{font-size:18px}}
+h1{display:flex;align-items:center;gap:11px;
+  font-family:var(--sans);font-size:22px;font-weight:750;
+  letter-spacing:-.015em}
+h1 .tstep{font-family:var(--mono);font-style:normal;
+  font-size:10.5px;font-weight:800;letter-spacing:.12em;
+  text-transform:uppercase;color:#fff;padding:5px 10px;
+  border-radius:7px;
+  background:linear-gradient(180deg,var(--tablo),var(--tab));
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.5),
+             0 2px 4px rgba(15,23,42,.22);
+  text-shadow:0 1px 1px rgba(0,0,0,.22)}
+h1 span{font-size:15px;font-weight:500;color:var(--dim);
+  letter-spacing:0}
+#speccard{border-top:3px solid var(--tab);border-radius:10px}
 </style></head><body>
 <div class="frame">
 <nav>
@@ -1551,31 +1716,32 @@ label{font-size:13.5px;color:#2c3a45;font-weight:600}
     <span id="fp" title="version &middot; built &middot; build
     fingerprint; compare with `synthkit version`">loading
     build...</span></small></div>
-  <button class="station active" data-s="describe"><b>01</b>
+  <button class="station active" data-step="1" data-s="describe"><b>01</b>
     Describe<small class="subt">define the dataset</small></button>
-  <button class="station" data-s="spec"><b>02</b>
+  <button class="station" data-step="2" data-s="spec"><b>02</b>
     Spec<small class="subt">review the recipe</small></button>
-  <button class="station" data-s="data"><b>03</b>
+  <button class="station" data-step="3" data-s="data"><b>03</b>
     Data<small class="subt">generate synthetic data</small></button>
-  <button class="station" data-s="campaign"><b>04</b>
+  <button class="station" data-step="4" data-s="campaign"><b>04</b>
     Campaign<small class="subt">configure the evaluation</small></button>
-  <button class="station" data-s="showdown"><b>05</b>
+  <button class="station" data-step="5" data-s="showdown"><b>05</b>
     Showdown<small class="subt">compare results</small></button>
-  <button class="station" data-s="learn"><b>06</b>
+  <div class="railsplit">or begin a different way</div>
+  <button class="station" data-step="6" data-s="learn"><b>ALT</b>
     Learn<small class="subt">start from real data</small></button>
 </nav>
-<main>
+<main data-step="1">
 <header class="bar">
-  <h1 id="title">Describe <span>— plain English in</span></h1>
+  <h1 id="title"><em class="tstep">Step 1</em>Describe <span>— say what data you need</span></h1>
   <div id="speccard" class="empty">
     <div class="fp">no spec loaded</div>
     <div class="meta">describe one or load a preset</div>
   </div>
 </header>
 
-<section id="s-describe" class="active">
-  <div class="stepbanner">Step 1 of 5 &mdash; Say what data you
-  need</div>
+<section id="s-describe" class="active" data-step="1">
+  <div class="stepbanner"><span class="stepchip">Step 1 of 5</span><span>Say what data you need</span></div>
+  <dl class="stepgoal"><dt>you need</dt><dd>Nothing &mdash; this is the start.</dd><dt>you get</dt><dd>A plain-English description, ready to become a recipe in Step 2.</dd></dl>
   <div class="gov"><span>&#128274; Synthetic only &mdash; no real
   patient data touched</span><span>&#128273; Known answer key
   &mdash; every truth planted on purpose</span><span>&#128257;
@@ -1586,10 +1752,10 @@ label{font-size:13.5px;color:#2c3a45;font-weight:600}
   dataset. Nothing here touches real patients &mdash; every record is
   invented, but invented to order: realistic values, realistic
   messiness, and a known answer key. Use a ready-made example
-  (1.1) or write your own description (1.2), then continue to
+  (A) or write your own description (B), then continue to
   Step 2.</div>
   <div class="panel">
-    <div class="eyebrow"><span class="stepno">1.1</span>
+    <div class="eyebrow"><span class="stepno">A</span>
     <span class="badge opt">optional &mdash; fastest path</span>
     ready-made examples</div>
     <div class="presets" id="presets"></div>
@@ -1598,7 +1764,7 @@ label{font-size:13.5px;color:#2c3a45;font-weight:600}
     click the first card and skip to Step 2.</div>
   </div>
   <div class="panel">
-    <div class="eyebrow"><span class="stepno">1.2</span>
+    <div class="eyebrow"><span class="stepno">B</span>
     <span class="badge opt">skip if you clicked an example</span>
     describe the data in plain English</div>
     <div class="explain">Write what one record is (a patient, a
@@ -1612,13 +1778,13 @@ label{font-size:13.5px;color:#2c3a45;font-weight:600}
     <textarea id="english" rows="5"
       placeholder="a 300-row lab results extract: patient id, ordering department weighted toward internal medicine, ten percent missing results, occasional wrong-value dates..."></textarea>
     <div class="row2">
-      <div><label for="kind"><span class="stepno">1.3</span>
+      <div><label for="kind"><span class="stepno">C</span>
         what shape of data?</label>
         <select id="kind"><option value="table">a table &mdash;
         one row per patient / record</option>
         <option value="document">text documents &mdash; e.g.
         clinical notes or reports</option></select></div>
-      <div><label for="backend"><span class="stepno">1.4</span>
+      <div><label for="backend"><span class="stepno">D</span>
         <span class="badge opt">advanced</span> which AI reads
         your English</label>
         <select id="backend"><option value="ollama">Ollama app
@@ -1629,7 +1795,7 @@ label{font-size:13.5px;color:#2c3a45;font-weight:600}
         Bedrock)</option>
         <option value="anthropic">Anthropic API</option></select></div>
     </div>
-    <div class="eyebrow"><span class="stepno">1.5</span>
+    <div class="eyebrow"><span class="stepno">E</span>
     <span class="badge opt">skip if you clicked an example</span>
     turn the description into a recipe</div>
     <button class="act" onclick="compileSpec()">Compile spec</button>
@@ -1640,11 +1806,12 @@ label{font-size:13.5px;color:#2c3a45;font-weight:600}
     <div class="outlabel">readout &mdash; results only, not editable</div>
     <pre class="out" id="compile-out"></pre>
   </div>
+  <div class="nextup"><span class="lbl">next</span><b>Step 2 &mdash; Spec</b><span>Nothing has been created yet. Step 2 shows the exact recipe and waits for you to approve it.</span></div>
 </section>
 
-<section id="s-spec">
-  <div class="stepbanner">Step 2 of 5 &mdash; Review the recipe (the
-  contract for your data)</div>
+<section id="s-spec" data-step="2">
+  <div class="stepbanner"><span class="stepchip">Step 2 of 5</span><span>Review the recipe &mdash; the human gate</span></div>
+  <dl class="stepgoal"><dt>you need</dt><dd>A description from Step 1, or a ready-made example.</dd><dt>you get</dt><dd>An approved recipe with a fingerprint. Nothing is generated until you approve it here.</dd></dl>
   <div class="explain">This is the complete, exact recipe the
   rest of the process follows: every field, every distribution,
   every deliberate flaw, every hidden trap, and the promised
@@ -1654,26 +1821,26 @@ label{font-size:13.5px;color:#2c3a45;font-weight:600}
   same data, every time, on any machine.</div>
   <div class="panel">
     <div id="spec-summary"></div>
-    <div class="eyebrow"><span class="stepno">2.1</span>
+    <div class="eyebrow"><span class="stepno">A</span>
     <span class="badge opt">experts only</span> the recipe
     itself (editable)</div>
     <textarea id="spec" rows="22" spellcheck="false"
       placeholder="No spec yet &mdash; describe one or load a preset."></textarea>
-    <div class="eyebrow"><span class="stepno">2.2</span>
+    <div class="eyebrow"><span class="stepno">B</span>
     <span class="badge req">required</span> check the recipe is
     complete and lawful</div>
     <button class="act" onclick="validateSpec()">Validate</button>
     <div class="hint">Green means every field is well-defined
     and internally consistent. Problems are listed in plain
     terms so they can be fixed before anything is created.</div>
-    <div class="eyebrow"><span class="stepno">2.3</span>
+    <div class="eyebrow"><span class="stepno">C</span>
     <span class="badge opt">optional</span> quick trial run
     (nothing saved)</div>
     <button class="act ghost" onclick="planSpec()">Plan (dry run)</button>
     <div class="hint">Builds the dataset in memory and reports
     what it WOULD contain &mdash; row counts, corrupted cells &mdash;
     without writing anything to disk.</div>
-    <div class="eyebrow"><span class="stepno">2.4</span>
+    <div class="eyebrow"><span class="stepno">D</span>
     <span class="badge rec">recommended</span> does the data
     keep the recipe's promises?</div>
     <button class="act ghost" onclick="lintSpec()">Semantic lint</button>
@@ -1681,7 +1848,7 @@ label{font-size:13.5px;color:#2c3a45;font-weight:600}
     what was declared &mdash; e.g. "readmission was promised at
     5&ndash;12% and lands at 8%". This is how you know the dataset
     means what the description said.</div>
-    <div class="eyebrow"><span class="stepno">2.5</span>
+    <div class="eyebrow"><span class="stepno">E</span>
     <span class="badge opt">optional</span> save the recipe
     file</div>
     <button class="act ghost" onclick="downloadSpec()">Download spec.json</button>
@@ -1691,11 +1858,12 @@ label{font-size:13.5px;color:#2c3a45;font-weight:600}
     <div class="outlabel">readout &mdash; results only, not editable</div>
     <pre class="out" id="spec-out"></pre>
   </div>
+  <div class="nextup"><span class="lbl">next</span><b>Step 3 &mdash; Data</b><span>Once the recipe validates and you approve it, Step 3 turns it into rows or documents.</span></div>
 </section>
 
-<section id="s-data">
-  <div class="stepbanner">Step 3 of 5 &mdash; Create the synthetic
-  data</div>
+<section id="s-data" data-step="3">
+  <div class="stepbanner"><span class="stepchip">Step 3 of 5</span><span>Create the synthetic data</span></div>
+  <dl class="stepgoal"><dt>you need</dt><dd>An approved recipe from Step 2.</dd><dt>you get</dt><dd>A table or a set of documents you can open, download, and hand to a vendor.</dd></dl>
   <div class="explain">This turns the approved recipe into real
   files: the messy dataset (what a model would actually face),
   the clean answer key (the same records with every flaw
@@ -1703,11 +1871,11 @@ label{font-size:13.5px;color:#2c3a45;font-weight:600}
   deliberate corruption. When it finishes, a preview and
   download buttons appear below.</div>
   <div class="panel">
-    <div class="eyebrow"><span class="stepno">3.1</span>
+    <div class="eyebrow"><span class="stepno">A</span>
     <span class="badge req">required</span> where to save</div>
     <label for="outdir">folder name for this run</label>
     <input id="outdir" value="gui_runs/run_001">
-    <div class="eyebrow"><span class="stepno">3.2</span>
+    <div class="eyebrow"><span class="stepno">B</span>
     <span class="badge opt">advanced &mdash; text documents
     only</span> who writes the prose</div>
     <div class="row2">
@@ -1745,7 +1913,7 @@ label{font-size:13.5px;color:#2c3a45;font-weight:600}
     choice; AI writers only phrase the free-text notes, and
     every AI-written note is verified against the answer key
     and corrected if it drifts.</div>
-    <div class="eyebrow"><span class="stepno">3.3</span>
+    <div class="eyebrow"><span class="stepno">C</span>
     <span class="badge req">required</span> create the data</div>
     <button class="act" onclick="renderSpec()">Create the data</button>
     <div class="outlabel">readout &mdash; results only, not editable</div>
@@ -1754,11 +1922,12 @@ label{font-size:13.5px;color:#2c3a45;font-weight:600}
     <div id="data-downloads"></div>
     <div id="render-preview"></div>
   </div>
+  <div class="nextup"><span class="lbl">next</span><b>Step 4 &mdash; Campaign</b><span>The data exists but nothing has been tested. Step 4 builds the exam a model has to sit.</span></div>
 </section>
 
-<section id="s-campaign">
-  <div class="stepbanner">Step 4 of 5 &mdash; Set the exam, then let
-  our own model take it</div>
+<section id="s-campaign" data-step="4">
+  <div class="stepbanner"><span class="stepchip">Step 4 of 5</span><span>Set the exam, then let a model sit it</span></div>
+  <dl class="stepgoal"><dt>you need</dt><dd>Generated data from Step 3.</dd><dt>you get</dt><dd>A scored run at every difficulty tier, for the solver you pick.</dd></dl>
   <div class="explain">A campaign is a standardized exam built
   from the recipe: the same test at three difficulty levels,
   with pass marks you set. Here you define the exam (4.1&ndash;4.4)
@@ -1767,7 +1936,7 @@ label{font-size:13.5px;color:#2c3a45;font-weight:600}
   transparent model can score on this data.</div>
   <div class="panel">
     <div class="row2">
-      <div><label for="goal"><span class="stepno">4.1</span>
+      <div><label for="goal"><span class="stepno">A</span>
         <span class="badge req">required</span> what is the
         task?</label>
         <select id="goal"><option value="clean">clean &mdash; repair
@@ -1778,12 +1947,12 @@ label{font-size:13.5px;color:#2c3a45;font-weight:600}
         number</option>
         <option value="extract">extract &mdash; pull facts out of
         text</option></select></div>
-      <div><label for="outcome"><span class="stepno">4.2</span>
+      <div><label for="outcome"><span class="stepno">B</span>
         <span class="badge req">required for predict</span>
         which column is being predicted?</label>
         <input id="outcome" placeholder="readmitted_30d"></div>
     </div>
-    <label for="bars"><span class="stepno">4.3</span>
+    <label for="bars"><span class="stepno">C</span>
     <span class="badge req">required</span> pass marks
     (name=value, comma-separated)</label>
     <input id="bars" value="fix_rate=0.9,detect_rate=0.5">
@@ -1793,10 +1962,10 @@ label{font-size:13.5px;color:#2c3a45;font-weight:600}
     flip; 0.6 says "must beat a coin flip convincingly".
     gap_max limits how much worse a model may do on the messy
     data versus the clean answer key.</div>
-    <div class="eyebrow"><span class="stepno">4.4</span>
+    <div class="eyebrow"><span class="stepno">D</span>
     <span class="badge req">required</span> build the exam</div>
     <button class="act" onclick="campaignCompile()">Compile ladder</button>
-    <label for="solver"><span class="stepno">4.5</span>
+    <label for="solver"><span class="stepno">E</span>
     <span class="badge req">required</span> which model takes
     the exam</label>
     <select id="solver"><option value="autoclean">autoclean &mdash;
@@ -1814,7 +1983,7 @@ label{font-size:13.5px;color:#2c3a45;font-weight:600}
       <option value="llm_extract">llm_extract &mdash; an AI model
       in the test seat (extract only)</option></select>
     <div class="row2">
-      <div><label for="lbackend"><span class="stepno">4.6</span>
+      <div><label for="lbackend"><span class="stepno">F</span>
         <span class="badge opt">only for llm_extract</span>
         which AI is being tested</label>
         <select id="lbackend"><option value="ollama">Ollama app
@@ -1830,16 +1999,16 @@ label{font-size:13.5px;color:#2c3a45;font-weight:600}
         <input id="lmodel" placeholder="mistral-small3.1"></div>
     </div>
     <div class="row2">
-      <div><label for="samples"><span class="stepno">4.7</span>
+      <div><label for="samples"><span class="stepno">G</span>
         <span class="badge opt">advanced</span> answers per
         question (majority vote)</label>
         <input id="samples" value="1"></div>
-      <div><label for="intervention"><span class="stepno">4.8</span>
+      <div><label for="intervention"><span class="stepno">H</span>
         <span class="badge opt">advanced</span> extra
         instruction to the tested AI</label>
         <input id="intervention" placeholder="optional"></div>
     </div>
-    <div class="eyebrow"><span class="stepno">4.9</span>
+    <div class="eyebrow"><span class="stepno">I</span>
     <span class="badge req">required</span> run the exam</div>
     <button class="act" onclick="campaignRun()">Run ladder</button>
     <div class="hint">Training happens on a separate practice
@@ -1849,10 +2018,12 @@ label{font-size:13.5px;color:#2c3a45;font-weight:600}
     <div class="outlabel">readout &mdash; results only, not editable</div>
     <pre class="out" id="campaign-out"></pre>
   </div>
+  <div class="nextup"><span class="lbl">next</span><b>Step 5 &mdash; Showdown</b><span>You have one model&rsquo;s score. Step 5 puts it beside our own baseline and the theoretical ceiling.</span></div>
 </section>
 
-<section id="s-learn">
-  <div class="stepbanner">Start from data you already have</div>
+<section id="s-learn" data-step="6">
+  <div class="stepbanner"><span class="stepchip">Alternative start</span><span>Begin from data you already have</span></div>
+  <dl class="stepgoal"><dt>you need</dt><dd>A CSV of real records, on this machine. Nothing leaves it.</dd><dt>you get</dt><dd>A recipe MEASURED from that data &mdash; which then goes through Steps 2 to 5 exactly like an invented one.</dd></dl>
   <div class="explain">The five steps above INVENT a population
   from a description. This one learns from a dataset that already
   exists: it measures each field's distribution, how often values
@@ -1868,7 +2039,7 @@ label{font-size:13.5px;color:#2c3a45;font-weight:600}
   patients</span><span>&#127903; Every pattern found becomes a
   dial you can turn</span></div>
   <div class="panel">
-    <label for="lpath"><span class="stepno">6.1</span>
+    <label for="lpath"><span class="stepno">A</span>
     <span class="badge req">required</span> full path to a tidy
     CSV &mdash; one row per visit</label>
     <input id="lpath" placeholder="/path/to/tidy_visits.csv">
@@ -1880,7 +2051,7 @@ label{font-size:13.5px;color:#2c3a45;font-weight:600}
     one tidy file, the command line can join them for you first:
     <code>python scripts/omop_wrangle.py --src FOLDER -o
     tidy_visits.csv</code></div>
-    <label for="lgroup"><span class="stepno">6.2</span>
+    <label for="lgroup"><span class="stepno">B</span>
     <span class="badge rec">recommended</span> which column
     identifies the PATIENT</label>
     <input id="lgroup" value="person_id">
@@ -1889,7 +2060,7 @@ label{font-size:13.5px;color:#2c3a45;font-weight:600}
     protection, and not ten patients&#39; worth of evidence
     either &mdash; naming this column makes the bench count people
     rather than rows.</div>
-    <label for="leps"><span class="stepno">6.3</span>
+    <label for="leps"><span class="stepno">C</span>
     <span class="badge opt">optional</span> privacy budget
     (epsilon) &mdash; leave blank for none</label>
     <input id="leps" placeholder="1.0">
@@ -1925,7 +2096,7 @@ label{font-size:13.5px;color:#2c3a45;font-weight:600}
     session.</div></div>
   </div>
   <div class="panel" id="learn-dials-panel" style="display:none">
-    <label><span class="stepno">6.3</span>
+    <label><span class="stepno">D</span>
     <span class="badge opt">optional</span> turn what was
     found</label>
     <div class="hint">Every relationship the bench discovered can
@@ -1937,7 +2108,7 @@ label{font-size:13.5px;color:#2c3a45;font-weight:600}
     <div id="learn-dials"></div>
   </div>
   <div class="panel" id="learn-gen-panel" style="display:none">
-    <label for="lrows"><span class="stepno">6.4</span>
+    <label for="lrows"><span class="stepno">E</span>
     <span class="badge req">required</span> how many records to
     create</label>
     <input id="lrows" value="1000">
@@ -1981,7 +2152,7 @@ label{font-size:13.5px;color:#2c3a45;font-weight:600}
     <div id="learn-preview"></div>
   </div>
   <div class="panel" id="learn-exam-panel" style="display:none">
-    <label><span class="stepno">6.5</span>
+    <label><span class="stepno">F</span>
     <span class="badge opt">optional</span> turn this into an
     exam</label>
     <div class="explain">Realistic data is not yet a test. A test
@@ -2018,10 +2189,11 @@ label{font-size:13.5px;color:#2c3a45;font-weight:600}
     above, then grade.</div>
     <div id="learn-exam-report"></div>
   </div>
+  <div class="nextup"><span class="lbl">next</span><b>Step 2 &mdash; Spec</b><span>The measured recipe lands in Step 2 exactly like a written one, and goes through the same human gate.</span></div>
 </section>
-<section id="s-showdown">
-  <div class="stepbanner">Step 5 of 5 &mdash; The verdict: vendor vs
-  our model</div>
+<section id="s-showdown" data-step="5">
+  <div class="stepbanner"><span class="stepchip">Step 5 of 5</span><span>The verdict &mdash; vendor against our own model</span></div>
+  <dl class="stepgoal"><dt>you need</dt><dd>A campaign from Step 4.</dd><dt>you get</dt><dd>One line for a meeting: the ceiling, our baseline, and the vendor&rsquo;s number side by side.</dd></dl>
   <div class="explain">The vendor's model and our own take the
   identical exam on identical data &mdash; data where the maximum
   achievable score is KNOWN, because we planted the truth. Below
@@ -2029,14 +2201,14 @@ label{font-size:13.5px;color:#2c3a45;font-weight:600}
   tested, what traps the data contained, how each model works,
   and who won.</div>
   <div class="panel">
-    <label for="sbaseline"><span class="stepno">5.1</span>
+    <label for="sbaseline"><span class="stepno">A</span>
     <span class="badge req">required</span> our challenger (the
     floor the vendor must beat)</label>
     <select id="sbaseline"><option value="autosolver">autosolver
       &mdash; tabular only (cannot read notes)</option>
       <option value="autosolver_hybrid">autosolver_hybrid &mdash; our
       best: reads the table AND the notes</option></select>
-    <label for="vendor"><span class="stepno">5.2</span>
+    <label for="vendor"><span class="stepno">B</span>
     <span class="badge req">required</span> the vendor's model
     (name or file:function)</label>
     <input id="vendor" value="autosolver">
@@ -2068,21 +2240,28 @@ label{font-size:13.5px;color:#2c3a45;font-weight:600}
     answer key, and the exam stays identical for every
     contestant. Full walkthrough with copy-paste templates:
     docs/vendor_integration.md.</details>
-    <div class="eyebrow"><span class="stepno">5.3</span>
+    <div class="eyebrow"><span class="stepno">C</span>
     <span class="badge req">required</span> run the head-to-head</div>
     <button class="act" onclick="showdown()">Run showdown</button>
     <div class="outlabel">readout &mdash; results only, not editable</div>
     <pre class="out" id="showdown-out"></pre>
     <div id="showdown-report"></div>
   </div>
+  <div class="nextup"><span class="lbl">next</span><b>Done</b><span>This is the end of the run. Change anything in Steps 1 to 4 and the fingerprint changes with it, so a result always names the data it came from.</span></div>
 </section>
 </main></div>
 <script>
-const titles={describe:['Describe','plain English in'],
-  spec:['Spec','review before rendering'],
-  data:['Data','the auditable artifact'],
-  campaign:['Campaign','a goal becomes a ladder'],
-  showdown:['Showdown','ceiling / baseline / vendor']};
+/* `learn` was MISSING from this map. `titles['learn']` came back
+   undefined and `t[0]` threw a TypeError, so clicking the sixth
+   station left the heading showing the previous step's name and the
+   rest of the handler never ran. The station worked, the label lied,
+   and nothing said so. */
+const titles={describe:['Step 1','Describe','say what data you need'],
+  spec:['Step 2','Spec','review the recipe'],
+  data:['Step 3','Data','create the data'],
+  campaign:['Step 4','Campaign','set the exam'],
+  showdown:['Step 5','Showdown','ceiling / baseline / vendor'],
+  learn:['Alt','Learn','start from data you already have']};
 let campaignDir='';
 document.querySelectorAll('.station').forEach(btn=>{
   btn.onclick=()=>{
@@ -2093,9 +2272,16 @@ document.querySelectorAll('.station').forEach(btn=>{
     btn.classList.add('active');
     document.getElementById('s-'+btn.dataset.s)
       .classList.add('active');
-    const t=titles[btn.dataset.s];
+    /* The heading sits OUTSIDE every section, so it cannot
+       inherit the step's hue from the section it describes.
+       Stamping the step on <main> puts the whole bench, heading
+       included, into the colour of wherever you are. */
+    document.querySelector('main').dataset.step=
+      btn.dataset.step||'1';
+    const t=titles[btn.dataset.s]||['','',''];
     document.getElementById('title').innerHTML=
-      t[0]+' <span>&mdash; '+t[1]+'</span>';
+      '<em class="tstep">'+t[0]+'</em>'+t[1]+
+      ' <span>&mdash; '+t[2]+'</span>';
   };});
 async function api(path,body){
   const r=await fetch(path,{method:body?'POST':'GET',

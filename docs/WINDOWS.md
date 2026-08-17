@@ -133,7 +133,7 @@ main(['version'])"` if -m is not wired).
 python scripts\run_all_smokes.py
 ```
 
-Expect: 60 suites, 1590 checks, ALL GREEN. It is no longer quick -
+Expect: 60 suites, 1604 checks, ALL GREEN. It is no longer quick -
 about 9 minutes on the development machine and several times that
 here, with the long pauses at `smoke_generate` and `smoke_shapes`.
 Each suite prints `running` before it starts and `PASS` when it

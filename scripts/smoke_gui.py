@@ -872,6 +872,74 @@ def main():
                   "solver": "levitate"})
         check("unknown solvers name the registry",
               "error" in d and "built-ins" in d["error"])
+
+        # ---------- THE STEP SYSTEM ----------
+        #
+        # Sub-controls were numbered 1.1, 4.7, 6.3 - and `6.3`
+        # appeared TWICE, which no amount of reading the page would
+        # reveal. A decimal also reads as a version rather than as
+        # "the seventh thing in step four". Letters restart inside
+        # every step and cannot be mistaken for anything else.
+        import collections as _co
+        import re as _re
+        for sid, last in (("s-describe", "E"), ("s-spec", "E"),
+                          ("s-data", "C"), ("s-campaign", "I"),
+                          ("s-learn", "F"), ("s-showdown", "C")):
+            i = html.index('id="{}"'.format(sid))
+            j = html.index("</section>", i)
+            got = _re.findall(r'class="stepno">([^<]+)<', html[i:j])
+            want = [chr(ord("A") + k) for k in range(len(got))]
+            dup = [x for x, c in _co.Counter(got).items() if c > 1]
+            check("{} letters its controls A..{} with no repeat and "
+                  "no gap - `6.3` appeared twice under the old "
+                  "decimal scheme".format(sid, last),
+                  got == want and got and got[-1] == last and not dup)
+
+        check("no decimal sub-number survives - one left behind would "
+              "contradict every letter beside it",
+              not _re.search(r'class="stepno">\d', html))
+
+        check("each of the six steps declares its own colour",
+              all('[data-step="{}"]'.format(k) in html
+                  for k in range(1, 7)))
+        check("...and every station carries the step it belongs to, "
+              "or its tab cannot pick up that colour",
+              html.count("data-step=") >= 12)
+        check("the tabs are REFLECTIVE rather than flat - a gradient, "
+              "a specular highlight and a lift on hover",
+              "linear-gradient(180deg,var(--tablo)" in html
+              and ".station::after" in html
+              and "inset 0 1px 0 rgba(255,255,255,.55)" in html)
+
+        # LEARN IS NOT STEP 6 OF THE FLOW. Numbering it 06 inside a
+        # five-step run implied you arrive there last; it is another
+        # way to BEGIN.
+        check("the learn station is set apart as an alternative "
+              "start rather than numbered as the last step of a "
+              "five-step flow",
+              "or begin a different way" in html
+              and "<b>ALT</b>" in html and "<b>06</b>" not in html)
+
+        # THE TYPEERROR NOBODY WOULD HAVE SEEN. `titles` had no
+        # `learn` entry, so `titles['learn']` was undefined, `t[0]`
+        # threw, the section switched anyway, and the heading kept
+        # the PREVIOUS step's name while the rest of the handler
+        # never ran.
+        check("every station has a heading entry, learn included - "
+              "the missing one threw a TypeError and left the "
+              "heading lying about which step you were in",
+              "learn:['Alt'" in html
+              and "titles[btn.dataset.s]||" in html)
+
+        check("every step says what it NEEDS before it can run and "
+              "what it PRODUCES - the old page said what a step was "
+              "about and left you to press the button to find out "
+              "the rest",
+              html.count('class="stepgoal"') == 6
+              and html.count("<dt>you need</dt>") == 6
+              and html.count("<dt>you get</dt>") == 6)
+        check("...and every step ends by naming where to go next",
+              html.count('class="nextup"') == 6)
     finally:
         gui.BACKEND_FACTORY = None
         server.shutdown()
