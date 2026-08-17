@@ -18,11 +18,56 @@ on:
         default: false
 
 jobs:
+  # THE WHOLE SMOKE NET, INCLUDING THE FITTED PATH.
+  #
+  # Until this job existed CI ran five suites, all belonging to the
+  # authored pipeline, and never installed numpy, pandas or
+  # scikit-learn - so the thirteen suites covering discover ->
+  # blueprint -> generate could not run here at all. Every check on
+  # that path was executing on one laptop, by hand, for months. That
+  # is a ritual with a single point of failure, not verification.
+  #
+  # SHARDED because the net is ten minutes serial and a ten-minute
+  # wall on every pull request is a check people switch off. The
+  # suites are independent processes; `run_all_smokes.py --shard`
+  # deals them round-robin, and `smoke_packaging` asserts the split
+  # covers every suite exactly once so a dropped one cannot hide
+  # behind five green shards.
+  smoke-net:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        # 3.10 is the floor: scikit-learn, numpy and scipy all
+        # declare `requires-python >=3.10`, which is why the old
+        # `>=3.8` in pyproject was false rather than generous.
+        python-version: ["3.10", "3.12"]
+        shard: [0, 1, 2, 3]
+    name: smoke net ${{ matrix.python-version }} (shard ${{ matrix.shard }}/4)
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+      - name: Install with dependencies
+        # `pip install -e .` is now enough - the numeric dependencies
+        # are declared in pyproject rather than living only in
+        # requirements.txt, which is what made "seven suites do not
+        # run" a documented footgun instead of an impossible state.
+        run: pip install -e .
+      - name: Confirm the fitted path's dependencies are importable
+        # A guard against this job silently degrading into the old
+        # one. If these ever stop importing, the suites that need them
+        # fail on their import line and read as broken code.
+        run: python -c "import numpy, pandas, sklearn, scipy; print('deps ok')"
+      - name: Smoke net (shard ${{ matrix.shard }} of 4)
+        run: python -u scripts/run_all_smokes.py --shards 4 --shard ${{ matrix.shard }}
+
   smoke:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        python-version: ["3.9", "3.11", "3.12"]
+        python-version: ["3.10", "3.11", "3.12"]
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
@@ -41,6 +86,9 @@ jobs:
       - name: Smoke CLI
         run: python scripts/smoke_cli.py
 
+  # Kept as it was: these five run the authored pipeline on every
+  # supported interpreter and are fast, so they fail first and name
+  # the problem before the ten-minute net gets there.
   pipeline-integration:
     # The full pipeline as the notebook runs it: plan -> stub render
     # -> evaluate -> experiment -> persist -> reload with integrity.

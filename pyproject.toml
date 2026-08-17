@@ -6,8 +6,36 @@ build-backend = "setuptools.build_meta"
 name = "synthkit"
 version = "0.10.0"
 description = "Synthetic data creation and testing engine: spec, plan, verified render, exact evaluation, experiments"
-requires-python = ">=3.8"
+# 3.10, NOT 3.8, AND THE OLD FLOOR WAS FALSE RATHER THAN GENEROUS.
+#
+# scikit-learn, numpy and scipy all declare `requires-python >=3.10`.
+# With the floor at 3.8 a `pip install` on 3.8 or 3.9 does not fail
+# cleanly - it resolves whatever ancient versions still claim to
+# support that interpreter. On the machine holding the real extracts
+# that is the worst available outcome: a silently different pandas
+# produces a wrong number rather than an error, which is the exact
+# failure class this project is built to refuse.
+requires-python = ">=3.10"
 license = {text = "Proprietary"}
+
+# DECLARED HERE, so `pip install -e .` is enough.
+#
+# They were in `requirements.txt` alone, and nothing but prose
+# connected the two. `CONVENTIONS.md` had to carry the warning in
+# bold - "pip install -r requirements.txt first, or seven suites do
+# not run" - and `docs/WINDOWS.md` had to say "the requirements line
+# is not optional and `pip install -e .` does not cover it", because
+# without them seven suites fail on their import line and read as
+# broken code rather than as a missing install.
+#
+# A documented footgun is still a footgun. Declaring the dependencies
+# removes it instead of warning about it.
+dependencies = [
+    "numpy>=1.24",
+    "pandas>=2.0",
+    "scikit-learn>=1.4",
+    "scipy>=1.10",
+]
 
 [project.scripts]
 synthkit = "synthkit.cli:main"

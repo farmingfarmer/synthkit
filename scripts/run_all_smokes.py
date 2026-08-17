@@ -25,6 +25,7 @@ flushes so the order on screen is the order things happened.
 """
 from __future__ import annotations
 
+import argparse
 import re
 import subprocess
 import sys
@@ -37,8 +38,42 @@ SKIP = {"run_all_smokes.py", "build_notebook.py",
 
 
 def main() -> int:
+    ap = argparse.ArgumentParser(
+        description="Run every smoke suite and sum the checks.")
+    # SHARDING EXISTS SO CI CAN FAN OUT, and for no other reason.
+    #
+    # The net is ten minutes serial on a fast laptop and the
+    # conventions require it before claiming anything works. A ten
+    # minute wall on every pull request is a check people turn off, so
+    # the suites - which are independent processes and always have
+    # been - are dealt out across runners.
+    #
+    # Round-robin over the SORTED list, not contiguous blocks: the
+    # slow suites cluster alphabetically (smoke_gui, smoke_generate)
+    # and a contiguous split would hand one runner all of them.
+    ap.add_argument("--shards", type=int, default=1,
+                    help="how many parts to split the net into")
+    ap.add_argument("--shard", type=int, default=0,
+                    help="which part to run, 0-based")
+    a = ap.parse_args()
+    if a.shards < 1 or not (0 <= a.shard < a.shards):
+        print("--shard must be in [0, --shards)", flush=True)
+        return 2
+
     suites = sorted(p for p in SCRIPTS.glob("smoke_*.py")
                     if p.name not in SKIP)
+    n_all = len(suites)
+    if a.shards > 1:
+        suites = [s for i, s in enumerate(suites)
+                  if i % a.shards == a.shard]
+        # SAY WHAT IS NOT BEING RUN. A shard that reports ALL GREEN
+        # over a fifth of the net, in the same words the whole net
+        # uses, is the most direct way to believe something was
+        # verified when it was not.
+        print("SHARD {} of {}: running {} of {} suites. THIS IS NOT "
+              "THE WHOLE NET - the other shards must pass too."
+              .format(a.shard + 1, a.shards, len(suites), n_all),
+              flush=True)
     total = 0
     failed = []
     t0 = time.time()
@@ -71,8 +106,10 @@ def main() -> int:
         print("{} suite(s) FAILED: {}".format(
             len(failed), ", ".join(failed)), flush=True)
         return 1
-    print("ALL GREEN: {} suites, {} checks, {:.0f}s".format(
-        len(suites), total, time.time() - t0), flush=True)
+    label = ("ALL GREEN" if a.shards == 1
+             else "shard {} of {} green".format(a.shard + 1, a.shards))
+    print("{}: {} suites, {} checks, {:.0f}s".format(
+        label, len(suites), total, time.time() - t0), flush=True)
     return 0
 
 

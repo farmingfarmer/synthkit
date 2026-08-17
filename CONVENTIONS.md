@@ -4,19 +4,40 @@ Synthetic clinical data generator and model-evaluation instrument. Core rule: le
 
 ## Verify before claiming
 
-- Run `python scripts/run_all_smokes.py` before claiming anything works. Expect 54 suites, 1474 checks, ALL GREEN.
-- **`pip install -r requirements.txt` first, or seven suites do not
-  run.** A machine without numpy, pandas and scikit-learn fails
-  `smoke_blueprint`, `smoke_discover`, `smoke_dynamics`,
-  `smoke_generate`, `smoke_privacy`, `smoke_run_discovery` and
-  `smoke_shapes` on the import line — every suite covering the new
-  path — and the runner reports seven FAILs that look like broken
-  code. Check the tail says ALL GREEN, not just that it exited.
-- **`smoke_gui` loses a race roughly one run in eight**, independently
-  of any change: the over-budget job check reads a status 0.1s after
-  starting the job and sees `error: Expecting value: line 1 column 1`.
-  Measured 7/8 in isolation. A single FAIL there is not evidence of
-  anything until it repeats; re-run before believing it.
+- Run `python scripts/run_all_smokes.py` before claiming anything works. Expect 55 suites, 1491 checks, ALL GREEN.
+- **`pip install -e .` is enough now, and Python must be 3.10+.**
+  The numeric dependencies are declared in `pyproject.toml` rather
+  than living only in `requirements.txt`, so the old footgun — skip
+  one line, seven suites fail on their import line and read as broken
+  code — no longer exists. `requires-python` said `>=3.8` while
+  numpy, scikit-learn and scipy all require `>=3.10`; that does not
+  fail cleanly on an older interpreter, it resolves ancient versions,
+  and a silently different pandas gives a wrong number instead of an
+  error. `smoke_packaging` now compares our floor against each
+  installed dependency's own, so the day one of them moves it goes
+  red here rather than on someone's laptop weeks later.
+- **CI runs the whole net, in four shards.** It used to run five
+  suites, all of them the authored path, and never installed the
+  numeric dependencies — so every check covering discover / blueprint
+  / generate ran on one laptop, by hand. Shards are round-robin over
+  the sorted suite list, and `smoke_packaging` asserts the split
+  covers every suite exactly once, because a shard that quietly drops
+  one still reports green. Only an unsharded run prints ALL GREEN.
+- **The `smoke_gui` flake is fixed, and it was VACUOUS as well as
+  flaky.** The over-budget check set the budget to 0, started a
+  campaign, slept 0.1s and accepted `timeout` OR `done`. Instrumented
+  over fourteen runs: `done` 9 times — the job finished before the
+  budget branch ever ran, so the check passed having tested nothing —
+  `timeout` once, and `error` three times. The error was not timing:
+  the previous job had been CANCELLED but was still writing the same
+  campaign directory the next one read, so the integrity check saw a
+  half-written `campaign.json`. **Cancellation is not synchronous,
+  and two jobs on one campaign directory corrupt each other** — that
+  product limitation still stands. `api_job` decides the budget from
+  the job record alone, so the branch is now tested on a planted
+  record: exact, every time, plus the neighbouring checks that a job
+  inside its budget is NOT a timeout and that cancelled beats
+  timeout. 16/16 clean afterwards.
 - `py_compile` every Python file you touch.
 - Assert count==1 before every string replacement — verify the edit, not just the compile.
 - **Read a file before Write overwrites it.** `Write` says "updated"

@@ -255,19 +255,48 @@ def main():
         check("cancelled jobs report cancelled (or finish "
               "first) with a readable note",
               j["status"] in ("cancelled", "done"))
-        gui.JOB_BUDGET_S = 0.0
-        job = post("/api/campaign-run-async",
-                   {"campaign_dir": str(tmp / "camp1"),
-                    "solver": "autoclean"})["job"]
-        import time as _t
-        _t.sleep(0.1)
-        j = post("/api/job", {"id": job})
-        gui.JOB_BUDGET_S = 1800.0
-        check("over-budget jobs flip to timeout with the "
-              "crawling-backend explanation",
-              j["status"] in ("timeout", "done")
-              and (j["status"] == "done"
-                   or "budget" in j["error"]))
+        # THE BUDGET BRANCH IS TESTED DIRECTLY, not by racing a real
+        # job, and the old version was BOTH flaky and mostly vacuous.
+        #
+        # It set the budget to 0, started a campaign, slept 0.1s and
+        # accepted `timeout` OR `done`. Measured over fourteen runs:
+        # `done` 9 times - the job finished before the budget branch
+        # ever ran, so the check passed without testing anything -
+        # `timeout` once, and `error` three times. The error was not a
+        # timing fluke either: the previous job had been CANCELLED but
+        # was still writing the same campaign directory this one then
+        # read, so the integrity check saw a half-written
+        # `campaign.json`. Cancellation is not synchronous.
+        #
+        # `api_job` decides all of this from the job record alone, so
+        # a planted record exercises the branch exactly, every time.
+        gui._JOBS["budget_probe"] = {
+            "status": "running",
+            "started": _time.time() - 30.0,
+            "cancelled": False}
+        gui.JOB_BUDGET_S = 5.0
+        try:
+            over = post("/api/job", {"id": "budget_probe"})
+            gui._JOBS["budget_probe"]["started"] = _time.time()
+            under = post("/api/job", {"id": "budget_probe"})
+            gui._JOBS["budget_probe"]["cancelled"] = True
+            gui._JOBS["budget_probe"]["started"] = _time.time() - 30.0
+            both = post("/api/job", {"id": "budget_probe"})
+        finally:
+            gui.JOB_BUDGET_S = 1800.0
+            gui._JOBS.pop("budget_probe", None)
+
+        check("a job past its budget reports timeout, with the "
+              "crawling-backend explanation a reader can act on",
+              over["status"] == "timeout"
+              and "budget" in over["error"])
+        check("...and one INSIDE its budget does not - without this "
+              "the check above passes on a comparison that always "
+              "fires", under["status"] == "running")
+        check("...and a cancelled job reports cancelled rather than "
+              "timeout, even when it is also over budget - the user "
+              "asked for it to stop, which is the more useful thing "
+              "to say", both["status"] == "cancelled")
         check("the backend switch reaches every LLM seam: "
               "compiler, render, and vendor pickers all offer "
               "openai",

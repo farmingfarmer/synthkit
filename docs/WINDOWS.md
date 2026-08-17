@@ -101,11 +101,20 @@ pip install -e .
 synthkit version
 ```
 
-**The requirements line is not optional and `pip install -e .`
-does not cover it.** `pyproject.toml` declares no dependencies, so
-without it numpy, pandas, scikit-learn and scipy are missing and
-seven suites — every one covering the discover/blueprint/generate
-path — fail on their import line and read as broken code.
+**`pip install -e .` now covers the dependencies, and the
+requirements line is kept only because this page names it.**
+`pyproject.toml` declares numpy, pandas, scikit-learn and scipy, so
+one install is enough. It did not used to: they lived in
+`requirements.txt` alone, and skipping that line left seven suites —
+every one covering the discover/blueprint/generate path — failing on
+their import line and reading as broken code. Running both commands
+is harmless.
+
+**Python 3.10 or newer.** Those four packages all require it. The
+package used to claim 3.8, which did not fail cleanly on an older
+interpreter — pip resolved whatever ancient versions still supported
+it, and a silently different pandas produces a wrong number rather
+than an error. Check with `python --version` before installing.
 
 The FINGERPRINT must MATCH the development machine's `synthkit
 version` at the same commit — that one line proves the zip landed
