@@ -837,7 +837,19 @@ def generate(blueprint: Dict[str, Any],
                 draw = marg_draw[c]
                 got = _apply_numeric(c, spec, m, draw, usable, out)
                 got = np.asarray(got, dtype=float)
-                ok = np.isfinite(got)
+                # A REFINED ROW MUST STILL BE A ROW THE COLUMN WAS
+                # MEASURED ON. `draw` is the marginal draw taken
+                # BEFORE the presence mask, so `got` is finite
+                # everywhere - refining on that wrote a value into
+                # every missing row and the column came back present
+                # on all of them. Measured on a ring with a column at
+                # coverage 0.20: 0.207 without sweeps, 1.000 with one,
+                # every seed, and the acyclic control unmoved. On the
+                # real 800-patient extract it read as lab columns
+                # "present on +89% of rows against the source" - a
+                # source coverage near 11% against a generated 1.000.
+                held = np.isfinite(np.asarray(out[c], dtype=float))
+                ok = np.isfinite(got) & held
                 if int(ok.sum()) < 2:
                     continue
                 # rank of each row within the refined values, then the

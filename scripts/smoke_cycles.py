@@ -96,6 +96,17 @@ def ring(cols=None):
                          "dials": {}}}
 
 
+def ring_sparse(cov=0.20, clus=0.0):
+    """A ring holding one column that is only sometimes MEASURED.
+
+    The ring above is coverage 1.0 on every column, so it could not
+    contain the defect below: it has no missing rows to lose."""
+    bp = ring()
+    bp["columns"]["t3"]["coverage"] = cov
+    bp["columns"]["t3"]["dynamics"] = {"missing_clustering": clus}
+    return bp
+
+
 def chain():
     """No cycle: a -> b -> c -> d."""
     cols = ["a", "b", "c", "d"]
@@ -216,6 +227,55 @@ def main():
           "the frame had already been built from",
           rep2.get("cyclic_columns") == N - 1
           and rep2.get("refinements_applied") == (N - 1) * 2)
+
+    # ---- A REFINED ROW IS STILL A ROW THAT WAS MEASURED ----------
+    #
+    # `marg_draw` is captured BEFORE the presence mask, so the refined
+    # values were finite on every row - including the rows the column
+    # is missing on. The sweep wrote into all of them and the column
+    # came back present everywhere. On the real 800-patient extract
+    # that read as four lab columns "present on +89% of rows", and
+    # they were exactly the four the run trimmed to order its cycle.
+    for clus in (0.0, 0.6):
+        target = 0.20
+        got = [float(pd.to_numeric(
+            generate(ring_sparse(target, clus), n_patients=300,
+                     seed=s, refine_sweeps=3)["t3"],
+            errors="coerce").notna().mean()) for s in range(3)]
+        check("a sparse column inside a cycle keeps its coverage "
+              "through the sweeps: asked {:.2f}, got {:.3f} with "
+              "missing_clustering {} (it was 1.000 - every missing "
+              "row filled in)".format(target, float(np.mean(got)),
+                                      clus),
+              abs(float(np.mean(got)) - target) < 0.05)
+
+    # AND THE NEIGHBOURING PROPERTY: preserving coverage by quietly
+    # skipping the column would pass the check above and refine
+    # nothing, which is the silent no-op this repo has been bitten by.
+    rep_s = {}
+    s0 = generate(ring_sparse(), n_patients=300, seed=1,
+                  refine_sweeps=0)
+    s3 = generate(ring_sparse(), n_patients=300, seed=1,
+                  refine_sweeps=3, report=rep_s)
+    x0 = pd.to_numeric(s0["t3"], errors="coerce").to_numpy(dtype=float)
+    x3 = pd.to_numeric(s3["t3"], errors="coerce").to_numpy(dtype=float)
+    held = np.isfinite(x0)
+    check("...and it is still REFINED on the rows it does hold - the "
+          "same {} missing rows, {} of {} held rows rearranged, "
+          "{} refinements run".format(
+              int((~held).sum()), int((x0[held] != x3[held]).sum()),
+              int(held.sum()), rep_s.get("refinements_applied")),
+          bool((np.isfinite(x0) == np.isfinite(x3)).all())
+          and int((x0[held] != x3[held]).sum()) > 0
+          and rep_s.get("refinements_applied") == (N - 1) * 3)
+
+    sp_off = float(np.mean(adjacent(generate(
+        ring_sparse(), n_patients=400, seed=3, refine_sweeps=0))))
+    sp_on = float(np.mean(adjacent(generate(
+        ring_sparse(), n_patients=400, seed=3, refine_sweeps=2))))
+    check("...and the ring's structure still comes through with a "
+          "sparse column in it ({:.3f} against {:.3f})".format(
+              sp_on, sp_off), sp_on > sp_off)
 
     print()
     if FAIL:
