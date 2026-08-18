@@ -57,19 +57,32 @@ that look like something else entirely.
 
 ```bat
 tar -xf synthkit.zip
-for /d %i in (%SYNTHKIT_DIR%-*) do (echo %i)>build_id.txt
 for /d %i in (%SYNTHKIT_DIR%-*) do ren "%i" synthkit
-move /y build_id.txt synthkit\BUILD_ID.txt
 ```
 
-**That middle line is the only provenance this machine ever gets.**
-GitHub stamps the commit into the extracted folder's name, and the
-rename below was throwing it away — so a run here could not say which
-tree produced it, and several rounds of results were read against
-fixes the running code did not contain. `BUILD_ID.txt` is what every
-run now echoes on its first line and records in `provenance.json`.
-Only the sha is kept from it; the owner and repo are discarded,
-because that file travels with the output.
+**THE COMMIT NOW RIDES INSIDE THE ZIP, so there is nothing to
+remember.** GitHub builds a zipball by running `git archive`, and
+`git archive` substitutes `$Format:` placeholders in files marked
+`export-subst`. `BUILD_SHA.txt` is such a file, so the download
+already knows which commit it is. Every run echoes it on its first
+line and records it in `provenance.json`.
+
+**Read that first line.** It should say `build: <sha> (from archive)`.
+If it says `build: UNKNOWN`, this copy did not come from a GitHub
+archive and nothing it reports can be tied to a known tree — which is
+the failure this exists to prevent, after several rounds of results
+were read against fixes the running code did not contain.
+
+This used to be a hand step, and it was skipped on three runs in a
+row. If you ever need it — a copy assembled some other way — the
+extracted folder's name carries the sha, and these two lines put it
+where the code looks. They must come BEFORE the rename, which
+destroys that name:
+
+```bat
+for /d %i in (%SYNTHKIT_DIR%-*) do (echo %i)>build_id.txt
+move /y build_id.txt synthkit\BUILD_ID.txt
+```
 
 The `(echo %i)` is parenthesised deliberately. Written bare as
 `echo %i>build_id.txt`, cmd reads a trailing digit as a redirection
