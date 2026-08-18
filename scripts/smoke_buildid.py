@@ -26,8 +26,8 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT))
-from synthkit.build_id import (STAMP, build_id,      # noqa: E402
-                               describe)
+from synthkit.build_id import (ARCHIVAL, STAMP,     # noqa: E402
+                               build_id, describe)
 
 PASS = FAIL = 0
 
@@ -162,6 +162,88 @@ def main():
                              capture_output=True, text=True)
     check("...and it is not tracked right now",
           not tracked.stdout.strip())
+
+    # ---- THE MECHANISM THAT REMOVES THE HAND STEP ----------------
+    #
+    # A step the operator has to remember is a step that gets skipped,
+    # and it was skipped on three runs in a row - each one reporting
+    # UNKNOWN, which is the answer this module exists to avoid having
+    # to give. GitHub builds a zipball by running `git archive`, and
+    # `git archive` substitutes `$Format:` placeholders in files marked
+    # export-subst. So the sha can ride INSIDE the download.
+    #
+    # ARCHIVING THIS REPO IS THE ONLY HONEST TEST OF THAT. The
+    # question is whether `.gitattributes` marks the file, and a
+    # temporary fixture has no .gitattributes to get wrong. Written
+    # against a tree where the mark was missing, this fails.
+    if head.returncode == 0:
+        tracked_sha = subprocess.run(
+            ["git", "-C", str(ROOT), "ls-files", ARCHIVAL],
+            capture_output=True, text=True)
+        check("{} is TRACKED - the opposite of the stamp, and it has "
+              "to be: an untracked file never reaches an archive at "
+              "all".format(ARCHIVAL), bool(tracked_sha.stdout.strip()))
+
+        with tempfile.TemporaryDirectory() as td:
+            d = Path(td) / "extracted"
+            d.mkdir()
+            tar = Path(td) / "a.tar"
+            arc = subprocess.run(
+                ["git", "-C", str(ROOT), "archive", "--format=tar",
+                 "HEAD", "-o", str(tar)], capture_output=True)
+            check("`git archive` runs on this repo - the same command "
+                  "GitHub runs to build the zipball the data machine "
+                  "downloads", arc.returncode == 0)
+            subprocess.run(["tar", "-xf", str(tar)], cwd=str(d),
+                           capture_output=True)
+            check("the fixture is an EXTRACTED ARCHIVE and not a "
+                  "checkout, or every check below measures the git "
+                  "path instead", not is_repo(d))
+            got = ""
+            if (d / ARCHIVAL).exists():
+                got = (d / ARCHIVAL).read_text(
+                    encoding="utf-8").strip()
+            check("the archive carries {} - which happens only if "
+                  ".gitattributes marks it export-subst".format(
+                      ARCHIVAL), bool(got))
+            check("...and git SUBSTITUTED the real sha into it, so a "
+                  "download names its own commit with nobody having "
+                  "run a step", got == sha)
+
+            b3 = build_id(d)
+            check("...so a run from that extracted tree answers from "
+                  "the archive rather than reporting UNKNOWN",
+                  b3["source"] == "archive")
+            check("...with the sha of the commit archived, not "
+                  "something that merely looks like one",
+                  b3["id"] and sha.startswith(b3["id"]))
+            check("...and the line at the top of a run names it",
+                  "UNKNOWN" not in describe(d))
+
+            # AN UNSUBSTITUTED PLACEHOLDER IS NOT AN ANSWER. In a
+            # checkout the file still reads `$Format:%H$`, and
+            # publishing that as a build id would be exactly the
+            # plausible-looking guess this module refuses.
+            (d / ARCHIVAL).write_text("$Format:%H$\n", encoding="utf-8")
+            check("an unsubstituted placeholder reports UNKNOWN - it "
+                  "means this is a checkout, not an archive",
+                  build_id(d)["source"] == "unknown")
+            (d / ARCHIVAL).write_text("not-a-sha\n", encoding="utf-8")
+            check("...and so does a file somebody edited by hand: 40 "
+                  "hex characters or it is not an archive stamp",
+                  build_id(d)["source"] == "unknown")
+
+            # PRECEDENCE. On the development machine git is
+            # authoritative and cannot go stale; the archive file can.
+            (d / ARCHIVAL).write_text(
+                "1f4c9ab77e3d5602bb18aa9c0e5d7431f0a2c6b9\n",
+                encoding="utf-8")
+            check("in a real checkout git still wins over the archive "
+                  "file, which is the one that can be stale",
+                  build_id(ROOT)["source"] == "git")
+    else:
+        for lbl in ("archive carries the sha", "git wins over it"):
+            check("{}   [SKIPPED - not a checkout]".format(lbl), True)
 
     print()
     if FAIL:

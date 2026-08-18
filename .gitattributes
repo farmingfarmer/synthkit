@@ -1,0 +1,5 @@
+# GitHub builds its zipballs with `git archive`, which substitutes
+# `$Format:` placeholders in files marked export-subst. That is how the
+# data machine learns which commit it is running WITHOUT the operator
+# having to run a step by hand - the sha rides inside the zip.
+BUILD_SHA.txt export-subst
