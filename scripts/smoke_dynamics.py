@@ -268,6 +268,135 @@ def main():
           "against {:.3f}".format(cov_of(g_on), cov_of(dfm)),
           abs(cov_of(g_on) - cov_of(dfm)) <= 0.05)
 
+    # ---- THE PUBLISHED PERSISTENCE IS A TARGET, NOT A SETTING ----
+    #
+    # `persistent_uniform` delivers the published lag-1 in the DRAW,
+    # and `_apply_numeric` then mixes that draw with a systematic
+    # parent term: mean + strength*curve + sqrt(1-skill)*(draw-mean).
+    # The parent term carries whatever persistence the PARENTS have -
+    # none at all when they are set-derived - so the column's own
+    # steadiness is diluted in proportion to how well it is explained.
+    #
+    # On the 800-patient extract that was ten columns short of their
+    # source steadiness and NOT ONE over. A consistent direction
+    # across ten columns is a bias, not a draw.
+    import numpy as _np
+    from synthkit.generate import generate as _gen
+
+    def _kid_bp(skill, parent_within, target=0.70):
+        """One child, THREE parents, so the child is really a child.
+
+        A one-parent graph is symmetric and the sampler may draw the
+        child from its marginal, which would measure a path that
+        generation does not use."""
+        col = {"kind": "numeric", "level": "visit", "coverage": 1.0,
+               "marginal": {"type": "quantiles", "mean": 0.0,
+                            "integral": False,
+                            "q": [0.0, 0.25, 0.5, 0.75, 1.0],
+                            "v": [-2.6, -0.68, 0.0, 0.68, 2.6]},
+               "dials": {}}
+        grid = [-2.5, -1.0, 0.0, 1.0, 2.5]
+        cols = {}
+        for c in ("p1", "p2", "p3", "kid"):
+            spec = dict(col)
+            spec["marginal"] = dict(col["marginal"])
+            spec["dials"] = {}
+            spec["dynamics"] = {
+                "icc": 0.0,
+                "within_lag1": target if c == "kid" else parent_within}
+            cols[c] = spec
+        eff = {"shape": "increasing", "grid": list(grid),
+               "response": [0.55 * g for g in grid]}
+        return {"columns": cols,
+                "relationships": [{
+                    "child": "kid", "parents": ["p1", "p2", "p3"],
+                    "dials": {"strength": None},
+                    "evidence": {
+                        "skill_out_of_sample": skill,
+                        "importance": {"p1": 1.0, "p2": 1.0,
+                                       "p3": 1.0},
+                        "effect": {"p1": eff, "p2": eff, "p3": eff}}}],
+                "patients": {"count": 300,
+                             "visits": {"q": [0.0, 0.5, 1.0],
+                                        "v": [4.0, 6.0, 8.0],
+                                        "mean": 6.0},
+                             "dials": {}}}
+
+    def _lag1(fr, c):
+        x = pd.to_numeric(fr[c], errors="coerce").to_numpy(dtype=float)
+        who = fr["person_id"].to_numpy()
+        pr = _np.asarray([(x[i - 1], x[i]) for i in range(1, len(x))
+                          if who[i] == who[i - 1]])
+        return float(_np.corrcoef(pr[:, 0], pr[:, 1])[0, 1])
+
+    # ASSERT THE CHILD IS A CHILD, or everything below measures a path
+    # generation does not take.
+    rep_k = {}
+    _gen(_kid_bp(0.30, 0.0), n_patients=400, seed=0, report=rep_k)
+    check("the fixture's child really is generated THROUGH the "
+          "relationship - a graph the sampler drew from the marginal "
+          "instead would measure nothing",
+          rep_k.get("relationships_applied") == 1)
+
+    got = [_lag1(_gen(_kid_bp(0.30, 0.0), n_patients=400, seed=s),
+                 "kid") for s in range(4)]
+    mean_got = float(_np.mean(got))
+    check("a child whose parents carry NO persistence still reaches "
+          "for its published steadiness: {:.3f} against 0.70 asked, "
+          "where injecting the published value verbatim gives 0.297"
+          .format(mean_got), mean_got > 0.37)
+
+    # THE CAP IS REPORTED. The noise term is the only thing that can
+    # carry the column's own persistence, so its share of the variance
+    # is a hard ceiling - and a ceiling that is hit silently is the
+    # dial-that-does-nothing failure again.
+    rep_c = {}
+    _gen(_kid_bp(0.85, 0.0), n_patients=400, seed=0, report=rep_c)
+    solved = rep_c.get("persistence_solved") or []
+    check("...and when even the ceiling cannot reach it, the run SAYS "
+          "so rather than reporting the number it asked for",
+          len(solved) == 1 and solved[0]["capped"] is True
+          and solved[0]["achieved_lag1"] < solved[0]["requested_lag1"])
+    check("...naming the column, what was requested, what was "
+          "injected and what arrived",
+          len(solved) == 1
+          and set(solved[0]) >= {"column", "requested_lag1",
+                                 "injected_within", "achieved_lag1"}
+          and solved[0]["column"] == "kid")
+
+    # INERT WHERE NOTHING WAS WRONG. When the parents carry the
+    # persistence themselves the systematic term already does, the
+    # published value needs no boost, and this must not touch it -
+    # otherwise it is a sampler rewrite wearing a bug fix's clothes.
+    rep_i = {}
+    d_i = _gen(_kid_bp(0.60, 0.70), n_patients=400, seed=0,
+               report=rep_i)
+    solved_i = rep_i.get("persistence_solved") or []
+    check("with parents that ARE persistent the solve barely moves - "
+          "the systematic term already carries the steadiness, so the "
+          "injection stays near the published value and nowhere near "
+          "the ceiling the other case runs to",
+          not solved_i or (solved_i[0]["injected_within"] < 0.80
+                           and solved_i[0]["capped"] is False))
+    check("...and it does arrive: {:.3f} against 0.70"
+          .format(_lag1(d_i, "kid")),
+          abs(_lag1(d_i, "kid") - 0.70) < 0.06)
+
+    # AND THE NEIGHBOURING PROPERTIES. The noise is independent of the
+    # parents whichever way it is arranged, so rearranging it must not
+    # move the marginal or how much the parents explain.
+    ms, ss = [], []
+    for s in range(4):
+        y = pd.to_numeric(_gen(_kid_bp(0.30, 0.0), n_patients=400,
+                               seed=s)["kid"]).to_numpy()
+        ms.append(float(y.mean())); ss.append(float(y.std()))
+    check("the centre is untouched by the rearrangement ({:+.3f}, "
+          "against -0.041 before it)".format(float(_np.mean(ms))),
+          abs(float(_np.mean(ms))) < 0.10)
+    check("...and so is the spread ({:.3f}, against 1.593 before it)"
+          .format(float(_np.mean(ss))),
+          abs(float(_np.mean(ss)) - 1.593) < 0.10)
+
     print()
     if FAIL:
         print("{} FAILED".format(FAIL))

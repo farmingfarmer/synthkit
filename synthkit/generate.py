@@ -51,6 +51,7 @@ named as absent. Both now come from the blueprint's `dynamics`:
 """
 from __future__ import annotations
 
+import zlib
 from typing import Any, Dict, List, Optional
 
 import numpy as np
@@ -62,6 +63,10 @@ from .dates import DATE_ORIGIN, from_ordinal
 from .quantities import from_number
 from .dynamics import (clustered_presence, persistent_uniform,
                        sticky_pick)
+
+# What `resolve()` already clamps every persistence dial to, and what
+# `persistent_uniform` treats as the top of its range.
+CEIL = 0.98
 
 
 def _draw_numeric(m: Dict[str, Any], u: np.ndarray) -> np.ndarray:
@@ -509,6 +514,98 @@ def _order(bp: Dict[str, Any], refine: bool = True):
     return order, parents, dropped, repaired, derived, cyclic
 
 
+def _pair_index(counts):
+    """Adjacent-visit row pairs - the SAME pairing `pooled_lag1` uses.
+
+    Steadiness is measured on consecutive visits of one patient, so a
+    solve that optimised anything else would be tuning against a
+    statistic nobody reports."""
+    n = int(counts.sum())
+    if n < 2:
+        return np.array([], dtype=int), np.array([], dtype=int)
+    idx = np.arange(n - 1)
+    starts = np.cumsum(counts) - counts
+    same = ~np.isin(idx + 1, starts)
+    return idx[same], idx[same] + 1
+
+
+def _lag1_of(values, prev_i, cur_i):
+    """Pooled uncentred lag-1, or None when there is too little to say."""
+    if not len(prev_i):
+        return None
+    v = np.asarray(values, dtype=float)
+    a, b = v[prev_i], v[cur_i]
+    ok = np.isfinite(a) & np.isfinite(b)
+    if int(ok.sum()) < 30:
+        return None
+    a, b = a[ok], b[ok]
+    if a.std() == 0 or b.std() == 0:
+        return None
+    return float(np.corrcoef(a, b)[0, 1])
+
+
+def _solve_within(target, icc, within, counts, build, seed,
+                  prev_i, cur_i):
+    """The persistence to INJECT so the output measures back `target`.
+
+    A STATISTIC FED BACK AS A GENERATIVE PARAMETER IS ATTENUATED
+    TWICE, and this is the second time that rule has been paid for.
+    `persistent_uniform` delivers the published lag-1 in the DRAW, and
+    then `_apply_numeric` mixes it with the systematic parent term:
+
+        mean + strength*(curve - curve_mean) + shrink*(draw - mean)
+
+    The parent term carries whatever persistence the PARENTS have,
+    which for a set-derived or categorical parent is none, and the
+    draw's share is only sqrt(1 - skill). So the column's own
+    steadiness is diluted in proportion to how well it is explained.
+    Measured on a child asking for 0.70 whose parents have none:
+
+        parent skill   0.00   0.20   0.40   0.60   0.80   0.93
+        child lag-1   0.361  0.322  0.272  0.206  0.115  0.035
+
+    On the 800-patient extract this was ten columns short of their
+    source steadiness and NOT ONE over - a consistent direction across
+    ten columns is a bias, not a draw.
+
+    So the parameter is SOLVED against the output rather than assumed,
+    the same shape `_informative_presence` already uses for clustering.
+    The trial noise realisation is held FIXED by re-seeding per call:
+    bisecting a function that redraws its own noise each time does not
+    converge, it wanders.
+
+    Returns (injected, achieved). `injected` is capped at 0.98, and
+    when even that falls short the shortfall is REPORTED rather than
+    hidden - a column whose parents explain almost all of it cannot be
+    given back persistence that its own noise no longer carries."""
+    def measure(w):
+        u = persistent_uniform(counts, icc, float(w),
+                               np.random.RandomState(seed))
+        return _lag1_of(build(u), prev_i, cur_i)
+
+    got = measure(within)
+    # Already there, or nothing measurable: leave the draw alone. A
+    # column with no relationship never enters here, so this is the
+    # case where the parents happen to carry the persistence already.
+    if got is None or got >= target - 0.01:
+        return within, got
+    hi_val = measure(CEIL)
+    if hi_val is None or hi_val <= target:
+        return CEIL, hi_val
+    lo, hi = within, CEIL
+    for _ in range(12):
+        mid = (lo + hi) / 2.0
+        m = measure(mid)
+        if m is None:
+            break
+        if m < target:
+            lo = mid
+        else:
+            hi = mid
+    mid = (lo + hi) / 2.0
+    return mid, measure(mid)
+
+
 def _presence_p(pm, parent_vals, target_cov):
     """Per-row probability that this column is measured.
 
@@ -662,6 +759,10 @@ def generate(blueprint: Dict[str, Any],
     visit_no = np.concatenate([np.arange(1, c + 1) for c in counts]) \
         if n_pat else np.array([], dtype=int)
 
+    # Adjacent-visit pairs, built once: the persistence solve
+    # measures on exactly the pairing the fidelity report does.
+    prev_i, cur_i = _pair_index(counts) if n_rows else (None, None)
+
     out: Dict[str, Any] = {}
     for c in order:
         spec = cols[c]
@@ -697,13 +798,44 @@ def generate(blueprint: Dict[str, Any],
         icc = float(spec.get("target_icc") or 0.0)
         within = float(spec.get("target_within") or 0.0)
         stick = float(spec.get("target_stickiness") or 0.0)
+        # Read BEFORE the draw now: whether this column has parents
+        # decides whether its persistence needs solving, and the
+        # solve has to happen before the uniforms are drawn.
+        rels = parents.get(c) or []
         if numeric:
             if per_patient or (icc <= 0.0 and within <= 0.0):
                 u = rng.random_sample(n_draw)
             else:
+                # THE PUBLISHED PERSISTENCE IS A TARGET FOR THE
+                # OUTPUT, NOT A SETTING FOR THE DRAW. With parents,
+                # the systematic term dilutes it - so solve for what
+                # to inject, then let the report check it arrived.
+                inject = within
+                if rels and prev_i is not None and len(prev_i):
+                    tgt = icc + (1.0 - icc) * within
+
+                    def build(uu, _c=c, _spec=spec, _m=m, _rels=rels):
+                        b = _draw_numeric(_m, uu)
+                        return np.asarray(
+                            _apply_numeric(_c, _spec, _m, b, _rels,
+                                           out), dtype=float)
+
+                    inject, got = _solve_within(
+                        tgt, icc, within, counts, build,
+                        (seed + zlib.crc32(c.encode("utf-8")))
+                        % (2 ** 31), prev_i, cur_i)
+                    if report is not None and inject != within:
+                        report.setdefault("persistence_solved",
+                                          []).append(
+                            {"column": c,
+                             "requested_lag1": round(tgt, 4),
+                             "injected_within": round(inject, 4),
+                             "achieved_lag1": (None if got is None
+                                               else round(got, 4)),
+                             "capped": inject >= CEIL})
                 # a patient level plus visit-to-visit drift, carried
                 # as correlated uniforms so the marginal is untouched
-                u = persistent_uniform(counts, icc, within, rng)
+                u = persistent_uniform(counts, icc, inject, rng)
             base = _draw_numeric(m, u)
         elif (not per_patient) and stick > 0.0 and \
                 (m.get("levels") or []):
@@ -719,7 +851,6 @@ def generate(blueprint: Dict[str, Any],
         if per_patient:
             base = base[pidx]
 
-        rels = parents.get(c) or []
         if numeric and c in cyclic:
             # The MARGINAL draw, before any relationship touched it.
             # A refinement pass rebuilds from this, never from the

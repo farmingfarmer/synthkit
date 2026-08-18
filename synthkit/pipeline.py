@@ -643,7 +643,7 @@ def main(argv=None, args=None):
 
     say("comparing source against generated")
     fid = compare(df, g, bp, a.group_by, time_col,
-                  ordinals=ordinals)
+                  ordinals=ordinals, gen_report=rep)
     fid["dials"] = fid_dials
     fid["generation"] = rep
     (out / "fidelity.json").write_text(
@@ -828,8 +828,15 @@ def verdicts(fid):
                     "fault)".format(beyond)))
         ls, lg = c.get("lag1_source"), c.get("lag1_generated")
         if ls is not None and lg is not None and abs(lg - ls) > 0.15:
-            notes.append("steadiness {:.2f} against {:.2f}"
-                         .format(lg, ls))
+            notes.append(
+                "steadiness {:.2f} against {:.2f}{}".format(
+                    lg, ls,
+                    "" if not c.get("steadiness_capped") else
+                    " (its parents explain so much of it that the "
+                    "column's own noise cannot carry this much "
+                    "persistence - the sampler asked for the "
+                    "maximum and this is what it reached, so this "
+                    "one is the relationship, not a fault)"))
         if name in inverted:
             notes.append("INVERTED against {} - the generated "
                          "relationship runs the opposite way to the "
@@ -1522,7 +1529,8 @@ def _pair_fidelity(Xs, Xg, bp):
     }
 
 
-def compare(df, g, bp, group_by, time_col, ordinals=None):
+def compare(df, g, bp, group_by, time_col, ordinals=None,
+            gen_report=None):
     """Source against generated, column by column."""
     import numpy as np
     import pandas as pd
@@ -1542,6 +1550,15 @@ def compare(df, g, bp, group_by, time_col, ordinals=None):
 
     cols, n_ok = [], dict(cov=0, ctr=0, spr=0, lag=0, clu=0, num=0, dyn=0,
                           part=0)
+    # A SHORTFALL THE SAMPLER CANNOT FIX IS NOT A SAMPLER FAULT, and
+    # it has to say so beside the number. `spo2 48% of source (0%
+    # beyond bound)` sent a day into hunting a sampler bug that was
+    # the privacy rule all along; a column reading `steadiness 0.01
+    # against 0.64` with no note would do it again.
+    capped = set(
+        r.get("column") for r in
+        ((gen_report or {}).get("persistence_solved") or [])
+        if r.get("capped"))
     pairs = _pair_fidelity(Xs, Xg, bp)
 
     # SCAFFOLDING IS COUNTED SEPARATELY, or the headline is inflated.
@@ -1686,6 +1703,8 @@ def compare(df, g, bp, group_by, time_col, ordinals=None):
                         "icc_generated": b_.get("icc"),
                         "lag1_source": a_.get("lag1_total"),
                         "lag1_generated": b_.get("lag1_total")})
+            if c in capped:
+                row["steadiness_capped"] = True
             if a_.get("lag1_total") is not None and \
                     b_.get("lag1_total") is not None:
                 n_ok["dyn"] += 1
