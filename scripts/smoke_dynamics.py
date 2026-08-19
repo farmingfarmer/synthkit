@@ -397,6 +397,111 @@ def main():
           .format(float(_np.mean(ss))),
           abs(float(_np.mean(ss)) - 1.593) < 0.10)
 
+    # ---- A FACT ABOUT THE PERSON DOES NOT CHANGE BETWEEN VISITS ---
+    #
+    # Found by a CONTRADICTION in a real extract's own report:
+    # `year_of_birth: icc_source 0.0` beside `lag1_source 0.98`. A
+    # column with 0.98 persistence cannot have zero between-patient
+    # share, so one of the two was wrong - and both were, for
+    # different reasons.
+    from synthkit.dynamics import icc1 as _icc1
+
+    _g = np.repeat(np.arange(200), 6)
+    # INTEGER-VALUED, and that is the whole point. Repeated FLOATS
+    # leave a floating-point residue in the within-group sum, so
+    # `msw` is never exactly zero and the old code returned the right
+    # answer by accident. A year repeats exactly - 1960.0 six times
+    # sums and divides with no residue - so `msw` is exactly 0 and the
+    # guard fires. The first version of this check used floats,
+    # PASSED against the unfixed code, and was decoration.
+    _const = np.repeat(
+        1940 + np.random.RandomState(0).randint(0, 60, 200), 6
+    ).astype(float)
+    check("a column that never changes within a patient reports "
+          "PERFECT clustering ({:.2f}), not none - `msw <= 0` used to "
+          "return 0.0, which is the minimum, for every constant "
+          "demographic in the table".format(_icc1(_const, _g)),
+          _icc1(_const, _g) > 0.9)
+    check("...while a column with no patient structure still reports "
+          "none ({:.2f}), or the fix would just be a different "
+          "constant".format(
+              _icc1(np.random.RandomState(1).normal(0, 1, len(_g)), _g)),
+          _icc1(np.random.RandomState(1).normal(0, 1, len(_g)),
+                _g) < 0.1)
+    check("...and a column that is constant EVERYWHERE reports none "
+          "too - it has no between-patient variance either, and "
+          "calling that perfect clustering would be the same error "
+          "with the sign flipped",
+          _icc1(np.ones(len(_g)), _g) == 0.0)
+
+    # THE DEFECT THAT CONTRADICTION WAS HIDING. A patient-level column
+    # is drawn once per patient, expanded to rows, and THEN had its
+    # relationship applied - and every parent varies by visit, so the
+    # column stopped being a fact about the person. On the extract
+    # that is year_of_birth, a child at 100%.
+    def _plbp(with_parents):
+        cols = {}
+        for c in ("age", "t", "yob"):
+            sp = {"kind": "numeric",
+                  "level": "patient" if c == "yob" else "visit",
+                  "coverage": 1.0, "dials": {},
+                  "marginal": {"type": "quantiles", "mean": 0.0,
+                               "integral": False,
+                               "q": [0.0, 0.25, 0.5, 0.75, 1.0],
+                               "v": [-2.6, -0.68, 0.0, 0.68, 2.6]}}
+            cols[c] = sp
+        grid = [-2.5, -1.0, 0.0, 1.0, 2.5]
+        eff = {"shape": "increasing", "grid": list(grid),
+               "response": [0.55 * x for x in grid]}
+        rels = [] if not with_parents else [{
+            "child": "yob", "parents": ["age", "t"],
+            "dials": {"strength": None},
+            "evidence": {"skill_out_of_sample": 0.9,
+                         "importance": {"age": 1.0, "t": 1.0},
+                         "effect": {"age": eff, "t": eff}}}]
+        return {"columns": cols, "relationships": rels,
+                "patients": {"count": 300,
+                             "visits": {"q": [0.0, 0.5, 1.0],
+                                        "v": [4.0, 6.0, 8.0],
+                                        "mean": 6.0}, "dials": {}}}
+
+    def _const_share(fr, col):
+        return float((fr.groupby("person_id")[col]
+                      .nunique(dropna=True) <= 1).mean())
+
+    _rep_pl = {}
+    _g_free = _gen(_plbp(False), n_patients=400, seed=0)
+    _g_kid = _gen(_plbp(True), n_patients=400, seed=0, report=_rep_pl)
+    check("THE FIXTURE HAS THE THING: a patient-level column with no "
+          "relationship is constant within the patient on {:.0%} of "
+          "them".format(_const_share(_g_free, "yob")),
+          _const_share(_g_free, "yob") > 0.99)
+    check("...and one that is ALSO A CHILD stays constant too "
+          "({:.0%}) - it was 0% of patients, so the file held people "
+          "whose year of birth changed between their own visits"
+          .format(_const_share(_g_kid, "yob")),
+          _const_share(_g_kid, "yob") > 0.99)
+    check("...and the run says which columns were collapsed, so a "
+          "silent one is visible",
+          "yob" in (_rep_pl.get("patient_level_collapsed") or []))
+
+    # AND THE RELATIONSHIP MUST SURVIVE THE COLLAPSE, or this trades
+    # one defect for a worse one - a column that is constant and
+    # carries nothing.
+    _pa = _g_kid.groupby("person_id")["age"].mean()
+    _py = _g_kid.groupby("person_id")["yob"].first()
+    _r = float(_pa.corr(_py))
+    check("...while the relationship still comes through at the "
+          "PATIENT level (r {:+.2f}) - collapsing to a constant that "
+          "carries nothing would be a worse defect than the one "
+          "being fixed".format(_r), _r > 0.3)
+    _ms = abs(float(pd.to_numeric(_g_kid["yob"]).mean())
+              - float(pd.to_numeric(_g_free["yob"]).mean()))
+    check("...and the marginal does not drift ({:.3f} off the "
+          "un-collapsed draw): the values are the ones already drawn, "
+          "only their assignment to patients changed".format(_ms),
+          _ms < 0.20)
+
     print()
     if FAIL:
         print("{} FAILED".format(FAIL))

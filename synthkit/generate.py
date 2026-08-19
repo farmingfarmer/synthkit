@@ -514,6 +514,32 @@ def _order(bp: Dict[str, Any], refine: bool = True):
     return order, parents, dropped, repaired, derived, cyclic
 
 
+def _collapse_to_patient(rows, pat_draw, pidx, n_pat, numeric):
+    """One value per patient again, after a relationship was applied.
+
+    NUMERIC: the patient's mean of the applied values gives their
+    ORDER, and the patient-level marginal draw supplies the VALUES at
+    those ranks. The relationship survives as the ordering it
+    implies; the marginal is exactly the one already drawn.
+
+    OTHERWISE: the value at the patient's first row. A category has no
+    order to rank on, and taking one of the patient's own drawn values
+    keeps the column inside its published level set."""
+    if numeric:
+        v = np.asarray(rows, dtype=float)
+        sums = np.bincount(pidx, weights=np.nan_to_num(v),
+                           minlength=n_pat)
+        cnts = np.bincount(pidx, minlength=n_pat).astype(float)
+        agg = np.divide(sums, np.maximum(cnts, 1.0))
+        pool = np.sort(np.asarray(pat_draw, dtype=float))
+        idx = np.argsort(np.argsort(agg))
+        return pool[idx][pidx]
+    first = np.zeros(n_pat, dtype=int)
+    starts = np.concatenate(([0], np.flatnonzero(np.diff(pidx)) + 1))
+    first[:len(starts)] = starts
+    return np.asarray(rows, dtype=object)[first][pidx]
+
+
 def _pair_index(counts):
     """Adjacent-visit row pairs - the SAME pairing `pooled_lag1` uses.
 
@@ -848,6 +874,11 @@ def generate(blueprint: Dict[str, Any],
             base = _draw_list(m, n_draw, rng)
         else:
             base = _draw_categorical(m, n_draw, rng)
+        # Keep the per-PATIENT draw: if this column is also a child,
+        # the relationship has to be put back at the patient's level
+        # rather than the visit's, and that needs the pre-expansion
+        # values to re-rank onto.
+        pat_draw = np.asarray(base).copy() if per_patient else None
         if per_patient:
             base = base[pidx]
 
@@ -863,6 +894,34 @@ def generate(blueprint: Dict[str, Any],
             else:
                 base = _apply_categorical(c, spec, m, base, rels, out,
                                           rng)
+            # A FACT ABOUT THE PERSON MUST NOT CHANGE BETWEEN THEIR
+            # VISITS. The draw is per patient and correct; expanding
+            # it to rows and THEN applying a relationship puts
+            # visit-to-visit variation straight back into it, and
+            # every parent varies by visit. Measured on a
+            # patient-level child: constant on 100% of patients
+            # without a relationship and 0% with one, four seeds.
+            #
+            # On the extract that is `year_of_birth`, which is a child
+            # at 100% - so the file holds patients whose birth year
+            # changes between their own visits. The report could not
+            # say so either: `icc1` returns 0.0 when within-patient
+            # variance is ZERO, which is perfect clustering reported
+            # as none, and it read `icc_source 0.0` beside
+            # `lag1_source 0.98` for that column.
+            #
+            # Collapsed to the patient by RE-RANKING onto the
+            # patient-level draw, the same device the refinement
+            # sweeps use: the person's rank comes from their parents,
+            # the values are the ones the marginal already produced,
+            # so the marginal cannot drift and the column is constant
+            # by construction.
+            if per_patient and pat_draw is not None and n_pat:
+                base = _collapse_to_patient(base, pat_draw, pidx,
+                                            n_pat, numeric)
+                if report is not None:
+                    report.setdefault("patient_level_collapsed",
+                                      []).append(c)
 
         if numeric:
             # SCALE ABOUT THE CENTRE, THEN SHIFT. The two dials sit

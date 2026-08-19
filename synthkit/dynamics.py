@@ -90,6 +90,11 @@ def missing_clustering(present: np.ndarray, prev_i, cur_i) -> float:
     return float(min(max(a - b, 0.0), 0.98))
 
 
+# What every persistence dial is clamped to, here too: a
+# reported 1.0 would ask the sampler for a degenerate column.
+CEIL = 0.98
+
+
 def icc1(values: np.ndarray, groups: np.ndarray) -> float:
     """ICC(1) from mean squares - the share of variance BETWEEN
     patients, unbiased at small group sizes."""
@@ -109,7 +114,19 @@ def icc1(values: np.ndarray, groups: np.ndarray) -> float:
     ssw = float(np.sum((v - means[inv]) ** 2))
     msw = ssw / (len(v) - ng)
     if msw <= 0:
-        return 0.0
+        # ZERO WITHIN-PATIENT VARIANCE IS PERFECT CLUSTERING, NOT
+        # NONE. This returned 0.0 - the minimum - for a column that
+        # never changes across a patient's visits, which is every
+        # constant demographic. The real extract reported
+        # `year_of_birth: icc_source 0.0` beside `lag1_source 0.98`,
+        # two numbers that cannot both be true, and that contradiction
+        # was the only sign that a patient-level column was being
+        # regenerated with a different value at each visit.
+        #
+        # msb > 0 with msw == 0 says the patients differ from each
+        # other and never from themselves. That is the top of the
+        # range, capped where every other dial is capped.
+        return CEIL if msb > 0 else 0.0
     # the "average" group size that makes the estimator unbiased for
     # unequal groups
     k = (float(v.size) - float(np.sum(counts ** 2)) / v.size) / (ng - 1)
