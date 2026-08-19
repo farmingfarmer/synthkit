@@ -18,7 +18,8 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT))
-from synthkit.export import build, collect, screen   # noqa: E402
+from synthkit.export import (build, collect,        # noqa: E402
+                             screen, warnings)
 
 PASS = FAIL = 0
 
@@ -57,9 +58,9 @@ def main():
         d = Path(td)
         clean_run(d)
 
-        b, problems = build(d)
+        b, problems, warns = build(d)
         check("a clean run passes the screen, or every refusal below "
-              "is untestable", not problems)
+              "is untestable", not problems and not warns)
         check("...and the bundle carries the three aggregate parts",
               set(b) >= {"fidelity", "provenance", "findings_txt"})
         check("...and does NOT carry the blueprint, the catalogue or "
@@ -71,7 +72,12 @@ def main():
 
         # ---- A PATH. The source is recorded by NAME on purpose.
         prov = json.loads((d / "provenance.json").read_text())
-        prov["source"]["name"] = "C:\\Users\\NE1002766\\dev\\x.csv"
+        # INVENTED, not transcribed. The first version of this line
+        # carried the real work login from the data machine, and this
+        # file is tracked - which is the exact thing smoke_no_personal
+        # exists to stop, caught one commit too late. The SHAPE is
+        # what the check needs; the identity is not.
+        prov["source"]["name"] = "C:\\Users\\AB123456\\dev\\x.csv"
         (d / "provenance.json").write_text(json.dumps(prov),
                                            encoding="utf-8")
         probs = screen(collect(d))
@@ -117,17 +123,44 @@ def main():
               "within a day and protect nothing",
               not screen(collect(d)))
 
-        # ---- NO BUILD. Results read against the wrong tree have
-        # already cost this project several rounds.
+        # ---- NO BUILD IS A WARNING, NOT A REFUSAL, and the first
+        # version of this got it wrong. Refusing blocked exporting a
+        # run made before the build stamp existed, so the only way to
+        # send any measurement at all was a fresh 35-minute run -
+        # the exact round trip this module exists to remove. A
+        # missing build id makes the file harder to READ; it does not
+        # make it unsafe to SEND, and those are different severities.
         clean_run(d)
         prov = json.loads((d / "provenance.json").read_text())
         prov["build"] = {"source": "unknown", "id": None}
         (d / "provenance.json").write_text(json.dumps(prov),
                                            encoding="utf-8")
-        check("a bundle that cannot name its commit is refused - "
-              "undiagnosable, and reading output against a tree that "
-              "did not produce it is a mistake already made here",
-              any("build id" in p for p in screen(collect(d))))
+        b3, probs3, warns3 = build(d)
+        check("a bundle that cannot name its commit still TRAVELS - "
+              "the numbers are valid, only their provenance is "
+              "unknown, and refusing left a 35-minute re-run as the "
+              "only way to send anything",
+              not probs3)
+        check("...but it warns, in words, naming what is unknown",
+              any("BUILD ID" in w for w in warns3))
+        check("...and the warning is STAMPED INTO THE BUNDLE, so it "
+              "travels with the numbers rather than living in a "
+              "console line the reader never sees",
+              any("BUILD ID" in w for w in (b3.get("warnings") or [])))
+
+        # AND THE SEVERITIES MUST NOT COLLAPSE INTO EACH OTHER. A
+        # warning that quietly became a refusal is the bug above
+        # returning; a refusal that became a warning would send a
+        # file that should have been looked at first.
+        prov["source"]["name"] = "C:\\Users\\somebody\\x.csv"
+        (d / "provenance.json").write_text(json.dumps(prov),
+                                           encoding="utf-8")
+        b4, probs4, warns4 = build(d)
+        check("a path still REFUSES even while the build id only "
+              "warns - the two severities are distinct, and "
+              "collapsing them in either direction is a defect",
+              probs4 and any("path" in p for p in probs4)
+              and any("BUILD ID" in w for w in warns4))
 
         # ---- A MISSING PART is NAMED, not silently dropped.
         clean_run(d)

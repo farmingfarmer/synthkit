@@ -24,8 +24,9 @@ nobody re-reads before sending.
 
 WHAT THE SCREEN IS FOR. It is not a privacy proof and does not claim
 to be one - k-anonymity lives in `blueprint.py` and the disclosure
-work lives in the attack scripts. This checks the three ways an
-aggregates-only file has actually gone wrong here:
+work lives in the attack scripts. It checks the two ways an
+aggregates-only file has actually gone wrong here, and REFUSES on
+either:
 
   A PATH          `provenance.json` records the source by NAME on
                   purpose, because a path on that machine carries a
@@ -35,9 +36,16 @@ aggregates-only file has actually gone wrong here:
                   longer than the table has column pairs is either a
                   new per-row field or a leak, and either way a human
                   should look before it travels.
-  NO BUILD        a bundle that cannot name the commit that produced
-                  it is undiagnosable, and reading results against
-                  the wrong tree has already cost several rounds.
+
+A MISSING BUILD ID IS A WARNING, NOT A REFUSAL, and the first version
+of this got that wrong. It refused, which blocked exporting a run
+made before the build stamp existed - so the only way to send any
+measurement was a fresh 35-minute run, which is the round trip this
+module exists to remove. The file is not UNSAFE without a build id;
+it is only harder to READ, and this project's own rule for that case
+is to say UNKNOWN plainly rather than to refuse. So the warning is
+STAMPED INTO THE BUNDLE, where it travels with the numbers and cannot
+be lost the way a line of console output can.
 
 The screen REFUSES rather than redacts. Silently removing something
 teaches nobody, and the next bundle contains it again."""
@@ -72,15 +80,22 @@ def _walk(o: Any, path: str = ""):
         yield ("leaf", path, o)
 
 
+def warnings(bundle: Dict[str, Any]) -> List[str]:
+    """Reasons this is harder to READ. It still travels."""
+    out = []
+    build = ((bundle.get("provenance") or {}).get("build") or {})
+    if not build.get("id"):
+        out.append(
+            "NO BUILD ID: this run cannot say which commit produced "
+            "it, so its numbers cannot be tied to a known tree. The "
+            "measurements are still valid; what is unknown is which "
+            "code made them.")
+    return out
+
+
 def screen(bundle: Dict[str, Any]) -> List[str]:
     """Reasons this must not travel. Empty list means it may."""
     problems = []
-
-    build = ((bundle.get("provenance") or {}).get("build") or {})
-    if not build.get("id"):
-        problems.append(
-            "no build id: this run cannot say which commit produced "
-            "it, so nothing in it can be read against a known tree")
 
     # The cap is STRUCTURAL, not a guess: everything in here is one
     # entry per column or per ordered column pair.
@@ -131,6 +146,10 @@ def collect(run_dir) -> Dict[str, Any]:
     return out
 
 
-def build(run_dir) -> Tuple[Dict[str, Any], List[str]]:
+def build(run_dir) -> Tuple[Dict[str, Any], List[str], List[str]]:
+    """(bundle, refusals, warnings). Warnings ride INSIDE the bundle."""
     b = collect(run_dir)
-    return b, screen(b)
+    warn = warnings(b)
+    if warn:
+        b["warnings"] = warn
+    return b, screen(b), warn

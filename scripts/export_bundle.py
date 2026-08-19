@@ -33,11 +33,17 @@ def main():
     print("out  {}".format(a.out))
     print()
 
-    bundle, problems = build(a.run)
+    bundle, problems, warns = build(a.run)
     if bundle.get("missing"):
         print("NOT IN THAT DIRECTORY: {}".format(
             ", ".join(bundle["missing"])))
         print("(a run without --generate writes no fidelity.json)")
+        print()
+    for w in warns:
+        print("WARNING: {}".format(w))
+        print("  (stamped into the bundle, so it travels with the "
+              "numbers rather than")
+        print("   living in a console line somebody has to remember)")
         print()
     if problems:
         print("REFUSED - nothing was written. {} reason(s):".format(
