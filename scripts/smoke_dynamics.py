@@ -502,6 +502,84 @@ def main():
           "only their assignment to patients changed".format(_ms),
           _ms < 0.20)
 
+    # ---- A MISSING MEASUREMENT IS NOT AN ABSENT FACT -------------
+    #
+    # The presence mask used to be applied inside the column loop, so
+    # a child read NaN for any parent not measured on that row.
+    # `_curve_delta` coerces a parent to numeric, NaN falls back to
+    # the curve's own centre, and the relationship contributed exactly
+    # nothing - silently, which is the shape of every other no-op this
+    # repo has been bitten by.
+    #
+    # A patient HAS a blood pressure whether or not anybody wrote it
+    # down. Splitting the generated rows by whether the parent was
+    # measured is what exposes it: the source keeps its correlation on
+    # both halves, and the generated data did not.
+    def _pbp(cov):
+        """kid <- p1, and p1 is only measured on some rows."""
+        cols = {}
+        for c in ("p1", "kid"):
+            cols[c] = {
+                "kind": "numeric", "level": "visit",
+                "coverage": cov if c == "p1" else 1.0, "dials": {},
+                "marginal": {"type": "quantiles", "mean": 0.0,
+                             "integral": False,
+                             "q": [0.0, 0.25, 0.5, 0.75, 1.0],
+                             "v": [-2.6, -0.68, 0.0, 0.68, 2.6]}}
+        grid = [-2.5, -1.0, 0.0, 1.0, 2.5]
+        eff = {"shape": "increasing", "grid": list(grid),
+               "response": [1.1 * x for x in grid]}
+        return {"columns": cols,
+                "relationships": [{
+                    "child": "kid", "parents": ["p1"],
+                    "dials": {"strength": None},
+                    "evidence": {"skill_out_of_sample": 0.8,
+                                 "importance": {"p1": 1.0},
+                                 "effect": {"p1": eff}}}],
+                "patients": {"count": 300,
+                             "visits": {"q": [0.0, 0.5, 1.0],
+                                        "v": [4.0, 6.0, 8.0],
+                                        "mean": 6.0}, "dials": {}}}
+
+    # A SECOND child of the same parent, so there is a pair to measure
+    # on rows where the parent itself is not published.
+    def _pbp2(cov):
+        b = _pbp(cov)
+        b["columns"]["kid2"] = dict(b["columns"]["kid"])
+        b["columns"]["kid2"]["marginal"] = dict(
+            b["columns"]["kid"]["marginal"])
+        r2 = dict(b["relationships"][0])
+        r2["child"] = "kid2"
+        b["relationships"] = [b["relationships"][0], r2]
+        return b
+
+    _rep_m = {}
+    _gm = _gen(_pbp2(0.45), n_patients=500, seed=0, report=_rep_m)
+    _p1 = pd.to_numeric(_gm["p1"], errors="coerce")
+    _k1 = pd.to_numeric(_gm["kid"], errors="coerce")
+    _k2 = pd.to_numeric(_gm["kid2"], errors="coerce")
+    _on, _off = _p1.notna(), _p1.isna()
+    _r_on = float(_k1[_on].corr(_k2[_on], method="spearman"))
+    _r_off = float(_k1[_off].corr(_k2[_off], method="spearman"))
+    check("two children of a partly-measured parent stay related on "
+          "the rows where that parent was NOT recorded: {:+.2f} "
+          "against {:+.2f} where it was. It used to be ~0.00 there - "
+          "the relationship was deleted along with the value"
+          .format(_r_off, _r_on),
+          _r_off > 0.25)
+    check("...and the two halves agree, so nothing about being "
+          "measured changes the relationship itself (gap {:.2f})"
+          .format(abs(_r_on - _r_off)),
+          abs(_r_on - _r_off) < 0.25)
+    check("...while the parent's COVERAGE is still what was asked "
+          "({:.2f} against 0.45) - the values are held back, not "
+          "kept".format(float(_p1.notna().mean())),
+          abs(float(_p1.notna().mean()) - 0.45) < 0.05)
+    check("...and the run says the mask was applied after the "
+          "relationships, so the ordering is visible rather than "
+          "inferred from behaviour",
+          _rep_m.get("masked_after_relationships") == 1)
+
     print()
     if FAIL:
         print("{} FAILED".format(FAIL))

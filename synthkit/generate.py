@@ -762,6 +762,9 @@ def generate(blueprint: Dict[str, Any],
     order, parents, dropped, repaired, derived, cyclic = \
         _order(bp, refine=int(refine_sweeps) > 0)
     marg_draw: Dict[str, Any] = {}
+    # Which rows each column will be MISSING on, collected during the
+    # loop and applied only after every relationship has run.
+    masks: Dict[str, Any] = {}
 
     n_pat = int(n_patients or pat.get("target_count")
                 or pat.get("count") or 100)
@@ -977,7 +980,11 @@ def generate(blueprint: Dict[str, Any],
                 # without the overall share moving.
                 keep = clustered_presence(counts, float(cov), clus,
                                           rng)
-            base = pd.Series(base).where(pd.Series(keep))
+            # HELD BACK, NOT APPLIED YET. See the block after the
+            # loop: a relationship must be able to read its parent's
+            # value on every row, including the rows where that value
+            # will not be published.
+            masks[c] = np.asarray(keep, dtype=bool)
         out[c] = np.asarray(base, dtype=object) \
             if not numeric else np.asarray(base, dtype=float)
 
@@ -1050,6 +1057,46 @@ def generate(blueprint: Dict[str, Any],
                 fixed_vals[ok] = pool[idx]
                 out[c] = fixed_vals
                 n_ref += 1
+
+    # ---- NOW THE COLUMNS GO MISSING -----------------------------
+    #
+    # A MISSING MEASUREMENT IS NOT AN ABSENT FACT. The mask used to be
+    # applied inside the loop, so a child read NaN for any parent that
+    # happened not to be measured on that row - `_curve_delta` coerces
+    # the parent to numeric, NaN falls back to the curve's own centre,
+    # and the relationship contributed exactly nothing. Silently: the
+    # same no-op shape as formatting a date before its children were
+    # drawn, and as the banned getattr.
+    #
+    # Measured on a blood-pressure fixture at the extract's coverage,
+    # four seeds, splitting the generated rows by whether the PARENT
+    # was measured:
+    #
+    #     parent present   r +0.69      parent missing   r -0.01
+    #
+    # The source keeps its +0.85 on both halves, because a patient has
+    # a mean arterial pressure whether or not anybody wrote it down.
+    # Absence of a measurement is a fact about the RECORD; the
+    # physiology underneath it is unchanged, and a sampler that
+    # deletes the relationship along with the value is modelling the
+    # wrong thing.
+    #
+    # So every value is generated, every relationship is applied
+    # against complete values, the refinement sweeps run, and only
+    # then are the unmeasured rows blanked - the latent value existed,
+    # it simply is not published.
+    for c, keep in masks.items():
+        col = out.get(c)
+        if col is None or not len(keep):
+            continue
+        arr = np.asarray(col, dtype=object).copy()
+        arr[~keep] = None
+        out[c] = (arr if (cols.get(c) or {}).get("kind") != "numeric"
+                  else pd.to_numeric(pd.Series(arr),
+                                     errors="coerce").to_numpy(
+                                         dtype=float))
+    if report is not None and masks:
+        report["masked_after_relationships"] = len(masks)
 
     frame = {gid: person, "visit_number": visit_no}
     frame.update(out)
