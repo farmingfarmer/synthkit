@@ -146,7 +146,16 @@ main(['version'])"` if -m is not wired).
 python scripts\run_all_smokes.py
 ```
 
-Expect: 64 suites, 1677 checks, ALL GREEN. It is no longer quick -
+Expect: 64 suites, **1676** checks, ALL GREEN.
+
+**That number is for THIS machine, and it is nine lower than the
+development machine's on purpose.** Nine checks in `smoke_buildid`
+run `git archive` to prove the commit really is substituted into the
+download, and there is no git here to run it with - so they report
+SKIPPED and the total comes out at 1676 against 1685 on a checkout.
+Both were measured, the second by extracting an archive and running
+the whole net inside it. A total that does not match this page is
+worth stopping for; a total of 1676 here is correct. It is no longer quick -
 about 9 minutes on the development machine and several times that
 here, with the long pauses at `smoke_generate` and `smoke_shapes`.
 Each suite prints `running` before it starts and `PASS` when it
