@@ -39,6 +39,8 @@ import argparse
 import json
 import sys
 import time
+
+from . import contradictions as _contra
 from pathlib import Path
 
 T0 = time.time()
@@ -646,6 +648,16 @@ def main(argv=None, args=None):
                   ordinals=ordinals, gen_report=rep)
     fid["dials"] = fid_dials
     fid["generation"] = rep
+    # THE REPORT CHECKED AGAINST ITSELF, before anybody reads it.
+    # Every measurement error this project has had was caught by two
+    # numbers disagreeing, and until now always by a person looking.
+    _bad = _contra.find(fid)
+    if _bad:
+        fid["contradictions"] = _bad
+        say("{} NUMBER(S) IN THIS REPORT CONTRADICT EACH OTHER - see "
+            "the end of findings.txt. These are not fidelity "
+            "findings; at least one of each pair is measured wrong."
+            .format(len(_bad)))
     (out / "fidelity.json").write_text(
         json.dumps(fid, indent=1), encoding="utf-8")
     # THE READABLE HALF, appended to the document people actually
@@ -653,6 +665,7 @@ def main(argv=None, args=None):
     # only place the per-column verdicts can reach it.
     with (out / "findings.txt").open("a", encoding="utf-8") as fh:
         fh.write(render_verdicts(fid) + "\n")
+        fh.write(_contra.render(_bad))
         if fid_dials:
             fh.write(_dials.render(fid_dials))
     s = fid["summary"]
@@ -1703,6 +1716,12 @@ def compare(df, g, bp, group_by, time_col, ordinals=None,
                         "icc_generated": b_.get("icc"),
                         "lag1_source": a_.get("lag1_total"),
                         "lag1_generated": b_.get("lag1_total")})
+            # Carried only when the estimator DECLINED, so its
+            # absence means the number was measured.
+            for _side, _d in (("source", a_), ("generated", b_)):
+                for _k in ("icc_reason", "lag1_reason"):
+                    if _d.get(_k):
+                        row["{}_{}".format(_k, _side)] = _d[_k]
             if c in capped:
                 row["steadiness_capped"] = True
             if a_.get("lag1_total") is not None and \

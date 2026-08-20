@@ -98,14 +98,33 @@ CEIL = 0.98
 def icc1(values: np.ndarray, groups: np.ndarray) -> float:
     """ICC(1) from mean squares - the share of variance BETWEEN
     patients, unbiased at small group sizes."""
+    return icc1_detail(values, groups)[0]
+
+
+def icc1_detail(values: np.ndarray, groups: np.ndarray):
+    """`(value, reason)`. The reason is what makes the value readable.
+
+    A BARE 0.0 MEANS THREE DIFFERENT THINGS HERE and a reader cannot
+    tell them apart: the patients are identical to each other, or the
+    estimator declined for want of data, or it genuinely measured no
+    between-patient share. That ambiguity is what let
+    `year_of_birth: icc 0.0` sit beside `lag1 0.98` in a real report
+    without anything being able to say the pair was incoherent - and
+    a check written on the bare numbers fired on a fixture where both
+    were true.
+
+    So the branch is named. `measured` is a measurement; everything
+    else is a sentinel that happens to be shaped like one, and the
+    same rule applies as to a build id: reporting nothing beats
+    quietly reporting something."""
     ok = ~np.isnan(values)
     v, g = values[ok], groups[ok]
     if len(v) < 20:
-        return 0.0
+        return 0.0, "too_few_rows"
     codes, inv = np.unique(g, return_inverse=True)
     ng = len(codes)
     if ng < 3 or len(v) <= ng:
-        return 0.0
+        return 0.0, "too_few_groups"
     counts = np.bincount(inv)
     sums = np.bincount(inv, weights=v)
     means = sums / counts
@@ -126,29 +145,42 @@ def icc1(values: np.ndarray, groups: np.ndarray) -> float:
         # msb > 0 with msw == 0 says the patients differ from each
         # other and never from themselves. That is the top of the
         # range, capped where every other dial is capped.
-        return CEIL if msb > 0 else 0.0
+        return ((CEIL, "measured") if msb > 0
+                else (0.0, "no_variance_at_all"))
     # the "average" group size that makes the estimator unbiased for
     # unequal groups
     k = (float(v.size) - float(np.sum(counts ** 2)) / v.size) / (ng - 1)
     if k <= 1:
-        return 0.0
+        return 0.0, "degenerate_group_size"
     den = msb + (k - 1.0) * msw
-    return float(min(max((msb - msw) / den, 0.0), 0.98)) if den > 0 \
-        else 0.0
+    if den <= 0:
+        return 0.0, "no_variance_at_all"
+    return float(min(max((msb - msw) / den, 0.0), 0.98)), "measured"
 
 
 def pooled_lag1(values: np.ndarray, prev_i, cur_i) -> float:
     """Correlation between consecutive observed values, UNCENTRED."""
+    return pooled_lag1_detail(values, prev_i, cur_i)[0]
+
+
+def pooled_lag1_detail(values: np.ndarray, prev_i, cur_i):
+    """`(value, reason)`, for the same reason `icc1_detail` has one.
+
+    A 0.2%-covered column has no thirty consecutive pairs to
+    correlate, so this returns 0.0 and the report has been publishing
+    that beside a real patient-level share as though both were
+    measured."""
     if len(prev_i) < 30:
-        return 0.0
+        return 0.0, "no_consecutive_pairs"
     ok = ~np.isnan(values)
     m = ok[prev_i] & ok[cur_i]
     if m.sum() < 30:
-        return 0.0
+        return 0.0, "too_few_observed_pairs"
     a, b = values[prev_i][m], values[cur_i][m]
     if a.std() == 0 or b.std() == 0:
-        return 0.0
-    return float(min(max(float(np.corrcoef(a, b)[0, 1]), -0.98), 0.98))
+        return 0.0, "no_variance_at_all"
+    return (float(min(max(float(np.corrcoef(a, b)[0, 1]), -0.98),
+                      0.98)), "measured")
 
 
 def within_from(lag1: float, icc: float) -> float:
@@ -233,10 +265,18 @@ def measure(df: pd.DataFrame, X: pd.DataFrame, group_by: str,
                 missing_clustering(present, prev_i, cur_i), 4)}
         if pd.api.types.is_numeric_dtype(s):
             v = s.to_numpy(dtype=float)
-            icc = icc1(v, groups)
-            lag1 = pooled_lag1(v, prev_i, cur_i)
+            icc, icc_why = icc1_detail(v, groups)
+            lag1, lag_why = pooled_lag1_detail(v, prev_i, cur_i)
             d["icc"] = round(icc, 4)
             d["lag1_total"] = round(lag1, 4)
+            # WHICH BRANCH PRODUCED THE NUMBER. `measured` is a
+            # measurement; anything else is a sentinel shaped like
+            # one, and a report that cannot tell them apart publishes
+            # 0.0 for a column it never looked at.
+            if icc_why != "measured":
+                d["icc_reason"] = icc_why
+            if lag_why != "measured":
+                d["lag1_reason"] = lag_why
             d["within_lag1"] = round(within_from(lag1, icc), 4)
         else:
             d["stickiness"] = round(
