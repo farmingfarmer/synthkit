@@ -71,25 +71,21 @@ def find(fid: Dict[str, Any]) -> List[Dict[str, Any]]:
             if not (_num(icc) and _num(lag)):
                 continue
 
-            # THE IDENTITY THE SAMPLER ITSELF USES.
-            # `persistent_uniform` builds lag1 = icc + (1 - icc)*within
-            # with within >= 0, so the total persistence can never be
-            # BELOW the patient-level share. If it is, one of the two
-            # estimators is wrong - they are measured independently.
-            # A NEGATIVE lag1 IS A MEASUREMENT, NOT A CONTRADICTION.
-            # The first version of this rule fired on five columns
-            # whose lag1 was genuinely negative - a column really can
-            # alternate visit to visit. The generative model cannot
-            # REPRESENT that, which is a fidelity finding, not an
-            # incoherent one. Only a positive lag1 below icc breaks
-            # the identity.
-            if 0.0 < lag < icc - TOL:
-                hit("lag1 below icc",
-                    "{} ({})".format(name, side),
-                    "lag1 {:.4g} is below icc {:.4g}. The sampler "
-                    "builds lag1 = icc + (1-icc)*within with within "
-                    ">= 0, so the total persistence cannot be under "
-                    "the patient-level share.".format(lag, icc))
+            # WHY THERE IS NO lag1-BELOW-icc RULE, though one was
+            # shipped and then withdrawn. The identity
+            # lag1 = icc + (1-icc)*within holds for the DRAW that
+            # persistent_uniform builds - and for nothing else. Real
+            # source data is under no obligation to be that model
+            # (glasgow_coma_score measures lag1 0.009 beside icc
+            # 0.085, and both are true of the data), and a generated
+            # column is the draw PLUS parent effects and sweeps,
+            # which can legitimately push its measured lag1 below its
+            # measured icc. The rule fired twice on the first real
+            # extract, both times on numbers that were both true -
+            # a rule about the sampler's internals applied to data
+            # that is not the sampler's internals. What it was trying
+            # to catch is representational distance, which is
+            # fidelity's job, not incoherence.
 
             # A SENTINEL PUBLISHED AS A MEASUREMENT. The estimators
             # now say which branch produced a number, so this is

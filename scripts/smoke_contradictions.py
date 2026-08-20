@@ -136,15 +136,19 @@ def main():
           "guessed from the bare numbers fired on exactly this",
           not hits)
 
-    # ---- AN IDENTITY THE SAMPLER ITSELF RELIES ON ----------------
-    hits = find(rep([col(icc_source=0.60, lag1_source=0.20)]))
-    check("lag1 below icc is incoherent - the sampler builds "
-          "lag1 = icc + (1-icc)*within with within >= 0",
-          "lag1 below icc" in rules(hits))
-    check("...but a NEGATIVE lag1 is a real measurement and stays "
-          "silent: a column can alternate visit to visit, which the "
-          "model cannot represent - a fidelity finding, not an "
-          "incoherent one",
+    # ---- lag1 BELOW icc IS NOT A CONTRADICTION, and a rule that
+    # said it was got withdrawn: the identity binds the sampler's
+    # DRAW, not real data (glasgow_coma_score genuinely measures
+    # lag1 0.009 beside icc 0.085) and not a post-relationship
+    # column. It fired twice on the first real extract, both times
+    # on numbers that were both true.
+    check("lag1 below icc stays SILENT - the identity holds for the "
+          "draw persistent_uniform builds, and real data is under "
+          "no obligation to be that model",
+          not find(rep([col(icc_source=0.60, lag1_source=0.20)])))
+    check("...and so does a negative lag1 - a column can alternate "
+          "visit to visit, which is a representational gap for "
+          "fidelity, not an incoherence",
           not find(rep([col(icc_source=0.0, lag1_source=-0.19)])))
 
     # ---- COUNTS AND RANGES --------------------------------------

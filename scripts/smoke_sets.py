@@ -321,6 +321,81 @@ def main():
           (lambda r2: (_gen(_set_bp(False), n_patients=100, seed=0,
                             report=r2), r2)[1])({}))
 
+    # ---- A PRESENCE-ONLY CURVE NEVER READS ITS VALUE GRID --------
+    #
+    # Discovery labels such a curve in as many words - "does not
+    # depend on the VALUE of spo2 at all" - and stores a value grid
+    # anyway. The placement interpolated that grid on complete values
+    # (the mask is applied last) and MANUFACTURED a relationship on
+    # the real extract: spearman -0.41 generated where the source
+    # holds +0.03. This fixture carries the extract's exact shape:
+    # conditionals 0.85/0.15, a steep monotone junk grid so any leak
+    # is unmistakable, and a token marginal CONSISTENT with the
+    # conditionals (0.45*0.85 + 0.55*0.15 = 0.465) - an inconsistent
+    # one forces the solve against an infeasible pair of levels.
+    def _pres_bp():
+        num = {"kind": "numeric", "level": "visit", "coverage": 0.45,
+               "dials": {},
+               "marginal": {"type": "quantiles", "mean": 97.0,
+                            "integral": False,
+                            "q": [0.0, 0.25, 0.5, 0.75, 1.0],
+                            "v": [92.0, 95.5, 97.0, 98.5, 100.0]}}
+        setc = {"kind": "categorical", "level": "visit",
+                "coverage": 1.0, "dials": {},
+                "marginal": {"type": "list", "separator": ";",
+                             "tokens": [{"value": "OxyTherapy",
+                                         "p": 0.465},
+                                        {"value": "Oral",
+                                         "p": 0.535}],
+                             "set_size": {"v": [1], "p": [1.0]}}}
+        ind = {"kind": "numeric", "level": "visit", "coverage": 1.0,
+               "dials": {}, "derived_from": {"column": "procs"},
+               "marginal": {"type": "quantiles", "mean": 0.465,
+                            "integral": False, "q": [0.0, 1.0],
+                            "v": [0.0, 1.0]}}
+        eff = {"shape": "presence-only", "effect_size": 0.7,
+               "centre": 0.85, "response_when_missing": 0.15,
+               "grid": [92.0, 95.5, 97.0, 98.5, 100.0],
+               "response": [0.05, 0.30, 0.50, 0.75, 0.95]}
+        return {"columns": {"lab": num, "procs": setc,
+                            "procs__has__OxyTherapy": dict(ind)},
+                "relationships": [{
+                    "child": "procs__has__OxyTherapy",
+                    "parents": ["lab"], "dials": {"strength": None},
+                    "evidence": {"skill_out_of_sample": 0.85,
+                                 "importance": {"lab": 1.0},
+                                 "effect": {"lab": eff}}}],
+                "patients": {"count": 500,
+                             "visits": {"q": [0.0, 0.5, 1.0],
+                                        "v": [3.0, 4.0, 5.0],
+                                        "mean": 4.0}, "dials": {}}}
+
+    vals, hi, lo = [], [], []
+    for sd_ in range(3):
+        gp = _gen(_pres_bp(), n_patients=500, seed=sd_)
+        has = gp["procs"].fillna("").str.contains("OxyTherapy"
+                                                  ).astype(float)
+        mm = gp["lab"].notna()
+        v = float(gp.loc[mm, "lab"].corr(has[mm], method="spearman"))
+        if v == v:
+            vals.append(v)
+        hi.append(float(has[mm].mean()))
+        lo.append(float(has[~mm].mean()))
+    check("the value grid is NEVER read: spearman(lab value, token) "
+          "on measured rows is {:+.2f} - interpolating the disowned "
+          "grid manufactured +0.78 here and -0.41 on the extract"
+          .format(float(np.mean(vals)) if vals else 0.0),
+          not vals or abs(float(np.mean(vals))) < 0.15)
+    check("...while the PRESENCE effect itself arrives, SOLVED to "
+          "the curve's own conditionals: P(token|measured) {:.2f} "
+          "against 0.85, P(token|absent) {:.2f} against 0.15 - the "
+          "sqrt(1-skill) blend saturated a two-valued driver at "
+          "1.00/0.31, so the noise weight is bisected like every "
+          "other fed-back statistic".format(
+              float(np.mean(hi)), float(np.mean(lo))),
+          abs(float(np.mean(hi)) - 0.85) < 0.08
+          and abs(float(np.mean(lo)) - 0.15) < 0.08)
+
     print()
     if FAIL:
         print("{} FAILED".format(FAIL))

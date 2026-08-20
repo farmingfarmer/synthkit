@@ -635,6 +635,14 @@ def build(df: pd.DataFrame,
                             "turning_point"),
                         "centre": (p.get("effect") or {}).get(
                             "centre"),
+                        # The absent-side response. Without it a
+                        # presence-only effect keeps its SIZE and
+                        # loses its SIGN - the direction survived
+                        # only inside the description's prose, which
+                        # no sampler reads.
+                        "response_when_missing": (
+                            p.get("effect") or {}).get(
+                                "response_when_missing"),
                         "alone": (p.get("effect") or {}).get("alone"),
                         "reverses_when_controlled": (
                             p.get("effect") or {}).get(

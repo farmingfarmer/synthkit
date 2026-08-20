@@ -778,6 +778,15 @@ def main(argv=None, args=None):
             say("    {} ~ {}   source {:+.3f}   generated {:+.3f}"
                 .format(r["child"], r["parent"], r["source"],
                         r["generated"]))
+    if s.get("pairs_invented"):
+        say("  {} relationship(s) were INVENTED - strong in the "
+            "generated data where the source has none. As bad as an "
+            "inversion, for the same reason:".format(
+                s["pairs_invented"]))
+        for r in fid["relationships"]["invented"][:6]:
+            say("    {} ~ {}   source {:+.3f}   generated {:+.3f}"
+                .format(r["child"], r["parent"], r["source"],
+                        r["generated"]))
     say("done -> {}".format(out))
 
 

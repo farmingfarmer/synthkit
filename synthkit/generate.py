@@ -197,8 +197,35 @@ def _draw_categorical(m: Dict[str, Any], n: int, rng) -> np.ndarray:
     return rng.choice(vals, size=n, p=p)
 
 
-def _curve_delta(eff: Dict[str, Any], parent_vals) -> np.ndarray:
-    """How far this parent pushes the child from its average."""
+def _curve_delta(eff: Dict[str, Any], parent_vals,
+                 present=None) -> np.ndarray:
+    """How far this parent pushes the child from its average.
+
+    A PRESENCE-ONLY EFFECT NEVER READS THE VALUE GRID. Discovery
+    labels such a curve in as many words - "does not depend on the
+    VALUE of spo2 at all - it depends on whether spo2 was measured" -
+    and stores a value grid anyway, which on the real extract spans
+    0.3 of pure noise. Interpolating that grid MANUFACTURED a
+    relationship: spearman -0.41 generated where the source holds
+    +0.03, on complete values because the mask is applied last. An
+    invented relationship reads as a finding, the same severity as an
+    inversion.
+
+    So the labelled branch reads `present` - the pending presence
+    mask for the parent, which is decided before the mask is applied
+    - and pushes by observed-vs-absent, exactly what the label says
+    the effect is. With no presence information the contribution is
+    ZERO: a presence effect on an always-present parent is constant,
+    and an unknown mask must not fall back to the disowned grid."""
+    if eff.get("shape") == "presence-only":
+        obs = eff.get("centre")
+        mv = eff.get("response_when_missing")
+        if present is None or obs is None or mv is None:
+            return np.zeros(len(parent_vals))
+        pr = np.asarray(present, dtype=bool)
+        share = float(pr.mean())
+        overall = share * float(obs) + (1.0 - share) * float(mv)
+        return np.where(pr, float(obs), float(mv)) - overall
     grid, resp = eff.get("grid"), eff.get("response")
     if not grid or not resp or len(grid) != len(resp):
         return np.zeros(len(parent_vals))
@@ -571,7 +598,8 @@ def _collapse_to_patient(rows, pat_draw, pidx, n_pat, numeric):
     return np.asarray(rows, dtype=object)[first][pidx]
 
 
-def _informative_sets(cname, m, base, routed, out, rng):
+def _informative_sets(cname, m, base, routed, out, rng,
+                      masks=None):
     """Rearrange the drawn sets so tokens land where their parents say.
 
     THE MULTISET OF SETS IS UNTOUCHED. Sizes, token shares and
@@ -634,7 +662,8 @@ def _informative_sets(cname, m, base, routed, out, rng):
             if not eff:
                 continue
             sys_ += (max(float(imp.get(p, 0.0)), 0.0) / tot) * \
-                np.nan_to_num(_curve_delta(eff, out[p]))
+                np.nan_to_num(_curve_delta(eff, out[p],
+                                           (masks or {}).get(p)))
         sd = float(sys_.std())
         if not np.isfinite(sd) or sd == 0.0:
             continue
@@ -650,9 +679,27 @@ def _informative_sets(cname, m, base, routed, out, rng):
             continue
         skill = max(float(ev.get("skill_out_of_sample") or 0.0), 0.0)
         lam = float(np.sqrt(min(skill, 0.98)))
-        target = lam * ((sys_ - sys_.mean()) / sd) + \
-            np.sqrt(1.0 - lam * lam) * rng.standard_normal(n)
-        jobs.append((np.sqrt(skill) * strength, child, target, x))
+        sys_std = (sys_ - sys_.mean()) / sd
+        # A TWO-VALUED DRIVER SATURATES UNDER RANK-MATCHING. A
+        # presence-only effect pushes every row to one of two levels,
+        # and blending noise at sqrt(1-skill) - which lands within
+        # 0.02 of the source on continuous curves - drove the
+        # conditional share to 1.00 against a source 0.85: with only
+        # two ranks to order, modest noise cannot soften the split.
+        # The curve states the exact conditional means it wants, so
+        # the noise weight is SOLVED against them - the same rule as
+        # the steadiness and clustering solves: a statistic fed back
+        # as a parameter is bisected until the output measures it.
+        solve_sep = None
+        effs = [(ev.get("effect") or {}).get(q) or {}
+                for q in r["parents"]]
+        if (len(effs) == 1 and effs[0].get("shape") == "presence-only"
+                and effs[0].get("response_when_missing") is not None
+                and np.unique(np.round(sys_std, 9)).size == 2):
+            solve_sep = abs(float(effs[0]["centre"])
+                            - float(effs[0]["response_when_missing"]))
+        jobs.append((np.sqrt(skill) * strength, child, sys_std, x,
+                     lam, solve_sep))
     if not jobs:
         return base, None
 
@@ -660,18 +707,40 @@ def _informative_sets(cname, m, base, routed, out, rng):
     arr = np.asarray(base, dtype=object)
     perm = np.arange(n)               # perm[i] = index into arr
     group = np.zeros(n, dtype=np.int64)   # rows agreeing so far
-    for _w, _child, target, x in jobs:
-        feat = x[perm]
-        # WITHIN each group: rows sorted by their own target receive
-        # that group's sets sorted by this child's feature. Earlier
-        # children are constant inside a group by construction, so
-        # their placement survives exactly.
+
+    def _place(sys_std, x, lam, noise, jit):
+        target = lam * sys_std + np.sqrt(1.0 - lam * lam) * noise
         order_rows = np.lexsort((target, group))
-        order_sets = np.lexsort((feat + 1e-9 *
-                                 rng.standard_normal(n), group))
+        order_sets = np.lexsort((x[perm] + jit, group))
         new_perm = np.empty(n, dtype=np.int64)
         new_perm[order_rows] = perm[order_sets]
-        perm = new_perm
+        return new_perm
+
+    for _w, _child, sys_std, x, lam, solve_sep in jobs:
+        # One noise realisation per child, held FIXED through the
+        # bisection - bisecting a function that redraws its own noise
+        # wanders instead of converging.
+        noise = rng.standard_normal(n)
+        jit = 1e-9 * rng.standard_normal(n)
+        if solve_sep is not None:
+            hi_mask = sys_std > sys_std.min()
+
+            def sep_at(l_):
+                xp = x[_place(sys_std, x, l_, noise, jit)]
+                a, b = xp[hi_mask], xp[~hi_mask]
+                if not len(a) or not len(b):
+                    return 0.0
+                return abs(float(a.mean()) - float(b.mean()))
+
+            lo_l, hi_l = 0.0, 0.999
+            for _ in range(12):
+                mid = (lo_l + hi_l) / 2.0
+                if sep_at(mid) < solve_sep:
+                    lo_l = mid
+                else:
+                    hi_l = mid
+            lam = (lo_l + hi_l) / 2.0
+        perm = _place(sys_std, x, lam, noise, jit)
         # extend the groups by what this child now shows per ROW
         shown = x[perm]
         _, group = np.unique(
@@ -1001,7 +1070,7 @@ def generate(blueprint: Dict[str, Any],
                         b = _draw_numeric(_m, uu)
                         return np.asarray(
                             _apply_numeric(_c, _spec, _m, b, _rels,
-                                           out), dtype=float)
+                                           out, masks), dtype=float)
 
                     inject, got = _solve_within(
                         tgt, icc, within, counts, build,
@@ -1038,7 +1107,7 @@ def generate(blueprint: Dict[str, Any],
             routed = set_rels.get(c) or []
             if routed and not per_patient:
                 base, _note = _informative_sets(c, m, base, routed,
-                                                out, rng)
+                                                out, rng, masks)
                 if _note is not None and report is not None:
                     report.setdefault("sets_informed",
                                       []).append(_note)
@@ -1062,10 +1131,11 @@ def generate(blueprint: Dict[str, Any],
             marg_draw[c] = np.asarray(base, dtype=float).copy()
         if rels and len(base):
             if numeric:
-                base = _apply_numeric(c, spec, m, base, rels, out)
+                base = _apply_numeric(c, spec, m, base, rels,
+                                      out, masks)
             else:
-                base = _apply_categorical(c, spec, m, base, rels, out,
-                                          rng)
+                base = _apply_categorical(c, spec, m, base, rels,
+                                          out, rng, masks)
             # A FACT ABOUT THE PERSON MUST NOT CHANGE BETWEEN THEIR
             # VISITS. The draw is per patient and correct; expanding
             # it to rows and THEN applying a relationship puts
@@ -1201,7 +1271,8 @@ def generate(blueprint: Dict[str, Any],
                 if not usable:
                     continue
                 draw = marg_draw[c]
-                got = _apply_numeric(c, spec, m, draw, usable, out)
+                got = _apply_numeric(c, spec, m, draw, usable,
+                                     out, masks)
                 got = np.asarray(got, dtype=float)
                 # A REFINED ROW MUST STILL BE A ROW THE COLUMN WAS
                 # MEASURED ON. `draw` is the marginal draw taken
@@ -1369,7 +1440,7 @@ def generate(blueprint: Dict[str, Any],
     return df
 
 
-def _apply_numeric(c, spec, m, base, rels, out):
+def _apply_numeric(c, spec, m, base, rels, out, masks=None):
     """mean + strength*(curve - curve_mean) + shrink*(draw - mean)."""
     mean = float(m.get("mean", 0.0))
     systematic = np.zeros(len(base), dtype=float)
@@ -1428,7 +1499,8 @@ def _apply_numeric(c, spec, m, base, rels, out):
                 # of the claim it came from
                 if e.get("skill") is not None:
                     used_sk = max(used_sk or 0.0, float(e["skill"]))
-            systematic += s * _curve_delta(e, out[p])
+            systematic += s * _curve_delta(e, out[p],
+                                           (masks or {}).get(p))
         sk = (used_sk if used_sk is not None
               else float(ev.get("skill_out_of_sample") or 0.0))
         share = min(max(sk, 0.0), 0.99) * min(s, 1.0)
@@ -1467,7 +1539,8 @@ def _apply_numeric(c, spec, m, base, rels, out):
     return mean + systematic + shrink * noise
 
 
-def _apply_categorical(c, spec, m, base, rels, out, rng):
+def _apply_categorical(c, spec, m, base, rels, out, rng,
+                       masks=None):
     """Shift the probability of the class the curve tracks.
 
     A curve for a categorical child follows ONE class - the one whose
@@ -1495,7 +1568,8 @@ def _apply_categorical(c, spec, m, base, rels, out, rng):
                 target = of
             if of != target:
                 continue
-            delta += s * _curve_delta(eff[p], out[p])
+            delta += s * _curve_delta(eff[p], out[p],
+                                      (masks or {}).get(p))
     if target is None or target not in levels:
         return base
     j = levels.index(target)
