@@ -227,7 +227,7 @@ def main():
     d3 = pd.DataFrame(rows3)
     b3 = B.build(d3, discover(d3, group_by="person_id", seed=1),
                  group_by="person_id")
-    _o, _par, drops, _rep, _der, _cyc = _order(resolve(b3))
+    _o, _par, drops, _rep, _der, _cyc, _sr = _order(resolve(b3))
     check("three mutually predictive columns produce drops at all, or "
           "the check below proves nothing",
           len(drops) >= 1)

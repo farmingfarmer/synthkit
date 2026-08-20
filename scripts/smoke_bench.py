@@ -78,7 +78,7 @@ def main():
     cols = ["a", "b", "c", "d"]
     forest = bp_from([rel("b", ["a"], 0.8), rel("d", ["c"], 0.7)],
                      cols)
-    _o, _p, dropped_f, _r, _d, _c = _order(resolve(forest))
+    _o, _p, dropped_f, _r, _d, _c, _s = _order(resolve(forest))
     check("a forest-shaped graph drops nothing - which is why a "
           "fixture built from disjoint pairs scores 10/10 survival "
           "and says nothing about a real graph",
@@ -87,7 +87,7 @@ def main():
     ring = bp_from([rel("b", ["a"], 0.9), rel("c", ["b"], 0.85),
                     rel("d", ["c"], 0.8), rel("a", ["d"], 0.75)],
                    cols)
-    _o, _p, dropped_r, _r, _d, _c = _order(resolve(ring))
+    _o, _p, dropped_r, _r, _d, _c, _s = _order(resolve(ring))
     check("a RING cannot be ordered without cutting an edge, so the "
           "sampler drops one and says so - this is the mechanism "
           "that loses 16 of 26 relationships on the real extract",

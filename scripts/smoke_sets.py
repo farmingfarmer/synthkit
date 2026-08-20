@@ -219,6 +219,108 @@ def main():
           "being folded into a source column and silently dropped",
           raised)
 
+    # ---- A TOKEN CAN NOW BE SELECTED BY ANOTHER COLUMN -----------
+    #
+    # Relationships whose child is a derived indicator were DROPPED
+    # for weeks - `_order` said "a token cannot yet be SELECTED by
+    # another column" - and on the real extract the entire worst-pairs
+    # list was this shape, collapsing to ~0.00 bit-identically across
+    # two runs because the loss was by construction. They are now
+    # routed to the set column, which rearranges WHICH ROW gets WHICH
+    # of the sets already drawn.
+    from synthkit.generate import generate as _gen
+
+    def _set_bp(with_rels, flip_b=False):
+        """sev drives token A up and token B down - the shape that
+        broke the first version of the placement (see below)."""
+        grid = [-2.0, -1.0, 0.0, 1.0, 2.0]
+        num = {"kind": "numeric", "level": "visit", "coverage": 1.0,
+               "dials": {},
+               "marginal": {"type": "quantiles", "mean": 0.0,
+                            "integral": False,
+                            "q": [0.0, 0.25, 0.5, 0.75, 1.0],
+                            "v": [-2.2, -0.7, 0.0, 0.7, 2.2]}}
+        setc = {"kind": "categorical", "level": "visit",
+                "coverage": 1.0, "dials": {},
+                "marginal": {"type": "list", "separator": ";",
+                             "tokens": [{"value": "A", "p": 0.35},
+                                        {"value": "B", "p": 0.40},
+                                        {"value": "C", "p": 0.25}],
+                             "set_size": {"v": [1, 2],
+                                          "p": [0.7, 0.3]}}}
+        ind = {"kind": "numeric", "level": "visit", "coverage": 1.0,
+               "dials": {}, "derived_from": {"column": "routes"},
+               "marginal": {"type": "quantiles", "mean": 0.35,
+                            "integral": False,
+                            "q": [0.0, 1.0], "v": [0.0, 1.0]}}
+        def rel(tok, slope, skill):
+            return {"child": "routes__has__{}".format(tok),
+                    "parents": ["sev"], "dials": {"strength": None},
+                    "evidence": {"skill_out_of_sample": skill,
+                                 "importance": {"sev": 1.0},
+                                 "effect": {"sev": {
+                                     "shape": "monotone",
+                                     "grid": list(grid),
+                                     "response": [0.35 + slope * g
+                                                  for g in grid]}}}}
+        rels = []
+        if with_rels:
+            # B stronger than A on purpose: the scalar-blend version
+            # let the stronger child's direction overwrite the
+            # weaker's, and inverted it.
+            rels = [rel("B", -0.14, 0.8 if flip_b else 0.5),
+                    rel("A", 0.12, 0.5 if flip_b else 0.8)]
+        cols = {"sev": num, "routes": setc,
+                "routes__has__A": dict(ind), "routes__has__B": dict(ind)}
+        return {"columns": cols, "relationships": rels,
+                "patients": {"count": 400,
+                             "visits": {"q": [0.0, 0.5, 1.0],
+                                        "v": [3.0, 4.0, 5.0],
+                                        "mean": 4.0}, "dials": {}}}
+
+    def _tok(fr, t):
+        return fr["routes"].fillna("").str.contains(t).astype(float)
+
+    _rep_s = {}
+    g_on = _gen(_set_bp(True), n_patients=400, seed=2, report=_rep_s)
+    g_off = _gen(_set_bp(False), n_patients=400, seed=2)
+    r_a = float(g_on["sev"].corr(_tok(g_on, "A"), method="spearman"))
+    r_b = float(g_on["sev"].corr(_tok(g_on, "B"), method="spearman"))
+    check("a token whose relationship names a parent LANDS where that "
+          "parent says: corr(sev, has A) {:+.2f} - this relationship "
+          "was dropped outright before, and the whole worst-pairs "
+          "list on the real extract was this shape".format(r_a),
+          r_a > 0.25)
+    check("...and two tokens pulled OPPOSITE ways both keep their "
+          "signs (A {:+.2f}, B {:+.2f}). The first version collapsed "
+          "every child into one scalar and handed the stronger "
+          "child's direction to the weaker one - measured on the "
+          "fixture, severity against IVPush read -0.232 where the "
+          "source has +0.601".format(r_a, r_b),
+          r_a > 0.1 and r_b < -0.1)
+    check("...whichever child is the stronger one",
+          (lambda g2: float(g2["sev"].corr(_tok(g2, "A"),
+                                           method="spearman")) > 0.1
+           and float(g2["sev"].corr(_tok(g2, "B"),
+                                    method="spearman")) < -0.1)(
+              _gen(_set_bp(True, flip_b=True), n_patients=400,
+                   seed=2)))
+    check("THE MULTISET OF SETS IS UNTOUCHED - the same seed with and "
+          "without the relationships draws the exact same sets, "
+          "rearranged and nothing else, so the marginal cannot drift "
+          "by construction",
+          sorted(g_on["routes"].fillna("")) ==
+          sorted(g_off["routes"].fillna("")))
+    check("...and the run reports which set columns were informed, "
+          "naming the children",
+          any(e.get("column") == "routes" and
+              "routes__has__A" in (e.get("children") or [])
+              for e in (_rep_s.get("sets_informed") or [])))
+    check("...while a set column with NO routed children reports "
+          "nothing", "sets_informed" not in
+          (lambda r2: (_gen(_set_bp(False), n_patients=100, seed=0,
+                            report=r2), r2)[1])({}))
+
     print()
     if FAIL:
         print("{} FAILED".format(FAIL))

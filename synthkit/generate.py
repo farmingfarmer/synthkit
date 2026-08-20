@@ -269,41 +269,52 @@ def _order(bp: Dict[str, Any], refine: bool = True):
             derived[c] = b
 
     parents: Dict[str, List[Dict[str, Any]]] = {}
+    # Relationships whose child is a derived indicator, keyed by the
+    # SET column that will express them by rearranging its draw.
+    set_rels: Dict[str, List[Dict[str, Any]]] = {}
     used, dropped = set(), []
     for r in rels:
         child = r.get("child")
         if child not in cols:
             continue
-        # A DERIVED COLUMN CANNOT BE A CHILD, AND MUST NOT CLAIM THE
-        # PAIR ON ITS WAY OUT.
+        # A DERIVED CHILD IS ROUTED TO ITS SET, NOT DROPPED.
         #
         # An indicator is read off the set that was drawn, so nothing
-        # can be applied TO it - and both directions are discovered
-        # here, because "severity is high when t03 is present" and
-        # "t03 is present when severity is high" describe the same
-        # data. Sorted by skill the second one wins: 0.925 against
-        # 0.711 on the fixture. It was then accepted, the pair marked
-        # used, the honest direction dropped as a restatement, and
-        # generation applied nothing - severity separated on t03 by
-        # -0.3 where the source separated by +25.1.
+        # can be applied TO the indicator itself. For weeks that meant
+        # the relationship was dropped outright, and on the real
+        # extract the entire worst-pairs list was this shape -
+        # `drug_routes__has__Charge <- midazolam` at 0.4034 in the
+        # source and -0.0075 generated, bit-identical across two runs
+        # because the loss is by construction.
         #
-        # `continue` BEFORE the pair is recorded, so the reverse claim
-        # is still free to take it. Marking it used here is what made
-        # this silent.
+        # A token CAN be selected by another column, though: not by
+        # drawing the indicator, but by choosing WHICH ROW receives
+        # WHICH of the sets already drawn. So the relationship is
+        # handed to the set column, which rearranges its own draw at
+        # generation time. The multiset of sets is untouched - sizes,
+        # token shares, combinations - only the assignment moves,
+        # which is the same device the refinement sweeps use.
+        #
+        # The restatement rule still applies first: sorted by skill,
+        # the stronger direction takes the pair, and both directions
+        # of one dependence must not enter twice.
         if child in derived:
-            dropped.append({
-                "child": child,
-                "parents": [p for p in (r.get("parents") or [])
-                            if p in cols],
-                "skill": round(float((r.get("evidence") or {}).get(
-                    "skill_out_of_sample") or 0.0), 4),
-                "why": "the child is derived from a set column, so it "
-                       "is read off the generated set rather than "
-                       "drawn - a token cannot yet be SELECTED by "
-                       "another column. If the reverse direction was "
-                       "also found it is used instead and nothing is "
-                       "lost here.",
-                "harmless": False})
+            ps_d = [p for p in (r.get("parents") or []) if p in cols]
+            sk_d = round(float((r.get("evidence") or {}).get(
+                "skill_out_of_sample") or 0.0), 4)
+            pairs_d = [frozenset([child, p]) for p in ps_d]
+            if not ps_d:
+                continue
+            if all(q in used for q in pairs_d):
+                dropped.append({
+                    "child": child, "parents": ps_d, "skill": sk_d,
+                    "why": "every pair of these columns is already "
+                           "related in another direction, so the "
+                           "dependence reaches the data once",
+                    "harmless": True})
+                continue
+            set_rels.setdefault(derived[child], []).append(r)
+            used.update(pairs_d)
             continue
         ps = [p for p in (r.get("parents") or []) if p in cols]
         if not ps:
@@ -359,6 +370,10 @@ def _order(bp: Dict[str, Any], refine: bool = True):
                 need.update(p for p in r["parents"] if p != c)
             if c in derived:
                 need.add(derived[c])
+            # A set column that will rearrange its draw needs the
+            # columns it rearranges BY to exist first.
+            for r in set_rels.get(c, []):
+                need.update(p for p in r["parents"] if p != c)
             if need <= placed:
                 order.append(c)
                 placed.add(c)
@@ -451,6 +466,16 @@ def _order(bp: Dict[str, Any], refine: bool = True):
         for r in rs:
             for p in r["parents"]:
                 covered.add(frozenset([c, p]))
+    # A ROUTED PAIR IS ALREADY CARRIED - by the set column's own
+    # arrangement - so repair must not offer it a direct edge. It
+    # used to: the edge was oriented onto whichever column is drawn
+    # later, which is always the indicator, and a rel whose child is
+    # derived is skipped at application, so the pair was marked
+    # covered by an edge that could never fire.
+    for c, rs in set_rels.items():
+        for r in rs:
+            for p in r["parents"]:
+                covered.add(frozenset([r["child"], p]))
     pos = dict((c, i) for i, c in enumerate(order))
     want = {}
     for r in rels:
@@ -472,6 +497,11 @@ def _order(bp: Dict[str, Any], refine: bool = True):
             par2, child2 = a, b
         else:
             par2, child2 = b, a
+        # An indicator cannot be a repair child either: nothing is
+        # applied to a derived column, so the edge would only mark
+        # the pair covered while carrying nothing.
+        if child2 in derived:
+            continue
         src = None
         for r2 in rels:
             if r2.get("child") != child2:
@@ -511,7 +541,8 @@ def _order(bp: Dict[str, Any], refine: bool = True):
     # worth naming.
     for d in dropped:
         d["child_keeps_parents"] = bool(parents.get(d["child"]))
-    return order, parents, dropped, repaired, derived, cyclic
+    return order, parents, dropped, repaired, derived, cyclic, \
+        set_rels
 
 
 def _collapse_to_patient(rows, pat_draw, pidx, n_pat, numeric):
@@ -538,6 +569,118 @@ def _collapse_to_patient(rows, pat_draw, pidx, n_pat, numeric):
     starts = np.concatenate(([0], np.flatnonzero(np.diff(pidx)) + 1))
     first[:len(starts)] = starts
     return np.asarray(rows, dtype=object)[first][pidx]
+
+
+def _informative_sets(cname, m, base, routed, out, rng):
+    """Rearrange the drawn sets so tokens land where their parents say.
+
+    THE MULTISET OF SETS IS UNTOUCHED. Sizes, token shares and
+    combinations are exactly what `_draw_list` produced; only the
+    assignment of set to row changes - the same device the refinement
+    sweeps and the TableSpec correlations use, and what makes this
+    safe: the marginal cannot drift by construction.
+
+    ONE CHILD AT A TIME, EACH INSIDE THE GROUPS THE EARLIER ONES
+    FIXED. The first version collapsed every routed relationship into
+    one scalar score and rank-matched once - and INVERTED a
+    relationship doing it. Measured on the fixture: severity against
+    the IVPush token read -0.232 where the source has +0.601, because
+    the Oral token's curve FALLS with severity at weight 0.52 while
+    IVPush's own severity curve is a weak inverted-U, so the blend
+    handed Oral's negative direction to IVPush's placement - the two
+    tokens' loadings are anti-correlated across sets, and a single
+    axis cannot point two ways. That is the partial-dependence lesson
+    from the numeric path, recommitted here and caught by the same
+    kind of measurement.
+
+    So: children strongest first. The strongest is placed by a plain
+    1-D rank-match of its own systematic against its own indicator.
+    Every later child is rank-matched WITHIN the groups of rows whose
+    earlier indicators agree - inside such a group the earlier
+    children cannot tell two sets apart, so rearranging there
+    preserves their placement EXACTLY while giving the later child
+    whatever freedom remains.
+
+    Noise enters per child at sqrt(1 - skill), the numeric path's own
+    shrinkage, so a weak claim arranges weakly.
+
+    STILL NOT MODELLED, on purpose and said here: within-patient
+    persistence of sets (none exists anywhere today), token
+    co-occurrence beyond what the drawn combinations carry, and a
+    later child whose ordering conflicts with an earlier one inside
+    every group - it simply loses, in skill order.
+
+    Returns `(rearranged, note)`; `(base, None)` when nothing usable
+    was routed, so a set with no informed children is BIT-IDENTICAL
+    to the old path."""
+    sep = m.get("separator", ";")
+    n = len(base)
+    if not n:
+        return base, None
+
+    jobs = []
+    ser = pd.Series(base)
+    for r in routed:
+        ev = r.get("evidence") or {}
+        strength = float(r.get("target_strength", 1.0))
+        if strength == 0.0 or not all(p in out for p in r["parents"]):
+            continue
+        imp = ev.get("importance") or {}
+        tot = sum(max(float(imp.get(p, 0.0)), 0.0)
+                  for p in r["parents"]) or 1.0
+        sys_ = np.zeros(n, dtype=float)
+        for p in r["parents"]:
+            eff = (ev.get("effect") or {}).get(p)
+            if not eff:
+                continue
+            sys_ += (max(float(imp.get(p, 0.0)), 0.0) / tot) * \
+                np.nan_to_num(_curve_delta(eff, out[p]))
+        sd = float(sys_.std())
+        if not np.isfinite(sd) or sd == 0.0:
+            continue
+        child = r["child"]
+        if child.endswith(_sets.SIZE):
+            x = _sets.sizes_of(ser, sep).to_numpy(dtype=float)
+        else:
+            x = _sets.has_token(ser, sep,
+                                child.split(_sets.HAS, 1)[1]
+                                ).to_numpy(dtype=float)
+        x = np.nan_to_num(x)
+        if float(x.std()) == 0.0:
+            continue
+        skill = max(float(ev.get("skill_out_of_sample") or 0.0), 0.0)
+        lam = float(np.sqrt(min(skill, 0.98)))
+        target = lam * ((sys_ - sys_.mean()) / sd) + \
+            np.sqrt(1.0 - lam * lam) * rng.standard_normal(n)
+        jobs.append((np.sqrt(skill) * strength, child, target, x))
+    if not jobs:
+        return base, None
+
+    jobs.sort(key=lambda j: -j[0])
+    arr = np.asarray(base, dtype=object)
+    perm = np.arange(n)               # perm[i] = index into arr
+    group = np.zeros(n, dtype=np.int64)   # rows agreeing so far
+    for _w, _child, target, x in jobs:
+        feat = x[perm]
+        # WITHIN each group: rows sorted by their own target receive
+        # that group's sets sorted by this child's feature. Earlier
+        # children are constant inside a group by construction, so
+        # their placement survives exactly.
+        order_rows = np.lexsort((target, group))
+        order_sets = np.lexsort((feat + 1e-9 *
+                                 rng.standard_normal(n), group))
+        new_perm = np.empty(n, dtype=np.int64)
+        new_perm[order_rows] = perm[order_sets]
+        perm = new_perm
+        # extend the groups by what this child now shows per ROW
+        shown = x[perm]
+        _, group = np.unique(
+            np.stack([group, (shown * 8).astype(np.int64)]),
+            axis=1, return_inverse=True)
+    return arr[perm], {"column": cname,
+                       "children": [j[1] for j in jobs],
+                       "skills": [round(float(j[0]) ** 2, 4)
+                                  for j in jobs]}
 
 
 def _pair_index(counts):
@@ -759,8 +902,16 @@ def generate(blueprint: Dict[str, Any],
     rng = np.random.RandomState(seed)
     cols = bp.get("columns") or {}
     pat = bp.get("patients") or {}
-    order, parents, dropped, repaired, derived, cyclic = \
-        _order(bp, refine=int(refine_sweeps) > 0)
+    _res = _order(bp, refine=int(refine_sweeps) > 0)
+    # `pair_fidelity_sweep --against` swaps in an `_order` lifted from
+    # an older revision, which returns six items; a run under it
+    # simply has no routed set relationships.
+    if len(_res) == 7:
+        (order, parents, dropped, repaired, derived, cyclic,
+         set_rels) = _res
+    else:
+        order, parents, dropped, repaired, derived, cyclic = _res
+        set_rels = {}
     marg_draw: Dict[str, Any] = {}
     # Which rows each column will be MISSING on, collected during the
     # loop and applied only after every relationship has run.
@@ -875,6 +1026,19 @@ def generate(blueprint: Dict[str, Any],
             base = sticky_pick(counts, lv, pr, stick, rng)
         elif m.get("type") == "list":
             base = _draw_list(m, n_draw, rng)
+            # TOKENS LAND WHERE THEIR PARENTS SAY. Relationships whose
+            # child is a derived indicator were dropped for weeks -
+            # the whole worst-pairs list on the real extract - and are
+            # now routed here: the sets already drawn are rearranged
+            # among rows, so the indicators derived from them carry
+            # the dependence and the marginal cannot move.
+            routed = set_rels.get(c) or []
+            if routed and not per_patient:
+                base, _note = _informative_sets(c, m, base, routed,
+                                                out, rng)
+                if _note is not None and report is not None:
+                    report.setdefault("sets_informed",
+                                      []).append(_note)
         else:
             base = _draw_categorical(m, n_draw, rng)
         # Keep the per-PATIENT draw: if this column is also a child,
