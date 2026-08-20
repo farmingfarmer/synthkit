@@ -114,6 +114,57 @@ def main():
           "silence renders as nothing",
           "DISOBEYS" in render(hits) and render([]) == "")
 
+    # ---- A PATIENT-LEVEL COLUMN INSIDE A CYCLE STAYS COLLAPSED --
+    #
+    # The collapse ran inside the loop; the refinement sweeps run
+    # after it and re-rank a cyclic column per ROW - so year_of_birth
+    # lost its constancy AGAIN, on 93.7% of patients, the eighth
+    # ordering bug in generate() and the first caught by this pass on
+    # its very first full run rather than by a person. The fixture
+    # here is the shape that broke: patient-level AND cyclic.
+    def _cyc_pl():
+        grid = [-2.0, -1.0, 0.0, 1.0, 2.0]
+        def num(level="visit"):
+            return {"kind": "numeric", "level": level,
+                    "coverage": 1.0, "dials": {},
+                    "marginal": {"type": "quantiles", "mean": 0.0,
+                                 "integral": False,
+                                 "q": [0.0, 0.25, 0.5, 0.75, 1.0],
+                                 "v": [-2.2, -0.7, 0.0, 0.7, 2.2]}}
+        def rel(c_, p_):
+            eff = {"shape": "monotone", "grid": list(grid),
+                   "response": [0.8 * g for g in grid]}
+            return {"child": c_, "parents": [p_],
+                    "dials": {"strength": None},
+                    "evidence": {"skill_out_of_sample": 0.7,
+                                 "importance": {p_: 1.0},
+                                 "effect": {p_: eff}}}
+        return {"columns": {"pl": num("patient"), "x": num(),
+                            "y": num()},
+                "relationships": [rel("pl", "x"), rel("x", "y"),
+                                  rel("y", "pl")],
+                "patients": {"count": 250,
+                             "visits": {"q": [0.0, 0.5, 1.0],
+                                        "v": [3.0, 4.0, 5.0],
+                                        "mean": 4.0}, "dials": {}}}
+    bc = _cyc_pl()
+    gc = generate(bc, n_patients=250, seed=5, refine_sweeps=3)
+    hits_c = find(gc, bc, "person_id")
+    per = gc.groupby("person_id")["pl"].nunique(dropna=True)
+    check("a patient-level column INSIDE A CYCLE is constant within "
+          "the patient after the sweeps ({:.0%} of patients) - the "
+          "sweeps re-ranked it per row and undid the in-loop "
+          "collapse, on 93.7% of patients in the run that exposed it"
+          .format(float((per <= 1).mean())),
+          not any(h["column"] == "pl" and "patient" in h["declared"]
+                  for h in hits_c))
+    _r = float(gc.groupby("person_id")["pl"].first().corr(
+        gc.groupby("person_id")["x"].mean()))
+    check("...and its cyclic relationship still arrives at the "
+          "patient level (r {:+.2f}) - a collapse that traded the "
+          "structure away would be a worse defect than the one "
+          "fixed".format(_r), abs(_r) > 0.25)
+
     print()
     if FAIL:
         print("{} FAILED".format(FAIL))

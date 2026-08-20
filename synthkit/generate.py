@@ -913,6 +913,9 @@ def generate(blueprint: Dict[str, Any],
         order, parents, dropped, repaired, derived, cyclic = _res
         set_rels = {}
     marg_draw: Dict[str, Any] = {}
+    # Patient-level draws, kept so the collapse can be RE-RUN after
+    # the refinement sweeps - see below.
+    pat_draws: Dict[str, Any] = {}
     # Which rows each column will be MISSING on, collected during the
     # loop and applied only after every relationship has run.
     masks: Dict[str, Any] = {}
@@ -1048,6 +1051,8 @@ def generate(blueprint: Dict[str, Any],
         pat_draw = np.asarray(base).copy() if per_patient else None
         if per_patient:
             base = base[pidx]
+            if pat_draw is not None:
+                pat_draws[c] = pat_draw
 
         if numeric and c in cyclic:
             # The MARGINAL draw, before any relationship touched it.
@@ -1243,6 +1248,28 @@ def generate(blueprint: Dict[str, Any],
                 fixed_vals[ok] = pool[idx]
                 out[c] = fixed_vals
                 n_ref += 1
+
+    # ---- A FACT ABOUT THE PERSON, RE-ASSERTED AFTER THE SWEEPS --
+    #
+    # The collapse to one-value-per-patient runs inside the loop, and
+    # the refinement sweeps run AFTER the loop, re-ranking a cyclic
+    # column per ROW - so a patient-level column that sits in a cycle
+    # lost its constancy all over again. The EIGHTH ordering bug in
+    # this function, and the first one caught by the invariant pass
+    # instead of by a person reading a report: on its very first full
+    # run it flagged `year_of_birth` varying within 93.7% of patients
+    # and `planted_simpson_g` within 27.7% - exactly the columns that
+    # are both `level: patient` and cyclic.
+    #
+    # The repair is the collapse run again, on the refined values,
+    # against the SAME patient-level draw - so the sweeps decide the
+    # per-patient ORDER and the marginal still cannot drift.
+    if cyclic and refine_sweeps > 0:
+        for c in cyclic:
+            if c in pat_draws and c in out:
+                numeric_c = (cols.get(c) or {}).get("kind") == "numeric"
+                out[c] = _collapse_to_patient(
+                    out[c], pat_draws[c], pidx, n_pat, numeric_c)
 
     # ---- NOW THE COLUMNS GO MISSING -----------------------------
     #

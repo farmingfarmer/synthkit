@@ -112,6 +112,17 @@ def main():
           hits and "too_few_observed_pairs" in hits[0]["detail"]
           and "0.1425" in hits[0]["detail"])
 
+    # AND THE HONEST SHAPE IS SILENT: a declined statistic published
+    # as null beside its reason contradicts nothing - the first
+    # version fired on the reason alone, making honesty the trigger.
+    check("...while `lag1: null` beside the same reason is silent - "
+          "declining and SAYING so is the honest shape, not a "
+          "contradiction",
+          not find(rep([col(column="map_invasive", icc_source=0.31,
+                            lag1_source=None,
+                            lag1_reason_source="too_few_observed_"
+                                               "pairs")])))
+
     # THE SAME NUMBERS WITHOUT THE REASON ARE FINE. This is the
     # fixture that killed the first version of the rule: a column
     # where every patient shares the same visit dates has icc 0.0 and

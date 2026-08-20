@@ -104,8 +104,13 @@ def find(fid: Dict[str, Any]) -> List[Dict[str, Any]]:
             # a fixture where every patient shares the same visit
             # dates, which makes both of those true at once. Guessing
             # at a sentinel is what the reasons exist to stop.
+            # Fires only when the declined statistic is REPUBLISHED
+            # as a number. A row carrying `lag1: null` beside its
+            # reason is the honest shape and stays silent - the first
+            # version fired on the reason alone, which made honesty
+            # itself the trigger and would have cried wolf forever.
             why = c.get("lag1_reason_{}".format(side))
-            if why and _num(icc) and icc > 0.1:
+            if why and _num(lag) and _num(icc) and icc > 0.1:
                 hit("a declined statistic published as a measurement",
                     "{} ({})".format(name, side),
                     "lag1 is 0.0 because `{}`, not because it was "
@@ -114,7 +119,7 @@ def find(fid: Dict[str, Any]) -> List[Dict[str, Any]]:
                     "little data to say anything about its "
                     "dynamics.".format(why, icc))
             why = c.get("icc_reason_{}".format(side))
-            if why and _num(lag) and abs(lag) > 0.1:
+            if why and _num(icc) and _num(lag) and abs(lag) > 0.1:
                 hit("a declined statistic published as a measurement",
                     "{} ({})".format(name, side),
                     "icc is 0.0 because `{}`, not because it was "

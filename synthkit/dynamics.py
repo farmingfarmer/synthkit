@@ -267,8 +267,16 @@ def measure(df: pd.DataFrame, X: pd.DataFrame, group_by: str,
             v = s.to_numpy(dtype=float)
             icc, icc_why = icc1_detail(v, groups)
             lag1, lag_why = pooled_lag1_detail(v, prev_i, cur_i)
-            d["icc"] = round(icc, 4)
-            d["lag1_total"] = round(lag1, 4)
+            # A DECLINED STATISTIC IS NOT PUBLISHED AS A NUMBER. The
+            # sentinel 0.0 was being counted as a measured value -
+            # `mean_arterial_pressure_invasive` at 0.2% coverage
+            # passed the steadiness check on a statistic nobody had
+            # made. None here means `resolve` falls back to 0.0 for
+            # generation (identical behaviour) while fidelity skips
+            # the column from the counts it cannot support.
+            d["icc"] = round(icc, 4) if icc_why == "measured" else None
+            d["lag1_total"] = (round(lag1, 4)
+                               if lag_why == "measured" else None)
             # WHICH BRANCH PRODUCED THE NUMBER. `measured` is a
             # measurement; anything else is a sentinel shaped like
             # one, and a report that cannot tell them apart publishes
