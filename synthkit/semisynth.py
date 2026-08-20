@@ -377,3 +377,257 @@ def describe(planted: Dict[str, Any]) -> str:
     for r in p.get("refused") or []:
         lines.append("  REFUSED {}: {}".format(r["effect"], r["why"]))
     return "\n".join(lines) + "\n"
+
+
+# ------------------------------------------------------------------
+# THE OTHER WAY THE HALVES MEET: plant on the GENERATED FRAME.
+#
+# `plant` writes an outcome into a TableSpec that came across the
+# bridge - and the bridge carries MARGINALS ONLY. Effect curves,
+# interactions, the relationship graph and the dynamics have no
+# vocabulary there and do not cross, so every ceiling computed that
+# way stands on covariates with no structure between them. Measured
+# (bench_transfer.py, 2026-08-19): destroying the relationships is
+# the ONE degradation that collapses a model ranking, +0.80 to -0.00
+# - the bridge transmits exactly the properties that do not move the
+# answer and drops the one that does.
+#
+# Planting on the generated frame closes that. The frame carries
+# everything the sampler can produce - the graph, the curves, the
+# dynamics, the constraints - because nothing is translated: the
+# outcome is computed from the generated values themselves. The
+# ceiling stays computable because the coefficients are still chosen
+# here, and they stay declared in STANDARD DEVIATIONS, converted with
+# the blueprint's PUBLISHED spread rather than the draw's own, so the
+# same declaration means the same thing on every seed.
+# ------------------------------------------------------------------
+
+def _bp_centre_spread(marg: Dict[str, Any]) -> Optional[Tuple[float,
+                                                              float]]:
+    """Published centre and spread off a blueprint marginal.
+
+    The same trapezoid `_centre_and_spread` runs on a bridged spec,
+    on the blueprint's own quantile grid - one calibration, whichever
+    side of the bridge the numbers are read from."""
+    if (marg or {}).get("type") != "quantiles":
+        return None
+    return _centre_and_spread({"distribution": {
+        "kind": "quantiles", "q": marg.get("q"), "v": marg.get("v")}})
+
+
+def plant_frame(frame, blueprint: Dict[str, Any],
+                effects: Dict[str, float],
+                name: str = "outcome",
+                kind: str = "logistic",
+                prevalence: float = DEFAULT_PREVALENCE,
+                noise_sd: float = 1.0,
+                seed: int = 20260731):
+    """Plant a KNOWN outcome on a generated frame.
+
+    `effects` uses the same vocabulary as `plant`: standard deviations
+    of the covariate, `col=level` for a categorical level, and - new
+    here, because the frame carries them - `col=token` for a set
+    column's token.
+
+    THE INTERCEPT IS SOLVED ON THE FRAME'S OWN SYSTEMATIC, not on
+    draws from the marginals. `sigmoid(E[z])` is not `E[sigmoid(z)]`,
+    and the frame's z carries the real joint the sampler produced -
+    correlated covariates and all - so bisection lands on the achieved
+    prevalence directly rather than leaving the correlations as a
+    residual.
+
+    A MISSING COVARIATE CONTRIBUTES ITS CENTRE - a standardized zero.
+    Absence of a measurement is a fact about the record, and the
+    planted truth should not turn missingness into signal the model
+    is then graded on finding.
+
+    Returns `(frame_with_outcome, planted)`. The input frame is not
+    modified; every existing column arrives untouched."""
+    import numpy as np
+    import pandas as pd
+    from . import sets as _sets
+
+    cols = (blueprint.get("columns") or {})
+    rng = np.random.RandomState(seed)
+    n = len(frame)
+    z = np.zeros(n, dtype=float)
+    used: List[Dict[str, Any]] = []
+    refused: List[Dict[str, str]] = []
+    coefficients: Dict[str, float] = {}
+
+    for key, beta in (effects or {}).items():
+        beta = float(beta)
+        if "=" in key:
+            cname, level = key.split("=", 1)
+            spec = cols.get(cname)
+            if spec is None or cname not in frame.columns:
+                refused.append({"effect": key,
+                                "why": "no column {!r} in the "
+                                       "blueprint and frame"
+                                       .format(cname)})
+                continue
+            m = spec.get("marginal") or {}
+            share = None
+            if m.get("type") == "list":
+                for t in (m.get("tokens") or []):
+                    if str(t.get("value")) == level:
+                        share = float(t.get("p"))
+                        break
+                x = _sets.has_token(frame[cname],
+                                    m.get("separator", ";"),
+                                    level).to_numpy(dtype=float)
+            else:
+                for l in (m.get("levels") or []):
+                    if str(l.get("value")) == level:
+                        share = float(l.get("p"))
+                        break
+                x = (frame[cname].astype(str) == level
+                     ).to_numpy(dtype=float)
+            if share is None:
+                refused.append({
+                    "effect": key,
+                    "why": "{!r} is not a published level or token "
+                           "of {} - it may have been suppressed for "
+                           "privacy".format(level, cname)})
+                continue
+            sd = math.sqrt(max(share * (1.0 - share), 1e-9))
+            w = beta / sd
+            xs = (np.nan_to_num(x, nan=share) - share)
+            z += w * xs
+            coefficients[key] = round(w, 6)
+            used.append({"effect": key, "in_sds": beta,
+                         "coefficient": round(w, 6),
+                         "level_share": round(share, 6)})
+            continue
+
+        spec = cols.get(key)
+        if spec is None or key not in frame.columns:
+            refused.append({"effect": key,
+                            "why": "no column {!r} in the blueprint "
+                                   "and frame".format(key)})
+            continue
+        cs = _bp_centre_spread(spec.get("marginal") or {})
+        if cs is None:
+            refused.append({
+                "effect": key,
+                "why": "{} has no published quantile grid to scale "
+                       "against; name a level as {}=LEVEL instead"
+                       .format(key, key)})
+            continue
+        centre, sd = cs
+        x = pd.to_numeric(frame[key], errors="coerce"
+                          ).to_numpy(dtype=float)
+        w = beta / sd
+        z += w * (np.nan_to_num(x, nan=centre) - centre)
+        coefficients[key] = round(w, 6)
+        used.append({"effect": key, "in_sds": beta,
+                     "coefficient": round(w, 6),
+                     "published_centre": round(centre, 6),
+                     "published_spread": round(sd, 6)})
+
+    if not used:
+        raise ValueError(
+            "no effect could be planted. Refused: {}".format(
+                "; ".join(r["why"] for r in refused) or "none given"))
+
+    out = frame.copy()
+    p = min(max(float(prevalence), 0.01), 0.99)
+    if kind == "linear":
+        intercept = 0.0
+        out[name] = z + noise_sd * rng.standard_normal(n)
+    else:
+        # Bisection over the frame's own z: monotone in the
+        # intercept, so twelve steps land within a fraction of a
+        # percent of the requested share.
+        lo, hi = -30.0, 30.0
+        for _ in range(40):
+            mid = (lo + hi) / 2.0
+            if float(np.mean(1.0 / (1.0 + np.exp(-(z + mid))))) < p:
+                lo = mid
+            else:
+                hi = mid
+        intercept = round((lo + hi) / 2.0, 6)
+        out[name] = (rng.random_sample(n) <
+                     1.0 / (1.0 + np.exp(-(z + intercept)))
+                     ).astype(int)
+
+    planted = {
+        "outcome": name, "kind": kind,
+        "intercept": intercept,
+        "requested_prevalence": (None if kind == "linear" else p),
+        "achieved_prevalence": (None if kind == "linear" else
+                                round(float(out[name].mean()), 6)),
+        "effects_in_sds": dict((u["effect"], u["in_sds"])
+                               for u in used),
+        "coefficients": coefficients,
+        "calibration": used,
+        "refused": refused,
+        "seed": seed,
+        "planted_on": "the generated frame itself, so the outcome "
+                      "inherits every relationship, curve and "
+                      "dynamic the sampler produced - nothing "
+                      "crossed a bridge to get here",
+        "what_this_is_not": "an answer key for REAL data. Nobody "
+                            "knows the outcome mechanism in a real "
+                            "extract; this one is known because it "
+                            "was invented, and what a model is asked "
+                            "here is narrower than 'does this work "
+                            "on our data'.",
+    }
+    return out, planted
+
+
+def verify_frame(frame, planted: Dict[str, Any]):
+    """Refit the planted mechanism and report requested vs recovered.
+
+    The same standardization the plant used, so a recovered
+    coefficient is in the same sd units the effect was declared in.
+    Reported, never assumed - an intercept solved by bisection and a
+    logistic refit can disagree, and the disagreement is the finding."""
+    import numpy as np
+    import pandas as pd
+    from sklearn.linear_model import LogisticRegression, Ridge
+
+    name = planted["outcome"]
+    cal = planted.get("calibration") or []
+    y = pd.to_numeric(frame[name], errors="coerce").to_numpy(float)
+    X, labels = [], []
+    for u in cal:
+        key = u["effect"]
+        if "=" in key:
+            cname, level = key.split("=", 1)
+            raw = frame[cname].astype(str)
+            x = (raw.str.split(";", expand=False)
+                 .apply(lambda t, lv=level: float(lv in (t or [])))
+                 if raw.str.contains(";").any()
+                 else (raw == level).astype(float))
+            share = u["level_share"]
+            sd = math.sqrt(max(share * (1.0 - share), 1e-9))
+            X.append((np.nan_to_num(x.to_numpy(float), nan=share)
+                      - share) / sd)
+        else:
+            x = pd.to_numeric(frame[key], errors="coerce"
+                              ).to_numpy(float)
+            c, sd = u["published_centre"], u["published_spread"]
+            X.append((np.nan_to_num(x, nan=c) - c) / sd)
+        labels.append(key)
+    Xm = np.column_stack(X)
+    ok = np.isfinite(y)
+    if planted["kind"] == "linear":
+        model = Ridge(alpha=1e-6).fit(Xm[ok], y[ok])
+        rec = model.coef_
+    else:
+        model = LogisticRegression(C=1e6, max_iter=2000
+                                   ).fit(Xm[ok], y[ok].astype(int))
+        rec = model.coef_[0]
+    report = {"outcome": name,
+              "requested_prevalence": planted.get(
+                  "requested_prevalence"),
+              "achieved_prevalence": planted.get(
+                  "achieved_prevalence"),
+              "effects": [
+                  {"effect": lbl,
+                   "requested_in_sds": planted["effects_in_sds"][lbl],
+                   "recovered_in_sds": round(float(r), 4)}
+                  for lbl, r in zip(labels, rec)]}
+    return report
