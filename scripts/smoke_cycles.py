@@ -269,6 +269,25 @@ def main():
           and int((x0[held] != x3[held]).sum()) > 0
           and rep_s.get("refinements_applied") == (N - 1) * 3)
 
+    # WHY THERE IS NO CHECK HERE FOR THE RE-RANK RESTRICTION, and
+    # this is a limitation rather than an oversight. The refinement is
+    # told which rows are about to be blanked, so it orders the ones
+    # that survive; measured on the SWEEP's fixture that takes three
+    # pairs from outside the within-0.2 band to one. This ring cannot
+    # reproduce it. With one sparse column the ordering among kept
+    # rows is identical either way; with three sparse columns the gap
+    # is 0.882 against 0.844, too narrow to gate on; and a sparse
+    # exact-identity fixture built for it came out at a source
+    # correlation of 0.151, which is not the shape either. A check was
+    # written, run against a mutant that ignores the mask, PASSED at
+    # 0.839 against 0.844, and was removed rather than kept as
+    # decoration.
+    #
+    # The property is measured by `scripts/pair_fidelity_sweep.py`,
+    # which runs on the fixture that does contain it and is NOT part
+    # of this net. That is the third defect this file has met that a
+    # fixture here was structurally unable to hold.
+
     sp_off = float(np.mean(adjacent(generate(
         ring_sparse(), n_patients=400, seed=3, refine_sweeps=0))))
     sp_on = float(np.mean(adjacent(generate(

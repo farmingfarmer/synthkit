@@ -1045,7 +1045,29 @@ def generate(blueprint: Dict[str, Any],
                 # real 800-patient extract it read as lab columns
                 # "present on +89% of rows against the source" - a
                 # source coverage near 11% against a generated 1.000.
+                # RE-RANK AMONG THE ROWS THAT WILL SURVIVE.
+                #
+                # Two things want opposite orderings here and both are
+                # right. A relationship must be APPLIED against
+                # complete values, or a child gets nothing from a
+                # parent that happens not to be measured on its row.
+                # But the refinement sweep imposes an ORDER, and an
+                # order spread across every row is diluted by whatever
+                # fraction is then discarded - on a lab panel at 13%
+                # coverage, measured on the sweep's own fixture:
+                #
+                #   source +0.471   re-ranked on kept rows   +0.630
+                #                   re-ranked on all rows    +0.242
+                #
+                # So the mask is still applied LAST, and the refinement
+                # is told which rows are going to be blanked so it can
+                # order the ones that are not. `held` covers a value
+                # that is already absent for some other reason; the
+                # pending mask covers one that is about to be.
                 held = np.isfinite(np.asarray(out[c], dtype=float))
+                pending = masks.get(c)
+                if pending is not None and len(pending) == len(held):
+                    held = held & pending
                 ok = np.isfinite(got) & held
                 if int(ok.sum()) < 2:
                     continue
