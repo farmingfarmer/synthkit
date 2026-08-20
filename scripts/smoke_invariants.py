@@ -84,7 +84,14 @@ def main():
               for h in find(bad2, b, "person_id")))
 
     bad3 = g.copy()
-    v3 = pd.to_numeric(bad3["plain"]).to_numpy(dtype=float)
+    # `.copy()` IS LOAD-BEARING: on pandas 3.0 - the data machine's
+    # pandas - to_numpy returns a READ-ONLY view and the write below
+    # raises "assignment destination is read-only". On pandas 2.x it
+    # is writable, so this passed on the development machine and
+    # failed on the one where a failure costs a round trip. The exact
+    # class CONVENTIONS warns about, hit by the file that was written
+    # the same week the warning was.
+    v3 = pd.to_numeric(bad3["plain"]).to_numpy(dtype=float).copy()
     v3[:5] = 9.9
     bad3["plain"] = v3
     hits3 = find(bad3, b, "person_id")
@@ -97,7 +104,7 @@ def main():
               for h in hits3))
 
     bad4 = g.copy()
-    v4 = pd.to_numeric(bad4["shifted"]).to_numpy(dtype=float)
+    v4 = pd.to_numeric(bad4["shifted"]).to_numpy(dtype=float).copy()
     v4[:5] = 9.9
     bad4["shifted"] = v4
     check("...while a column the OPERATOR moved with a dial is "
