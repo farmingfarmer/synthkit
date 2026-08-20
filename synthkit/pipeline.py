@@ -41,6 +41,7 @@ import sys
 import time
 
 from . import contradictions as _contra
+from . import invariants as _invar
 from pathlib import Path
 
 T0 = time.time()
@@ -651,6 +652,15 @@ def main(argv=None, args=None):
     # THE REPORT CHECKED AGAINST ITSELF, before anybody reads it.
     # Every measurement error this project has had was caught by two
     # numbers disagreeing, and until now always by a person looking.
+    # AND CHECKED AGAINST ITS OWN BLUEPRINT: what was declared, the
+    # frame must obey. Resemblance is fidelity's job; this is the
+    # pass that catches a patient born in two different years while
+    # every aggregate stays green.
+    _dis = _invar.find(g, bp, a.group_by)
+    if _dis:
+        fid["disobedience"] = _dis
+        say("{} DECLARED PROPERTY(IES) VIOLATED by the generated "
+            "data - see the end of findings.txt".format(len(_dis)))
     _bad = _contra.find(fid)
     if _bad:
         fid["contradictions"] = _bad
@@ -665,6 +675,7 @@ def main(argv=None, args=None):
     # only place the per-column verdicts can reach it.
     with (out / "findings.txt").open("a", encoding="utf-8") as fh:
         fh.write(render_verdicts(fid) + "\n")
+        fh.write(_invar.render(_dis))
         fh.write(_contra.render(_bad))
         if fid_dials:
             fh.write(_dials.render(fid_dials))
