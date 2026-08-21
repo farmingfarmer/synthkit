@@ -396,6 +396,56 @@ def main():
           abs(float(np.mean(hi)) - 0.85) < 0.08
           and abs(float(np.mean(lo)) - 0.15) < 0.08)
 
+    # ---- THE MULTI-PARENT PRESENCE SHAPE, which is the one the
+    # extract actually has. Oxygen Therapy carries THREE presence-only
+    # parents at skill 0.93; the solve first shipped scoped to ONE
+    # parent, so the real rel fell back to the sqrt(1-skill) blend
+    # and saturated at P(token|measured)=1.00 against a source 0.90.
+    def _pres3_bp():
+        b3 = _pres_bp()
+        for nm in ("lab2", "lab3"):
+            c3 = dict(b3["columns"]["lab"])
+            c3["marginal"] = dict(b3["columns"]["lab"]["marginal"])
+            c3["coverage"] = 0.45
+            b3["columns"][nm] = c3
+        r3 = b3["relationships"][0]
+        eff1 = dict(r3["evidence"]["effect"]["lab"])
+        r3["parents"] = ["lab", "lab2", "lab3"]
+        r3["evidence"]["importance"] = {"lab": 0.7, "lab2": 0.65,
+                                        "lab3": 0.2}
+        r3["evidence"]["effect"] = {"lab": eff1,
+                                    "lab2": dict(eff1),
+                                    "lab3": dict(eff1)}
+        r3["evidence"]["skill_out_of_sample"] = 0.93
+        return b3
+
+    hi3, lo3 = [], []
+    for sd_ in range(3):
+        g3 = _gen(_pres3_bp(), n_patients=500, seed=sd_)
+        has3 = g3["procs"].fillna("").str.contains("OxyTherapy"
+                                                   ).astype(float)
+        mm3 = g3["lab"].notna()
+        hi3.append(float(has3[mm3].mean()))
+        lo3.append(float(has3[~mm3].mean()))
+    # WHAT THE CURVES THEMSELVES IMPLY, worked by hand so the bar is
+    # a number and not a vibe. Importance weights normalise to
+    # 0.452/0.419/0.129; each parent's observed delta is
+    # +(0.85-0.465) and absent -(0.465-0.15); the other two parents
+    # average to zero over their independent presences. So
+    # P(token | lab measured) = 0.465 + 0.452*0.385 = 0.639 and the
+    # absent side 0.465 - 0.452*0.315 = 0.323. The single-parent-only
+    # solve fell back to the sqrt(1-skill) blend here and overshot to
+    # 0.77/0.21 - a check that only demanded "under 0.97" passed on
+    # BOTH versions and was deleted as decoration.
+    check("THREE presence-only parents solve to what their curves "
+          "IMPLY jointly: P(token|lab measured) {:.2f} against an "
+          "implied 0.64, absent {:.2f} against 0.32 - the fallback "
+          "blend overshot to 0.77/0.21 and the extract, whose vitals "
+          "are measured together, saturated at 1.00/0.44"
+          .format(float(np.mean(hi3)), float(np.mean(lo3))),
+          abs(float(np.mean(hi3)) - 0.639) < 0.08
+          and abs(float(np.mean(lo3)) - 0.323) < 0.08)
+
     print()
     if FAIL:
         print("{} FAILED".format(FAIL))

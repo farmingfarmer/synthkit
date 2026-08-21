@@ -205,7 +205,11 @@ def main():
     # SPLIT BY PATIENT, never by row. Two visits of one person share
     # almost everything, so a row split leaks the answer across it and
     # every score comes out flattering.
-    pids = df[a.group_by].drop_duplicates().to_numpy()
+    # `.copy()` IS LOAD-BEARING on pandas 3: to_numpy returns a
+    # read-only view there and shuffle raises. Third instance of
+    # the class - and this file escaped the pandas-3 net run
+    # because benches are not smokes.
+    pids = df[a.group_by].drop_duplicates().to_numpy().copy()
     rs = np.random.RandomState(0)
     rs.shuffle(pids)
     cut = int(len(pids) * (1.0 - a.holdout))

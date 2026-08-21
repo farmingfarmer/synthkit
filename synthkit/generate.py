@@ -690,16 +690,32 @@ def _informative_sets(cname, m, base, routed, out, rng,
         # the noise weight is SOLVED against them - the same rule as
         # the steadiness and clustering solves: a statistic fed back
         # as a parameter is bisected until the output measures it.
-        solve_sep = None
+        solve_r = None
         effs = [(ev.get("effect") or {}).get(q) or {}
                 for q in r["parents"]]
-        if (len(effs) == 1 and effs[0].get("shape") == "presence-only"
-                and effs[0].get("response_when_missing") is not None
-                and np.unique(np.round(sys_std, 9)).size == 2):
-            solve_sep = abs(float(effs[0]["centre"])
-                            - float(effs[0]["response_when_missing"]))
+        if effs and all(e.get("shape") == "presence-only"
+                        and e.get("response_when_missing") is not None
+                        for e in effs):
+            # THE TARGET THE CURVES THEMSELVES IMPLY. sys_ is already
+            # in child units - a sum of observed-vs-absent deltas -
+            # so mean + sys_ is the expected child value per row,
+            # clipped to [0, 1] for an indicator. The correlation
+            # between the systematic and a child that MEETS those
+            # expectations is computable directly, and that is what
+            # the bisection aims for. First shipped for one parent
+            # only, matching the two-level separation; the extract's
+            # very first rel had THREE presence-only parents, fell to
+            # the sqrt(1-skill) blend, and saturated at 1.00/0.44
+            # against a source 0.90/0.01.
+            xm, xs = float(x.mean()), float(x.std())
+            mu = xm + sys_
+            if not child.endswith(_sets.SIZE):
+                mu = np.clip(mu, 0.0, 1.0)
+            num = float(np.cov(sys_std, mu)[0, 1])
+            if xs > 0:
+                solve_r = min(max(num / xs, 0.0), 0.99)
         jobs.append((np.sqrt(skill) * strength, child, sys_std, x,
-                     lam, solve_sep))
+                     lam, solve_r))
     if not jobs:
         return base, None
 
@@ -716,26 +732,24 @@ def _informative_sets(cname, m, base, routed, out, rng,
         new_perm[order_rows] = perm[order_sets]
         return new_perm
 
-    for _w, _child, sys_std, x, lam, solve_sep in jobs:
+    for _w, _child, sys_std, x, lam, solve_r in jobs:
         # One noise realisation per child, held FIXED through the
         # bisection - bisecting a function that redraws its own noise
         # wanders instead of converging.
         noise = rng.standard_normal(n)
         jit = 1e-9 * rng.standard_normal(n)
-        if solve_sep is not None:
-            hi_mask = sys_std > sys_std.min()
+        if solve_r is not None:
+            ss = float(sys_std.std()) or 1.0
+            xs = float(x.std()) or 1.0
 
-            def sep_at(l_):
+            def corr_at(l_):
                 xp = x[_place(sys_std, x, l_, noise, jit)]
-                a, b = xp[hi_mask], xp[~hi_mask]
-                if not len(a) or not len(b):
-                    return 0.0
-                return abs(float(a.mean()) - float(b.mean()))
+                return float(np.cov(sys_std, xp)[0, 1]) / (ss * xs)
 
             lo_l, hi_l = 0.0, 0.999
             for _ in range(12):
                 mid = (lo_l + hi_l) / 2.0
-                if sep_at(mid) < solve_sep:
+                if corr_at(mid) < solve_r:
                     lo_l = mid
                 else:
                     hi_l = mid
