@@ -540,6 +540,86 @@ def main():
               "count" for e in (rep_i2.get("set_size_identity")
                                 or [])))
 
+    # ---- SIZE PLACES FIRST, WHATEVER ITS SKILL -------------------
+    #
+    # The placement freedoms are not symmetric. Token jobs keep most
+    # of their expressiveness inside size groups, but a size job
+    # inside token groups is starved: measured alone it reaches
+    # corr_ratio 0.750 of its target, behind two token jobs 0.481,
+    # and behind the extract's thirteen it read 0.01 - which is what
+    # `procedures__n <- visit_type: 0.58 -> 0.01` was. Jobs now sort
+    # coarse-to-fine, size before tokens, spending the degrees of
+    # freedom where they still exist.
+    def _starve_bp():
+        b4 = _ident_bp()
+        del b4["constraints"]           # no identity: routed __n job
+        del b4["columns"]["count"]
+        cat4 = {"kind": "categorical", "level": "visit",
+                "coverage": 1.0, "dials": {},
+                "marginal": {"type": "categorical",
+                             "levels": [{"value": "inp", "p": 0.3},
+                                        {"value": "outp", "p": 0.5},
+                                        {"value": "emerg",
+                                         "p": 0.2}]}}
+        b4["columns"]["vtype"] = cat4
+        b4["columns"]["drugs__n"] = dict(
+            b4["columns"]["drugs__has__t0"])
+        b4["columns"]["sev2"] = dict(b4["columns"]["sev"])
+        b4["columns"]["sev2"]["marginal"] = dict(
+            b4["columns"]["sev"]["marginal"])
+        b4["columns"]["drugs__has__t1"] = dict(
+            b4["columns"]["drugs__has__t0"])
+        effc = {"shape": "varies-by-level",
+                "grid": ["inp", "outp", "emerg"],
+                "response": [3.4, 1.4, 2.4], "centre": 2.1}
+        grid4 = [-2.0, -1.0, 0.0, 1.0, 2.0]
+        b4["relationships"] = b4["relationships"] + [
+            {"child": "drugs__n", "parents": ["vtype"],
+             "dials": {"strength": None},
+             "evidence": {"skill_out_of_sample": 0.58,
+                          "importance": {"vtype": 1.0},
+                          "effect": {"vtype": effc}}},
+            {"child": "drugs__has__t1", "parents": ["sev2"],
+             "dials": {"strength": None},
+             "evidence": {"skill_out_of_sample": 0.8,
+                          "importance": {"sev2": 1.0},
+                          "effect": {"sev2": {
+                              "shape": "monotone",
+                              "grid": list(grid4),
+                              "response": [0.3 - 0.12 * g
+                                           for g in grid4],
+                              "centre": 0.3}}}}]
+        return b4
+
+    def _cr(cat_v, num_v):
+        d4 = pd.DataFrame({"c": cat_v, "v": pd.to_numeric(
+            num_v, errors="coerce")}).dropna()
+        grand = d4["v"].mean()
+        ssb = sum(len(g4) * (g4["v"].mean() - grand) ** 2
+                  for _, g4 in d4.groupby("c"))
+        sst = ((d4["v"] - grand) ** 2).sum()
+        return float(np.sqrt(ssb / sst)) if sst > 0 else 0.0
+
+    crs, toks_r = [], []
+    for sd4 in range(3):
+        g4 = _gen(_starve_bp(), n_patients=500, seed=sd4)
+        sz4 = g4["drugs"].fillna("").apply(
+            lambda x: 0 if not x else len(x.split(";")))
+        crs.append(_cr(g4["vtype"], sz4))
+        toks_r.append(float(g4["sev"].corr(
+            g4["drugs"].fillna("").str.contains("t0").astype(float),
+            method="spearman")))
+    check("a SIZE child with a categorical parent survives beside "
+          "competing token jobs: corr_ratio {:.2f} - token-first "
+          "ordering starved it to 0.48 here and to 0.01 on the "
+          "extract".format(float(np.mean(crs))),
+          float(np.mean(crs)) > 0.6)
+    check("...while the token jobs still arrive inside the size "
+          "groups (sp {:+.2f}) - the trade is bounded, which is what "
+          "makes coarse-to-fine the right order".format(
+              float(np.mean(toks_r))),
+          float(np.mean(toks_r)) > 0.3)
+
     print()
     if FAIL:
         print("{} FAILED".format(FAIL))

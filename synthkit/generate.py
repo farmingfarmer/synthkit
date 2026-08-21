@@ -794,7 +794,15 @@ def _informative_sets(cname, m, base, routed, out, rng,
     if not jobs:
         return base, None
 
-    jobs.sort(key=lambda j: -j[0])
+    # SIZE PLACES FIRST, whatever its skill. The freedoms are not
+    # symmetric: token jobs keep most of their expressiveness inside
+    # size groups (measured +0.53 on a planted token relationship
+    # with sizes fixed exactly), while a size job inside token groups
+    # is starved - alone it reaches 0.75 of its target association,
+    # against two competing token jobs 0.48, and against the
+    # extract's thirteen it read 0.01. Ordering coarse-to-fine spends
+    # the degrees of freedom where they still exist.
+    jobs.sort(key=lambda j: (not j[1].endswith(_sets.SIZE), -j[0]))
     arr = np.asarray(base, dtype=object)
     perm = np.arange(n)               # perm[i] = index into arr
     # When sizes are an IDENTITY with another column, every row's set
