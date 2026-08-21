@@ -766,6 +766,32 @@ def _informative_sets(cname, m, base, routed, out, rng,
                                   for j in jobs]}
 
 
+def _pin_pass(obj, cols, order):
+    """One pin over every eligible column. `obj` is the generation
+    dict or the assembled frame - both index by column name."""
+    pinned: Dict[str, int] = {}
+    for c in order:
+        spec = cols.get(c) or {}
+        m2 = spec.get("marginal") or {}
+        if spec.get("kind") != "numeric" or \
+                m2.get("type") != "quantiles":
+            continue
+        d2 = spec.get("dials") or {}
+        if d2.get("shift") not in (None, "n/a", 0, 0.0) or \
+                d2.get("scale") not in (None, "n/a", 1, 1.0):
+            continue
+        vv = m2.get("v") or []
+        if len(vv) < 2 or c not in obj:
+            continue
+        got2, n2 = _pin_to_bounds(obj[c], float(vv[0]),
+                                  float(vv[-1]),
+                                  bool(m2.get("integral")))
+        if n2:
+            obj[c] = got2
+            pinned[c] = n2
+    return pinned
+
+
 def _pin_to_bounds(vals, lo, hi, integral):
     """Bring values past the published bound back inside, in order.
 
@@ -1425,25 +1451,7 @@ def generate(blueprint: Dict[str, Any],
     # moved are exempt, exactly as the invariant pass exempts them:
     # they asked, and the dial report carries requested against
     # achieved.
-    pinned: Dict[str, int] = {}
-    for c in order:
-        spec = cols.get(c) or {}
-        m2 = spec.get("marginal") or {}
-        if spec.get("kind") != "numeric" or \
-                m2.get("type") != "quantiles":
-            continue
-        d2 = spec.get("dials") or {}
-        if d2.get("shift") not in (None, "n/a", 0, 0.0) or \
-                d2.get("scale") not in (None, "n/a", 1, 1.0):
-            continue
-        vv = m2.get("v") or []
-        if len(vv) < 2 or c not in out:
-            continue
-        got2, n2 = _pin_to_bounds(out[c], float(vv[0]), float(vv[-1]),
-                                  bool(m2.get("integral")))
-        if n2:
-            out[c] = got2
-            pinned[c] = n2
+    pinned = _pin_pass(out, cols, order)
     if report is not None and pinned:
         report["bounds_pinned"] = pinned
 
@@ -1500,6 +1508,30 @@ def generate(blueprint: Dict[str, Any],
     # formatting a date before its children were drawn.
     if enforce_constraints:
         df = _enforce(df, bp.get("constraints"), report)
+        # A SWAP DONATES ACROSS COLUMNS, so repair can undo the
+        # promise: a value legal inside its donor's bound lands in a
+        # column whose bound it breaks. On the real extract a
+        # 142.172 arrived in mean_arterial_pressure_invasive, whose
+        # ceiling is 114.2, from exactly this - the pin had already
+        # run, and the column's own values never leaked. Measured on
+        # the reproduction, one repair pass put 768 values past the
+        # receiving bound.
+        #
+        # So repair and promise ALTERNATE, and the promise goes LAST:
+        # pin what the swaps produced, let one more repair pass fix
+        # what the pin re-ordered, pin again. Bounds are the k rule's
+        # promise and are guaranteed by construction at the end;
+        # whatever ordering residue survives is measured and reported
+        # by the fidelity comparison, which re-checks every
+        # constraint on the output rather than trusting this loop.
+        again = _pin_pass(df, cols, order)
+        if again:
+            df = _enforce(df, bp.get("constraints"), None)
+            more = _pin_pass(df, cols, order)
+            for k, v in more.items():
+                again[k] = again.get(k, 0) + v
+            if report is not None:
+                report["bounds_pinned_after_repair"] = again
 
     for c in order:
         qspec = (cols[c] or {}).get("quantity")

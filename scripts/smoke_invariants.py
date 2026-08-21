@@ -256,6 +256,58 @@ def main():
           abs(float(pd.to_numeric(gb["kid"],
                                   errors="coerce").mean())) < 0.15)
 
+    # ---- REPAIR AND PROMISE ALTERNATE, PROMISE LAST --------------
+    #
+    # --enforce-constraints repairs an ordering by SWAPPING values
+    # between two columns, so a value legal inside its donor's bound
+    # lands in a column whose bound it breaks - on the real extract,
+    # 142.172 arrived in mean_arterial_pressure_invasive against a
+    # ceiling of 114.2 AFTER the pin had run, and the column's own
+    # values had never leaked. The receiving column must be the RHS:
+    # a swap only ever hands the rhs the larger value. Reproduced
+    # here: one repair pass put 768 values past the receiving bound.
+    def _swap_bp():
+        def num(vv, mean):
+            return {"kind": "numeric", "level": "visit",
+                    "coverage": 1.0, "dials": {},
+                    "marginal": {"type": "quantiles", "mean": mean,
+                                 "integral": False,
+                                 "q": [0.0, 0.25, 0.5, 0.75, 1.0],
+                                 "v": vv}}
+        return {"columns": {
+            "wide": num([85.8, 100.0, 115.0, 135.0, 163.5], 118.0),
+            "tight": num([52.3, 75.0, 90.0, 103.0, 114.2], 89.0)},
+            "relationships": [],
+            "constraints": [{"lhs": "wide", "rhs": "tight",
+                             "op": "<="}],
+            "patients": {"count": 400,
+                         "visits": {"q": [0.0, 0.5, 1.0],
+                                    "v": [3.0, 4.0, 5.0],
+                                    "mean": 4.0}, "dials": {}}}
+    rep_s = {}
+    bs = _swap_bp()
+    gs = generate(bs, n_patients=400, seed=2,
+                  enforce_constraints=True, report=rep_s)
+    wide_v = pd.to_numeric(gs["wide"], errors="coerce")
+    tight_v = pd.to_numeric(gs["tight"], errors="coerce")
+    check("THE FIXTURE CONTAINS THE FAULT: repair swapped values "
+          "across the bound and the post-repair pin FIRED ({} on the "
+          "tight column)".format(
+              (rep_s.get("bounds_pinned_after_repair") or {})
+              .get("tight", 0)),
+          (rep_s.get("bounds_pinned_after_repair") or {})
+          .get("tight", 0) > 0)
+    check("...and after the alternation, NO value is past either "
+          "bound (tight max {:.1f} against 114.2)".format(
+              float(tight_v.max())),
+          not [h for h in find(gs, bs, "person_id")
+               if "bound" in h["declared"]])
+    check("...while the ordering the repair exists for still holds "
+          "({:.1%} of rows) - the promise going last must not "
+          "silently trade the repair away".format(
+              float((wide_v <= tight_v).mean())),
+          float((wide_v <= tight_v).mean()) > 0.99)
+
     print()
     if FAIL:
         print("{} FAILED".format(FAIL))
