@@ -296,6 +296,7 @@ def _order(bp: Dict[str, Any], refine: bool = True):
             derived[c] = b
 
     parents: Dict[str, List[Dict[str, Any]]] = {}
+    size_partners_o = _size_partners(bp)
     # Relationships whose child is a derived indicator, keyed by the
     # SET column that will express them by rearranging its draw.
     set_rels: Dict[str, List[Dict[str, Any]]] = {}
@@ -398,9 +399,13 @@ def _order(bp: Dict[str, Any], refine: bool = True):
             if c in derived:
                 need.add(derived[c])
             # A set column that will rearrange its draw needs the
-            # columns it rearranges BY to exist first.
+            # columns it rearranges BY to exist first - and one whose
+            # size is an identity needs the partner that supplies it.
             for r in set_rels.get(c, []):
                 need.update(p for p in r["parents"] if p != c)
+            sp_ = size_partners_o.get(c)
+            if sp_ is not None:
+                need.add(sp_)
             if need <= placed:
                 order.append(c)
                 placed.add(c)
@@ -598,8 +603,72 @@ def _collapse_to_patient(rows, pat_draw, pidx, n_pat, numeric):
     return np.asarray(rows, dtype=object)[first][pidx]
 
 
+def _draw_list_sized(m, ks, rng):
+    """A set per row whose SIZE is handed in, not drawn.
+
+    `active_drug_count == active_drugs__n` holds on every source row
+    - the count IS the set's size - and generation broke it on 70.4%
+    of rows, because the count column and the set's size distribution
+    were drawn independently. Two separately drawn quantities cannot
+    agree row-wise, and the `==` repair only patched the scaffolding
+    column, which is dropped before the file is written.
+
+    So when the blueprint declares the identity, the partner column
+    is drawn first and each row's set is drawn AT that row's count.
+    A count of zero is an EMPTY set - `_draw_list` never emits one,
+    but the source's count runs from zero and a row with no drugs has
+    no drug list. A row whose partner is missing falls back to the
+    published size distribution."""
+    toks = [t["value"] for t in (m.get("tokens") or [])]
+    if not toks:
+        return np.array([None] * len(ks), dtype=object)
+    w = np.asarray([max(float(t["p"]), 0.0)
+                    for t in m["tokens"]], dtype=float)
+    w = w / w.sum() if w.sum() > 0 else np.full(len(toks),
+                                                1.0 / len(toks))
+    sz = m.get("set_size") or {}
+    sizes = np.asarray(sz.get("v") or [1], dtype=int)
+    sp = np.asarray(sz.get("p") or [1.0], dtype=float)
+    sp = sp / sp.sum() if sp.sum() > 0 else None
+    sep = m.get("separator", ";")
+    out = []
+    for k in ks:
+        if k is None or (isinstance(k, float) and not np.isfinite(k)):
+            k_ = int(rng.choice(sizes, p=sp)) if sp is not None else 1
+            k_ = max(1, k_)
+        else:
+            k_ = int(round(float(k)))
+        k_ = min(max(k_, 0), len(toks))
+        if k_ == 0:
+            out.append(None)
+            continue
+        picked = rng.choice(len(toks), size=k_, replace=False, p=w)
+        out.append(sep.join(sorted(toks[i] for i in picked)))
+    return np.asarray(out, dtype=object)
+
+
+def _size_partners(bp):
+    """set column -> the real column its size is declared EQUAL to.
+
+    Read off the discovered `==` constraints: one side the derived
+    `__n`, the other an ordinary column."""
+    cols = bp.get("columns") or {}
+    out = {}
+    for con in (bp.get("constraints") or []):
+        if con.get("op") != "==":
+            continue
+        for a, b in ((con.get("lhs"), con.get("rhs")),
+                     (con.get("rhs"), con.get("lhs"))):
+            src = _sets.source_of(a) if isinstance(a, str) else None
+            if (src and isinstance(a, str) and a.endswith(_sets.SIZE)
+                    and src in cols and isinstance(b, str)
+                    and b in cols and _sets.source_of(b) is None):
+                out[src] = b
+    return out
+
+
 def _informative_sets(cname, m, base, routed, out, rng,
-                      masks=None):
+                      masks=None, fixed_sizes=None):
     """Rearrange the drawn sets so tokens land where their parents say.
 
     THE MULTISET OF SETS IS UNTOUCHED. Sizes, token shares and
@@ -677,6 +746,12 @@ def _informative_sets(cname, m, base, routed, out, rng,
         x = np.nan_to_num(x)
         if float(x.std()) == 0.0:
             continue
+        # A SIZE THAT IS AN IDENTITY IS NOT A JOB. When the sizes
+        # were drawn from the partner column, every row's size is
+        # already exact, and the grouping below preserves it; a
+        # rank-match on top could only disturb what is right.
+        if fixed_sizes is not None and child.endswith(_sets.SIZE):
+            continue
         skill = max(float(ev.get("skill_out_of_sample") or 0.0), 0.0)
         lam = float(np.sqrt(min(skill, 0.98)))
         sys_std = (sys_ - sys_.mean()) / sd
@@ -722,7 +797,17 @@ def _informative_sets(cname, m, base, routed, out, rng,
     jobs.sort(key=lambda j: -j[0])
     arr = np.asarray(base, dtype=object)
     perm = np.arange(n)               # perm[i] = index into arr
-    group = np.zeros(n, dtype=np.int64)   # rows agreeing so far
+    # When sizes are an IDENTITY with another column, every row's set
+    # was drawn at that row's own size - so sets may only move
+    # between rows of the SAME size, or the rearrangement breaks the
+    # identity it was drawn to honour. Group by size from the start;
+    # every later child then arranges within those groups.
+    if fixed_sizes is not None:
+        _, group = np.unique(np.asarray(fixed_sizes, dtype=np.int64),
+                             return_inverse=True)
+        group = group.astype(np.int64)
+    else:
+        group = np.zeros(n, dtype=np.int64)   # rows agreeing so far
 
     def _place(sys_std, x, lam, noise, jit):
         target = lam * sys_std + np.sqrt(1.0 - lam * lam) * noise
@@ -1112,6 +1197,10 @@ def generate(blueprint: Dict[str, Any],
     visit_no = np.concatenate([np.arange(1, c + 1) for c in counts]) \
         if n_pat else np.array([], dtype=int)
 
+    # Set columns whose SIZE the blueprint declares equal to a real
+    # column - those sets are drawn at that column's row value.
+    size_partners = _size_partners(bp)
+
     # Adjacent-visit pairs, built once: the persistence solve
     # measures on exactly the pairing the fidelity report does.
     prev_i, cur_i = _pair_index(counts) if n_rows else (None, None)
@@ -1198,7 +1287,27 @@ def generate(blueprint: Dict[str, Any],
             pr = pr / pr.sum() if pr.sum() > 0 else pr
             base = sticky_pick(counts, lv, pr, stick, rng)
         elif m.get("type") == "list":
-            base = _draw_list(m, n_draw, rng)
+            # A SET WHOSE SIZE IS DECLARED EQUAL TO ANOTHER COLUMN
+            # draws each row's set AT that row's value of it. The
+            # identity `active_drug_count == active_drugs__n` holds
+            # on every source row and generation broke it on 70.4%,
+            # because the two were drawn independently - and the `==`
+            # repair only patched the scaffolding column, which is
+            # dropped before the file is written.
+            sized = None
+            partner = size_partners.get(c)
+            if partner and partner in out and not per_patient:
+                pv = pd.to_numeric(pd.Series(out[partner]),
+                                   errors="coerce")
+                sized = [None if not np.isfinite(x) else x
+                         for x in pv.to_numpy(dtype=float)]
+                base = _draw_list_sized(m, sized, rng)
+                if report is not None:
+                    report.setdefault("set_size_identity",
+                                      []).append(
+                        {"column": c, "partner": partner})
+            else:
+                base = _draw_list(m, n_draw, rng)
             # TOKENS LAND WHERE THEIR PARENTS SAY. Relationships whose
             # child is a derived indicator were dropped for weeks -
             # the whole worst-pairs list on the real extract - and are
@@ -1207,8 +1316,11 @@ def generate(blueprint: Dict[str, Any],
             # the dependence and the marginal cannot move.
             routed = set_rels.get(c) or []
             if routed and not per_patient:
-                base, _note = _informative_sets(c, m, base, routed,
-                                                out, rng, masks)
+                base, _note = _informative_sets(
+                    c, m, base, routed, out, rng, masks,
+                    fixed_sizes=(None if sized is None else
+                                 [0 if x is None else int(round(x))
+                                  for x in sized]))
                 if _note is not None and report is not None:
                     report.setdefault("sets_informed",
                                       []).append(_note)

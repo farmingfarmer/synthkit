@@ -446,6 +446,100 @@ def main():
           abs(float(np.mean(hi3)) - 0.639) < 0.08
           and abs(float(np.mean(lo3)) - 0.323) < 0.08)
 
+    # ---- A SIZE DECLARED EQUAL TO A COLUMN IS DRAWN FROM IT ------
+    #
+    # `active_drug_count == active_drugs__n` holds on every source
+    # row - the count IS the set's size - and generation broke it on
+    # 70.4% of rows, because the count column and the set's size
+    # distribution were drawn independently: two separately drawn
+    # quantities cannot agree row-wise, and the `==` repair only
+    # patched the scaffolding column, which is dropped before the
+    # file is written. When the blueprint declares the identity, each
+    # row's set is now drawn AT that row's count, and the placement
+    # moves sets only between rows of the SAME size.
+    def _ident_bp():
+        grid = [-2.0, -1.0, 0.0, 1.0, 2.0]
+        count = {"kind": "numeric", "level": "visit",
+                 "coverage": 1.0, "dials": {},
+                 "marginal": {"type": "quantiles", "mean": 2.0,
+                              "integral": True,
+                              "q": [0.0, 0.2, 0.5, 0.8, 1.0],
+                              "v": [0.0, 1.0, 2.0, 3.0, 5.0]}}
+        sev2 = {"kind": "numeric", "level": "visit",
+                "coverage": 1.0, "dials": {},
+                "marginal": {"type": "quantiles", "mean": 0.0,
+                             "integral": False,
+                             "q": [0.0, 0.25, 0.5, 0.75, 1.0],
+                             "v": [-2.2, -0.7, 0.0, 0.7, 2.2]}}
+        # EIGHT tokens against a count that tops at five: a
+        # vocabulary smaller than the count's ceiling clips the draw
+        # and the identity honestly cannot reach 100% (measured 95.7%
+        # with four tokens). The real extract has sixty.
+        setc = {"kind": "categorical", "level": "visit",
+                "coverage": 1.0, "dials": {},
+                "marginal": {"type": "list", "separator": ";",
+                             "tokens": [
+                                 {"value": "t{}".format(i),
+                                  "p": pp} for i, pp in
+                                 enumerate([0.25, 0.2, 0.15, 0.12,
+                                            0.1, 0.08, 0.06,
+                                            0.04])],
+                             "set_size": {"v": [0, 1, 2, 3, 5],
+                                          "p": [0.2, 0.2, 0.3,
+                                                0.2, 0.1]}}}
+        ind2 = {"kind": "numeric", "level": "visit",
+                "coverage": 1.0, "dials": {},
+                "derived_from": {"column": "drugs"},
+                "marginal": {"type": "quantiles", "mean": 0.3,
+                             "integral": False, "q": [0.0, 1.0],
+                             "v": [0.0, 1.0]}}
+        eff2 = {"shape": "monotone", "grid": list(grid),
+                "response": [0.3 + 0.12 * g for g in grid]}
+        return {"columns": {"count": count, "sev": sev2,
+                            "drugs": setc,
+                            "drugs__has__t0": dict(ind2)},
+                "relationships": [{
+                    "child": "drugs__has__t0", "parents": ["sev"],
+                    "dials": {"strength": None},
+                    "evidence": {"skill_out_of_sample": 0.7,
+                                 "importance": {"sev": 1.0},
+                                 "effect": {"sev": eff2}}}],
+                "constraints": [{"lhs": "count", "rhs": "drugs__n",
+                                 "op": "==",
+                                 "holds_in_source": 1.0}],
+                "patients": {"count": 500,
+                             "visits": {"q": [0.0, 0.5, 1.0],
+                                        "v": [3.0, 4.0, 5.0],
+                                        "mean": 4.0}, "dials": {}}}
+
+    rep_i2 = {}
+    gi = _gen(_ident_bp(), n_patients=500, seed=3, report=rep_i2)
+    sz = gi["drugs"].fillna("").apply(
+        lambda x: 0 if not x else len(x.split(";")))
+    ct = pd.to_numeric(gi["count"])
+    hold = float((sz == ct).mean())
+    check("THE IDENTITY HOLDS ROW-WISE: count == |set| on {:.1%} of "
+          "rows - it was 29.6% on the extract, because the two were "
+          "drawn independently and no repair can make two draws "
+          "agree".format(hold), hold > 0.995)
+    check("...a count of ZERO is an EMPTY set ({} such rows, {} "
+          "empty sets) - `_draw_list` never emits one, and a row "
+          "with no drugs has no drug list".format(
+              int((ct == 0).sum()), int((sz == 0).sum())),
+          int((ct == 0).sum()) == int((sz == 0).sum())
+          and int((ct == 0).sum()) > 0)
+    _hs = gi["drugs"].fillna("").str.contains("t0").astype(float)
+    check("...and the token arrangement still works INSIDE the size "
+          "groups (sp(sev, has t0) {:+.2f}) - sets move only between "
+          "rows of the same size, so the identity survives the "
+          "placement that would otherwise scramble it".format(
+              float(gi["sev"].corr(_hs, method="spearman"))),
+          float(gi["sev"].corr(_hs, method="spearman")) > 0.25)
+    check("...and the run names the identity it honoured",
+          any(e.get("column") == "drugs" and e.get("partner") ==
+              "count" for e in (rep_i2.get("set_size_identity")
+                                or [])))
+
     print()
     if FAIL:
         print("{} FAILED".format(FAIL))
