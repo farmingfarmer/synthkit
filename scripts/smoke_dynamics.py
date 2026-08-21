@@ -393,9 +393,14 @@ def main():
     check("the centre is untouched by the rearrangement ({:+.3f}, "
           "against -0.041 before it)".format(float(_np.mean(ms))),
           abs(float(_np.mean(ms))) < 0.10)
-    check("...and so is the spread ({:.3f}, against 1.593 before it)"
-          .format(float(_np.mean(ss))),
-          abs(float(_np.mean(ss)) - 1.593) < 0.10)
+    # 1.452 is the solve-OFF spread measured under the bound pin;
+    # it was 1.593 before the pin existed, because this fixture's hot
+    # curve pushed values past the published bound and that excess
+    # was counted as spread. The check's meaning is unchanged: the
+    # rearrangement itself moves the spread by ~0.01.
+    check("...and so is the spread ({:.3f}, against 1.452 with the "
+          "solve off)".format(float(_np.mean(ss))),
+          abs(float(_np.mean(ss)) - 1.452) < 0.10)
 
     # ---- A FACT ABOUT THE PERSON DOES NOT CHANGE BETWEEN VISITS ---
     #

@@ -172,6 +172,90 @@ def main():
           "structure away would be a worse defect than the one "
           "fixed".format(_r), abs(_r) > 0.25)
 
+    # ---- THE BOUND IS NOW RE-ASSERTED, IN ORDER ------------------
+    #
+    # Three things stepped over the published bound and nothing pinned
+    # a column outside a cycle: the systematic parent term, the noise
+    # after it, and integer rounding. On the real extract that was
+    # five columns publishing past the k promise, one 25% past; on
+    # the dev fixture, seven thousand values across nineteen columns.
+    # The repair SQUEEZES violators into the headroom inside the
+    # bound, in rank order - not a clamp, which would pile mass on
+    # the bound and move the centre.
+    def _hot_bp():
+        grid = [-2.0, -1.0, 0.0, 1.0, 2.0]
+        def num(**kw):
+            d2 = {"kind": "numeric", "level": "visit",
+                  "coverage": 1.0, "dials": {},
+                  "marginal": {"type": "quantiles", "mean": 0.0,
+                               "integral": False,
+                               "q": [0.0, 0.25, 0.5, 0.75, 1.0],
+                               "v": [-2.2, -0.7, 0.0, 0.7, 2.2]}}
+            d2["marginal"].update(kw.pop("marginal", {}))
+            d2.update(kw)
+            return d2
+        eff = {"shape": "monotone", "grid": list(grid),
+               "response": [1.6 * g for g in grid]}   # deliberately hot
+        rel = {"child": "kid", "parents": ["par"],
+               "dials": {"strength": None},
+               "evidence": {"skill_out_of_sample": 0.8,
+                            "importance": {"par": 1.0},
+                            "effect": {"par": eff}}}
+        return {"columns": {
+            "par": num(),
+            "kid": num(),
+            "age": num(marginal={"integral": True,
+                                 "q": [0.0, 0.5, 1.0],
+                                 "v": [18.2, 45.0, 90.9],
+                                 "mean": 48.0}),
+            "moved": num(dials={"shift": 4.0})},
+            # `age` is deliberately NOT a child: as a child its
+            # shrink term compresses it toward the mean and the floor
+            # is never approached (measured: min 32 against a floor
+            # of 18.2, no violation to catch). Integer ROUNDING alone
+            # is its fault - a root draw of 18.25 rounds to 18
+            # against a floor of 18.2.
+            "relationships": [rel,
+                              dict(rel, child="moved")],
+            "patients": {"count": 400,
+                         "visits": {"q": [0.0, 0.5, 1.0],
+                                    "v": [3.0, 4.0, 5.0],
+                                    "mean": 4.0}, "dials": {}}}
+
+    rep_b = {}
+    bb = _hot_bp()
+    gb = generate(bb, n_patients=400, seed=1, report=rep_b)
+    pinned = rep_b.get("bounds_pinned") or {}
+    check("THE FIXTURE CONTAINS THE FAULT: the hot curve pushed "
+          "values past the bound and the pin FIRED ({} on `kid`) - "
+          "a bounds check against a fixture that never violates "
+          "passes on an empty list".format(pinned.get("kid", 0)),
+          pinned.get("kid", 0) > 0)
+    check("...and after the pin, NO published value is past the "
+          "bound", not [h for h in find(gb, bb, "person_id")
+                        if "bound" in h["declared"]
+                        and h["column"] in ("kid", "age")])
+    a_v = pd.to_numeric(gb["age"], errors="coerce").dropna()
+    check("an INTEGRAL column's real bound is the nearest whole "
+          "number inside: floor 18.2 means nothing under 19 is "
+          "published (min {})".format(int(a_v.min())),
+          a_v.min() >= 19 and pinned.get("age", 0) > 0)
+    check("a column the operator MOVED with a dial is exempt, "
+          "matching the invariant pass - they asked",
+          "moved" not in pinned)
+    r_kid = float(pd.to_numeric(gb["par"]).corr(
+        pd.to_numeric(gb["kid"], errors="coerce"),
+        method="spearman"))
+    check("ORDER IS PRESERVED EXACTLY, so the relationship the "
+          "violators took part in survives (spearman {:+.2f}) - a "
+          "clamp would tie every violator at the bound and flatten "
+          "their ranks".format(r_kid), r_kid > 0.5)
+    check("...and the centre stays the marginal's own ({:+.2f})"
+          .format(float(pd.to_numeric(gb["kid"],
+                                      errors="coerce").mean())),
+          abs(float(pd.to_numeric(gb["kid"],
+                                  errors="coerce").mean())) < 0.15)
+
     print()
     if FAIL:
         print("{} FAILED".format(FAIL))

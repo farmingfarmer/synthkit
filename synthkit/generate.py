@@ -766,6 +766,67 @@ def _informative_sets(cname, m, base, routed, out, rng,
                                   for j in jobs]}
 
 
+def _pin_to_bounds(vals, lo, hi, integral):
+    """Bring values past the published bound back inside, in order.
+
+    THE BOUND IS THE k RULE'S PROMISE - the mean of the k most extreme
+    patients' own extremes - and three things stepped over it: the
+    systematic parent term, which nothing ever pinned for a column
+    outside a cycle; the noise added back after it; and integer
+    rounding, which turns a draw of 18.21 into 18 against a floor of
+    18.2. On the real extract that was five columns publishing what
+    the rule said nobody's data would, one of them 25% past.
+
+    NOT A CLAMP. Clamping piles every violator onto the bound and
+    moves the centre - the exact loss the swap-repair for constraints
+    exists to avoid. The violators are the column's extreme ranks, so
+    they are SQUEEZED, in rank order, into the headroom between the
+    most extreme value already inside and the bound itself. Order is
+    preserved exactly, so every relationship measured on ranks is
+    untouched; the values move only as far as the promise requires.
+
+    AN INTEGRAL COLUMN'S REAL BOUND IS THE NEAREST WHOLE NUMBER
+    INSIDE. A whole-number column cannot publish 22.8, so its ceiling
+    is 22 - rounding to 23 first and pinning to 22.8 after would leave
+    the violation in place. For the handful of integral violators the
+    squeeze collapses onto that whole number; at the counts involved
+    (one to eleven values in fifty-five thousand rows) the pile is
+    invisible to centre and spread, and the count is reported either
+    way.
+
+    Returns `(values, n_pinned)`."""
+    v = np.asarray(vals, dtype=float).copy()
+    ok = np.isfinite(v)
+    lo_eff = float(np.ceil(lo)) if integral else float(lo)
+    hi_eff = float(np.floor(hi)) if integral else float(hi)
+    if hi_eff < lo_eff:
+        return v, 0
+    n_pinned = 0
+    for upper in (True, False):
+        bad = ok & ((v > hi_eff) if upper else (v < lo_eff))
+        nb = int(bad.sum())
+        if not nb:
+            continue
+        n_pinned += nb
+        inside = ok & ~bad & (v <= hi_eff) & (v >= lo_eff)
+        if upper:
+            base = float(v[inside].max()) if inside.any() else lo_eff
+            span = hi_eff - base
+            ranks = np.argsort(np.argsort(v[bad]))
+            new = (base + span * (ranks + 1.0) / nb if span > 0
+                   else np.full(nb, hi_eff))
+        else:
+            base = float(v[inside].min()) if inside.any() else hi_eff
+            span = base - lo_eff
+            ranks = np.argsort(np.argsort(v[bad]))
+            new = (base - span * (nb - ranks) / nb if span > 0
+                   else np.full(nb, lo_eff))
+        if integral:
+            new = np.clip(np.round(new), lo_eff, hi_eff)
+        v[bad] = new
+    return v, n_pinned
+
+
 def _pair_index(counts):
     """Adjacent-visit row pairs - the SAME pairing `pooled_lag1` uses.
 
@@ -1355,6 +1416,36 @@ def generate(blueprint: Dict[str, Any],
                 numeric_c = (cols.get(c) or {}).get("kind") == "numeric"
                 out[c] = _collapse_to_patient(
                     out[c], pat_draws[c], pidx, n_pat, numeric_c)
+
+    # ---- THE PUBLISHED BOUND IS RE-ASSERTED LAST ----------------
+    #
+    # After every relationship, sweep and collapse has run - the same
+    # position the masks hold, and for the same reason: the promise
+    # is about what gets PUBLISHED. Columns whose dials the operator
+    # moved are exempt, exactly as the invariant pass exempts them:
+    # they asked, and the dial report carries requested against
+    # achieved.
+    pinned: Dict[str, int] = {}
+    for c in order:
+        spec = cols.get(c) or {}
+        m2 = spec.get("marginal") or {}
+        if spec.get("kind") != "numeric" or \
+                m2.get("type") != "quantiles":
+            continue
+        d2 = spec.get("dials") or {}
+        if d2.get("shift") not in (None, "n/a", 0, 0.0) or \
+                d2.get("scale") not in (None, "n/a", 1, 1.0):
+            continue
+        vv = m2.get("v") or []
+        if len(vv) < 2 or c not in out:
+            continue
+        got2, n2 = _pin_to_bounds(out[c], float(vv[0]), float(vv[-1]),
+                                  bool(m2.get("integral")))
+        if n2:
+            out[c] = got2
+            pinned[c] = n2
+    if report is not None and pinned:
+        report["bounds_pinned"] = pinned
 
     # ---- NOW THE COLUMNS GO MISSING -----------------------------
     #
