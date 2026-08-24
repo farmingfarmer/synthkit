@@ -295,7 +295,12 @@ def main():
           "parent's contribution, from a column left with NO parent "
           "at all",
           "(nothing was dropped)" in txt
-          or any(w in txt for w in ("RESTATEMENTS", "SOME PARENTS "
+          # RESTATEMENT may be singular: the identity-twin exclusion
+          # removed the date pair's mutual claims, so this fixture
+          # dropped from two restatements to one - correctly, the
+          # dates are now COPIED rather than claimed - and a matcher
+          # that only knew the plural read the section as absent.
+          or any(w in txt for w in ("RESTATEMENT", "SOME PARENTS "
                                     "REMOVED", "NO parent")))
     # THE COUNTS MUST ADD UP. On the real extract the section said
     # "2 were mirrors" while the run reported 12 dropped: ten had some
@@ -306,10 +311,10 @@ def main():
     import re as _re
     if "WILL NOT REACH" in txt:
         tail = txt.split("WILL NOT REACH")[1]
-        tot = _re.search(r"(\d+) were dropped", tail)
+        tot = _re.search(r"(\d+) (?:were|was) dropped", tail)
         parts = [int(x) for x in _re.findall(
-            r"^(\d+) (?:RESTATEMENTS|had SOME|left their|were dropped "
-            r"for)", tail, _re.M)]
+            r"^(\d+) (?:RESTATEMENTS?|had SOME|left their|were "
+            r"dropped for)", tail, _re.M)]
         check("the dropped-edge section states a TOTAL and the "
               "categories beneath it sum to exactly that - a category "
               "with no section is invisible any other way",

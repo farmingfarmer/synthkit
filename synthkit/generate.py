@@ -297,6 +297,7 @@ def _order(bp: Dict[str, Any], refine: bool = True):
 
     parents: Dict[str, List[Dict[str, Any]]] = {}
     size_partners_o = _size_partners(bp)
+    copy_partners_o = _copy_partners(bp)
     # which relationship claimed each pair, so a routed direction can
     # tell whether its blocker used the indicator as a mere parent
     used_by: Dict[frozenset, Dict[str, Any]] = {}
@@ -459,6 +460,9 @@ def _order(bp: Dict[str, Any], refine: bool = True):
             sp_ = size_partners_o.get(c)
             if sp_ is not None:
                 need.add(sp_)
+            cp_ = copy_partners_o.get(c)
+            if cp_ is not None:
+                need.add(cp_)
             if need <= placed:
                 order.append(c)
                 placed.add(c)
@@ -707,6 +711,30 @@ def _draw_list_sized(m, ks, rng):
         picked = rng.choice(len(toks), size=k_, replace=False, p=w)
         out.append(sep.join(sorted(toks[i] for i in picked)))
     return np.asarray(out, dtype=object)
+
+
+def _copy_partners(bp):
+    """rhs -> lhs for every EXACT numeric identity the constraints
+    carry between two ordinary columns.
+
+    `procedure_count == procedure_quantity` on every source row means
+    one column IS the other. Discovery no longer lets the pair explain
+    each other - a twin blinds the search - so generation carries the
+    identity the only honest way left: the rhs is COPIED from the lhs,
+    always, not behind --enforce-constraints. The sized-set identity
+    set the precedent; this is the same rule for plain columns."""
+    cols = bp.get("columns") or {}
+    out = {}
+    for con in (bp.get("constraints") or []):
+        if con.get("op") != "==":
+            continue
+        lhs, rhs = con.get("lhs"), con.get("rhs")
+        if (lhs in cols and rhs in cols
+                and _sets.source_of(lhs) is None
+                and _sets.source_of(rhs) is None
+                and float(con.get("holds_in_source") or 0) >= 0.999):
+            out[rhs] = lhs
+    return out
 
 
 def _size_partners(bp):
@@ -1270,6 +1298,9 @@ def generate(blueprint: Dict[str, Any],
     # Set columns whose SIZE the blueprint declares equal to a real
     # column - those sets are drawn at that column's row value.
     size_partners = _size_partners(bp)
+    # Plain columns the constraints declare EQUAL - the rhs is copied
+    # from the lhs outright.
+    copy_from = _copy_partners(bp)
 
     # Adjacent-visit pairs, built once: the persistence solve
     # measures on exactly the pairing the fidelity report does.
@@ -1314,6 +1345,29 @@ def generate(blueprint: Dict[str, Any],
         # decides whether its persistence needs solving, and the
         # solve has to happen before the uniforms are drawn.
         rels = parents.get(c) or []
+        # AN IDENTICAL COLUMN IS COPIED, NOT MODELLED. Its own
+        # marginal, persistence and relationships are all
+        # restatements of the partner's; drawing any of them
+        # independently is how the identity broke on 78.6% of rows
+        # before the constraint repair papered over what it could.
+        _cp = copy_from.get(c)
+        if _cp is not None and _cp in out and not per_patient:
+            arr_cp = np.asarray(out[_cp]).copy()
+            out[c] = arr_cp
+            if report is not None:
+                report.setdefault("copied_identities", []).append(
+                    {"column": c, "from": _cp})
+            cov = spec.get("target_coverage")
+            if cov is not None and float(cov) < 1.0:
+                clus = float(spec.get(
+                    "target_missing_clustering") or 0.0)
+                if clus <= 0.0:
+                    keep = rng.random_sample(len(arr_cp)) < float(cov)
+                else:
+                    keep = clustered_presence(counts, float(cov),
+                                              clus, rng)
+                masks[c] = np.asarray(keep, dtype=bool)
+            continue
         if numeric:
             if per_patient or (icc <= 0.0 and within <= 0.0):
                 u = rng.random_sample(n_draw)
@@ -1618,6 +1672,13 @@ def generate(blueprint: Dict[str, Any],
     # The repair is the collapse run again, on the refined values,
     # against the SAME patient-level draw - so the sweeps decide the
     # per-patient ORDER and the marginal still cannot drift.
+    # A COPY IS RE-ASSERTED AFTER THE SWEEPS, exactly like the
+    # patient-level collapse: the refinement may have re-ranked the
+    # partner, and the identity must follow it.
+    for c, src_c in copy_from.items():
+        if c in out and src_c in out:
+            out[c] = np.asarray(out[src_c]).copy()
+
     if cyclic and refine_sweeps > 0:
         for c in cyclic:
             if c in pat_draws and c in out:

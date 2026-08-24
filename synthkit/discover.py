@@ -478,6 +478,42 @@ def discover(df: pd.DataFrame,
     want = [c for c in (targets or cols)
             if c in cols and (targets is not None or _source(c) == c)
             and c not in set_sources]
+
+    # AN IDENTITY PARTNER IS A TWIN, AND A TWIN BLINDS THE SEARCH.
+    # `procedure_count == procedure_quantity` holds on every source
+    # row, so quantity explains count at skill ~1.0 and NO external
+    # column can ever earn conditional importance in count's claims -
+    # permuting visit_type loses nothing while the twin still carries
+    # the signal, which is the lag-twin failure this module already
+    # documents, produced by the data instead of by engineering. The
+    # identity cluster becomes an island: perfectly connected inside,
+    # connected to the rest of the table by nothing, and every
+    # mediated association through it dies in generation
+    # (span_days 0.27 -> -0.003, visit_type -> sizes 0.58 -> 0.01).
+    #
+    # So exact partners are excluded from each other's FEATURES, the
+    # way a set and its own indicators already are - arithmetic, not
+    # a discovery. The identity itself is not lost: the `==`
+    # constraint records it, and generation copies one column from
+    # the other outright. Exact means exact - a 96% near-identity
+    # still carries real conditional information and stays.
+    ident_partners: Dict[str, set] = {}
+    _num_src = [c for c in cols
+                if _source(c) == c
+                and pd.api.types.is_numeric_dtype(X_all[c])]
+    for _i in range(len(_num_src)):
+        a = X_all[_num_src[_i]]
+        for _j in range(_i + 1, len(_num_src)):
+            b = X_all[_num_src[_j]]
+            both = a.notna() & b.notna()
+            if int(both.sum()) < 30:
+                continue
+            if float((a[both] == b[both]).mean()) >= 0.995:
+                ident_partners.setdefault(
+                    _num_src[_i], set()).add(_num_src[_j])
+                ident_partners.setdefault(
+                    _num_src[_j], set()).add(_num_src[_i])
+
     claims, unexplained, skipped = [], [], []
 
     for idx, target in enumerate(want):
@@ -494,6 +530,10 @@ def discover(df: pd.DataFrame,
                 else "classification")
         drop = ([target] + _self_lags(target, cols)
                 + _set_family(target, cols) + sorted(set_sources))
+        # ...and the identity partner's whole FAMILY: the partner's
+        # own lag features are twins of the twin.
+        for _p in ident_partners.get(_source(target), ()):
+            drop += [c for c in cols if _source(c) == _p]
         feats = [c for c in cols if c not in drop]
         if not feats:
             continue

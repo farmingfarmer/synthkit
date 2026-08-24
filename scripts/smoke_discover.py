@@ -165,6 +165,43 @@ def main():
           "the old engine rather than inflated by breadth",
           edges and all(len(e["parents"]) <= 3 for e in edges))
 
+    # ---- AN IDENTITY PARTNER IS A TWIN, AND TWINS BLIND ----------
+    #
+    # `procedure_count == procedure_quantity` on every source row let
+    # quantity explain count at skill ~1.0, so no external column
+    # could ever earn conditional importance - permuting it loses
+    # nothing while the twin carries the signal, the lag-twin failure
+    # produced by the data instead of engineering. The cluster became
+    # an island and every mediated association through it died in
+    # generation (visit_type -> sizes: 0.58 -> 0.01 on the extract).
+    # Exact partners are now excluded from each other's features.
+    import numpy as _np
+    import pandas as _pd
+    from synthkit.discover import discover as _disc
+    _r = _np.random.RandomState(9)
+    _n = 1600
+    _drv = _r.normal(0, 1, _n)
+    _cnt = _np.round(_np.clip(2.0 + 1.4 * _drv
+                              + _r.normal(0, 0.6, _n), 0, 8))
+    _fr = _pd.DataFrame({
+        "person_id": _np.repeat(
+            ["P{:04d}".format(i) for i in range(_n // 4)], 4),
+        "driver": _np.round(_drv, 3),
+        "count": _cnt,
+        "quantity": _cnt.copy(),          # exact identity
+        "noise": _np.round(_r.normal(0, 1, _n), 3)})
+    _cat = _disc(_fr, group_by="person_id", seed=3)
+    _cl = dict((c["child"], c) for c in _cat.get("claims", []))
+    for _t in ("count", "quantity"):
+        _preds = [p_["column"] for p_ in
+                  (_cl.get(_t, {}).get("predictors") or [])]
+        _twin = "quantity" if _t == "count" else "count"
+        check("{}'s claim excludes its identity twin and finds the "
+              "REAL driver (predictors: {}) - with the twin present "
+              "the skill was ~1.0 and the driver invisible".format(
+                  _t, _preds),
+              _twin not in _preds and "driver" in _preds)
+
     print()
     if FAIL:
         print("{} FAILED".format(FAIL))

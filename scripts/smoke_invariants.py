@@ -308,6 +308,60 @@ def main():
               float((wide_v <= tight_v).mean())),
           float((wide_v <= tight_v).mean()) > 0.99)
 
+    # ---- AN IDENTICAL COLUMN IS COPIED, NOT MODELLED -------------
+    #
+    # With the twin excluded from discovery, generation carries the
+    # exact identity the only honest way: the rhs is COPIED from the
+    # lhs, always - not behind --enforce-constraints - and re-copied
+    # after the refinement sweeps the way the patient-level collapse
+    # is, because a sweep that re-ranks the partner must drag the
+    # copy with it.
+    def _copy_bp():
+        grid = [-2.0, -1.0, 0.0, 1.0, 2.0]
+        def num():
+            return {"kind": "numeric", "level": "visit",
+                    "coverage": 1.0, "dials": {},
+                    "marginal": {"type": "quantiles", "mean": 0.0,
+                                 "integral": False,
+                                 "q": [0.0, 0.25, 0.5, 0.75, 1.0],
+                                 "v": [-2.2, -0.7, 0.0, 0.7, 2.2]}}
+        eff = {"shape": "monotone", "grid": list(grid),
+               "response": [0.8 * g for g in grid], "centre": 0.0}
+        return {"columns": {"a": num(), "twin": num(),
+                            "drv": num()},
+                "relationships": [{
+                    "child": "a", "parents": ["drv"],
+                    "dials": {"strength": None},
+                    "evidence": {"skill_out_of_sample": 0.7,
+                                 "importance": {"drv": 1.0},
+                                 "effect": {"drv": eff}}}],
+                "constraints": [{"lhs": "a", "rhs": "twin",
+                                 "op": "==",
+                                 "holds_in_source": 1.0}],
+                "patients": {"count": 300,
+                             "visits": {"q": [0.0, 0.5, 1.0],
+                                        "v": [3.0, 4.0, 5.0],
+                                        "mean": 4.0}, "dials": {}}}
+    rep_cp = {}
+    gcp = generate(_copy_bp(), n_patients=300, seed=6,
+                   report=rep_cp)
+    av = pd.to_numeric(gcp["a"]); tv = pd.to_numeric(gcp["twin"])
+    okb = av.notna() & tv.notna()
+    check("a declared-equal column IS its partner, row for row "
+          "({:.1%}) - drawn independently it agreed on 0.4% of rows, "
+          "because two draws cannot agree however well their "
+          "marginals match".format(float((av[okb] == tv[okb]).mean())),
+          float((av[okb] == tv[okb]).mean()) > 0.999)
+    check("...and the copy carries the partner's relationships with "
+          "it (sp(drv, twin) {:+.2f}) - an island column would read "
+          "zero".format(float(pd.to_numeric(gcp["drv"]).corr(
+              tv, method="spearman"))),
+          float(pd.to_numeric(gcp["drv"]).corr(
+              tv, method="spearman")) > 0.4)
+    check("...and the run names what it copied",
+          any(e.get("column") == "twin" and e.get("from") == "a"
+              for e in (rep_cp.get("copied_identities") or [])))
+
     print()
     if FAIL:
         print("{} FAILED".format(FAIL))
