@@ -373,6 +373,23 @@ def _order(bp: Dict[str, Any], refine: bool = True):
                                      if pp not in derived
                                      or frozenset([r2.get("child"),
                                                    pp]) != q]
+            # THE STRIP FIRES ON EVERY ROUTE, not only when the
+            # route would otherwise be dropped. The extract's routed
+            # rel has three parents, so its other pairs kept it
+            # alive, no strip fired, and the (count, __n) dependence
+            # entered TWICE - count applied FROM the indicator while
+            # the sizes were arranged BY the count - reading 0.9847
+            # generated against a source of 0.8485. Enters once,
+            # every time.
+            for q in pairs_d:
+                r2 = used_by.get(q)
+                if r2 is not None and any(pp in derived
+                                          for pp in r2.get("parents",
+                                                          [])):
+                    r2["parents"] = [
+                        pp for pp in r2["parents"]
+                        if pp not in derived
+                        or frozenset([r2.get("child"), pp]) != q]
             set_rels.setdefault(derived[child], []).append(r)
             used.update(pairs_d)
             for q in pairs_d:

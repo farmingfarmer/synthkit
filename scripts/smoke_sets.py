@@ -739,6 +739,53 @@ def main():
           "and with the route blocked it read 0.019 against a "
           "source 0.492".format(crv), crv > 0.25)
 
+    # ---- THE STRIP FIRES ON EVERY ROUTE, NOT ONLY ON A BLOCK -----
+    #
+    # The extract's routed rel has three parents, so its OTHER pairs
+    # kept it out of the restatement branch, no strip fired, and the
+    # (count, __n) dependence entered TWICE - count applied FROM the
+    # indicator while the sizes were arranged BY the count. Measured:
+    # 0.9847 generated against a source of 0.8485, over-tight, with
+    # `reverses_when_controlled` flagged on it.
+    def _twice_bp():
+        b6 = _chain_bp()
+        # count also reads the indicator as a parent; the routed rel
+        # gains a second parent so the restatement branch never sees
+        # all its pairs used
+        b6["relationships"][0]["parents"] = ["sev", "procs__n"]
+        b6["relationships"][0]["evidence"]["importance"] = {
+            "sev": 0.4, "procs__n": 1.2}
+        b6["relationships"][0]["evidence"]["effect"]["procs__n"] = {
+            "shape": "monotone", "grid": [1.0, 2.0, 4.0],
+            "response": [0.9, 1.6, 3.2], "centre": 1.4}
+        b6["relationships"][2]["parents"] = ["count", "vtype"]
+        b6["relationships"][2]["evidence"]["importance"] = {
+            "count": 1.5, "vtype": 0.3}
+        b6["relationships"][2]["evidence"]["effect"]["vtype"] = {
+            "shape": "varies-by-level",
+            "grid": ["inp", "outp", "emerg"],
+            "response": [2.4, 1.4, 1.9], "centre": 1.8}
+        return b6
+
+    r6s = []
+    for sd6 in range(3):
+        g6 = _gen(_twice_bp(), n_patients=500, seed=sd6)
+        sz6 = g6["procs"].fillna("").apply(
+            lambda x: 0 if not x else len(x.split(";")))
+        r6s.append(float(pd.to_numeric(g6["count"]).corr(
+            sz6, method="spearman")))
+    r6 = float(np.mean(r6s))
+    # The first version of this bar reached 0.85 and the DOUBLED
+    # path on this fixture reads 0.84 - the check passed against the
+    # unfixed code and was decoration. One path measures 0.66 here,
+    # three seeds; the bar sits between the two behaviours, not
+    # around one of them.
+    check("A DEPENDENCE ENTERS ONCE even when the routed rel has "
+          "other live pairs: sp(count, |set|) {:+.2f} - one "
+          "expression path reads 0.66, both at once read 0.84, and "
+          "the extract showed 0.98 against a source of 0.85"
+          .format(r6), 0.5 < r6 < 0.76)
+
     print()
     if FAIL:
         print("{} FAILED".format(FAIL))
