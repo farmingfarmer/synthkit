@@ -528,6 +528,13 @@ def main():
               int((ct == 0).sum()), int((sz == 0).sum())),
           int((ct == 0).sum()) == int((sz == 0).sum())
           and int((ct == 0).sum()) > 0)
+    check("...and EMPTY IS NOT MISSING: the set column's coverage "
+          "stays {:.2f} against a declared 1.0 - the first version "
+          "emitted None for a zero count, and the extract's "
+          "active_drugs fell to 0.70 generated against a source of "
+          "1.00, because a patient with no drugs still has the "
+          "field".format(float(gi["drugs"].notna().mean())),
+          float(gi["drugs"].notna().mean()) > 0.999)
     _hs = gi["drugs"].fillna("").str.contains("t0").astype(float)
     check("...and the token arrangement still works INSIDE the size "
           "groups (sp(sev, has t0) {:+.2f}) - sets move only between "
@@ -619,6 +626,118 @@ def main():
           "makes coarse-to-fine the right order".format(
               float(np.mean(toks_r))),
           float(np.mean(toks_r)) > 0.3)
+
+    # ---- INDICATOR-AS-PARENT DOES NOT BLOCK THE ROUTE -----------
+    #
+    # `procedure_count <- [severity, procedures__n, visit_type]`
+    # outranks `procedures__n <- procedure_count`, claims their pair
+    # with the indicator as a mere PARENT, and the routed direction
+    # was dropped as a restatement. That direction is the only one
+    # mediation can flow through - the set follows the count, so
+    # whatever follows the count reaches the set - and with it
+    # blocked, vtype -> count -> size read 0.492 in the source and
+    # 0.019 generated, with routing never firing at all. The
+    # indicator is now STRIPPED from the claiming relationship and
+    # the pair moves to the route: the dependence still enters
+    # exactly once, in the direction that carries the chain.
+    def _chain_bp():
+        cnum = {"kind": "numeric", "level": "visit", "coverage": 1.0,
+                "dials": {},
+                "marginal": {"type": "quantiles", "mean": 1.4,
+                             "integral": True,
+                             "q": [0.0, 0.3, 0.6, 0.85, 1.0],
+                             "v": [0.0, 0.0, 1.0, 3.0, 8.0]}}
+        snum = {"kind": "numeric", "level": "visit", "coverage": 1.0,
+                "dials": {},
+                "marginal": {"type": "quantiles", "mean": 50.0,
+                             "integral": False,
+                             "q": [0.0, 0.25, 0.5, 0.75, 1.0],
+                             "v": [30.0, 43.0, 50.0, 57.0, 75.0]}}
+        vcat = {"kind": "categorical", "level": "visit",
+                "coverage": 1.0, "dials": {},
+                "marginal": {"type": "categorical",
+                             "levels": [{"value": "inp", "p": 0.3},
+                                        {"value": "outp", "p": 0.5},
+                                        {"value": "emerg",
+                                         "p": 0.2}]}}
+        pset = {"kind": "categorical", "level": "visit",
+                "coverage": 1.0, "dials": {},
+                "marginal": {"type": "list", "separator": ";",
+                             "tokens": [{"value": "q{}".format(i),
+                                         "p": 1.0 / 6} for i in
+                                        range(6)],
+                             "set_size": {"v": [1, 2, 3, 4],
+                                          "p": [0.45, 0.3, 0.15,
+                                                0.1]}}}
+        pind = {"kind": "numeric", "level": "visit", "coverage": 1.0,
+                "dials": {}, "derived_from": {"column": "procs"},
+                "marginal": {"type": "quantiles", "mean": 0.3,
+                             "integral": False, "q": [0.0, 1.0],
+                             "v": [0.0, 1.0]}}
+        cgrid = [0.0, 1.0, 3.0, 8.0]
+        vt_eff = {"shape": "varies-by-level",
+                  "grid": ["inp", "outp", "emerg"],
+                  "response": [3.0, 0.6, 1.5], "centre": 1.4}
+        sv_eff = {"shape": "monotone",
+                  "grid": [30.0, 43.0, 50.0, 57.0, 75.0],
+                  "response": [0.4, 0.9, 1.4, 1.9, 2.6],
+                  "centre": 1.4}
+        n_eff = {"shape": "increasing", "grid": list(cgrid),
+                 "response": [1.2, 1.5, 2.1, 3.4], "centre": 1.8}
+        cn_eff = {"shape": "monotone", "grid": [1.0, 2.0, 4.0],
+                  "response": [0.9, 1.6, 3.2], "centre": 1.4}
+        def rel(ch, ps, sk, effs, imps):
+            return {"child": ch, "parents": ps,
+                    "dials": {"strength": None},
+                    "evidence": {"skill_out_of_sample": sk,
+                                 "importance": imps,
+                                 "effect": effs}}
+        return {"columns": {"vtype": vcat, "count": cnum,
+                            "sev": snum, "procs": pset,
+                            "procs__n": dict(pind),
+                            "procs__has__q0": dict(pind)},
+                "relationships": [
+                    rel("count", ["sev", "procs__n", "vtype"], 0.82,
+                        {"sev": sv_eff, "procs__n": cn_eff,
+                         "vtype": vt_eff},
+                        {"sev": 0.5, "procs__n": 0.9, "vtype": 0.6}),
+                    rel("sev", ["count"], 0.60,
+                        {"count": {"shape": "monotone",
+                                   "grid": list(cgrid),
+                                   "response": [44.0, 48.0, 53.0,
+                                                60.0],
+                                   "centre": 50.0}},
+                        {"count": 1.0}),
+                    rel("procs__n", ["count"], 0.55,
+                        {"count": n_eff}, {"count": 1.0})],
+                "patients": {"count": 500,
+                             "visits": {"q": [0.0, 0.5, 1.0],
+                                        "v": [3.0, 4.0, 5.0],
+                                        "mean": 4.0}, "dials": {}}}
+
+    def _cr2(cat_v, num_v):
+        d5 = pd.DataFrame({"c": cat_v, "v": pd.to_numeric(
+            num_v, errors="coerce")}).dropna()
+        grand = d5["v"].mean()
+        ssb = sum(len(g5) * (g5["v"].mean() - grand) ** 2
+                  for _, g5 in d5.groupby("c"))
+        sst = ((d5["v"] - grand) ** 2).sum()
+        return float(np.sqrt(ssb / sst)) if sst > 0 else 0.0
+
+    rep_c2 = {}
+    gc2 = _gen(_chain_bp(), n_patients=500, seed=4, report=rep_c2)
+    sz2 = gc2["procs"].fillna("").apply(
+        lambda x: 0 if not x else len(x.split(";")))
+    crv = _cr2(gc2["vtype"], sz2)
+    check("THE ROUTE FIRES despite the indicator-as-parent claim: "
+          "sets_informed carries procs__n - before the strip, "
+          "routing never ran at all on this shape",
+          any("procs__n" in (e.get("children") or [])
+              for e in (rep_c2.get("sets_informed") or [])))
+    check("...and the MEDIATED chain arrives: cr(vtype, |set|) "
+          "{:.2f} - vtype reaches the set only through the count, "
+          "and with the route blocked it read 0.019 against a "
+          "source 0.492".format(crv), crv > 0.25)
 
     print()
     if FAIL:

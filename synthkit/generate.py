@@ -297,6 +297,9 @@ def _order(bp: Dict[str, Any], refine: bool = True):
 
     parents: Dict[str, List[Dict[str, Any]]] = {}
     size_partners_o = _size_partners(bp)
+    # which relationship claimed each pair, so a routed direction can
+    # tell whether its blocker used the indicator as a mere parent
+    used_by: Dict[frozenset, Dict[str, Any]] = {}
     # Relationships whose child is a derived indicator, keyed by the
     # SET column that will express them by rearranging its draw.
     set_rels: Dict[str, List[Dict[str, Any]]] = {}
@@ -334,15 +337,46 @@ def _order(bp: Dict[str, Any], refine: bool = True):
             if not ps_d:
                 continue
             if all(q in used for q in pairs_d):
-                dropped.append({
-                    "child": child, "parents": ps_d, "skill": sk_d,
-                    "why": "every pair of these columns is already "
-                           "related in another direction, so the "
-                           "dependence reaches the data once",
-                    "harmless": True})
-                continue
+                # A PAIR CLAIMED BY INDICATOR-AS-PARENT DOES NOT
+                # BLOCK THE ROUTE. `procedure_count <- [severity,
+                # procedures__n, visit_type]` outranks
+                # `procedures__n <- procedure_count` and claims their
+                # pair - but that direction leaves the SET's sizes a
+                # free marginal draw, so everything mediated through
+                # the set dies: vtype -> count -> size read 0.49 in
+                # the source and 0.019 generated, with routing never
+                # firing at all. The dependence must still enter
+                # exactly once, so the indicator is STRIPPED from the
+                # claiming relationship's parents and the pair moves
+                # to the routed direction, where mediation flows -
+                # the set follows the count, and whatever follows the
+                # count reaches the set.
+                blockers = [q for q in pairs_d
+                            if q in used_by and any(
+                                pp in derived
+                                for pp in used_by[q].get("parents",
+                                                         []))]
+                if len(blockers) != len(
+                        [q for q in pairs_d if q in used]):
+                    dropped.append({
+                        "child": child, "parents": ps_d,
+                        "skill": sk_d,
+                        "why": "every pair of these columns is "
+                               "already related in another "
+                               "direction, so the dependence "
+                               "reaches the data once",
+                        "harmless": True})
+                    continue
+                for q in blockers:
+                    r2 = used_by[q]
+                    r2["parents"] = [pp for pp in r2["parents"]
+                                     if pp not in derived
+                                     or frozenset([r2.get("child"),
+                                                   pp]) != q]
             set_rels.setdefault(derived[child], []).append(r)
             used.update(pairs_d)
+            for q in pairs_d:
+                used_by[q] = r
             continue
         ps = [p for p in (r.get("parents") or []) if p in cols]
         if not ps:
@@ -385,6 +419,8 @@ def _order(bp: Dict[str, Any], refine: bool = True):
         parents.setdefault(child, [])
         parents[child].append(r)
         used.update(pairs)
+        for q in pairs:
+            used_by[q] = r
 
     order, placed = [], set()
     remaining = list(cols)
@@ -640,7 +676,16 @@ def _draw_list_sized(m, ks, rng):
             k_ = int(round(float(k)))
         k_ = min(max(k_, 0), len(toks))
         if k_ == 0:
-            out.append(None)
+            # EMPTY, NOT MISSING. A patient with zero drugs still has
+            # a drug-list field - the extract carries active_drugs at
+            # coverage 1.0 while its count runs to zero. Emitting
+            # None here conflated the two and dropped the column's
+            # generated coverage to 0.70 against a source of 1.00.
+            # The empty string is present to the coverage measure and
+            # excluded by `sizes_of` (which reads it as no tokens),
+            # exactly how the source's own zero rows measure; whether
+            # the row is MISSING remains the presence mask's job.
+            out.append("")
             continue
         picked = rng.choice(len(toks), size=k_, replace=False, p=w)
         out.append(sep.join(sorted(toks[i] for i in picked)))
