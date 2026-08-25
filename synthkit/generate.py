@@ -1009,6 +1009,21 @@ def _pin_pass(obj, cols, order):
         if n2:
             obj[c] = got2
             pinned[c] = n2
+        # INTEGRALITY IS RE-ASSERTED WITH THE BOUNDS. A constraint
+        # swap donates values ACROSS columns, and a fractional value
+        # from a non-integral partner landed in heart_rate_monitored
+        # and mean_arterial_pressure_cuff - both declared whole
+        # numbers - a handful of rows each, caught by the invariant
+        # pass. The bound alternation pinned what the swaps produced
+        # but never re-rounded it; same family, same cure.
+        if m2.get("integral"):
+            v3 = np.asarray(obj[c], dtype=float)
+            ok3 = np.isfinite(v3)
+            frac = ok3 & (np.abs(v3 - np.round(v3)) > 1e-9)
+            if frac.any():
+                v3[frac] = np.round(v3[frac])
+                obj[c] = v3
+                pinned[c] = pinned.get(c, 0) + int(frac.sum())
     return pinned
 
 
@@ -1505,8 +1520,41 @@ def generate(blueprint: Dict[str, Any],
             marg_draw[c] = np.asarray(base, dtype=float).copy()
         if rels and len(base):
             if numeric:
+                _pre = np.asarray(base, dtype=float).copy()
                 base = _apply_numeric(c, spec, m, base, rels,
                                       out, masks)
+                # EVERY NUMERIC CHILD IS RE-RANKED ONTO ITS OWN
+                # MARGINAL DRAW - the device the cyclic refinement
+                # has always used, now for the acyclic children too.
+                # Breaking the identity island turned columns that
+                # were ROOTS into children, and the child path's
+                # mean + curve + sqrt(1-skill)*noise under-delivers
+                # spread on heavy-tailed counts: active_drug_count
+                # came out at 36% of its source spread with 1%
+                # beyond the bound - not privacy - the shrunken
+                # count fed the size identity, the sets compressed,
+                # and every cross-set token pair died with them
+                # (sodium chloride ~ Flush 0.88 -> 0.15).
+                #
+                # The re-rank keeps the ORDER the relationships
+                # produced and takes the VALUES the marginal drew:
+                # spread and centre exact by construction, every
+                # rank-based association untouched, and the k bound
+                # respected because the marginal draw respects it.
+                arr_rr = np.asarray(base, dtype=float)
+                ok_rr = np.isfinite(arr_rr) & np.isfinite(_pre)
+                # A CYCLIC column is the refinement's to re-rank -
+                # it re-ranks onto the marginal draw after the
+                # trimmed parents return. Re-ranking here TOO meant
+                # two re-ranks onto two different pools, and the
+                # sweeps went from tightening the ring's uniformity
+                # to loosening it (pair spread 0.136 -> 0.188).
+                if c not in cyclic and int(ok_rr.sum()) > 2:
+                    pool_rr = np.sort(_pre[ok_rr])
+                    idx_rr = np.argsort(np.argsort(arr_rr[ok_rr]))
+                    arr_rr = arr_rr.copy()
+                    arr_rr[ok_rr] = pool_rr[idx_rr]
+                    base = arr_rr
             else:
                 base = _apply_categorical(c, spec, m, base, rels,
                                           out, rng, masks)

@@ -393,14 +393,15 @@ def main():
     check("the centre is untouched by the rearrangement ({:+.3f}, "
           "against -0.041 before it)".format(float(_np.mean(ms))),
           abs(float(_np.mean(ms))) < 0.10)
-    # 1.452 is the solve-OFF spread measured under the bound pin;
-    # it was 1.593 before the pin existed, because this fixture's hot
-    # curve pushed values past the published bound and that excess
-    # was counted as spread. The check's meaning is unchanged: the
-    # rearrangement itself moves the spread by ~0.01.
-    check("...and so is the spread ({:.3f}, against 1.452 with the "
+    # THE BASELINE HAS MOVED TWICE AND EACH MOVE IS A FIX ARRIVING:
+    # 1.593 before the bound pin (curve excess counted as spread),
+    # 1.452 under the pin, and 1.252 now that every acyclic child is
+    # re-ranked onto its own marginal draw - the spread IS the
+    # marginal's, by construction. The property guarded is unchanged:
+    # the solve's rearrangement moves the spread by ~0.03.
+    check("...and so is the spread ({:.3f}, against 1.252 with the "
           "solve off)".format(float(_np.mean(ss))),
-          abs(float(_np.mean(ss)) - 1.452) < 0.10)
+          abs(float(_np.mean(ss)) - 1.252) < 0.10)
 
     # ---- A FACT ABOUT THE PERSON DOES NOT CHANGE BETWEEN VISITS ---
     #

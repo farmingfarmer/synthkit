@@ -226,11 +226,22 @@ def main():
     bb = _hot_bp()
     gb = generate(bb, n_patients=400, seed=1, report=rep_b)
     pinned = rep_b.get("bounds_pinned") or {}
-    check("THE FIXTURE CONTAINS THE FAULT: the hot curve pushed "
-          "values past the bound and the pin FIRED ({} on `kid`) - "
-          "a bounds check against a fixture that never violates "
-          "passes on an empty list".format(pinned.get("kid", 0)),
-          pinned.get("kid", 0) > 0)
+    # THE HOT CURVE CAN NO LONGER LEAK AT ALL: every acyclic child is
+    # re-ranked onto its own marginal draw, whose values respect the
+    # bound by construction, so the pin has nothing to do here - and
+    # that is asserted as the new truth. This check used to demand
+    # the pin FIRED on `kid` (464 values); the fault it guarded is
+    # now impossible by construction for relationship-driven
+    # excursions, and the pin's remaining work is integer rounding
+    # (the `age` check below) and constraint-swap donations (the
+    # alternation checks).
+    check("a hot curve on a child cannot push past the bound any "
+          "more - the re-rank onto the marginal draw makes the leak "
+          "impossible by construction ({} pinned on `kid`, 464 "
+          "before the re-rank existed)".format(pinned.get("kid", 0)),
+          not [h for h in find(gb, bb, "person_id")
+               if "bound" in h["declared"]
+               and h["column"] == "kid"])
     check("...and after the pin, NO published value is past the "
           "bound", not [h for h in find(gb, bb, "person_id")
                         if "bound" in h["declared"]
@@ -361,6 +372,27 @@ def main():
     check("...and the run names what it copied",
           any(e.get("column") == "twin" and e.get("from") == "a"
               for e in (rep_cp.get("copied_identities") or [])))
+
+    # ---- A SWAP MUST NOT LEAVE A FRACTION IN A WHOLE-NUMBER
+    # COLUMN. The repair alternation pinned bounds after the swaps
+    # but never re-asserted integrality, and fractional values from a
+    # non-integral partner landed in two declared-integral columns on
+    # the real extract - a handful of rows, caught by this very pass.
+    def _swap_int_bp():
+        b7 = _swap_bp()
+        b7["columns"]["tight"]["marginal"]["integral"] = True
+        b7["columns"]["tight"]["marginal"]["v"] = [52.0, 75.0, 90.0,
+                                                  103.0, 114.0]
+        return b7
+    g7 = generate(_swap_int_bp(), n_patients=400, seed=2,
+                  enforce_constraints=True)
+    t7 = pd.to_numeric(g7["tight"], errors="coerce").dropna()
+    check("after a swap repair, a declared-integral column holds "
+          "whole numbers on every row ({} fractional) - the donor is "
+          "continuous and its values arrived unrounded".format(
+              int((np.abs(t7 - np.round(t7)) > 1e-9).sum())),
+          not [h for h in find(g7, _swap_int_bp(), "person_id")
+               if h["declared"] == "integral"])
 
     print()
     if FAIL:
