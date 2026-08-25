@@ -162,28 +162,11 @@ def _draw_list(m: Dict[str, Any], n: int, rng) -> np.ndarray:
     """Draw a SET per row and join it back into one field.
 
     The size comes from its own observed distribution and the tokens
-    from theirs, sampled without replacement so a row never repeats a
-    drug. Co-occurrence is not modelled - the blueprint says so on the
-    marginal itself."""
-    toks = [t["value"] for t in (m.get("tokens") or [])]
-    if not toks:
-        return np.array([None] * n, dtype=object)
-    w = np.asarray([max(float(t["p"]), 0.0)
-                    for t in m["tokens"]], dtype=float)
-    w = w / w.sum() if w.sum() > 0 else np.full(len(toks),
-                                                1.0 / len(toks))
-    sz = m.get("set_size") or {}
-    sizes = np.asarray(sz.get("v") or [1], dtype=int)
-    sp = np.asarray(sz.get("p") or [1.0], dtype=float)
-    sp = sp / sp.sum() if sp.sum() > 0 else None
-    sep = m.get("separator", ";")
-    out = []
-    for _ in range(n):
-        k_ = int(rng.choice(sizes, p=sp)) if sp is not None else 1
-        k_ = max(1, min(k_, len(toks)))
-        picked = rng.choice(len(toks), size=k_, replace=False, p=w)
-        out.append(sep.join(sorted(toks[i] for i in picked)))
-    return np.asarray(out, dtype=object)
+    from SOLVED weights - the published token p is a share of rows,
+    not a sampling weight, and feeding it in raw skewed 44 of 96
+    shares past tolerance on the real extract. Co-occurrence is not
+    modelled - the blueprint says so on the marginal itself."""
+    return _draw_list_sized(m, [None] * n, rng)
 
 
 def _draw_categorical(m: Dict[str, Any], n: int, rng) -> np.ndarray:
@@ -660,6 +643,60 @@ def _collapse_to_patient(rows, pat_draw, pidx, n_pat, numeric):
     return np.asarray(rows, dtype=object)[first][pidx]
 
 
+def _token_weights(m, sizes_per_row, seed):
+    """Sampling weights SOLVED so the drawn shares measure back.
+
+    The published token `p` is a SHARE - the fraction of rows whose
+    set contains the token - but the draw was feeding it straight in
+    as a sampling weight for without-replacement picks, and inclusion
+    under weighted sampling is not proportional to weight: common
+    tokens saturate, rare ones ride along, and with the vocabulary
+    capped below the source's the whole budget lands unevenly. On the
+    real extract 44 of 96 token shares missed by more than 0.05.
+
+    Two steps. The TARGETS are the published shares rescaled so their
+    total equals the token budget actually being drawn - with only 24
+    of 60 tokens published, every kept token must run proportionally
+    hot, and that is a fact about the cap, not a knob. Then the
+    WEIGHTS are solved by the same loop as every other fed-back
+    statistic: draw, measure, adjust, with a fixed seed per trial so
+    the iteration converges instead of wandering."""
+    toks = [t["value"] for t in (m.get("tokens") or [])]
+    if not toks:
+        return None, None
+    p_pub = np.asarray([max(float(t["p"]), 1e-6)
+                        for t in m["tokens"]], dtype=float)
+    ks = np.asarray([0 if k is None else int(k)
+                     for k in sizes_per_row], dtype=int)
+    ks = np.clip(ks, 0, len(toks))
+    budget = float(ks.mean())
+    if budget <= 0:
+        return toks, p_pub / p_pub.sum()
+    targets = p_pub * (budget / p_pub.sum())
+    targets = np.clip(targets, 1e-6, 1.0)
+    w = p_pub.copy()
+    n = len(ks)
+    # Trials on a SAMPLE of rows: the solve needs the k distribution,
+    # not every row, and six calibration passes over 55k rows would
+    # cost more than the draw itself.
+    samp = (np.arange(n) if n <= 4000 else
+            np.random.RandomState(seed % (2 ** 31)).choice(
+                n, 4000, replace=False))
+    for it in range(6):
+        r2 = np.random.RandomState((seed + 977 * it) % (2 ** 31))
+        got = np.zeros(len(toks))
+        ww = w / w.sum()
+        for i in samp:
+            k_ = ks[i]
+            if k_ <= 0:
+                continue
+            got[r2.choice(len(toks), size=k_, replace=False,
+                          p=ww)] += 1.0
+        ach = np.clip(got / len(samp), 1e-6, None)
+        w = np.clip(w * (targets / ach), 1e-9, None)
+    return toks, w / w.sum()
+
+
 def _draw_list_sized(m, ks, rng):
     """A set per row whose SIZE is handed in, not drawn.
 
@@ -679,23 +716,23 @@ def _draw_list_sized(m, ks, rng):
     toks = [t["value"] for t in (m.get("tokens") or [])]
     if not toks:
         return np.array([None] * len(ks), dtype=object)
-    w = np.asarray([max(float(t["p"]), 0.0)
-                    for t in m["tokens"]], dtype=float)
-    w = w / w.sum() if w.sum() > 0 else np.full(len(toks),
-                                                1.0 / len(toks))
     sz = m.get("set_size") or {}
     sizes = np.asarray(sz.get("v") or [1], dtype=int)
     sp = np.asarray(sz.get("p") or [1.0], dtype=float)
     sp = sp / sp.sum() if sp.sum() > 0 else None
-    sep = m.get("separator", ";")
-    out = []
+    # resolve every row's size FIRST, so the weight solve sees the
+    # real budget
+    ks2 = []
     for k in ks:
         if k is None or (isinstance(k, float) and not np.isfinite(k)):
             k_ = int(rng.choice(sizes, p=sp)) if sp is not None else 1
-            k_ = max(1, k_)
+            ks2.append(max(1, min(k_, len(toks))))
         else:
-            k_ = int(round(float(k)))
-        k_ = min(max(k_, 0), len(toks))
+            ks2.append(min(max(int(round(float(k))), 0), len(toks)))
+    _t, w = _token_weights(m, ks2, int(rng.randint(0, 2 ** 31)))
+    sep = m.get("separator", ";")
+    out = []
+    for k_ in ks2:
         if k_ == 0:
             # EMPTY, NOT MISSING. A patient with zero drugs still has
             # a drug-list field - the extract carries active_drugs at

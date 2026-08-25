@@ -786,6 +786,38 @@ def main():
           "the extract showed 0.98 against a source of 0.85"
           .format(r6), 0.5 < r6 < 0.76)
 
+    # ---- A TOKEN'S p IS A SHARE, NOT A SAMPLING WEIGHT -----------
+    #
+    # The published p is the fraction of rows whose set contains the
+    # token; the draw fed it straight into weighted without-
+    # replacement picks, where inclusion is NOT proportional to
+    # weight - common tokens saturate, rare ones ride along, and 44
+    # of 96 shares missed past tolerance on the real extract. The
+    # weights are now SOLVED until the drawn shares measure back,
+    # against targets rescaled to the drawn budget - with only part
+    # of the vocabulary published, every kept token must run
+    # proportionally hot, and that is the cap's fact, not a knob.
+    from synthkit.generate import _draw_list as _dl
+    _m7 = {"separator": ";",
+           "set_size": {"v": [1, 2, 3, 5],
+                        "p": [0.35, 0.3, 0.25, 0.1]},
+           "tokens": [{"value": "s{}".format(i), "p": pp}
+                      for i, pp in enumerate(
+                          [0.62, 0.41, 0.25, 0.14, 0.09, 0.05,
+                           0.03, 0.02])]}
+    _out7 = pd.Series(_dl(_m7, 6000, np.random.RandomState(3)))
+    _bud = float(_out7.str.split(";").apply(len).mean())
+    _pub7 = np.array([t["p"] for t in _m7["tokens"]])
+    _tgt7 = _pub7 * (_bud / _pub7.sum())
+    _miss = [abs(float(_out7.str.contains(
+        t["value"] + r"(?:;|$)").mean()) - _tgt7[i])
+        for i, t in enumerate(_m7["tokens"])]
+    check("drawn token shares land on their budget-scaled targets "
+          "(worst miss {:.3f}, {} of 8 past 0.05) - raw p as weights "
+          "missed by 0.196 with three tokens out".format(
+              max(_miss), sum(1 for x in _miss if x > 0.05)),
+          max(_miss) < 0.05)
+
     print()
     if FAIL:
         print("{} FAILED".format(FAIL))
