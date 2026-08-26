@@ -1021,6 +1021,16 @@ def _pin_pass(obj, cols, order):
             ok3 = np.isfinite(v3)
             frac = ok3 & (np.abs(v3 - np.round(v3)) > 1e-9)
             if frac.any():
+                # `.copy()` IS LOAD-BEARING: on pandas 3 - the data
+                # machine's pandas - asarray over a frame column is a
+                # READ-ONLY view and the write raises. FOURTH
+                # instance of the class, in the very branch added to
+                # fix the swap-fraction defect, caught by the
+                # operator because the pandas-3 net was not re-run
+                # after the branch was added. The bounds path never
+                # hit this only because _pin_to_bounds copies
+                # internally.
+                v3 = v3.copy()
                 v3[frac] = np.round(v3[frac])
                 obj[c] = v3
                 pinned[c] = pinned.get(c, 0) + int(frac.sum())
