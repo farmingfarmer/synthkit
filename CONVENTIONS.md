@@ -4,7 +4,7 @@ Synthetic clinical data generator and model-evaluation instrument. Core rule: le
 
 ## Verify before claiming
 
-- Run `python scripts/run_all_smokes.py` before claiming anything works. Expect 67 suites, 1768 checks, ALL GREEN **on a checkout**. Off a zipball extract - which is what the data machine runs - it is 1759: nine checks in `smoke_buildid` need git to test the archive path and report SKIPPED without it. Both numbers were measured. Do not quote the checkout number to the data machine; that is how a correct run gets read as a failure.
+- Run `python scripts/run_all_smokes.py` before claiming anything works. Expect 67 suites, 1775 checks, ALL GREEN **on a checkout**. Off a zipball extract - which is what the data machine runs - it is 1766: nine checks in `smoke_buildid` need git to test the archive path and report SKIPPED without it. Both numbers were measured. Do not quote the checkout number to the data machine; that is how a correct run gets read as a failure.
 - **THE DEVELOPMENT MACHINE WAS BEHIND THE DATA MACHINE, and that is
   how a green suite here failed there.** Dev was on Python 3.10 with
   pandas 2.3; the data machine installs fresh and got pandas 3.0.5,
@@ -659,6 +659,45 @@ the direction that stops work happening.
   that cohort passes sex and site as integer CODES, which is why
   this never fired and why it had to be sought rather than waited
   for.
+
+- **THE SIZE AND THE VOCABULARY MUST DESCRIBE THE SAME
+  POPULATION.** Uncapping fixed WHICH tokens are published and left
+  the size measured over every token the row held - so a set drawn
+  at the source's own size had to fill it from a vocabulary the k
+  rule had thinned, and every survivor ran proportionally hot. On
+  the real extract after uncapping, `conditions` still gapped 1.32x
+  and `procedures` 1.50x, and the only two tokens still outside
+  tolerance were both on `procedures` and both HIGH. Publishing the
+  PUBLISHABLE size closes it to 1.00x exactly. Generated sets are
+  visibly shorter than source sets - 3.25 tokens per row against
+  4.27 - and that is the k rule's price, REPORTED in tokens per row
+  because that is what somebody opening the file sees.
+- **PRESENT-AND-EMPTY IS NOT MISSING, and two numbers beside each
+  other disagreed about it for as long as both existed.**
+  `blueprint` calls a row present when the cell is `notna`, so an
+  empty set counts as covered; `has_token` and `sizes_of` required
+  `len > 0` and returned NaN. It cost nothing while empty sets were
+  rare and became load-bearing the moment size came from the
+  publishable subset, because a row whose tokens all sit below the
+  floor now draws an empty set and holds a known ZERO of every
+  published token. Reading it as unknown would have buried the k
+  rule's cost inside the missingness model.
+- **SCAFFOLDING IS NOT THE OPERATOR'S DATA, and the constraint
+  section counted it as if it were.** A real run reported "orderings
+  the source never broke, held on 843/933" and then listed page
+  after page of `procedures__has__Oxygen Therapy <= procedure_count
+  broken on 52,197 rows (94.9%)` - columns built for the search and
+  DROPPED before the file is written. The orderings that were about
+  their data sat buried among them. The fidelity summary already
+  separates scaffolding when it counts columns; this did not. The
+  predicate lives in `sets.py` and both halves call it, because two
+  files deciding separately what counts as scaffolding is how the
+  two sides come to disagree.
+- **A COUPLED CHANGE CANNOT BE FAIL-FIRSTED BY REVERTING ONE FILE.**
+  Reverting `sets.py` alone raised `KeyError` inside `blueprint.py`
+  and the suite died before reaching the new checks - a crash proves
+  the files are coupled, not that the checks can fail. Perturb the
+  BEHAVIOUR and leave the interface, then watch the checks go red.
 
 ## Talking to the data machine
 

@@ -899,6 +899,93 @@ def main():
           _above9 > MAX_LEVELS_KEPT
           and len(_v9["tokens"]) == _above9)
 
+    # AND THE SIZE MUST MATCH THE VOCABULARY IT IS DRAWN FROM.
+    #
+    # Uncapping fixed which tokens are published; it did NOT fix the
+    # size. A set drawn at the SOURCE's own size has to fill that
+    # size from a vocabulary the k rule has thinned, so every
+    # surviving token runs proportionally hot. On the real extract
+    # after uncapping, `conditions` still read a 1.32x gap and
+    # `procedures` 1.50x, and the only two tokens still missing
+    # tolerance were both on `procedures` and both HIGH.
+    #
+    # THE FIXTURE HAS TO LOSE MASS TO THE K FLOOR or it cannot show
+    # this: a vocabulary where every token clears k has no gap to
+    # close, which is exactly why every OTHER fixture here is blind
+    # to it. This one puts most tokens below the floor on purpose,
+    # and the first check asserts that it did.
+    _npat, _nvis = 300, 12
+    _g = np.random.RandomState(3)
+    _grp = np.repeat(np.arange(_npat), _nvis)
+    _NC, _NR = 40, 900
+    _pc = np.ones(_NC) / _NC * 0.70
+    _pr = np.ones(_NR) / _NR * 0.30
+    _pp = np.concatenate([_pc, _pr]); _pp = _pp / _pp.sum()
+    _rows = []
+    for _ in range(_npat * _nvis):
+        _k = max(1, int(_g.poisson(4)))
+        _rows.append(";".join(sorted(
+            "z{:04d}".format(j) for j in
+            _g.choice(len(_pp), size=_k, replace=False, p=_pp))))
+    _vv = S.vocabulary(pd.Series(_rows), _grp, k=10, cap=0)
+    check("the fixture LOSES tokens to the k floor ({} found, {} "
+          "above k) - a vocabulary that keeps everything has no gap "
+          "to close and cannot test this".format(
+              _vv["tokens_found"], _vv["tokens_above_k"]),
+          _vv["tokens_above_k"] < _vv["tokens_found"] * 0.5)
+
+    _sz = _vv["set_size"]
+    _mean = sum(float(a) * float(b)
+                for a, b in zip(_sz["v"], _sz["p"]))
+    _ssum = sum(float(t["p"]) for t in _vv["tokens"])
+    _gap = _mean / _ssum if _ssum else float("nan")
+    check("...and the published size is the PUBLISHABLE size, so the "
+          "shares sum to it (gap {:.2f}x) - measured over every token "
+          "the row held, the same fixture gaps {:.2f}x".format(
+              _gap, _vv["mean_set_size_source"] / _ssum),
+          _gap < 1.05)
+    check("...and what the k rule took is RECORDED, not silent - "
+          "{:.2f} tokens/row published against {:.2f} in the "
+          "source".format(_vv["mean_set_size"],
+                          _vv["mean_set_size_source"]),
+          _vv["mean_set_size_source"] - _vv["mean_set_size"] > 0.2)
+
+    # PRESENT-AND-EMPTY IS NOT MISSING. A row whose tokens all sit
+    # below the floor draws an empty set, and it holds a known ZERO
+    # of every published token. `blueprint` already counted such a
+    # row as covered (`notna`); `has_token` called it unknown. Those
+    # two disagreeing is the signal, and it only began to bite when
+    # size started coming from the publishable subset.
+    _e = pd.Series(["a;b", "", None, "b;c"])
+    _ht = list(S.has_token(_e, ";", "b"))
+    check("an EMPTY set reads as a known zero, not as missing "
+          "({}) - it read NaN before, hiding the k rule's cost "
+          "inside the missingness model".format(
+              ["{}".format(x) for x in _ht]),
+          _ht[0] == 1.0 and _ht[1] == 0.0
+          and _ht[1] == _ht[1] and _ht[2] != _ht[2])
+
+    # SCAFFOLDING IS NOT THE OPERATOR'S DATA, and the constraint
+    # report was counting it as if it were. A real run said
+    # "orderings the source never broke, held on 843/933" and then
+    # listed page after page of `procedures__has__Oxygen Therapy <=
+    # procedure_count broken on 52,197 rows (94.9%)`. Those columns
+    # are built for the search and DROPPED before the file is
+    # written, so none of them name anything the operator receives -
+    # and the orderings that were about their data sat buried among
+    # them. The fidelity summary already separates scaffolding when
+    # it counts columns; the constraint section did not.
+    check("a set indicator is recognised as scaffolding",
+          S.is_scaffolding("procedures__has__Oxygen Therapy"))
+    check("...and so is a set SIZE column",
+          S.is_scaffolding("procedures" + S.SIZE))
+    check("...while the operator's own columns are NOT - a rule that "
+          "called everything scaffolding would empty the section it "
+          "is meant to clean up",
+          not S.is_scaffolding("visit_end_date")
+          and not S.is_scaffolding("age_at_visit")
+          and not S.is_scaffolding("procedure_count"))
+
     print()
     if FAIL:
         print("{} FAILED".format(FAIL))

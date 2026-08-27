@@ -739,10 +739,38 @@ def main(argv=None, args=None):
         "0.2".format(s["pairs_sign_ok"], s["pairs"],
                      s["pairs_close"], s["pairs"]))
     if s.get("constraints_checked"):
-        say("orderings the source never broke, held on {}/{} in the "
-            "generated data".format(s["constraints_held"],
-                                    s["constraints_checked"]))
-        for c in fid.get("constraints") or []:
+        # SCAFFOLDING IS COUNTED APART FROM THE OPERATOR'S COLUMNS.
+        #
+        # `conditions__has__ICD10-CM|E03.9` and `procedures__n` are
+        # built at generation so a set can carry a relationship, and
+        # they are DROPPED before the file is written. A real run
+        # reported 843/933 orderings held and then listed page after
+        # page of `procedures__has__Oxygen Therapy <= procedure_count
+        # broken on 52,197 rows (94.9%)` - none of which name a
+        # column the operator receives. The one ordering that WAS
+        # about their data sat buried among them.
+        #
+        # This is the same fault the fidelity summary already fixed
+        # for column counts, where a four-column file expanded to
+        # twenty-seven reported "coverage on 27/27". It was fixed
+        # there and left standing here.
+        from synthkit import sets as _SETS
+        _scaffold = _SETS.is_scaffolding
+
+        rows = fid.get("constraints") or []
+        mine = [c for c in rows
+                if not (_scaffold(c["lhs"]) or _scaffold(c["rhs"]))]
+        scaf = [c for c in rows if c not in mine]
+        if mine:
+            held = sum(1 for c in mine
+                       if c["holds_in_generated"] >= 0.999)
+            say("orderings the source never broke, held on {}/{} in "
+                "the generated data".format(held, len(mine)))
+        else:
+            say("orderings the source never broke: NONE were between "
+                "columns of yours - every one involved set "
+                "scaffolding, reported below")
+        for c in mine:
             if c["holds_in_generated"] < 0.999:
                 say("  {} {} {} broken on {} rows ({:.1%}){}".format(
                     c["lhs"], c.get("op", "<="), c["rhs"],
@@ -752,6 +780,15 @@ def main(argv=None, args=None):
                     else " - --enforce-constraints repairs this by "
                          "swapping the pair, which leaves both "
                          "distributions untouched"))
+        if scaf:
+            n_bad = sum(1 for c in scaf
+                        if c["holds_in_generated"] < 0.999)
+            say("  ({} further ordering(s) involve set SCAFFOLDING - "
+                "`{}` / `{}` columns that are built for the search "
+                "and dropped before the file is written; {} do not "
+                "hold, and none of them name a column you "
+                "receive)".format(len(scaf), _SETS.HAS, _SETS.SIZE,
+                                  n_bad))
     if s.get("categorical_compared"):
         say("categorical and mixed associations kept on {}/{} pairs "
             "- these were never measured before".format(
@@ -976,6 +1013,29 @@ def _report_types(bp, df, say):  # noqa: C901
                     what += (", {} NOT expanded (cap {}) so they "
                              "cannot carry a relationship".format(
                                  n_tok - n_ind, _SETS.EXPAND_CAP))
+            # WHAT THE K RULE TOOK, IN THE OPERATOR'S OWN UNITS.
+            # Sets are drawn at the size of the PUBLISHABLE subset,
+            # so a generated row carries fewer tokens than the source
+            # row did - on the real extract `conditions` found 7,974
+            # tokens where 1,050 cleared the floor, and the rare ones
+            # carried 1.02 of a 4.27-per-row budget. Drawing at the
+            # source size instead would make every published token
+            # about 1.32x too common, which reads as a sampler fault
+            # and is the privacy rule working. Say it in tokens per
+            # row, because that is what someone opening the file sees.
+            src_avg = mg.get("mean_set_size_source")
+            if src_avg and src_avg - avg > 0.05:
+                what += ("; generated sets carry {:.2f} tokens/row "
+                         "against {:.2f} in the source - the {} "
+                         "token(s) below the k floor cannot be "
+                         "published (privacy, not a fault)".format(
+                             avg, float(src_avg),
+                             int(mg.get("tokens_found", 0)) - n_tok))
+            empty = float(mg.get("empty_after_k_share") or 0.0)
+            if empty > 0.005:
+                what += ("; {:.1%} of rows held only sub-k tokens and "
+                         "come out as an EMPTY set - present, not "
+                         "missing".format(empty))
         else:
             n = len(mg.get("levels") or [])
             sent = float(mg.get("sentinel_share") or 0.0)

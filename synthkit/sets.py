@@ -143,20 +143,62 @@ def vocabulary(raw: pd.Series, groups, k: int = 10,
         kept = kept[:cap]
 
     n_rows = float(len(txt))
-    size_counts = sizes.value_counts(normalize=True).sort_index()
+    # SIZE IS MEASURED OVER THE TOKENS THAT CAN BE PUBLISHED, not
+    # over every token the source row held.
+    #
+    # A set drawn at the source's own size has to fill that size from
+    # a vocabulary the k rule has thinned, so every surviving token
+    # runs proportionally hot - on the real extract `conditions`
+    # found 7,974 tokens, 1,050 cleared a k=10 PATIENT floor, and the
+    # 6,924 rare ones carried 1.02 of the 4.27-per-row budget. Drawn
+    # at 4.27 from the 1,050, each published share came out 1.32x its
+    # true value. That is not the sampler failing; it is the size and
+    # the vocabulary describing different populations.
+    #
+    # So the published size is the size of the PUBLISHABLE subset.
+    # Generated sets are visibly smaller than source sets and that is
+    # the k rule's cost, stated rather than hidden: `mean_set_size`
+    # is what generation draws, `mean_set_size_source` is what the
+    # rows actually held, and the caller reports the difference.
+    keep_set = set(tok for tok, _ in kept)
+    pub_sizes = parts.map(
+        lambda ts: sum(1 for x in ts if x.strip() in keep_set))
+    size_counts = pub_sizes.value_counts(normalize=True).sort_index()
     return {
         "separator": sep,
         "tokens": [{"value": tok, "p": round(c / n_rows, 6)}
                    for tok, c in kept],
         "set_size": {"v": [int(x) for x in size_counts.index],
                      "p": [round(float(x), 6) for x in size_counts]},
-        "mean_set_size": round(float(sizes.mean()), 6),
+        "mean_set_size": round(float(pub_sizes.mean()), 6),
+        "mean_set_size_source": round(float(sizes.mean()), 6),
+        "empty_after_k_share": round(
+            float((pub_sizes == 0).mean()), 6),
         "distinct_combinations": int(txt.nunique()),
         "tokens_found": int(n_found),
         "tokens_above_k": int(n_kept),
         "tokens_returned": len(kept),
         "tokens_are_k_anonymous": k,
     }
+
+
+def is_scaffolding(name: str) -> bool:
+    """True for a column this module BUILT rather than one the
+    operator supplied.
+
+    `conditions__has__E03.9` and `procedures__n` exist so a set can
+    carry a relationship through the search, and they are dropped
+    before the file is written. Anything reported about them is
+    reported about a column the operator never receives - a real run
+    said 843/933 orderings held and then listed page after page of
+    `procedures__has__Oxygen Therapy <= procedure_count broken on
+    52,197 rows`, burying the one ordering that was about their data.
+
+    It lives here because BOTH halves need the same answer, and two
+    files deciding separately what counts as scaffolding is how the
+    two sides come to disagree."""
+    n = str(name)
+    return HAS in n or n.endswith(SIZE)
 
 
 def has_token(raw: pd.Series, sep: str, token: str) -> pd.Series:
@@ -168,7 +210,19 @@ def has_token(raw: pd.Series, sep: str, token: str) -> pd.Series:
     not have zero conditions recorded; nothing is known about it, and
     coverage is the concept that describes that."""
     txt = raw.astype(str).str.strip()
-    present = raw.notna() & (txt.str.len() > 0)
+    # PRESENT-AND-EMPTY IS NOT MISSING, and this disagreed with the
+    # coverage measured beside it. `blueprint` calls a row present
+    # when the cell is `notna`, so an empty set counts as COVERED;
+    # these two read the same cell as unknown and returned NaN. Two
+    # numbers describing one row disagreeing is the signal.
+    #
+    # It began to matter when set size started being drawn from the
+    # PUBLISHABLE vocabulary: a row whose tokens all sit below the k
+    # floor now legitimately draws an empty set, and that row holds
+    # zero of every published token - a known zero. Reading it as
+    # unknown would bury the k rule's cost inside the missingness
+    # model, which is the last place anyone would look for it.
+    present = raw.notna()
     hit = txt.str.split(sep).map(
         lambda ts: token in set(x.strip() for x in ts)
         if isinstance(ts, list) else False)
@@ -180,7 +234,19 @@ def sizes_of(raw: pd.Series, sep: str) -> pd.Series:
     """How many tokens each row carries; NaN where the value is
     missing."""
     txt = raw.astype(str).str.strip()
-    present = raw.notna() & (txt.str.len() > 0)
+    # PRESENT-AND-EMPTY IS NOT MISSING, and this disagreed with the
+    # coverage measured beside it. `blueprint` calls a row present
+    # when the cell is `notna`, so an empty set counts as COVERED;
+    # these two read the same cell as unknown and returned NaN. Two
+    # numbers describing one row disagreeing is the signal.
+    #
+    # It began to matter when set size started being drawn from the
+    # PUBLISHABLE vocabulary: a row whose tokens all sit below the k
+    # floor now legitimately draws an empty set, and that row holds
+    # zero of every published token - a known zero. Reading it as
+    # unknown would bury the k rule's cost inside the missingness
+    # model, which is the last place anyone would look for it.
+    present = raw.notna()
     n = txt.str.split(sep).map(
         lambda ts: float(len([x for x in ts if x.strip()]))
         if isinstance(ts, list) else np.nan)

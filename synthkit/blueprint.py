@@ -399,6 +399,13 @@ def _list_marginal(raw: pd.Series, groups, k: int = 10):
         "separator": v["separator"],
         "tokens": v["tokens"],
         "set_size": v["set_size"],
+        # THE SIZE IS THE PUBLISHABLE SIZE, and what the source held
+        # travels beside it so the report can name the difference
+        # rather than leaving a reader to discover that generated
+        # sets are shorter than real ones.
+        "mean_set_size": v["mean_set_size"],
+        "mean_set_size_source": v["mean_set_size_source"],
+        "empty_after_k_share": v["empty_after_k_share"],
         "distinct_combinations": v["distinct_combinations"],
         "tokens_found": v["tokens_found"],
         "tokens_above_k": v["tokens_above_k"],
