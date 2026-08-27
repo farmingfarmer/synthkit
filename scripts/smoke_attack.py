@@ -199,6 +199,84 @@ def main():
           "about the cohort as the method",
           _audit.get("members_are_people", 0) > 0)
 
+    # ---- THE AUDIT COULD NOT SEE A SET COLUMN AT ALL ----
+    #
+    # Two blind spots, both of which made this suite's PASS mean less
+    # than it read.
+    #
+    # `BlueprintLikelihood` branched on `quantiles` and `levels` and
+    # had no `list` branch, so a set column contributed its coverage
+    # term and nothing else. Measured: a row holding a p=0.900 token
+    # and a row holding a p=0.001 token scored 0.000000 apart. A rare
+    # token is exactly what singles a person out, and the marginal
+    # now publishes every token that clears k rather than the sixty
+    # most common - so the audit was blind to the part of the release
+    # that GREW.
+    #
+    # The nearest-neighbour half compared the whole combination
+    # STRING for equality. On a column drawing four tokens from
+    # hundreds that is false on essentially every pair, so the term
+    # added a constant to every distance and cancelled. A verbatim
+    # republish was still caught - the strings match - which is why
+    # the existing leak control above never exposed it. A PARTIAL
+    # leak was not: handed each member's own tokens with ONE swapped
+    # out, the old distance scored 0.500, a coin flip, against 0.998
+    # with Jaccard. That is a generator republishing somebody's
+    # condition list almost verbatim and an audit calling it clean.
+    import numpy as _np
+    _NT = 400
+    _zp = 1.0 / (_np.arange(1, _NT + 1) ** 0.62)
+    _zp = _zp / _zp.sum()
+
+    def _mk(n, rs):
+        out = []
+        for _ in range(n):
+            k = max(3, int(rs.poisson(5)))
+            out.append(sorted("t{:03d}".format(j) for j in rs.choice(
+                _NT, size=min(k, _NT), replace=False, p=_zp)))
+        return out
+
+    _rs = _np.random.RandomState(1)
+    _mem, _non = _mk(300, _rs), _mk(300, _rs)
+    _M = [{"tags": ";".join(t)} for t in _mem]
+    _N = [{"tags": ";".join(t)} for t in _non]
+
+    _bl = {"columns": {"tags": {"coverage": 1.0, "marginal": {
+        "type": "list", "separator": ";",
+        "tokens": [{"value": "t1", "p": 0.9},
+                   {"value": "t2", "p": 0.001}]}}}}
+    _net = BlueprintLikelihood(_bl)
+    _gap = abs(_net.log_likelihood({"tags": "t1"})
+               - _net.log_likelihood({"tags": "t2"}))
+    check("the likelihood attack SEES a published token's rarity "
+          "(a 900x rarity difference moves the score by {:.3f}) - "
+          "with no list branch it moved it by exactly 0.000000"
+          .format(_gap),
+          _gap > 1.0)
+
+    _rs2 = _np.random.RandomState(7)
+    _part = []
+    for _t in _mem:
+        _t2 = list(_t)
+        _t2[_rs2.randint(len(_t2))] = "t{:03d}".format(_rs2.randint(_NT))
+        _part.append({"tags": ";".join(sorted(set(_t2)))})
+    _pa = nearest_neighbour_attack(_M, _N, _part)["auc"]
+    check("...and a PARTIAL set leak is caught - each member's own "
+          "tokens with one swapped scores {:.3f}, where comparing "
+          "the combination string scored 0.500".format(_pa),
+          _pa > 0.90)
+
+    # THE NEGATIVE CONTROL, or the check above only proves that
+    # everything with a set column scores high.
+    _hon = nearest_neighbour_attack(
+        _M, _N, [{"tags": ";".join(t)}
+                 for t in _mk(300, _np.random.RandomState(9))])["auc"]
+    check("...while an HONEST set generator drawing fresh from the "
+          "same population is NOT flagged ({:.3f}) - without this "
+          "the check above would pass on an attack that shouts at "
+          "every set column".format(_hon),
+          _hon < 0.60)
+
     print()
     if FAIL:
         print("{} FAILED".format(FAIL))

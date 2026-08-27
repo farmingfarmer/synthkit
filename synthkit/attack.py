@@ -61,7 +61,12 @@ def _profile_scales(rows: List[Dict[str, Any]], cols: List[str]):
     return scales
 
 
-def _row_distance(a, b, num_cols, cat_cols, scales) -> float:
+def _tokens(v, sep=";"):
+    return set(x.strip() for x in str(v or "").split(sep) if x.strip())
+
+
+def _row_distance(a, b, num_cols, cat_cols, scales,
+                  set_cols=()) -> float:
     d = 0.0
     for c in num_cols:
         x, y = _num(a.get(c)), _num(b.get(c))
@@ -72,6 +77,21 @@ def _row_distance(a, b, num_cols, cat_cols, scales) -> float:
     for c in cat_cols:
         if str(a.get(c, "")).strip() != str(b.get(c, "")).strip():
             d += 1.0
+    # A SET IS NOT A CATEGORY, and comparing it as one made this term
+    # a constant. `t01;t03;t09` and `t03;t14` share the thing that
+    # matters and share no level - so exact string equality on a
+    # column drawing four tokens from hundreds is false on
+    # essentially every pair, adds the same 1.0 to every distance,
+    # and cancels. That is the same mistake discovery made before
+    # `sets.py` existed, left standing in the audit that is supposed
+    # to catch it. Jaccard, so a near-identical set reads as near.
+    for c in set_cols:
+        ta, tb = _tokens(a.get(c)), _tokens(b.get(c))
+        if not ta and not tb:
+            continue
+        inter = len(ta & tb)
+        union = len(ta | tb) or 1
+        d += (1.0 - float(inter) / float(union)) ** 2
     return math.sqrt(d)
 
 
@@ -81,11 +101,16 @@ def nearest_neighbour_attack(members, nonmembers, synthetic
     if not synthetic:
         return {"auc": 0.5, "note": "no synthetic data supplied"}
     cols = [c for c in synthetic[0] if c in members[0]]
-    num_cols, cat_cols = [], []
+    num_cols, cat_cols, set_cols = [], [], []
     for c in cols:
         vals = [_num(r.get(c)) for r in synthetic[:200]]
         if sum(1 for v in vals if v is not None) > 0.8 * len(vals):
             num_cols.append(c)
+            continue
+        txt = [str(r.get(c) or "") for r in synthetic[:200]]
+        multi = sum(1 for t in txt if len(_tokens(t)) > 1)
+        if multi > 0.5 * max(len(txt), 1):
+            set_cols.append(c)
         else:
             cat_cols.append(c)
     scales = _profile_scales(synthetic, num_cols)
@@ -93,7 +118,8 @@ def nearest_neighbour_attack(members, nonmembers, synthetic
     def closest(row):
         best = float("inf")
         for s in synthetic:
-            d = _row_distance(row, s, num_cols, cat_cols, scales)
+            d = _row_distance(row, s, num_cols, cat_cols,
+                              scales, set_cols)
             if d < best:
                 best = d
         return best
@@ -170,6 +196,34 @@ class BlueprintLikelihood:
                 lp = self._numeric_logp(m, x)
                 if lp is not None:
                     total += lp
+            elif m.get("type") == "list":
+                # A SET COLUMN'S TOKENS ARE PUBLISHED NUMBERS, and
+                # this branch did not exist - so a `list` marginal
+                # contributed its coverage term and nothing else.
+                # Measured on a two-token blueprint, a row holding a
+                # p=0.900 token and a row holding a p=0.001 token
+                # scored 0.000000 apart: a 900x difference in
+                # published rarity moved the attacker not at all.
+                #
+                # That matters more than the other kinds, not less.
+                # A rare token is exactly what singles a person out,
+                # and the marginal now publishes every token that
+                # clears k rather than the sixty most common - so the
+                # audit was blind to the part of the release that
+                # grew. Independent Bernoulli over the published
+                # vocabulary: held tokens score log p, and the ones
+                # NOT held score log(1 - p), because an absence is
+                # evidence too when the token is common.
+                sep = m.get("separator") or ";"
+                held = set(x.strip() for x in str(raw).split(sep)
+                           if x.strip())
+                for t in (m.get("tokens") or []):
+                    pt = float(t.get("p", 0.0) or 0.0)
+                    pt = min(max(pt, 1e-6), 1.0 - 1e-6)
+                    if str(t.get("value")) in held:
+                        total += math.log(pt)
+                    else:
+                        total += math.log(1.0 - pt)
             elif m.get("type") == "levels":
                 share = 1e-6
                 for lv in (m.get("levels") or []):
@@ -226,7 +280,27 @@ def _encode(rows, cols, sensitive):
             continue
         X.append([_num(r.get(c)) for c in cols])
         y.append(str(r.get(sensitive)))
-    return np.asarray(X, dtype=float), np.asarray(y)
+    Xa = np.asarray(X, dtype=float)
+    # A QUASI-IDENTIFIER THAT COERCES TO NOTHING IS NOT A WEAKER
+    # ADVERSARY, IT IS A COLUMN THAT WAS NEVER THERE. `_num` returns
+    # None on a category, a date or a set, and None becomes NaN here
+    # - so naming `site` or `conditions` as a quasi-identifier would
+    # hand the adversary an empty column and report the resulting
+    # LOWER accuracy as evidence of privacy. The recorded -0.009 is
+    # unaffected: that cohort passes sex and site as integer codes,
+    # which is why this never fired. Fail loudly instead, because the
+    # number this produces silently is one nobody could tell was
+    # wrong.
+    if Xa.size:
+        dead = [c for i, c in enumerate(cols)
+                if not np.isfinite(Xa[:, i]).any()]
+        if dead:
+            raise ValueError(
+                "quasi-identifier(s) {} hold no numeric value - a "
+                "category, date or set column cannot be encoded this "
+                "way, and passing one silently weakens the adversary "
+                "rather than the release".format(", ".join(dead)))
+    return Xa, np.asarray(y)
 
 
 def attribute_disclosure(sensitive, quasi, members, nonmembers,

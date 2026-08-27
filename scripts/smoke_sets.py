@@ -818,6 +818,87 @@ def main():
               max(_miss), sum(1 for x in _miss if x > 0.05)),
           max(_miss) < 0.05)
 
+    # AND THE SOLVE HAS TO HOLD AT THE SCALE THE CAP WAS HIDING.
+    #
+    # The check above uses eight tokens, and eight is where the
+    # undamped multiplicative update converges - so it passed for as
+    # long as the vocabulary was capped at sixty and said nothing
+    # about what happens above that. Uncapping the vocabulary (below)
+    # took `conditions` to 1,050 published tokens, and there the same
+    # update OSCILLATES: the head and the tail SWAP places. On the
+    # real extract a token published at 0.4514 came out at 0.0227
+    # while one published at 0.0159 came out at 0.3657, and the two
+    # misses pair off almost exactly - which is the signature of a
+    # diverging solve rather than a slow one, since a solve that
+    # merely ran out of iterations would miss LOW everywhere.
+    #
+    # Measured on this fixture, old solve against new, same seed:
+    # 29 of 400 tokens past 0.05 with a worst miss of 0.627, against
+    # 0 of 400 and a worst of 0.042. Run it against the undamped
+    # version before believing it.
+    _n8 = 400
+    _z8 = 1.0 / (np.arange(1, _n8 + 1) ** 1.05)
+    _z8 = np.clip(_z8 / _z8.sum() * 3.9, 5e-4, 0.95)
+    _m8 = {"separator": ";",
+           "set_size": {"v": [1, 2, 4, 5, 7],
+                        "p": [.15, .2, .3, .2, .15]},
+           "tokens": [{"value": "c{:04d}".format(i), "p": float(pp)}
+                      for i, pp in enumerate(_z8)]}
+    _out8 = pd.Series(_dl(_m8, 8000, np.random.RandomState(3)))
+    _miss8 = [abs(float(_out8.str.contains(
+        t["value"] + r"(?:;|$)").mean()) - t["p"])
+        for t in _m8["tokens"]]
+    _bad8 = sum(1 for x in _miss8 if x > 0.05)
+    check("token shares still land with a {}-token vocabulary "
+          "(worst miss {:.3f}, {} past 0.05) - the undamped solve "
+          "missed 29 of 400 by up to 0.627".format(
+              _n8, max(_miss8), _bad8),
+          _bad8 == 0 and max(_miss8) < 0.05)
+
+    # AND THE VOCABULARY IS NO LONGER CAPPED AT THE LEVEL CAP.
+    #
+    # `MAX_SET_TOKENS` used to BE `MAX_LEVELS_KEPT`, and sharing that
+    # number is what caused the inflation the check above corrects
+    # for. A category keeps sixty levels because the rest can go to
+    # `__other__`; a set has no `__other__`, so the tokens that are
+    # dropped do not go anywhere - their share of the size budget is
+    # redistributed over the ones that stay. On the real extract
+    # `conditions` holds 1,050 tokens above k and published 60, so
+    # those 60 absorbed the whole 4.27-tokens-per-row budget and each
+    # came out about 3x too common. `drug_routes` was the in-run
+    # control: 53 above k, 53 published, the cap never bound, and it
+    # was the one set column with no misses.
+    #
+    # The two numbers are now independent, and the k rule alone
+    # decides what a set publishes.
+    from synthkit.blueprint import MAX_SET_TOKENS, MAX_LEVELS_KEPT
+    check("the set vocabulary is not capped at the LEVEL cap "
+          "(MAX_SET_TOKENS={}, MAX_LEVELS_KEPT={}) - sharing 60 sent "
+          "every published share ~3x high on the extract".format(
+              MAX_SET_TOKENS, MAX_LEVELS_KEPT),
+          MAX_SET_TOKENS == 0 or MAX_SET_TOKENS > MAX_LEVELS_KEPT)
+
+    _npat9, _nvis9 = 240, 6
+    _rng9 = np.random.RandomState(4)
+    _g9 = np.repeat(np.arange(_npat9), _nvis9)
+    _zp9 = 1.0 / (np.arange(1, 401) ** 0.62)
+    _zp9 /= _zp9.sum()
+    _rows9 = []
+    for _ in range(_npat9 * _nvis9):
+        _k9 = max(1, int(_rng9.poisson(4)))
+        _pick = _rng9.choice(400, size=_k9, replace=False, p=_zp9)
+        _rows9.append(";".join(sorted("c{:03d}".format(j)
+                                      for j in _pick)))
+    _v9 = S.vocabulary(pd.Series(_rows9), _g9, k=10,
+                           cap=MAX_SET_TOKENS)
+    _above9 = len(S.vocabulary(pd.Series(_rows9), _g9, k=10,
+                                   cap=0)["tokens"])
+    check("a fixture with {} tokens above k publishes all of them, "
+          "not {} - and a 60-cap here would have dropped {}".format(
+              _above9, MAX_LEVELS_KEPT, _above9 - MAX_LEVELS_KEPT),
+          _above9 > MAX_LEVELS_KEPT
+          and len(_v9["tokens"]) == _above9)
+
     print()
     if FAIL:
         print("{} FAILED".format(FAIL))

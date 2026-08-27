@@ -62,6 +62,27 @@ QUANTILES = [0.0, 0.01, 0.05, 0.1, 0.25, 0.5, 0.75, 0.9, 0.95,
              0.99, 1.0]
 MAX_LEVELS_KEPT = 60
 
+# HOW MANY SET TOKENS THE MARGINAL PUBLISHES, and it is NOT the level
+# cap it used to share. A category beyond 60 levels becomes the
+# `__other__` sentinel and 60 is a reasonable place to stop; a set is
+# different in every way that matters here.
+#
+# Every token above the k floor is already k-anonymous - ten patients
+# hold it - and the SEARCH cost is controlled separately by
+# sets.EXPAND_CAP, which caps how many become model columns. What the
+# shared cap actually bought was distortion: on the real extract
+# `conditions` has 1,050 tokens above k and published 60, so those 60
+# had to absorb the whole 4.27-tokens-per-row budget and every one of
+# them came out about 3x too common. Measured across its four set
+# columns, the inflation was exactly the ratio of the size budget to
+# the published shares - 3.04x, 2.13x, 1.96x - and `drug_routes`,
+# whose 53 tokens all fit under the cap, read 1.01x with no token
+# missing at all. The control was in the same run as the fault.
+#
+# 0 means publish everything the k rule allows. The count and the
+# gap are reported either way.
+MAX_SET_TOKENS = 0
+
 
 def _safe_bounds(v: pd.Series, groups, k: int):
     """Extremes that belong to at least k patients, not to one.
@@ -370,7 +391,7 @@ def _list_marginal(raw: pd.Series, groups, k: int = 10):
     # discovery expands - the expansion cap is a cost control on model
     # fits and has nothing to do with what is safe to publish - so it
     # asks for every token that clears k.
-    v = _sets.vocabulary(raw, groups, k=k, cap=MAX_LEVELS_KEPT)
+    v = _sets.vocabulary(raw, groups, k=k, cap=MAX_SET_TOKENS)
     if v is None:
         return None
     return {

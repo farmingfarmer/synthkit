@@ -79,6 +79,7 @@ out/
 gui_runs/
 *.egg-info/
 .venv/
+.venv*/
 venv/
 env/
 .env

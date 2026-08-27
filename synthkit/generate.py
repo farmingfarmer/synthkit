@@ -682,7 +682,7 @@ def _token_weights(m, sizes_per_row, seed):
     samp = (np.arange(n) if n <= 4000 else
             np.random.RandomState(seed % (2 ** 31)).choice(
                 n, 4000, replace=False))
-    for it in range(6):
+    for it in range(12):
         r2 = np.random.RandomState((seed + 977 * it) % (2 ** 31))
         got = np.zeros(len(toks))
         ww = w / w.sum()
@@ -693,7 +693,23 @@ def _token_weights(m, sizes_per_row, seed):
             got[r2.choice(len(toks), size=k_, replace=False,
                           p=ww)] += 1.0
         ach = np.clip(got / len(samp), 1e-6, None)
-        w = np.clip(w * (targets / ach), 1e-9, None)
+        # DAMPED, because an undamped multiplicative update DIVERGES
+        # once the vocabulary is large. At eight tokens the raw ratio
+        # converges in six passes; at 2,538 - the scale a real
+        # `conditions` column reaches once the level cap stops
+        # truncating it - it oscillates, and the head and tail SWAP:
+        # a token published at 0.4514 came out at 0.0227 while one
+        # published at 0.0159 came out at 0.3657, and the misses pair
+        # off - a solve that had merely run out of iterations would
+        # miss LOW everywhere instead of swapping ends.
+        #
+        # It was undamped from the day it was written, and the check
+        # that covered it used EIGHT tokens, which is inside the
+        # range where the raw ratio converges. The cap was hiding the
+        # scale: nothing could reach a large vocabulary while the
+        # marginal published sixty, so uncapping it and this are one
+        # change, not two.
+        w = np.clip(w * (targets / ach) ** 0.5, 1e-9, None)
     return toks, w / w.sum()
 
 

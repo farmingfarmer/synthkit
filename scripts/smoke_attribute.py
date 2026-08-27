@@ -148,6 +148,33 @@ def main():
           "rather than a perfect score that means nothing",
           "error" in flat)
 
+    # A DEAD QUASI-IDENTIFIER MUST STOP THE RUN, NOT WEAKEN THE
+    # ADVERSARY. `_num` returns None for a category, a date or a set,
+    # and None becomes NaN in the feature matrix - so naming one of
+    # those as a quasi-identifier hands the attacker an EMPTY column
+    # and the lower accuracy that follows reads as evidence of
+    # privacy. It is the same shape as the banned `getattr` default:
+    # a silent no-op that produces a number nobody can tell is wrong.
+    #
+    # The recorded -0.009 excess is unaffected - that cohort passes
+    # sex and site as integer CODES, which is exactly why this never
+    # fired and why it had to be sought rather than waited for.
+    from synthkit.attack import _encode
+    _rows = [{"age": 40 + i % 7, "site": "A",
+              "y": "pos" if i % 2 else "neg"} for i in range(60)]
+    check("a numeric quasi-identifier still encodes",
+          _encode(_rows, ["age"], "y")[0].shape == (60, 1))
+    _raised = ""
+    try:
+        _encode(_rows, ["age", "site"], "y")
+    except ValueError as _e:
+        _raised = str(_e)
+    check("...and a quasi-identifier that coerces to NOTHING raises "
+          "instead of silently becoming an empty column - it names "
+          "the column ({})".format(_raised.split(" hold")[0] or
+                                   "NOTHING RAISED"),
+          "site" in _raised)
+
     print()
     if FAIL:
         print("{} FAILED".format(FAIL))

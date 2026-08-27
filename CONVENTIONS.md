@@ -4,7 +4,7 @@ Synthetic clinical data generator and model-evaluation instrument. Core rule: le
 
 ## Verify before claiming
 
-- Run `python scripts/run_all_smokes.py` before claiming anything works. Expect 67 suites, 1760 checks, ALL GREEN **on a checkout**. Off a zipball extract - which is what the data machine runs - it is 1751: nine checks in `smoke_buildid` need git to test the archive path and report SKIPPED without it. Both numbers were measured. Do not quote the checkout number to the data machine; that is how a correct run gets read as a failure.
+- Run `python scripts/run_all_smokes.py` before claiming anything works. Expect 67 suites, 1768 checks, ALL GREEN **on a checkout**. Off a zipball extract - which is what the data machine runs - it is 1759: nine checks in `smoke_buildid` need git to test the archive path and report SKIPPED without it. Both numbers were measured. Do not quote the checkout number to the data machine; that is how a correct run gets read as a failure.
 - **THE DEVELOPMENT MACHINE WAS BEHIND THE DATA MACHINE, and that is
   how a green suite here failed there.** Dev was on Python 3.10 with
   pandas 2.3; the data machine installs fresh and got pandas 3.0.5,
@@ -605,6 +605,60 @@ the direction that stops work happening.
   in discover / blueprint / generate, use `pair_fidelity_sweep.py`,
   which measures whether the relationships survive GENERATION. Reading
   a flat recall sweep as evidence about the sampler measures nothing.
+
+- **A CAP THAT NO FIXTURE REACHES IS AN UNTESTED CAP.** The set
+  marginal published `MAX_LEVELS_KEPT` tokens because it shared the
+  CATEGORY cap, and a category can spill the rest into `__other__`
+  where a set cannot - the dropped tokens' share of the size budget
+  is redistributed over the survivors. On the real extract
+  `conditions` holds 1,050 tokens above k and published 60, so those
+  60 absorbed the whole 4.27-per-row budget and each came out about
+  3x too common. `drug_routes`, whose 53 all fit under the cap, read
+  1.01x with no token missing: the control was in the same run as
+  the fault. Every fixture in this repo has TWELVE tokens above k,
+  `--harder` does not move it, so nothing here could reach the cap
+  and nothing did for as long as it existed.
+- **AND UNCAPPING EXPOSED A SOLVE THE CAP HAD BEEN HIDING.**
+  `_token_weights` used an undamped multiplicative update, tested at
+  EIGHT tokens, which is inside the range where the raw ratio
+  converges. At extract scale it oscillates and the ends SWAP: a
+  token published at 0.4514 generated at 0.0227 while one published
+  at 0.0159 generated at 0.3657. The misses PAIR OFF, which is how
+  the diagnosis was reached - a solve that had merely run out of
+  iterations would miss low everywhere. Damped to `** 0.5` over 12
+  passes: at the extract's own shape, 0 of 2,500 tokens miss by 0.05
+  and the worst is 0.0379. A fix measured only at the scale the old
+  test used is not measured.
+- **THE PRIVACY AUDIT COULD NOT SEE A SET COLUMN, IN BOTH HALVES.**
+  `BlueprintLikelihood` branched on `quantiles` and `levels` only, so
+  a `list` marginal contributed its coverage term and nothing else -
+  a row holding a p=0.900 token and one holding a p=0.001 token
+  scored 0.000000 apart, and rarity is exactly what singles a person
+  out. The nearest-neighbour half compared the whole combination
+  STRING, which on four tokens drawn from hundreds is false for
+  every pair, so the term added a constant and cancelled.
+  A VERBATIM republish was still caught - the strings match - which
+  is why the existing leak control never exposed this. A PARTIAL one
+  was not: each member's own tokens with ONE swapped scored 0.500,
+  a coin flip, against 0.998 with Jaccard. That is a generator
+  republishing somebody's condition list almost verbatim and the
+  audit calling it clean.
+- **TWO ARMS THAT AGREE TO THREE DECIMALS ARE ONE ARM.** The first
+  set-aware membership run returned PASS on both arms with seeds 11
+  and 37 identical - which was not reassurance, it was the signature
+  of a check that could not fail. Adding a 400-token vocabulary must
+  move an attack that reads it. With both halves fixed the arms
+  differ (0.510 without sets, 0.496 with) and the no-set arm is
+  unchanged, so the recorded baseline stays comparable.
+- **A QUASI-IDENTIFIER THAT COERCES TO NOTHING WEAKENS THE
+  ADVERSARY, NOT THE RELEASE.** `_encode` runs every quasi column
+  through `_num`, which returns None for a category, a date or a
+  set, and None becomes NaN - so naming one hands the attacker an
+  empty column and the lower accuracy reads as privacy. It raises
+  now, naming the column. The recorded -0.009 excess is unaffected:
+  that cohort passes sex and site as integer CODES, which is why
+  this never fired and why it had to be sought rather than waited
+  for.
 
 ## Talking to the data machine
 
