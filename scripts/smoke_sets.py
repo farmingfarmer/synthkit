@@ -24,7 +24,9 @@ generated severity separating by -0.3 where the source separated by
 +25.1, because the edge was oriented INTO the derived column and
 silently applied nothing.
 """
+import json
 import sys
+import tempfile
 from pathlib import Path
 
 import numpy as np
@@ -1178,6 +1180,106 @@ def main():
           "which is what put source 0.193 against generated "
           "1.0".format(_enc_cov, _cov_raw),
           abs(_enc_cov - _cov_raw) < 0.02)
+
+    # THE EMPTY RATE IS MEASURED, NOT ASSERTED.
+    #
+    # The column-typing report said "EMPTY on 80.7% of rows in the
+    # source AND GENERATED EMPTY AT THAT RATE" - printed while
+    # columns were being typed, before any generation had happened,
+    # about output that did not exist yet. Nothing measured it.
+    #
+    # It matters most on exactly the column where it was claimed: on
+    # the real extract `procedures` is empty on four fifths of
+    # visits, and the token shares CANNOT see whether that survives,
+    # because they are measured among rows that HAVE tokens. A
+    # generator that gave every visit a procedure would keep every
+    # token share and destroy the column.
+    from synthkit.pipeline import compare as _compare
+    _r13 = np.random.RandomState(2)
+
+    def _bag(empty_rate, n=2400):
+        _out = []
+        for _i in range(n):
+            if _r13.rand() < empty_rate:
+                _v = ""
+            else:
+                _v = ";".join(sorted("w{:02d}".format(j) for j in
+                              _r13.choice(8, size=2, replace=False)))
+            _out.append({"person_id": "P{:04d}".format(_i // 12),
+                         "visit_start_date":
+                             "2024-01-{:02d}".format(_i % 12 + 1),
+                         "bag": _v, "age": 40 + _i % 20})
+        return pd.DataFrame(_out)
+
+    _src13 = _bag(0.50)
+    _bp13 = B.build(_src13, discover(_src13, group_by="person_id",
+                                     seed=1), group_by="person_id")
+    _bad = _compare(_src13, _bag(0.0), _bp13, "person_id",
+                    "visit_start_date")["summary"]
+    _good = _compare(_src13, _bag(0.50), _bp13, "person_id",
+                     "visit_start_date")["summary"]
+    check("a generator that never emits an empty set is CAUGHT "
+          "({}/{} at the source rate) - every token share still "
+          "passes, so nothing else could catch it".format(
+              _bad.get("set_empty_ok"), _bad.get("set_empty_compared")),
+          _bad.get("set_empty_compared", 0) >= 1
+          and _bad.get("set_empty_ok", 1) == 0)
+    check("...and one that matches the source rate PASSES ({}/{}) - "
+          "without this the check above would be satisfied by an "
+          "measure that fails on everything".format(
+              _good.get("set_empty_ok"),
+              _good.get("set_empty_compared")),
+          _good.get("set_empty_ok", 0) >= 1)
+
+    # WHAT THE SEARCH CAP EXCLUDES, IN ROWS RATHER THAN RANKS.
+    #
+    # Only an expanded token can carry a relationship, and
+    # `EXPAND_CAP` expands the 24 most common - so 1,026 of 1,050
+    # `conditions` tokens on the real extract cannot be examined at
+    # all. Whether that costs anything depends on how many ROWS a
+    # token just past the cap covers, and nothing reported it.
+    #
+    # It cannot be answered on a fixture: there, every token past
+    # rank 12 sits near 0.8% of rows - rank 24 and rank 25 both at 23
+    # rows - so no relationship on an excluded token is detectable at
+    # any cap, and raising it to 40 changed nothing. That is the
+    # fixture's thin tail, NOT evidence the cap is free. On 55,428
+    # rows the same share is 277 rows, which is a different question.
+    #
+    # `peek.py RUNDIR cap` prints it. peek.py had no checks at all
+    # before this, which is its own small joke: the tool that exists
+    # so the operator does not hand-write a one-liner was itself
+    # never run by anything.
+    import subprocess as _sp
+    with tempfile.TemporaryDirectory() as _t:
+        _d = Path(_t)
+        _toks = [{"value": "t{:04d}".format(i),
+                  "p": round(0.20 / (i + 1) ** 0.5, 6)}
+                 for i in range(120)]
+        (_d / "blueprint.json").write_text(json.dumps({
+            "columns": {"bag": {"marginal": {
+                "type": "list", "separator": ";", "tokens": _toks,
+                "set_size": {"v": [2], "p": [1.0]}}}}}),
+            encoding="utf-8")
+        (_d / "provenance.json").write_text(json.dumps({
+            "source": {"rows_read": 50000}}), encoding="utf-8")
+        _r = _sp.run([sys.executable, "scripts/peek.py", str(_d),
+                      "cap"], capture_output=True, text=True,
+                     cwd=str(ROOT))
+        _o = _r.stdout or ""
+    check("`peek cap` names the last token INSIDE the cap and the "
+          "first one excluded - a rank alone does not tell anyone "
+          "whether the cap costs something",
+          "last inside the cap" in _o and "first EXCLUDED" in _o)
+    check("...and states it in ROWS, because a share is not a sample "
+          "size - the first excluded token is reported at {} rows "
+          "against its 4.0% share of a 50,000-row run".format(
+              "2,000" if "2,000 rows" in _o else "MISSING"),
+          "2,000 rows" in _o and "first EXCLUDED" in _o)
+    check("...and says how much token MASS the expanded tokens "
+          "carry, so an absent finding can be told from an "
+          "unexamined one",
+          "of the token mass" in _o)
 
     # SCAFFOLDING IS NOT THE OPERATOR'S DATA, and the constraint
     # report was counting it as if it were. A real run said

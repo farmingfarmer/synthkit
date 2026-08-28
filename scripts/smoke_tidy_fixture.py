@@ -212,6 +212,59 @@ def main():
         check("an impossible setting fails readably",
               r3.returncode != 0 and "Traceback" not in (r3.stderr or ""))
 
+    # THE FIXTURE COULD NOT REACH THE SHAPE THAT BROKE ON REAL DATA.
+    #
+    # Its set columns drew twelve common items and a long rare tail,
+    # so exactly TWELVE tokens ever cleared the k floor. No cap on
+    # the published vocabulary could bind, and nothing here could
+    # show what one costs - which is how a cap of 60 came to send
+    # every published share about 3x high on the extract while the
+    # whole net stayed green. The extract has 1,050 of 7,974 tokens
+    # above k on `conditions`; this fixture had 12 of 2,709.
+    #
+    # `--set-vocab N` adds a MIDDLE band: common enough to clear k,
+    # outside the top twelve. How many actually clear it depends on
+    # patients x visits, so this asserts the CONSEQUENCE - that a
+    # 60-cap now binds - rather than the requested number.
+    import pandas as _pd
+    from synthkit import sets as _S
+    from synthkit.blueprint import MAX_LEVELS_KEPT as _CAP
+    with tempfile.TemporaryDirectory() as _td:
+        _d3 = Path(_td) / "vocab"
+        run("scripts/make_tidy_fixture.py", "-o", str(_d3),
+            "--patients", "300", "--max-visits", "10",
+            "--seed", "11", "--set-vocab", "150")
+        _f3 = _d3 / "tidy_visits_labeled.csv"
+        check("--set-vocab writes a fixture", _f3.exists())
+        if _f3.exists():
+            # READ IT THE WAY THE PIPELINE DOES. With pandas defaults
+            # a blank field becomes NaN and every present-but-empty
+            # set row disappears - which is exactly how this fixture
+            # was measured as having none, three times, and reported
+            # as blind when it was not.
+            _df3 = _pd.read_csv(_f3, encoding="utf-8-sig",
+                                low_memory=False, dtype=str,
+                                keep_default_na=False)
+            _g3 = _df3["person_id"].values
+            _above = {}
+            for _c in ("conditions", "active_drugs", "procedures"):
+                _v = _S.vocabulary(_df3[_c], _g3, k=10, cap=0)
+                _above[_c] = _v["tokens_above_k"] if _v else 0
+            check("...where a set column now clears the k floor with "
+                  "more tokens than the level cap ({}): conditions "
+                  "{}, active_drugs {} - it was 12 for every column "
+                  "before, so no cap could bind".format(
+                      _CAP, _above["conditions"], _above["active_drugs"]),
+                  _above["conditions"] > _CAP
+                  and _above["active_drugs"] > _CAP)
+            _emp = float((_df3["procedures"].astype(str).str.strip()
+                          == "").mean())
+            check("...and the present-but-EMPTY rows are still there "
+                  "({:.0%} of `procedures`, against 80.7% on the "
+                  "extract) - read with pandas defaults this reads "
+                  "0%, which is what made it look blind".format(_emp),
+                  _emp > 0.5)
+
     print()
     if FAIL:
         print("{} FAILED".format(FAIL))

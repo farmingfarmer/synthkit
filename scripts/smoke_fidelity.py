@@ -489,6 +489,60 @@ def main():
               "leniency is narrow rather than blanket",
               lm2 and not lm2[0]["pass"])
 
+    # THE M0 GATE, AS A THING THAT CAN BE RUN.
+    #
+    # It was a pair of absolute counts carried in conversation -
+    # "close at least 116, direction about 124" - set when a run
+    # related 132 pairs. The denominator then moved to 115 and to
+    # 114, and 124 became unreachable BY CONSTRUCTION: larger than
+    # the number of pairs the run has. Two runs went by without
+    # anyone noticing, because the target lived in a chat log rather
+    # than beside the numbers.
+    #
+    # Restated as proportions of whatever the run related. The
+    # inversion criterion stays ABSOLUTE - one inverted relationship
+    # reads as a finding whatever the denominator is.
+    def _gate(summary):
+        with tempfile.TemporaryDirectory() as _t:
+            _d = Path(_t)
+            (_d / "fidelity.json").write_text(
+                json.dumps({"summary": summary}), encoding="utf-8")
+            _r = subprocess.run(
+                [sys.executable, "scripts/m0_gate.py", str(_d)],
+                capture_output=True, text=True, cwd=str(ROOT))
+            return _r.returncode, (_r.stdout or "")
+
+    _clean = {"pairs": 114, "pairs_sign_ok": 114, "pairs_close": 114,
+              "pairs_inverted": 0, "coverage_ok": 42, "columns": 42,
+              "set_tokens_ok": 62, "set_tokens_compared": 62,
+              "set_empty_ok": 4, "set_empty_compared": 4}
+    _rc, _out = _gate(_clean)
+    check("a run that meets every criterion clears the M0 gate "
+          "(exit {})".format(_rc), _rc == 0 and "M0 MET" in _out)
+
+    _short = dict(_clean, pairs_sign_ok=104, pairs_close=87)
+    _rc2, _out2 = _gate(_short)
+    check("...and the last real run's numbers do NOT clear it - "
+          "104/114 direction is 91.2% against 93.9%, 87/114 close is "
+          "76.3% against 87.9% (exit {})".format(_rc2),
+          _rc2 == 1 and "M0 NOT MET" in _out2
+          and "direction kept" in _out2 and "close" in _out2)
+
+    # THE OLD ABSOLUTE FORM WOULD HAVE BEEN UNREACHABLE HERE. 124 of
+    # 114 pairs cannot happen, so a gate written that way reports
+    # failure for a reason that has nothing to do with the data.
+    check("...and the gate is expressed against the run's OWN "
+          "denominator, so it stays reachable when the pair count "
+          "moves - 124 of 114 pairs is not a bar, it is arithmetic",
+          "114" in _out2 and "93.9%" in _out2)
+
+    _inv = dict(_clean, pairs_inverted=1)
+    _rc3, _out3 = _gate(_inv)
+    check("...while a single INVERTED relationship fails it outright, "
+          "however large the denominator - it reads as a finding, "
+          "which is worse than a missing one (exit {})".format(_rc3),
+          _rc3 == 1 and "inverted" in _out3)
+
     print()
     if FAIL:
         print("{} FAILED".format(FAIL))

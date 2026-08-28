@@ -232,6 +232,13 @@ def main():
                          "clustered, more skewed, more levels")
     ap.add_argument("--max-visits", type=int, default=0,
                     help="cap the tail; 0 keeps the measured 1,518")
+    ap.add_argument("--set-vocab", type=int, default=0,
+                    help="give set columns a MIDDLE band of this many "
+                         "tokens - common enough to clear the k floor, "
+                         "outside the top twelve. 0 keeps the old "
+                         "shape, where only 12 tokens ever clear k "
+                         "and no cap on the published vocabulary can "
+                         "bind")
     ap.add_argument("--seed", type=int, default=5)
     ap.add_argument("--report", action="store_true")
     a = ap.parse_args()
@@ -257,6 +264,8 @@ def main():
     out.mkdir(parents=True, exist_ok=True)
     rnd = random.Random(a.seed)
     H = a.harder
+    MIDBAND = max(0, int(a.set_vocab))
+    MIDSHARE = 0.30 if MIDBAND else 0.0
 
     truth = {"relationships": [], "noise_columns": [],
              "note": "every relationship here was PLANTED. Anything "
@@ -356,6 +365,11 @@ def main():
               + [lab[0] for lab in LABS]
               + ["condition_count", "procedure_count"]
               + [lname for lname, _c, _m, _d in LISTS]
+              # Only when there IS a middle band, so the default
+              # fixture keeps exactly the columns it always had -
+              # adding one shifts estimates and breaks checks that
+              # have nothing to do with it.
+              + (["set_driven_y"] if MIDBAND else [])
               + [
                  "planted_linear_x", "planted_linear_y",
                  "planted_ushape_x", "planted_ushape_y",
@@ -474,13 +488,51 @@ def main():
                 n_it = max(1, int(rnd.gauss(litems, litems / 2.0)))
                 items = []
                 for _ in range(n_it):
-                    if rnd.random() < 0.55:
+                    u = rnd.random()
+                    if u < 0.55:
                         items.append("{}_top{}".format(
                             lname[:4], rnd.randint(0, 11)))
+                    elif MIDBAND and u < 0.55 + MIDSHARE:
+                        # THE MIDDLE BAND, and without it this fixture
+                        # cannot reach the shape the real extract has.
+                        # Twelve common items and a rare tail means
+                        # exactly TWELVE tokens ever clear the k floor,
+                        # so no cap on the published vocabulary can
+                        # bind and nothing here could show what one
+                        # costs. The extract has 1,050 of 7,974 above
+                        # k on `conditions`; this fixture had 12 of
+                        # 2,709, and that is why a cap set at 60 sent
+                        # every published share ~3x high on real data
+                        # while sixty-odd suites stayed green.
+                        items.append("{}_m{}".format(
+                            lname[:4], rnd.randint(0, MIDBAND - 1)))
                     else:
                         items.append("{}_r{}".format(
                             lname[:4], rnd.randint(0, int(ldist * H))))
                 r[lname] = "; ".join(items)
+
+            # A RELATIONSHIP DRIVEN BY A TOKEN THE CAP EXCLUDES.
+            #
+            # `EXPAND_CAP` turns only the 24 most common tokens into
+            # search columns, and only an expanded token can carry a
+            # relationship - so on the real extract 1,026 of 1,050
+            # `conditions` tokens cannot be examined at all. Nothing
+            # here measured what that costs, because the fixture's
+            # set columns were noise with respect to every other
+            # column: no token drove anything, so no cap could lose
+            # anything.
+            #
+            # The driver is a MIDDLE-band token. It clears the k
+            # floor comfortably and sits well below the top twelve by
+            # frequency, which is exactly the population the cap
+            # discards. Only planted when there IS a middle band, so
+            # the default fixture is untouched.
+            if MIDBAND:
+                _drv = "cond_m{}".format(MIDBAND // 3)
+                _hit = 1.0 if _drv in str(r.get("conditions", "")) \
+                    else 0.0
+                r["set_driven_y"] = round(
+                    3.0 + 2.5 * _hit + rnd.gauss(0, 0.35), 4)
 
             xl = rnd.uniform(0, 1)
             r["planted_linear_x"] = round(xl, 4)

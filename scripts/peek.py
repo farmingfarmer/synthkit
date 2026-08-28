@@ -5,6 +5,7 @@
     python scripts/peek.py RUNDIR pairs [SUBSTRING]
     python scripts/peek.py RUNDIR rel COLUMN
     python scripts/peek.py RUNDIR columns [SUBSTRING]
+    python scripts/peek.py RUNDIR cap
 
 WHY THIS EXISTS. Seven diagnoses in a row were fetched with pasted
 python -c one-liners a hundred characters wide, on a terminal that
@@ -118,6 +119,74 @@ def columns_view(run, needle=None):
             c.get("lag1_generated")))
 
 
+def cap_view(run):
+    """What the SEARCH cap is excluding, in rows rather than ranks.
+
+    `EXPAND_CAP` turns only the most common tokens into search
+    columns, and only an expanded token can carry a relationship - on
+    the real extract that leaves 1,026 of 1,050 `conditions` tokens
+    unexaminable. Whether that costs anything depends entirely on how
+    many ROWS a token just past the cap covers, and nothing reported
+    that.
+
+    It could not be answered on a fixture. There, every token past
+    rank 12 sits at about 0.8% of rows - rank 24 at 0.88% and rank 27
+    at 0.84%, which is 22 rows - so no relationship on an excluded
+    token is detectable at ANY cap, and raising it to 40 changed
+    nothing. That is a fact about the fixture's thin tail, not
+    evidence the cap is free.
+
+    On 55,428 rows a token at 0.5% covers 277, which is a different
+    question with a different answer. This prints the answer."""
+    bp = _load(run, "blueprint.json")
+    try:
+        from synthkit import sets as _S
+        cap = _S.EXPAND_CAP
+    except Exception:
+        cap = 24
+    n_rows = None
+    prov = Path(run) / "provenance.json"
+    if prov.exists():
+        try:
+            n_rows = (json.loads(prov.read_text(encoding="utf-8"))
+                      .get("source", {}).get("rows_read"))
+        except Exception:
+            n_rows = None
+    for c, spec in (bp.get("columns") or {}).items():
+        m = (spec or {}).get("marginal") or {}
+        if m.get("type") != "list":
+            continue
+        toks = m.get("tokens") or []
+        if not toks:
+            continue
+        ps = [float(t.get("p") or 0.0) for t in toks]
+        print("{}  ({} published, cap {})".format(c, len(ps), cap))
+
+        def _at(rank):
+            if rank <= 0 or rank > len(ps):
+                return None
+            return ps[rank - 1]
+
+        for rank in (1, cap, cap + 1, 50, 100, 250, 500, 1000,
+                     len(ps)):
+            v = _at(rank)
+            if v is None:
+                continue
+            rows = ("{:>8,}".format(int(round(v * n_rows)))
+                    if n_rows else "       ?")
+            print("   rank {:>5}  p {:.5f}   ~{} rows{}".format(
+                rank, v, rows,
+                "   <- last inside the cap" if rank == cap else
+                ("   <- first EXCLUDED" if rank == cap + 1 else "")))
+        inside = sum(ps[:cap])
+        print("   the {} expanded tokens carry {:.1%} of the token "
+              "mass; the other {} carry {:.1%}".format(
+                  min(cap, len(ps)), inside / sum(ps) if sum(ps) else 0,
+                  max(0, len(ps) - cap),
+                  1 - (inside / sum(ps) if sum(ps) else 0)))
+        print()
+
+
 def main():
     if len(sys.argv) < 3:
         print(__doc__)
@@ -136,6 +205,8 @@ def main():
         rel_view(run, arg)
     elif what == "columns":
         columns_view(run, arg)
+    elif what == "cap":
+        cap_view(run)
     else:
         print(__doc__)
         return 2

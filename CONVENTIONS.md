@@ -4,7 +4,7 @@ Synthetic clinical data generator and model-evaluation instrument. Core rule: le
 
 ## Verify before claiming
 
-- Run `python scripts/run_all_smokes.py` before claiming anything works. Expect 67 suites, 1786 checks, ALL GREEN **on a checkout**. Off a zipball extract - which is what the data machine runs - it is 1777: nine checks in `smoke_buildid` need git to test the archive path and report SKIPPED without it. Both numbers were measured. Do not quote the checkout number to the data machine; that is how a correct run gets read as a failure.
+- Run `python scripts/run_all_smokes.py` before claiming anything works. Expect 67 suites, 1798 checks, ALL GREEN **on a checkout**. Off a zipball extract - which is what the data machine runs - it is 1789: nine checks in `smoke_buildid` need git to test the archive path and report SKIPPED without it. Both numbers were measured. Do not quote the checkout number to the data machine; that is how a correct run gets read as a failure.
 - **THE DEVELOPMENT MACHINE WAS BEHIND THE DATA MACHINE, and that is
   how a green suite here failed there.** Dev was on Python 3.10 with
   pandas 2.3; the data machine installs fresh and got pandas 3.0.5,
@@ -770,6 +770,38 @@ the direction that stops work happening.
   whatever the encoder did. Written and green in the same minute as
   a genuine check beside it. Assert against the thing itself -
   `prepare` returns the frame - and watch it go red first.
+
+- **READ A CSV THE WAY THE PIPELINE READS IT.** `pipeline` uses
+  `keep_default_na=False`, so a blank field is `""`; pandas defaults
+  turn it into NaN. Measuring the tidy fixture with defaults showed
+  0% present-but-empty set rows and it was reported THREE TIMES as
+  blind to a shape it reproduces well - 16.4% / 30.8% / 83.3%
+  against the extract's 15.8% / 31.4% / 80.7%. The gate had been
+  covering that work all along. A wrong reader is the same class of
+  fault as a wrong type, and this file has a rule about that already.
+- **THE SEARCH CAP'S COST CANNOT BE MEASURED ON THIS FIXTURE, AND A
+  NULL RESULT FROM IT IS NOT EVIDENCE.** A relationship was planted
+  on a token at rank 27 - just past `EXPAND_CAP` - with an effect of
+  2.55 sd. Discovery missed it at cap 24 AND at cap 40, where the
+  token IS expanded, because the token lands on 22 of 2,608 rows and
+  ranks 24 and 25 sit at 0.88% and 0.84%. Nothing on 22 rows is
+  detectable at any cap. On 55,428 rows the same share is 277 rows,
+  which is a different question. `peek.py RUNDIR cap` prints the
+  share AND the row count at the boundary so the real run can answer
+  it; do not read "raising the cap changed nothing" as "the cap is
+  free".
+- **THE M0 GATE IS A SCRIPT NOW, NOT A NUMBER IN A CHAT LOG.** It was
+  "close at least 116, direction about 124", set when a run related
+  132 pairs. The denominator moved to 115 and then 114, so 124
+  became larger than the number of pairs that exist - unreachable by
+  construction, and unnoticed for two runs because the target lived
+  nowhere near the numbers. `scripts/m0_gate.py RUNDIR` restates
+  them as proportions of whatever the run relates (93.9% and 87.9%),
+  keeps INVERTED absolute, and exits non-zero on failure.
+- **peek.py HAD NO CHECKS AT ALL.** The tool written so the operator
+  would not hand-write a hundred-character one-liner was itself
+  never run by anything. Discipline applied to the numerical path
+  and not to the tooling is the gap this file keeps rediscovering.
 
 ## Talking to the data machine
 

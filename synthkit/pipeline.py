@@ -731,6 +731,19 @@ def main(argv=None, args=None):
         s["lag1_ok"], s["numeric_dynamic"]))
     say("clustering within 0.15 on {}/{} partly-covered "
         "columns".format(s["cluster_ok"], s["partly_covered"]))
+    if s.get("set_empty_compared"):
+        say("set columns EMPTY at their source rate on {}/{} - "
+            "measured, not assumed; on the extract `procedures` is "
+            "empty on four fifths of visits and the token shares "
+            "cannot see that, because they are measured among rows "
+            "that HAVE tokens".format(
+                s["set_empty_ok"], s["set_empty_compared"]))
+        for _r in (fid.get("set_shape") or []):
+            if abs(_r["delta"]) > 0.05:
+                say("  {} empty {:.1%} in source, {:.1%} "
+                    "generated".format(_r["column"],
+                                       _r["empty_source"],
+                                       _r["empty_generated"]))
     if s.get("set_tokens_compared"):
         say("set tokens within 0.05 of their source share on {}/{} - "
             "counted apart from the columns above, which are yours"
@@ -1040,8 +1053,16 @@ def _report_types(bp, df, say):  # noqa: C901
             # substitution happened.
             empty = float(mg.get("empty_in_source_share") or 0.0)
             if empty > 0.005:
-                what += ("; EMPTY on {:.1%} of rows in the source and "
-                         "generated empty at that rate - present, not "
+                # STATED AS A SOURCE FACT ONLY. This line is
+                # printed while COLUMNS ARE BEING TYPED, before any
+                # generation has happened, and it used to say
+                # "generated empty at that rate" - a claim about
+                # output that did not exist yet and that nothing
+                # measured. Whether generation reproduced the rate is
+                # measured after the fact and reported in the
+                # fidelity section, the same way a dial reports
+                # requested against achieved.
+                what += ("; EMPTY on {:.1%} of rows - present, not "
                          "missing".format(empty))
             unpub = float(mg.get("unpublishable_row_share") or 0.0)
             if unpub > 0.005:
@@ -1697,6 +1718,34 @@ def compare(df, g, bp, group_by, time_col, ordinals=None,
                        "share_generated": round(pg_, 4),
                        "delta": round(pg_ - ps_, 4)})
 
+    # DID THE EMPTY SETS COME OUT AT THE SOURCE'S RATE? MEASURED.
+    #
+    # The typing report states how often a set column is empty in the
+    # source; it used to go on to say generation matched it, which
+    # was a claim about output that did not exist when the line was
+    # printed and that nothing checked. An empty set is 80.7% of
+    # `procedures` on the real extract, so if generation missed that
+    # rate it would be the largest single error in the column - and
+    # the token shares CANNOT see it, because they are measured among
+    # rows that have tokens.
+    set_shape = []
+    for c, spec in ((bp.get("columns") or {}).items()):
+        m = (spec or {}).get("marginal") or {}
+        if m.get("type") != "list":
+            continue
+        if c not in df.columns or c not in g.columns:
+            continue
+
+        def _empty_share(col):
+            p_ = col.dropna().astype(str).str.strip()
+            return float((p_ == "").mean()) if len(p_) else 0.0
+
+        es, eg = _empty_share(df[c]), _empty_share(g[c])
+        set_shape.append({"column": c,
+                          "empty_source": round(es, 4),
+                          "empty_generated": round(eg, 4),
+                          "delta": round(eg - es, 4)})
+
     for c in Xs.columns:
         if c not in Xg.columns or c in derived_cols:
             continue
@@ -1859,6 +1908,7 @@ def compare(df, g, bp, group_by, time_col, ordinals=None,
     return {
         "columns": cols,
         "set_tokens": tokens,
+        "set_shape": set_shape,
         "constraints": cons,
         "relationships": pairs,
         "summary": {
@@ -1866,6 +1916,9 @@ def compare(df, g, bp, group_by, time_col, ordinals=None,
             # Counted APART from the columns above, which are the
             # operator's own. These are indicators this tool built.
             "set_tokens_compared": len(tokens),
+            "set_empty_compared": len(set_shape),
+            "set_empty_ok": sum(1 for x in set_shape
+                                if abs(x["delta"]) <= 0.05),
             "set_tokens_ok": sum(1 for x in tokens
                                  if abs(x["delta"]) <= 0.05),
             "numeric_dynamic": n_ok["dyn"],
