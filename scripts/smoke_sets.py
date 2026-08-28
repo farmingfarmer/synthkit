@@ -83,6 +83,7 @@ def separation(frame):
     return float(sev[has].mean() - sev[~has].mean()), float(has.mean())
 
 
+
 def main():
     df = fixture()
 
@@ -1118,6 +1119,65 @@ def main():
               ["{}".format(x) for x in _ht]),
           _ht[0] == 1.0 and _ht[1] == 0.0
           and _ht[1] == _ht[1] and _ht[2] != _ht[2])
+
+    # THE TYPED FRAME MUST AGREE WITH THE OUTPUT FILE ABOUT WHAT
+    # "PRESENT" MEANS.
+    #
+    # `type_frame` folds "", "nan", "none" and "null" into NaN, which
+    # is right for a category - three spellings of one absence - and
+    # wrong for a SET, where an empty list is a fact about the visit.
+    # Generation writes "" as a present value, so the two sides
+    # disagreed: on the real extract `procedures` read coverage 0.193
+    # in the source against 1.0 generated, and `procedure_quantity`
+    # followed it. Two numbers describing one row disagreeing is the
+    # signal, and this is the third time in this file that the
+    # disagreement was about an empty set.
+    #
+    # THE FIXTURE NEEDS ALL THREE STATES or it cannot show the fault:
+    # missing, present-but-empty, and present-with-tokens.
+    _n12 = 1800
+    _r12 = np.random.RandomState(3)
+    _rows12 = []
+    for _i in range(_n12):
+        _u = _r12.rand()
+        if _u < 0.60:
+            _val = None
+        elif _u < 0.85:
+            _val = ""
+        else:
+            _val = ";".join(sorted("q{:02d}".format(j) for j in
+                            _r12.choice(10, size=2, replace=False)))
+        _rows12.append({"person_id": "P{:04d}".format(_i // 12),
+                        "visit_start_date":
+                            "2024-01-{:02d}".format(_i % 12 + 1),
+                        "things": _val, "age": 40 + _i % 25})
+    _df12 = pd.DataFrame(_rows12)
+    _cov_raw = float(_df12["things"].notna().mean())
+    _cat12 = discover(_df12, group_by="person_id", seed=1)
+    _bp12 = B.build(_df12, _cat12, group_by="person_id")
+    _cov_bp = float(_bp12["columns"]["things"].get("coverage", -1))
+    check("a set column's coverage counts a present-but-EMPTY row as "
+          "present ({:.3f} against a raw {:.3f}) - folding it into "
+          "NaN read 0.193 in the source against 1.0 generated on the "
+          "extract".format(_cov_bp, _cov_raw),
+          abs(_cov_bp - _cov_raw) < 0.02)
+    # ASSERTED ON THE TYPED FRAME ITSELF. The first version of this
+    # asked `discover`'s result for a frame it does not return, so it
+    # answered True whatever the code did - a check that cannot fail,
+    # which this file warns about in three other places.
+    from synthkit.discover import prepare as _prepare
+    _fr12 = _prepare(_df12, group_by="person_id")[0]
+    _lv12 = list(pd.Series(_fr12["things"]).astype("object").unique())
+    check("...and the empty rows encode to the {!r} LEVEL rather "
+          "than vanishing, so the typed frame and the output file "
+          "agree about what present means".format(S.EMPTY),
+          S.EMPTY in _lv12)
+    _enc_cov = float(pd.Series(_fr12["things"]).notna().mean())
+    check("...so the TYPED frame's presence matches the raw column's "
+          "({:.3f} vs {:.3f}) - it read the non-empty share before, "
+          "which is what put source 0.193 against generated "
+          "1.0".format(_enc_cov, _cov_raw),
+          abs(_enc_cov - _cov_raw) < 0.02)
 
     # SCAFFOLDING IS NOT THE OPERATOR'S DATA, and the constraint
     # report was counting it as if it were. A real run said

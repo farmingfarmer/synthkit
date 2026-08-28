@@ -58,6 +58,21 @@ LIST_SEPARATORS = (";", "|", ",")
 # the marker still resolves back to the right column.
 HAS = "__has__"
 SIZE = "__n"
+# THE LEVEL A PRESENT-BUT-EMPTY SET ENCODES TO.
+#
+# The typed frame folds "", "nan", "none" and "null" together into
+# NaN, which is right for a category - they are three spellings of
+# missing - and wrong for a SET, where an empty list is a fact about
+# the visit. On the real extract 80.5% of `procedures` rows and 36.0%
+# of `drug_routes` rows are empty, so generation was inventing
+# procedures for four fifths of the visits that had none.
+#
+# It needs a LEVEL rather than a bare "" because the frame's
+# categorical path drops blanks by construction, and because a
+# reader of the encoded frame should be able to see the difference.
+# The raw output file still carries "" - this marker never reaches
+# it.
+EMPTY = "__empty__"
 
 # A row must carry more than one token on average, and the separator
 # must appear on a real share of rows, before this is a set at all.

@@ -4,7 +4,7 @@ Synthetic clinical data generator and model-evaluation instrument. Core rule: le
 
 ## Verify before claiming
 
-- Run `python scripts/run_all_smokes.py` before claiming anything works. Expect 67 suites, 1783 checks, ALL GREEN **on a checkout**. Off a zipball extract - which is what the data machine runs - it is 1774: nine checks in `smoke_buildid` need git to test the archive path and report SKIPPED without it. Both numbers were measured. Do not quote the checkout number to the data machine; that is how a correct run gets read as a failure.
+- Run `python scripts/run_all_smokes.py` before claiming anything works. Expect 67 suites, 1786 checks, ALL GREEN **on a checkout**. Off a zipball extract - which is what the data machine runs - it is 1777: nine checks in `smoke_buildid` need git to test the archive path and report SKIPPED without it. Both numbers were measured. Do not quote the checkout number to the data machine; that is how a correct run gets read as a failure.
 - **THE DEVELOPMENT MACHINE WAS BEHIND THE DATA MACHINE, and that is
   how a green suite here failed there.** Dev was on Python 3.10 with
   pandas 2.3; the data machine installs fresh and got pandas 3.0.5,
@@ -739,6 +739,37 @@ the direction that stops work happening.
   because the filter had buffered them. `python -u` straight to a
   file loses only the seed in flight, and the run resumes from what
   is on disk.
+
+- **THE TYPED FRAME AND THE OUTPUT FILE MUST AGREE ABOUT WHAT
+  "PRESENT" MEANS.** `prepare` folds "", "nan", "none" and "null"
+  into NaN, which is right for a CATEGORY - three spellings of one
+  absence - and wrong for a SET, where an empty list is a fact about
+  the visit. Generation writes "" as a present value, so the two
+  sides disagreed and `procedures` read coverage 0.193 in the source
+  against 1.0 generated, with `procedure_quantity` following it.
+  A set column's blanks encode to `sets.EMPTY` now. That marker
+  never reaches the output file, which still carries "".
+- **AND FOLDING IT AWAY THREW OUT A LARGE FACT ABOUT THE DATA.** On
+  the real extract, `procedures` is EMPTY on 80.5% of visits,
+  `drug_routes` on 36.0%, `active_drugs` on 31.4% and `conditions`
+  on 15.8% - none of it modelled, so generation invented procedures
+  for four fifths of the visits that had none. Nothing measured it
+  because the rows were discarded before any measurement ran. A
+  defect upstream of every check is invisible to all of them.
+- **PRESENCE AND ITS COUNT PARTNER ARE DRAWN INDEPENDENTLY, AND IN
+  THE SOURCE THEY ARE NOT.** Newly visible once empties existed at
+  all: on a procedures-shaped fixture the source is empty on 79.6%
+  of PRESENT rows and generation emits 97.3%, because whether the
+  column is present is drawn from coverage while its size comes from
+  the count. A visit that had procedures always records the list.
+  NOT FIXED - recorded so the next person does not read it as a
+  sampler fault.
+- **A CHECK THAT ASKS FOR SOMETHING THE FUNCTION DOES NOT RETURN
+  CANNOT FAIL.** `_sets_empty_seen` looked for a `frame` key in
+  `discover`'s result, which has never had one, and returned True
+  whatever the encoder did. Written and green in the same minute as
+  a genuine check beside it. Assert against the thing itself -
+  `prepare` returns the frame - and watch it go red first.
 
 ## Talking to the data machine
 

@@ -219,6 +219,31 @@ def prepare(df: pd.DataFrame,
                 if v is not None:
                     sets[c] = v
                     cols.update(_sets.expand(df[c], v))
+                    # PRESENT-AND-EMPTY IS A STATE, NOT A SPELLING OF
+                    # MISSING - for a SET, and only for a set.
+                    #
+                    # The blanking above is correct for a category:
+                    # "", "nan" and "null" are three ways of writing
+                    # the same absence. A set is different. An empty
+                    # list says the visit had no procedures, which is
+                    # a fact about the visit, and folding it into NaN
+                    # threw that fact away before anything could
+                    # measure it - so generation gave every visit
+                    # content. On the real extract that is 80.5% of
+                    # `procedures` and 36.0% of `drug_routes`.
+                    #
+                    # It also left `coverage` disagreeing with the
+                    # generated frame, which carries "" as a present
+                    # string: source read 0.193 against a generated
+                    # 1.0 on two columns. Two numbers describing one
+                    # row disagreeing is the signal, again.
+                    _blank = (df[c].notna()
+                              & (df[c].astype(str).str.strip()
+                                 == ""))
+                    if bool(_blank.any()):
+                        _cc = cols[c].astype("object")
+                        _cc[_blank.to_numpy()] = _sets.EMPTY
+                        cols[c] = _cc.astype("category")
         if drop_identifiers and _is_identifier(cols[c], len(df)):
             # A date UNIQUE ON EVERY ROW is still a key, and was
             # dropped as one before this branch existed. Typing it as
