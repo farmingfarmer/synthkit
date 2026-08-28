@@ -406,6 +406,8 @@ def _list_marginal(raw: pd.Series, groups, k: int = 10):
         "mean_set_size": v["mean_set_size"],
         "mean_set_size_source": v["mean_set_size_source"],
         "empty_after_k_share": v["empty_after_k_share"],
+        "empty_in_source_share": v["empty_in_source_share"],
+        "unpublishable_row_share": v["unpublishable_row_share"],
         "distinct_combinations": v["distinct_combinations"],
         "tokens_found": v["tokens_found"],
         "tokens_above_k": v["tokens_above_k"],

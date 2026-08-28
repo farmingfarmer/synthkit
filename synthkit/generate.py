@@ -742,7 +742,19 @@ def _draw_list_sized(m, ks, rng):
     for k in ks:
         if k is None or (isinstance(k, float) and not np.isfinite(k)):
             k_ = int(rng.choice(sizes, p=sp)) if sp is not None else 1
-            ks2.append(max(1, min(k_, len(toks))))
+            # ZERO IS A SIZE THE DISTRIBUTION CAN CARRY, and this
+            # floor threw it away. It was harmless while `set_size`
+            # was measured over rows that HAD tokens - the value
+            # never occurred - and became wrong the moment the
+            # vocabulary started counting present-but-empty rows.
+            # A `drug_routes` column empty on 36% of visits then
+            # published 0 with p=0.36, the floor raised every one of
+            # them to 1, and generation gave a route to every visit
+            # including the ones with no drugs. The token SHARES
+            # still measured back, because the sampler simply spread
+            # the same mass more thinly - which is why this needed
+            # the empty share checked beside them.
+            ks2.append(max(0, min(k_, len(toks))))
         else:
             ks2.append(min(max(int(round(float(k))), 0), len(toks)))
     _t, w = _token_weights(m, ks2, int(rng.randint(0, 2 ** 31)))

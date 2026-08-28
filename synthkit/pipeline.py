@@ -1031,11 +1031,24 @@ def _report_types(bp, df, say):  # noqa: C901
                          "published (privacy, not a fault)".format(
                              avg, float(src_avg),
                              int(mg.get("tokens_found", 0)) - n_tok))
-            empty = float(mg.get("empty_after_k_share") or 0.0)
+            # TWO SHARES, because they mean different things to a
+            # reader. An empty set is a visit that HELD nothing and
+            # generation says so. A visit whose content was entirely
+            # below the k floor is not empty - that patient had
+            # conditions - so it draws a token rather than claiming
+            # they had none, and the reader is told how often that
+            # substitution happened.
+            empty = float(mg.get("empty_in_source_share") or 0.0)
             if empty > 0.005:
-                what += ("; {:.1%} of rows held only sub-k tokens and "
-                         "come out as an EMPTY set - present, not "
+                what += ("; EMPTY on {:.1%} of rows in the source and "
+                         "generated empty at that rate - present, not "
                          "missing".format(empty))
+            unpub = float(mg.get("unpublishable_row_share") or 0.0)
+            if unpub > 0.005:
+                what += ("; {:.1%} of rows held ONLY sub-k tokens - "
+                         "they draw one published token instead, "
+                         "because an empty set would claim the "
+                         "patient had none".format(unpub))
         else:
             n = len(mg.get("levels") or [])
             sent = float(mg.get("sentinel_share") or 0.0)

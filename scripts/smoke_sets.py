@@ -956,6 +956,160 @@ def main():
     # row as covered (`notna`); `has_token` called it unknown. Those
     # two disagreeing is the signal, and it only began to bite when
     # size started coming from the publishable subset.
+    # AND THE PUBLISHED SHARE MUST USE THE SAME DENOMINATOR THE
+    # COMPARISON DOES. `vocabulary` dropped present-but-empty rows,
+    # so `p` was a share of NON-EMPTY rows while `has_token` - and
+    # the fidelity comparison built on it - measured a share of ALL
+    # present rows. On the real extract that put five `drug_routes`
+    # tokens outside tolerance, every one high by the same ~1.57x,
+    # and a constant multiplier across five tokens is a denominator
+    # rather than a sampler. 1/1.57 = 0.637 was the share of visits
+    # that had any routes at all.
+    #
+    # It also means a visit with no drugs had never been modelled:
+    # those rows were invisible to the vocabulary, so generation
+    # invented routes for them.
+    _n9, _np9 = 6000, 150
+    _r9 = np.random.RandomState(0)
+    _g9b = np.repeat(np.arange(_np9), _n9 // _np9)
+    _emp = _r9.rand(_n9) < 0.36
+    _tk = ["Oral", "IV", "Topical", "UBC"]
+    _v9 = pd.Series(["" if e else ";".join(sorted(
+        _r9.choice(_tk, 2, replace=False))) for e in _emp])
+    _voc = S.vocabulary(_v9, _g9b, k=10, cap=0)
+    _pO = [t["p"] for t in _voc["tokens"] if t["value"] == "Oral"][0]
+    _shO = float(S.has_token(_v9, ";", "Oral").dropna().mean())
+    check("the published share and the measured share use ONE "
+          "denominator (p={:.4f} vs {:.4f}) - dropping empty rows "
+          "from the vocabulary made every token read ~1.57x high on "
+          "the extract".format(_pO, _shO),
+          abs(_pO - _shO) < 0.005)
+    check("...and a column that is empty on {:.0%} of rows carries "
+          "that into its size distribution, so generation emits "
+          "empty sets instead of inventing content for a visit that "
+          "had none".format(_voc["empty_after_k_share"]),
+          0.30 < _voc["empty_after_k_share"] < 0.42)
+    check("...while the column is still RECOGNISED as a set despite "
+          "those empty rows - judging set-ness on rows with content "
+          "is what keeps a legitimately sparse column from falling "
+          "back to the categorical path",
+          _voc is not None and len(_voc["tokens"]) == 4)
+
+    # AND THE SIZE DRAW MUST BE ABLE TO RETURN ZERO.
+    #
+    # `_draw_list_sized` floored a DRAWN size at 1 - harmless while
+    # `set_size` was measured over rows that had tokens, since the
+    # value never occurred, and wrong the moment the vocabulary began
+    # counting present-but-empty rows. A column empty on 36% of
+    # visits published 0 with p=0.36, the floor lifted every one to
+    # 1, and generation gave a route to every visit including the
+    # ones with no drugs.
+    #
+    # THE SHARES DID NOT CATCH IT. They measured back within 0.043
+    # the whole time, because the sampler spread the same mass more
+    # thinly across more rows - the empty share read 0.000 against a
+    # source of 0.359. Both properties are asserted here for exactly
+    # that reason.
+    _n10 = 12000
+    _r10 = np.random.RandomState(1)
+    _g10 = np.repeat(np.arange(200), _n10 // 200)
+    _NT10 = 30
+    _z10 = 1.0 / (np.arange(1, _NT10 + 1) ** 0.8)
+    _z10 /= _z10.sum()
+    _v10 = []
+    for _ in range(_n10):
+        if _r10.rand() < 0.36:
+            _v10.append("")
+            continue
+        _k10 = max(1, int(_r10.poisson(2.3)))
+        _v10.append(";".join(sorted("r{:02d}".format(j) for j in
+                    _r10.choice(_NT10, size=min(_k10, _NT10),
+                                replace=False, p=_z10))))
+    _s10 = pd.Series(_v10)
+    _vc10 = S.vocabulary(_s10, _g10, k=10, cap=0)
+    _m10 = {"separator": ";", "tokens": _vc10["tokens"],
+            "set_size": _vc10["set_size"]}
+    _o10 = pd.Series(_dl(_m10, _n10, np.random.RandomState(7)))
+    _es, _eg = float((_s10 == "").mean()), float((_o10 == "").mean())
+    check("a set column empty on {:.0%} of rows GENERATES empty on "
+          "{:.0%} - the drawn size was floored at 1, so every visit "
+          "got content whether or not the source gave it any".format(
+              _es, _eg),
+          abs(_es - _eg) < 0.05)
+    _mi10 = [abs(float(S.has_token(_o10, ";", t["value"]).dropna().mean())
+                 - float(S.has_token(_s10, ";", t["value"]).dropna().mean()))
+             for t in _vc10["tokens"]]
+    check("...and the token shares hold at the same time (worst "
+          "{:.4f}) - they held BEFORE the fix too, at 0.043 with the "
+          "empty share reading 0.000, which is why one number could "
+          "not have found this".format(max(_mi10)),
+          max(_mi10) < 0.05)
+
+    # AN EMPTY SET MEANS "HELD NOTHING", NEVER "HELD SOMETHING
+    # UNPUBLISHABLE" - and conflating them put a sign INVERSION into
+    # the pair sweep.
+    #
+    # A visit with no drugs genuinely has an empty routes list; a
+    # visit whose conditions were all below the k floor had
+    # conditions, and emitting an empty list claims it had none.
+    # Measured on the sweep fixture, whose source is 0% empty and
+    # whose zero-size mass is entirely sub-k: emitting empties for
+    # both cases produced inverted 0-1 against 0-0 before. An
+    # inverted relationship reads as a finding, which is worse than a
+    # missing one.
+    _n11 = 9000
+    _r11 = np.random.RandomState(4)
+    _g11 = np.repeat(np.arange(180), _n11 // 180)
+
+    def _mkcol(empty_rate, n_rare):
+        _pc = np.ones(30) / 30 * 0.75
+        _pr = np.ones(n_rare) / n_rare * 0.25
+        _p = np.concatenate([_pc, _pr]); _p = _p / _p.sum()
+        out = []
+        for _ in range(_n11):
+            if _r11.rand() < empty_rate:
+                out.append("")
+                continue
+            _k = max(1, int(_r11.poisson(3)))
+            out.append(";".join(sorted("t{:04d}".format(j) for j in
+                       _r11.choice(len(_p), size=_k, replace=False,
+                                   p=_p))))
+        return pd.Series(out)
+
+    # (a) genuinely empty rows: reproduced
+    _ca = _mkcol(0.35, 200)
+    _va = S.vocabulary(_ca, _g11, k=10, cap=0)
+    _oa = pd.Series(_dl({"separator": ";", "tokens": _va["tokens"],
+                         "set_size": _va["set_size"]},
+                        _n11, np.random.RandomState(2)))
+    check("a column EMPTY on {:.0%} of source rows generates empty at "
+          "that rate ({:.0%})".format(float((_ca == "").mean()),
+                                      float((_oa == "").mean())),
+          abs(float((_ca == "").mean())
+              - float((_oa == "").mean())) < 0.05)
+
+    # (b) never-empty source with a heavy sub-k tail: NOT emitted
+    _cb = _mkcol(0.0, 3000)
+    _vb = S.vocabulary(_cb, _g11, k=10, cap=0)
+    _ob = pd.Series(_dl({"separator": ";", "tokens": _vb["tokens"],
+                         "set_size": _vb["set_size"]},
+                        _n11, np.random.RandomState(2)))
+    check("...while a source that is NEVER empty generates no empty "
+          "sets ({:.1%}) despite {:.0%} of its rows holding only "
+          "sub-k tokens - those draw a token, because an empty set "
+          "would claim the patient had none".format(
+              float((_ob == "").mean()),
+              _vb["unpublishable_row_share"]),
+          float((_ob == "").mean()) < 0.01
+          and _vb["unpublishable_row_share"] > 0.02)
+    check("...and the two are reported APART, so a reader can tell a "
+          "visit that had nothing from one whose content the k rule "
+          "removed (empty {:.3f} / unpublishable {:.3f})".format(
+              _vb["empty_in_source_share"],
+              _vb["unpublishable_row_share"]),
+          _vb["empty_in_source_share"] < 0.01
+          and _va["empty_in_source_share"] > 0.30)
+
     _e = pd.Series(["a;b", "", None, "b;c"])
     _ht = list(S.has_token(_e, ";", "b"))
     check("an EMPTY set reads as a known zero, not as missing "

@@ -4,7 +4,7 @@ Synthetic clinical data generator and model-evaluation instrument. Core rule: le
 
 ## Verify before claiming
 
-- Run `python scripts/run_all_smokes.py` before claiming anything works. Expect 67 suites, 1775 checks, ALL GREEN **on a checkout**. Off a zipball extract - which is what the data machine runs - it is 1766: nine checks in `smoke_buildid` need git to test the archive path and report SKIPPED without it. Both numbers were measured. Do not quote the checkout number to the data machine; that is how a correct run gets read as a failure.
+- Run `python scripts/run_all_smokes.py` before claiming anything works. Expect 67 suites, 1783 checks, ALL GREEN **on a checkout**. Off a zipball extract - which is what the data machine runs - it is 1774: nine checks in `smoke_buildid` need git to test the archive path and report SKIPPED without it. Both numbers were measured. Do not quote the checkout number to the data machine; that is how a correct run gets read as a failure.
 - **THE DEVELOPMENT MACHINE WAS BEHIND THE DATA MACHINE, and that is
   how a green suite here failed there.** Dev was on Python 3.10 with
   pandas 2.3; the data machine installs fresh and got pandas 3.0.5,
@@ -698,6 +698,47 @@ the direction that stops work happening.
   and the suite died before reaching the new checks - a crash proves
   the files are coupled, not that the checks can fail. Perturb the
   BEHAVIOUR and leave the interface, then watch the checks go red.
+
+- **AN EMPTY SET MEANS "HELD NOTHING", NEVER "HELD SOMETHING WE
+  CANNOT PUBLISH".** A visit with no drugs genuinely has an empty
+  routes list - 36% of them on the real extract - and generation
+  should say so. A visit whose conditions were ALL below the k floor
+  is a different thing: that patient HAD conditions, and emitting an
+  empty list asserts they had none. Publishing one token instead is
+  also not what they had, but it preserves the fact that they had
+  something, which is what every relationship on the column depends
+  on. Conflating the two put a sign INVERSION into the pair sweep
+  where the previous code had none - 0-1 against 0-0, the same shape
+  as the reverted greedy cut - on a fixture whose source is 0% empty
+  and whose zero-size mass is entirely sub-k. Separated and reported
+  apart, five seeds return 0 inversions and land on the pre-change
+  baseline.
+- **A CONSTANT MULTIPLIER ACROSS SEVERAL TOKENS IS A DENOMINATOR,
+  NOT A SAMPLER.** Five `drug_routes` tokens came out high by 1.505,
+  1.574, 1.585, 1.580 and 1.572 - and 1/1.57 = 0.637 is the share of
+  visits that had any routes at all. `vocabulary` measured `p` over
+  NON-EMPTY rows while `has_token` and the fidelity comparison
+  measured over ALL present rows. Reading the five ratios as five
+  faults would have sent someone into the sampler; reading them as
+  one ratio names the bug in a line.
+- **AND THE DEFECT UNDERNEATH IT WAS OLDER THAN THE REGRESSION.**
+  `vocabulary` discarded present-but-empty rows entirely, so a visit
+  with no drugs had never been modelled at all and generation
+  invented routes for it. It surfaced only because a change of mine
+  made the two halves disagree; a defect that produces a
+  self-consistent wrong answer produces no symptom.
+- **THE SHARES CANNOT CATCH A SIZE FAULT.** With the denominator
+  fixed and the size floor still at 1, token shares measured back
+  within 0.043 while the generated empty share read 0.000 against a
+  source of 0.359 - the sampler simply spread the same mass more
+  thinly over more rows. Assert the empty share BESIDE the shares;
+  neither number alone can see it.
+- **A LONG VERIFICATION RUN MUST WRITE ITS RESULTS AS IT GOES.**
+  Three multi-hour sweeps were killed under memory pressure, and the
+  two that piped through `tail` or `grep` lost every completed seed
+  because the filter had buffered them. `python -u` straight to a
+  file loses only the seed in flight, and the run resumes from what
+  is on disk.
 
 ## Talking to the data machine
 

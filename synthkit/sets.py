@@ -112,17 +112,37 @@ def vocabulary(raw: pd.Series, groups, k: int = 10,
 
     Returns None when the column is not a set, so a caller can fall
     through to the ordinary categorical path."""
-    txt = raw.dropna().astype(str).str.strip()
-    txt = txt[txt.str.len() > 0]
-    if len(txt) < MIN_ROWS:
+    # PRESENT-AND-EMPTY IS A ROW THIS COLUMN HAS, and dropping it
+    # here is why generation invents content for visits that had
+    # none. A `drug_routes` list is empty when the visit had no
+    # drugs; that is a fact about the visit, not an absence of
+    # information, and `coverage` already counts such a row as
+    # present because it tests `notna`.
+    #
+    # Measured on the real extract: excluding them made the published
+    # `p` a share of NON-EMPTY rows while the fidelity comparison
+    # measured a share of ALL present rows, and the five `drug_routes`
+    # tokens outside tolerance were all high by the same 1.57x - a
+    # constant multiplier across five tokens is a denominator, not a
+    # sampler. 1/1.57 = 0.637 is the share of rows that had routes.
+    #
+    # WHETHER THE COLUMN IS A SET is still judged on the rows with
+    # content - a separator cannot be detected in an empty string,
+    # and a column should not stop being a set because many of its
+    # rows are legitimately empty.
+    present = raw.dropna().astype(str).str.strip()
+    filled = present[present.str.len() > 0]
+    if len(filled) < MIN_ROWS:
         return None
-    sep = _separator(txt)
+    sep = _separator(filled)
     if sep is None:
         return None
-    parts = txt.str.split(sep)
-    sizes = parts.map(len)
-    if float(sizes.mean()) < MIN_MEAN_SIZE:
+    if float(filled.str.split(sep).map(len).mean()) < MIN_MEAN_SIZE:
         return None
+    txt = present
+    parts = txt.str.split(sep)
+    sizes = parts.map(
+        lambda ts: sum(1 for x in ts if x.strip()))
 
     g = pd.Series(np.asarray(groups)[txt.index], index=txt.index)
     holders: Dict[str, set] = {}
@@ -161,8 +181,29 @@ def vocabulary(raw: pd.Series, groups, k: int = 10,
     # is what generation draws, `mean_set_size_source` is what the
     # rows actually held, and the caller reports the difference.
     keep_set = set(tok for tok, _ in kept)
-    pub_sizes = parts.map(
+    _held = parts.map(lambda ts: sum(1 for x in ts if x.strip()))
+    _pub = parts.map(
         lambda ts: sum(1 for x in ts if x.strip() in keep_set))
+    # AN EMPTY SET MEANS "HELD NOTHING", NEVER "HELD SOMETHING WE
+    # CANNOT PUBLISH", and conflating those two asserts something
+    # false about a patient.
+    #
+    # A visit with no drugs genuinely has an empty routes list - 36%
+    # of them on the real extract - and generation should say so. A
+    # visit whose conditions were ALL below the k floor is a
+    # different thing entirely: that patient had conditions, and
+    # emitting an empty list claims they had none. Publishing one
+    # token instead is also not what they had, but it preserves the
+    # fact that they had something, which is the property every
+    # relationship involving the column depends on.
+    #
+    # Measured: emitting empties for BOTH cases put a sign inversion
+    # into the pair sweep where the previous code had none, on a
+    # fixture whose source is 0% empty and whose zero-size mass is
+    # entirely sub-k. An inverted relationship reads as a finding,
+    # which is the failure these checks exist to catch.
+    pub_sizes = _pub.where(~((_held > 0) & (_pub == 0)), 1)
+    pub_sizes = pub_sizes.where(_held > 0, 0)
     size_counts = pub_sizes.value_counts(normalize=True).sort_index()
     return {
         "separator": sep,
@@ -172,6 +213,12 @@ def vocabulary(raw: pd.Series, groups, k: int = 10,
                      "p": [round(float(x), 6) for x in size_counts]},
         "mean_set_size": round(float(pub_sizes.mean()), 6),
         "mean_set_size_source": round(float(sizes.mean()), 6),
+        # REPORTED APART, because they mean different things to
+        # whoever opens the file: one is a visit that had nothing,
+        # the other is a visit whose content the k rule removed.
+        "empty_in_source_share": round(float((_held == 0).mean()), 6),
+        "unpublishable_row_share": round(
+            float(((_held > 0) & (_pub == 0)).mean()), 6),
         "empty_after_k_share": round(
             float((pub_sizes == 0).mean()), 6),
         "distinct_combinations": int(txt.nunique()),
