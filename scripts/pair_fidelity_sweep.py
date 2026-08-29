@@ -128,6 +128,15 @@ def main():
     ap.add_argument("--patients", type=int, default=300)
     ap.add_argument("--max-visits", type=int, default=10)
     ap.add_argument("--group-by", default="person_id")
+    ap.add_argument("--set-vocab", type=int, default=0,
+                    help="passed to make_tidy_fixture: give set "
+                         "columns a middle band of this many tokens. "
+                         "Without it every set column has TWELVE "
+                         "tokens above the k floor, which is under "
+                         "EXPAND_CAP - so anything that changes WHICH "
+                         "tokens are expanded is a no-op here and the "
+                         "sweep measures nothing. Both arms came out "
+                         "byte-identical before this existed.")
     ap.add_argument("--against", default="",
                     help="git revision to take the OLD _order from; "
                          "both arms share one discovery per seed")
@@ -157,7 +166,9 @@ def main():
                 [sys.executable, "scripts/make_tidy_fixture.py",
                  "-o", str(d), "--patients", str(a.patients),
                  "--max-visits", str(a.max_visits),
-                 "--seed", str(seed)],
+                 "--seed", str(seed)]
+                + (["--set-vocab", str(a.set_vocab)]
+                   if a.set_vocab else []),
                 capture_output=True, cwd=str(ROOT))
             tidy = d / "tidy_visits_labeled.csv"
             if not tidy.exists():

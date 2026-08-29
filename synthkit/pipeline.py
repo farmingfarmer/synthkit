@@ -154,6 +154,16 @@ def build_parser(prog=None, add_help=True):
                          "5}} - the better shape, because it can be "
                          "written and reviewed on the machine with "
                          "no data on it")
+    ap.add_argument("--expand-by", default="frequency",
+                    choices=["frequency", "signal"],
+                    help="which set tokens become search columns. "
+                         "`frequency` keeps the most common and is "
+                         "the default. `signal` keeps the ones that "
+                         "MEASURE as related to a numeric column - it "
+                         "finds relationships frequency misses, but "
+                         "the budget is fixed so it also gives some "
+                         "up. Which is better has NOT been settled on "
+                         "real data; run both and compare.")
     ap.add_argument("--refine-sweeps", type=int, default=2,
                     help="how many times to re-apply the parents that "
                          "had to be trimmed to order a cycle. 0 "
@@ -400,7 +410,19 @@ def main(argv=None, args=None):
 
     cat = discover(df, group_by=a.group_by, seed=a.seed,
                    holdout_frac=a.holdout, progress=progress,
-                   ordinals=ordinals)
+                   ordinals=ordinals,
+                   expand_by=getattr(a, "expand_by", None))
+    # SAY WHICH RULE CHOSE THE SEARCH COLUMNS, and say it whichever
+    # rule ran. A flag that is read and not reported is the
+    # `--time-col` failure: the operator passes it, the run looks
+    # normal, and nothing tells them whether it took effect.
+    _eb = getattr(a, "expand_by", None) or "frequency"
+    say("set tokens expanded BY {}{}".format(
+        _eb.upper(),
+        "" if _eb == "signal" else
+        " (the default; `--expand-by signal` spends the same budget "
+        "on tokens that measure as related to a numeric column "
+        "instead of the most common ones)"))
     say("{} claims | {} unexplained | {} skipped | {} identifiers "
         "dropped".format(len(cat["claims"]), len(cat["unexplained"]),
                          len(cat["skipped"]),

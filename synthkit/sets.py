@@ -89,6 +89,56 @@ MIN_ROWS = 50
 #
 # Never silently. Anything past the cap is reported.
 EXPAND_CAP = 24
+# HOW THE EXPANDED TOKENS ARE CHOSEN: "frequency" or "signal".
+#
+# `frequency` keeps the most common, which is what this has always
+# done. `signal` keeps the ones that MEASURE as related to a numeric
+# column - see `rank_by_signal`.
+#
+# WHY THIS IS A CHOICE AND NOT A FIX. Signal selection demonstrably
+# finds relationships frequency misses: on a fixture whose driver
+# sits on 8% of rows against thirty tokens at 30%, frequency ranks it
+# last of 31 and no cap keeps it, while signal ranks it first and
+# discovery recovers it at skill 0.598. But the budget is fixed, so
+# every slot spent on signal is taken from frequency, and on the one
+# paired seed where the two could be compared with the cap actually
+# binding, signal related 14 pairs against frequency's 15 - zero
+# inversions and 100% sign kept BOTH ways.
+#
+# One paired seed cannot say which bet is better, and this file is
+# emphatic that a single-seed measurement of a discovery change is
+# worth nothing. It also cannot be settled here: the fixture's set
+# columns are noise apart from one planted driver, whereas on the
+# real extract the EXCLUDED tokens sit on 829 and 1,516 rows and
+# carry 72.4% and 69.0% of their columns' mass. That is an argument
+# for signal, not a measurement of it.
+#
+# So the default does not move, the alternative is one flag away, and
+# the run says which rule it used.
+EXPAND_BY = "frequency"
+# WHY THE CAP IS NOT A BUDGETING PROBLEM. Reallocating these slots
+# across columns was built and MEASURED against the extract's own
+# token distribution, and rejected:
+#
+#   greedy on raw share      active_drugs 24->54, but procedures
+#                            24->8 and its mass 67% -> 52%; summed
+#                            per-column coverage 2.247 -> 2.192, WORSE
+#   greedy on column share   sum 2.247 -> 2.266, but three of four
+#                            columns lose ground and the worst goes
+#                            29.4% -> 27.0%
+#
+# The budget is the constraint, not its distribution. Covering 80% of
+# each column's mass needs 521 slots against the 96 available -
+# `conditions` alone needs 308 - which would take the search from 138
+# columns to about 563. Ninety-six slots cannot be arranged into five
+# hundred.
+#
+# So the question is not WHICH COLUMN gets slots, it is WHICH TOKENS:
+# with a budget five times too small, spend it on the tokens most
+# likely to carry signal rather than the most common ones. Frequency
+# is a poor proxy - the top `conditions` token is on 6,840 rows and
+# may predict nothing.
+
 
 
 def source_of(col: str) -> Optional[str]:
@@ -242,6 +292,98 @@ def vocabulary(raw: pd.Series, groups, k: int = 10,
         "tokens_returned": len(kept),
         "tokens_are_k_anonymous": k,
     }
+
+
+def rank_by_signal(raw: pd.Series, tokens, frame, groups=None):
+    """Order tokens by how much signal each one carries, best first.
+
+    THE CAP KEEPS THE MOST COMMON TOKENS, AND COMMON IS NOT
+    INFORMATIVE. Only an expanded token can carry a relationship, and
+    the budget is about five times too small to expand what a real
+    extract holds - 96 slots against the 521 needed to cover 80% of
+    each column's mass. When you cannot afford them all, frequency is
+    a poor way to choose: the top `conditions` token is on 6,840 rows
+    and may predict nothing, while one on 829 rows may drive a lab
+    value.
+
+    The score is the largest absolute point-biserial correlation
+    between the token's indicator and any numeric column in `frame`.
+    That is the same shape of quantity discovery goes on to measure,
+    which is the point - a screen computed a different way can
+    silently rank on something the measurement does not use, and this
+    file records what that cost when importances came back from a
+    `getattr` that returned None.
+
+    Cheap by construction: the indicators are built in ONE pass over
+    the rows, so the work is rows x tokens-per-row rather than rows x
+    vocabulary - 238,000 operations on the real extract rather than
+    58 million.
+
+    Ties, and tokens with no measurable association, fall back to
+    frequency order, so this can only reorder what the old rule would
+    have taken - never drop a token the cap would have kept for a
+    reason nothing measured."""
+    import numpy as _np
+
+    vals = [t["value"] if isinstance(t, dict) else t for t in tokens]
+    if not vals:
+        return []
+    idx = dict((v, i) for i, v in enumerate(vals))
+    txt = raw.astype(str).str.strip()
+    sep = _separator(txt[txt.str.len() > 0])
+    if sep is None:
+        return list(vals)
+
+    n = len(txt)
+    rows_i, cols_i = [], []
+    for r, cell in enumerate(txt.to_numpy()):
+        if not cell:
+            continue
+        for tok in cell.split(sep):
+            j = idx.get(tok.strip())
+            if j is not None:
+                rows_i.append(r)
+                cols_i.append(j)
+    if not rows_i:
+        return list(vals)
+    M = _np.zeros((n, len(vals)), dtype=_np.float32)
+    M[_np.asarray(rows_i), _np.asarray(cols_i)] = 1.0
+
+    best = _np.zeros(len(vals), dtype=float)
+    for c in frame.columns:
+        col = frame[c]
+        if not pd.api.types.is_numeric_dtype(col):
+            continue
+        y = pd.to_numeric(col, errors="coerce").to_numpy(dtype=float)
+        ok = _np.isfinite(y)
+        if int(ok.sum()) < MIN_ROWS:
+            continue
+        yv = y[ok]
+        sd = float(yv.std())
+        if not sd:
+            continue
+        Mv = M[ok]
+        cnt = Mv.sum(axis=0)
+        m = float(len(yv))
+        # A token present on almost no rows, or on all of them,
+        # cannot be measured against anything.
+        live = (cnt >= 5) & (cnt <= m - 5)
+        if not bool(live.any()):
+            continue
+        s1 = Mv.T.dot(yv)
+        p_ = cnt / m
+        mean1 = _np.where(cnt > 0, s1 / _np.maximum(cnt, 1), 0.0)
+        mean0 = _np.where(cnt < m,
+                          (yv.sum() - s1) / _np.maximum(m - cnt, 1),
+                          0.0)
+        r = ((mean1 - mean0) * _np.sqrt(_np.clip(p_ * (1 - p_), 0, 1))
+             / sd)
+        r = _np.abs(_np.where(live, r, 0.0))
+        best = _np.maximum(best, _np.nan_to_num(r))
+
+    order = sorted(range(len(vals)),
+                   key=lambda i: (-best[i], i))
+    return [vals[i] for i in order]
 
 
 def is_scaffolding(name: str) -> bool:

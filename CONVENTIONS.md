@@ -4,7 +4,7 @@ Synthetic clinical data generator and model-evaluation instrument. Core rule: le
 
 ## Verify before claiming
 
-- Run `python scripts/run_all_smokes.py` before claiming anything works. Expect 67 suites, 1798 checks, ALL GREEN **on a checkout**. Off a zipball extract - which is what the data machine runs - it is 1789: nine checks in `smoke_buildid` need git to test the archive path and report SKIPPED without it. Both numbers were measured. Do not quote the checkout number to the data machine; that is how a correct run gets read as a failure.
+- Run `python scripts/run_all_smokes.py` before claiming anything works. Expect 67 suites, 1802 checks, ALL GREEN **on a checkout**. Off a zipball extract - which is what the data machine runs - it is 1793: nine checks in `smoke_buildid` need git to test the archive path and report SKIPPED without it. Both numbers were measured. Do not quote the checkout number to the data machine; that is how a correct run gets read as a failure.
 - **THE DEVELOPMENT MACHINE WAS BEHIND THE DATA MACHINE, and that is
   how a green suite here failed there.** Dev was on Python 3.10 with
   pandas 2.3; the data machine installs fresh and got pandas 3.0.5,
@@ -802,6 +802,48 @@ the direction that stops work happening.
   would not hand-write a hundred-character one-liner was itself
   never run by anything. Discipline applied to the numerical path
   and not to the tooling is the gap this file keeps rediscovering.
+
+- **THE SEARCH CAP IS NOT A BUDGETING PROBLEM, AND REALLOCATION WAS
+  MEASURED AND REJECTED.** Greedy on raw share took `procedures` from
+  24 slots to 8 and its mass coverage from 67% to 52%, summing WORSE
+  than flat-24 (2.192 against 2.247); greedy on each column's own
+  share summed marginally better (2.266) while making three of four
+  columns worse. Covering 80% of every set column needs 521 slots
+  against the 96 available - `conditions` alone needs 308 - so
+  ninety-six cannot be arranged into five hundred.
+- **SO THE QUESTION IS WHICH TOKENS, AND FREQUENCY IS A POOR PROXY -
+  BUT IT SHIPS AS A CHOICE, NOT A FIX.** `--expand-by signal` spends
+  the same budget on tokens that MEASURE as related to a numeric
+  column. On a fixture whose driver sits on 8% of rows against thirty
+  tokens at 30%, frequency ranks it last of 31 and no cap keeps it,
+  while signal ranks it first and discovery recovers it at skill
+  0.598. But the budget is fixed, so every slot spent on signal is
+  taken from frequency: on the one paired seed where the cap actually
+  bound, signal related 14 pairs against frequency's 15, with zero
+  inversions and 100% sign kept BOTH ways. One paired seed settles
+  nothing. Default unchanged; the run prints which rule it used.
+- **A GATE THAT RETURNS TWO IDENTICAL ARMS IS MEASURING A NO-OP.**
+  The first sweep of the selection change came back byte-identical on
+  both seeds - because the fixture's set columns hold TWELVE tokens
+  above k against a cap of 24, so the branch never ran. That is a
+  useful guarantee in itself (where the cap does not bind, the change
+  is provably inert) and it is not the gate anyone thought they were
+  reading. `pair_fidelity_sweep --set-vocab N` now builds a fixture
+  where the cap binds.
+- **WHEN A MEASUREMENT SCRIPT RETURNS A CLEAN NEGATIVE, SUSPECT THE
+  SCRIPT FIRST.** The signal gate reported "not found" for BOTH arms
+  and nearly buried a working change: claims key off `child` and
+  `predictors[].column`, and it was reading `target` and `parents`.
+  The two real negatives of the same day - the reallocation, and the
+  cap's fixture blindness - both survived that check because they
+  showed STRUCTURE (specific columns worsening; ranks 24 and 25
+  differing by 0.04 points) rather than a flat nothing.
+- **PUTTING A CAP INSIDE A BRANCH DELETES THE CAP.** The truncation
+  to `EXPAND_CAP` was written inside the `signal` arm, so the DEFAULT
+  rule expanded every token - 1,050 search columns per set column on
+  the real extract, which reads as a hang rather than a bug. Caught
+  in minutes by a check written long before, asserting that the cap
+  is reported rather than silent: "28 tokens found, 28 expanded".
 
 ## Talking to the data machine
 

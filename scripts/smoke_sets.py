@@ -1281,6 +1281,88 @@ def main():
           "unexamined one",
           "of the token mass" in _o)
 
+    # THE CAP KEEPS THE MOST COMMON TOKENS, AND COMMON IS NOT
+    # INFORMATIVE.
+    #
+    # Only an expanded token can carry a relationship, and the budget
+    # is about five times too small for a real extract: covering 80%
+    # of each set column needs 521 slots against the 96 available,
+    # and `conditions` alone needs 308. Raising it takes the search
+    # from 138 columns to about 563. Redistributing the 96 was built
+    # and rejected on measurement - see the note in sets.py - because
+    # ninety-six cannot be arranged into five hundred.
+    #
+    # So the same budget is spent on the tokens that MEASURE as
+    # informative. Here the driver sits on 8% of rows while thirty
+    # other tokens sit on 30%, so frequency ranks it last of 31 and
+    # no cap keeps it. This runs discovery twice - the arms differ in
+    # nothing but which twelve tokens were expanded.
+    _keep_cap = S.EXPAND_CAP
+    _keep_rank = S.rank_by_signal
+    try:
+        S.EXPAND_CAP = 12
+        _r14 = np.random.RandomState(7)
+        _n14, _np14 = 4200, 150
+        _g14 = np.repeat(np.arange(_np14), _n14 // _np14)
+        _rows14 = []
+        for _i in range(_n14):
+            _t = ["c{:02d}".format(j) for j in range(30)
+                  if _r14.rand() < 0.30]
+            _d = _r14.rand() < 0.08
+            if _d:
+                _t.append("t_drv")
+            _rows14.append({
+                "person_id": "P{:04d}".format(_g14[_i]),
+                "visit_start_date": "2024-{:02d}-{:02d}".format(
+                    (_i % 12) + 1, (_i % 28) + 1),
+                "bag": ";".join(sorted(_t)),
+                "y": round(3.0 + 2.0 * (1.0 if _d else 0.0)
+                           + _r14.normal(0, 0.4), 4),
+                "age": 40 + (_i % 25)})
+        _df14 = pd.DataFrame(_rows14)
+
+        def _driver_found(cat):
+            for _c in (cat.get("claims") or []):
+                if _c.get("child") != "y":
+                    continue
+                for _pr in (_c.get("predictors") or []):
+                    if "t_drv" in str(_pr.get("column")):
+                        return round(float(_c.get("skill") or 0), 3)
+            return None
+
+        _by_freq = _driver_found(discover(
+            _df14, group_by="person_id", seed=1,
+            expand_by="frequency"))
+        _by_sig = _driver_found(discover(
+            _df14, group_by="person_id", seed=1, expand_by="signal"))
+    finally:
+        S.EXPAND_CAP = _keep_cap
+        S.rank_by_signal = _keep_rank
+
+    check("expanding by FREQUENCY misses a driver ranked last of 31 "
+          "by frequency - no cap keeps it, so the relationship "
+          "cannot be found at any budget this size",
+          _by_freq is None)
+    check("...while `--expand-by signal` finds it (skill {}) on the "
+          "same data, same budget, same cap - the only difference is "
+          "which twelve tokens were spent".format(_by_sig),
+          _by_sig is not None and _by_sig > 0.3)
+    # THE FLAG MUST CHANGE SOMETHING. A flag that is read and does
+    # nothing is worse than no flag - this file records what that
+    # cost when `--time-col` was carried into the blueprint and then
+    # ignored.
+    check("...so the flag demonstrably CHANGES the result rather "
+          "than being carried and ignored",
+          (_by_freq is None) != (_by_sig is None))
+    # AND THE DEFAULT HAS NOT MOVED. Signal selection is not
+    # established as better - on the one paired seed where the cap
+    # bound, it related 14 pairs against frequency's 15, with zero
+    # inversions and 100% sign kept both ways. It ships as a choice.
+    from synthkit import sets as _S2
+    check("...and the DEFAULT is still frequency, because which bet "
+          "is better has not been settled on real data",
+          _S2.EXPAND_BY == "frequency")
+
     # SCAFFOLDING IS NOT THE OPERATOR'S DATA, and the constraint
     # report was counting it as if it were. A real run said
     # "orderings the source never broke, held on 843/933" and then

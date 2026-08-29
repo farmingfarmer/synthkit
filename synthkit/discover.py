@@ -116,7 +116,8 @@ def prepare(df: pd.DataFrame,
             group_by: Optional[str] = None,
             drop_identifiers: bool = True,
             ordinals: Optional[Dict[str, Any]] = None,
-            k: int = 10):
+            k: int = 10,
+            expand_by: Optional[str] = None):
     """Typed frame: numerics as float with NaN, DATES as days since
     DATE_ORIGIN, everything else as a capped category. Blanks become
     NaN rather than a level, so `missing` is one concept and not three
@@ -139,6 +140,15 @@ def prepare(df: pd.DataFrame,
     Built with a single concat. Assigning column by column leaves the
     frame fragmented and every later `.loc` pays for it."""
     cols, ident, dates, quantities, sets = {}, [], {}, {}, {}
+    pending_sets = []
+    expand_by = (_sets.EXPAND_BY if expand_by is None
+                 else str(expand_by).lower())
+    if expand_by not in ("frequency", "signal"):
+        raise ValueError(
+            "expand_by must be 'frequency' or 'signal', not "
+            "{!r} - an unrecognised value would silently fall back "
+            "to whichever branch happened to be first".format(
+                expand_by))
 
     # A REAL COLUMN THAT LOOKS LIKE SCAFFOLDING IS A SILENT DROP.
     # `source_of` folds `foo__has__bar` into `foo`, and the blueprint
@@ -214,11 +224,17 @@ def prepare(df: pd.DataFrame,
                 # Measured on a fixture shaped after the real extract:
                 # the combination string carries r2 0.324 of a signal
                 # its own token carries at 0.733.
-                v = _sets.vocabulary(df[c], gv, k=k,
-                                     cap=_sets.EXPAND_CAP)
+                # THE FULL VOCABULARY IS TAKEN HERE AND THE CHOICE
+                # OF WHICH TOKENS TO EXPAND IS DEFERRED, because that
+                # choice is made by measuring each token against the
+                # NUMERIC COLUMNS and those are still being built in
+                # this loop. Expanding by frequency needed nothing
+                # but the column itself, which is exactly why it was
+                # done that way and exactly what was wrong with it.
+                v = _sets.vocabulary(df[c], gv, k=k, cap=0)
                 if v is not None:
                     sets[c] = v
-                    cols.update(_sets.expand(df[c], v))
+                    pending_sets.append(c)
                     # PRESENT-AND-EMPTY IS A STATE, NOT A SPELLING OF
                     # MISSING - for a SET, and only for a set.
                     #
@@ -254,6 +270,54 @@ def prepare(df: pd.DataFrame,
             del cols[c]
             dates.pop(c, None)
             quantities.pop(c, None)
+    # NOW CHOOSE WHICH TOKENS BECOME SEARCH COLUMNS.
+    #
+    # `EXPAND_CAP` keeps the most common, and common is not
+    # informative. On the real extract the cap leaves 1,026 of 1,050
+    # `conditions` tokens unexaminable while the 24 kept carry only
+    # 27.6% of the column's mass - and the budget cannot simply be
+    # raised, because covering 80% of every set column needs 521
+    # slots against the 96 available, taking the search from 138
+    # columns to about 563.
+    #
+    # So the same budget is spent on the tokens most likely to carry
+    # something. Measured on a fixture whose driver sits on 6% of
+    # rows while thirty other tokens sit on 25%: by frequency it
+    # ranks 31 of 31 and no cap keeps it; by signal it ranks 1.
+    #
+    # The tokens are all above the k floor either way, so this
+    # changes what is SEARCHED and not what is published.
+    if pending_sets:
+        _num = dict((n_, v_) for n_, v_ in cols.items()
+                    if pd.api.types.is_numeric_dtype(v_))
+        _frame = (pd.concat(_num, axis=1) if _num
+                  else pd.DataFrame(index=df.index))
+        if _num:
+            _frame.columns = list(_num)
+        for c in pending_sets:
+            v = sets[c]
+            toks = v.get("tokens") or []
+            if len(toks) > _sets.EXPAND_CAP:
+                # THE CAP ALWAYS APPLIES; only the ORDER depends on
+                # the rule. Putting the truncation inside the signal
+                # branch meant the default expanded EVERY token - the
+                # cap silently stopped existing, which the check on
+                # "tokens found vs expanded" caught immediately.
+                if expand_by == "signal":
+                    order = _sets.rank_by_signal(df[c], toks, _frame,
+                                                 gv)
+                    rank = dict((t, i) for i, t in enumerate(order))
+                    toks = sorted(
+                        toks,
+                        key=lambda t: rank.get(t["value"], len(rank)))
+                toks = toks[:_sets.EXPAND_CAP]
+            v = dict(v)
+            v["tokens"] = toks
+            v["tokens_returned"] = len(toks)
+            v["expansion_chosen_by"] = expand_by
+            sets[c] = v
+            cols.update(_sets.expand(df[c], v))
+
     if drop_identifiers and ident:
         # Dropping a key is not enough - anything ENGINEERED from it
         # carries the same information back in. `visit_id__prev` is a
@@ -448,14 +512,15 @@ def discover(df: pd.DataFrame,
              shape_top: int = 3,
              interaction_ratio: float = 1.5,
              progress=None,
-             ordinals: Optional[Dict[str, Any]] = None
+             ordinals: Optional[Dict[str, Any]] = None,
+             expand_by: Optional[str] = None
              ) -> Dict[str, Any]:
     """A catalogue of what explains each column, confirmed out of
     sample. Returns claims, not edges - no direction is implied beyond
     'these predict that'."""
     rng = np.random.RandomState(seed)
     X_all, identifiers, dates, _q, _sets_found = prepare(
-        df, group_by, ordinals=ordinals)
+        df, group_by, ordinals=ordinals, expand_by=expand_by)
 
     # Split BY PATIENT. Visits from one person are not independent, so
     # a row-wise holdout leaks the same patient into both halves and
