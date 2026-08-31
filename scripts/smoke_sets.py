@@ -1363,6 +1363,53 @@ def main():
           "is better has not been settled on real data",
           _S2.EXPAND_BY == "frequency")
 
+    # A SET'S INDICATORS SIT BESIDE THEIR SOURCE COLUMN, NOT AT THE
+    # END OF THE FRAME.
+    #
+    # Deferring the expansion so the token screen could see the
+    # numeric columns also moved every `__has__` column to the end -
+    # on the tidy fixture the first went from position 38 to 76.
+    # That fixture's CLAIMS came out identical either way, so it
+    # looked harmless. On the real extract it was not: the same
+    # command on the same data trimmed 13 relationships over 18
+    # columns where the previous build trimmed 14 over 19, and
+    # `close` fell from 87/114 to 72/115.
+    #
+    # Discovery screens to the top predictors and breaks ties on the
+    # order it meets them, so column position is not cosmetic. This
+    # asserts the position rather than the consequence, because the
+    # consequence only shows up on a vocabulary large enough for the
+    # cap to bind - which no fixture here had until `--set-vocab`.
+    from synthkit.discover import prepare as _prep2
+    _n15 = 900
+    _r15 = np.random.RandomState(11)
+    _rows15 = []
+    for _i in range(_n15):
+        _t = ["k{:02d}".format(j) for j in range(6)
+              if _r15.rand() < 0.4]
+        _rows15.append({"person_id": "P{:03d}".format(_i // 6),
+                        "visit_start_date":
+                            "2024-01-{:02d}".format((_i % 28) + 1),
+                        "bag": ";".join(sorted(_t)) if _t else "",
+                        "after": float(_i % 17),
+                        "age": 40 + (_i % 20)})
+    _cols15 = list(_prep2(pd.DataFrame(_rows15),
+                          group_by="person_id")[0].columns)
+    _bag = _cols15.index("bag") if "bag" in _cols15 else -1
+    _der = [i for i, c in enumerate(_cols15)
+            if c.startswith("bag" + S.HAS) or c == "bag" + S.SIZE]
+    check("a set column's derived indicators sit immediately after "
+          "it (bag at {}, indicators {}..{}) rather than at the end "
+          "of the frame - moving them changed which relationships "
+          "the real extract found".format(
+              _bag, min(_der) if _der else None,
+              max(_der) if _der else None),
+          _bag >= 0 and _der and min(_der) == _bag + 1
+          and max(_der) - min(_der) == len(_der) - 1)
+    check("...and nothing else was displaced - every column the "
+          "frame had is still there",
+          len(_cols15) == len(set(_cols15)))
+
     # SCAFFOLDING IS NOT THE OPERATOR'S DATA, and the constraint
     # report was counting it as if it were. A real run said
     # "orderings the source never broke, held on 843/933" and then

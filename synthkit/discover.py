@@ -318,6 +318,34 @@ def prepare(df: pd.DataFrame,
             sets[c] = v
             cols.update(_sets.expand(df[c], v))
 
+        # PUT THE INDICATORS BACK WHERE THEY USED TO SIT.
+        #
+        # Deferring the expansion so the screen could see the numeric
+        # columns also moved every `__has__` column to the END of the
+        # frame - on the tidy fixture the first one went from position
+        # 38 to 76. That fixture's claims came out identical either
+        # way, so it looked harmless, and on the real extract it was
+        # not: the same command on the same data trimmed 13
+        # relationships over 18 columns where the previous build
+        # trimmed 14 over 19, and `close` fell from 87/114 to 72/115.
+        #
+        # Discovery screens to the top predictors and breaks ties on
+        # the order it meets them, so column position is not
+        # cosmetic. Rebuilding the mapping in the ORIGINAL order costs
+        # nothing and removes the difference rather than reasoning
+        # about which orders are safe.
+        _ordered = {}
+        for _c in df.columns:
+            if _c in cols:
+                _ordered[_c] = cols[_c]
+            for _d in _sets.expand_names(_c, sets.get(_c)):
+                if _d in cols:
+                    _ordered[_d] = cols[_d]
+        for _c, _v in cols.items():
+            if _c not in _ordered:
+                _ordered[_c] = _v
+        cols = _ordered
+
     if drop_identifiers and ident:
         # Dropping a key is not enough - anything ENGINEERED from it
         # carries the same information back in. `visit_id__prev` is a

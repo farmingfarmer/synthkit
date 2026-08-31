@@ -386,6 +386,21 @@ def rank_by_signal(raw: pd.Series, tokens, frame, groups=None):
     return [vals[i] for i in order]
 
 
+def expand_names(column, vocab):
+    """The derived column names `expand` would produce, in its order.
+
+    Lets a caller put the indicators back where they belong in the
+    frame without rebuilding them. Empty when the column is not a
+    set."""
+    if not vocab:
+        return []
+    out = [column + SIZE]
+    for t in (vocab.get("tokens") or []):
+        v = t["value"] if isinstance(t, dict) else t
+        out.append("{}{}{}".format(column, HAS, v))
+    return out
+
+
 def is_scaffolding(name: str) -> bool:
     """True for a column this module BUILT rather than one the
     operator supplied.

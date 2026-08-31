@@ -4,7 +4,7 @@ Synthetic clinical data generator and model-evaluation instrument. Core rule: le
 
 ## Verify before claiming
 
-- Run `python scripts/run_all_smokes.py` before claiming anything works. Expect 67 suites, 1802 checks, ALL GREEN **on a checkout**. Off a zipball extract - which is what the data machine runs - it is 1793: nine checks in `smoke_buildid` need git to test the archive path and report SKIPPED without it. Both numbers were measured. Do not quote the checkout number to the data machine; that is how a correct run gets read as a failure.
+- Run `python scripts/run_all_smokes.py` before claiming anything works. Expect 67 suites, 1804 checks, ALL GREEN **on a checkout**. Off a zipball extract - which is what the data machine runs - it is 1795: nine checks in `smoke_buildid` need git to test the archive path and report SKIPPED without it. Both numbers were measured. Do not quote the checkout number to the data machine; that is how a correct run gets read as a failure.
 - **THE DEVELOPMENT MACHINE WAS BEHIND THE DATA MACHINE, and that is
   how a green suite here failed there.** Dev was on Python 3.10 with
   pandas 2.3; the data machine installs fresh and got pandas 3.0.5,
@@ -844,6 +844,40 @@ the direction that stops work happening.
   the real extract, which reads as a hang rather than a bug. Caught
   in minutes by a check written long before, asserting that the cap
   is reported rather than silent: "28 tokens found, 28 expanded".
+
+- **`--expand-by signal` LOSES ON THE REAL EXTRACT, and the argument
+  for it was wrong.** Two runs on the same data differing in that one
+  flag: frequency related 115 relationships, signal 87 - a quarter of
+  them gone - for 3 points of direction (92.0% against 88.7%) and 2
+  of close (64.4% against 62.6%) on the smaller set it keeps, and
+  signal also broke the EMPTY rate (active_drugs 31.4% source
+  against 37.1% generated, 3/4 where frequency is 4/4). The mass
+  argument - that the excluded tokens carry 72.4% of `conditions` -
+  predicted the opposite. Default stays frequency; the flag remains
+  because the question is now ANSWERED rather than assumed.
+- **I VERIFIED THE FEATURE AND NOT THE REFACTOR THAT CARRIED IT.**
+  Deferring set expansion so the token screen could see the numeric
+  columns moved every `__has__` column to the END of the frame. The
+  sweep compared signal against frequency - both on the NEW code -
+  and came back byte-identical, which read as a clean pass. Old
+  against new was never run. On the real extract the same command on
+  the same data then trimmed 13 relationships over 18 columns where
+  the previous build trimmed 14 over 19, and `close` fell from 87/114
+  to 72/115.
+- **AND THE FIXTURE COULD NOT HAVE CAUGHT IT.** Its claims come out
+  IDENTICAL under both orderings, because its cap never binds - the
+  difference only appears once a vocabulary is large enough for the
+  screen to choose. What surfaced it was two of the operator's runs
+  disagreeing about how many relationships were trimmed. So the guard
+  asserts the POSITION - indicators sit immediately after their
+  source column - and not the consequence, which no fixture here can
+  reach.
+- **DISCOVERY IS ORDER-SENSITIVE, which nothing said out loud.** It
+  screens to the top predictors and breaks ties on the order it meets
+  them, so where a column sits in the typed frame is not cosmetic.
+  Rebuilding the mapping in the original order costs nothing and
+  removes the question; reasoning about which orders are safe does
+  not.
 
 ## Talking to the data machine
 
