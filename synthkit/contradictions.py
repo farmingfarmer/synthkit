@@ -212,6 +212,141 @@ def find(fid: Dict[str, Any]) -> List[Dict[str, Any]]:
     return out
 
 
+def find_blueprint(bp: Dict[str, Any]) -> List[Dict[str, Any]]:
+    """Numbers the BLUEPRINT states that contradict each other.
+
+    `find` reads the fidelity report and asks whether the measurement
+    is coherent. This asks whether the CONTRACT is - before a single
+    row is generated, and without any source data, so it runs on any
+    machine.
+
+    THE RULE. A distribution published as quantiles carries a mean
+    beside them. Generation draws the QUANTILES, interpolating between
+    the knots, so if the mean those knots imply disagrees with the
+    mean that was published, the two cannot both describe the data and
+    generation will follow the grid.
+
+    It is not a hypothetical. On a dataset where one entity held half
+    the rows, the visit distribution published mean 1.9983 against a
+    grid of [1,1,1,1,1,1,1,1,1,1,121] - which implies 1.60. Generation
+    came out 27% short on rows, and nothing said why. The same
+    mechanism is already recorded for numeric COLUMNS in
+    CONVENTIONS.md: a piecewise-linear inverse CDF assumes uniform
+    density between knots, and across a heavy top segment that is the
+    whole error. Columns were given `tail_mean_high` to fix it; the
+    group-size distribution never was.
+
+    This generalises past that one case: ANY heavy-tailed count -
+    orders per customer, events per session, claims per member -
+    puts its mean beyond the last knot, and most real grouping
+    columns are heavy-tailed."""
+    out: List[Dict[str, Any]] = []
+
+    def hit(rule, where, detail):
+        out.append({"rule": rule, "where": where, "detail": detail})
+
+    def implied_mean(q, v):
+        """What a piecewise-linear inverse CDF over (q, v) averages."""
+        if not q or not v or len(q) != len(v) or len(q) < 2:
+            return None
+        total = 0.0
+        for i in range(len(q) - 1):
+            width = float(q[i + 1]) - float(q[i])
+            if width <= 0:
+                continue
+            total += width * (float(v[i]) + float(v[i + 1])) / 2.0
+        span = float(q[-1]) - float(q[0])
+        return (total / span) if span > 0 else None
+
+    def check_grid(where, mean, q, v, has_tail, sd=None):
+        """THE TOLERANCE DEPENDS ON WHAT THE MEAN IS FOR.
+
+        A COUNT's mean multiplies out to the row total, so an error in
+        it is an error in the size of the delivered file, and the
+        honest yardstick is the mean itself.
+
+        A COLUMN's mean is its centre, and this file's standard for a
+        centre is already `within 10% of SPREAD` - because a shift of
+        0.003 on a column whose sd is 1.0 is nothing, while the same
+        shift on a column whose sd is 0.001 is everything.
+
+        Measuring a column against its own mean instead reported 55
+        of 60 healthy gaussian columns as contradictory: their means
+        sit near zero, so dividing by one turns an irrelevant 0.003
+        into "19%". A rule that fires on everything is as useless as
+        one that cannot fire, and worse, because it teaches the
+        reader to skip the section."""
+        if not _num(mean):
+            return
+        im = implied_mean(q, v)
+        if im is None or has_tail:
+            return
+        if _num(sd) and sd > 0:
+            gap = abs(im - mean) / float(sd)
+            if gap <= 0.10:
+                return
+            how = "{:.3g} of a standard deviation".format(gap)
+        else:
+            if mean == 0:
+                return
+            gap = abs(im - mean) / abs(mean)
+            if gap <= 0.05:
+                return
+            how = "{:+.0%}".format(im / mean - 1.0)
+        hit("published mean disagrees with its own quantiles",
+            where,
+            "mean {:.4g} but the grid implies {:.4g} ({}) - "
+            "generation draws the GRID, so the output follows the "
+            "grid and no tail mean is published to explain the "
+            "difference".format(mean, im, how))
+
+    pats = bp.get("patients") or {}
+    vis = pats.get("visits") or {}
+    if vis:
+        # SAID IN ROWS, because that is the number anyone checks
+        # first, and said with its CAUSE - which for a group size is
+        # not a defect to fix but the k bound doing its job.
+        #
+        # A count's mean lives in its largest entities, and those are
+        # exactly the ones whose own counts cannot be published. The
+        # grid therefore cannot reach the mean, and no tail shaping
+        # can rescue it: the top segment covers the 1% of entities
+        # above the 99th percentile, which is under the k floor at
+        # any realistic size. Bending it anyway was tried and made
+        # the shortfall worse, from -27% to -50%.
+        im = implied_mean(vis.get("q"), vis.get("v"))
+        mean = vis.get("mean")
+        if _num(mean) and mean > 0 and im is not None:
+            gap = abs(im - mean) / abs(mean)
+            if gap > 0.05:
+                n_ent = pats.get("count")
+                rows = pats.get("rows")
+                extra = ""
+                if _num(n_ent) and _num(rows) and rows:
+                    exp = im * float(n_ent)
+                    extra = (" - about {:,.0f} rows against {:,.0f} "
+                             "in the source ({:+.0%})".format(
+                                 exp, float(rows),
+                                 exp / float(rows) - 1.0))
+                hit("row total will fall short of the published mean",
+                    "patients.visits (rows per {})".format(
+                        pats.get("id_column") or "group"),
+                    "mean {:.4g} but the grid implies {:.4g}{}. The "
+                    "mean of a count lives in its largest entities, "
+                    "and those are the ones the k rule will not "
+                    "publish - so this is privacy removing row mass, "
+                    "not a sampler fault. Generation draws the "
+                    "GRID.".format(mean, im, extra))
+
+    for name, spec in ((bp.get("columns") or {}).items()):
+        m = ((spec or {}).get("marginal") or {})
+        if m.get("type") != "quantiles":
+            continue
+        check_grid(name, m.get("mean"), m.get("q"), m.get("v"),
+                   _num(m.get("tail_mean_high")), sd=m.get("sd"))
+    return out
+
+
 def render(hits: List[Dict[str, Any]]) -> str:
     """The block a run prints. Silence when there is nothing."""
     if not hits:

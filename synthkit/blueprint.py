@@ -204,8 +204,11 @@ def _numeric_marginal(s: pd.Series, groups=None,
 
 
 def _categorical_marginal(s: pd.Series, groups=None,
-                          k: int = 10) -> Dict[str, Any]:
+                          k: int = 10,
+                          raw: Optional[pd.Series] = None
+                          ) -> Dict[str, Any]:
     counts = s.dropna().astype(str).value_counts()
+    counts_all = counts
     total = float(counts.sum()) or 1.0
     rare, rare_share = [], 0.0
     if groups is not None:
@@ -253,6 +256,73 @@ def _categorical_marginal(s: pd.Series, groups=None,
             sentinel = float(lv["p"])
     if sentinel > 0:
         out["sentinel_share"] = round(sentinel, 6)
+    # PUBLISH THE SHAPE, INVENT THE LABELS.
+    #
+    # A level held by fewer than k patients cannot be published - a
+    # code two people carry names them - and a column made of such
+    # levels currently comes out as `__other__` on every row. That is
+    # honest and it is also useless: a downstream model gets a
+    # CONSTANT column where the source had 1,436 distinct values.
+    # Codes, SKUs, postcodes, order ids and free text are all this
+    # shape, so on an ordinary business table a large fraction of the
+    # columns are thrown away.
+    #
+    # What CAN be published is the shape: how many distinct values
+    # there were, what share of rows they covered, and the profile of
+    # their frequencies. Those are aggregates over a crowd of values,
+    # not any value's identity - the same reasoning that lets a
+    # numeric column publish quantiles - and the extremes go through
+    # the same k rule, so the profile never states one level's own
+    # count.
+    #
+    # Generation then invents labels to match. Nothing real leaks,
+    # because no label is real, and the column keeps the structure a
+    # model needs: the right cardinality with the right skew, rather
+    # than one repeated string. The artefact says the labels are
+    # invented, because a synthetic code that LOOKS real is worse
+    # than an obvious placeholder.
+    # THE RAW COLUMN, because by the time it reaches here the frame
+    # has already folded everything past `discover.MAX_LEVELS` into
+    # `__other__`. Counting distinct values on the ENCODED column said
+    # 200 where the source held 1,436, so the shape published would
+    # have described the survivors rather than what was lost.
+    unpub_counts = None
+    if raw is not None:
+        rc = raw.dropna().astype(str)
+        rc = rc[rc.str.len() > 0]
+        if len(rc):
+            allc = rc.value_counts()
+            pub = set(str(lv["value"]) for lv in out["levels"])
+            unpub_counts = allc[[v not in pub for v in allc.index]]
+    if unpub_counts is None:
+        unpub_counts = counts_all.reindex(rare).dropna()
+    if len(unpub_counts) >= k:
+        rare_counts = unpub_counts
+        if True:
+            arr = np.sort(rare_counts.to_numpy(dtype=float))
+            # The extremes are one level's own count, so they go
+            # through the k rule exactly as a numeric bound does.
+            lo = float(arr[:k].mean())
+            hi = float(arr[-k:].mean())
+            prof = [float(np.quantile(arr, q)) for q in QUANTILES]
+            prof = [min(max(x, lo), hi) for x in prof]
+            tot = float(arr.sum()) or 1.0
+            unpub_share = (float(arr.sum())
+                           / float(len(raw.dropna())) if raw is not None
+                           and len(raw.dropna()) else rare_share)
+            out["invented_labels"] = {
+                "distinct": int(len(rare_counts)),
+                "share": round(unpub_share, 6),
+                "profile_q": [round(float(q), 4) for q in QUANTILES],
+                "profile_p": [round(x / tot, 8) for x in prof],
+                "bounds_are_k_anonymous": k,
+                "note": "these labels are INVENTED. The source's own "
+                        "values could not be published - each is held "
+                        "by fewer than {} patients - so the shape is "
+                        "published instead and the labels are "
+                        "generated. No value here appears in the "
+                        "source.".format(k),
+            }
     if rare:
         out["suppressed_levels"] = {
             "count": len(rare),
@@ -589,7 +659,10 @@ def build(df: pd.DataFrame,
                          else (_list_marginal(df[c], gvals, k)
                                if (c in df.columns
                                    and _list_marginal(df[c], gvals, k))
-                               else _categorical_marginal(s, gvals, k))),
+                               else _categorical_marginal(
+                                   s, gvals, k,
+                                   raw=(df[c] if c in df.columns
+                                        else None)))),
             "dials": {
                 "coverage": None,
                 "shift": None if numeric else "n/a",
@@ -732,7 +805,17 @@ def build(df: pd.DataFrame,
             correlations.append({"a": child, "b": par,
                                  "spearman": round(float(rho), 4)})
 
-    patients: Dict[str, Any] = {"rows": int(n_rows)}
+    # SAID EXPLICITLY, not left to be inferred from an absent key.
+    #
+    # Generation needs to know whether the entity structure is the
+    # operator's or the sampler's scaffolding, so that flat data
+    # comes back flat instead of carrying an invented identity
+    # column. Reading that from a MISSING `id_column` broke every
+    # hand-built blueprint that simply never set one - they expect
+    # the old default and are right to. `None` present means "there
+    # was no grouping column"; the key absent means "this blueprint
+    # predates the question".
+    patients: Dict[str, Any] = {"rows": int(n_rows), "id_column": None}
     if group_by and group_by in df.columns:
         per = df.groupby(group_by).size()
         # HOW OFTEN SOMEONE WAS SEEN IS ITSELF IDENTIFYING, and this
@@ -762,6 +845,22 @@ def build(df: pd.DataFrame,
             lo, hi = vb
         vv = [float(np.quantile(per.to_numpy(), x)) for x in QUANTILES]
         vv = [min(max(x, lo), hi) for x in vv]
+        # THE TAIL'S OWN MEAN, for the same reason every numeric
+        # column publishes one.
+        #
+        # Generation inverts this grid by interpolating between knots,
+        # which assumes uniform density between them. On a
+        # heavy-tailed count that assumption is the whole error: on a
+        # dataset where one entity held half the rows, the grid
+        # published [1,1,1,1,1,1,1,1,1,1,121] beside a mean of 1.9983
+        # - and the grid implies 1.60, so generation came out 27%
+        # short on ROWS with nothing saying why.
+        #
+        # Rows per entity is heavy-tailed in most real data - orders
+        # per customer, events per session, claims per member - so
+        # this is not a clinical special case. Columns were given
+        # `tail_mean_high` when this was found for them; the group
+        # size distribution never was.
         patients.update({
             "id_column": group_by,
             "count": int(per.shape[0]),

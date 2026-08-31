@@ -183,6 +183,113 @@ def main():
           "contradictions prints no section at all",
           render(find(clean)) == "")
 
+    # THE CONTRACT MUST BE COHERENT WITH ITSELF, not only the
+    # report.
+    #
+    # `find` reads the fidelity report and asks whether the
+    # MEASUREMENT is coherent. This asks whether the BLUEPRINT is -
+    # before a row is generated, without source data, so it runs
+    # anywhere. A distribution published as quantiles carries a mean
+    # beside them and generation draws the QUANTILES, so the two
+    # disagreeing means the output follows the grid.
+    #
+    # FOUND BY SWEEPING DATASET SHAPES rather than by reading code:
+    # on a dataset where one entity held half the rows, the visit
+    # distribution published mean 1.9983 against a grid of
+    # [1,1,1,1,1,1,1,1,1,1,121], which implies 1.60. Generation came
+    # out 27% short on rows and nothing said why. Any heavy-tailed
+    # count does this - orders per customer, events per session,
+    # claims per member - and most real grouping columns are
+    # heavy-tailed.
+    from synthkit.contradictions import find_blueprint as _fbp
+
+    def _bp(mean, v):
+        # WITH `count` AND `rows`, because a real blueprint has them
+        # and the row clause is what makes the finding readable. The
+        # first version of this fixture omitted both, so the check
+        # asked for a sentence the code correctly declined to write.
+        return {"patients": {"id_column": "person_id",
+                             "count": 1201, "rows": 2400,
+                             "visits": {
+            "mean": mean,
+            "q": [0.0, 0.01, 0.05, 0.1, 0.25, 0.5, 0.75, 0.9, 0.95,
+                  0.99, 1.0],
+            "v": v}}, "columns": {}}
+
+    _flat = [1] * 10 + [121]
+    _hit = _fbp(_bp(1.9983, _flat))
+    check("a published mean that its OWN quantiles cannot produce is "
+          "caught ({} hit) - the grid implies 1.60 against a stated "
+          "1.9983, and generation follows the grid".format(len(_hit)),
+          len(_hit) == 1 and "row total" in _hit[0]["rule"])
+    # SAID IN ROWS, because that is the number anyone checks first,
+    # and said with its CAUSE - a count's mean lives in its largest
+    # entities, and those are the ones the k rule will not publish.
+    check("...and it is stated in ROWS with the reason, not as an "
+          "abstract mismatch - '{}'".format(
+              _hit[0]["detail"][:60] if _hit else "MISSING"),
+          bool(_hit) and "rows against" in _hit[0]["detail"]
+          and "k rule" in _hit[0]["detail"])
+    _ok = _fbp(_bp(1.60, _flat))
+    check("...while a mean the grid DOES produce is not flagged - "
+          "otherwise every heavy-tailed column would report a "
+          "contradiction that is not there",
+          _fbp(_bp(1.60, _flat)) == [] and _ok == [])
+    _even = _fbp(_bp(3.0, [1, 1, 2, 2, 3, 3, 3, 4, 4, 5, 5]))
+    check("...and an ordinary even distribution is clean",
+          _even == [])
+    # A COLUMN IS JUDGED AGAINST ITS SPREAD, NOT ITS OWN MEAN.
+    #
+    # The first version of this rule divided by the mean for
+    # everything, and reported 55 of 60 healthy gaussian columns as
+    # contradictory: their means sit near zero, so an irrelevant
+    # 0.003 on a column with sd 1.0 became "19%". A rule that fires
+    # on everything is as useless as one that cannot fire, and worse,
+    # because it teaches the reader to skip the section. This file's
+    # standard for a centre is already `within 10% of SPREAD`.
+    #
+    # A COUNT keeps the mean-relative test, because its mean
+    # multiplies out to the row total - an error there is an error in
+    # the size of the delivered file.
+    def _col(mean, sd, v):
+        return {"patients": {}, "columns": {"x": {"marginal": {
+            "type": "quantiles", "mean": mean, "sd": sd,
+            "q": [0.0, 0.01, 0.05, 0.1, 0.25, 0.5, 0.75, 0.9, 0.95,
+                  0.99, 1.0],
+            "v": v}}}}
+
+    _gauss = [-2.5, -2.3, -1.6, -1.3, -0.7, 0.0, 0.7, 1.3, 1.6, 2.3,
+              2.7]
+    check("a near-zero-mean column whose grid is off by 0.003 of a "
+          "unit sd is NOT flagged - dividing by the mean called this "
+          "19% and reported 55 of 60 healthy columns",
+          _fbp(_col(0.014, 1.009, _gauss)) == [])
+    check("...while the SAME absolute error on a column whose spread "
+          "is tiny IS flagged, because that is what 'within 10% of "
+          "spread' means",
+          len(_fbp(_col(0.014, 0.004, _gauss))) == 1)
+
+    # A TAIL MEAN IS THE EXPLANATION FOR A COLUMN, so publishing one
+    # silences the rule there.
+    #
+    # It is NOT available for a group size, and that was measured
+    # rather than assumed: `_shape_tail` bends the segment between
+    # the 99th percentile and the maximum, which is 1% of entities -
+    # four out of four hundred - and always under the k floor, so the
+    # target can never be published. Forcing it on a degenerate count
+    # drove the exponent to 119 and made the shortfall worse, from
+    # -27% to -50%. The group-size branch therefore REPORTS instead,
+    # and this check covers the column branch where the escape hatch
+    # is real.
+    _ct = _col(0.014, 0.004, _gauss)
+    check("...and a COLUMN publishing a tail mean silences the rule, "
+          "so it asks for an explanation rather than forbidding "
+          "heavy tails",
+          len(_fbp(_ct)) == 1
+          and _fbp(dict(_ct, columns={"x": {"marginal": dict(
+              _ct["columns"]["x"]["marginal"],
+              tail_mean_high=9.0)}})) == [])
+
     print()
     if FAIL:
         print("{} FAILED".format(FAIL))

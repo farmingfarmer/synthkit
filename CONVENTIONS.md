@@ -4,7 +4,7 @@ Synthetic clinical data generator and model-evaluation instrument. Core rule: le
 
 ## Verify before claiming
 
-- Run `python scripts/run_all_smokes.py` before claiming anything works. Expect 67 suites, 1804 checks, ALL GREEN **on a checkout**. Off a zipball extract - which is what the data machine runs - it is 1795: nine checks in `smoke_buildid` need git to test the archive path and report SKIPPED without it. Both numbers were measured. Do not quote the checkout number to the data machine; that is how a correct run gets read as a failure.
+- Run `python scripts/run_all_smokes.py` before claiming anything works. Expect 67 suites, 1820 checks, ALL GREEN **on a checkout**. Off a zipball extract - which is what the data machine runs - it is 1811: nine checks in `smoke_buildid` need git to test the archive path and report SKIPPED without it. Both numbers were measured. Do not quote the checkout number to the data machine; that is how a correct run gets read as a failure.
 - **THE DEVELOPMENT MACHINE WAS BEHIND THE DATA MACHINE, and that is
   how a green suite here failed there.** Dev was on Python 3.10 with
   pandas 2.3; the data machine installs fresh and got pandas 3.0.5,
@@ -878,6 +878,77 @@ the direction that stops work happening.
   Rebuilding the mapping in the original order costs nothing and
   removes the question; reasoning about which orders are safe does
   not.
+
+## What breaks on a dataset that is not this one
+
+The rigour above is aimed at ONE extract. Everything in this section
+was found by running the whole pipeline across 23 dataset shapes a
+customer could plausibly hand over - cross-sectional, no time column,
+numeric-only, categorical-only, high-cardinality codes, 120 rows, 60
+columns, constant and all-empty columns, duplicate rows, unicode, one
+row per entity, one entity holding half the rows, free text, mixed
+types in a column, 92% sparse, extreme skew, boolean-ish spellings,
+and a flat table with no grouping column at all. Nothing crashed;
+what follows is what came out wrong anyway.
+
+- **A LEVEL THE k RULE CANNOT PUBLISH IS NOT A REASON TO PUBLISH
+  NOTHING.** A categorical column whose values are each held by fewer
+  than k patients came out as `__other__` on EVERY row - honest, and
+  a constant column for anything downstream. Codes, SKUs, postcodes,
+  order ids and free text are all that shape, so on an ordinary
+  business table a large fraction of the columns were being thrown
+  away. What CAN be published is the shape: how many distinct values,
+  what share of rows, and the profile of their frequencies with the
+  extremes k-screened. The labels are then INVENTED. Measured: 1,436
+  distinct in, 1,087 out, ZERO real labels republished, no sentinel.
+  A column whose levels do clear k keeps its real labels - the shape
+  path is for what cannot be published, not for everything.
+- **AND IT HAD TO BE ADDED TO BOTH DRAW PATHS.** A categorical with
+  visit-to-visit persistence goes through the sticky draw and a plain
+  one does not, and both read `m["levels"]` straight out of the
+  blueprint - so the capability landed in one and `note` stayed 100%
+  `__other__` while `code`, the same kind of column, generated
+  correctly. `effective_levels` is the one vocabulary both call. This
+  file already recorded that shape of bug for set tokens.
+- **WHAT GOVERNS A CATEGORICAL COLUMN IS PATIENTS PER LEVEL, NOT ITS
+  DISTINCT COUNT.** Measured on 200 patients and 2,400 rows: 100
+  distinct gives 22.8 patients per level and publishes cleanly, 240
+  gives 9.8 and the sentinel appears, 1,436 gives 2.1 and the column
+  is destroyed. The crossing is exactly k. `types` reports it now -
+  "destroyed" is a verdict, "2 patients per level, 0 of 1,436 clear
+  the floor" is the diagnosis, and it says whether aggregating the
+  column would rescue it.
+- **DO NOT PUT A COLUMN IN SOMEBODY'S FILE THAT THEY DID NOT GIVE
+  YOU.** `visit_number` was written into all 23 outputs, including
+  cross-sectional data where it is meaningless, and a flat table came
+  back carrying an invented `person_id` as well - a structure the
+  data never had. It is emitted now only where entities actually
+  repeat, and named in the run when it is. Flat data comes back flat.
+- **AND "ABSENT" IS NOT "KNOWN TO BE NOTHING".** Inferring
+  group-less-ness from a MISSING `id_column` broke every hand-built
+  blueprint that simply never set one. `None` present means there was
+  no grouping column; the key absent means the blueprint predates the
+  question. Same distinction as empty-versus-missing, one level up.
+- **A COUNT'S MEAN LIVES IN THE ENTITIES THE k RULE WILL NOT
+  PUBLISH.** On a dataset where one entity held half the rows, the
+  visit distribution published mean 1.9983 beside a grid of
+  [1,...,1,121] which implies 1.60, and the row total came out 27%
+  short with nothing saying why. The numeric fix does NOT transfer:
+  `_shape_tail` bends the segment between the 99th percentile and the
+  maximum, which is 1% of entities - four out of four hundred, always
+  under the floor - so it can never fire, and forcing it on the
+  degenerate case drove the exponent to 119 and made the shortfall
+  -50%. Built, measured, REVERTED. `contradictions.find_blueprint`
+  predicts the shortfall in ROWS instead and names privacy as the
+  cause.
+- **A CHECK THAT FIRES ON EVERYTHING IS AS USELESS AS ONE THAT
+  CANNOT.** The first version of that rule divided by the mean for
+  every distribution and reported 55 of 60 healthy gaussian columns
+  as contradictory - their means sit near zero, so an irrelevant
+  0.003 on a column with sd 1.0 became "19%". A COUNT is judged
+  against its mean, because that multiplies out to the row total; a
+  COLUMN against its spread, which is what "within 10% of spread"
+  already means everywhere else here.
 
 ## Talking to the data machine
 

@@ -169,8 +169,118 @@ def _draw_list(m: Dict[str, Any], n: int, rng) -> np.ndarray:
     return _draw_list_sized(m, [None] * n, rng)
 
 
+def _invented_labels(inv: Dict[str, Any], n: int, rng):
+    """Labels the source never held, shaped like the ones it did.
+
+    A level carried by fewer than k patients cannot be published - a
+    code two people share names them - so a column made of such
+    levels came out as `__other__` on every row: honest, and a
+    CONSTANT column for anything downstream. Codes, SKUs, postcodes,
+    order ids and free text are all that shape.
+
+    The blueprint publishes what CAN be said about them - how many
+    there were, what share of rows they covered, and the profile of
+    their frequencies with the extremes k-screened - and the labels
+    are invented here to match. Nothing real leaks because no label
+    is real, and the column keeps the cardinality and skew a model
+    needs.
+
+    The names are deliberately obvious. A synthetic code that LOOKS
+    like a real one invites somebody to look it up."""
+    card = int(inv.get("distinct") or 0)
+    if card < 1 or n < 1:
+        return np.array([], dtype=object)
+    q = [float(x) for x in (inv.get("profile_q") or [])]
+    pv = [float(x) for x in (inv.get("profile_p") or [])]
+    if len(q) >= 2 and len(q) == len(pv):
+        w = np.interp(np.linspace(0.0, 1.0, card), q, pv)
+    else:
+        w = np.ones(card)
+    w = np.clip(w, 1e-12, None)
+    w = w / w.sum()
+    idx = rng.choice(card, size=n, p=w)
+    return np.array(["synthetic_{:06d}".format(int(i) + 1)
+                     for i in idx], dtype=object)
+
+
+def effective_levels(m: Dict[str, Any]):
+    """The levels a categorical column may be drawn from, and their
+    probabilities - INCLUDING the invented ones.
+
+    ONE VOCABULARY, AND EVERY PATH CALLS IT. There are two places a
+    categorical column is produced: the sticky draw, for a column
+    with visit-to-visit persistence, and the plain draw. Both read
+    `m["levels"]` straight out of the blueprint, so a capability
+    added to one of them silently does not exist in the other -
+    `note` came out 100% `__other__` while `code`, the same kind of
+    column, generated invented labels correctly. This file already
+    records that shape of bug for set tokens: screening twice, in two
+    files, is how the two sides come to disagree.
+
+    So the invented labels are materialised into the level list here,
+    once, and neither draw path needs to know they are special."""
+    levels = m.get("levels") or []
+    inv = m.get("invented_labels") or None
+    share = float((inv or {}).get("share") or 0.0)
+    real = [l for l in levels if str(l.get("value")) != "__other__"]
+    if not inv or share <= 0:
+        use = levels if not inv else (real or levels)
+        vals = [l["value"] for l in use]
+        p = np.asarray([max(float(l.get("p", 0.0)), 0.0) for l in use])
+        return vals, (p / p.sum() if p.sum() > 0
+                      else np.full(max(len(vals), 1), 1.0)
+                      / max(len(vals), 1))
+    card = int(inv.get("distinct") or 0)
+    q = [float(x) for x in (inv.get("profile_q") or [])]
+    pv = [float(x) for x in (inv.get("profile_p") or [])]
+    if card > 0 and len(q) >= 2 and len(q) == len(pv):
+        w = np.interp(np.linspace(0.0, 1.0, card), q, pv)
+    else:
+        w = np.ones(max(card, 1))
+    w = np.clip(w, 1e-12, None)
+    w = w / w.sum() * min(share, 1.0)
+    vals = ["synthetic_{:06d}".format(i + 1) for i in range(card)]
+    p = list(w)
+    keep_share = max(0.0, 1.0 - min(share, 1.0))
+    if real and keep_share > 0:
+        rp = np.asarray([max(float(l.get("p", 0.0)), 0.0)
+                         for l in real])
+        rp = (rp / rp.sum() * keep_share) if rp.sum() > 0 else rp
+        vals = [l["value"] for l in real] + vals
+        p = list(rp) + p
+    p = np.asarray(p, dtype=float)
+    return vals, (p / p.sum() if p.sum() > 0
+                  else np.full(len(vals), 1.0 / max(len(vals), 1)))
+
+
 def _draw_categorical(m: Dict[str, Any], n: int, rng) -> np.ndarray:
     levels = m.get("levels") or []
+    inv = m.get("invented_labels") or None
+    share = float((inv or {}).get("share") or 0.0)
+    if inv and share > 0:
+        # THE UNPUBLISHABLE MASS GETS INVENTED LABELS instead of the
+        # sentinel. The published levels keep their real values and
+        # their own probabilities; only the part that could not be
+        # published is replaced.
+        out = np.array([None] * n, dtype=object)
+        take = rng.random_sample(n) < min(share, 1.0)
+        n_inv = int(take.sum())
+        if n_inv:
+            out[take] = _invented_labels(inv, n_inv, rng)
+        rest = int(n - n_inv)
+        if rest:
+            keep = [l for l in levels
+                    if str(l.get("value")) != "__other__"]
+            if keep:
+                vals = [l["value"] for l in keep]
+                p = np.asarray([max(float(l["p"]), 0.0) for l in keep])
+                tot = p.sum()
+                p = (p / tot if tot > 0
+                     else np.full(len(vals), 1.0 / len(vals)))
+                out[~take] = rng.choice(vals, size=rest, p=p)
+            else:
+                out[~take] = _invented_labels(inv, rest, rng)
+        return out
     if not levels:
         return np.array([None] * n, dtype=object)
     vals = [l["value"] for l in levels]
@@ -1370,9 +1480,25 @@ def generate(blueprint: Dict[str, Any],
     vis = pat.get("visits")
     if vis:
         scale = float(pat.get("target_visits_scale") or 1.0)
-        counts = np.interp(rng.random_sample(n_pat),
-                           np.asarray(vis["q"], dtype=float),
-                           np.asarray(vis["v"], dtype=float))
+        _u = rng.random_sample(n_pat)
+        _q = np.asarray(vis["q"], dtype=float)
+        _v = np.asarray(vis["v"], dtype=float)
+        counts = np.interp(_u, _q, _v)
+        # NO TAIL BEND HERE, and that was measured rather than
+        # assumed. Numeric columns bend their top segment so it
+        # averages the source's own tail mean, and the same treatment
+        # was written for group sizes and then removed: `_shape_tail`
+        # bends the segment between the 99th percentile and the
+        # maximum, which for 400 entities is FOUR of them and for 800
+        # is eight - always under the k floor, so the target can
+        # never be published and the code never ran. Worse, forcing
+        # it on a degenerate count (1,200 entities with one row, one
+        # with 1,200) drove the exponent to 119 and pushed every
+        # entity to a single row: -27% became -50%.
+        #
+        # What is left is honest: the bulk is reproduced, the row
+        # total falls short by whatever the k bound removed, and the
+        # run REPORTS that rather than hiding it.
         counts = np.maximum(1, np.round(counts * scale)).astype(int)
     else:
         counts = np.ones(n_pat, dtype=int)
@@ -1495,10 +1621,10 @@ def generate(blueprint: Dict[str, Any],
             base = _draw_numeric(m, u)
         elif (not per_patient) and stick > 0.0 and \
                 (m.get("levels") or []):
-            lv = [l["value"] for l in m["levels"]]
-            pr = np.asarray([max(float(l["p"]), 0.0) for l in
-                             m["levels"]])
-            pr = pr / pr.sum() if pr.sum() > 0 else pr
+            # THE SAME VOCABULARY THE PLAIN DRAW USES. Reading
+            # `m["levels"]` here directly is what left `note` at
+            # 100% `__other__` while `code` generated correctly.
+            lv, pr = effective_levels(m)
             base = sticky_pick(counts, lv, pr, stick, rng)
         elif m.get("type") == "list":
             # A SET WHOSE SIZE IS DECLARED EQUAL TO ANOTHER COLUMN
@@ -1861,7 +1987,49 @@ def generate(blueprint: Dict[str, Any],
     if report is not None and masks:
         report["masked_after_relationships"] = len(masks)
 
-    frame = {gid: person, "visit_number": visit_no}
+    # A COLUMN THE OPERATOR NEVER SUPPLIED, ONLY WHEN IT MEANS
+    # SOMETHING.
+    #
+    # `visit_number` was written into EVERY generated file - including
+    # cross-sectional data, where one row per entity makes a visit
+    # number meaningless, and including tables that have nothing to
+    # do with visits. Measured across 23 dataset shapes: all 23 came
+    # back with a column nobody handed in. On a flat table with no
+    # grouping column at all, the output carried TWO invented columns.
+    #
+    # It is genuinely useful when the source has repeated measures -
+    # it is the within-entity order - so it stays there and is
+    # reported. When every entity has exactly one row it says
+    # nothing, and a column of 1s in somebody's deliverable is a
+    # question they have to ask.
+    # FLAT DATA COMES BACK FLAT.
+    #
+    # `gid` defaults to "person_id" so the sampler always has an
+    # entity to group by, and that default was being written into the
+    # OUTPUT - so a source with no grouping column at all came back
+    # carrying one, on top of the invented `visit_number`. A table of
+    # transactions is not a table of patients, and inventing an
+    # identity for each row implies a structure the data never had.
+    #
+    # The blueprint says which it is: `patients.id_column` is the
+    # operator's own column when there was one, and absent when there
+    # was not. Absent means the entity structure was scaffolding, so
+    # it stays inside the sampler.
+    _pat = bp.get("patients") or {}
+    # ABSENT KEY MEANS AN OLDER BLUEPRINT, and those get the old
+    # behaviour. Only an explicit None says the source had no
+    # grouping column.
+    _real_gid = (_pat.get("id_column") if "id_column" in _pat
+                 else gid)
+    _repeated = bool(len(counts) and int(np.max(counts)) > 1)
+    frame = {}
+    if _real_gid:
+        frame[_real_gid] = person
+        if _repeated:
+            frame["visit_number"] = visit_no
+    if report is not None:
+        report["invented_columns"] = (
+            ["visit_number"] if (_real_gid and _repeated) else [])
     frame.update(out)
     df = pd.DataFrame(frame)
 

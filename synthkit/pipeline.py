@@ -499,6 +499,24 @@ def main(argv=None, args=None):
                 "--generate was not passed, so nothing was tuned "
                 "yet.")
 
+    # IS THE CONTRACT COHERENT WITH ITSELF? Before a row is
+    # generated, and without any source data, so it runs anywhere.
+    #
+    # A distribution published as quantiles carries a mean beside
+    # them, and generation draws the QUANTILES. On a dataset where
+    # one entity held half the rows, `patients.visits` published mean
+    # 1.9983 against a grid implying 1.60 - and generation came out
+    # 27% short on rows with nothing saying why. Any heavy-tailed
+    # count does this: orders per customer, events per session,
+    # claims per member.
+    _bpbad = _contra.find_blueprint(bp)
+    if _bpbad:
+        say("{} NUMBER(S) THE BLUEPRINT PUBLISHES CONTRADICT EACH "
+            "OTHER - generation follows the quantiles, so the output "
+            "will not match the stated mean:".format(len(_bpbad)))
+        for _h in _bpbad:
+            say("  {} - {}".format(_h["where"], _h["detail"]))
+        bp["contradictions"] = _bpbad
     (out / "blueprint.json").write_text(
         json.dumps(bp, indent=1), encoding="utf-8")
     (out / "findings.txt").write_text(render(bp), encoding="utf-8")
@@ -634,6 +652,25 @@ def main(argv=None, args=None):
     g.to_csv(out / "generated.csv", index=False, encoding="utf-8")
     say("{} rows for {} patients -> generated.csv".format(
         rep["rows"], rep["patients"]))
+    # ANY COLUMN THE SOURCE DID NOT HAVE, named.
+    #
+    # `visit_number` used to be written into every generated file -
+    # measured across 23 dataset shapes, all 23 came back carrying a
+    # column nobody handed in, and a flat table with no grouping
+    # column came back with two. It is genuinely useful where the
+    # source has repeated measures, so it stays there and is named;
+    # where every entity has one row it is no longer emitted at all.
+    #
+    # A grouping column is different: generation is entity-based, so
+    # one has to exist. That cannot be removed, only declared.
+    _inv = [c for c in (rep.get("invented_columns") or [])
+            if c not in df.columns]
+    if _inv:
+        say("the output carries {} column(s) your source did not: {} - "
+            "generation is entity-based, so a grouping column has to "
+            "exist, and a within-entity order is only written when "
+            "entities have more than one row".format(
+                len(_inv), ", ".join(_inv)))
     # TRIMMED IS NOT LOST, and saying "dropped" for both would tell
     # the operator that sixteen relationships left their data when
     # the refinement sweeps put them back.
@@ -1096,6 +1133,32 @@ def _report_types(bp, df, say):  # noqa: C901
             n = len(mg.get("levels") or [])
             sent = float(mg.get("sentinel_share") or 0.0)
             what = "categorical, {} level(s)".format(n)
+            # WHY it will survive or not, in the units that decide it.
+            #
+            # A level is published when at least k PATIENTS hold it,
+            # so what governs a categorical column is not its distinct
+            # count but its patients-per-level. Measured on a
+            # 200-patient, 2,400-row frame: 100 distinct values gives
+            # 22.8 patients per level and publishes cleanly; 240 gives
+            # 9.8 and the sentinel starts to appear; 1,436 gives 2.1
+            # and the column comes out as a single `__other__`.
+            #
+            # "Destroyed" is a verdict. This is the diagnosis, and it
+            # is the number that says whether aggregating the column -
+            # a code to its chapter, a city to its region - would
+            # rescue it or is hopeless.
+            _gid = ((bp.get("patients") or {}).get("id_column"))
+            if _gid and _gid in df.columns and c in df.columns:
+                try:
+                    _per = df.groupby(c)[_gid].nunique()
+                    _k = int(mg.get("levels_are_k_anonymous") or 10)
+                    _lo = float(_per.mean()) if len(_per) else 0.0
+                    _ok = int((_per >= _k).sum())
+                    what += ("; {:.0f} patients per level on average, "
+                             "{} of {} clear the k floor of {}".format(
+                                 _lo, _ok, int(_per.shape[0]), _k))
+                except Exception:
+                    pass
             if sent >= 0.5:
                 what += "  <-- {:.0%} is the `__other__` SENTINEL".format(
                     sent)

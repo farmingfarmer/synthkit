@@ -39,7 +39,8 @@ import pandas as pd
 ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT))
 from synthkit import blueprint as B                      # noqa: E402
-from synthkit.discover import prepare                    # noqa: E402
+from synthkit.discover import (discover,                # noqa: E402
+                               prepare)
 from synthkit.generate import generate                   # noqa: E402
 from synthkit.quantities import (from_number,            # noqa: E402
                                  quantity_kind, to_number)
@@ -257,6 +258,136 @@ def main():
                 for d in drugs)
     check("...and every token's rate survives, worst off by {:.3f}"
           .format(worst), worst < 0.06)
+
+    # WHY A CATEGORICAL COLUMN WILL SURVIVE, IN THE UNITS THAT
+    # DECIDE IT.
+    #
+    # A level is published when at least k PATIENTS hold it, so what
+    # governs a categorical column is not its distinct count but its
+    # patients-per-level. Measured on a 200-patient, 2,400-row frame:
+    # 100 distinct gives 22.8 patients per level and publishes
+    # cleanly; 240 gives 9.8 and the sentinel appears; 1,436 gives
+    # 2.1 and the column comes out as a single `__other__` in the
+    # delivered file.
+    #
+    # The run already SAYS a column was destroyed - that guard works
+    # and says the right thing. What it did not say was how close it
+    # was, which is the number that tells an operator whether
+    # aggregating the column (a code to its chapter, a city to its
+    # region) would rescue it or is hopeless. It belongs in the
+    # types pass, which costs seconds, because this file's rule is to
+    # put the cheap check first.
+    import io as _io
+    from synthkit.pipeline import _report_types as _rt
+    _r16 = np.random.RandomState(4)
+    _npat16, _rows16 = 200, 12
+    _g16 = np.repeat(np.arange(_npat16), _rows16)
+    _n16 = len(_g16)
+    _df16 = pd.DataFrame({
+        "person_id": ["P{:04d}".format(x) for x in _g16],
+        "visit_start_date": ["2024-01-{:02d}".format(i % 28 + 1)
+                             for i in range(_n16)],
+        "val": np.round(_r16.normal(0, 1, _n16), 3),
+        "few": _r16.choice(["a", "b", "c"], _n16),
+        "many": _r16.choice(["c{:05d}".format(j) for j in range(1400)],
+                            _n16)})
+    _bp16 = B.build(_df16, {"claims": [], "unexplained": [],
+                            "skipped": []},
+                    group_by="person_id")
+    _lines = []
+    _rt(_bp16, _df16, _lines.append)
+    _txt = "\n".join(_lines)
+    _few = [x for x in _lines if x.strip().startswith("few")]
+    _many = [x for x in _lines if x.strip().startswith("many")]
+    check("a low-cardinality column reports every level clearing the "
+          "k floor ({})".format(_few[0].strip() if _few else "MISSING"),
+          bool(_few) and "3 of 3 clear the k floor" in _few[0])
+    check("...and a high-cardinality one reports NONE clearing it, "
+          "with the patients-per-level that says how far off it is - "
+          "'destroyed' is a verdict, this is the diagnosis",
+          bool(_many)
+          and "0 of {} clear the k floor".format(_df16["many"].nunique())
+          in _many[0]
+          and "patients per level" in _many[0])
+    check("...and it is in the TYPES pass, which costs seconds - the "
+          "cheap check goes first, before an hour is spent on a "
+          "column that cannot survive",
+          "patients per level" in _txt)
+
+    # PUBLISH THE SHAPE, INVENT THE LABELS.
+    #
+    # A level held by fewer than k patients cannot be published - a
+    # code two people share names them - so a column made of such
+    # levels came out as `__other__` on EVERY row. Honest, and a
+    # constant column for anything downstream. Codes, SKUs,
+    # postcodes, order ids and free text are all that shape, so on an
+    # ordinary business table a large fraction of the columns were
+    # being thrown away.
+    #
+    # What can be published is the shape: how many distinct values
+    # there were, what share of rows they covered, and the profile of
+    # their frequencies with the extremes k-screened. The labels are
+    # then invented. Nothing real leaks because no label is real, and
+    # the column keeps the cardinality and skew a model needs.
+    from synthkit.generate import generate as _gen2
+    _r17 = np.random.RandomState(3)
+    _n17, _p17 = 2400, 200
+    _g17 = np.repeat(np.arange(_p17), _n17 // _p17)
+    _df17 = pd.DataFrame({
+        "person_id": ["P{:04d}".format(x) for x in _g17],
+        "visit_start_date": ["2024-01-{:02d}".format(i % 28 + 1)
+                             for i in range(_n17)],
+        "val": np.round(_r17.normal(0, 1, _n17), 3),
+        "few": _r17.choice(["a", "b", "c"], _n17),
+        "code": _r17.choice(["x{:05d}".format(j) for j in range(1400)],
+                            _n17)})
+    _bp17 = B.build(_df17, discover(_df17, group_by="person_id",
+                                    seed=1), group_by="person_id")
+    _g17o = _gen2(_bp17, n_patients=_p17, seed=5)
+
+    _cs, _cg = _df17["code"], _g17o["code"].astype(str)
+    _leak = set(_cg) & set(_cs.astype(str))
+    check("a high-cardinality column generates MANY distinct values "
+          "({} from a source of {}) instead of one repeated sentinel"
+          .format(_cg.nunique(), _cs.nunique()),
+          _cg.nunique() > 100)
+    check("...and not one of them is a real source label - the shape "
+          "is published, the labels are invented, so nothing a "
+          "person carries is republished",
+          len(_leak) == 0)
+    check("...and the sentinel is gone from the delivered column "
+          "({:.0%} `__other__`)".format(
+              float((_cg == "__other__").mean())),
+          float((_cg == "__other__").mean()) < 0.01)
+    check("...and the invented labels are OBVIOUSLY synthetic, "
+          "because a fake code that looks real invites someone to "
+          "look it up",
+          all(str(v).startswith("synthetic_")
+              for v in _cg.unique()[:20]))
+
+    # AND A COLUMN THAT CAN BE PUBLISHED IS UNTOUCHED. The capability
+    # must not replace values the k rule allows - those are real and
+    # a model needs the real ones.
+    _fs = set(_df17["few"].astype(str))
+    _fg = set(_g17o["few"].astype(str))
+    check("...while a column whose levels DO clear the k floor keeps "
+          "its real labels ({}) - the shape path is for what cannot "
+          "be published, not for everything".format(sorted(_fg)),
+          _fg <= _fs and len(_fg) >= 2)
+
+    # BOTH DRAW PATHS, because there are two and only one had it.
+    # A categorical with visit-to-visit persistence goes through the
+    # sticky draw and a plain one does not; reading `m["levels"]`
+    # directly in each is what left one column at 100% `__other__`
+    # while the other generated correctly.
+    from synthkit.generate import effective_levels as _eff
+    _m17 = _bp17["columns"]["code"]["marginal"]
+    _vals, _pr = _eff(_m17)
+    check("...and ONE vocabulary serves both the sticky and the plain "
+          "draw ({} levels, probabilities sum to {:.3f}) - two paths "
+          "reading the blueprint separately is how they came to "
+          "disagree".format(len(_vals), float(sum(_pr))),
+          len(_vals) > 100 and abs(float(sum(_pr)) - 1.0) < 1e-6)
 
     print()
     if FAIL:
