@@ -6,6 +6,7 @@
     python scripts/peek.py RUNDIR rel COLUMN
     python scripts/peek.py RUNDIR columns [SUBSTRING]
     python scripts/peek.py RUNDIR cap
+    python scripts/peek.py RUNDIR empty
 
 WHY THIS EXISTS. Seven diagnoses in a row were fetched with pasted
 python -c one-liners a hundred characters wide, on a terminal that
@@ -187,6 +188,86 @@ def cap_view(run):
         print()
 
 
+def empty_view(run):
+    """Where a set column's EMPTY rows come from.
+
+    A set column is empty on a row either because the source held
+    nothing there, or because its SIZE PARTNER - a count column the
+    blueprint declares equal to the set's size - came out zero. Those
+    are different faults with different fixes, and the fidelity line
+    ("empty 31.4% in source, 36.8% generated") cannot tell them
+    apart.
+
+    THIS COULD NOT BE ANSWERED ON A FIXTURE. Three shapes were built
+    to reproduce a 5.4-point gap seen on a real extract - a size
+    partner alone, a size partner with the measured sub-k tail, and a
+    cycle with refinement sweeps on and off - and all three
+    reproduced the source rate to within 1.1 points. Whatever causes
+    it is in the real data, so the diagnostic goes where the data is.
+
+    Reads only the run directory: nothing here needs the source."""
+    bp = _load(run, "blueprint.json")
+    import csv as _csv
+    gen = Path(run) / "generated.csv"
+    if not gen.exists():
+        sys.exit("no generated.csv in {} - run with --generate"
+                 .format(run))
+    partners = {}
+    for c in (bp.get("constraints") or []):
+        if c.get("op") != "==":
+            continue
+        lhs, rhs = str(c.get("lhs")), str(c.get("rhs"))
+        for a, b in ((lhs, rhs), (rhs, lhs)):
+            if a.endswith("__n"):
+                partners[a[:-3]] = b
+    cols = {}
+    for c, spec in (bp.get("columns") or {}).items():
+        m = (spec or {}).get("marginal") or {}
+        if m.get("type") == "list":
+            cols[c] = m
+    if not cols:
+        print("no set columns in this blueprint")
+        return
+    want = set(cols) | set(v for v in partners.values())
+    seen = dict((w, {"n": 0, "empty": 0, "zero": 0}) for w in want)
+    with gen.open(encoding="utf-8", newline="") as fh:
+        for row in _csv.DictReader(fh):
+            for w in want:
+                if w not in row:
+                    continue
+                v = (row[w] or "").strip()
+                seen[w]["n"] += 1
+                if v == "":
+                    seen[w]["empty"] += 1
+                try:
+                    if float(v) == 0.0:
+                        seen[w]["zero"] += 1
+                except (TypeError, ValueError):
+                    pass
+    for c, m in sorted(cols.items()):
+        pub = float(m.get("empty_in_source_share") or 0.0)
+        unpub = float(m.get("unpublishable_row_share") or 0.0)
+        st = seen.get(c) or {"n": 0, "empty": 0}
+        got = (st["empty"] / float(st["n"])) if st["n"] else float("nan")
+        print("{}".format(c))
+        print("   published EMPTY in source {:.3f} | generated {:.3f}"
+              "  ({:+.3f})".format(pub, got, got - pub))
+        print("   rows holding ONLY sub-k tokens {:.3f} - these draw "
+              "a token, so they push the other way".format(unpub))
+        part = partners.get(c)
+        if part:
+            ps = seen.get(part) or {"n": 0, "zero": 0}
+            pz = (ps["zero"] / float(ps["n"])) if ps["n"] else float("nan")
+            print("   size partner `{}` is ZERO on {:.3f} of generated "
+                  "rows".format(part, pz))
+            print("   -> if that matches the generated empty rate, the "
+                  "COUNT column is the cause, not the set draw")
+        else:
+            print("   no declared size partner - the sizes come from "
+                  "the published distribution alone")
+        print()
+
+
 def main():
     if len(sys.argv) < 3:
         print(__doc__)
@@ -207,6 +288,8 @@ def main():
         columns_view(run, arg)
     elif what == "cap":
         cap_view(run)
+    elif what == "empty":
+        empty_view(run)
     else:
         print(__doc__)
         return 2

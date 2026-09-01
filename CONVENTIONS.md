@@ -4,7 +4,7 @@ Synthetic clinical data generator and model-evaluation instrument. Core rule: le
 
 ## Verify before claiming
 
-- Run `python scripts/run_all_smokes.py` before claiming anything works. Expect 67 suites, 1820 checks, ALL GREEN **on a checkout**. Off a zipball extract - which is what the data machine runs - it is 1811: nine checks in `smoke_buildid` need git to test the archive path and report SKIPPED without it. Both numbers were measured. Do not quote the checkout number to the data machine; that is how a correct run gets read as a failure.
+- Run `python scripts/run_all_smokes.py` before claiming anything works. Expect 67 suites, 1823 checks, ALL GREEN **on a checkout**. Off a zipball extract - which is what the data machine runs - it is 1814: nine checks in `smoke_buildid` need git to test the archive path and report SKIPPED without it. Both numbers were measured. Do not quote the checkout number to the data machine; that is how a correct run gets read as a failure.
 - **THE DEVELOPMENT MACHINE WAS BEHIND THE DATA MACHINE, and that is
   how a green suite here failed there.** Dev was on Python 3.10 with
   pandas 2.3; the data machine installs fresh and got pandas 3.0.5,
@@ -949,6 +949,23 @@ what follows is what came out wrong anyway.
   against its mean, because that multiplies out to the row total; a
   COLUMN against its spread, which is what "within 10% of spread"
   already means everywhere else here.
+
+- **THREE HYPOTHESES, THREE REFUTED, AND THE DIAGNOSTIC GOES WHERE
+  THE DATA IS.** A real extract generated `active_drugs` empty on
+  36.8% of rows against 31.4% in its source. Built to reproduce it:
+  a set column with a declared size partner (0.306 -> 0.294, tracks
+  exactly); the same with the measured sub-k tail, 1,907 tokens of
+  which 1,378 below the floor (gap -0.025, the OPPOSITE direction);
+  and a fixture with cycles, refinement sweeps on against off
+  (identical to three decimals). Every set column on every fixture
+  reproduces its source rate within 1.1 points.
+  What differs is scale, `--lags` and the real relationship graph -
+  too many variables to isolate blind, and a fourth guess would have
+  been a fourth wrong one. `peek.py RUNDIR empty` separates the two
+  possible causes from the RUN DIRECTORY alone: if the size partner
+  is zero at the generated empty rate the count column is the cause,
+  and if it sits at the source rate the fault is in the set draw.
+  Different fixes; one line decides which.
 
 ## Talking to the data machine
 

@@ -25,6 +25,7 @@ generated severity separating by -0.3 where the source separated by
 silently applied nothing.
 """
 import json
+import subprocess
 import sys
 import tempfile
 from pathlib import Path
@@ -1409,6 +1410,52 @@ def main():
     check("...and nothing else was displaced - every column the "
           "frame had is still there",
           len(_cols15) == len(set(_cols15)))
+
+    # WHERE A SET COLUMN'S EMPTY ROWS COME FROM.
+    #
+    # A set is empty on a row either because the source held nothing
+    # there, or because its SIZE PARTNER - a count column the
+    # blueprint declares equal to the set's size - came out zero.
+    # Different faults, different fixes, and the fidelity line
+    # ("empty 31.4% in source, 36.8% generated") cannot tell them
+    # apart.
+    #
+    # THIS COULD NOT BE ANSWERED ON A FIXTURE. Three shapes were
+    # built to reproduce a 5.4-point gap on a real extract - a size
+    # partner alone, a size partner with the measured sub-k tail, and
+    # a cycle with refinement sweeps on and off - and all three
+    # reproduced the source rate to within 1.1 points. So the
+    # diagnostic goes where the data is, and it reads only the run
+    # directory.
+    with tempfile.TemporaryDirectory() as _t:
+        _d18 = Path(_t)
+        (_d18 / "blueprint.json").write_text(json.dumps({
+            "constraints": [{"lhs": "n_drugs", "op": "==",
+                             "rhs": "drugs__n"}],
+            "columns": {"drugs": {"marginal": {
+                "type": "list", "separator": ";",
+                "tokens": [{"value": "a", "p": 0.5}],
+                "empty_in_source_share": 0.30,
+                "unpublishable_row_share": 0.02}}}}),
+            encoding="utf-8")
+        (_d18 / "generated.csv").write_text(
+            "drugs,n_drugs\n" + "".join(
+                ("a,1\n" if i % 2 else ",0\n") for i in range(100)),
+            encoding="utf-8")
+        _r18 = subprocess.run(
+            [sys.executable, "scripts/peek.py", str(_d18), "empty"],
+            capture_output=True, text=True, cwd=str(ROOT))
+        _o18 = _r18.stdout or ""
+    check("`peek empty` reports the published empty share against the "
+          "generated one",
+          "published EMPTY in source 0.300" in _o18
+          and "generated 0.500" in _o18)
+    check("...and names the declared SIZE PARTNER with its zero rate, "
+          "which is what separates a count fault from a set fault",
+          "n_drugs" in _o18 and "ZERO on 0.500" in _o18)
+    check("...and says which conclusion each number supports, rather "
+          "than leaving a reader to infer it",
+          "COUNT column is the cause" in _o18)
 
     # SCAFFOLDING IS NOT THE OPERATOR'S DATA, and the constraint
     # report was counting it as if it were. A real run said
