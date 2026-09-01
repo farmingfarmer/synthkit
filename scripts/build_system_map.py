@@ -423,7 +423,7 @@ DOMAINS = [
       "it unchanged."),
     ]},
   ]},
- {"id": "phase2", "label": "Learning From Real Data",
+ {"id": "phase2", "label": "Learning From Real Data (first engine)",
   "stage": True, "color": "#7B4B94",
   "blurb": "Phase 2. Everything above INVENTS a population from a "
            "recipe. This stage learns one from an existing extract "
@@ -562,6 +562,285 @@ DOMAINS = [
       "~3,200 — and zero false positives at every size."),
     ]},
   ]},
+ {"id": "fitted",
+  "stage": 'learn, then draw', "note": 'a real extract becomes a\nk-anonymous contract, then data', "label": "The Fitted Path (synthkit fit)", "color": "#0E7C61",
+  "blurb": "The current engine: discover what explains each column, "
+           "publish a k-anonymous blueprint, generate to it. Every "
+           "number below was measured, most of them on a real "
+           "800-patient extract. Core rule throughout: learn the "
+           "patterns, never copy the records.",
+  "modules": [
+   {"file": "discover.py", "name": "discover - what explains each column",
+    "blurb": "Out-of-sample confirmation, split BY PATIENT - a "
+             "row-wise holdout leaks the same person into both "
+             "halves and confirms nearly anything.",
+    "components": [
+     ("Typed frame, sets expanded", "discover.py", "prepare",
+      "Numerics as floats, dates as days, categories capped; a SET "
+      "column becomes one indicator per token plus its size, placed "
+      "BESIDE its source column - moving them to the end changed "
+      "which relationships a real extract found. An empty set "
+      "encodes as a level: present-and-empty is a state, not a "
+      "spelling of missing."),
+     ("Claims confirmed on held-out people", "discover.py",
+      "discover",
+      "Screen, fit, confirm on patients the model never saw. "
+      "Returns claims with skill, importances and effect curves - "
+      "12/13 planted relationships found on the tidy fixture, 0 "
+      "noise edges."),
+    ]},
+   {"file": "blueprint.py", "name": "blueprint - the k-anonymous contract",
+    "blurb": "Everything published is an aggregate over at least k "
+             "PATIENTS - never rows, because one person seen 200 "
+             "times can supply the ten most extreme rows alone.",
+    "components": [
+     ("Bounds that belong to k patients", "blueprint.py",
+      "_safe_bounds",
+      "The stored minimum and maximum are the MEAN of the k most "
+      "extreme patients' own extremes. Storing the true 0th/100th "
+      "percentile published one person's smallest and largest value "
+      "for weeks, in a file described as aggregates-only."),
+     ("The tail's own mean", "blueprint.py", "_tail_mean",
+      "A straight line from the last knot to the bound mis-centres "
+      "a heavy tail: knots at 316 and 2175, true segment mean 529, "
+      "straight line 1242 - one segment carried 7.13 of a 9.97 "
+      "excess. Publishing the tail mean took the extract from 18/34 "
+      "columns centred to 30/33."),
+     ("A set publishes every token above k", "blueprint.py",
+      "_list_marginal",
+      "Sharing the 60-level category cap sent every published share "
+      "about 3x high - a set has no __other__ to absorb the rest. "
+      "Now: every token that clears k, size measured over the "
+      "PUBLISHABLE vocabulary, and the k rule's cost stated in "
+      "tokens per row. On the extract: 54 of 91 shares missing "
+      "became 0 of 62."),
+     ("Invented labels for what k forbids", "blueprint.py",
+      "_categorical_marginal",
+      "A high-cardinality column - codes, SKUs, free text - used to "
+      "come out as __other__ on every row. Now the SHAPE is "
+      "published (distinct count, row share, frequency profile, "
+      "extremes k-screened) and generation invents obviously "
+      "synthetic labels: 1,436 distinct in, 1,087 out, zero real "
+      "labels republished."),
+    ]},
+   {"file": "generate.py", "name": "generate - drawing to contract",
+    "blurb": "Marginals, relationships, dynamics, constraints, "
+             "presence - and the discipline that an acyclic "
+             "blueprint comes out bit-identical after any cycle "
+             "work.",
+    "components": [
+     ("A cycle is refined, not just cut", "generate.py", "_order",
+      "A cycle cannot be ordered, but it does not have to be: the "
+      "first pass needs an order to get values at all, then two "
+      "sweeps re-apply the trimmed parents by RE-RANKING the "
+      "marginal's own draw. Order-dependence 0.192 -> 0.021 on a "
+      "ring; sign inversions held at zero."),
+     ("Token weights solved, damped", "generate.py",
+      "_token_weights",
+      "A published token p is a share of rows, not a sampling "
+      "weight. The undamped solve converged at 8 tokens and "
+      "OSCILLATED at 2,538 - head and tail swapped places. Damped, "
+      "0 of 2,500 shares miss at the extract's own shape."),
+     ("Rounding where the mass sits", "generate.py", "_to_integers",
+      "Rounding at .5 moved 11.3 points of mass off zero on a count "
+      "that is 73.8% zeros. The cut is placed where the column's "
+      "published mean says; a zero POINT MASS lost to the "
+      "relationship path is restored by rank, zeros to the "
+      "lowest-predicted rows - point mass exact, spearman within "
+      "0.03."),
+     ("One vocabulary for both draws", "generate.py",
+      "effective_levels",
+      "The sticky draw and the plain draw both read the level list "
+      "here. Adding invented labels to one path left the other at "
+      "100% __other__ - two paths reading the blueprint separately "
+      "is how the two sides come to disagree."),
+     ("Never clamp - squeeze", "generate.py", "_pin_to_bounds",
+      "Out-of-bound values are squeezed into the headroom "
+      "order-preserved, never clamped to the wall - a clamp puts a "
+      "spike at the bound that reads as a finding."),
+    ]},
+   {"file": "sets.py", "name": "sets - one vocabulary, both halves",
+    "blurb": "What a set column is, screened by PATIENTS, defined "
+             "once - screening tokens twice in two files is how the "
+             "two sides came to disagree.",
+    "components": [
+     ("Vocabulary screened by patients", "sets.py", "vocabulary",
+      "A token held by fewer than k patients is not published. "
+      "Present-and-empty rows are counted - 80.7% of `procedures` "
+      "visits are genuinely empty, and generation says so instead "
+      "of inventing procedures for them."),
+     ("Scaffolding has one definition", "sets.py", "is_scaffolding",
+      "Indicator and size columns are built for the search and "
+      "dropped before the file is written. The constraint report "
+      "counted them with the operator's own columns - 843/933 "
+      "orderings of noise burying the ones about their data."),
+     ("Signal-ranked expansion, as a choice", "sets.py",
+      "rank_by_signal",
+      "--expand-by signal spends the same 24-token budget on tokens "
+      "that MEASURE as related. It finds a driver frequency ranks "
+      "last of 31 - and it LOST on the real extract, 87 "
+      "relationships against 115, so the default stays frequency "
+      "and the flag stays because the question is now answered."),
+    ]},
+   {"file": "pipeline.py", "name": "pipeline - the run itself",
+    "blurb": "synthkit types / fit / dials. One parser, flags "
+             "defined once; the run echoes the invocation it "
+             "actually received.",
+    "components": [
+     ("Types in seconds, with survival", "pipeline.py",
+      "_report_types",
+      "The cheap check goes first: how every column was read, plus "
+      "whether it will SURVIVE - patients per level against the k "
+      "floor. '2 per level, 0 of 1,436 clear the floor' is a "
+      "diagnosis; 'destroyed' is only a verdict."),
+     ("Source against generated", "pipeline.py", "compare",
+      "Coverage, centre, spread, persistence, clustering, set token "
+      "shares, set EMPTY rates, pairs, constraints - with INVERTED "
+      "counted separately, because a relationship with the opposite "
+      "sign reads as a finding and is worse than one that is "
+      "missing."),
+    ]},
+  ]},
+ {"id": "instruments",
+  "stage": 'prove it', "note": 'contradictions, obedience,\nattacks, rulers, planted truth', "label": "Verification Instruments", "color": "#B34700",
+  "blurb": "The layer that distinguishes progress from motion. "
+           "Every measurement error this project has had was caught "
+           "by two numbers disagreeing, never by review - these "
+           "automate the disagreement.",
+  "modules": [
+   {"file": "contradictions.py", "name": "contradictions",
+    "blurb": "Not fidelity: a hit here means the INSTRUMENT is "
+             "wrong, whatever the data was.",
+    "components": [
+     ("Two numbers that cannot both be true", "contradictions.py",
+      "find",
+      "icc 0.0 beside lag1 0.98 is not a thing that exists. Rules "
+      "are identities, never 'surprising numbers' - a rule that "
+      "fires on healthy data teaches everyone to skip the section."),
+     ("The contract checked against itself", "contradictions.py",
+      "find_blueprint",
+      "Before a row is generated: does each published mean agree "
+      "with its own quantile grid? On a dataset where one entity "
+      "held half the rows it predicted the row shortfall at -20% "
+      "and named privacy as the cause; the run came out -27%."),
+    ]},
+   {"file": "invariants.py", "name": "invariants",
+    "blurb": "Obedience, not resemblance: every property the "
+             "blueprint DECLARES is asserted against the frame that "
+             "came out.",
+    "components": [
+     ("What the blueprint declares, the frame obeys",
+      "invariants.py", "find",
+      "A patient-level column whose value changed between one "
+      "person's visits passed every fidelity check - resemblance "
+      "was fine, obedience was not. Needs no source data, so it "
+      "runs on machines that hold no extract."),
+    ]},
+   {"file": "attack.py", "name": "attacks",
+    "blurb": "A privacy pass is only worth something if the same "
+             "attack FAILS a leaking generator.",
+    "components": [
+     ("Membership, with a positive control", "attack.py",
+      "membership_audit",
+      "Worst AUC 0.52 on the fitted path where a coin flip is 0.50 "
+      "- and the same attack scores 1.00 and returns FAIL when "
+      "handed a generator that republishes members. The control is "
+      "what makes the clean number worth anything."),
+     ("Attribute disclosure, with a control cohort", "attack.py",
+      "attribute_disclosure",
+      "A real relationship is revealed by ANY sample of the "
+      "population, so a second adversary trains on different real "
+      "people never in the cohort: only the EXCESS belongs to the "
+      "release. Excess -0.009; a republishing generator reads "
+      "+0.145."),
+     ("A partial set leak is caught", "attack.py",
+      "nearest_neighbour_attack",
+      "Comparing a set as a STRING scored a member's own tokens "
+      "with one swapped at 0.500 - a coin flip on a near-verbatim "
+      "republish. Jaccard scores it 0.998, and an honest generator "
+      "still reads 0.49."),
+    ]},
+   {"file": "baselines.py", "name": "baselines - the rulers",
+    "blurb": "Reference generators, never releasable - they "
+             "resample real values. They exist so 'good' has a "
+             "denominator.",
+    "components": [
+     ("The copula ruler", "baselines.py", "GaussianCopula",
+      "On the real extract synthkit keeps 118.7 sign-correct "
+      "relationships against the copula's 76.7 - the margin that "
+      "justifies the machinery, measured rather than asserted."),
+    ]},
+   {"file": "semisynth.py", "name": "semisynth - planted truth",
+    "blurb": "Nobody knows the answer in real data, so a KNOWN "
+             "outcome is planted on measured covariates - the "
+             "ceiling becomes computable on data shaped like the "
+             "customer's.",
+    "components": [
+     ("Effects in standard deviations", "semisynth.py", "plant",
+      "A raw coefficient of 0.5 means one thing on creatinine and "
+      "saturates the logit on glucose, so effects are declared in "
+      "sds and converted with the blueprint's own spread. Planted "
+      "+0.9/-0.5 recovered at +0.86/-0.44; a no-effect column reads "
+      "+0.03."),
+     ("The intercept is solved, not centred", "semisynth.py",
+      "verify",
+      "sigmoid(E[z]) is not E[sigmoid(z)]: centring asked for 25% "
+      "prevalence and produced 29.4%. Bisection over draws from the "
+      "columns' own marginals, and achieved-vs-requested is "
+      "reported rather than assumed."),
+    ]},
+   {"file": "bridge.py", "name": "bridge - the two halves meet",
+    "blurb": "The measured blueprint crosses into the evaluation "
+             "half's TableSpec, and what does not cross is written "
+             "on the artefact.",
+    "components": [
+     ("Measured marginals cross", "bridge.py",
+      "blueprint_to_tablespec",
+      "As a `quantiles` distribution kind, because fitting a normal "
+      "to a clinical column is the loss the fitted path exists to "
+      "prevent. Every decile within 0.03 of a source sd on a column "
+      "skewed 2.83. Effect curves and dynamics do NOT cross, and "
+      "the file says so about itself."),
+    ]},
+   {"file": "../scripts/shape_sweep.py", "name": "shape sweep",
+    "blurb": "Every fixture here was ONE shape - longitudinal "
+             "clinical visits - which is why a week of defects hid "
+             "from all of them.",
+    "components": [
+     ("23 shapes, six minutes", "../scripts/shape_sweep.py", "main",
+      "Cross-sectional, no time column, high-cardinality codes, "
+      "free text, 92% sparse, one entity holding half the rows, a "
+      "flat table with no grouping column. Found five defects on "
+      "its first run - including one in its own author's checks. "
+      "22 of 23 shapes now clean."),
+    ]},
+   {"file": "../scripts/m0_gate.py", "name": "the gate",
+    "blurb": "A milestone bar as a SCRIPT, not a number in a chat "
+             "log - the chat-log version went unreachable when the "
+             "denominator moved, and nobody noticed for two runs.",
+    "components": [
+     ("Six criteria, exit code honest", "../scripts/m0_gate.py",
+      "main",
+      "Direction and close as proportions of whatever the run "
+      "relates; INVERTED stays absolute - one inverted relationship "
+      "fails the gate however large the denominator. Currently 5/6 "
+      "on the real extract."),
+    ]},
+   {"file": "../scripts/peek.py", "name": "peek",
+    "blurb": "The operator types a short command; the parsing "
+             "lives in a reviewed file. Born after a pasted "
+             "one-liner with its loop clauses in the wrong order "
+             "read as an operator error.",
+    "components": [
+     ("Where the empty rows come from", "../scripts/peek.py",
+      "empty_view",
+      "A set is empty because the source held nothing, or because "
+      "its declared SIZE PARTNER drew zero - different faults, "
+      "different fixes. This view separated them on the real "
+      "extract in one command after three fixtures failed to "
+      "reproduce the gap."),
+    ]},
+  ]},
  {"id": "narrative", "label": "Notes & Extraction",
   "stage": True, "color": "#B45309",
   "blurb": "Clinical facts rendered into messy prose, with a "
@@ -697,6 +976,14 @@ NARRATIVE = {
   "phase2": "so a benchmark can be shaped like the hospital's "
             "own data instead of an engineer's guess — while "
             "generation still consumes parameters, never records",
+  "fitted": "so real data teaches the parameters and the "
+            "synthetic data resembles the hospital's own — while "
+            "no record, bound, or label of any one person "
+            "survives into what is published",
+  "instruments": "runs alongside every step — contradictions, "
+                 "obedience, attacks with positive controls, and "
+                 "rulers, so progress and motion cannot be "
+                 "confused",
   "narrative": "because the clinical value that vendors compete "
                "over is locked in free text, and an exam that "
                "only has columns cannot test for it",
@@ -704,6 +991,52 @@ NARRATIVE = {
            "command line, and AI connections on your terms",
  },
  "domains": {
+  "fitted": {
+   "plain": "Learn the patterns of a real dataset, publish only "
+            "crowd-level facts about them, and generate new data "
+            "that behaves the same way.",
+   "steps": [
+    ["Read the real file and work out what each column is",
+     "in seconds, before anything expensive - and it now says "
+     "whether each column can even survive anonymisation, so a "
+     "hopeless one is caught before an hour is spent"],
+    ["Find what explains each column, checked on people the "
+     "model never saw",
+     "a claim only counts if it holds on held-out patients - "
+     "on the test data, 12 of 13 planted patterns are found "
+     "with zero false ones"],
+    ["Write the contract: every published number describes at "
+     "least ten patients",
+     "the file that leaves holds no one person's value - "
+     "extremes are averaged over the ten most extreme people, "
+     "and rare labels are replaced by invented ones"],
+    ["Generate new patients to that contract",
+     "counts, labs, categories, medication lists, visit "
+     "rhythms - including the four fifths of visits that "
+     "genuinely have no procedures"],
+   ]},
+  "instruments": {
+   "plain": "Prove the whole thing on every run: catch the tool "
+            "lying to itself, attack its output, and measure it "
+            "against rulers.",
+   "steps": [
+    ["Check the report for numbers that cannot both be true",
+     "every measurement error this project ever had was caught "
+     "by two numbers disagreeing - this automates the "
+     "disagreement"],
+    ["Check the output obeys every promise the contract made",
+     "a column can resemble its source in every average while "
+     "breaking a rule on every row - obedience is checked "
+     "separately from resemblance"],
+    ["Attack the output like an adversary would",
+     "and every attack carries a positive control: the same "
+     "attack must score near-perfect against a deliberately "
+     "leaky generator, or its pass means nothing"],
+    ["Compare against rulers and planted truth",
+     "a simple statistical copy keeps 77 relationships where "
+     "synthkit keeps 119 - and a planted known answer comes "
+     "back within a few hundredths"],
+   ]},
   "spec": {
    "plain": "Turn a plain-English request into an exact, "
             "reviewable recipe for the data.",
@@ -907,6 +1240,257 @@ NARRATIVE = {
    ]},
  },
  "walkthroughs": {
+  "discover.py::prepare": [
+   ["Type every column before anything expensive",
+    "numbers, dates, categories, and set columns - a column "
+    "read as the wrong type is the most expensive silent fault "
+    "this tool has had"],
+   ["Expand each medication-list-like column into indicators",
+    "so a single drug can explain a lab value, not just the "
+    "whole combination string"],
+   ["Keep an empty list distinct from a missing one",
+    "a visit with no procedures is a fact; a blank cell is an "
+    "unknown - folding them together once invented procedures "
+    "for four fifths of visits"],
+  ],
+  "discover.py::discover": [
+   ["Split the people, not the rows",
+    "visits from one person are not independent - a row-wise "
+    "split leaks the same patient into both halves and "
+    "confirms nearly anything"],
+   ["Fit, then confirm on the held-out people",
+    "a claim only counts if it predicts patients the model "
+    "never saw"],
+   ["Return claims with receipts",
+    "skill, which columns drove it, and the measured effect "
+    "curve - 12 of 13 planted patterns found, zero false ones"],
+  ],
+  "blueprint.py::_safe_bounds": [
+   ["Never publish one person's extreme",
+    "the stored minimum and maximum are averages over the ten "
+    "most extreme PATIENTS - the true max belonged to one "
+    "findable person"],
+   ["Count patients, never rows",
+    "one person seen 200 times could otherwise set the bound "
+    "alone and still be called anonymous"],
+  ],
+  "blueprint.py::_tail_mean": [
+   ["Say what the extreme 1% actually averages",
+    "a straight line across the top segment mis-centred heavy "
+    "columns - true mean 529, straight line 1242"],
+   ["Publish it k-screened",
+    "the tail mean is an average over at least ten patients, "
+    "or it is not published at all"],
+  ],
+  "blueprint.py::_list_marginal": [
+   ["Publish every list item at least ten patients carry",
+    "capping at 60 forced the survivors to absorb everyone "
+    "else's share - each came out three times too common"],
+   ["Measure list length over what is publishable",
+    "and state the anonymisation cost in items per row, so a "
+    "shorter list reads as privacy, not a bug"],
+  ],
+  "blueprint.py::_categorical_marginal": [
+   ["When no label can be published, publish the shape",
+    "how many distinct values, how common, how skewed - "
+    "aggregates over a crowd of labels, naming none"],
+   ["Let generation invent obviously fake labels to match",
+    "1,436 real codes in, 1,087 synthetic ones out, zero real "
+    "labels republished - and none look real enough to look up"],
+  ],
+  "generate.py::_order": [
+   ["Give the tangled graph an order once, to get values",
+    "some columns predict each other in a loop, and a loop "
+    "cannot be ordered without cutting something"],
+   ["Then re-apply what was cut, by re-ranking",
+    "the same values, rearranged - the marginal cannot drift "
+    "and the sweep cannot run away"],
+   ["Leave untangled data byte-identical",
+    "asserted, and mutation-tested: if this changed acyclic "
+    "output it would be a rewrite wearing a bugfix's clothes"],
+  ],
+  "generate.py::_token_weights": [
+   ["Solve for weights until drawn shares measure back",
+    "a published share is not a sampling weight - fed in raw, "
+    "44 of 96 shares missed"],
+   ["Damp the update so it cannot oscillate",
+    "at 2,538 items the undamped solve swapped the most and "
+    "least common - damped, zero of 2,500 miss"],
+  ],
+  "generate.py::_to_integers": [
+   ["Round where the mass sits, not at .5",
+    "on a count that is mostly zeros, rounding at .5 moved 11 "
+    "points of mass off zero"],
+   ["Put a zero spike back by rank",
+    "a curve is smooth and cannot produce 'exactly zero, "
+    "31.4% of the time' - the zeros go to the rows the curve "
+    "predicted lowest, so the relationship survives"],
+  ],
+  "generate.py::effective_levels": [
+   ["Define the category vocabulary once",
+    "two draw paths each read the blueprint directly, and a "
+    "capability added to one silently did not exist in the "
+    "other"],
+   ["Blend real and invented labels here",
+    "published labels keep their shares; the unpublishable "
+    "mass gets the synthetic vocabulary"],
+  ],
+  "generate.py::_pin_to_bounds": [
+   ["Squeeze out-of-bound values into the headroom",
+    "keeping their order - never clamp, because a clamp piles "
+    "a spike at the wall that reads as a finding"],
+  ],
+  "sets.py::vocabulary": [
+   ["Screen every list item by patients",
+    "an item two people carry names them; ten is the floor"],
+   ["Count the genuinely empty rows",
+    "80.7% of procedure lists are empty in the source, and "
+    "generation reproduces that instead of inventing content"],
+  ],
+  "sets.py::is_scaffolding": [
+   ["Know which columns are the tool's own",
+    "search-time indicator columns are dropped before the "
+    "file is written - counting them with the customer's "
+    "columns buried the real report under 800 lines of noise"],
+  ],
+  "sets.py::rank_by_signal": [
+   ["Offer an alternative spend of the search budget",
+    "the same 24 slots on the items that measure as related, "
+    "instead of the most common"],
+   ["Report which rule ran, and keep the default",
+    "it finds what frequency misses AND loses more than it "
+    "gains on the real extract - 87 relationships against "
+    "115 - so it ships as a measured choice, not a fix"],
+  ],
+  "pipeline.py::_report_types": [
+   ["Show how every column was read, in seconds",
+    "one glance would have caught the date, currency and "
+    "clock columns that each silently became one repeated "
+    "token"],
+   ["Say whether each column can survive anonymisation",
+    "'2 patients per level, 0 of 1,436 clear the floor' tells "
+    "you before the run whether aggregating would rescue it"],
+  ],
+  "pipeline.py::compare": [
+   ["Score generated against source, per column and per pair",
+    "coverage, centre, spread, rhythm, clustering, list "
+    "shares, empty rates, orderings"],
+   ["Count inverted relationships separately",
+    "a relationship with the opposite sign reads as a finding "
+    "- worse than one that is missing"],
+  ],
+  "contradictions.py::find": [
+   ["Scan the finished report for impossible pairs",
+    "perfect visit-to-visit persistence beside zero "
+    "between-patient share is not a thing that exists"],
+   ["Blame the instrument, not the data",
+    "a hit here means a measurement is wrong - fidelity "
+    "findings live elsewhere"],
+  ],
+  "contradictions.py::find_blueprint": [
+   ["Check the contract against itself before generating",
+    "does each published average agree with its own published "
+    "percentiles?"],
+   ["Predict the consequence in rows",
+    "'about 1,900 rows against 2,400, and privacy is the "
+    "cause' - predicted -20%, the run came out -27%"],
+  ],
+  "invariants.py::find": [
+   ["Assert every promise the contract made",
+    "one value per patient means one value per patient, on "
+    "every row - not on average"],
+   ["Run it anywhere",
+    "needs no source data, so the machine that holds no "
+    "extract can still verify obedience"],
+  ],
+  "attack.py::membership_audit": [
+   ["Ask: was this person in the training cohort?",
+    "two adversaries try; worst score 0.52 where a coin flip "
+    "is 0.50"],
+   ["Prove the attack can catch a cheat",
+    "handed a generator that republishes its members, the "
+    "same attack scores 1.00 and returns FAIL - without that, "
+    "the pass would be a formality"],
+  ],
+  "attack.py::attribute_disclosure": [
+   ["Ask: does the release help guess a sensitive field?",
+    "raw accuracy cannot answer - a faithful generator is "
+    "GOOD at predicting one column from others, because the "
+    "relationship is real"],
+   ["Subtract what anyone could learn from the population",
+    "a control adversary trains on different real people; "
+    "only the excess belongs to this release: -0.009, against "
+    "+0.145 for a republishing generator"],
+  ],
+  "attack.py::nearest_neighbour_attack": [
+   ["Measure how close each real person sits to the output",
+    "with list columns compared by overlap, not as strings"],
+   ["Catch the near-verbatim republish",
+    "a member's own medication list with ONE item swapped: "
+    "string comparison scored it a coin flip, overlap scores "
+    "it 0.998"],
+  ],
+  "baselines.py::GaussianCopula": [
+   ["Generate the cheap statistical way, as a ruler",
+    "never releasable - it resamples real values - but it "
+    "gives 'good' a denominator"],
+   ["Read the margin",
+    "119 sign-correct relationships kept against the ruler's "
+    "77 on the real extract - the machinery justified by "
+    "measurement"],
+  ],
+  "semisynth.py::plant": [
+   ["Plant a known answer on measured covariates",
+    "nobody knows the truth in real data, so a known outcome "
+    "is written onto data shaped like the customer's"],
+   ["Declare effects in standard deviations",
+    "a raw coefficient means different things on different "
+    "columns - planted +0.9/-0.5 comes back +0.86/-0.44, and "
+    "a no-effect column reads +0.03"],
+  ],
+  "semisynth.py::verify": [
+   ["Report achieved against requested",
+    "asking for 25% prevalence naively produced 29.4% - the "
+    "intercept is solved by bisection, and the residual is "
+    "reported, never assumed away"],
+  ],
+  "bridge.py::blueprint_to_tablespec": [
+   ["Carry measured distributions into the exam half",
+    "as percentile curves, because fitting a bell curve to a "
+    "clinical column is the exact loss this path exists to "
+    "prevent"],
+   ["Write what does not cross on the artefact",
+    "effect curves and visit rhythms do not cross, and the "
+    "file says so about itself - a spec that silently lost "
+    "its relationships is the same failure as a column that "
+    "is secretly all sentinel"],
+  ],
+  "../scripts/shape_sweep.py::main": [
+   ["Run the whole pipeline over 23 kinds of dataset",
+    "flat tables, free text, one customer holding half the "
+    "rows, 92% sparse - shapes a customer will actually send"],
+   ["Report what is wrong on ANY shape",
+    "crashes, lost or invented columns, collapsed columns, "
+    "moved row counts - it found five defects in its first "
+    "run, one of them in its own author's checks"],
+  ],
+  "../scripts/m0_gate.py::main": [
+   ["Turn the milestone bar into a script",
+    "the chat-log version went unreachable when the pair "
+    "count moved, and nobody noticed for two runs"],
+   ["Exit honestly",
+    "six criteria, proportions of what the run relates, "
+    "inversions absolute - currently 5 of 6 on the real "
+    "extract"],
+  ],
+  "../scripts/peek.py::empty_view": [
+   ["Separate two causes of an empty list",
+    "the source held nothing, or the declared count partner "
+    "drew zero - different faults, different fixes"],
+   ["Answer from the run directory alone",
+    "it settled in one command what three purpose-built "
+    "fixtures could not reproduce"],
+  ],
   "compiler.py::_TABLE_COMPILER_SYSTEM": [
    ["Hold the textbook the drafting AI studies",
     "every rule it must follow when turning a paragraph into "
