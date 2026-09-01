@@ -196,6 +196,34 @@ def _numeric_marginal(s: pd.Series, groups=None,
                          True, k)
     lo_mean = _tail_mean(v, groups, float(np.quantile(arr, inner[0])),
                          False, k)
+    # A POINT MASS AT ZERO IS NOT A SHAPE A CURVE CAN MAKE.
+    #
+    # A zero-inflated count - drugs on a visit, claims in a month,
+    # items in a basket - is a spike at zero plus a distribution
+    # above it. Drawn from its own marginal that comes out right,
+    # because the inverse CDF reproduces the spike. Drawn as a
+    # RELATIONSHIP CHILD it does not: the value arrives as a curve
+    # prediction plus roughly symmetric noise, which is continuous,
+    # and rounding a continuous distribution cannot land a point mass
+    # where the source had one.
+    #
+    # Measured on a fixture whose count is 30.6% zeros: generation
+    # kept the MEAN exactly (2.9206 against 2.9204) and produced 38.0%
+    # zeros. On the real extract `active_drug_count` reads 31.4% in
+    # source against 36.8% generated - and because the blueprint
+    # declares `active_drug_count == active_drugs__n`, that count
+    # dragged the SET with it, so `active_drugs` came out empty on
+    # 36.8% too while the three set columns with no size partner were
+    # within 0.004.
+    #
+    # The share is an aggregate over every row, so it says nothing
+    # about any one of them.
+    if out.get("integral"):
+        arr0 = v.dropna().to_numpy(dtype=float)
+        if len(arr0):
+            z = float((arr0 == 0.0).mean())
+            if z >= 0.02:
+                out["zero_share"] = round(z, 6)
     if hi_mean is not None:
         out["tail_mean_high"] = round(hi_mean, 6)
     if lo_mean is not None:

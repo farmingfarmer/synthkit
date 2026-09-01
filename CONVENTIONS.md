@@ -4,7 +4,7 @@ Synthetic clinical data generator and model-evaluation instrument. Core rule: le
 
 ## Verify before claiming
 
-- Run `python scripts/run_all_smokes.py` before claiming anything works. Expect 67 suites, 1823 checks, ALL GREEN **on a checkout**. Off a zipball extract - which is what the data machine runs - it is 1814: nine checks in `smoke_buildid` need git to test the archive path and report SKIPPED without it. Both numbers were measured. Do not quote the checkout number to the data machine; that is how a correct run gets read as a failure.
+- Run `python scripts/run_all_smokes.py` before claiming anything works. Expect 67 suites, 1827 checks, ALL GREEN **on a checkout**. Off a zipball extract - which is what the data machine runs - it is 1818: nine checks in `smoke_buildid` need git to test the archive path and report SKIPPED without it. Both numbers were measured. Do not quote the checkout number to the data machine; that is how a correct run gets read as a failure.
 - **THE DEVELOPMENT MACHINE WAS BEHIND THE DATA MACHINE, and that is
   how a green suite here failed there.** Dev was on Python 3.10 with
   pandas 2.3; the data machine installs fresh and got pandas 3.0.5,
@@ -966,6 +966,34 @@ what follows is what came out wrong anyway.
   is zero at the generated empty rate the count column is the cause,
   and if it sits at the source rate the fault is in the set draw.
   Different fixes; one line decides which.
+
+- **A POINT MASS AT ZERO IS NOT A SHAPE A CURVE CAN MAKE, AND THE
+  MEAN HIDES IT.** A zero-inflated count drawn from its own marginal
+  comes out right, because the inverse CDF reproduces the spike.
+  Drawn as a RELATIONSHIP CHILD it does not: the value arrives as a
+  curve prediction plus roughly symmetric noise, which is continuous,
+  and rounding cannot land a point mass. Measured: mean 2.9206
+  against 2.9204 - exact - with zeros at 30.6% against 38.0%. Every
+  centre, spread and coverage check passes while the column's shape
+  at zero is wrong. The blueprint publishes `zero_share` and the
+  zeros go to the LOWEST-predicted rows, so the relationship the
+  curve found survives: point mass exact, centre pays 0.046 of a sd
+  at worst against a 10% standard, spearman within 0.03, and a count
+  with no zero inflation is untouched.
+- **AND IT DRAGGED A SET COLUMN WITH IT.** The blueprint declares
+  `active_drug_count == active_drugs__n`, so the set's size comes
+  from the count - and the count's excess zeros made the SET empty on
+  36.8% of rows against 31.4% in source. The three set columns with
+  NO size partner were within 0.004 in the same run, which is what
+  made the attribution safe rather than a story. A fault in a numeric
+  column can surface as a fault in a set, and `peek.py RUNDIR empty`
+  exists to tell those apart.
+- **THE MEAN-INFORMED ROUNDING CUT DOES NOT HELP HERE, AND THAT WAS
+  MEASURED.** Routing the relationship path through `_to_integers` -
+  the cut the marginal path uses - was built and reverted: on a
+  relationship child the noise is roughly symmetric, so plain
+  rounding already matches the published mean and the bisection lands
+  at exactly 0.5. Both arms came out identical on every case tried.
 
 ## Talking to the data machine
 

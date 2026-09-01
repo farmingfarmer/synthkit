@@ -1776,7 +1776,50 @@ def generate(blueprint: Dict[str, Any],
             else:
                 base = np.asarray(base, dtype=float)
             if m.get("integral"):
+                # A PLAIN .5 ROUND HERE, and that was measured
+                # rather than assumed. Routing this through
+                # `_to_integers` - the mean-informed cut the marginal
+                # path uses - was built and reverted: on a
+                # relationship child the values arrive from a curve
+                # plus roughly symmetric noise, so plain rounding
+                # already matches the published mean and the
+                # bisection lands at exactly 0.5. Both arms came out
+                # identical on every case tried, including a
+                # mostly-zero count and a skewed one.
+                #
+                # What IS wrong here is not the cut. See
+                # `zero_share` below: a continuous model cannot
+                # reproduce a POINT MASS, so a zero-inflated count
+                # keeps its mean and loses its zero share.
                 base = np.round(base)
+                # PUT THE POINT MASS BACK, BY RANK.
+                #
+                # The zeros are given to the LOWEST-predicted rows,
+                # so the relationship the curve found is preserved -
+                # the same device the refinement sweeps use. Taking
+                # the values the draw already produced and changing
+                # only which rows are zero means the column cannot
+                # drift somewhere else while this is fixed.
+                _zs = m.get("zero_share")
+                if _zs is not None and len(base):
+                    _b = np.asarray(base, dtype=float)
+                    _fin = np.isfinite(_b)
+                    _nf = int(_fin.sum())
+                    if _nf:
+                        _want = int(round(float(_zs) * _nf))
+                        _idx = np.where(_fin)[0]
+                        # NOT `_order` - that is the module-level
+                        # function this file uses to sequence the
+                        # graph, and binding it here makes it local
+                        # for the whole of `generate`.
+                        _zrank = _idx[np.argsort(_b[_idx],
+                                                 kind="stable")]
+                        _b = _b.copy()
+                        _b[_zrank[:_want]] = 0.0
+                        if _want < _nf:
+                            _rest = _zrank[_want:]
+                            _b[_rest] = np.maximum(_b[_rest], 1.0)
+                        base = _b
 
         cov = spec.get("target_coverage")
         if cov is not None and float(cov) < 1.0:

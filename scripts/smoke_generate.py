@@ -441,6 +441,85 @@ def main():
           "curve is better than a surface on the wrong columns",
           moved2 > 12.0)
 
+    # A POINT MASS AT ZERO IS NOT A SHAPE A CURVE CAN MAKE.
+    #
+    # A zero-inflated count - drugs on a visit, claims in a month,
+    # items in a basket - is a spike at zero plus a distribution
+    # above it. Drawn from its own marginal it comes out right,
+    # because the inverse CDF reproduces the spike. Drawn as a
+    # RELATIONSHIP CHILD it does not: the value arrives as a curve
+    # prediction plus roughly symmetric noise, which is continuous,
+    # and rounding a continuous distribution cannot put a point mass
+    # back where the source had one.
+    #
+    # It keeps the MEAN while losing the share, which is why nothing
+    # caught it: measured at 2.9206 against 2.9204 with the zeros at
+    # 30.6% against 38.0%. On the real extract `active_drug_count`
+    # read 31.4% source against 36.8% generated - and because the
+    # blueprint declares `active_drug_count == active_drugs__n`, the
+    # count dragged the SET with it, so `active_drugs` came out empty
+    # on 36.8% too while the three set columns with no size partner
+    # were within 0.004 in the same run.
+    #
+    # The zeros are given to the LOWEST-predicted rows, so the
+    # relationship the curve found survives.
+    def _zero_case(zero_p, lamscale):
+        _r = np.random.RandomState(5)
+        _np_, _nv = 400, 12
+        _n = _np_ * _nv
+        _g = np.repeat(np.arange(_np_), _nv)
+        _sev = np.round(_r.normal(50, 12, _n), 1)
+        _lam = np.clip((_sev - 35) / 8.0, 0.0, None) * lamscale
+        _cnt = np.where(_r.rand(_n) < zero_p, 0,
+                        np.maximum(1, _r.poisson(
+                            np.maximum(_lam, 0.4))))
+        _d = pd.DataFrame({
+            "person_id": ["P{:04d}".format(x) for x in _g],
+            "visit_start_date": ["2024-{:02d}-{:02d}".format(
+                i % 12 + 1, i % 28 + 1) for i in range(_n)],
+            "severity": _sev, "n_things": _cnt,
+            "age": 40 + _g % 30})
+        _bp = B.build(_d, discover(_d, group_by="person_id", seed=1),
+                      group_by="person_id")
+        _g2 = generate(_bp, n_patients=_np_, seed=7)
+        _gv = pd.to_numeric(_g2["n_things"], errors="coerce")
+        _sd = float(np.std(_cnt)) or 1.0
+        return {
+            "src_zero": float((_cnt == 0).mean()),
+            "gen_zero": float((_gv == 0).mean()),
+            "centre_sd": abs(float(_gv.mean()) - float(_cnt.mean()))
+            / _sd,
+            "sp_src": float(pd.Series(_cnt).corr(
+                pd.Series(_sev), method="spearman")),
+            "sp_gen": float(_gv.corr(pd.to_numeric(
+                _g2["severity"], errors="coerce"),
+                method="spearman")),
+            "published": _bp["columns"]["n_things"]["marginal"].get(
+                "zero_share"),
+        }
+
+    _zc = _zero_case(0.30, 2.0)
+    check("a zero-inflated count keeps its POINT MASS through the "
+          "relationship path ({:.3f} source, {:.3f} generated) - a "
+          "curve plus noise is continuous and cannot land one".format(
+              _zc["src_zero"], _zc["gen_zero"]),
+          abs(_zc["gen_zero"] - _zc["src_zero"]) < 0.02)
+    check("...and the centre pays only {:.3f} of a standard deviation "
+          "for it, against a standard of 10%".format(
+              _zc["centre_sd"]),
+          _zc["centre_sd"] < 0.10)
+    check("...and the relationship survives (spearman {:+.2f} source, "
+          "{:+.2f} generated) - the zeros go to the LOWEST-predicted "
+          "rows, so the order the curve found is kept".format(
+              _zc["sp_src"], _zc["sp_gen"]),
+          abs(_zc["sp_gen"] - _zc["sp_src"]) < 0.10)
+    _zn = _zero_case(0.0, 2.0)
+    check("...while a count with NO zero inflation publishes no share "
+          "and is untouched (centre moves {:.3f} of a sd) - the "
+          "correction is for a point mass, not for every count".format(
+              _zn["centre_sd"]),
+          _zn["published"] is None and _zn["centre_sd"] < 0.01)
+
     print()
     if FAIL:
         print("{} FAILED".format(FAIL))
