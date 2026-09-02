@@ -2076,6 +2076,39 @@ def generate(blueprint: Dict[str, Any],
     frame.update(out)
     df = pd.DataFrame(frame)
 
+    # A DECLARED SIZE IDENTITY IS ENFORCED BY COPYING, NOT BY
+    # DRAWING TWICE.
+    #
+    # `med_count == meds__n` holds on every source row because the
+    # count IS the length - one causal direction. Generation had it
+    # backwards whenever the count was a relationship CHILD of the
+    # set's own token indicators: the count is then drawn AFTER the
+    # set, the set falls back to its published size distribution, and
+    # two independent draws of the same marginal agree by chance -
+    # the identity held on 23% of generated rows, and every
+    # token <- count relationship read ~0.00 against source values
+    # of +0.32 to +0.48. Refinement sweeps were the first suspect and
+    # were measured innocent: sweeps off moved it 23% -> 25%.
+    #
+    # So after every column exists, the partner is OVERWRITTEN with
+    # the set's actual size - the same rule the constraint repair
+    # follows: copying enforces an equality, a second draw only
+    # exchanges the mismatch. The count's own marginal loses nothing:
+    # the set's sizes came from the same published distribution.
+    for _setc, _partner in (_size_partners(bp) or {}).items():
+        if _setc in df.columns and _partner in df.columns:
+            _sz = df[_setc].map(
+                lambda t: float(len([x for x in str(t).split(
+                    (bp["columns"][_setc]["marginal"] or {}).get(
+                        "separator", ";")) if x.strip()]))
+                if t is not None and str(t) == str(t) else None)
+            _pres = df[_setc].notna()
+            df.loc[_pres, _partner] = _sz[_pres]
+            if report is not None:
+                report.setdefault("size_identities_enforced",
+                                  []).append(
+                    "{} := len({})".format(_partner, _setc))
+
     # ORDER MATTERS HERE, AND GOT IT WRONG ONCE ALREADY. Constraints
     # are arithmetic on the columns, so they have to be repaired while
     # those columns are still NUMBERS. Rendering dates first turned

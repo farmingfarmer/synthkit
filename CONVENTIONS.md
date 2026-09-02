@@ -4,7 +4,7 @@ Synthetic clinical data generator and model-evaluation instrument. Core rule: le
 
 ## Verify before claiming
 
-- Run `python scripts/run_all_smokes.py` before claiming anything works. Expect 67 suites, 1836 checks, ALL GREEN **on a checkout**. Off a zipball extract - which is what the data machine runs - it is 1827: nine checks in `smoke_buildid` need git to test the archive path and report SKIPPED without it. Both numbers were measured. Do not quote the checkout number to the data machine; that is how a correct run gets read as a failure.
+- Run `python scripts/run_all_smokes.py` before claiming anything works. Expect 67 suites, 1839 checks, ALL GREEN **on a checkout**. Off a zipball extract - which is what the data machine runs - it is 1830: nine checks in `smoke_buildid` need git to test the archive path and report SKIPPED without it. Both numbers were measured. Do not quote the checkout number to the data machine; that is how a correct run gets read as a failure.
 - **THE DEVELOPMENT MACHINE WAS BEHIND THE DATA MACHINE, and that is
   how a green suite here failed there.** Dev was on Python 3.10 with
   pandas 2.3; the data machine installs fresh and got pandas 3.0.5,
@@ -1049,6 +1049,30 @@ what follows is what came out wrong anyway.
   endpoint refused correctly, and the test printed the empty fields
   without checking `error` - third instance of the class in one
   week. Assert `error not in r` FIRST, in every endpoint test.
+
+- **A DECLARED SIZE IDENTITY IS ENFORCED BY COPYING, NOT BY DRAWING
+  TWICE.** `count == set__n` holds on every source row because the
+  count IS the length - one causal direction. When the count is a
+  relationship CHILD of the set's own token indicators it is drawn
+  AFTER the set, the set falls back to its published size
+  distribution, and two independent draws of one marginal agree by
+  chance: the identity held on 23% of generated rows and every
+  token <- count relationship read ~0.00 against source values up to
+  +0.48. The extract's `procedure_count == procedure_quantity broken
+  on 79.5%` is the same wound. Refinement sweeps were suspected and
+  measured innocent (23% -> 25% with sweeps off). The partner is now
+  OVERWRITTEN with the set's actual size after every column exists -
+  the constraint-repair rule again: copying enforces an equality, a
+  second draw only exchanges the mismatch. On the demo set: identity
+  100%, token-count correlations restored, and the gate went from
+  failing close at 5/10 to MET on all six criteria.
+- **A DEMO DATASET IS A FIXTURE WITH AN AUDIENCE, and building one
+  found a real defect.** `make_demo_clinic.py` plants nine patterns
+  chosen so each exercises measured machinery, prints its answer key,
+  and fits in ~2 minutes. Its first fit failed the gate, and the
+  failure was the size-identity defect above - found the day BEFORE
+  the live demo rather than during it, which is the entire argument
+  for rehearsing on an instrumented fixture.
 
 ## Talking to the data machine
 

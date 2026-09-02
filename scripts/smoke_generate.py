@@ -520,6 +520,63 @@ def main():
               _zn["centre_sd"]),
           _zn["published"] is None and _zn["centre_sd"] < 0.01)
 
+    # A DECLARED SIZE IDENTITY IS ENFORCED BY COPYING.
+    #
+    # `count == set__n` holds on every source row because the count
+    # IS the length - one causal direction. When the count is a
+    # relationship CHILD of the set's own token indicators, it is
+    # drawn AFTER the set, the set falls back to its published size
+    # distribution, and two independent draws of one marginal agree
+    # by chance: the identity held on 23% of generated rows and
+    # every token <- count relationship read ~0.00 against source
+    # values up to +0.48. Refinement sweeps were suspected and
+    # measured innocent (23% -> 25% with sweeps off). The partner is
+    # now OVERWRITTEN with the set's actual size after every column
+    # exists - copying enforces an equality; a second draw only
+    # exchanges the mismatch.
+    _r19 = np.random.RandomState(6)
+    _n19, _np19 = 2400, 240
+    _g19 = np.repeat(np.arange(_np19), _n19 // _np19)
+    _rows19 = []
+    for _i in range(_n19):
+        _sev = float(_r19.normal(50, 10))
+        _k19 = 0 if _r19.rand() < 0.3 else 1 + int(_r19.rand() * 3)
+        _tk19 = sorted(_r19.choice(
+            ["a", "b", "c", "d", "e", "f", "g", "h"], size=_k19,
+            replace=False)) if _k19 else []
+        _rows19.append({
+            "person_id": "P{:04d}".format(_g19[_i]),
+            "visit_start_date": "2024-{:02d}-{:02d}".format(
+                _i % 12 + 1, _i % 28 + 1),
+            "sev": round(_sev, 1),
+            "bag": ";".join(_tk19),
+            "bag_count": _k19})
+    _df19 = pd.DataFrame(_rows19)
+    _bp19 = B.build(_df19, discover(_df19, group_by="person_id",
+                                    seed=1), group_by="person_id")
+    _ids19 = [c for c in (_bp19.get("constraints") or [])
+              if c.get("op") == "=="]
+    check("the size identity is DISCOVERED on this fixture ({}) - a "
+          "check against a blueprint that never declared one would "
+          "pass on nothing".format(
+              [(c["lhs"], c["rhs"]) for c in _ids19]),
+          any("bag" in str(c) for c in _ids19))
+    _rep19 = {}
+    _g19o = generate(_bp19, n_patients=_np19, seed=5,
+                     report=_rep19)
+    _mc19 = pd.to_numeric(_g19o["bag_count"], errors="coerce")
+    _nt19 = _g19o["bag"].fillna("").astype(str).str.strip().apply(
+        lambda t: len([x for x in t.split(";") if x]))
+    check("...and it HOLDS on the generated rows ({:.1%}) - it held "
+          "on 23% before, which is what two independent draws of "
+          "one marginal agree on by chance".format(
+              float((_mc19 == _nt19).mean())),
+          float((_mc19 == _nt19).mean()) > 0.99)
+    check("...and the run reports the enforcement, so a reader can "
+          "tell a derived count from a drawn one",
+          any("bag_count" in str(x) for x in
+              (_rep19.get("size_identities_enforced") or [])))
+
     print()
     if FAIL:
         print("{} FAILED".format(FAIL))
