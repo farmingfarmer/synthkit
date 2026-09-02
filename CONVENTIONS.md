@@ -4,7 +4,7 @@ Synthetic clinical data generator and model-evaluation instrument. Core rule: le
 
 ## Verify before claiming
 
-- Run `python scripts/run_all_smokes.py` before claiming anything works. Expect 67 suites, 1829 checks, ALL GREEN **on a checkout**. Off a zipball extract - which is what the data machine runs - it is 1820: nine checks in `smoke_buildid` need git to test the archive path and report SKIPPED without it. Both numbers were measured. Do not quote the checkout number to the data machine; that is how a correct run gets read as a failure.
+- Run `python scripts/run_all_smokes.py` before claiming anything works. Expect 67 suites, 1832 checks, ALL GREEN **on a checkout**. Off a zipball extract - which is what the data machine runs - it is 1823: nine checks in `smoke_buildid` need git to test the archive path and report SKIPPED without it. Both numbers were measured. Do not quote the checkout number to the data machine; that is how a correct run gets read as a failure.
 - **THE DEVELOPMENT MACHINE WAS BEHIND THE DATA MACHINE, and that is
   how a green suite here failed there.** Dev was on Python 3.10 with
   pandas 2.3; the data machine installs fresh and got pandas 3.0.5,
@@ -1016,6 +1016,23 @@ what follows is what came out wrong anyway.
   the conventions enforcing themselves on new UI is exactly what
   the counts are for. Also: provenance's `build` is a DICT, and
   slicing it in the browser would have thrown mid-demo.
+
+- **TWO ROUTES INTO THE SAME PIPELINE WEAR THE SAME NUMBERS AND
+  HUES.** The from-scratch route counted 01-05 while learning from
+  real data was one unnumbered ALT button - the operator asked why
+  one path was laid out and the other was not. The measure route is
+  now its own rail: Source/Fit/Verdict, carrying the SAME step
+  numbers and colours as Describe/Spec/Data, with Campaign and
+  Showdown shared by both routes. Parallel structure is itself the
+  explanation.
+- **A SECTION'S DOM POSITION IS PART OF ITS BEHAVIOUR.** Both new
+  stations were first appended AFTER </main> closed - valid HTML,
+  every content check green, and the panels rendered at the bottom
+  of the page under the side tabs, shown only when their tab added
+  `.active`. 123 GUI checks asserted content and none asserted
+  position; there is a structural inside-<main> check now, watched
+  red against the broken arrangement. Layout cannot be seen from
+  here - the operator is the first pair of eyes on it, and said so.
 
 ## Talking to the data machine
 

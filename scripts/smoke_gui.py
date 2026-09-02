@@ -571,11 +571,12 @@ def main():
                   "font-size:15.5px")))
 
         # ---------- station 06: learning from real data ----------
-        check("the bench offers a sixth station for starting from "
-              "data that already exists",
+        check("the bench offers a station for starting from data "
+              "that already exists - Learn remains, labelled as the "
+              "first engine's quick look inside the measure rail",
               'data-s="learn"' in html
               and 'id="s-learn"' in html
-              and "start from real data" in html)
+              and "first engine" in html)
         # source line breaks are not rendered breaks, so text
         # assertions collapse whitespace before matching
         flat_html = " ".join(html.split())
@@ -917,8 +918,9 @@ def main():
         check("the learn station is set apart as an alternative "
               "start rather than numbered as the last step of a "
               "five-step flow",
-              "or begin a different way" in html
-              and "<b>ALT</b>" in html and "<b>06</b>" not in html)
+              "or measure real data" in html
+              and "<b>ALT</b>" in html and "<b>06</b>" not in html
+              and "<b>07</b>" not in html)
 
         # THE TYPEERROR NOBODY WOULD HAVE SEEN. `titles` had no
         # `learn` entry, so `titles['learn']` was undefined, `t[0]`
@@ -935,24 +937,57 @@ def main():
               "what it PRODUCES - the old page said what a step was "
               "about and left you to press the button to find out "
               "the rest",
-              html.count('class="stepgoal"') == 8
-              and html.count("<dt>you need</dt>") == 8
-              and html.count("<dt>you get</dt>") == 8)
+              html.count('class="stepgoal"') == 10
+              and html.count("<dt>you need</dt>") == 10
+              and html.count("<dt>you get</dt>") == 10)
         check("...and every step ends by naming where to go next",
-              html.count('class="nextup"') == 8)
+              html.count('class="nextup"') == 10)
 
         # THE FITTED PATH IS IN THE BENCH. Until it was, a demo
         # through the UI showed the FIRST engine - the last month of
         # measured work was unreachable from the interface built to
         # show the system. Same lesson as the atlas, in the UI.
-        check("the bench has a Fit station driving the current "
-              "engine, with heading entries for it and the roadmap "
-              "- a station missing from `titles` is the exact "
-              "TypeError the learn station shipped",
-              'data-s="fit"' in html
-              and 'data-s="roadmap"' in html
-              and "fit:['Alt'" in html
+        # THE MEASURE ROUTE IS A NUMBERED, COLOUR-MATCHED RAIL.
+        # As a single ALT button, learning from real data had no
+        # step structure while the from-scratch route counted 01 to
+        # 05 - the operator asked why one path was laid out and the
+        # other was not. Source/Fit/Verdict now carry the SAME step
+        # numbers and hues as their parallels (Describe/Spec/Data),
+        # and Campaign/Showdown are shared by both routes.
+        check("the measure route is three numbered stations with "
+              "heading entries - a station missing from `titles` is "
+              "the exact TypeError the learn station shipped",
+              'data-s="fitsrc"' in html
+              and 'data-s="fitrun"' in html
+              and 'data-s="fitver"' in html
+              and "fitsrc:['Measure 1'" in html
+              and "fitrun:['Measure 2'" in html
+              and "fitver:['Measure 3'" in html
               and "roadmap:['Map'" in html)
+        check("...and each measure station reuses its PARALLEL "
+              "station's hue - Source wears Describe's step 1, Fit "
+              "wears Spec's step 2, Verdict wears Data's step 3 - "
+              "so the two routes read as the same journey",
+              'data-step="1" data-s="fitsrc"' in html
+              and 'data-step="2" data-s="fitrun"' in html
+              and 'data-step="3" data-s="fitver"' in html)
+        check("...and the rails are labelled so two buttons named 01 "
+              "read as parallel routes, not a duplicate",
+              "create from a description" in html
+              and "or measure real data" in html
+              and "then, for either route" in html)
+        # INSIDE <main>, where the layout lives. Both new sections
+        # were first inserted AFTER </main> closed - valid HTML,
+        # rendered at the very bottom of the page under the side
+        # tabs, outside the grid every other station shares. A
+        # section's position in the DOM is part of its behaviour.
+        check("...and the measure-route stations sit INSIDE <main>, "
+              "in the same content area as every other station - "
+              "appended after it, they rendered at the bottom of "
+              "the page under the side tabs",
+              html.index('id="s-fitsrc"') < html.index("</main>")
+              and html.index('id="s-fitver"') < html.index("</main>")
+              and html.index('id="s-roadmap"') < html.index("</main>"))
         check("...and the Roadmap station states all eight goals "
               "with built/planned split, so 'where we plan on "
               "going' lives in the UI rather than a slide",

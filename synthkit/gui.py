@@ -1865,21 +1865,27 @@ h1 span{font-size:15px;font-weight:500;color:var(--dim);
     <span id="fp" title="version &middot; built &middot; build
     fingerprint; compare with `synthkit version`">loading
     build...</span></small></div>
+  <div class="railsplit">create from a description</div>
   <button class="station active" data-step="1" data-s="describe"><b>01</b>
     Describe<small class="subt">define the dataset</small></button>
   <button class="station" data-step="2" data-s="spec"><b>02</b>
     Spec<small class="subt">review the recipe</small></button>
   <button class="station" data-step="3" data-s="data"><b>03</b>
     Data<small class="subt">generate synthetic data</small></button>
+  <div class="railsplit">or measure real data</div>
+  <button class="station" data-step="1" data-s="fitsrc"><b>01</b>
+    Source<small class="subt">point at a real CSV</small></button>
+  <button class="station" data-step="2" data-s="fitrun"><b>02</b>
+    Fit<small class="subt">measure &amp; generate</small></button>
+  <button class="station" data-step="3" data-s="fitver"><b>03</b>
+    Verdict<small class="subt">judge the run</small></button>
+  <button class="station" data-step="6" data-s="learn"><b>ALT</b>
+    Learn<small class="subt">first engine &mdash; quick look</small></button>
+  <div class="railsplit">then, for either route</div>
   <button class="station" data-step="4" data-s="campaign"><b>04</b>
     Campaign<small class="subt">configure the evaluation</small></button>
   <button class="station" data-step="5" data-s="showdown"><b>05</b>
     Showdown<small class="subt">compare results</small></button>
-  <div class="railsplit">or begin a different way</div>
-  <button class="station" data-step="6" data-s="learn"><b>ALT</b>
-    Learn<small class="subt">start from real data</small></button>
-  <button class="station" data-step="7" data-s="fit"><b>ALT</b>
-    Fit<small class="subt">the current engine, on real data</small></button>
   <div class="railsplit">the map</div>
   <button class="station" data-step="8" data-s="roadmap"><b>MAP</b>
     Roadmap<small class="subt">eight goals: built and planned</small></button>
@@ -2403,13 +2409,11 @@ h1 span{font-size:15px;font-weight:500;color:var(--dim);
   </div>
   <div class="nextup"><span class="lbl">next</span><b>Done</b><span>This is the end of the run. Change anything in Steps 1 to 4 and the fingerprint changes with it, so a result always names the data it came from.</span></div>
 </section>
-</main></div>
-
-<section id="s-fit" data-step="7">
-  <div class="stepbanner"><span class="stepchip">Alt route</span><span>Measure real data with the current engine</span></div>
-  <dl class="stepgoal"><dt>you need</dt><dd>A tidy CSV on THIS machine (one row per visit), and an output directory of your choosing &mdash; outside any repository. Nothing leaves this machine.</dd><dt>you get</dt><dd>A k-anonymous blueprint, generated data, and a verdict: the six-criteria gate, the fidelity summary, and every self-check &mdash; the same artefacts the command line writes, because this station RUNS the command line.</dd></dl>
+<section id="s-fitsrc" data-step="1">
+  <div class="stepbanner"><span class="stepchip">Measure &middot; step 1 of 3</span><span>Point at a real CSV</span></div>
+  <dl class="stepgoal"><dt>you need</dt><dd>A tidy CSV on THIS machine (one row per visit), and an output directory of your choosing &mdash; outside any repository. Nothing leaves this machine.</dd><dt>you get</dt><dd>Every column typed, in seconds &mdash; and whether each can SURVIVE anonymisation, before anything expensive runs.</dd></dl>
   <div class="panel">
-    <h2>1 &middot; Point at the data</h2>
+    <h2>Point at the data</h2>
     <label>source CSV path
       <input id="fsrc" placeholder="full path to the tidy CSV"></label>
     <label>output directory <span class="hint">(yours to choose; created if missing; keep it out of any repo)</span>
@@ -2417,29 +2421,42 @@ h1 span{font-size:15px;font-weight:500;color:var(--dim);
     <label>patient / entity column
       <input id="fgroup" value="person_id"></label>
     <label><input type="checkbox" id="flags" checked> include lag features (slower, needed for temporal patterns)</label>
-    <div>
-      <button class="act ghost" onclick="fitTypes()">Check the types
-      (seconds)</button>
-      <button class="act" onclick="fitRun()">Fit and generate
-      (minutes to an hour)</button>
-    </div>
+    <button class="act" onclick="fitTypes()">Check the types
+    (seconds)</button>
     <div class="hint">Types first, always: every silent fault this
-    tool has had was a column read as the wrong type, and the types
-    pass also says whether each column can SURVIVE anonymisation
-    &mdash; patients per level against the k floor.</div>
+    tool has had was a column read as the wrong type, and this pass
+    also reports patients per level against the k floor &mdash; a
+    column that cannot survive is caught here, not after an hour.</div>
     <div class="out" id="fit-out">Nothing yet.</div>
   </div>
+  <div class="nextup"><span class="lbl">next</span><b>Step 2 &mdash; Fit</b><span>Once the types read correctly, Step 2 measures the blueprint and generates data to it.</span></div>
+</section>
+
+<section id="s-fitrun" data-step="2">
+  <div class="stepbanner"><span class="stepchip">Measure &middot; step 2 of 3</span><span>Measure the blueprint, then generate</span></div>
+  <dl class="stepgoal"><dt>you need</dt><dd>A source and output directory from Step 1, with the types read correctly.</dd><dt>you get</dt><dd>A k-anonymous blueprint measured from the data, generated rows drawn to it, and the full findings file &mdash; the same artefacts a terminal run writes, because this button RUNS the command line.</dd></dl>
   <div class="panel">
-    <h2>2 &middot; Judge a finished run</h2>
-    <div class="hint">Works on any run directory this machine holds
-    &mdash; including one made at the terminal. The gate criteria
-    come from one shared module, so this panel and
-    <code>scripts/m0_gate.py</code> cannot disagree.</div>
+    <h2>Fit and generate</h2>
+    <button class="act" onclick="fitRun()">Fit and generate
+    (minutes to an hour)</button>
+    <div class="hint">This is the slow, honest part: discovery
+    confirms every claim on held-out patients. The log below is the
+    run's own narration, streamed live.</div>
+    <div class="out" id="fit-runout">Not started.</div>
+  </div>
+  <div class="nextup"><span class="lbl">next</span><b>Step 3 &mdash; Verdict</b><span>When the run finishes, Step 3 grades it: the six-criteria gate, contradictions, obedience.</span></div>
+</section>
+
+<section id="s-fitver" data-step="3">
+  <div class="stepbanner"><span class="stepchip">Measure &middot; step 3 of 3</span><span>Judge the run</span></div>
+  <dl class="stepgoal"><dt>you need</dt><dd>A finished run in the output directory from Step 1 &mdash; from Step 2, or from any terminal run this machine holds.</dd><dt>you get</dt><dd>The verdict: six gate criteria PASS/FAIL, contradiction and obedience counts, and the build the run is tied to. The criteria come from one shared module, so this panel and <code>scripts/m0_gate.py</code> cannot disagree.</dd></dl>
+  <div class="panel">
+    <h2>Judge a finished run</h2>
     <button class="act" onclick="fitOpen()">Open the run in the
-    output directory above</button>
+    output directory from Step 1</button>
     <div id="fit-verdict"></div>
   </div>
-  <div class="nextup"><span class="lbl">next</span><b>Roadmap</b><span>The verdict above is where the engine IS; the Roadmap says where each of the eight goals is going.</span></div>
+  <div class="nextup"><span class="lbl">next</span><b>Step 4 &mdash; Campaign</b><span>A measured dataset takes the same road as an invented one: set the exam, then the showdown.</span></div>
 </section>
 
 <section id="s-roadmap" data-step="8">
@@ -2475,6 +2492,7 @@ h1 span{font-size:15px;font-weight:500;color:var(--dim);
   mid-November; free text, if its gate says yes, mid-December.</div>
   <div class="nextup"><span class="lbl">next</span><b>Anywhere</b><span>This page is the map, not a step. Step 1 invents data from English; Fit measures data you already have.</span></div>
 </section>
+</main></div>
 
 <script>
 /* `learn` was MISSING from this map. `titles['learn']` came back
@@ -2488,7 +2506,9 @@ const titles={describe:['Step 1','Describe','say what data you need'],
   campaign:['Step 4','Campaign','set the exam'],
   showdown:['Step 5','Showdown','ceiling / baseline / vendor'],
   learn:['Alt','Learn','start from data you already have'],
-  fit:['Alt','Fit','measure real data with the current engine'],
+  fitsrc:['Measure 1','Source','point at a real CSV'],
+  fitrun:['Measure 2','Fit','measure the blueprint, then generate'],
+  fitver:['Measure 3','Verdict','judge the run'],
   roadmap:['Map','Roadmap','the eight goals \u2014 built and planned']};
 let campaignDir='';
 document.querySelectorAll('.station').forEach(btn=>{
@@ -3343,7 +3363,7 @@ async function fitTypes(){
   o.textContent=r.error?('STOPPED: '+r.error):r.text;}
 let fitJob='',fitTimer=null;
 async function fitRun(){
-  const o=document.getElementById('fit-out');
+  const o=document.getElementById('fit-runout');
   const p=fitPayload();
   if(!p.src||!p.out){o.textContent=
     'STOPPED: give both a source CSV and an output directory - '+
@@ -3356,7 +3376,7 @@ async function fitRun(){
   if(fitTimer)clearInterval(fitTimer);
   fitTimer=setInterval(fitPoll,4000);}
 async function fitPoll(){
-  const o=document.getElementById('fit-out');
+  const o=document.getElementById('fit-runout');
   const j=await api('/api/job',{id:fitJob});
   const log=await api('/api/fit-log',
                       {out:document.getElementById('fout').value});
@@ -3367,7 +3387,7 @@ async function fitPoll(){
   if(j.status==='done'){
     o.textContent='DONE in '+Math.round(j.elapsed)+'s\n\n'+
       (log.text||'');
-    tick('fit');fitOpen();}
+    tick('fitsrc');tick('fitrun');fitOpen();}
   else{o.textContent=(j.status||'error').toUpperCase()+': '+
     (j.error||'')+'\n\n'+(log.text||'');}}
 async function fitOpen(){
@@ -3394,7 +3414,7 @@ async function fitOpen(){
       g.column+' '+(g.empty_source*100).toFixed(1)+'%\u2192'+
       (g.empty_generated*100).toFixed(1)+'%').join(', ');}
   h+='. A gate is a floor, not a certificate.</div>';
-  v.innerHTML=h;}
+  v.innerHTML=h;tick('fitver');}
 </script><div id="cellmodal" onclick="if(event.target===this)closeCell()">
   <div class="box"><span class="close"
     onclick="closeCell()">&times;</span>
