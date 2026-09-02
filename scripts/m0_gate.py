@@ -37,14 +37,14 @@ import json
 import sys
 from pathlib import Path
 
-# The original bar, converted from the counts it was set at.
-DIRECTION_MIN = 0.939
-CLOSE_MIN = 0.879
-SET_AT = 132
+# The computation lives in synthkit.gate - ONE place - because the
+# bench shows the same verdicts and a copy in gui.py is how two
+# halves of this codebase have repeatedly come to disagree.
+import synthkit.gate as _gate
 
-
-def _pct(num, den):
-    return (float(num) / float(den)) if den else float("nan")
+DIRECTION_MIN = _gate.DIRECTION_MIN
+CLOSE_MIN = _gate.CLOSE_MIN
+SET_AT = _gate.SET_AT
 
 
 def main():
@@ -56,62 +56,26 @@ def main():
         sys.exit("no fidelity.json in {} - run `synthkit fit` with "
                  "--generate first".format(run))
     fid = json.loads(fp.read_text(encoding="utf-8"))
-    s = fid.get("summary") or {}
-
-    pairs = int(s.get("pairs") or 0)
-    if not pairs:
-        sys.exit("this run related no pairs, so the gate cannot be "
-                 "read - that is a finding in itself, not a pass")
-
-    direction = _pct(s.get("pairs_sign_ok"), pairs)
-    close = _pct(s.get("pairs_close"), pairs)
-    inverted = int(s.get("pairs_inverted") or 0)
-
-    lines = []
-
-    def crit(name, ok, detail):
-        lines.append((bool(ok), name, detail))
-
-    crit("direction kept", direction >= DIRECTION_MIN,
-         "{}/{} = {:.1%}  (need {:.1%}, which is the {}/{} the gate "
-         "was set at)".format(s.get("pairs_sign_ok"), pairs, direction,
-                              DIRECTION_MIN, 124, SET_AT))
-    crit("close", close >= CLOSE_MIN,
-         "{}/{} = {:.1%}  (need {:.1%}, which is {}/{})".format(
-             s.get("pairs_close"), pairs, close, CLOSE_MIN, 116,
-             SET_AT))
-    crit("inverted", inverted == 0,
-         "{} - absolute, and it stays absolute: an inverted "
-         "relationship reads as a finding".format(inverted))
-
-    cov_n, cov_d = s.get("coverage_ok"), s.get("columns")
-    if cov_d:
-        crit("coverage", cov_n == cov_d,
-             "{}/{}".format(cov_n, cov_d))
-    tk_n, tk_d = s.get("set_tokens_ok"), s.get("set_tokens_compared")
-    if tk_d:
-        crit("set token shares", tk_n == tk_d,
-             "{}/{}".format(tk_n, tk_d))
-    em_n, em_d = s.get("set_empty_ok"), s.get("set_empty_compared")
-    if em_d:
-        crit("set EMPTY rate", em_n == em_d,
-             "{}/{} - measured, and the token shares cannot see "
-             "it".format(em_n, em_d))
+    try:
+        verdict = _gate.assess(fid)
+    except ValueError as e:
+        sys.exit(str(e))
 
     print("M0 gate on {}".format(run))
     print()
-    for ok, name, detail in lines:
-        print("  {}  {:<18} {}".format("PASS" if ok else "FAIL",
-                                       name, detail))
+    for c in verdict["criteria"]:
+        print("  {}  {:<18} {}".format("PASS" if c["ok"] else "FAIL",
+                                       c["name"], c["detail"]))
     print()
-    failed = [n for ok, n, _ in lines if not ok]
+    failed = [c["name"] for c in verdict["criteria"] if not c["ok"]]
     if failed:
         print("M0 NOT MET - {}".format(", ".join(failed)))
         print("The two proportions restate counts set when the run "
               "related {} pairs; this one relates {}.".format(
-                  SET_AT, pairs))
+                  SET_AT, verdict["pairs"]))
         return 1
-    print("M0 MET on all {} criteria.".format(len(lines)))
+    print("M0 MET on all {} criteria.".format(
+        len(verdict["criteria"])))
     print("One cohort, one seed. A gate is a floor, not a "
           "certificate.")
     return 0

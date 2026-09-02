@@ -935,11 +935,29 @@ def main():
               "what it PRODUCES - the old page said what a step was "
               "about and left you to press the button to find out "
               "the rest",
-              html.count('class="stepgoal"') == 6
-              and html.count("<dt>you need</dt>") == 6
-              and html.count("<dt>you get</dt>") == 6)
+              html.count('class="stepgoal"') == 8
+              and html.count("<dt>you need</dt>") == 8
+              and html.count("<dt>you get</dt>") == 8)
         check("...and every step ends by naming where to go next",
-              html.count('class="nextup"') == 6)
+              html.count('class="nextup"') == 8)
+
+        # THE FITTED PATH IS IN THE BENCH. Until it was, a demo
+        # through the UI showed the FIRST engine - the last month of
+        # measured work was unreachable from the interface built to
+        # show the system. Same lesson as the atlas, in the UI.
+        check("the bench has a Fit station driving the current "
+              "engine, with heading entries for it and the roadmap "
+              "- a station missing from `titles` is the exact "
+              "TypeError the learn station shipped",
+              'data-s="fit"' in html
+              and 'data-s="roadmap"' in html
+              and "fit:['Alt'" in html
+              and "roadmap:['Map'" in html)
+        check("...and the Roadmap station states all eight goals "
+              "with built/planned split, so 'where we plan on "
+              "going' lives in the UI rather than a slide",
+              html.count('class="goal"') == 8
+              and "PLANNED:" in html and "BUILT:" in html)
     finally:
         gui.BACKEND_FACTORY = None
         server.shutdown()

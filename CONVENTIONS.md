@@ -4,7 +4,7 @@ Synthetic clinical data generator and model-evaluation instrument. Core rule: le
 
 ## Verify before claiming
 
-- Run `python scripts/run_all_smokes.py` before claiming anything works. Expect 67 suites, 1827 checks, ALL GREEN **on a checkout**. Off a zipball extract - which is what the data machine runs - it is 1818: nine checks in `smoke_buildid` need git to test the archive path and report SKIPPED without it. Both numbers were measured. Do not quote the checkout number to the data machine; that is how a correct run gets read as a failure.
+- Run `python scripts/run_all_smokes.py` before claiming anything works. Expect 67 suites, 1829 checks, ALL GREEN **on a checkout**. Off a zipball extract - which is what the data machine runs - it is 1820: nine checks in `smoke_buildid` need git to test the archive path and report SKIPPED without it. Both numbers were measured. Do not quote the checkout number to the data machine; that is how a correct run gets read as a failure.
 - **THE DEVELOPMENT MACHINE WAS BEHIND THE DATA MACHINE, and that is
   how a green suite here failed there.** Dev was on Python 3.10 with
   pandas 2.3; the data machine installs fresh and got pandas 3.0.5,
@@ -994,6 +994,28 @@ what follows is what came out wrong anyway.
   relationship child the noise is roughly symmetric, so plain
   rounding already matches the published mean and the bisection lands
   at exactly 0.5. Both arms came out identical on every case tried.
+
+- **THE BENCH SHOWED THE FIRST ENGINE.** The GUI's Learn station
+  drives CondNet, so a demo through the interface would have shown
+  none of the fitted path - the same gap the atlas had, in the UI.
+  The Fit station is a WINDOW onto `synthkit fit`: it launches the
+  identical CLI subprocess and reads the identical artefacts, so
+  the bench and the terminal cannot drift apart. The gate criteria
+  moved into `synthkit/gate.py` for the same reason - the script
+  and the UI both call the one computation. And the Roadmap
+  station puts the eight goals, built against planned, in the UI
+  itself.
+- **A JOB'S BUDGET RIDES ON ITS RECORD.** One global 1800s budget
+  would stamp `timeout` on a 33-minute fit of the real extract
+  while the run was succeeding - a wrong verdict about a healthy
+  job, the class the over-budget check was rebuilt to avoid. Fit
+  jobs carry four hours.
+- **THE STEPGOAL CHECK BIT ITS OWN AUTHOR, correctly.** The two new
+  stations went in without `you need / you get` and a `next`
+  footer, and the count check went red until they carried both -
+  the conventions enforcing themselves on new UI is exactly what
+  the counts are for. Also: provenance's `build` is a DICT, and
+  slicing it in the browser would have thrown mid-demo.
 
 ## Talking to the data machine
 

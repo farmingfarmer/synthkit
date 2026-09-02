@@ -68,12 +68,17 @@ _JOBS: Dict[str, dict] = {}
 JOB_BUDGET_S = 1800.0   # a campaign should not outlive this
 
 
-def _start_job(fn, payload: dict) -> str:
+def _start_job(fn, payload: dict, budget_s: float = None) -> str:
     import time
     import uuid
     job_id = uuid.uuid4().hex[:12]
+    # THE BUDGET RIDES ON THE JOB RECORD. One global number would
+    # mark a 33-minute fit of the real extract as `timeout` while
+    # the run was succeeding - a wrong verdict about a healthy job,
+    # the exact class the over-budget check was rebuilt to avoid.
     _JOBS[job_id] = {"status": "running",
                      "started": time.time(),
+                     "budget": float(budget_s or JOB_BUDGET_S),
                      "cancelled": False}
 
     def work():
@@ -101,7 +106,8 @@ def api_job(payload: dict) -> dict:
     status = job["status"]
     if status == "running" and job.get("cancelled"):
         status = "cancelled"
-    elif status == "running" and elapsed > JOB_BUDGET_S:
+    elif status == "running" and elapsed > job.get(
+            "budget", JOB_BUDGET_S):
         status = "timeout"
     out = {"status": status, "elapsed": elapsed}
     if status == "done":
@@ -114,7 +120,9 @@ def api_job(payload: dict) -> dict:
                         "(a wedged ollama once served a 6-minute "
                         "run for 106 minutes). The thread may "
                         "still finish in the background; safe "
-                        "to move on.".format(int(JOB_BUDGET_S)))
+                        "to move on.".format(
+                            int(job.get("budget",
+                                        JOB_BUDGET_S))))
     elif status == "cancelled":
         out["error"] = ("cancelled — the current backend call "
                         "may run to completion in the "
@@ -1126,6 +1134,122 @@ def api_learn_export(payload: dict) -> dict:
             "mime": "text/csv"}
 
 
+def _fit_cmd(payload: dict, types_only: bool):
+    """The exact CLI invocation, so the bench and the terminal run
+    the same code path - the bench is a window onto `synthkit fit`,
+    not a second implementation of it."""
+    import sys as _sys
+    src = str(Path(payload.get("src") or "").expanduser())
+    out = str(Path(payload.get("out") or "").expanduser())
+    cmd = [_sys.executable, "-m", "synthkit.cli",
+           "types" if types_only else "fit",
+           "--src", src, "--out", out]
+    group = (payload.get("group_by") or "").strip()
+    if group:
+        cmd += ["--group-by", group]
+    if not types_only:
+        if payload.get("lags"):
+            cmd.append("--lags")
+        cmd.append("--generate")
+    return cmd, src, out
+
+
+def api_fit_types(payload: dict) -> dict:
+    """How every column was read, and whether it can SURVIVE - in
+    seconds, before anything expensive. The cheap check goes first."""
+    import subprocess
+    if not payload.get("src") or not payload.get("out"):
+        return {"error": "Give both a source CSV path and an output "
+                         "directory. The output directory is YOURS "
+                         "to choose - put it outside any repository."}
+    cmd, src, out = _fit_cmd(payload, types_only=True)
+    if not Path(src).exists():
+        return {"error": "No file at {}.".format(src)}
+    cmd.append("--types-only")
+    r = subprocess.run(cmd, capture_output=True, text=True,
+                       timeout=600)
+    return {"text": (r.stdout or "") + (r.stderr or ""),
+            "ok": r.returncode == 0}
+
+
+def _fit_work(payload: dict) -> dict:
+    """Runs `synthkit fit --generate` as a subprocess, its output
+    streamed to a log inside the run directory - the same file a
+    person would read if they had run it by hand."""
+    import subprocess
+    cmd, src, out = _fit_cmd(payload, types_only=False)
+    if not Path(src).exists():
+        return {"error": "No file at {}.".format(src)}
+    Path(out).mkdir(parents=True, exist_ok=True)
+    log = Path(out) / "bench_fit_log.txt"
+    with log.open("w", encoding="utf-8") as fh:
+        r = subprocess.run(cmd, stdout=fh, stderr=subprocess.STDOUT,
+                           text=True, timeout=4 * 3600)
+    if r.returncode != 0:
+        tail = log.read_text(encoding="utf-8",
+                             errors="replace")[-1500:]
+        return {"error": "fit exited {} - the end of its log:\n{}"
+                         .format(r.returncode, tail)}
+    return {"out": out}
+
+
+def api_fit_log(payload: dict) -> dict:
+    log = Path(str(payload.get("out") or "")) / "bench_fit_log.txt"
+    if not log.exists():
+        return {"text": "(no log yet)"}
+    txt = log.read_text(encoding="utf-8", errors="replace")
+    return {"text": txt[-4000:]}
+
+
+def api_fit_open(payload: dict) -> dict:
+    """A finished run, judged. Reads only the run directory - the
+    same artefacts the CLI wrote - and the gate criteria come from
+    synthkit.gate, the ONE place they are defined."""
+    from . import gate as _gate
+    run = Path(str(payload.get("out") or "")).expanduser()
+    fp = run / "fidelity.json"
+    if not fp.exists():
+        return {"error": "No fidelity.json in {} - run fit with "
+                         "generation first, or check the path."
+                         .format(run)}
+    fid = json.loads(fp.read_text(encoding="utf-8"))
+    try:
+        verdict = _gate.assess(fid)
+    except ValueError as e:
+        return {"error": str(e)}
+    s = fid.get("summary") or {}
+    prov = {}
+    pv = run / "provenance.json"
+    if pv.exists():
+        prov = json.loads(pv.read_text(encoding="utf-8"))
+    shape = [r for r in (fid.get("set_shape") or [])
+             if abs(r.get("delta") or 0) > 0.05]
+    return {
+        "gate": verdict,
+        "summary": {
+            "coverage": [s.get("coverage_ok"), s.get("columns")],
+            "centre": [s.get("centre_ok"), s.get("numeric")],
+            "spread": [s.get("spread_ok"), s.get("numeric")],
+            "pairs_sign": [s.get("pairs_sign_ok"), s.get("pairs")],
+            "pairs_close": [s.get("pairs_close"), s.get("pairs")],
+            "inverted": s.get("pairs_inverted"),
+            "set_tokens": [s.get("set_tokens_ok"),
+                           s.get("set_tokens_compared")],
+            "set_empty": [s.get("set_empty_ok"),
+                          s.get("set_empty_compared")],
+        },
+        "contradictions": len(fid.get("contradictions") or []),
+        "disobedience": len(fid.get("disobedience") or []),
+        "empty_gaps": shape,
+        # provenance's build is a DICT ({source, id, note}), and
+        # slicing it in the UI threw before a person saw anything.
+        "build": ((prov.get("build") or {}).get("id", "unknown")
+                  if isinstance(prov.get("build"), dict)
+                  else str(prov.get("build") or "unknown")),
+        "source": (prov.get("source") or {}),
+    }
+
+
 _ROUTES = {
     "/api/presets": lambda payload: api_presets(),
     "/api/validate": api_validate,
@@ -1145,6 +1269,12 @@ _ROUTES = {
     "/api/job": api_job,
     "/api/job-cancel": api_job_cancel,
     "/api/showdown": api_showdown,
+    "/api/fit-types": api_fit_types,
+    "/api/fit-run": lambda payload: {
+        "job": _start_job(_fit_work, payload,
+                          budget_s=4 * 3600.0)},
+    "/api/fit-log": api_fit_log,
+    "/api/fit-open": api_fit_open,
     "/api/learn": api_learn,
     "/api/learn-async": lambda payload: {
         "job": _start_job(api_learn, payload)},
@@ -1443,6 +1573,21 @@ input.good,textarea.good,select.good{
 details.explain summary{cursor:pointer;margin-bottom:6px}
 .station.done b::after{content:" \2713";color:#2e7d32;
   font-weight:800}
+.chip{font-family:var(--mono);font-size:10px;font-weight:800;
+  letter-spacing:.08em;padding:3px 8px;border-radius:6px;
+  text-transform:uppercase}
+.chip.built{background:#E7F4EF;color:#0E7C61}
+.chip.partial{background:#FDF3E0;color:#8a5a00}
+.chip.planned{background:#EEF1F5;color:#5b6675}
+.goal{border:1px solid var(--rule);border-radius:10px;
+  padding:12px 14px;margin:10px 0;background:var(--panel)}
+.goal h3{margin:0 0 4px;font-size:14.5px}
+.goal .ev{font-size:12.5px;color:#44534c;margin:4px 0 0}
+.gaterow{display:flex;gap:10px;font-family:var(--mono);
+  font-size:12.5px;padding:4px 0;border-bottom:1px dashed var(--rule)}
+.gaterow b{width:52px}
+.gaterow b.ok{color:#2e7d32}
+.gaterow b.bad{color:#b3261e}
 
 /* ================================================
    DEPTH & READABILITY LAYER (appended: later wins)
@@ -1569,6 +1714,8 @@ label{font-size:13.5px;color:#2c3a45;font-weight:600}
   --s4:#D97706; --s4lo:#F59E0B; --s4wash:#FDF3E3;
   --s5:#E11D48; --s5lo:#FB4570; --s5wash:#FDECF0;
   --s6:#2563EB; --s6lo:#4F8BFF; --s6wash:#EAF1FE;
+  --s7:#0E7C61; --s7lo:#2E9D80; --s7wash:#E7F4EF;
+  --s8:#B34700; --s8lo:#D86A1F; --s8wash:#FBEFE4;
 }
 [data-step="1"]{--tab:var(--s1);--tablo:var(--s1lo);--wash:var(--s1wash)}
 [data-step="2"]{--tab:var(--s2);--tablo:var(--s2lo);--wash:var(--s2wash)}
@@ -1576,6 +1723,8 @@ label{font-size:13.5px;color:#2c3a45;font-weight:600}
 [data-step="4"]{--tab:var(--s4);--tablo:var(--s4lo);--wash:var(--s4wash)}
 [data-step="5"]{--tab:var(--s5);--tablo:var(--s5lo);--wash:var(--s5wash)}
 [data-step="6"]{--tab:var(--s6);--tablo:var(--s6lo);--wash:var(--s6wash)}
+[data-step="7"]{--tab:var(--s7);--tablo:var(--s7lo);--wash:var(--s7wash)}
+[data-step="8"]{--tab:var(--s8);--tablo:var(--s8lo);--wash:var(--s8wash)}
 
 /* ---- the rail: bright reflective tabs ---- */
 nav{padding:18px 12px}
@@ -1729,6 +1878,11 @@ h1 span{font-size:15px;font-weight:500;color:var(--dim);
   <div class="railsplit">or begin a different way</div>
   <button class="station" data-step="6" data-s="learn"><b>ALT</b>
     Learn<small class="subt">start from real data</small></button>
+  <button class="station" data-step="7" data-s="fit"><b>ALT</b>
+    Fit<small class="subt">the current engine, on real data</small></button>
+  <div class="railsplit">the map</div>
+  <button class="station" data-step="8" data-s="roadmap"><b>MAP</b>
+    Roadmap<small class="subt">eight goals: built and planned</small></button>
 </nav>
 <main data-step="1">
 <header class="bar">
@@ -2250,6 +2404,78 @@ h1 span{font-size:15px;font-weight:500;color:var(--dim);
   <div class="nextup"><span class="lbl">next</span><b>Done</b><span>This is the end of the run. Change anything in Steps 1 to 4 and the fingerprint changes with it, so a result always names the data it came from.</span></div>
 </section>
 </main></div>
+
+<section id="s-fit" data-step="7">
+  <div class="stepbanner"><span class="stepchip">Alt route</span><span>Measure real data with the current engine</span></div>
+  <dl class="stepgoal"><dt>you need</dt><dd>A tidy CSV on THIS machine (one row per visit), and an output directory of your choosing &mdash; outside any repository. Nothing leaves this machine.</dd><dt>you get</dt><dd>A k-anonymous blueprint, generated data, and a verdict: the six-criteria gate, the fidelity summary, and every self-check &mdash; the same artefacts the command line writes, because this station RUNS the command line.</dd></dl>
+  <div class="panel">
+    <h2>1 &middot; Point at the data</h2>
+    <label>source CSV path
+      <input id="fsrc" placeholder="full path to the tidy CSV"></label>
+    <label>output directory <span class="hint">(yours to choose; created if missing; keep it out of any repo)</span>
+      <input id="fout" placeholder="full path for this run's artefacts"></label>
+    <label>patient / entity column
+      <input id="fgroup" value="person_id"></label>
+    <label><input type="checkbox" id="flags" checked> include lag features (slower, needed for temporal patterns)</label>
+    <div>
+      <button class="act ghost" onclick="fitTypes()">Check the types
+      (seconds)</button>
+      <button class="act" onclick="fitRun()">Fit and generate
+      (minutes to an hour)</button>
+    </div>
+    <div class="hint">Types first, always: every silent fault this
+    tool has had was a column read as the wrong type, and the types
+    pass also says whether each column can SURVIVE anonymisation
+    &mdash; patients per level against the k floor.</div>
+    <div class="out" id="fit-out">Nothing yet.</div>
+  </div>
+  <div class="panel">
+    <h2>2 &middot; Judge a finished run</h2>
+    <div class="hint">Works on any run directory this machine holds
+    &mdash; including one made at the terminal. The gate criteria
+    come from one shared module, so this panel and
+    <code>scripts/m0_gate.py</code> cannot disagree.</div>
+    <button class="act" onclick="fitOpen()">Open the run in the
+    output directory above</button>
+    <div id="fit-verdict"></div>
+  </div>
+  <div class="nextup"><span class="lbl">next</span><b>Roadmap</b><span>The verdict above is where the engine IS; the Roadmap says where each of the eight goals is going.</span></div>
+</section>
+
+<section id="s-roadmap" data-step="8">
+  <div class="stepbanner"><span class="stepchip">The map</span><span>Eight goals &mdash; what is built, what is planned</span></div>
+  <dl class="stepgoal"><dt>you need</dt><dd>Nothing &mdash; this page is for reading, and for the room.</dd><dt>you get</dt><dd>Where each goal stands, with the measured evidence, and what is planned for the parts that do not exist yet. Percentages are judgments; the numbers beside them are not. Full detail: <code>docs/goals_scorecard.md</code>.</dd></dl>
+  <div class="goal"><h3><span class="chip partial">partial &middot; ~55%</span> 1 &middot; Universal upload with auto schema mapping</h3>
+    <div class="ev">BUILT: single-table CSV end to end; types, currency, percent and clock parsers; long/EAV pivot; 22 of 23 dataset shapes come out clean, and flat data comes back flat.</div>
+    <div class="ev">PLANNED: multi-table intake with key auto-detection; Excel / JSON formats. Documents are a later decision, on purpose.</div></div>
+  <div class="goal"><h3><span class="chip partial">partial &middot; ~45%</span> 2 &middot; Automatic de-identification</h3>
+    <div class="ev">BUILT: everything published is k-anonymous over PATIENTS; unpublishable labels are replaced by invented ones (1,436 real codes in, zero republished); attacked with positive controls &mdash; membership worst 0.52 where a cheat scores 1.00 and FAILS.</div>
+    <div class="ev">PLANNED: the PHI scrub itself &mdash; names, addresses, SSNs, birth dates &mdash; with a 100%-catch gate on planted PHI. Free text is a decision gate, not a promise.</div></div>
+  <div class="goal"><h3><span class="chip partial">partial &middot; ~70%</span> 3 &middot; Every pattern found, explained, with receipts</h3>
+    <div class="ev">BUILT: discovery confirmed on held-out patients &mdash; 12/13 planted patterns, zero false; effect curves, interactions, presence-as-signal; the atlas explains all 97 components in plain English and refuses to build if one is missing.</div>
+    <div class="ev">PLANNED: per-claim receipt files; the tangled-graph ceiling &mdash; the one open research item.</div></div>
+  <div class="goal"><h3><span class="chip partial">partial &middot; ~65%</span> 4 &middot; Dials over every pattern</h3>
+    <div class="ev">BUILT: count, coverage, shift, scale, persistence, clustering &mdash; each reports requested AGAINST achieved, because a dial can be capped by privacy and a silent difference is the failure this tool refuses.</div>
+    <div class="ev">PLANNED: dials on individual relationships; the full per-class verification pass.</div></div>
+  <div class="goal"><h3><span class="chip built">built &middot; ~85%</span> 5 &middot; High-fidelity generation</h3>
+    <div class="ev">MEASURED on the real extract: coverage 42/42, centre 30/33, set token shares 62/62, empty rates 4/4, zero inverted relationships, direction 93.9%. Against a statistical-copy ruler: 119 relationships kept to its 77.</div>
+    <div class="ev">REMAINING: one number &mdash; relationship strength within 0.2 on 76.5% of pairs against an 87.9% bar.</div></div>
+  <div class="goal"><h3><span class="chip built">built &middot; ~80%</span> 6 &middot; Self-assessment for sign-off</h3>
+    <div class="ev">BUILT: the six-criteria gate with an honest exit code; contradiction checks on the report AND the contract; row-level obedience checks that need no source data; diagnosis views. The run states its own privacy costs in place.</div>
+    <div class="ev">PLANNED: the single roll-up page a decision-maker signs.</div></div>
+  <div class="goal"><h3><span class="chip partial">partial &middot; ~60%</span> 7 &middot; Vendor evaluation against planted truth</h3>
+    <div class="ev">BUILT: known effects planted on measured covariates &mdash; +0.9/-0.5 recovered at +0.86/-0.44, a no-effect column reads +0.03; the bridge carries measured distributions into the exam; campaigns and this bench.</div>
+    <div class="ev">PLANNED: the loop assembled END TO END on the data machine &mdash; every part exists, the single run has not happened.</div></div>
+  <div class="goal"><h3><span class="chip planned">planned &middot; ~45%</span> 8 &middot; Our own challenger, and one report card</h3>
+    <div class="ev">BUILT: the structurally-blinded baseline solver; the ceiling / ours / vendor line in the campaign machinery.</div>
+    <div class="ev">PLANNED: the report-card artefact from a real end-to-end run, then a challenger worth the name beyond the floor.</div></div>
+  <div class="hint">Overall, equal-weighted: about 63%. What remains
+  is mostly assembly plus two genuine unknowns &mdash; and unknowns,
+  not assembly, are what move dates. Projection: core complete
+  mid-November; free text, if its gate says yes, mid-December.</div>
+  <div class="nextup"><span class="lbl">next</span><b>Anywhere</b><span>This page is the map, not a step. Step 1 invents data from English; Fit measures data you already have.</span></div>
+</section>
+
 <script>
 /* `learn` was MISSING from this map. `titles['learn']` came back
    undefined and `t[0]` threw a TypeError, so clicking the sixth
@@ -2261,7 +2487,9 @@ const titles={describe:['Step 1','Describe','say what data you need'],
   data:['Step 3','Data','create the data'],
   campaign:['Step 4','Campaign','set the exam'],
   showdown:['Step 5','Showdown','ceiling / baseline / vendor'],
-  learn:['Alt','Learn','start from data you already have']};
+  learn:['Alt','Learn','start from data you already have'],
+  fit:['Alt','Fit','measure real data with the current engine'],
+  roadmap:['Map','Roadmap','the eight goals \u2014 built and planned']};
 let campaignDir='';
 document.querySelectorAll('.station').forEach(btn=>{
   btn.onclick=()=>{
@@ -3101,6 +3329,72 @@ loadPresets();
 api('/api/version').then(d=>{
   document.getElementById('fp').textContent=
     'v'+d.version+' \u00b7 '+d.built+' \u00b7 '+d.fingerprint;});
+
+/* ---- the Fit station: a window onto `synthkit fit` ---- */
+function fitPayload(){
+  return {src:document.getElementById('fsrc').value.trim(),
+          out:document.getElementById('fout').value.trim(),
+          group_by:document.getElementById('fgroup').value.trim(),
+          lags:document.getElementById('flags').checked};}
+async function fitTypes(){
+  const o=document.getElementById('fit-out');
+  o.textContent='reading the columns...';
+  const r=await api('/api/fit-types',fitPayload());
+  o.textContent=r.error?('STOPPED: '+r.error):r.text;}
+let fitJob='',fitTimer=null;
+async function fitRun(){
+  const o=document.getElementById('fit-out');
+  const p=fitPayload();
+  if(!p.src||!p.out){o.textContent=
+    'STOPPED: give both a source CSV and an output directory - '+
+    'the output directory is yours to choose.';return;}
+  o.textContent='starting fit... (the full run on an 800-patient '+
+    'extract takes about half an hour with lags)';
+  const r=await api('/api/fit-run',p);
+  if(r.error){o.textContent='STOPPED: '+r.error;return;}
+  fitJob=r.job;
+  if(fitTimer)clearInterval(fitTimer);
+  fitTimer=setInterval(fitPoll,4000);}
+async function fitPoll(){
+  const o=document.getElementById('fit-out');
+  const j=await api('/api/job',{id:fitJob});
+  const log=await api('/api/fit-log',
+                      {out:document.getElementById('fout').value});
+  if(j.status==='running'){
+    o.textContent='running ('+Math.round(j.elapsed)+'s)\n\n'+
+      (log.text||'');o.scrollTop=o.scrollHeight;return;}
+  clearInterval(fitTimer);fitTimer=null;
+  if(j.status==='done'){
+    o.textContent='DONE in '+Math.round(j.elapsed)+'s\n\n'+
+      (log.text||'');
+    tick('fit');fitOpen();}
+  else{o.textContent=(j.status||'error').toUpperCase()+': '+
+    (j.error||'')+'\n\n'+(log.text||'');}}
+async function fitOpen(){
+  const v=document.getElementById('fit-verdict');
+  v.innerHTML='<div class="hint">reading the run...</div>';
+  const r=await api('/api/fit-open',
+                    {out:document.getElementById('fout').value});
+  if(r.error){v.innerHTML='';
+    const d=document.createElement('div');d.className='hint';
+    d.textContent='STOPPED: '+r.error;v.appendChild(d);return;}
+  let h='<h2>The gate &mdash; '+(r.gate.met?
+    'MET on all criteria':'NOT MET')+'</h2>';
+  r.gate.criteria.forEach(c=>{
+    h+='<div class="gaterow"><b class="'+(c.ok?'ok':'bad')+'">'+
+      (c.ok?'PASS':'FAIL')+'</b><span>'+c.name+' &mdash; '+
+      c.detail+'</span></div>';});
+  h+='<div class="hint" style="margin-top:8px">build '+r.build+
+    ' &middot; '+(r.source.rows_read||'?')+' rows, '+
+    (r.source.patients||'?')+' patients &middot; '+
+    r.contradictions+' contradiction(s), '+r.disobedience+
+    ' disobeyed declaration(s)';
+  if(r.empty_gaps&&r.empty_gaps.length){
+    h+=' &middot; empty-rate gaps: '+r.empty_gaps.map(g=>
+      g.column+' '+(g.empty_source*100).toFixed(1)+'%\u2192'+
+      (g.empty_generated*100).toFixed(1)+'%').join(', ');}
+  h+='. A gate is a floor, not a certificate.</div>';
+  v.innerHTML=h;}
 </script><div id="cellmodal" onclick="if(event.target===this)closeCell()">
   <div class="box"><span class="close"
     onclick="closeCell()">&times;</span>
