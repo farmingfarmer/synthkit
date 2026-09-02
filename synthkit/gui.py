@@ -1250,6 +1250,43 @@ def api_fit_open(payload: dict) -> dict:
     }
 
 
+def api_fit_bridge(payload: dict) -> dict:
+    """A fitted blueprint crosses into the exam half.
+
+    This is what makes "then, for either route" TRUE for the measure
+    rail. Until it existed, only the first engine's Learn output
+    could reach Campaign in the bench - the bridge was built and
+    measured (every decile within 0.03 of a source sd on a column
+    skewed 2.83) and never wired to the UI. The spec it returns
+    carries the bridge's own account of what crossed and what could
+    not, because a spec that looks complete and has silently lost
+    its relationships is the same failure as a column that is
+    secretly all sentinel."""
+    from . import bridge as _bridge
+    run = Path(str(payload.get("out") or "")).expanduser()
+    bp_path = run / "blueprint.json"
+    if not bp_path.exists():
+        return {"error": "No blueprint.json in {} - run fit first."
+                         .format(run)}
+    bp = json.loads(bp_path.read_text(encoding="utf-8"))
+    rows = int(((bp.get("patients") or {}).get("rows")) or 0)
+    # The bridge returns {"tablespec": ..., "carried": ...} - the
+    # spec and its honesty note travel together, and the first
+    # version of this endpoint read fields that do not exist and
+    # returned an empty account. A test that did not check for
+    # `error` then printed the emptiness as if it were a result.
+    out = _bridge.blueprint_to_tablespec(
+        bp, title="Measured from {}".format(run.name), rows=rows)
+    carried = out.get("carried") or {}
+    spec = out.get("tablespec")
+    if not spec:
+        return {"error": "the bridge returned no tablespec - the "
+                         "blueprint may be from an older build"}
+    return {"spec": spec,
+            "crossed": carried.get("crossed") or [],
+            "did_not_cross": carried.get("did_not_cross") or []}
+
+
 _ROUTES = {
     "/api/presets": lambda payload: api_presets(),
     "/api/validate": api_validate,
@@ -1275,6 +1312,7 @@ _ROUTES = {
                           budget_s=4 * 3600.0)},
     "/api/fit-log": api_fit_log,
     "/api/fit-open": api_fit_open,
+    "/api/fit-bridge": api_fit_bridge,
     "/api/learn": api_learn,
     "/api/learn-async": lambda payload: {
         "job": _start_job(api_learn, payload)},
@@ -2449,12 +2487,24 @@ h1 span{font-size:15px;font-weight:500;color:var(--dim);
 
 <section id="s-fitver" data-step="3">
   <div class="stepbanner"><span class="stepchip">Measure &middot; step 3 of 3</span><span>Judge the run</span></div>
-  <dl class="stepgoal"><dt>you need</dt><dd>A finished run in the output directory from Step 1 &mdash; from Step 2, or from any terminal run this machine holds.</dd><dt>you get</dt><dd>The verdict: six gate criteria PASS/FAIL, contradiction and obedience counts, and the build the run is tied to. The criteria come from one shared module, so this panel and <code>scripts/m0_gate.py</code> cannot disagree.</dd></dl>
+  <dl class="stepgoal"><dt>you need</dt><dd>A finished run in the output directory from Step 1 &mdash; from Step 2, or from any terminal run this machine holds.</dd><dt>you get</dt><dd>The verdict: six gate criteria PASS/FAIL, contradiction and obedience counts, and the build the run is tied to &mdash; plus a bridge that sends the measured recipe into the exam, stating what crossed and what could not. The criteria come from one shared module, so this panel and <code>scripts/m0_gate.py</code> cannot disagree.</dd></dl>
   <div class="panel">
     <h2>Judge a finished run</h2>
     <button class="act" onclick="fitOpen()">Open the run in the
     output directory from Step 1</button>
     <div id="fit-verdict"></div>
+  </div>
+  <div class="panel">
+    <h2>Send the measured recipe to the exam</h2>
+    <div class="hint">Loads the fitted blueprint into the same spec
+    slot Step 2 of the create route uses &mdash; then Campaign and
+    Showdown work identically for measured data. The bridge states
+    what crossed and what could not: marginals and correlations
+    cross; effect curves and visit rhythms do not, and the spec says
+    so about itself.</div>
+    <button class="act" onclick="fitBridge()">Send to the exam
+    (Step 4)</button>
+    <div class="out" id="fit-bridgeout">Not sent.</div>
   </div>
   <div class="nextup"><span class="lbl">next</span><b>Step 4 &mdash; Campaign</b><span>A measured dataset takes the same road as an invented one: set the exam, then the showdown.</span></div>
 </section>
@@ -3415,6 +3465,20 @@ async function fitOpen(){
       (g.empty_generated*100).toFixed(1)+'%').join(', ');}
   h+='. A gate is a floor, not a certificate.</div>';
   v.innerHTML=h;tick('fitver');}
+async function fitBridge(){
+  const o=document.getElementById('fit-bridgeout');
+  o.textContent='bridging the blueprint...';
+  const r=await api('/api/fit-bridge',
+                    {out:document.getElementById('fout').value});
+  if(r.error){o.textContent='STOPPED: '+r.error;return;}
+  setSpec(r.spec);
+  const k=document.getElementById('kind');
+  if(k)k.value='table';
+  o.textContent='Loaded into the spec slot as a table recipe.\n'+
+    'Crossed: '+(r.crossed.join(', ')||'(none)')+'\n'+
+    'Did NOT cross: '+(r.did_not_cross.join(', ')||'(none)')+'\n'+
+    'Open Step 4 (Campaign) - the measured data now takes the same '+
+    'road as an invented recipe.';}
 </script><div id="cellmodal" onclick="if(event.target===this)closeCell()">
   <div class="box"><span class="close"
     onclick="closeCell()">&times;</span>

@@ -976,6 +976,56 @@ def main():
               "create from a description" in html
               and "or measure real data" in html
               and "then, for either route" in html)
+
+        # "THEN, FOR EITHER ROUTE" HAS TO BE TRUE. Until the bridge
+        # was wired, only the first engine's Learn output could reach
+        # Campaign in the bench - the measure rail dead-ended at
+        # Verdict while the nav promised a shared road. The bridge
+        # existed and was measured; it was never connected to the UI.
+        import json as _json
+        import tempfile as _tf
+        import numpy as _np
+        import pandas as _pd
+        from synthkit import blueprint as _B
+        from synthkit.tablespec import TableSpec as _TS
+        _r = _np.random.RandomState(2)
+        _n, _npat = 1200, 100
+        _g = _np.repeat(_np.arange(_npat), _n // _npat)
+        _df = _pd.DataFrame({
+            "person_id": ["P{:03d}".format(x) for x in _g],
+            "visit_start_date": ["2024-01-{:02d}".format(i % 28 + 1)
+                                 for i in range(_n)],
+            "val": _np.round(_r.normal(50, 9, _n), 2),
+            "site": _r.choice(list("abc"), _n)})
+        _bp = _B.build(_df, {"claims": [], "unexplained": [],
+                             "skipped": []}, group_by="person_id")
+        with _tf.TemporaryDirectory() as _td:
+            _run = Path(_td)
+            (_run / "blueprint.json").write_text(
+                _json.dumps(_bp, default=str), encoding="utf-8")
+            _br = gui.api_fit_bridge({"out": str(_td)})
+        check("the Verdict station can send a fitted blueprint to "
+              "the exam - the bridged spec parses AND validates as "
+              "a TableSpec ({} columns)".format(
+                  len((_br.get("spec") or {}).get("columns") or [])),
+              "error" not in _br
+              and _br.get("spec") is not None
+              and (_TS.from_json(_json.dumps(_br["spec"]))
+                   .validate() is None))
+        check("...and it carries the bridge's own honesty note - "
+              "what crossed and what did NOT - because a spec that "
+              "silently lost its relationships is the same failure "
+              "as a column that is secretly all sentinel",
+              len(_br.get("crossed") or []) >= 3
+              and len(_br.get("did_not_cross") or []) >= 2)
+        _miss = gui.api_fit_bridge({"out": "/nonexistent-run"})
+        check("...and a directory with no blueprint gets a plain "
+              "refusal, not a crash",
+              "error" in _miss and "blueprint" in _miss["error"])
+        check("...and the send-to-exam button lives on the Verdict "
+              "station with the caveats beside it",
+              'onclick="fitBridge()"' in html
+              and "what crossed and what could not" in html)
         # INSIDE <main>, where the layout lives. Both new sections
         # were first inserted AFTER </main> closed - valid HTML,
         # rendered at the very bottom of the page under the side
