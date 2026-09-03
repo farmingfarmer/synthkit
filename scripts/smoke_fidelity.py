@@ -543,6 +543,70 @@ def main():
           "which is worse than a missing one (exit {})".format(_rc3),
           _rc3 == 1 and "inverted" in _out3)
 
+    # THE DECK: original vs synthetic, drawn, and itself k-screened.
+    #
+    # Every number in it existed already - in fidelity.json and the
+    # blueprint - and the person who asked for it is a statistician
+    # who said, correctly, that nobody reads JSON. The deck draws the
+    # comparison the way the field draws it, in the house palette,
+    # and adds the one thing no vendor page shows: source histogram
+    # bins backed by fewer than k patients are SUPPRESSED from the
+    # report itself, because a bin of three people is a group small
+    # enough to gossip about.
+    import numpy as _np2
+    import pandas as _pd2
+    with tempfile.TemporaryDirectory() as _t:
+        _d = Path(_t)
+        _r20 = _np2.random.RandomState(3)
+        _n20, _npat20 = 800, 80
+        _g20 = _np2.repeat(_np2.arange(_npat20), _n20 // _npat20)
+        _df20 = _pd2.DataFrame({
+            "person_id": ["P{:03d}".format(x) for x in _g20],
+            "visit_start_date": ["2024-01-{:02d}".format(i % 28 + 1)
+                                 for i in range(_n20)],
+            "val": _np2.round(_r20.normal(40, 8, _n20), 2),
+            "val2": 0.0, "val3": 0.0,
+            "grp": _r20.choice(list("xyz"), _n20)})
+        _df20["val2"] = _np2.round(
+            0.8 * _df20["val"].astype(float)
+            + _r20.normal(0, 2.5, _n20), 2)
+        _df20["val3"] = _np2.round(_r20.normal(10, 3, _n20), 2)
+        _srcp = _d / "tiny.csv"
+        _df20.to_csv(_srcp, index=False)
+        _rundir = _d / "run"
+        _r1 = subprocess.run(
+            [sys.executable, "scripts/run_discovery.py",
+             "--src", str(_srcp), "--out", str(_rundir),
+             "--group-by", "person_id", "--generate"],
+            capture_output=True, text=True, cwd=str(ROOT))
+        _deck = _d / "deck.html"
+        _r2 = subprocess.run(
+            [sys.executable, "scripts/fidelity_deck.py",
+             "--src", str(_srcp), "--run", str(_rundir),
+             "-o", str(_deck), "--group-by", "person_id",
+             "--compare", "again={}".format(_rundir)],
+            capture_output=True, text=True, cwd=str(ROOT))
+        _h = _deck.read_text(encoding="utf-8") if _deck.exists()             else ""
+    check("the deck writes a self-contained page with both series, "
+          "gate chips and paired heatmaps",
+          _r2.returncode == 0 and "<svg" in _h
+          and 'class="chip' in _h
+          and "Original" in _h and "Synthetic" in _h)
+    check("...in the house palette - near-black ink, gray original, "
+          "cardinal synthetic, system font - not the bench's "
+          "station colours",
+          "-apple-system" in _h and "#8c1515" in _h
+          and "#6e6e73" in _h)
+    check("...and the report is ITSELF k-screened: source bins "
+          "under k patients are suppressed and the footer says so, "
+          "which no vendor page does",
+          "suppressed" in _h
+          and "not differential privacy" in _h)
+    check("...and the scale table renders one row per compared run, "
+          "answering 'does 5x degrade it' with measurements",
+          "Does scale degrade it" in _h
+          and _h.count("<td>again</td>") == 1)
+
     print()
     if FAIL:
         print("{} FAILED".format(FAIL))

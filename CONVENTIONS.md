@@ -4,7 +4,7 @@ Synthetic clinical data generator and model-evaluation instrument. Core rule: le
 
 ## Verify before claiming
 
-- Run `python scripts/run_all_smokes.py` before claiming anything works. Expect 67 suites, 1839 checks, ALL GREEN **on a checkout**. Off a zipball extract - which is what the data machine runs - it is 1830: nine checks in `smoke_buildid` need git to test the archive path and report SKIPPED without it. Both numbers were measured. Do not quote the checkout number to the data machine; that is how a correct run gets read as a failure.
+- Run `python scripts/run_all_smokes.py` before claiming anything works. Expect 67 suites, 1843 checks, ALL GREEN **on a checkout**. Off a zipball extract - which is what the data machine runs - it is 1834: nine checks in `smoke_buildid` need git to test the archive path and report SKIPPED without it. Both numbers were measured. Do not quote the checkout number to the data machine; that is how a correct run gets read as a failure.
 - **THE DEVELOPMENT MACHINE WAS BEHIND THE DATA MACHINE, and that is
   how a green suite here failed there.** Dev was on Python 3.10 with
   pandas 2.3; the data machine installs fresh and got pandas 3.0.5,
@@ -1073,6 +1073,32 @@ what follows is what came out wrong anyway.
   failure was the size-identity defect above - found the day BEFORE
   the live demo rather than during it, which is the entire argument
   for rehearsing on an instrumented fixture.
+
+- **THE NUMBERS EXISTED; THE PICTURE DID NOT, and the picture is
+  the product.** A statistician on the team said, correctly, that
+  nobody reads JSON - vendors show original-vs-synthetic profiling
+  as stat tables, overlaid histograms and paired correlation
+  heatmaps. `scripts/fidelity_deck.py` draws exactly that from
+  artefacts that already existed, one self-contained HTML in the
+  house palette (near-black, gray original, cardinal synthetic),
+  with the six gate chips on top and the privacy posture stated in
+  the footer in the non-overclaiming words.
+- **A FIDELITY REPORT ON REAL DATA IS ITSELF A RELEASE.** A
+  histogram of real data is a set of bin counts, and a bin holding
+  three patients describes a group small enough to gossip about.
+  The deck suppresses source bins backed by fewer than k patients
+  and prints the count it suppressed - 47 on the demo set. No
+  vendor page does this; say so when the comparison comes up.
+- **"DOES 5x DEGRADE IT" IS A MEASUREMENT, NOT A DEBATE.** The
+  deck's --compare table on the demo set: 1x (260 patients, 1,924
+  rows) and 5x (1,300 patients, 9,723 rows) both read 10/10
+  direction, 10/10 close, 0 inverted, gate MET. Expansion rides the
+  published ratios; contraction is where patterns would thin.
+- **THE CHECK'S FIXTURE FAILED ON ITS OWN EMPTINESS, again.** One
+  numeric column renders no heatmap and no relationships render no
+  gate chips, so the deck check failed against a healthy deck. A
+  fixture must contain the thing the check is about - this file has
+  said so for weeks and it still had to bite its own author.
 
 ## Talking to the data machine
 
