@@ -607,6 +607,26 @@ def main():
           "Does scale degrade it" in _h
           and _h.count("<td>again</td>") == 1)
 
+    # THE PATTERNS, DRAWN - the section no vendor page has. Fabric
+    # compares CORRELATIONS, one number per pair, which a threshold,
+    # a saturation and a straight line can all share. The deck draws
+    # each discovered relationship three times - published curve,
+    # measured on the original, measured on the synthetic - so a
+    # kept bend is visible and a lost one is flagged. The fixture
+    # plants val2 = 0.8*val + noise, so at least one pattern card
+    # must exist.
+    check("the deck draws pattern cards - each relationship as "
+          "published / original / synthetic curves with a "
+          "plain-English verdict",
+          "The patterns, drawn" in _h
+          and _h.count("&larr;") >= 1
+          and ("tracks the original within" in _h
+               or "DEPARTS" in _h))
+    check("...with the drivers attributed when there is more than "
+          "one, and shapes named in words (a 'threshold' is not a "
+          "correlation)",
+          "confirmed on held-out patients" in _h)
+
     print()
     if FAIL:
         print("{} FAILED".format(FAIL))

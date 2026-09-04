@@ -1901,6 +1901,36 @@ h1 span{font-size:15px;font-weight:500;color:var(--dim);
   letter-spacing:0}
 #speccard{border-top:3px solid var(--tab);border-radius:10px}
 
+/* GENTLE, NOT BOLD - the second pass, on request. The first house
+   palette kept the old depth language: filled gradient tabs, white
+   text on saturated blocks. The operator asked for nudges - colour
+   that guides without shouting. So the accents thin out: an active
+   station is a pale wash with a slim accent bar and ink text; the
+   step chips are tinted, not filled; the saturated fills survive
+   only as 3px lines and small dots. The route identity is intact -
+   cardinal still means create, gold still means measure - it just
+   whispers. */
+.station{border-left:3px solid transparent}
+.station.active{background:var(--wash) !important;
+  color:var(--ink,#1d1d1f) !important;
+  border-left:3px solid var(--tab);
+  filter:none !important;box-shadow:none !important;
+  text-shadow:none !important}
+.station.active b{background:transparent !important;
+  color:var(--tab) !important;text-shadow:none}
+.station.active .subt{text-shadow:none !important;opacity:.8;
+  color:inherit}
+.station:hover{filter:none;transform:none;background:#f7f7f8}
+h1 .tstep{background:var(--wash) !important;
+  color:var(--tab) !important;box-shadow:none !important;
+  text-shadow:none !important;
+  border:1px solid var(--tab)}
+.stepbanner .stepchip{background:var(--wash) !important;
+  color:var(--tab) !important;box-shadow:none !important;
+  text-shadow:none !important;border:1px solid var(--tab)}
+.act{box-shadow:none !important;text-shadow:none !important}
+#speccard{border-top:3px solid var(--tab)}
+
 /* GOLD CARRIES INK, NOT WHITE. White text on the measure route's
    gold accent reads at roughly 2.4:1 - below any contrast bar - so
    every gold surface carries near-black text instead. The create

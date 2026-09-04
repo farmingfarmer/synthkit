@@ -283,6 +283,94 @@ def heatmap_pair(names, ms, mg):
             + one(mg, "Synthetic", w1 + 30) + "</svg>")
 
 
+def cond_curve(parent, child, gid_series, k, nbins=12):
+    """Binned conditional mean of child on parent - the measured
+    SHAPE of the relationship. On the source, bins backed by fewer
+    than k patients are suppressed, the same rule as everywhere."""
+    import numpy as np
+    ok = parent.notna() & child.notna()
+    x = parent[ok].to_numpy(dtype=float)
+    y = child[ok].to_numpy(dtype=float)
+    if len(x) < 60:
+        return []
+    qs = np.unique(np.quantile(x, np.linspace(0, 1, nbins + 1)))
+    if len(qs) < 3:
+        return []
+    idx = np.clip(np.digitize(x, qs[1:-1]), 0, len(qs) - 2)
+    pts = []
+    for b in range(len(qs) - 1):
+        m = idx == b
+        if int(m.sum()) < 5:
+            continue
+        if gid_series is not None:
+            g = gid_series[ok][m]
+            if g.nunique() < k:
+                continue
+        pts.append((float(x[m].mean()), float(y[m].mean())))
+    return pts
+
+
+def curve_svg(pub, src_pts, gen_pts):
+    """Published curve (dashed ink), source (gray), synthetic
+    (cardinal) - three tellings of one relationship."""
+    xs = ([p[0] for p in pub] + [p[0] for p in src_pts]
+          + [p[0] for p in gen_pts])
+    ys = ([p[1] for p in pub] + [p[1] for p in src_pts]
+          + [p[1] for p in gen_pts])
+    if not xs:
+        return ""
+    x0, x1 = min(xs), max(xs)
+    y0, y1 = min(ys), max(ys)
+    if x1 <= x0:
+        x1 = x0 + 1
+    if y1 <= y0:
+        y1 = y0 + 1
+    W, H, PAD = 620, 190, 34
+
+    def X(v):
+        return PAD + (v - x0) / (x1 - x0) * (W - 2 * PAD)
+
+    def Y(v):
+        return H - 18 - (v - y0) / (y1 - y0) * (H - 40)
+
+    def path(pts):
+        return "M" + " L".join("{:.1f} {:.1f}".format(X(a), Y(b))
+                               for a, b in pts)
+    parts = ['<svg viewBox="0 0 {} {}" width="{}" height="{}">'
+             .format(W, H + 6, W, H + 6)]
+    parts.append('<line x1="{0}" y1="{1}" x2="{2}" y2="{1}" '
+                 'stroke="{3}"/>'.format(PAD, H - 18, W - PAD, RULE))
+    if pub:
+        parts.append('<path d="{}" fill="none" stroke="{}" '
+                     'stroke-width="1.3" stroke-dasharray="5 4" '
+                     'opacity="0.75"/>'.format(path(pub), INK))
+    if src_pts:
+        parts.append('<path d="{}" fill="none" stroke="{}" '
+                     'stroke-width="2.2"/>'.format(
+                         path(src_pts), GRAY))
+        for a, b in src_pts:
+            parts.append('<circle cx="{:.1f}" cy="{:.1f}" r="2.6" '
+                         'fill="{}"/>'.format(X(a), Y(b), GRAY))
+    if gen_pts:
+        parts.append('<path d="{}" fill="none" stroke="{}" '
+                     'stroke-width="2.2" opacity="0.85"/>'.format(
+                         path(gen_pts), RED))
+        for a, b in gen_pts:
+            parts.append('<circle cx="{:.1f}" cy="{:.1f}" r="2.6" '
+                         'fill="{}" opacity="0.85"/>'.format(
+                             X(a), Y(b), RED))
+    for v, anch in ((x0, "start"), (x1, "end")):
+        parts.append('<text x="{:.1f}" y="{}" font-size="10.5" '
+                     'fill="{}" text-anchor="{}">{}</text>'.format(
+                         X(v), H + 2, GRAY, anch, fnum(float(v))))
+    for v in (y0, y1):
+        parts.append('<text x="{}" y="{:.1f}" font-size="10.5" '
+                     'fill="{}">{}</text>'.format(
+                         2, Y(v) + 4, GRAY, fnum(float(v))))
+    parts.append("</svg>")
+    return "".join(parts)
+
+
 def spearman_matrix(df, cols):
     import numpy as np
     vals = {c: numeric(df[c]) for c in cols}
@@ -490,6 +578,111 @@ def main():
                 'item(s) fall below the k floor and are never '
                 'published</div>'.format(
                     es, eg, max(unpub, 0)))
+
+    # THE PATTERNS THEMSELVES - the section no vendor page has.
+    #
+    # Profiling tools compare CORRELATIONS: one number per pair,
+    # which a threshold, a saturation and a straight line can all
+    # share. Discovery measured the SHAPE of every relationship on
+    # held-out patients, so this draws each one three times: the
+    # published curve from the contract (dashed ink), the shape
+    # measured on the original (gray), and the same measurement on
+    # the synthetic (cardinal). If generation kept the pattern, the
+    # cardinal line sits on the gray one - including the bends no
+    # correlation can see. Source bins under k patients are
+    # suppressed here exactly as in the histograms.
+    cat_path = run / "catalogue.json"
+    if cat_path.exists():
+        cat = json.loads(cat_path.read_text(encoding="utf-8"))
+        cards = []
+        for cl in sorted(cat.get("claims") or [],
+                         key=lambda c: -(c.get("skill") or 0)):
+            child = cl.get("child")
+            if not child or _sets.is_scaffolding(child)                     or child not in src.columns:
+                continue
+            vs_c = numeric(src[child])
+            vg_c = numeric(gen[child])
+            if vs_c.notna().mean() < 0.5:
+                continue
+            for pr in (cl.get("predictors") or [])[:2]:
+                par = pr.get("column")
+                eff = pr.get("effect") or {}
+                if not par or par not in src.columns                         or _sets.is_scaffolding(par):
+                    continue
+                if (eff.get("grid_kind") or "numeric") != "numeric":
+                    continue
+                vs_p = numeric(src[par])
+                vg_p = numeric(gen[par])
+                if vs_p.notna().mean() < 0.5:
+                    continue
+                pub = list(zip(eff.get("grid") or [],
+                               eff.get("response") or []))
+                sp = cond_curve(vs_p, vs_c,
+                                src[gid] if gid else None, k)
+                gp = cond_curve(vg_p, vg_c, None, k)
+                if len(sp) < 3 or len(gp) < 3:
+                    continue
+                svg = curve_svg(pub, sp, gp)
+                sd_c = float(vs_c.dropna().std()) or 1.0
+                import numpy as _np3
+                # ONLY WHERE BOTH CURVES EXIST. np.interp holds the
+                # last value flat outside the synthetic curve's
+                # range, so a source point past the synthetic edge
+                # compared against that plateau reads as a
+                # departure that is not there - the strongest
+                # relationship on the demo set was flagged DEPARTS
+                # at 0.39 sd by exactly this artefact.
+                gap = 0.0
+                glo = min(q[0] for q in gp)
+                ghi = max(q[0] for q in gp)
+                sp_in = [q for q in sp if glo <= q[0] <= ghi]
+                if sp_in and gp:
+                    gy = _np3.interp([q[0] for q in sp_in],
+                                     [q[0] for q in gp],
+                                     [q[1] for q in gp])
+                    gap = float(max(abs(gy - _np3.array(
+                        [q[1] for q in sp_in])))) / sd_c
+                shape = eff.get("shape") or "association"
+                desc = eff.get("description") or ""
+                skill = float(cl.get("skill") or 0)
+                cards.append((skill, child, par, shape, desc, svg,
+                              gap, cl.get("predictors") or []))
+        if cards:
+            body.append('<h2>The patterns, drawn</h2>')
+            body.append('<p class="note">Each relationship three '
+                        'times: the published curve from the '
+                        'contract (dashed), the shape measured on '
+                        'the original (gray), and the same '
+                        'measurement on the synthetic (cardinal). '
+                        'A faithful pattern is a cardinal line on a '
+                        'gray one - including the bends a '
+                        'correlation cannot see.</p>')
+        for skill, child, par, shape, desc, svg, gap, preds                 in cards[:8]:
+            body.append('<h3>{} &larr; {}</h3>'.format(
+                esc(child), esc(par)))
+            verdict = ("the synthetic curve tracks the original "
+                       "within {:.2f} of a standard deviation"
+                       .format(gap) if gap < 0.35 else
+                       "the synthetic curve DEPARTS from the "
+                       "original by up to {:.2f} standard "
+                       "deviations - read this one closely"
+                       .format(gap))
+            body.append('<p class="note">A {} relationship; '
+                        'confirmed on held-out patients (skill '
+                        '{:.0%}). {} {}</p>'.format(
+                            esc(shape), skill,
+                            esc(desc[:160]), verdict))
+            imps = [(q.get("column"), float(q.get("importance")
+                                            or 0))
+                    for q in preds if q.get("column")
+                    and not _sets.is_scaffolding(q.get("column"))]
+            tot = sum(i for _, i in imps) or 1.0
+            if len(imps) > 1:
+                body.append('<div class="small">what drives it: '
+                            + " &middot; ".join(
+                                "{} {:.0%}".format(esc(nm), i / tot)
+                                for nm, i in imps[:4]) + "</div>")
+            body.append(svg)
 
     # correlations
     if len(numeric_cols) >= 3:

@@ -923,11 +923,24 @@ def main():
         check("...and every station carries a route, or its tab "
               "cannot pick up the accent",
               html.count("data-route=") >= 11)
-        check("the tabs are REFLECTIVE rather than flat - a gradient, "
-              "a specular highlight and a lift on hover",
-              "linear-gradient(180deg,var(--tablo)" in html
-              and ".station::after" in html
-              and "inset 0 1px 0 rgba(255,255,255,.55)" in html)
+        # THE TABS ARE GENTLE NOW, and this check used to assert
+        # the opposite. It kept passing after the softening because
+        # the old gradient strings survive in an earlier CSS layer
+        # that the final-wins overrides defeat - a check green for
+        # the wrong reason is decoration. It now asserts the gentle
+        # contract the operator asked for: an active station is a
+        # pale wash with a slim accent bar and ink text, chips are
+        # tinted outlines, and the loud treatments are explicitly
+        # overridden.
+        check("the active station is a WASH with an accent bar and "
+              "ink text - colour that nudges, not shouts",
+              "background:var(--wash) !important" in html
+              and "border-left:3px solid var(--tab)" in html
+              and "filter:none !important" in html)
+        check("...and the step chips are tinted outlines, not "
+              "filled blocks with white text",
+              "color:var(--tab) !important" in html
+              and "border:1px solid var(--tab)" in html)
 
         # LEARN IS NOT STEP 6 OF THE FLOW. Numbering it 06 inside a
         # five-step run implied you arrive there last; it is another
