@@ -967,11 +967,50 @@ def main():
               "what it PRODUCES - the old page said what a step was "
               "about and left you to press the button to find out "
               "the rest",
-              html.count('class="stepgoal"') == 10
-              and html.count("<dt>you need</dt>") == 10
-              and html.count("<dt>you get</dt>") == 10)
+              html.count('class="stepgoal"') == 11
+              and html.count("<dt>you need</dt>") == 11
+              and html.count("<dt>you get</dt>") == 11)
         check("...and every step ends by naming where to go next",
-              html.count('class="nextup"') == 10)
+              html.count('class="nextup"') == 11)
+
+        # THE DASHBOARD IS A STATION, drawing the same picture the
+        # roadshow file carries - built by one code path, so the
+        # interactive view and the shared artefact cannot drift. It
+        # was the operator's ask: the deck HTML, live, in the UI.
+        check("the bench has a Dashboard station with a live iframe "
+              "and a titles entry",
+              'data-s="dashboard"' in html
+              and 'id="s-dashboard"' in html
+              and 'id="deck-frame"' in html
+              and "dashboard:[" in html
+              and "frame.srcdoc=r.html" in html)
+        check("...and it can carry the compare fields, so the "
+              "'does 5x degrade it' table is reachable from the UI",
+              'id="dcmpdir"' in html and 'id="dcmplabel"' in html)
+
+        # THE LUXURY LAYER: raised at rest, dramatised on hover,
+        # colour a whisper above white. The operator asked for the
+        # reflective lift everywhere and the saturation dropped
+        # nearly to white - and asked that nothing look flat.
+        check("surfaces are RAISED at rest, not flat - buttons and "
+              "panels carry the layered lift, and inputs are inset "
+              "as its counterpoint",
+              "--lift:0 1px 1px" in html
+              and "box-shadow:var(--lift)" in html
+              and "inset 0 1px 2px" in html)
+        check("...and the lift DRAMATISES on hover with a real "
+              "specular highlight, the effect made permanent from "
+              "the hover-only version",
+              "--lift-hi:" in html
+              and "translateY(-2px)" in html
+              and "inset 0 1px 0 rgba(255,255,255,.9" in html)
+        check("...and the washes are a whisper above pure white "
+              "(#FDFAFA / #FDFCF8 / #FAFAFB), not the earlier "
+              "saturated tints",
+              "--cardinal-wash:#FDFAFA" in html
+              and "--gold-wash:#FDFCF8" in html
+              and "--slate-wash:#FAFAFB" in html
+              and "#F9F1F1" not in html)
 
         # THE FITTED PATH IS IN THE BENCH. Until it was, a demo
         # through the UI showed the FIRST engine - the last month of

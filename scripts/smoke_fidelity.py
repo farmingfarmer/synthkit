@@ -587,6 +587,16 @@ def main():
              "--compare", "again={}".format(_rundir)],
             capture_output=True, text=True, cwd=str(ROOT))
         _h = _deck.read_text(encoding="utf-8") if _deck.exists()             else ""
+        # INSIDE THE TEMP BLOCK, because _rundir is deleted when it
+        # closes - the first version of this check ran AFTER the
+        # block and failed on the 1x run being gone, not on the
+        # compare it meant to test.
+        _r3 = subprocess.run(
+            [sys.executable, "scripts/fidelity_deck.py",
+             "--src", str(_srcp), "--run", str(_rundir),
+             "-o", str(_deck), "--group-by", "person_id",
+             "--compare", "5x=/no-such-run"],
+            capture_output=True, text=True, cwd=str(ROOT))
     check("the deck writes a self-contained page with both series, "
           "gate chips and paired heatmaps",
           _r2.returncode == 0 and "<svg" in _h
@@ -626,6 +636,18 @@ def main():
           "one, and shapes named in words (a 'threshold' is not a "
           "correlation)",
           "confirmed on held-out patients" in _h)
+
+    # A MISSING COMPARE RUN IS A SENTENCE, NOT A STACK. The operator
+    # hit a raw FileNotFoundError when --compare named a 5x run that
+    # had not been generated yet - and the 1x deck they had ALREADY
+    # written was fine, which the refusal now says. (_r3 was captured
+    # above, inside the temp block, so _rundir still existed.)
+    check("a --compare pointing at a run that does not exist gets a "
+          "plain refusal naming the fix, not a traceback",
+          _r3.returncode != 0
+          and "STOPPED" in (_r3.stderr + _r3.stdout)
+          and "does not exist yet" in (_r3.stderr + _r3.stdout)
+          and "Traceback" not in (_r3.stderr + _r3.stdout))
 
     print()
     if FAIL:

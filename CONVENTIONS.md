@@ -4,7 +4,7 @@ Synthetic clinical data generator and model-evaluation instrument. Core rule: le
 
 ## Verify before claiming
 
-- Run `python scripts/run_all_smokes.py` before claiming anything works. Expect 67 suites, 1847 checks, ALL GREEN **on a checkout**. Off a zipball extract - which is what the data machine runs - it is 1838: nine checks in `smoke_buildid` need git to test the archive path and report SKIPPED without it. Both numbers were measured. Do not quote the checkout number to the data machine; that is how a correct run gets read as a failure.
+- Run `python scripts/run_all_smokes.py` before claiming anything works. Expect 67 suites, 1853 checks, ALL GREEN **on a checkout**. Off a zipball extract - which is what the data machine runs - it is 1844: nine checks in `smoke_buildid` need git to test the archive path and report SKIPPED without it. Both numbers were measured. Do not quote the checkout number to the data machine; that is how a correct run gets read as a failure.
 - **THE DEVELOPMENT MACHINE WAS BEHIND THE DATA MACHINE, and that is
   how a green suite here failed there.** Dev was on Python 3.10 with
   pandas 2.3; the data machine installs fresh and got pandas 3.0.5,
@@ -1141,6 +1141,33 @@ what follows is what came out wrong anyway.
   strings survive in an earlier CSS layer the final-wins overrides
   defeat - green for the wrong reason is decoration, and it now
   asserts the gentle contract instead.
+
+- **THE DASHBOARD IS A STATION, AND ONE CODE PATH FEEDS BOTH IT AND
+  THE FILE.** The deck was refactored into `fidelity_deck.build_deck`
+  returning an HTML string; the CLI writes it, and the bench's
+  Dashboard station drops it into a sandboxed iframe. So the
+  interactive view and the shareable artefact are one picture by
+  construction - a second implementation is how the two sides drift.
+- **A LINTER SILENTLY REVERTED THE REFACTOR.** The first heredoc
+  edit landed, then the whole file rolled back to before it - only
+  discovered because `build_deck` would not import. Read+Edit held
+  where the heredoc did not; verify a function EXISTS after editing,
+  not just that the file compiles.
+- **A SUBPROCESS CHECK RAN AFTER ITS TEMP DIR CLOSED.** The
+  compare-refusal check was outside the `with TemporaryDirectory()`
+  block, so it failed on the 1x run being deleted, not on the
+  refusal it meant to test - green would have meant nothing and red
+  meant the wrong thing. Moved inside. A check must exercise the
+  path it names.
+- **RAISED AT REST, INSET FOR EDITABLE, WHISPER FOR COLOUR.** On
+  request: the reflective hover-lift is now permanent and
+  dramatised (layered ambient + key shadow + a 1px specular
+  highlight), buttons and panels raised, inputs inset as the
+  counterpoint, and the washes dropped to a few points above pure
+  white (#FDFAFA / #FDFCF8 / #FAFAFB). Route identity lives entirely
+  in the thin accent bar and chip text now. The wash tokens are set
+  ONCE, in the route palette - a token defined twice is how the two
+  sides come to disagree.
 
 ## Talking to the data machine
 

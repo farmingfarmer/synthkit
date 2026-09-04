@@ -394,17 +394,26 @@ def spearman_matrix(df, cols):
     return m
 
 
-def main():
-    ap = argparse.ArgumentParser(
-        description="Original vs synthetic, drawn.")
-    ap.add_argument("--src", required=True)
-    ap.add_argument("--run", required=True)
-    ap.add_argument("-o", "--out", required=True)
-    ap.add_argument("--group-by", default="person_id")
-    ap.add_argument("--compare", action="append", default=[],
-                    help='LABEL=RUNDIR, repeatable - e.g. '
-                         '"5x=C:\\path\\run5x"')
-    a = ap.parse_args()
+class _A(object):
+    """A tiny args stand-in so build_deck can be called in-process
+    (the bench) with the fields argparse fills at the CLI."""
+
+    def __init__(self, src, run, group_by, compare):
+        self.src = src
+        self.run = run
+        self.group_by = group_by
+        self.compare = list(compare or [])
+
+
+def build_deck(src_path, run_dir, group_by="person_id",
+               compares=None):
+    """Return the deck HTML as a string. The CLI writes it to a
+    file; the bench serves it into an iframe - one code path, so the
+    picture the roadshow ships and the picture the UI shows cannot
+    drift. Raises ValueError with a plain message rather than
+    exiting, because inside the bench server sys.exit would take the
+    whole process down."""
+    a = _A(src_path, run_dir, group_by, compares)
 
     import numpy as np
     import pandas as pd
@@ -712,8 +721,20 @@ def main():
                 '<th>gate</th></tr>']
 
         def one_row(label, rdir):
-            f2 = json.loads((Path(rdir) / "fidelity.json")
-                            .read_text(encoding="utf-8"))
+            # A MISSING COMPARE RUN GETS A SENTENCE, NOT A STACK.
+            # The operator hit a raw FileNotFoundError here because
+            # the 5x directory had not been generated yet - the
+            # refusal now says what to do, and the 1x deck they
+            # already wrote is not held hostage to it.
+            fp2 = Path(rdir) / "fidelity.json"
+            if not fp2.exists():
+                raise ValueError(
+                    "no fidelity.json in {} - the '{}' run does not "
+                    "exist yet. Generate it first (synthkit fit ... "
+                    "--out {} --generate), or drop this compare; the "
+                    "deck without it already built."
+                    .format(rdir, label, rdir))
+            f2 = json.loads(fp2.read_text(encoding="utf-8"))
             s2 = f2.get("summary") or {}
             g2 = read_frame(Path(rdir) / "generated.csv")
             np2 = (g2[a.group_by].nunique()
@@ -754,16 +775,32 @@ def main():
                 'privacy; attack results are a floor, not a '
                 'certificate.</div>'.format(k, k, total_suppressed))
 
+    return ("<!DOCTYPE html><html><head><meta charset='utf-8'>"
+            "<title>Original vs synthetic</title><style>" + CSS
+            + "</style></head><body><div class='wrap'>"
+            + "".join(body) + "</div></body></html>"), {
+        "columns": len(cols), "suppressed": total_suppressed}
+
+
+def main():
+    ap = argparse.ArgumentParser(
+        description="Original vs synthetic, drawn.")
+    ap.add_argument("--src", required=True)
+    ap.add_argument("--run", required=True)
+    ap.add_argument("-o", "--out", required=True)
+    ap.add_argument("--group-by", default="person_id")
+    ap.add_argument("--compare", action="append", default=[],
+                    help='LABEL=RUNDIR, repeatable')
+    a = ap.parse_args()
+    try:
+        doc, meta = build_deck(a.src, a.run, a.group_by, a.compare)
+    except ValueError as e:
+        sys.exit("STOPPED: {}".format(e))
     out = Path(a.out)
-    out.write_text(
-        "<!DOCTYPE html><html><head><meta charset='utf-8'>"
-        "<title>Original vs synthetic</title><style>" + CSS
-        + "</style></head><body><div class='wrap'>"
-        + "".join(body) + "</div></body></html>",
-        encoding="utf-8")
+    out.write_text(doc, encoding="utf-8")
     print("wrote {} ({} KB, {} columns, {} source bins suppressed "
           "by the k rule)".format(out, out.stat().st_size // 1024,
-                                  len(cols), total_suppressed))
+                                  meta["columns"], meta["suppressed"]))
     return 0
 
 

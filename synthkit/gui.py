@@ -1287,6 +1287,52 @@ def api_fit_bridge(payload: dict) -> dict:
             "did_not_cross": carried.get("did_not_cross") or []}
 
 
+def api_deck(payload: dict) -> dict:
+    """The original-vs-synthetic dashboard, built live for one run.
+
+    The heavy lifting is `fidelity_deck.build_deck`, the SAME code
+    that writes the roadshow file - so the interactive dashboard in
+    the bench and the artefact the team receives are one picture, by
+    construction. The HTML comes back as a string the page drops
+    into a sandboxed iframe, so the deck's own styles never touch
+    the bench's."""
+    import sys as _sys
+    sd = str(Path(__file__).resolve().parent.parent / "scripts")
+    if sd not in _sys.path:
+        _sys.path.insert(0, sd)
+    try:
+        from fidelity_deck import build_deck
+    except Exception as e:
+        return {"error": "could not load the deck builder: {}"
+                         .format(e)}
+    src = str(Path(payload.get("src") or "").expanduser())
+    run = str(Path(payload.get("out") or "").expanduser())
+    if not src or not run:
+        return {"error": "Give the same source CSV and output "
+                         "directory the run used."}
+    if not Path(src).exists():
+        return {"error": "No file at {}.".format(src)}
+    if not (Path(run) / "fidelity.json").exists():
+        return {"error": "No finished run in {} - fit and generate "
+                         "first, or point at a directory that "
+                         "holds one.".format(run)}
+    group = (payload.get("group_by") or "person_id").strip()
+    compares = []
+    other = (payload.get("compare_dir") or "").strip()
+    if other:
+        compares.append("{}={}".format(
+            payload.get("compare_label") or "compare",
+            str(Path(other).expanduser())))
+    try:
+        doc, meta = build_deck(src, run, group, compares)
+    except ValueError as e:
+        return {"error": str(e)}
+    except Exception as e:
+        return {"error": "the deck build failed: {}".format(e)}
+    return {"html": doc, "columns": meta.get("columns"),
+            "suppressed": meta.get("suppressed")}
+
+
 _ROUTES = {
     "/api/presets": lambda payload: api_presets(),
     "/api/validate": api_validate,
@@ -1312,6 +1358,9 @@ _ROUTES = {
                           budget_s=4 * 3600.0)},
     "/api/fit-log": api_fit_log,
     "/api/fit-open": api_fit_open,
+    "/api/deck": api_deck,
+    "/api/deck-async": lambda payload: {
+        "job": _start_job(api_deck, payload, budget_s=1200.0)},
     "/api/fit-bridge": api_fit_bridge,
     "/api/learn": api_learn,
     "/api/learn-async": lambda payload: {
@@ -1757,9 +1806,9 @@ label{font-size:13.5px;color:#2c3a45;font-weight:600}
      accents answer "which route, which step" faster than six, and a
      colour-blind reader loses nothing because the words never
      depended on the colour. */
-  --cardinal:#8C1515; --cardinal-lo:#A94343; --cardinal-wash:#F9F1F1;
-  --gold:#B3995D;     --gold-lo:#C9B37E;     --gold-wash:#F9F6EE;
-  --slate:#3D4046;    --slate-lo:#5B5F66;    --slate-wash:#F4F4F5;
+  --cardinal:#8C1515; --cardinal-lo:#A94343; --cardinal-wash:#FDFAFA;
+  --gold:#B3995D;     --gold-lo:#C9B37E;     --gold-wash:#FDFCF8;
+  --slate:#3D4046;    --slate-lo:#5B5F66;    --slate-wash:#FAFAFB;
 }
 [data-route="create"]{--tab:var(--cardinal);
   --tablo:var(--cardinal-lo);--wash:var(--cardinal-wash)}
@@ -1943,6 +1992,110 @@ h1 .tstep{background:var(--wash) !important;
 main[data-route="measure"] .tstep{color:#2b2416;text-shadow:none}
 main[data-route="measure"] .stepbanner .stepchip{color:#2b2416;
   text-shadow:none}
+
+/* ================================================================
+   THE LUXURY LAYER (appended last: wins everything above).
+
+   Three requests in one pass. WHISPER-QUIET COLOUR: the washes drop
+   to a few points above pure white - just enough to separate a
+   surface from its neighbour, never enough to read as "a colour".
+   RAISED EVERYWHERE: the reflective lift that used to appear only
+   on hover now sits on every button and panel at rest, and
+   dramatizes on hover - a soft ambient shadow, a tighter key
+   shadow, and a 1px specular highlight along the top edge, the
+   physics of light on a real raised surface. NOTHING FLAT: cards,
+   inputs and chips all carry depth, so the whole bench reads as
+   milled from one material.
+
+   Route identity survives at a whisper: cardinal still tints the
+   create route, gold the measure route - the hue is in the accent
+   bar and the chip text, not in a saturated fill.
+   ================================================================ */
+:root{
+  --bench:#F4F5F6;          /* the deck the panels sit on */
+  --panel:#FFFFFF;
+  --rule:#E7E9EC;           /* hairlines, barely there */
+  /* the washes themselves are set ONCE, up in the route palette,
+     at their near-white values - a token defined in two places is
+     how the two sides come to disagree. */
+  /* the raised-surface shadow, layered: ambient + key + specular */
+  --lift:0 1px 1px rgba(20,26,34,.04),
+         0 3px 8px rgba(20,26,34,.06),
+         inset 0 1px 0 rgba(255,255,255,.9);
+  --lift-hi:0 2px 4px rgba(20,26,34,.07),
+            0 10px 22px rgba(20,26,34,.11),
+            inset 0 1px 0 rgba(255,255,255,.95);
+  --lift-press:0 1px 2px rgba(20,26,34,.10),
+               inset 0 1px 2px rgba(20,26,34,.08);
+}
+body{background:
+  radial-gradient(1200px 600px at 50% -10%,#FBFBFC,transparent),
+  var(--bench)}
+
+/* panels: milled cards, not outlined boxes */
+.panel,#speccard,.goal{background:var(--panel);
+  border:1px solid var(--rule);border-radius:14px;
+  box-shadow:var(--lift);
+  transition:box-shadow .22s ease,transform .22s ease}
+.panel:hover,.goal:hover{box-shadow:var(--lift-hi)}
+
+/* every action button raised at rest, lifting on hover, settling
+   on press - the effect the operator liked, made permanent and
+   a touch more dramatic */
+.act,button.act{border:1px solid rgba(20,26,34,.08);
+  border-radius:11px;box-shadow:var(--lift);
+  transition:box-shadow .18s ease,transform .18s ease,
+    background .18s ease;text-shadow:none;font-weight:600}
+.act:hover,button.act:hover{box-shadow:var(--lift-hi);
+  transform:translateY(-2px)}
+.act:active,button.act:active{box-shadow:var(--lift-press);
+  transform:translateY(0)}
+
+/* the primary action keeps its route accent, softly */
+button.act{background:linear-gradient(180deg,#fff,#fbfbfc);
+  color:var(--ink)}
+
+/* station tabs: raised chips in the rail, active one lifted and
+   wearing its route accent bar */
+.station{border-radius:11px;margin:2px 8px;
+  border-left:3px solid transparent;
+  transition:box-shadow .18s ease,transform .18s ease,
+    background .18s ease}
+.station:hover{background:var(--panel);box-shadow:var(--lift);
+  transform:translateY(-1px)}
+.station.active{background:var(--wash) !important;
+  box-shadow:var(--lift) !important;
+  border-left:3px solid var(--tab);
+  transform:none}
+.station.active b{background:transparent !important;
+  color:var(--tab) !important}
+
+/* inputs: gently inset, the counterpoint to the raised buttons -
+   pressed IN means editable, raised means clickable */
+textarea,input,select{border:1px solid var(--rule);
+  border-radius:9px;background:#FCFCFD;
+  box-shadow:inset 0 1px 2px rgba(20,26,34,.05);
+  transition:box-shadow .16s ease,border-color .16s ease}
+textarea:focus,input:focus,select:focus{
+  box-shadow:inset 0 1px 2px rgba(20,26,34,.06),
+    0 0 0 3px var(--wash);border-color:var(--tab)}
+
+/* the step chips and heading tag: tinted outlines, raised a hair */
+h1 .tstep,.stepbanner .stepchip{background:var(--panel) !important;
+  color:var(--tab) !important;border:1px solid var(--rule);
+  box-shadow:var(--lift);text-shadow:none !important}
+
+/* roadmap status chips into the same quiet system */
+.chip.built{background:var(--cardinal-wash);color:#7a1414;
+  border:1px solid #efd9d9}
+.chip.partial{background:var(--gold-wash);color:#6d5a2a;
+  border:1px solid #e9e0cb}
+.chip.planned{background:var(--slate-wash);color:#5b6675;
+  border:1px solid var(--rule)}
+.chip.built,.chip.partial,.chip.planned{box-shadow:var(--lift)}
+
+/* the spec card and gate verdicts get the same lift */
+#deck-frame,.gate{box-shadow:var(--lift)}
 </style></head><body>
 <div class="frame">
 <nav>
@@ -1971,6 +2124,9 @@ main[data-route="measure"] .stepbanner .stepchip{color:#2b2416;
     Campaign<small class="subt">configure the evaluation</small></button>
   <button class="station" data-step="5" data-s="showdown" data-route="shared"><b>05</b>
     Showdown<small class="subt">compare results</small></button>
+  <div class="railsplit">see the fidelity</div>
+  <button class="station" data-step="8" data-s="dashboard" data-route="map"><b>VIEW</b>
+    Dashboard<small class="subt">original vs synthetic, drawn</small></button>
   <div class="railsplit">the map</div>
   <button class="station" data-step="8" data-s="roadmap" data-route="map"><b>MAP</b>
     Roadmap<small class="subt">eight goals: built and planned</small></button>
@@ -2556,6 +2712,37 @@ main[data-route="measure"] .stepbanner .stepchip{color:#2b2416;
   <div class="nextup"><span class="lbl">next</span><b>Step 4 &mdash; Campaign</b><span>A measured dataset takes the same road as an invented one: set the exam, then the showdown.</span></div>
 </section>
 
+<section id="s-dashboard" data-step="8" data-route="map">
+  <div class="stepbanner"><span class="stepchip">View</span><span>Original vs synthetic, drawn</span></div>
+  <dl class="stepgoal"><dt>you need</dt><dd>A finished run &mdash; from the measure route, or any terminal run this machine holds &mdash; and the source CSV it was measured from.</dd><dt>you get</dt><dd>The interactive fidelity dashboard: every column original beside synthetic, the relationship curves drawn as shapes, correlation heatmaps side by side, and the gate verdict. The same picture the roadshow file carries, because it is built by the same code.</dd></dl>
+  <div class="panel">
+    <h2>Point at a run</h2>
+    <label>source CSV path
+      <input id="dsrc" placeholder="the CSV the run was measured from"></label>
+    <label>run output directory
+      <input id="dout" placeholder="the directory that holds fidelity.json"></label>
+    <label>patient / entity column
+      <input id="dgroup" value="person_id"></label>
+    <div class="dcmp">
+      <label>compare against a second run <span class="hint">(optional &mdash; the &ldquo;does 5x degrade it&rdquo; table)</span>
+        <input id="dcmpdir" placeholder="a second run's directory, e.g. a 5x expansion"></label>
+      <label>label for it
+        <input id="dcmplabel" value="5x"></label>
+    </div>
+    <button class="act" onclick="deckBuild()">Draw the dashboard</button>
+    <div class="hint">Built live by the same code that writes the
+    shareable report, so the interactive view and the file the team
+    receives are one picture. Source histogram bins backed by fewer
+    than ten patients are suppressed &mdash; the report is itself
+    k-screened.</div>
+    <div class="out" id="deck-out">Nothing drawn yet.</div>
+  </div>
+  <iframe id="deck-frame" title="fidelity dashboard" style="width:100%;
+    height:78vh;border:1px solid var(--rule);border-radius:12px;
+    margin-top:14px;display:none;background:#fff"></iframe>
+  <div class="nextup"><span class="lbl">next</span><b>Roadmap</b><span>This is where the engine stands on your data; the Roadmap says where the eight goals are going.</span></div>
+</section>
+
 <section id="s-roadmap" data-step="8">
   <div class="stepbanner"><span class="stepchip">The map</span><span>Eight goals &mdash; what is built, what is planned</span></div>
   <dl class="stepgoal"><dt>you need</dt><dd>Nothing &mdash; this page is for reading, and for the room.</dd><dt>you get</dt><dd>Where each goal stands, with the measured evidence, and what is planned for the parts that do not exist yet. Percentages are judgments; the numbers beside them are not. Full detail: <code>docs/goals_scorecard.md</code>.</dd></dl>
@@ -2606,6 +2793,7 @@ const titles={describe:['Step 1','Describe','say what data you need'],
   fitsrc:['Measure 1','Source','point at a real CSV'],
   fitrun:['Measure 2','Fit','measure the blueprint, then generate'],
   fitver:['Measure 3','Verdict','judge the run'],
+  dashboard:['View','Dashboard','original vs synthetic, drawn'],
   roadmap:['Map','Roadmap','the eight goals \u2014 built and planned']};
 let campaignDir='';
 document.querySelectorAll('.station').forEach(btn=>{
@@ -3528,6 +3716,37 @@ async function fitBridge(){
     'Did NOT cross: '+(r.did_not_cross.join(', ')||'(none)')+'\n'+
     'Open Step 4 (Campaign) - the measured data now takes the same '+
     'road as an invented recipe.';}
+/* ---- the Dashboard: original vs synthetic, drawn live ---- */
+async function deckPrefill(){
+  /* borrow whatever the Fit route already knows, so the operator
+     rarely retypes a path */
+  const s=document.getElementById('fsrc'),o=document.getElementById('fout');
+  if(s&&s.value&&!document.getElementById('dsrc').value)
+    document.getElementById('dsrc').value=s.value;
+  if(o&&o.value&&!document.getElementById('dout').value)
+    document.getElementById('dout').value=o.value;}
+async function deckBuild(){
+  deckPrefill();
+  const out=document.getElementById('deck-out');
+  const frame=document.getElementById('deck-frame');
+  const body={src:document.getElementById('dsrc').value.trim(),
+    out:document.getElementById('dout').value.trim(),
+    group_by:document.getElementById('dgroup').value.trim(),
+    compare_dir:document.getElementById('dcmpdir').value.trim(),
+    compare_label:document.getElementById('dcmplabel').value.trim()};
+  if(!body.src||!body.out){out.textContent=
+    'STOPPED: give the source CSV and the run directory.';return;}
+  out.textContent='drawing the dashboard from '+body.out+'...';
+  const r=await api('/api/deck',body);
+  if(r.error){out.textContent='STOPPED: '+r.error;
+    frame.style.display='none';return;}
+  frame.srcdoc=r.html;
+  frame.style.display='block';
+  out.textContent='drawn: '+r.columns+' columns, '+r.suppressed+
+    ' source bin(s) suppressed by the k rule. The view below is the '+
+    'same picture the shareable report carries.';
+  tick('dashboard');
+  frame.scrollIntoView({behavior:'smooth',block:'start'});}
 </script><div id="cellmodal" onclick="if(event.target===this)closeCell()">
   <div class="box"><span class="close"
     onclick="closeCell()">&times;</span>
