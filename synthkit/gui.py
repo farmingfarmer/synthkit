@@ -1614,9 +1614,10 @@ details.explain summary{cursor:pointer;margin-bottom:6px}
 .chip{font-family:var(--mono);font-size:10px;font-weight:800;
   letter-spacing:.08em;padding:3px 8px;border-radius:6px;
   text-transform:uppercase}
-.chip.built{background:#E7F4EF;color:#0E7C61}
-.chip.partial{background:#FDF3E0;color:#8a5a00}
-.chip.planned{background:#EEF1F5;color:#5b6675}
+.chip.built{background:var(--cardinal);color:#fff}
+.chip.partial{background:var(--gold-wash);color:#6d5a2a;
+  border:1px solid var(--gold)}
+.chip.planned{background:#f2f2f4;color:#5b6675}
 .goal{border:1px solid var(--rule);border-radius:10px;
   padding:12px 14px;margin:10px 0;background:var(--panel)}
 .goal h3{margin:0 0 4px;font-size:14.5px}
@@ -1746,23 +1747,26 @@ label{font-size:13.5px;color:#2c3a45;font-weight:600}
    else stays quiet so the colour means "where am I".
    ================================================ */
 :root{
-  --s1:#7C3AED; --s1lo:#9F67FF; --s1wash:#F2EDFE;
-  --s2:#0891B2; --s2lo:#22B8DC; --s2wash:#E6F6FA;
-  --s3:#059669; --s3lo:#10B981; --s3wash:#E6F7F0;
-  --s4:#D97706; --s4lo:#F59E0B; --s4wash:#FDF3E3;
-  --s5:#E11D48; --s5lo:#FB4570; --s5wash:#FDECF0;
-  --s6:#2563EB; --s6lo:#4F8BFF; --s6wash:#EAF1FE;
-  --s7:#0E7C61; --s7lo:#2E9D80; --s7wash:#E7F4EF;
-  --s8:#B34700; --s8lo:#D86A1F; --s8wash:#FBEFE4;
+  /* THE HOUSE PALETTE, AND WHY EIGHT HUES BECAME TWO.
+     The rainbow existed to make the parallel routes unmistakable,
+     but the foolproofing never lived in the hues - it lives in the
+     step numbers, the rail labels, the you-need/you-get banners and
+     the next footers, which all carry the meaning in words. Colour
+     is reinforcement: CARDINAL means the create route, GOLD means
+     the measure route, grey/ink/white is everything shared. Two
+     accents answer "which route, which step" faster than six, and a
+     colour-blind reader loses nothing because the words never
+     depended on the colour. */
+  --cardinal:#8C1515; --cardinal-lo:#A94343; --cardinal-wash:#F9F1F1;
+  --gold:#B3995D;     --gold-lo:#C9B37E;     --gold-wash:#F9F6EE;
+  --slate:#3D4046;    --slate-lo:#5B5F66;    --slate-wash:#F4F4F5;
 }
-[data-step="1"]{--tab:var(--s1);--tablo:var(--s1lo);--wash:var(--s1wash)}
-[data-step="2"]{--tab:var(--s2);--tablo:var(--s2lo);--wash:var(--s2wash)}
-[data-step="3"]{--tab:var(--s3);--tablo:var(--s3lo);--wash:var(--s3wash)}
-[data-step="4"]{--tab:var(--s4);--tablo:var(--s4lo);--wash:var(--s4wash)}
-[data-step="5"]{--tab:var(--s5);--tablo:var(--s5lo);--wash:var(--s5wash)}
-[data-step="6"]{--tab:var(--s6);--tablo:var(--s6lo);--wash:var(--s6wash)}
-[data-step="7"]{--tab:var(--s7);--tablo:var(--s7lo);--wash:var(--s7wash)}
-[data-step="8"]{--tab:var(--s8);--tablo:var(--s8lo);--wash:var(--s8wash)}
+[data-route="create"]{--tab:var(--cardinal);
+  --tablo:var(--cardinal-lo);--wash:var(--cardinal-wash)}
+[data-route="measure"]{--tab:var(--gold);
+  --tablo:var(--gold-lo);--wash:var(--gold-wash)}
+[data-route="shared"],[data-route="map"]{--tab:var(--slate);
+  --tablo:var(--slate-lo);--wash:var(--slate-wash)}
 
 /* ---- the rail: bright reflective tabs ---- */
 nav{padding:18px 12px}
@@ -1896,6 +1900,19 @@ h1 .tstep{font-family:var(--mono);font-style:normal;
 h1 span{font-size:15px;font-weight:500;color:var(--dim);
   letter-spacing:0}
 #speccard{border-top:3px solid var(--tab);border-radius:10px}
+
+/* GOLD CARRIES INK, NOT WHITE. White text on the measure route's
+   gold accent reads at roughly 2.4:1 - below any contrast bar - so
+   every gold surface carries near-black text instead. The create
+   route's cardinal keeps white text, which passes comfortably. */
+.station[data-route="measure"].active{color:#2b2416}
+.station[data-route="measure"].active .subt{text-shadow:none;
+  opacity:.85}
+.station[data-route="measure"].active b{background:rgba(0,0,0,.12);
+  color:#2b2416}
+main[data-route="measure"] .tstep{color:#2b2416;text-shadow:none}
+main[data-route="measure"] .stepbanner .stepchip{color:#2b2416;
+  text-shadow:none}
 </style></head><body>
 <div class="frame">
 <nav>
@@ -1904,31 +1921,31 @@ h1 span{font-size:15px;font-weight:500;color:var(--dim);
     fingerprint; compare with `synthkit version`">loading
     build...</span></small></div>
   <div class="railsplit">create from a description</div>
-  <button class="station active" data-step="1" data-s="describe"><b>01</b>
+  <button class="station active" data-step="1" data-s="describe" data-route="create"><b>01</b>
     Describe<small class="subt">define the dataset</small></button>
-  <button class="station" data-step="2" data-s="spec"><b>02</b>
+  <button class="station" data-step="2" data-s="spec" data-route="create"><b>02</b>
     Spec<small class="subt">review the recipe</small></button>
-  <button class="station" data-step="3" data-s="data"><b>03</b>
+  <button class="station" data-step="3" data-s="data" data-route="create"><b>03</b>
     Data<small class="subt">generate synthetic data</small></button>
   <div class="railsplit">or measure real data</div>
-  <button class="station" data-step="1" data-s="fitsrc"><b>01</b>
+  <button class="station" data-step="1" data-s="fitsrc" data-route="measure"><b>01</b>
     Source<small class="subt">point at a real CSV</small></button>
-  <button class="station" data-step="2" data-s="fitrun"><b>02</b>
+  <button class="station" data-step="2" data-s="fitrun" data-route="measure"><b>02</b>
     Fit<small class="subt">measure &amp; generate</small></button>
-  <button class="station" data-step="3" data-s="fitver"><b>03</b>
+  <button class="station" data-step="3" data-s="fitver" data-route="measure"><b>03</b>
     Verdict<small class="subt">judge the run</small></button>
-  <button class="station" data-step="6" data-s="learn"><b>ALT</b>
+  <button class="station" data-step="6" data-s="learn" data-route="measure"><b>ALT</b>
     Learn<small class="subt">first engine &mdash; quick look</small></button>
   <div class="railsplit">then, for either route</div>
-  <button class="station" data-step="4" data-s="campaign"><b>04</b>
+  <button class="station" data-step="4" data-s="campaign" data-route="shared"><b>04</b>
     Campaign<small class="subt">configure the evaluation</small></button>
-  <button class="station" data-step="5" data-s="showdown"><b>05</b>
+  <button class="station" data-step="5" data-s="showdown" data-route="shared"><b>05</b>
     Showdown<small class="subt">compare results</small></button>
   <div class="railsplit">the map</div>
-  <button class="station" data-step="8" data-s="roadmap"><b>MAP</b>
+  <button class="station" data-step="8" data-s="roadmap" data-route="map"><b>MAP</b>
     Roadmap<small class="subt">eight goals: built and planned</small></button>
 </nav>
-<main data-step="1">
+<main data-step="1" data-route="create">
 <header class="bar">
   <h1 id="title"><em class="tstep">Step 1</em>Describe <span>— say what data you need</span></h1>
   <div id="speccard" class="empty">
@@ -2576,6 +2593,8 @@ document.querySelectorAll('.station').forEach(btn=>{
        included, into the colour of wherever you are. */
     document.querySelector('main').dataset.step=
       btn.dataset.step||'1';
+    document.querySelector('main').dataset.route=
+      btn.dataset.route||'create';
     const t=titles[btn.dataset.s]||['','',''];
     document.getElementById('title').innerHTML=
       '<em class="tstep">'+t[0]+'</em>'+t[1]+

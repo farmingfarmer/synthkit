@@ -900,12 +900,29 @@ def main():
               "contradict every letter beside it",
               not _re.search(r'class="stepno">\d', html))
 
-        check("each of the six steps declares its own colour",
-              all('[data-step="{}"]'.format(k) in html
-                  for k in range(1, 7)))
-        check("...and every station carries the step it belongs to, "
-              "or its tab cannot pick up that colour",
-              html.count("data-step=") >= 12)
+        # EIGHT HUES BECAME TWO, on request and on reflection. The
+        # rainbow existed to make the parallel routes unmistakable,
+        # but the foolproofing lives in the step numbers, rail
+        # labels, you-need/you-get banners and next footers - words,
+        # not hues. Colour is reinforcement: CARDINAL is the create
+        # route, GOLD is the measure route, slate is shared. Two
+        # accents answer "which route, which step" faster than six,
+        # and a colour-blind reader loses nothing.
+        check("each ROUTE declares its accent - cardinal for "
+              "create, gold for measure, slate for shared - and "
+              "the house palette replaces the rainbow",
+              '[data-route="create"]' in html
+              and '[data-route="measure"]' in html
+              and '[data-route="shared"]' in html
+              and "--cardinal:#8C1515" in html
+              and "--gold:#B3995D" in html)
+        check("...and the old six-hue rainbow is GONE, not merely "
+              "unused - a token that survives gets reused",
+              "#7C3AED" not in html and "#0891B2" not in html
+              and "#2563EB" not in html and "#E11D48" not in html)
+        check("...and every station carries a route, or its tab "
+              "cannot pick up the accent",
+              html.count("data-route=") >= 11)
         check("the tabs are REFLECTIVE rather than flat - a gradient, "
               "a specular highlight and a lift on hover",
               "linear-gradient(180deg,var(--tablo)" in html

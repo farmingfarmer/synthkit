@@ -4,7 +4,7 @@ Synthetic clinical data generator and model-evaluation instrument. Core rule: le
 
 ## Verify before claiming
 
-- Run `python scripts/run_all_smokes.py` before claiming anything works. Expect 67 suites, 1843 checks, ALL GREEN **on a checkout**. Off a zipball extract - which is what the data machine runs - it is 1834: nine checks in `smoke_buildid` need git to test the archive path and report SKIPPED without it. Both numbers were measured. Do not quote the checkout number to the data machine; that is how a correct run gets read as a failure.
+- Run `python scripts/run_all_smokes.py` before claiming anything works. Expect 67 suites, 1844 checks, ALL GREEN **on a checkout**. Off a zipball extract - which is what the data machine runs - it is 1835: nine checks in `smoke_buildid` need git to test the archive path and report SKIPPED without it. Both numbers were measured. Do not quote the checkout number to the data machine; that is how a correct run gets read as a failure.
 - **THE DEVELOPMENT MACHINE WAS BEHIND THE DATA MACHINE, and that is
   how a green suite here failed there.** Dev was on Python 3.10 with
   pandas 2.3; the data machine installs fresh and got pandas 3.0.5,
@@ -1099,6 +1099,22 @@ what follows is what came out wrong anyway.
   gate chips, so the deck check failed against a healthy deck. A
   fixture must contain the thing the check is about - this file has
   said so for weeks and it still had to bite its own author.
+
+- **THE FOOLPROOFING NEVER LIVED IN THE HUES.** The bench's
+  six-colour rainbow existed to make the parallel routes
+  unmistakable, but the meaning is carried by words - step numbers,
+  rail labels, you-need/you-get banners, next footers - and colour
+  only reinforces. Two accents replaced eight: CARDINAL is the
+  create route, GOLD is the measure route, slate is everything
+  shared, ink on white throughout. One bit reads faster than six
+  hues, a colour-blind reader loses nothing, and the bench now
+  shares one palette with the deck and the house decks. Colour is
+  keyed to a data-route attribute, not the step number, so parallel
+  stations still share their NUMBERS while each route wears one
+  accent. And gold surfaces carry INK text - white on gold is
+  roughly 2.4:1, below any contrast bar. The old hex values are
+  asserted GONE, not merely unused, because a surviving token gets
+  reused.
 
 ## Talking to the data machine
 
