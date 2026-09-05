@@ -932,15 +932,18 @@ def main():
         # pale wash with a slim accent bar and ink text, chips are
         # tinted outlines, and the loud treatments are explicitly
         # overridden.
-        check("the active station is a WASH with an accent bar and "
-              "ink text - colour that nudges, not shouts",
-              "background:var(--wash) !important" in html
-              and "border-left:3px solid var(--tab)" in html
-              and "filter:none !important" in html)
-        check("...and the step chips are tinted outlines, not "
-              "filled blocks with white text",
-              "color:var(--tab) !important" in html
-              and "border:1px solid var(--tab)" in html)
+        # THE GLOSSY TAB IS THE LOOK, KEPT - not flattened. Two
+        # earlier passes overrode the raised, gradient, embossed
+        # station tab with a pale wash and !important, removing the
+        # exact thing the operator liked. The tab keeps its gradient
+        # and its layered inset+drop shadow; nothing flattens it.
+        check("the station tab stays a RAISED glossy control - a "
+              "vertical gradient, an inset top highlight and a drop "
+              "shadow - not flattened to a wash",
+              "background:linear-gradient(180deg,var(--tablo)" in html
+              and "inset 0 1px 0 rgba(255,255,255,.55)" in html
+              and "filter:none !important" not in html
+              and "box-shadow:none !important" not in html)
 
         # LEARN IS NOT STEP 6 OF THE FLOW. Numbering it 06 inside a
         # five-step run implied you arrive there last; it is another
@@ -988,29 +991,36 @@ def main():
               "'does 5x degrade it' table is reachable from the UI",
               'id="dcmpdir"' in html and 'id="dcmplabel"' in html)
 
-        # THE LUXURY LAYER: raised at rest, dramatised on hover,
-        # colour a whisper above white. The operator asked for the
-        # reflective lift everywhere and the saturation dropped
-        # nearly to white - and asked that nothing look flat.
-        check("surfaces are RAISED at rest, not flat - buttons and "
-              "panels carry the layered lift, and inputs are inset "
-              "as its counterpoint",
-              "--lift:0 1px 1px" in html
-              and "box-shadow:var(--lift)" in html
-              and "inset 0 1px 2px" in html)
-        check("...and the lift DRAMATISES on hover with a real "
-              "specular highlight, the effect made permanent from "
-              "the hover-only version",
-              "--lift-hi:" in html
+        # THE GLOSSY LOOK IS EVERYWHERE NOW, ALWAYS - the operator's
+        # ask. The action button carries the tab's language at rest:
+        # a gradient, a specular ::before sheen, a layered raise
+        # shadow and embossed text - lifting on hover, pressing on
+        # click. Panels and chips are raised cards. Nothing is flat,
+        # and none of it waits for a hover.
+        check("the action button is RAISED and glossy at rest - "
+              "gradient fill, a specular sheen band, a layered raise "
+              "shadow and embossed text - not a flat block",
+              "button.act::before" in html
+              and "--raise:inset 0 1px 0" in html
+              and "box-shadow:var(--raise)" in html
+              and "text-shadow:var(--emboss)" in html)
+        check("...and it dramatises on hover and settles on press, "
+              "the effect made permanent from hover-only",
+              "--raise-hi:" in html
+              and "button.act:hover" in html
               and "translateY(-2px)" in html
-              and "inset 0 1px 0 rgba(255,255,255,.9" in html)
-        check("...and the washes are a whisper above pure white "
-              "(#FDFAFA / #FDFCF8 / #FAFAFB), not the earlier "
-              "saturated tints",
+              and "--raise-press:" in html)
+        check("...and panels, presets and chips are raised cards "
+              "too, so the whole bench reads as one milled material",
+              "--card:0 1px 1px" in html
+              and ".presets button{" in html
+              and "box-shadow:var(--card)" in html)
+        check("...over a page a breath off pure white, with the "
+              "washes near-white and the earlier saturated tints "
+              "gone",
               "--cardinal-wash:#FDFAFA" in html
-              and "--gold-wash:#FDFCF8" in html
-              and "--slate-wash:#FAFAFB" in html
-              and "#F9F1F1" not in html)
+              and "#F9F1F1" not in html
+              and "radial-gradient(1100px" in html)
 
         # THE FITTED PATH IS IN THE BENCH. Until it was, a demo
         # through the UI showed the FIRST engine - the last month of

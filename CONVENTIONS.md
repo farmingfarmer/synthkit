@@ -1169,6 +1169,30 @@ what follows is what came out wrong anyway.
   ONCE, in the route palette - a token defined twice is how the two
   sides come to disagree.
 
+- **APPENDED OVERRIDE LAYERS FLATTENED THE ONE THING THAT WAS
+  LIKED.** The operator pointed at the raised, glossy, embossed
+  station tab and asked for it everywhere, always. Two earlier CSS
+  passes had done the opposite - overriding the tab with a pale wash
+  and `!important` - so the loved effect was the removed effect.
+  Band-aid override layers are fragile twice over: they lose to
+  earlier `!important` rules (so the intended change never renders)
+  AND they defeat the base style they sit above (so a good default
+  is lost). Fixed at SOURCE: the two flattening blocks deleted, the
+  tab's gradient + inset highlight + drop shadow + specular sheen +
+  embossed text made the permanent style of the action buttons,
+  preset chips and cards too, always, not on hover. One source of
+  truth per rule.
+- **"NO DIFFERENCE AT ALL" WAS A STALE SERVE, NOT A NO-OP.** The
+  operator's build id showed glossy saturated tabs while every
+  recent push had flattened them - proof the running `synthkit gui`
+  was serving an OLD copy. The page is baked into the module at
+  import, so a running server serves its start-time version forever
+  and the browser caches it. The fix is operational, not code: stop
+  the server, `pip install -e .`, relaunch, hard-refresh, and
+  confirm the build id in the wordmark matches `synthkit version`.
+  The version line exists for exactly this - a UI change that cannot
+  be seen is indistinguishable from one that was never made.
+
 ## Talking to the data machine
 
 - **The data machine may not be a git repository.** `docs/WINDOWS.md`

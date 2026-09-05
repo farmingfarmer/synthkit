@@ -1950,152 +1950,126 @@ h1 span{font-size:15px;font-weight:500;color:var(--dim);
   letter-spacing:0}
 #speccard{border-top:3px solid var(--tab);border-radius:10px}
 
-/* GENTLE, NOT BOLD - the second pass, on request. The first house
-   palette kept the old depth language: filled gradient tabs, white
-   text on saturated blocks. The operator asked for nudges - colour
-   that guides without shouting. So the accents thin out: an active
-   station is a pale wash with a slim accent bar and ink text; the
-   step chips are tinted, not filled; the saturated fills survive
-   only as 3px lines and small dots. The route identity is intact -
-   cardinal still means create, gold still means measure - it just
-   whispers. */
-.station{border-left:3px solid transparent}
-.station.active{background:var(--wash) !important;
-  color:var(--ink,#1d1d1f) !important;
-  border-left:3px solid var(--tab);
-  filter:none !important;box-shadow:none !important;
-  text-shadow:none !important}
-.station.active b{background:transparent !important;
-  color:var(--tab) !important;text-shadow:none}
-.station.active .subt{text-shadow:none !important;opacity:.8;
-  color:inherit}
-.station:hover{filter:none;transform:none;background:#f7f7f8}
-h1 .tstep{background:var(--wash) !important;
-  color:var(--tab) !important;box-shadow:none !important;
-  text-shadow:none !important;
-  border:1px solid var(--tab)}
-.stepbanner .stepchip{background:var(--wash) !important;
-  color:var(--tab) !important;box-shadow:none !important;
-  text-shadow:none !important;border:1px solid var(--tab)}
-.act{box-shadow:none !important;text-shadow:none !important}
-#speccard{border-top:3px solid var(--tab)}
-
-/* GOLD CARRIES INK, NOT WHITE. White text on the measure route's
-   gold accent reads at roughly 2.4:1 - below any contrast bar - so
-   every gold surface carries near-black text instead. The create
-   route's cardinal keeps white text, which passes comfortably. */
-.station[data-route="measure"].active{color:#2b2416}
-.station[data-route="measure"].active .subt{text-shadow:none;
-  opacity:.85}
-.station[data-route="measure"].active b{background:rgba(0,0,0,.12);
-  color:#2b2416}
-main[data-route="measure"] .tstep{color:#2b2416;text-shadow:none}
-main[data-route="measure"] .stepbanner .stepchip{color:#2b2416;
-  text-shadow:none}
-
 /* ================================================================
-   THE LUXURY LAYER (appended last: wins everything above).
+   THE RAISED, GLOSSY, MILLED LOOK - EVERYWHERE, AT ALL TIMES.
 
-   Three requests in one pass. WHISPER-QUIET COLOUR: the washes drop
-   to a few points above pure white - just enough to separate a
-   surface from its neighbour, never enough to read as "a colour".
-   RAISED EVERYWHERE: the reflective lift that used to appear only
-   on hover now sits on every button and panel at rest, and
-   dramatizes on hover - a soft ambient shadow, a tighter key
-   shadow, and a 1px specular highlight along the top edge, the
-   physics of light on a real raised surface. NOTHING FLAT: cards,
-   inputs and chips all carry depth, so the whole bench reads as
+   The operator pointed at the active station tab - its inset top
+   highlight, its soft drop shadow, its faint specular sheen and its
+   embossed text - and asked for exactly that on every control,
+   always, not only on hover. Earlier passes did the OPPOSITE: they
+   flattened the tabs into pale washes with `!important`, so the one
+   thing that was liked was the one thing being removed. Those passes
+   are gone. This block does one thing well: it gives the action
+   buttons, the preset chips and the surfaces the SAME tactile
+   treatment the tabs already carry, so the whole bench reads as
    milled from one material.
 
-   Route identity survives at a whisper: cardinal still tints the
-   create route, gold the measure route - the hue is in the accent
-   bar and the chip text, not in a saturated fill.
+   Route colour lives in the tabs and the thin accents; the action
+   buttons are a single deep graphite, which is what a high-end tool
+   uses for "do the thing" - it stays legible on white and never
+   fights the route tint. The page itself is a breath off pure
+   white, so the raised pieces float.
    ================================================================ */
 :root{
-  --bench:#F4F5F6;          /* the deck the panels sit on */
-  --panel:#FFFFFF;
-  --rule:#E7E9EC;           /* hairlines, barely there */
-  /* the washes themselves are set ONCE, up in the route palette,
-     at their near-white values - a token defined in two places is
-     how the two sides come to disagree. */
-  /* the raised-surface shadow, layered: ambient + key + specular */
-  --lift:0 1px 1px rgba(20,26,34,.04),
-         0 3px 8px rgba(20,26,34,.06),
+  --graphite-hi:#454E5A; --graphite:#2C333C; --graphite-lo:#20262E;
+  --emboss:0 1px 1px rgba(0,0,0,.35);
+  --raise:inset 0 1px 0 rgba(255,255,255,.28),
+          inset 0 -2px 0 rgba(0,0,0,.22),
+          0 2px 6px rgba(15,23,42,.20),
+          0 5px 14px rgba(15,23,42,.10);
+  --raise-hi:inset 0 1px 0 rgba(255,255,255,.35),
+             inset 0 -2px 0 rgba(0,0,0,.24),
+             0 4px 10px rgba(15,23,42,.24),
+             0 12px 26px rgba(15,23,42,.16);
+  --raise-press:inset 0 2px 5px rgba(0,0,0,.30),
+                inset 0 1px 0 rgba(255,255,255,.15);
+  --card:0 1px 1px rgba(20,26,34,.04),
+         0 4px 12px rgba(20,26,34,.07),
          inset 0 1px 0 rgba(255,255,255,.9);
-  --lift-hi:0 2px 4px rgba(20,26,34,.07),
-            0 10px 22px rgba(20,26,34,.11),
-            inset 0 1px 0 rgba(255,255,255,.95);
-  --lift-press:0 1px 2px rgba(20,26,34,.10),
-               inset 0 1px 2px rgba(20,26,34,.08);
 }
 body{background:
-  radial-gradient(1200px 600px at 50% -10%,#FBFBFC,transparent),
+  radial-gradient(1100px 560px at 50% -12%,#FCFCFD,transparent),
   var(--bench)}
 
-/* panels: milled cards, not outlined boxes */
+/* THE ACTION BUTTON: a milled graphite key, raised at rest,
+   lifting on hover, pressing on click - the tab's language in a
+   neutral premium tone. */
+button.act{position:relative;overflow:hidden;
+  font-family:var(--sans);font-size:13px;font-weight:650;
+  letter-spacing:.01em;color:#fff;border:0;border-radius:11px;
+  padding:11px 20px;cursor:pointer;margin:12px 8px 0 0;
+  background:linear-gradient(180deg,var(--graphite-hi) 0%,
+             var(--graphite) 60%,var(--graphite-lo) 100%);
+  box-shadow:var(--raise);text-shadow:var(--emboss);
+  transition:box-shadow .16s ease,transform .12s ease,
+    filter .16s ease}
+/* the specular band across the top - the sheen that says "raised" */
+button.act::before{content:"";position:absolute;left:0;right:0;
+  top:0;height:48%;pointer-events:none;
+  border-radius:11px 11px 44% 44%/11px 11px 100% 100%;
+  background:linear-gradient(180deg,rgba(255,255,255,.30),
+             rgba(255,255,255,.03))}
+button.act:hover{box-shadow:var(--raise-hi);
+  transform:translateY(-2px);filter:brightness(1.06)}
+button.act:active{box-shadow:var(--raise-press);
+  transform:translateY(0);filter:brightness(.97)}
+button.act:focus-visible{outline:3px solid var(--ink);
+  outline-offset:3px}
+
+/* ghost + preset chips: raised too, in white, so nothing is flat */
+button.ghost{position:relative;background:linear-gradient(180deg,
+    #ffffff,#f4f5f7);color:var(--ink);
+  border:1px solid rgba(20,26,34,.10);border-radius:11px;
+  box-shadow:var(--card);text-shadow:0 1px 0 #fff;
+  transition:box-shadow .16s ease,transform .12s ease}
+button.ghost:hover{box-shadow:var(--raise-hi);
+  transform:translateY(-2px);background:#fff}
+.presets button{position:relative;font-family:var(--mono);
+  font-size:12px;color:var(--ink);
+  background:linear-gradient(180deg,#ffffff,#f3f4f6);
+  border:1px solid rgba(20,26,34,.10);border-radius:9px;
+  padding:8px 13px;cursor:pointer;box-shadow:var(--card);
+  text-shadow:0 1px 0 #fff;
+  transition:box-shadow .14s ease,transform .1s ease}
+.presets button:hover{box-shadow:var(--raise-hi);
+  transform:translateY(-1px);background:#fff}
+
+/* SURFACES: soft raised cards, never flat outlines */
 .panel,#speccard,.goal{background:var(--panel);
   border:1px solid var(--rule);border-radius:14px;
-  box-shadow:var(--lift);
-  transition:box-shadow .22s ease,transform .22s ease}
-.panel:hover,.goal:hover{box-shadow:var(--lift-hi)}
+  box-shadow:var(--card);transition:box-shadow .22s ease}
+.panel:hover,.goal:hover{box-shadow:var(--raise-hi)}
+#deck-frame,.gate{box-shadow:var(--card)}
 
-/* every action button raised at rest, lifting on hover, settling
-   on press - the effect the operator liked, made permanent and
-   a touch more dramatic */
-.act,button.act{border:1px solid rgba(20,26,34,.08);
-  border-radius:11px;box-shadow:var(--lift);
-  transition:box-shadow .18s ease,transform .18s ease,
-    background .18s ease;text-shadow:none;font-weight:600}
-.act:hover,button.act:hover{box-shadow:var(--lift-hi);
-  transform:translateY(-2px)}
-.act:active,button.act:active{box-shadow:var(--lift-press);
-  transform:translateY(0)}
-
-/* the primary action keeps its route accent, softly */
-button.act{background:linear-gradient(180deg,#fff,#fbfbfc);
-  color:var(--ink)}
-
-/* station tabs: raised chips in the rail, active one lifted and
-   wearing its route accent bar */
-.station{border-radius:11px;margin:2px 8px;
-  border-left:3px solid transparent;
-  transition:box-shadow .18s ease,transform .18s ease,
-    background .18s ease}
-.station:hover{background:var(--panel);box-shadow:var(--lift);
-  transform:translateY(-1px)}
-.station.active{background:var(--wash) !important;
-  box-shadow:var(--lift) !important;
-  border-left:3px solid var(--tab);
-  transform:none}
-.station.active b{background:transparent !important;
-  color:var(--tab) !important}
-
-/* inputs: gently inset, the counterpoint to the raised buttons -
-   pressed IN means editable, raised means clickable */
+/* INPUTS inset - the counterpoint that reads as "editable" */
 textarea,input,select{border:1px solid var(--rule);
   border-radius:9px;background:#FCFCFD;
-  box-shadow:inset 0 1px 2px rgba(20,26,34,.05);
-  transition:box-shadow .16s ease,border-color .16s ease}
+  box-shadow:inset 0 1px 2px rgba(20,26,34,.06)}
 textarea:focus,input:focus,select:focus{
-  box-shadow:inset 0 1px 2px rgba(20,26,34,.06),
-    0 0 0 3px var(--wash);border-color:var(--tab)}
+  box-shadow:inset 0 1px 2px rgba(20,26,34,.07),
+    0 0 0 3px var(--wash);border-color:var(--tab);outline:none}
 
-/* the step chips and heading tag: tinted outlines, raised a hair */
-h1 .tstep,.stepbanner .stepchip{background:var(--panel) !important;
-  color:var(--tab) !important;border:1px solid var(--rule);
-  box-shadow:var(--lift);text-shadow:none !important}
+/* the heading tag and step chip: raised tinted pills */
+h1 .tstep,.stepbanner .stepchip{
+  background:linear-gradient(180deg,#ffffff,#f6f7f9);
+  color:var(--tab);border:1px solid var(--rule);
+  box-shadow:var(--card);text-shadow:0 1px 0 #fff}
 
-/* roadmap status chips into the same quiet system */
-.chip.built{background:var(--cardinal-wash);color:#7a1414;
-  border:1px solid #efd9d9}
-.chip.partial{background:var(--gold-wash);color:#6d5a2a;
-  border:1px solid #e9e0cb}
-.chip.planned{background:var(--slate-wash);color:#5b6675;
-  border:1px solid var(--rule)}
-.chip.built,.chip.partial,.chip.planned{box-shadow:var(--lift)}
+/* roadmap chips join the raised family */
+.chip.built{background:linear-gradient(180deg,#fff,var(--cardinal-wash));
+  color:#7a1414;border:1px solid #efd9d9;box-shadow:var(--card)}
+.chip.partial{background:linear-gradient(180deg,#fff,var(--gold-wash));
+  color:#6d5a2a;border:1px solid #e9e0cb;box-shadow:var(--card)}
+.chip.planned{background:linear-gradient(180deg,#fff,var(--slate-wash));
+  color:#5b6675;border:1px solid var(--rule);box-shadow:var(--card)}
 
-/* the spec card and gate verdicts get the same lift */
-#deck-frame,.gate{box-shadow:var(--lift)}
+/* THE MEASURE ROUTE'S GOLD TAB CARRIES INK, not white - gold on
+   white text is ~2.4:1, below any contrast bar. The create route's
+   cardinal keeps white. This is the only route-colour override, and
+   it does NOT flatten anything. */
+.station[data-route="measure"] .subt{color:rgba(43,36,22,.92)}
+.station[data-route="measure"]{color:#2b2416}
+.station[data-route="measure"] b{background:rgba(0,0,0,.14)}
 </style></head><body>
 <div class="frame">
 <nav>
