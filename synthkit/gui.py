@@ -1478,8 +1478,6 @@ nav{border-right:1px solid var(--rule);padding:20px 0}
   font-family:var(--sans);font-size:14px;color:var(--dim);
   cursor:pointer;border-left:3px solid transparent}
 .station b{font-family:var(--mono);font-size:11px;font-weight:500}
-.station.active{color:var(--ink);border-left-color:var(--enamel);
-  background:var(--panel)}
 .station:focus-visible{outline:2px solid var(--enamel)}
 /* ---- bench ---- */
 main{padding:24px 32px;max-width:1080px}

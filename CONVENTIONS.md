@@ -1214,6 +1214,23 @@ what follows is what came out wrong anyway.
   numbers, because a check that cannot fail proves nothing about
   either.
 
+- **A VISUAL CHECK IS RUNNABLE FROM HERE: headless Chrome over the
+  DevTools protocol against the REAL server.** Click the stations,
+  pose the loader, draw the dashboard through the live API, force
+  the held-apart state, and READ the screenshots. One pass caught
+  four defects every green suite had missed: a stale CSS rule
+  rendering the active tab's text near-black on cardinal (deleted
+  at source - superseded rules get deleted, not out-shouted), edge
+  axis labels clipping, category share text truncating, and the
+  apart state burying the axis labels (they recede during the hold
+  now). Layout still gets its first REAL eyes from the operator,
+  but "cannot be seen from here" is no longer true.
+- **AND THE STALE-SERVE TRAP BIT THE CHECKER ITSELF.** The restarted
+  bench failed to bind the port, the old server kept serving, and
+  the first "fix verified" screenshot was of the unfixed build.
+  Kill by port and re-read the build id before believing a
+  screenshot, exactly as the operator is told to.
+
 ## Talking to the data machine
 
 - **The data machine may not be a git repository.** `docs/WINDOWS.md`

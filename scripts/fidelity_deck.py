@@ -103,6 +103,9 @@ svg.live:not(.on) .ser.pub{opacity:0}
 svg.live.apart .ser.src{transform:translateY(-16px)}
 svg.live.apart .ser.syn{transform:translateY(16px)}
 svg.live.apart .ser.pub{opacity:.25}
+svg.live.apart > text,svg.live.apart > line{opacity:.15;
+  transition:opacity .5s}
+svg.live > text,svg.live > line{transition:opacity .5s}
 path.draw{transition:stroke-dashoffset 1.4s
   cubic-bezier(.4,0,.2,1)}
 .hold-hint{color:%(gray)s;font-size:12px;margin:8px 0 0;
@@ -275,12 +278,14 @@ def hist_svg(vs, vg, pat_counts, k, date_labels=None):
                 .format(x + 1, H - hb, bw - 2, hb, RED))
     parts.append('<g class="ser src">' + "".join(src_r) + "</g>")
     parts.append('<g class="ser syn">' + "".join(syn_r) + "</g>")
-    for t, frac in ((lo, 0.0), ((lo + hi) / 2, 0.5), (hi, 1.0)):
+    for t, frac, anch in ((lo, 0.0, "start"),
+                          ((lo + hi) / 2, 0.5, "middle"),
+                          (hi, 1.0, "end")):
         label = (date_labels(t) if date_labels else fnum(float(t)))
         parts.append(
             '<text x="{:.1f}" y="{}" font-size="10.5" fill="{}" '
-            'text-anchor="middle">{}</text>'.format(
-                PAD + frac * (W - 2 * PAD), H + 16, GRAY,
+            'text-anchor="{}">{}</text>'.format(
+                PAD + frac * (W - 2 * PAD), H + 16, GRAY, anch,
                 esc(label)))
     parts.append("</svg>")
     return "".join(parts), suppressed
@@ -300,8 +305,8 @@ def bar_pairs_svg(rows):
         parts.append('<text x="{}" y="{}" font-size="11" fill="{}" '
                      'text-anchor="end">{}</text>'.format(
                          LAB - 8, y + 12, INK, esc(label[:24])))
-        wo = o / top * (W - LAB - 60)
-        ws = s / top * (W - LAB - 60)
+        wo = o / top * (W - LAB - 96)
+        ws = s / top * (W - LAB - 96)
         src_r.append('<rect x="{}" y="{}" width="{:.1f}" height="6" '
                      'fill="{}"/>'.format(LAB, y + 2, wo, GRAY))
         syn_r.append('<rect x="{}" y="{}" width="{:.1f}" height="6" '
