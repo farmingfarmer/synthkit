@@ -4,7 +4,7 @@ Synthetic clinical data generator and model-evaluation instrument. Core rule: le
 
 ## Verify before claiming
 
-- Run `python scripts/run_all_smokes.py` before claiming anything works. Expect 67 suites, 1853 checks, ALL GREEN **on a checkout**. Off a zipball extract - which is what the data machine runs - it is 1844: nine checks in `smoke_buildid` need git to test the archive path and report SKIPPED without it. Both numbers were measured. Do not quote the checkout number to the data machine; that is how a correct run gets read as a failure.
+- Run `python scripts/run_all_smokes.py` before claiming anything works. Expect 67 suites, 1858 checks, ALL GREEN **on a checkout**. Off a zipball extract - which is what the data machine runs - it is 1849: nine checks in `smoke_buildid` need git to test the archive path and report SKIPPED without it. Both numbers were measured. Do not quote the checkout number to the data machine; that is how a correct run gets read as a failure.
 - **THE DEVELOPMENT MACHINE WAS BEHIND THE DATA MACHINE, and that is
   how a green suite here failed there.** Dev was on Python 3.10 with
   pandas 2.3; the data machine installs fresh and got pandas 3.0.5,
@@ -1192,6 +1192,27 @@ what follows is what came out wrong anyway.
   confirm the build id in the wordmark matches `synthkit version`.
   The version line exists for exactly this - a UI change that cannot
   be seen is indistinguishable from one that was never made.
+
+- **A BAR THAT MOVES MUST BE HONEST, and the log already knows the
+  truth.** The living loader's fit bar is parsed from the run's own
+  stage lines and search countdown (`i/N columns`), unit-run in node
+  against every real stage transition; when nothing is parseable it
+  sweeps as an indeterminate comet rather than inventing a
+  percentage. A fake percentage is the `--time-col` failure wearing
+  motion.
+- **THE MOTION RIDES INSIDE THE ARTEFACT.** The deck's reveal and
+  press-and-hold pull-apart are inline CSS/JS in the emitted HTML,
+  so the shared file animates identically to the Dashboard station
+  with no network - one code path, again. Press-and-hold separates
+  original from synthetic; release settles them back into overlap,
+  which is the fidelity claim performed. `prefers-reduced-motion`
+  is honoured in both the bench and the deck.
+- **WATCH THE MOTION GUARD FAIL ON THE PRE-MOTION OUTPUT.** The
+  animation contract was run against the previous build's deck file
+  (red) and the new one (green) before entering the suite - the
+  fail-first rule applies to decoration exactly as it does to
+  numbers, because a check that cannot fail proves nothing about
+  either.
 
 ## Talking to the data machine
 

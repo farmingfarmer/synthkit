@@ -2070,6 +2070,55 @@ h1 .tstep,.stepbanner .stepchip{
 .station[data-route="measure"] .subt{color:rgba(43,36,22,.92)}
 .station[data-route="measure"]{color:#2b2416}
 .station[data-route="measure"] b{background:rgba(0,0,0,.14)}
+
+/* ================================================================
+   THE LIVING LOADER. A long run used to be a wall of log text and
+   an elapsed counter - nothing on screen MOVED, so a healthy
+   33-minute fit was indistinguishable from a hang. The loader is
+   always in motion: a milled track, a fill with a travelling sheen,
+   a breathing dot. When the log names its stage the bar is TRUE
+   progress parsed from the run's own countdown lines; when nothing
+   is parseable it sweeps as a comet rather than pretending to know.
+   ================================================================ */
+.loader{margin:12px 0 10px;display:none}
+.loader.on{display:block}
+.loader .lrow{display:flex;align-items:baseline;gap:10px;
+  margin-bottom:7px}
+.loader .ldot{width:8px;height:8px;border-radius:50%;
+  align-self:center;background:var(--graphite);
+  box-shadow:0 0 0 0 rgba(44,51,60,.35);
+  animation:lbreathe 1.6s ease-in-out infinite}
+@keyframes lbreathe{
+  0%,100%{transform:scale(.85);box-shadow:0 0 0 0 rgba(44,51,60,.30)}
+  50%{transform:scale(1.15);box-shadow:0 0 0 6px rgba(44,51,60,0)}}
+.loader .lstage{font-family:var(--mono);font-size:12px;
+  color:var(--ink);letter-spacing:.02em}
+.loader .lelapsed{font-family:var(--mono);font-size:11.5px;
+  color:var(--dim);margin-left:auto}
+.loader .track{height:7px;border-radius:5px;background:#E9EBEE;
+  overflow:hidden;position:relative;
+  box-shadow:inset 0 1px 2px rgba(20,26,34,.10)}
+.loader .fill{height:100%;border-radius:5px;position:relative;
+  overflow:hidden;width:3%;
+  background:linear-gradient(180deg,var(--graphite-hi),
+    var(--graphite));
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.25);
+  transition:width .9s cubic-bezier(.22,1,.36,1)}
+.loader .fill::after{content:"";position:absolute;inset:0;
+  background:linear-gradient(90deg,transparent,
+    rgba(255,255,255,.40),transparent);
+  animation:lsheen 1.5s linear infinite}
+@keyframes lsheen{from{transform:translateX(-100%)}
+  to{transform:translateX(100%)}}
+.loader.indet .fill{width:26%;
+  animation:lcomet 1.4s cubic-bezier(.45,.05,.55,.95)
+    infinite alternate}
+@keyframes lcomet{from{margin-left:0}to{margin-left:74%}}
+.loader.done .fill{width:100%;background:linear-gradient(180deg,
+  #2e7d55,#256a47);animation:none}
+@media (prefers-reduced-motion:reduce){
+  .loader .ldot,.loader .fill::after,.loader.indet .fill{
+    animation:none}}
 </style></head><body>
 <div class="frame">
 <nav>
@@ -3417,11 +3466,71 @@ async function campaignCompile(){
 let activeJob=null;
 async function cancelJob(){
   if(activeJob)await api('/api/job-cancel',{id:activeJob});}
+/* ---- the living loader: motion that cannot lie still ---- */
+function loaderGet(outId,make){
+  let l=document.getElementById(outId+'-loader');
+  if(!l&&make){
+    l=document.createElement('div');
+    l.id=outId+'-loader';l.className='loader';
+    l.innerHTML='<div class="lrow"><span class="ldot"></span>'+
+      '<span class="lstage"></span>'+
+      '<span class="lelapsed"></span></div>'+
+      '<div class="track"><div class="fill"></div></div>';
+    const o=document.getElementById(outId);
+    o.parentNode.insertBefore(l,o);}
+  return l;}
+function loaderSet(outId,frac,label,secs){
+  const l=loaderGet(outId,true);
+  l.classList.add('on');l.classList.remove('done');
+  if(frac==null){l.classList.add('indet');
+    l.querySelector('.fill').style.width='';}
+  else{l.classList.remove('indet');
+    l.querySelector('.fill').style.width=
+      Math.max(3,Math.min(100,frac*100))+'%';}
+  if(label!=null)l.querySelector('.lstage').textContent=label;
+  l.querySelector('.lelapsed').textContent=
+    secs==null?'':Math.round(secs)+'s';}
+function loaderDone(outId,ok){
+  const l=loaderGet(outId,false);
+  if(!l)return;
+  l.classList.remove('indet');
+  if(ok){l.classList.add('done');
+    setTimeout(()=>{l.classList.remove('on');},1400);}
+  else{l.classList.remove('on');}}
+/* The fit log names its own stages, and the search stage prints a
+   true countdown (i/N columns). The bar is honest: parsed progress
+   when the log offers it, an indeterminate comet when it does not -
+   never an invented percentage. Later stages are tested FIRST
+   because the log accumulates. */
+function fitStage(log){
+  log=log||'';
+  if(/done ->/.test(log))
+    return{frac:1,label:'done'};
+  if(/comparing source against generated/.test(log))
+    return{frac:.94,label:'comparing source against generated'};
+  if(/\bgenerating\b/.test(log))
+    return{frac:.80,label:'generating new patients from the '+
+      'contract'};
+  if(/building the blueprint/.test(log))
+    return{frac:.72,label:'writing the contract'};
+  const m=log.match(/(\d+)\/(\d+) columns, about/g);
+  if(m){
+    const last=m[m.length-1].match(/(\d+)\/(\d+)/);
+    const i=+last[1],n=Math.max(+last[2],1);
+    return{frac:.08+.62*(i/n),
+      label:'searching columns '+i+'/'+n};}
+  if(/searching \d+ columns/.test(log))
+    return{frac:.08,label:'searching columns'};
+  if(/reading /.test(log))
+    return{frac:.04,label:'reading the file'};
+  return{frac:null,label:'working'};}
+
 async function poll(jobId,outId,render){
   activeJob=jobId;
   const t=setInterval(async()=>{
     const j=await api('/api/job',{id:jobId});
     if(j.status==='running'){
+      loaderSet(outId,null,'working',j.elapsed);
       let msg='working... '+j.elapsed+'s';
       if(j.elapsed>300)msg+='  (long run: llm ladders take '
         +'minutes; Cancel abandons it)';
@@ -3432,6 +3541,7 @@ async function poll(jobId,outId,render){
       b.style.marginLeft='12px';b.onclick=cancelJob;
       el.appendChild(b);}
     else{clearInterval(t);activeJob=null;
+      loaderDone(outId,j.status==='done');
       if(j.status==='error'||j.status==='timeout'
         ||j.status==='cancelled'){out(outId,j.error,'bad');}
       else{render(j.result);}}},1500);}
@@ -3642,9 +3752,12 @@ async function fitPoll(){
   const log=await api('/api/fit-log',
                       {out:document.getElementById('fout').value});
   if(j.status==='running'){
+    const st=fitStage(log.text||'');
+    loaderSet('fit-runout',st.frac,st.label,j.elapsed);
     o.textContent='running ('+Math.round(j.elapsed)+'s)\n\n'+
       (log.text||'');o.scrollTop=o.scrollHeight;return;}
   clearInterval(fitTimer);fitTimer=null;
+  loaderDone('fit-runout',j.status==='done');
   if(j.status==='done'){
     o.textContent='DONE in '+Math.round(j.elapsed)+'s\n\n'+
       (log.text||'');
@@ -3711,7 +3824,9 @@ async function deckBuild(){
   if(!body.src||!body.out){out.textContent=
     'STOPPED: give the source CSV and the run directory.';return;}
   out.textContent='drawing the dashboard from '+body.out+'...';
+  loaderSet('deck-out',null,'drawing the dashboard');
   const r=await api('/api/deck',body);
+  loaderDone('deck-out',!r.error);
   if(r.error){out.textContent='STOPPED: '+r.error;
     frame.style.display='none';return;}
   frame.srcdoc=r.html;

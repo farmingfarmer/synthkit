@@ -632,6 +632,25 @@ def main():
           and _h.count("&larr;") >= 1
           and ("tracks the original within" in _h
                or "DEPARTS" in _h))
+    # THE CHARTS ARE ALIVE, AND THE FILE CARRIES ITS OWN MOTION.
+    # Press-and-hold pulls original and synthetic apart; release
+    # lets them settle back into overlap - the fidelity claim,
+    # performed. The script and styles are inline because this file
+    # must animate identically as a shared artefact with no network.
+    # Verified fail-first: the pre-animation output fails this exact
+    # contract.
+    check("each chart's two series are grouped so they can move as "
+          "bodies, and the press-and-hold pull-apart is wired with "
+          "its styles and script inline",
+          'class="ser src"' in _h and 'class="ser syn"' in _h
+          and 'svg.live.apart .ser.src' in _h
+          and "pointerdown" in _h
+          and 'path class="draw"' in _h)
+    check("...the page says how to use it, and motion respects the "
+          "reader who asked for none",
+          "Press and hold any chart" in _h
+          and "prefers-reduced-motion" in _h)
+
     check("...with the drivers attributed when there is more than "
           "one, and shapes named in words (a 'threshold' is not a "
           "correlation)",

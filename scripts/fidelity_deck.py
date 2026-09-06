@@ -86,7 +86,76 @@ td.num{text-align:right}
 svg text{font-family:inherit}
 .footer{margin-top:44px;padding-top:16px;border-top:1px solid
   %(rule)s;color:%(gray)s;font-size:12px}
+
+/* ---- the charts are ALIVE ----
+   Every chart reveals itself as it scrolls into view, and press-
+   and-hold pulls the original and the synthetic apart so the eye
+   can hold each shape alone - release, and they glide back into
+   overlap, which IS the fidelity claim, performed. One long
+   ease-out everywhere: nothing snaps, nothing bounces twice. */
+svg.live{cursor:grab;touch-action:pan-y}
+svg.live:active{cursor:grabbing}
+.ser{transition:transform .85s cubic-bezier(.22,1,.36,1),
+  opacity .85s cubic-bezier(.22,1,.36,1)}
+svg.live:not(.on) .ser.src{opacity:0;transform:translateY(-10px)}
+svg.live:not(.on) .ser.syn{opacity:0;transform:translateY(10px)}
+svg.live:not(.on) .ser.pub{opacity:0}
+svg.live.apart .ser.src{transform:translateY(-16px)}
+svg.live.apart .ser.syn{transform:translateY(16px)}
+svg.live.apart .ser.pub{opacity:.25}
+path.draw{transition:stroke-dashoffset 1.4s
+  cubic-bezier(.4,0,.2,1)}
+.hold-hint{color:%(gray)s;font-size:12px;margin:8px 0 0;
+  font-style:italic}
+@media (prefers-reduced-motion:reduce){
+  .ser,path.draw{transition:none}
+  svg.live:not(.on) .ser{opacity:1;transform:none}}
 """ % {"ink": INK, "gray": GRAY, "red": RED, "rule": RULE}
+
+# The deck's only script: reveal-on-scroll and press-and-hold.
+# Inline and dependency-free, because this file must animate
+# identically as a shared artefact on a machine with no network.
+MOTION_JS = """<script>
+(function(){
+var mq=window.matchMedia&&window.matchMedia(
+  '(prefers-reduced-motion: reduce)').matches;
+var lives=[].slice.call(document.querySelectorAll('svg.live'));
+/* curves draw themselves on: length-based dash, offset to zero */
+lives.forEach(function(sv){
+  [].slice.call(sv.querySelectorAll('path.draw')).forEach(
+    function(pa){
+      try{var L=pa.getTotalLength();
+        pa.style.strokeDasharray=L;
+        pa.style.strokeDashoffset=mq?0:L;}catch(e){}});});
+function on(sv){
+  sv.classList.add('on');
+  [].slice.call(sv.querySelectorAll('path.draw')).forEach(
+    function(pa){pa.style.strokeDashoffset=0;});}
+if(mq||!window.IntersectionObserver){lives.forEach(on);}
+else{var io=new IntersectionObserver(function(es){
+    es.forEach(function(e){if(e.isIntersecting){
+      on(e.target);io.unobserve(e.target);}});},
+  {threshold:.25});
+  lives.forEach(function(sv){io.observe(sv);});}
+/* press-and-hold: apart while held; a quick click performs the
+   separation once and lets it settle back on its own */
+lives.forEach(function(sv){
+  var t0=0,timer=null;
+  sv.addEventListener('pointerdown',function(ev){
+    ev.preventDefault();t0=Date.now();
+    if(timer){clearTimeout(timer);timer=null;}
+    sv.classList.add('apart');});
+  function release(){
+    if(!sv.classList.contains('apart'))return;
+    var held=Date.now()-t0;
+    if(held<250){timer=setTimeout(function(){
+      sv.classList.remove('apart');},900);}
+    else{sv.classList.remove('apart');}}
+  sv.addEventListener('pointerup',release);
+  sv.addEventListener('pointercancel',release);
+  sv.addEventListener('pointerleave',release);});
+})();
+</script>"""
 
 
 def esc(x):
@@ -181,24 +250,31 @@ def hist_svg(vs, vg, pat_counts, k, date_labels=None):
     top = max(float(fa.max()), float(fb.max()), 1e-9)
     W, H, PAD = 620, 170, 26
     bw = (W - 2 * PAD) / nb
-    parts = ['<svg viewBox="0 0 {} {}" width="{}" height="{}">'
-             .format(W, H + 34, W, H + 34)]
+    # Each series lives in ONE <g>, so the whole distribution can
+    # move as a body: press-and-hold pulls original and synthetic
+    # apart, release lets them settle back into overlap. Interleaved
+    # rects cannot do that.
+    parts = ['<svg class="live" viewBox="0 0 {} {}" width="{}" '
+             'height="{}">'.format(W, H + 34, W, H + 34)]
     parts.append('<line x1="{0}" y1="{1}" x2="{2}" y2="{1}" '
                  'stroke="{3}"/>'.format(PAD, H, W - PAD, RULE))
+    src_r, syn_r = [], []
     for i in range(nb):
         x = PAD + i * bw
         ha = fa[i] / top * (H - 14)
         hb = fb[i] / top * (H - 14)
         if ha > 0:
-            parts.append(
+            src_r.append(
                 '<rect x="{:.1f}" y="{:.1f}" width="{:.1f}" '
                 'height="{:.1f}" fill="{}"/>'.format(
                     x + 1, H - ha, bw - 2, ha, GRAY))
         if hb > 0:
-            parts.append(
+            syn_r.append(
                 '<rect x="{:.1f}" y="{:.1f}" width="{:.1f}" '
                 'height="{:.1f}" fill="{}" fill-opacity="0.55"/>'
                 .format(x + 1, H - hb, bw - 2, hb, RED))
+    parts.append('<g class="ser src">' + "".join(src_r) + "</g>")
+    parts.append('<g class="ser syn">' + "".join(syn_r) + "</g>")
     for t, frac in ((lo, 0.0), ((lo + hi) / 2, 0.5), (hi, 1.0)):
         label = (date_labels(t) if date_labels else fnum(float(t)))
         parts.append(
@@ -215,9 +291,10 @@ def bar_pairs_svg(rows):
     W, RH = 620, 21
     H = RH * len(rows) + 8
     top = max([max(o, s) for _, o, s in rows] + [1e-9])
-    parts = ['<svg viewBox="0 0 {} {}" width="{}" height="{}">'
-             .format(W, H, W, H)]
+    parts = ['<svg class="live" viewBox="0 0 {} {}" width="{}" '
+             'height="{}">'.format(W, H, W, H)]
     LAB = 170
+    src_r, syn_r = [], []
     for i, (label, o, s) in enumerate(rows):
         y = i * RH + 4
         parts.append('<text x="{}" y="{}" font-size="11" fill="{}" '
@@ -225,13 +302,15 @@ def bar_pairs_svg(rows):
                          LAB - 8, y + 12, INK, esc(label[:24])))
         wo = o / top * (W - LAB - 60)
         ws = s / top * (W - LAB - 60)
-        parts.append('<rect x="{}" y="{}" width="{:.1f}" height="6" '
+        src_r.append('<rect x="{}" y="{}" width="{:.1f}" height="6" '
                      'fill="{}"/>'.format(LAB, y + 2, wo, GRAY))
-        parts.append('<rect x="{}" y="{}" width="{:.1f}" height="6" '
+        syn_r.append('<rect x="{}" y="{}" width="{:.1f}" height="6" '
                      'fill="{}"/>'.format(LAB, y + 9, ws, RED))
         parts.append('<text x="{:.1f}" y="{}" font-size="10" '
                      'fill="{}">{:.1%} / {:.1%}</text>'.format(
                          LAB + max(wo, ws) + 6, y + 12, GRAY, o, s))
+    parts.append('<g class="ser src">' + "".join(src_r) + "</g>")
+    parts.append('<g class="ser syn">' + "".join(syn_r) + "</g>")
     parts.append("</svg>")
     return "".join(parts)
 
@@ -336,29 +415,31 @@ def curve_svg(pub, src_pts, gen_pts):
     def path(pts):
         return "M" + " L".join("{:.1f} {:.1f}".format(X(a), Y(b))
                                for a, b in pts)
-    parts = ['<svg viewBox="0 0 {} {}" width="{}" height="{}">'
-             .format(W, H + 6, W, H + 6)]
+    parts = ['<svg class="live" viewBox="0 0 {} {}" width="{}" '
+             'height="{}">'.format(W, H + 6, W, H + 6)]
     parts.append('<line x1="{0}" y1="{1}" x2="{2}" y2="{1}" '
                  'stroke="{3}"/>'.format(PAD, H - 18, W - PAD, RULE))
     if pub:
-        parts.append('<path d="{}" fill="none" stroke="{}" '
-                     'stroke-width="1.3" stroke-dasharray="5 4" '
-                     'opacity="0.75"/>'.format(path(pub), INK))
+        parts.append('<g class="ser pub"><path d="{}" fill="none" '
+                     'stroke="{}" stroke-width="1.3" '
+                     'stroke-dasharray="5 4" opacity="0.75"/></g>'
+                     .format(path(pub), INK))
     if src_pts:
-        parts.append('<path d="{}" fill="none" stroke="{}" '
-                     'stroke-width="2.2"/>'.format(
-                         path(src_pts), GRAY))
+        g = ['<path class="draw" d="{}" fill="none" stroke="{}" '
+             'stroke-width="2.2"/>'.format(path(src_pts), GRAY)]
         for a, b in src_pts:
-            parts.append('<circle cx="{:.1f}" cy="{:.1f}" r="2.6" '
-                         'fill="{}"/>'.format(X(a), Y(b), GRAY))
+            g.append('<circle cx="{:.1f}" cy="{:.1f}" r="2.6" '
+                     'fill="{}"/>'.format(X(a), Y(b), GRAY))
+        parts.append('<g class="ser src">' + "".join(g) + "</g>")
     if gen_pts:
-        parts.append('<path d="{}" fill="none" stroke="{}" '
-                     'stroke-width="2.2" opacity="0.85"/>'.format(
-                         path(gen_pts), RED))
+        g = ['<path class="draw" d="{}" fill="none" stroke="{}" '
+             'stroke-width="2.2" opacity="0.85"/>'.format(
+                 path(gen_pts), RED)]
         for a, b in gen_pts:
-            parts.append('<circle cx="{:.1f}" cy="{:.1f}" r="2.6" '
-                         'fill="{}" opacity="0.85"/>'.format(
-                             X(a), Y(b), RED))
+            g.append('<circle cx="{:.1f}" cy="{:.1f}" r="2.6" '
+                     'fill="{}" opacity="0.85"/>'.format(
+                         X(a), Y(b), RED))
+        parts.append('<g class="ser syn">' + "".join(g) + "</g>")
     for v, anch in ((x0, "start"), (x1, "end")):
         parts.append('<text x="{:.1f}" y="{}" font-size="10.5" '
                      'fill="{}" text-anchor="{}">{}</text>'.format(
@@ -470,6 +551,10 @@ def build_deck(src_path, run_dir, group_by="person_id",
                 'patients, and source histogram bins backed by '
                 'fewer than {} patients are suppressed from this '
                 'report.</p>'.format(GRAY, RED, k, k))
+    body.append('<p class="hold-hint">Press and hold any chart: '
+                'the original and the synthetic pull apart so you '
+                'can read each shape alone - release, and watch '
+                'them settle back into overlap.</p>')
 
     # the gate
     try:
@@ -778,7 +863,8 @@ def build_deck(src_path, run_dir, group_by="person_id",
     return ("<!DOCTYPE html><html><head><meta charset='utf-8'>"
             "<title>Original vs synthetic</title><style>" + CSS
             + "</style></head><body><div class='wrap'>"
-            + "".join(body) + "</div></body></html>"), {
+            + "".join(body) + "</div>" + MOTION_JS
+            + "</body></html>"), {
         "columns": len(cols), "suppressed": total_suppressed}
 
 

@@ -1022,6 +1022,36 @@ def main():
               and "#F9F1F1" not in html
               and "radial-gradient(1100px" in html)
 
+        # THE LIVING LOADER. A long run was a wall of log text and
+        # an elapsed counter - nothing MOVED, so a healthy 33-minute
+        # fit was indistinguishable from a hang. The loader is
+        # always in motion, and the bar is HONEST: true progress
+        # parsed from the fit log's own stage lines and search
+        # countdown, an indeterminate comet when nothing is
+        # parseable - never an invented percentage. fitStage was
+        # unit-run against every real stage transition (node):
+        # reading .04 -> searching i/N scaled -> blueprint .72 ->
+        # generating .80 -> comparing .94 -> done 1.
+        check("the bench has a living loader - breathing dot, "
+              "travelling sheen, comet fallback - always in motion "
+              "while a job runs",
+              "@keyframes lbreathe" in html
+              and "@keyframes lsheen" in html
+              and "@keyframes lcomet" in html
+              and "function loaderSet" in html
+              and "function loaderDone" in html)
+        check("...and the fit bar is TRUE progress parsed from the "
+              "log's own stages, wired into the fit poll, the "
+              "generic job poll and the deck build",
+              "function fitStage" in html
+              and "loaderSet('fit-runout',st.frac" in html
+              and "loaderSet(outId,null,'working'" in html
+              and "loaderSet('deck-out'" in html
+              and "frac:null" in html)
+        check("...and every loader animation stops for a reader "
+              "who asked for reduced motion",
+              html.count("prefers-reduced-motion") >= 2)
+
         # THE FITTED PATH IS IN THE BENCH. Until it was, a demo
         # through the UI showed the FIRST engine - the last month of
         # measured work was unreachable from the interface built to
