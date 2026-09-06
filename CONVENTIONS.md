@@ -1159,15 +1159,28 @@ what follows is what came out wrong anyway.
   refusal it meant to test - green would have meant nothing and red
   meant the wrong thing. Moved inside. A check must exercise the
   path it names.
-- **RAISED AT REST, INSET FOR EDITABLE, WHISPER FOR COLOUR.** On
-  request: the reflective hover-lift is now permanent and
-  dramatised (layered ambient + key shadow + a 1px specular
-  highlight), buttons and panels raised, inputs inset as the
-  counterpoint, and the washes dropped to a few points above pure
-  white (#FDFAFA / #FDFCF8 / #FAFAFB). Route identity lives entirely
-  in the thin accent bar and chip text now. The wash tokens are set
-  ONCE, in the route palette - a token defined twice is how the two
-  sides come to disagree.
+- **THE OPERATOR POINTED AT A HOVER STATE, AND TWICE THE WRONG HALF
+  OF THE SCREENSHOT WAS PRESERVED.** What they loved was the button
+  going PURE WHITE with raised ink lettering and its black shadow -
+  the letterpress moment - not the saturated glossy pill beside it.
+  Two passes "protected" the pill and deleted the loved state as
+  flattening. When a user points at a screenshot with more than one
+  state in it, ask WHICH STATE before shipping a look. The design
+  is PORCELAIN LETTERPRESS now: every station, button and chip is
+  white, raised, ink-lettered with a dark glyph shadow, at rest;
+  hover lifts and deepens; route colour survives as accents only
+  (number chip, accent bar, active bezel ring). Washes stay a few
+  points above pure white; inputs stay inset; wash tokens are set
+  ONCE.
+- **THE COUTURE PASS: light behaves like light.** One imagined
+  source; shadows in many soft layers with long falloff (deeper is
+  never darker); beveled edges (hairline brighter above, darker
+  below); a two-layer letterpress plume; and ONE flourish - a glint
+  gliding across the porcelain on hover. A white light-band is
+  INVISIBLE on near-white porcelain: a glint reads only as a bright
+  core between faintly shadowed flanks, which a freeze-frame barely
+  shows and motion shows plainly. Verified by eye at rest,
+  mid-sweep and settled hover before shipping.
 
 - **APPENDED OVERRIDE LAYERS FLATTENED THE ONE THING THAT WAS
   LIKED.** The operator pointed at the raised, glossy, embossed

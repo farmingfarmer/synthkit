@@ -1949,38 +1949,47 @@ h1 span{font-size:15px;font-weight:500;color:var(--dim);
 #speccard{border-top:3px solid var(--tab);border-radius:10px}
 
 /* ================================================================
-   THE RAISED, GLOSSY, MILLED LOOK - EVERYWHERE, AT ALL TIMES.
+   PORCELAIN LETTERPRESS - the loved effect, made the whole language.
 
-   The operator pointed at the active station tab - its inset top
-   highlight, its soft drop shadow, its faint specular sheen and its
-   embossed text - and asked for exactly that on every control,
-   always, not only on hover. Earlier passes did the OPPOSITE: they
-   flattened the tabs into pale washes with `!important`, so the one
-   thing that was liked was the one thing being removed. Those passes
-   are gone. This block does one thing well: it gives the action
-   buttons, the preset chips and the surfaces the SAME tactile
-   treatment the tabs already carry, so the whole bench reads as
-   milled from one material.
-
-   Route colour lives in the tabs and the thin accents; the action
-   buttons are a single deep graphite, which is what a high-end tool
-   uses for "do the thing" - it stays legible on white and never
-   fights the route tint. The page itself is a breath off pure
-   white, so the raised pieces float.
+   The operator pointed at a hover state twice, and twice the wrong
+   half of the screenshot was preserved: what they loved was the
+   button going PURE WHITE with raised ink lettering and its black
+   shadow - the letterpress moment - not the saturated glossy pill
+   it started from. So that moment IS the design now, everywhere,
+   at rest: every station, button and chip is porcelain - white,
+   raised on layered shadows - and every label is set in ink with a
+   dark shadow beneath the glyphs, so the lettering reads as raised
+   off the surface. Hover deepens the shadows and lifts the piece;
+   press settles it. Route identity survives as accents only: the
+   number chip's tint, the accent bar, the active ring.
    ================================================================ */
 :root{
   --graphite-hi:#454E5A; --graphite:#2C333C; --graphite-lo:#20262E;
-  --emboss:0 1px 1px rgba(0,0,0,.35);
-  --raise:inset 0 1px 0 rgba(255,255,255,.28),
-          inset 0 -2px 0 rgba(0,0,0,.22),
-          0 2px 6px rgba(15,23,42,.20),
-          0 5px 14px rgba(15,23,42,.10);
-  --raise-hi:inset 0 1px 0 rgba(255,255,255,.35),
-             inset 0 -2px 0 rgba(0,0,0,.24),
-             0 4px 10px rgba(15,23,42,.24),
-             0 12px 26px rgba(15,23,42,.16);
-  --raise-press:inset 0 2px 5px rgba(0,0,0,.30),
-                inset 0 1px 0 rgba(255,255,255,.15);
+  /* the couture pass: light behaves like light. One imagined
+     source above; shadows fall in MANY soft layers with a long
+     falloff (deeper never means darker); the letter shadow is a
+     two-layer plume; the edge is a bevel - brighter above, a
+     hairline darker below - like glazed ceramic. */
+  --letterpress:0 1px 1px rgba(10,14,20,.40),
+                0 2px 3px rgba(10,14,20,.14);
+  --letterpress-deep:0 2px 2px rgba(10,14,20,.46),
+                     0 4px 6px rgba(10,14,20,.16);
+  --raise:inset 0 1px 0 rgba(255,255,255,.95),
+          inset 0 -1px 0 rgba(27,35,48,.05),
+          0 1px 1px rgba(27,35,48,.07),
+          0 2px 4px rgba(27,35,48,.06),
+          0 8px 16px rgba(27,35,48,.07),
+          0 16px 32px rgba(27,35,48,.05);
+  --raise-hi:inset 0 1px 0 #fff,
+             inset 0 -1px 0 rgba(27,35,48,.06),
+             0 2px 3px rgba(27,35,48,.09),
+             0 6px 12px rgba(27,35,48,.10),
+             0 18px 36px rgba(27,35,48,.14),
+             0 32px 64px rgba(27,35,48,.10);
+  --raise-press:inset 0 2px 4px rgba(27,35,48,.14),
+                inset 0 1px 0 rgba(27,35,48,.04);
+  --bevel:rgba(27,35,48,.08);
+  --bevel-low:rgba(27,35,48,.15);
   --card:0 1px 1px rgba(20,26,34,.04),
          0 4px 12px rgba(20,26,34,.07),
          inset 0 1px 0 rgba(255,255,255,.9);
@@ -1989,71 +1998,109 @@ body{background:
   radial-gradient(1100px 560px at 50% -12%,#FCFCFD,transparent),
   var(--bench)}
 
-/* THE ACTION BUTTON: a milled graphite key, raised at rest,
-   lifting on hover, pressing on click - the tab's language in a
-   neutral premium tone. */
-button.act{position:relative;overflow:hidden;
-  font-family:var(--sans);font-size:13px;font-weight:650;
-  letter-spacing:.01em;color:#fff;border:0;border-radius:11px;
-  padding:11px 20px;cursor:pointer;margin:12px 8px 0 0;
-  background:linear-gradient(180deg,var(--graphite-hi) 0%,
-             var(--graphite) 60%,var(--graphite-lo) 100%);
-  box-shadow:var(--raise);text-shadow:var(--emboss);
-  transition:box-shadow .16s ease,transform .12s ease,
-    filter .16s ease}
-/* the specular band across the top - the sheen that says "raised" */
-button.act::before{content:"";position:absolute;left:0;right:0;
-  top:0;height:48%;pointer-events:none;
-  border-radius:11px 11px 44% 44%/11px 11px 100% 100%;
-  background:linear-gradient(180deg,rgba(255,255,255,.30),
-             rgba(255,255,255,.03))}
-button.act:hover{box-shadow:var(--raise-hi);
-  transform:translateY(-2px);filter:brightness(1.06)}
-button.act:active{box-shadow:var(--raise-press);
-  transform:translateY(0);filter:brightness(.97)}
-button.act:focus-visible{outline:3px solid var(--ink);
-  outline-offset:3px}
+/* THE STATIONS: porcelain tiles, letterpress labels. This defeats
+   the saturated gradient layers above it on purpose. */
+.station{color:var(--ink);position:relative;overflow:hidden;
+  background:linear-gradient(180deg,#FFFFFF 0%,#FAFBFC 55%,
+    #F1F3F6 100%);
+  border:1px solid var(--bevel);border-bottom-color:var(--bevel-low);
+  border-left:4px solid var(--tab);box-shadow:var(--raise);
+  text-shadow:var(--letterpress);
+  filter:none;
+  transition:box-shadow .22s cubic-bezier(.22,1,.36,1),
+    transform .18s cubic-bezier(.22,1,.36,1),
+    background .22s ease,text-shadow .18s ease}
+/* the signature flourish, and the only one: a band of light glides
+   across the porcelain on hover, as if the piece were tilted under
+   the lamp. It replaces the old specular wholesale. */
+.station::after{content:"";display:block;position:absolute;
+  top:0;bottom:0;height:auto;left:-70%;right:auto;width:45%;
+  border-radius:0;pointer-events:none;
+  background:linear-gradient(105deg,
+    rgba(27,35,48,0) 0%,rgba(27,35,48,.05) 35%,
+    rgba(255,255,255,.95) 50%,
+    rgba(27,35,48,.05) 65%,rgba(27,35,48,0) 100%);
+  transform:skewX(-16deg);
+  transition:left .9s cubic-bezier(.22,1,.36,1)}
+.station:hover::after{left:125%}
+.station .subt{color:var(--dim);opacity:1;
+  text-shadow:0 1px 1px rgba(10,14,20,.22)}
+.station b{background:var(--wash);color:var(--tab);
+  border:1px solid rgba(20,26,34,.10);
+  text-shadow:none}
+.station:hover{filter:none;
+  transform:translateY(-2px) scale(1.004);
+  background:linear-gradient(180deg,#FFFFFF,#F6F8FA);
+  box-shadow:var(--raise-hi);
+  text-shadow:var(--letterpress-deep)}
+.station:active{transform:translateY(0);
+  box-shadow:var(--raise-press)}
+.station.active{filter:none;color:var(--ink);
+  background:linear-gradient(180deg,#FFFFFF,var(--wash));
+  border-left:4px solid var(--tab);
+  box-shadow:var(--raise-hi),0 0 0 2px var(--tab),
+    0 0 0 7px var(--wash);
+  text-shadow:var(--letterpress-deep)}
+.station.active b{background:var(--tab);color:#fff;
+  border-color:var(--tab)}
+.station.done b::after{content:" \2713";color:#2e7d55;
+  font-weight:900}
 
-/* ghost + preset chips: raised too, in white, so nothing is flat */
-button.ghost{position:relative;background:linear-gradient(180deg,
-    #ffffff,#f4f5f7);color:var(--ink);
-  border:1px solid rgba(20,26,34,.10);border-radius:11px;
-  box-shadow:var(--card);text-shadow:0 1px 0 #fff;
+/* THE ACTION BUTTONS: the same porcelain, the same letterpress. */
+.act,button.act{position:relative;overflow:hidden;
+  font-family:var(--sans);font-size:13px;font-weight:700;
+  letter-spacing:.01em;color:var(--ink);
+  border:1px solid var(--bevel);border-bottom-color:var(--bevel-low);
+  border-radius:11px;
+  padding:11px 20px;cursor:pointer;margin:12px 8px 0 0;
+  background:linear-gradient(180deg,#FFFFFF 0%,#FAFBFC 55%,
+    #F1F3F6 100%);
+  box-shadow:var(--raise);text-shadow:var(--letterpress);
+  transition:box-shadow .22s cubic-bezier(.22,1,.36,1),
+    transform .18s cubic-bezier(.22,1,.36,1),
+    text-shadow .18s ease,background .22s ease}
+.act::after,button.act::after{content:"";position:absolute;
+  top:0;bottom:0;left:-70%;width:45%;pointer-events:none;
+  background:linear-gradient(105deg,
+    rgba(27,35,48,0) 0%,rgba(27,35,48,.05) 35%,
+    rgba(255,255,255,.95) 50%,
+    rgba(27,35,48,.05) 65%,rgba(27,35,48,0) 100%);
+  transform:skewX(-16deg);
+  transition:left .9s cubic-bezier(.22,1,.36,1)}
+.act:hover::after,button.act:hover::after{left:125%}
+.act:hover,button.act:hover{box-shadow:var(--raise-hi);
+  transform:translateY(-2px) scale(1.004);
+  background:linear-gradient(180deg,#FFFFFF,#F6F8FA);
+  text-shadow:var(--letterpress-deep)}
+.act:active,button.act:active{box-shadow:var(--raise-press);
+  transform:translateY(0)}
+.act:focus-visible,button.act:focus-visible{
+  outline:3px solid var(--ink);outline-offset:3px}
+
+/* ghost + preset chips + roadmap chips: smaller porcelain */
+button.ghost{background:linear-gradient(180deg,#FFFFFF,#F5F6F8);
+  color:var(--ink);border:1px solid rgba(20,26,34,.10);
+  border-radius:11px;box-shadow:var(--raise);
+  text-shadow:var(--letterpress);
   transition:box-shadow .16s ease,transform .12s ease}
 button.ghost:hover{box-shadow:var(--raise-hi);
   transform:translateY(-2px);background:#fff}
-.presets button{position:relative;font-family:var(--mono);
-  font-size:12px;color:var(--ink);
-  background:linear-gradient(180deg,#ffffff,#f3f4f6);
+.presets button{font-family:var(--mono);font-size:12px;
+  color:var(--ink);
+  background:linear-gradient(180deg,#FFFFFF,#F5F6F8);
   border:1px solid rgba(20,26,34,.10);border-radius:9px;
-  padding:8px 13px;cursor:pointer;box-shadow:var(--card);
-  text-shadow:0 1px 0 #fff;
+  padding:8px 13px;cursor:pointer;box-shadow:var(--raise);
+  text-shadow:var(--letterpress);
   transition:box-shadow .14s ease,transform .1s ease}
 .presets button:hover{box-shadow:var(--raise-hi);
-  transform:translateY(-1px);background:#fff}
+  transform:translateY(-2px);background:#fff}
 
-/* SURFACES: soft raised cards, never flat outlines */
-.panel,#speccard,.goal{background:var(--panel);
-  border:1px solid var(--rule);border-radius:14px;
-  box-shadow:var(--card);transition:box-shadow .22s ease}
-.panel:hover,.goal:hover{box-shadow:var(--raise-hi)}
-#deck-frame,.gate{box-shadow:var(--card)}
-
-/* INPUTS inset - the counterpoint that reads as "editable" */
-textarea,input,select{border:1px solid var(--rule);
-  border-radius:9px;background:#FCFCFD;
-  box-shadow:inset 0 1px 2px rgba(20,26,34,.06)}
-textarea:focus,input:focus,select:focus{
-  box-shadow:inset 0 1px 2px rgba(20,26,34,.07),
-    0 0 0 3px var(--wash);border-color:var(--tab);outline:none}
-
-/* the heading tag and step chip: raised tinted pills */
-h1 .tstep,.stepbanner .stepchip{
-  background:linear-gradient(180deg,#ffffff,#f6f7f9);
-  color:var(--tab);border:1px solid var(--rule);
-  box-shadow:var(--card);text-shadow:0 1px 0 #fff}
-
-/* roadmap chips join the raised family */
+/* the chips and pills: porcelain with route-tinted lettering */
+h1 .tstep,.stepbanner .stepchip,.stepno{
+  background:linear-gradient(180deg,#FFFFFF,#F6F7F9);
+  color:var(--tab);border:1px solid rgba(20,26,34,.10);
+  box-shadow:var(--raise);
+  text-shadow:0 1px 1px rgba(10,14,20,.18)}
 .chip.built{background:linear-gradient(180deg,#fff,var(--cardinal-wash));
   color:#7a1414;border:1px solid #efd9d9;box-shadow:var(--card)}
 .chip.partial{background:linear-gradient(180deg,#fff,var(--gold-wash));
@@ -2061,13 +2108,22 @@ h1 .tstep,.stepbanner .stepchip{
 .chip.planned{background:linear-gradient(180deg,#fff,var(--slate-wash));
   color:#5b6675;border:1px solid var(--rule);box-shadow:var(--card)}
 
-/* THE MEASURE ROUTE'S GOLD TAB CARRIES INK, not white - gold on
-   white text is ~2.4:1, below any contrast bar. The create route's
-   cardinal keeps white. This is the only route-colour override, and
-   it does NOT flatten anything. */
-.station[data-route="measure"] .subt{color:rgba(43,36,22,.92)}
-.station[data-route="measure"]{color:#2b2416}
-.station[data-route="measure"] b{background:rgba(0,0,0,.14)}
+/* the rail: a sheet of vellum behind the porcelain tiles */
+nav{background:linear-gradient(90deg,#F6F7F9,#F3F4F7);
+  border-right:1px solid rgba(27,35,48,.06)}
+
+/* SURFACES: raised porcelain cards; INPUTS: inset, the counterpoint */
+.panel,#speccard,.goal{background:var(--panel);
+  border:1px solid var(--rule);border-radius:14px;
+  box-shadow:var(--card);transition:box-shadow .22s ease}
+.panel:hover,.goal:hover{box-shadow:var(--raise-hi)}
+#deck-frame,.gate{box-shadow:var(--card)}
+textarea,input,select{border:1px solid var(--rule);
+  border-radius:9px;background:#FCFCFD;
+  box-shadow:inset 0 1px 2px rgba(20,26,34,.06)}
+textarea:focus,input:focus,select:focus{
+  box-shadow:inset 0 1px 2px rgba(20,26,34,.07),
+    0 0 0 3px var(--wash);border-color:var(--tab);outline:none}
 
 /* ================================================================
    THE LIVING LOADER. A long run used to be a wall of log text and

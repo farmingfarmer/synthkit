@@ -932,18 +932,57 @@ def main():
         # pale wash with a slim accent bar and ink text, chips are
         # tinted outlines, and the loud treatments are explicitly
         # overridden.
-        # THE GLOSSY TAB IS THE LOOK, KEPT - not flattened. Two
-        # earlier passes overrode the raised, gradient, embossed
-        # station tab with a pale wash and !important, removing the
-        # exact thing the operator liked. The tab keeps its gradient
-        # and its layered inset+drop shadow; nothing flattens it.
-        check("the station tab stays a RAISED glossy control - a "
-              "vertical gradient, an inset top highlight and a drop "
-              "shadow - not flattened to a wash",
-              "background:linear-gradient(180deg,var(--tablo)" in html
-              and "inset 0 1px 0 rgba(255,255,255,.55)" in html
-              and "filter:none !important" not in html
-              and "box-shadow:none !important" not in html)
+        # PORCELAIN LETTERPRESS IS THE LOOK. The operator pointed
+        # at a hover state twice, and twice the wrong half of the
+        # screenshot was preserved: what they loved was the button
+        # going PURE WHITE with raised ink lettering and its black
+        # shadow - not the saturated glossy pill. That moment is the
+        # whole language now: every station, button and chip is
+        # white porcelain, raised at rest, lettered in ink with a
+        # dark shadow beneath the glyphs; hover lifts the piece and
+        # deepens the letterpress; route colour survives as accents
+        # only. Fail-first: none of these tokens exist in the
+        # previous build.
+        check("every station and button is PORCELAIN - white, "
+              "raised on layered shadows, with letterpress ink "
+              "lettering - at rest, not only on hover",
+              "PORCELAIN LETTERPRESS" in html
+              and "--letterpress:0 1px 1px" in html
+              and "text-shadow:var(--letterpress)" in html
+              and "box-shadow:var(--raise)" in html)
+        check("...hover LIFTS the piece and deepens the letter "
+              "shadow; press settles it",
+              "--letterpress-deep:" in html
+              and "text-shadow:var(--letterpress-deep)" in html
+              and "translateY(-2px)" in html
+              and "--raise-press:" in html)
+        check("...and route colour survives as ACCENTS only - the "
+              "tinted number chip, the accent bar, the active "
+              "ring - never as a filled surface",
+              ".station b{background:var(--wash);color:var(--tab)"
+              in html
+              and "0 0 0 2px var(--tab)" in html
+              and "border-left:4px solid" in html)
+        # THE COUTURE PASS: one light source, long soft falloff,
+        # beveled edges, and ONE signature flourish - a band of
+        # light gliding across the porcelain on hover. Fail-first:
+        # no sweep, bevel or plume tokens exist in the prior build.
+        check("light behaves like light - layered long-falloff "
+              "shadows, beveled edges, a two-layer letterpress "
+              "plume, and the hover sheen sweep as the single "
+              "flourish",
+              "--bevel:" in html
+              and "border-bottom-color:var(--bevel-low)" in html
+              and "0 16px 32px" in html
+              and "skewX(-16deg)" in html
+              and ".station:hover::after{left:125%" in html)
+
+        check("...over a page a breath off pure white, with the "
+              "washes near-white and the earlier saturated tints "
+              "gone",
+              "--cardinal-wash:#FDFAFA" in html
+              and "#F9F1F1" not in html
+              and "radial-gradient(1100px" in html)
 
         # LEARN IS NOT STEP 6 OF THE FLOW. Numbering it 06 inside a
         # five-step run implied you arrive there last; it is another
@@ -990,37 +1029,6 @@ def main():
         check("...and it can carry the compare fields, so the "
               "'does 5x degrade it' table is reachable from the UI",
               'id="dcmpdir"' in html and 'id="dcmplabel"' in html)
-
-        # THE GLOSSY LOOK IS EVERYWHERE NOW, ALWAYS - the operator's
-        # ask. The action button carries the tab's language at rest:
-        # a gradient, a specular ::before sheen, a layered raise
-        # shadow and embossed text - lifting on hover, pressing on
-        # click. Panels and chips are raised cards. Nothing is flat,
-        # and none of it waits for a hover.
-        check("the action button is RAISED and glossy at rest - "
-              "gradient fill, a specular sheen band, a layered raise "
-              "shadow and embossed text - not a flat block",
-              "button.act::before" in html
-              and "--raise:inset 0 1px 0" in html
-              and "box-shadow:var(--raise)" in html
-              and "text-shadow:var(--emboss)" in html)
-        check("...and it dramatises on hover and settles on press, "
-              "the effect made permanent from hover-only",
-              "--raise-hi:" in html
-              and "button.act:hover" in html
-              and "translateY(-2px)" in html
-              and "--raise-press:" in html)
-        check("...and panels, presets and chips are raised cards "
-              "too, so the whole bench reads as one milled material",
-              "--card:0 1px 1px" in html
-              and ".presets button{" in html
-              and "box-shadow:var(--card)" in html)
-        check("...over a page a breath off pure white, with the "
-              "washes near-white and the earlier saturated tints "
-              "gone",
-              "--cardinal-wash:#FDFAFA" in html
-              and "#F9F1F1" not in html
-              and "radial-gradient(1100px" in html)
 
         # THE LIVING LOADER. A long run was a wall of log text and
         # an elapsed counter - nothing MOVED, so a healthy 33-minute
