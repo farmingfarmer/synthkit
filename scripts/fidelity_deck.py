@@ -103,9 +103,16 @@ svg.live:not(.on) .ser.pub{opacity:0}
 svg.live.apart .ser.src{transform:translateY(-16px)}
 svg.live.apart .ser.syn{transform:translateY(16px)}
 svg.live.apart .ser.pub{opacity:.25}
-svg.live.apart > text,svg.live.apart > line{opacity:.15;
+svg.live.apart:not(.hm) > text,
+svg.live.apart:not(.hm) > line{opacity:.15;
   transition:opacity .5s}
-svg.live > text,svg.live > line{transition:opacity .5s}
+svg.live:not(.hm) > text,svg.live:not(.hm) > line{
+  transition:opacity .5s}
+svg.hm .hm-self,svg.hm .hm-other{
+  transition:opacity .7s cubic-bezier(.22,1,.36,1)}
+svg.hm .hm-other{opacity:0}
+svg.hm.apart .hm-self{opacity:0}
+svg.hm.apart .hm-other{opacity:1}
 path.draw{transition:stroke-dashoffset 1.4s
   cubic-bezier(.4,0,.2,1)}
 .hold-hint{color:%(gray)s;font-size:12px;margin:8px 0 0;
@@ -342,29 +349,47 @@ def heatmap_pair(names, ms, mg):
         b = int(255 + (b1 - 255) * t)
         return "#{:02x}{:02x}{:02x}".format(r, g, b)
 
-    def one(m, title, ox):
-        parts = ['<text x="{}" y="12" font-size="12" '
-                 'font-weight="700" fill="{}">{}</text>'.format(
-                     ox + lab, INK, esc(title))]
+    def cells(m, ox):
+        out = []
+        for i in range(n):
+            for j in range(n):
+                out.append(
+                    '<rect x="{}" y="{}" width="{}" height="{}" '
+                    'fill="{}"/>'.format(
+                        ox + lab + j * cell, 22 + i * cell,
+                        cell - 1, cell - 1, colour(m[i][j])))
+        return "".join(out)
+
+    def one(m, other, title, other_title, ox):
+        # Press-and-hold crossfades the OTHER matrix over this one,
+        # in place, so any pair that differs blinks into view. The
+        # title rides inside each layer - during the fade the half
+        # must be labelled by what it is SHOWING, not by what it
+        # usually shows.
+        t = ('<text x="{}" y="12" font-size="12" font-weight="700" '
+             'fill="{}">{}</text>')
+        parts = []
         for i, nm in enumerate(names):
             parts.append(
                 '<text x="{}" y="{}" font-size="9" fill="{}" '
                 'text-anchor="end">{}</text>'.format(
                     ox + lab - 4, 22 + i * cell + cell * 0.7, GRAY,
                     esc(nm[:16])))
-            for j in range(n):
-                parts.append(
-                    '<rect x="{}" y="{}" width="{}" height="{}" '
-                    'fill="{}"/>'.format(
-                        ox + lab + j * cell, 22 + i * cell,
-                        cell - 1, cell - 1, colour(m[i][j])))
+        parts.append('<g class="hm-self">'
+                     + t.format(ox + lab, INK, esc(title))
+                     + cells(m, ox) + '</g>')
+        parts.append('<g class="hm-other">'
+                     + t.format(ox + lab, INK, esc(other_title))
+                     + cells(other, ox) + '</g>')
         return "".join(parts)
 
     H = 30 + n * cell
-    return ('<svg viewBox="0 0 {w} {h}" width="{w}" height="{h}">'
+    return ('<svg class="live hm" viewBox="0 0 {w} {h}" '
+            'width="{w}" height="{h}">'
             .format(w=2 * w1 + 30, h=H)
-            + one(ms, "Original", 0)
-            + one(mg, "Synthetic", w1 + 30) + "</svg>")
+            + one(ms, mg, "Original", "Synthetic", 0)
+            + one(mg, ms, "Synthetic", "Original", w1 + 30)
+            + "</svg>")
 
 
 def cond_curve(parent, child, gid_series, k, nbins=12):
@@ -559,7 +584,10 @@ def build_deck(src_path, run_dir, group_by="person_id",
     body.append('<p class="hold-hint">Press and hold any chart: '
                 'the original and the synthetic pull apart so you '
                 'can read each shape alone - release, and watch '
-                'them settle back into overlap.</p>')
+                'them settle back into overlap. On the correlation '
+                'heatmaps, holding crossfades each side into the '
+                'other, so any pair that differs blinks into '
+                'view.</p>')
 
     # the gate
     try:

@@ -650,6 +650,20 @@ def main():
           "reader who asked for none",
           "Press and hold any chart" in _h
           and "prefers-reduced-motion" in _h)
+    # THE HEATMAPS CROSSFADE IN PLACE, AND THE TITLE RIDES INSIDE
+    # EACH LAYER. Holding fades each side into the other so a
+    # differing pair blinks into view - and during the fade the
+    # half must be labelled by what it is SHOWING, or the
+    # "Synthetic" panel would display original data under a false
+    # heading. Fail-first: no hm layer exists in the prior build.
+    check("the correlation heatmaps crossfade on hold - both cell "
+          "layers present, opacity swap wired, and the titles "
+          "travel with their data",
+          'class="live hm"' in _h
+          and _h.count("hm-self") >= 3 and _h.count("hm-other") >= 3
+          and "svg.hm.apart .hm-self{opacity:0" in _h
+          and "svg.hm.apart .hm-other{opacity:1" in _h
+          and "crossfades each side" in _h)
 
     check("...with the drivers attributed when there is more than "
           "one, and shapes named in words (a 'threshold' is not a "
