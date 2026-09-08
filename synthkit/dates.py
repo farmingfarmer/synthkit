@@ -4,7 +4,7 @@ WHY THIS IS ITS OWN MODULE. Discovery reads dates and generation
 writes them, and the two must agree exactly about what the number in
 between means. Putting the pair in `discover.py` would have worked and
 cost something worse: `discover` imports scikit-learn, so the
-GENERATOR would have imported a modelling library to format a string.
+GENERATOR would have imported a modeling library to format a string.
 The split between discovering structure and making data is the whole
 architecture, and a module that both sides need belongs under both
 rather than inside one.
@@ -45,7 +45,7 @@ DATE_ORIGIN = "1970-01-01"
 def day_format(fmt: str) -> str:
     """The date part of a format. What a floored value is written back
     as, so a generated timestamp never claims a time of day that was
-    thrown away rather than modelled."""
+    thrown away rather than modeled."""
     for sep in (" ", "T"):
         if sep in fmt:
             return fmt.split(sep)[0]

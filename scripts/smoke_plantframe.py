@@ -130,7 +130,7 @@ def main():
     rec2 = dict(rec)
     rec2["calibration"] = rec["calibration"] + [
         {"effect": "b", "in_sds": 0.0,
-         "published_centre": 0.0, "published_spread": 1.0}]
+         "published_center": 0.0, "published_spread": 1.0}]
     rec2["effects_in_sds"] = dict(rec["effects_in_sds"], b=0.0)
     v2 = verify_frame(planted, rec2)
     got2 = dict((e["effect"], e["recovered_in_sds"])

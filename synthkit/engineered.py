@@ -17,13 +17,13 @@ actually is.
 
 THE RULE. Learn once. Whatever has NO edge after that pass is, by
 definition, what the pairwise search could not explain - which is
-precisely where a pure interaction hides. Manufacture centred products
+precisely where a pure interaction hides. Manufacture centered products
 among those columns only, learn again, and let split-sample
 confirmation referee the additions.
 
-Centred, because that is what makes an exclusive-or visible:
+Centered, because that is what makes an exclusive-or visible:
 (a - median_a) * (b - median_b) is negative exactly when one factor is
-high and the other low. An uncentred product cannot express it.
+high and the other low. An uncentered product cannot express it.
 
 COVERAGE IS PARTIAL AND SAID SO. This finds interactions among
 unexplained columns. An interaction between two columns that each have
@@ -95,7 +95,7 @@ def add_product_features(rows: List[Dict[str, Any]],
                          seed: int = 20260731,
                          ) -> Tuple[List[Dict[str, Any]],
                                     Dict[str, Any]]:
-    """Centred pairwise products among `columns`, up to `budget`."""
+    """Centered pairwise products among `columns`, up to `budget`."""
     cols = [c for c in columns if c]
     possible = len(cols) * (len(cols) - 1) // 2
     if not cols or possible == 0:
@@ -143,7 +143,7 @@ def add_product_features(rows: List[Dict[str, Any]],
         "truncated": truncated,
         "coverage": round(len(pairs) / float(possible), 4),
         "columns": cols,
-        "note": ("products are CENTRED, which is what makes an "
+        "note": ("products are CENTERED, which is what makes an "
                  "exclusive-or visible: the product is negative "
                  "exactly when one factor is high and the other low. "
                  "Coverage is partial - an interaction between two "

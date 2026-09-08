@@ -372,7 +372,7 @@ DOMAINS = [
      ("Async jobs with a budget", "gui.py", "api_job",
       "A wedged ollama once served a 6-minute run for 106 "
       "minutes; jobs now time out readably and can be "
-      "cancelled."),
+      "canceled."),
      ("Data transparency: preview + downloads", "gui.py",
       "api_export",
       "The moment data exists: metric cards (records / "
@@ -435,14 +435,14 @@ DOMAINS = [
   "modules": [
    {"file": "../scripts/omop_wrangle.py", "name": "wrangler",
     "blurb": "Six clinical tables collapsed into one tidy row per "
-             "visit: key normalisation, a temporal drug join, and "
+             "visit: key normalization, a temporal drug join, and "
              "an EAV lab panel pivoted wide.",
     "components": [
      ("Tidy one row per visit", "../scripts/omop_wrangle.py",
       "main",
       "Joins person, visits, conditions, procedures, drugs and "
       "measurements. Keys arrive as ints AND as leading-zero text "
-      "in the same column, so every key is normalised or rows "
+      "in the same column, so every key is normalized or rows "
       "silently vanish; orphans are counted and reported rather "
       "than dropped in silence."),
     ]},
@@ -541,7 +541,7 @@ DOMAINS = [
       "thresholds. Relationships that are only noise in the source "
       "are skipped, because reproducing randomness is not "
       "fidelity."),
-     ("The nearest-neighbour privacy test",
+     ("The nearest-neighbor privacy test",
       "../scripts/fidelity_report.py", "nn_distances",
       "Synthetic records must sit no closer to real records than "
       "real records sit to each other. Catches the interpolation "
@@ -601,11 +601,11 @@ DOMAINS = [
       "percentile published one person's smallest and largest value "
       "for weeks, in a file described as aggregates-only."),
      ("The tail's own mean", "blueprint.py", "_tail_mean",
-      "A straight line from the last knot to the bound mis-centres "
+      "A straight line from the last knot to the bound mis-centers "
       "a heavy tail: knots at 316 and 2175, true segment mean 529, "
       "straight line 1242 - one segment carried 7.13 of a 9.97 "
       "excess. Publishing the tail mean took the extract from 18/34 "
-      "columns centred to 30/33."),
+      "columns centered to 30/33."),
      ("A set publishes every token above k", "blueprint.py",
       "_list_marginal",
       "Sharing the 60-level category cap sent every published share "
@@ -694,7 +694,7 @@ DOMAINS = [
       "floor. '2 per level, 0 of 1,436 clear the floor' is a "
       "diagnosis; 'destroyed' is only a verdict."),
      ("Source against generated", "pipeline.py", "compare",
-      "Coverage, centre, spread, persistence, clustering, set token "
+      "Coverage, center, spread, persistence, clustering, set token "
       "shares, set EMPTY rates, pairs, constraints - with INVERTED "
       "counted separately, because a relationship with the opposite "
       "sign reads as a finding and is worse than one that is "
@@ -754,7 +754,7 @@ DOMAINS = [
       "release. Excess -0.009; a republishing generator reads "
       "+0.145."),
      ("A partial set leak is caught", "attack.py",
-      "nearest_neighbour_attack",
+      "nearest_neighbor_attack",
       "Comparing a set as a STRING scored a member's own tokens "
       "with one swapped at 0.500 - a coin flip on a near-verbatim "
       "republish. Jaccard scores it 0.998, and an honest generator "
@@ -782,9 +782,9 @@ DOMAINS = [
       "sds and converted with the blueprint's own spread. Planted "
       "+0.9/-0.5 recovered at +0.86/-0.44; a no-effect column reads "
       "+0.03."),
-     ("The intercept is solved, not centred", "semisynth.py",
+     ("The intercept is solved, not centered", "semisynth.py",
       "verify",
-      "sigmoid(E[z]) is not E[sigmoid(z)]: centring asked for 25% "
+      "sigmoid(E[z]) is not E[sigmoid(z)]: centering asked for 25% "
       "prevalence and produced 29.4%. Bisection over draws from the "
       "columns' own marginals, and achieved-vs-requested is "
       "reported rather than assumed."),
@@ -792,7 +792,7 @@ DOMAINS = [
    {"file": "bridge.py", "name": "bridge - the two halves meet",
     "blurb": "The measured blueprint crosses into the evaluation "
              "half's TableSpec, and what does not cross is written "
-             "on the artefact.",
+             "on the artifact.",
     "components": [
      ("Measured marginals cross", "bridge.py",
       "blueprint_to_tablespec",
@@ -998,7 +998,7 @@ NARRATIVE = {
    "steps": [
     ["Read the real file and work out what each column is",
      "in seconds, before anything expensive - and it now says "
-     "whether each column can even survive anonymisation, so a "
+     "whether each column can even survive anonymization, so a "
      "hopeless one is caught before an hour is spent"],
     ["Find what explains each column, checked on people the "
      "model never saw",
@@ -1276,7 +1276,7 @@ NARRATIVE = {
   ],
   "blueprint.py::_tail_mean": [
    ["Say what the extreme 1% actually averages",
-    "a straight line across the top segment mis-centred heavy "
+    "a straight line across the top segment mis-centered heavy "
     "columns - true mean 529, straight line 1242"],
    ["Publish it k-screened",
     "the tail mean is an average over at least ten patients, "
@@ -1287,7 +1287,7 @@ NARRATIVE = {
     "capping at 60 forced the survivors to absorb everyone "
     "else's share - each came out three times too common"],
    ["Measure list length over what is publishable",
-    "and state the anonymisation cost in items per row, so a "
+    "and state the anonymization cost in items per row, so a "
     "shorter list reads as privacy, not a bug"],
   ],
   "blueprint.py::_categorical_marginal": [
@@ -1367,13 +1367,13 @@ NARRATIVE = {
     "one glance would have caught the date, currency and "
     "clock columns that each silently became one repeated "
     "token"],
-   ["Say whether each column can survive anonymisation",
+   ["Say whether each column can survive anonymization",
     "'2 patients per level, 0 of 1,436 clear the floor' tells "
     "you before the run whether aggregating would rescue it"],
   ],
   "pipeline.py::compare": [
    ["Score generated against source, per column and per pair",
-    "coverage, centre, spread, rhythm, clustering, list "
+    "coverage, center, spread, rhythm, clustering, list "
     "shares, empty rates, orderings"],
    ["Count inverted relationships separately",
     "a relationship with the opposite sign reads as a finding "
@@ -1422,7 +1422,7 @@ NARRATIVE = {
     "only the excess belongs to this release: -0.009, against "
     "+0.145 for a republishing generator"],
   ],
-  "attack.py::nearest_neighbour_attack": [
+  "attack.py::nearest_neighbor_attack": [
    ["Measure how close each real person sits to the output",
     "with list columns compared by overlap, not as strings"],
    ["Catch the near-verbatim republish",
@@ -1459,7 +1459,7 @@ NARRATIVE = {
     "as percentile curves, because fitting a bell curve to a "
     "clinical column is the exact loss this path exists to "
     "prevent"],
-   ["Write what does not cross on the artefact",
+   ["Write what does not cross on the artifact",
     "effect curves and visit rhythms do not cross, and the "
     "file says so about itself - a spec that silently lost "
     "its relationships is the same failure as a column that "
@@ -1725,7 +1725,7 @@ NARRATIVE = {
    ["Run long work in the background with a budget",
     "a stuck AI once served a 6-minute job for 106 minutes; "
     "now jobs tick visibly, time out readably, and can be "
-    "cancelled"],
+    "canceled"],
   ],
   "gui.py::api_export": [
    ["Hand over the run's files on click",
@@ -1763,7 +1763,7 @@ NARRATIVE = {
     "be measured"],
    ["Repair the join keys before trusting them",
     "the same identifier arrives as a number in one table and as "
-    "text with a leading zero in another; without normalising "
+    "text with a leading zero in another; without normalizing "
     "them those visits silently vanish"],
    ["Count what could not be matched, out loud",
     "orphaned records are reported rather than quietly dropped, "
@@ -1974,7 +1974,7 @@ NARRATIVE = {
     "attacker would have, and testing against a weaker one "
     "flatters us"],
    ["Ask how probable the model finds each person",
-    "if it recognises the people it was built from, it is "
+    "if it recognizes the people it was built from, it is "
     "carrying them with it"],
   ],
   "transcribe.py::transcribe_row": [

@@ -19,11 +19,11 @@ populations rather than a leak.
 
 TWO ADVERSARIES, and the worse one is reported:
 
-  nearest neighbour   score a record by how close the closest
+  nearest neighbor   score a record by how close the closest
                       synthetic row is. Needs no model at all
   likelihood          score a record by how probable the published
                       blueprint finds it. Reads the density straight
-                      off the artefact
+                      off the artifact
 
 0.5 is a coin flip. The bands are deliberately generous to the
 attacker - a claim of privacy should survive a strict reading, not a
@@ -145,7 +145,7 @@ def main():
                      sets=a.sets)
         runs.append(r)
         print("seed {:<5} nn {:.3f}  likelihood {:.3f}  worst {:.3f}  "
-              "{}".format(s, r.get("nearest_neighbour", {}).get("auc",
+              "{}".format(s, r.get("nearest_neighbor", {}).get("auc",
                                                                 0.5),
                           r.get("likelihood", {}).get("auc", 0.5),
                           r["worst_auc"], r["verdict"]))

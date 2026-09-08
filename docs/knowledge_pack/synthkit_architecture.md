@@ -61,7 +61,7 @@ records.
 ## Learning from real data (Phase 2)
 
 A wrangler collapses six OMOP tables into one tidy row per visit,
-normalising join keys that arrive as both integers and
+normalizing join keys that arrive as both integers and
 leading-zero text. A profiler measures each column as parameters —
 never records — with k-anonymity counted in patients, percentile
 clamping instead of true extremes, and multiple-comparison
@@ -74,7 +74,7 @@ from the effective sample size. Every table is a dial via a
 geometric tilt toward or away from its marginal. A fidelity and
 privacy scorecard grades the result on marginals, missingness,
 correlations, dependence shape, interactions, exact matches and
-nearest-neighbour distances — with tolerances derived from
+nearest-neighbor distances — with tolerances derived from
 sampling rather than fixed thresholds.
 
 ## Notes and extraction

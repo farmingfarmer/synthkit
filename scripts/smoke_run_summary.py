@@ -64,7 +64,7 @@ def main():
         got = autocorr_by_person(rows, "steady", "person_id")
         (d / "condnet_model.json").write_text(json.dumps({
             "report": {
-                "columns_modelled": 3, "bins": 3, "effective_n": 120,
+                "columns_modeled": 3, "bins": 3, "effective_n": 120,
                 "rows": 1200, "edge_count": 7,
                 "comparisons_corrected_for": 3,
                 "unmodellable_excluded": {"visit_id": "identifier"},

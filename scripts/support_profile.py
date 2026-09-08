@@ -76,7 +76,7 @@ class _ReportShim(object):
 csv.field_size_limit(1 << 22)
 
 # Nothing is excluded by name. An earlier version skipped visit_id and
-# the two date columns as "identifiers", and condnet was modelling all
+# the two date columns as "identifiers", and condnet was modeling all
 # three - which is precisely where a 424 MB fault hid for as long as it
 # did. The profiler must describe everything the model might touch and
 # let the tier rules say what is unusable; a hand-kept skip list fails
@@ -85,7 +85,7 @@ ID_COLS = set()
 LIST_SEP = "; "
 
 # Elapsed-day buckets for the decay curve. If autocorrelation falls
-# geometrically across these, persistence can be modelled with one
+# geometrically across these, persistence can be modeled with one
 # decay constant per column; if it plateaus or steps, the transition
 # table has to be keyed on the gap instead, which costs far more.
 LAG_BUCKETS = [(0, 7), (8, 30), (31, 90), (91, 180), (181, 365),
@@ -136,7 +136,7 @@ def classify(s, args, n_rows):
     # condnet never bins a list column as a whole - it expands each
     # frequent item into its own indicator. Tiering it "drop" for
     # having too many levels describes something the model does not
-    # do, and hides the fact that its content IS modelled.
+    # do, and hides the fact that its content IS modeled.
     if s.get("list_valued"):
         return "expand", ("list-valued: expanded into per-item "
                           "indicators, never binned whole")
@@ -210,7 +210,7 @@ def profile_column(col, rows_by_patient, n_rows, args):
         # Adjacency is about PRESENCE, so it must be tracked
         # separately from numeric parseability - otherwise every
         # categorical column reads as having no pairs at all and can
-        # never be modelled over time.
+        # never be modeled over time.
         present_seq = []
         numeric_seq = []
         for r in rows:
@@ -376,7 +376,7 @@ def variance_split(rows_by_patient, col):
 
 
 def decay_from(per_col):
-    """Normalised decay shape over a set of columns.
+    """Normalized decay shape over a set of columns.
 
     Split out so the same shape can be measured on SUBSETS. A median
     across every column mixes two populations that behave oppositely -
@@ -480,9 +480,9 @@ def lag_curve(rows_by_patient, cols, date_col, args):
     # Pooling raw correlations across columns is misleading: a
     # patient-level constant sits at 1.0 in every bucket and flattens
     # the average, hiding whatever decay the varying columns have. So
-    # normalise each column against its own shortest bucket and report
+    # normalize each column against its own shortest bucket and report
     # the median RATIO - that is decay shape, independent of level.
-    # Every column must be normalised against the SAME base bucket,
+    # Every column must be normalized against the SAME base bucket,
     # or the rows are not comparable: with each column divided by its
     # own first bucket, a row can rest on a different set of columns
     # than the row above it and the curve is not a curve at all.
@@ -508,7 +508,7 @@ def would_be_levels(rows_by_patient, col, k):
             if num(s) is not None:
                 numericish += 1
     if present and numericish == present:
-        return None            # numeric: binned, not levelled
+        return None            # numeric: binned, not leveled
     return sum(1 for v in holders.values() if len(v) >= k)
 
 
@@ -561,7 +561,7 @@ def profile_model(path):
                        "parents": e.get("parents")}
                       for e in edges if isinstance(e, dict)],
             "edge_count": len(edges),
-            "columns_modelled": rep.get("columns_modelled"),
+            "columns_modeled": rep.get("columns_modeled"),
             "comparisons_corrected_for":
                 rep.get("comparisons_corrected_for"),
             "effective_n": rep.get("effective_n"),
@@ -595,10 +595,10 @@ def main():
     ap.add_argument("--k", type=int, default=10)
     ap.add_argument("--min-pair-patients", type=int, default=50,
                     help="patients contributing an adjacent pair "
-                         "before a column may be modelled over time")
+                         "before a column may be modeled over time")
     ap.add_argument("--min-cross-patients", type=int, default=50,
                     help="patients with a value before a column may "
-                         "be modelled cross-sectionally")
+                         "be modeled cross-sectionally")
     ap.add_argument("--drift-rho", type=float, default=0.5,
                     help="rho at or above which a column is treated as "
                          "drifting rather than anchored to a patient "
@@ -676,7 +676,7 @@ def main():
                 by_patient, s["column"])
     # A patient-level constant has autocorrelation 1.0 at EVERY lag,
     # so including it does not merely inflate the curve - its
-    # normalised ratio is exactly 1.0 in every bucket, which drags the
+    # normalized ratio is exactly 1.0 in every bucket, which drags the
     # median to 1.0 and hides real decay behind the statistic chosen
     # to be robust. Only columns that actually move within a patient
     # can say anything about how values decay.
@@ -695,7 +695,7 @@ def main():
                                          a.date_col)}
     # Split each column's lag-1 autocorrelation into the part that is
     # the patient's own level and the part that is genuine
-    # visit-to-visit movement. This decides whether modelling how
+    # visit-to-visit movement. This decides whether modeling how
     # values MOVE is worth anything, or whether the anchor is doing
     # all the work - a distinction the aggregate curve cannot make.
     dec_cols = []
@@ -766,23 +766,23 @@ def main():
             sys.exit("--model not found: {}".format(mp))
         out["model"] = profile_model(mp)
         # The coverage gap. visit_start_date and visit_end_date hid
-        # here: described by nobody, modelled by condnet. Diff both
+        # here: described by nobody, modeled by condnet. Diff both
         # ways rather than assume the gap is closed.
-        modelled = set()
+        modeled = set()
         try:
             blob = json.loads(mp.read_text(encoding="utf-8"))
             for key in ("binnings", "marginal", "level"):
                 v = blob.get(key)
                 if isinstance(v, dict):
-                    modelled |= set(v)
+                    modeled |= set(v)
         except ValueError:
             pass
-        if modelled:
+        if modeled:
             described = set(s["column"] for s in stats)
             out["coverage_gap"] = {
-                "modelled_not_described": sorted(modelled - described),
-                "described_not_modelled": sorted(described - modelled),
-                "both": len(modelled & described),
+                "modeled_not_described": sorted(modeled - described),
+                "described_not_modeled": sorted(described - modeled),
+                "both": len(modeled & described),
             }
 
     Path(a.out).write_text(json.dumps(out, indent=1),
@@ -856,7 +856,7 @@ def report(o, full):
                 b_["bucket"], b_["autocorr"], b_.get("columns", 0),
                 b_["pairs"]))
         if lc.get("decay"):
-            print("  decay shape, every column normalised against "
+            print("  decay shape, every column normalized against "
                   "the SAME base bucket {} (median ratio):".format(
                       lc.get("decay_base_bucket")))
             for d in lc["decay"]:
@@ -894,7 +894,7 @@ def report(o, full):
                       dec["anchor_share_of_r1"]))
             print("  a column's autocorrelation tends to `between` as "
                   "the gap grows, so only about {:.2f} of it can decay "
-                  "at all - the ceiling on what modelling elapsed time "
+                  "at all - the ceiling on what modeling elapsed time "
                   "can buy".format(1.0 - dec["median_between"]))
         else:
             print("  median between {:.3f}, median r(lag1) {:.3f} - "
@@ -948,14 +948,14 @@ def report(o, full):
     cg = o.get("coverage_gap")
     if cg:
         print("\ncoverage gap against the model")
-        print("  described AND modelled     {}".format(cg["both"]))
-        print("  MODELLED, NOT DESCRIBED    {}{}".format(
-            len(cg["modelled_not_described"]),
-            "  <-- blind spot" if cg["modelled_not_described"] else ""))
-        for c in cg["modelled_not_described"][:12]:
+        print("  described AND modeled     {}".format(cg["both"]))
+        print("  MODELED, NOT DESCRIBED    {}{}".format(
+            len(cg["modeled_not_described"]),
+            "  <-- blind spot" if cg["modeled_not_described"] else ""))
+        for c in cg["modeled_not_described"][:12]:
             print("      {}".format(c))
-        print("  described, not modelled    {}".format(
-            len(cg["described_not_modelled"])))
+        print("  described, not modeled    {}".format(
+            len(cg["described_not_modeled"])))
 
     m = o.get("model")
     if m:
@@ -965,8 +965,8 @@ def report(o, full):
         L = m.get("learned")
         if L:
             print("  WHAT IT LEARNED: {} relationship(s) across {} "
-                  "modelled columns".format(
-                      L["edge_count"], L.get("columns_modelled")))
+                  "modeled columns".format(
+                      L["edge_count"], L.get("columns_modeled")))
             print("  bins {} | effective n {} of {} rows | corrected "
                   "for {} comparisons | search {}".format(
                       L.get("bins"), L.get("effective_n"),

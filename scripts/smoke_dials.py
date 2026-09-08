@@ -1,6 +1,6 @@
 """Smoke: the dials are reachable, and they report what they did.
 
-WHY THIS EXISTS. `resolve` honoured eight dials and `smoke_generate`
+WHY THIS EXISTS. `resolve` honored eight dials and `smoke_generate`
 proved each changed the output, but there was no way to reach one: no
 flag, no interface, no documentation. The only route was hand-editing
 `blueprint.json` ON THE MACHINE HOLDING THE EXTRACT, which is the
@@ -17,7 +17,7 @@ AND THE ANSWER MUST BE RE-MEASURED, not read back out of the file it
 was written into - which proves the write happened and nothing else.
 That check caught a real defect on its first run: `shift` and `scale`
 were applied as `(x + shift) * scale`, so a shift of 12 beside a scale
-of 1.5 arrived as +35.8 and the scale dragged the centre with it.
+of 1.5 arrived as +35.8 and the scale dragged the center with it.
 """
 import json
 import subprocess

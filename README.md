@@ -112,7 +112,7 @@ person's contribution, so it overwhelms a small cohort and rounds to
 nothing in a large one.
 
 **The width condition is load-bearing and the table does not
-generalise without it.** Records get more identifying as columns are
+generalize without it.** Records get more identifying as columns are
 added, so a cohort size that puts the attack at chance in 30 columns
 need not do so in 88. Measured on an 88-column extract, 800 patients
 returned 0.600 — MARGINAL — with no budget set at all, where this

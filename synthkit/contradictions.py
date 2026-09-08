@@ -236,7 +236,7 @@ def find_blueprint(bp: Dict[str, Any]) -> List[Dict[str, Any]]:
     whole error. Columns were given `tail_mean_high` to fix it; the
     group-size distribution never was.
 
-    This generalises past that one case: ANY heavy-tailed count -
+    This generalizes past that one case: ANY heavy-tailed count -
     orders per customer, events per session, claims per member -
     puts its mean beyond the last knot, and most real grouping
     columns are heavy-tailed."""
@@ -265,8 +265,8 @@ def find_blueprint(bp: Dict[str, Any]) -> List[Dict[str, Any]]:
         it is an error in the size of the delivered file, and the
         honest yardstick is the mean itself.
 
-        A COLUMN's mean is its centre, and this file's standard for a
-        centre is already `within 10% of SPREAD` - because a shift of
+        A COLUMN's mean is its center, and this file's standard for a
+        center is already `within 10% of SPREAD` - because a shift of
         0.003 on a column whose sd is 1.0 is nothing, while the same
         shift on a column whose sd is 0.001 is everything.
 

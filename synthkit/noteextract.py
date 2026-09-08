@@ -171,15 +171,15 @@ def facts_from_specs(fact_specs) -> List[Dict[str, str]]:
 class ScriptedBackend:
     """A deterministic stand-in for tests and dry runs.
 
-    `behaviour` selects a failure mode to imitate, so the grading
+    `behavior` selects a failure mode to imitate, so the grading
     path can be exercised — and proven to detect each failure —
     without a model or a network.
     """
 
-    def __init__(self, facts, behaviour: str = "careful",
+    def __init__(self, facts, behavior: str = "careful",
                  terms: Optional[Dict[str, List[str]]] = None):
         self.facts = facts
-        self.behaviour = behaviour
+        self.behavior = behavior
         self.terms = terms or {}
         self.calls = 0
 
@@ -188,7 +188,7 @@ class ScriptedBackend:
         import re
         self.calls += 1
         note = prompt.split("---")[1] if "---" in prompt else prompt
-        if self.behaviour == "malformed":
+        if self.behavior == "malformed":
             return "Sure! Here are the findings I noticed:"
         out = []
         low = note.lower()
@@ -204,7 +204,7 @@ class ScriptedBackend:
             item = {"fact": f["key"], "present": True,
                     "current": True, "certain": True,
                     "value": None}
-            if self.behaviour != "naive":
+            if self.behavior != "naive":
                 clause = ""
                 for line in note.split("\n"):
                     for c in re.split(r"[.;]", line):

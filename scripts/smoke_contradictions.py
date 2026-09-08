@@ -107,7 +107,7 @@ def main():
           "incoherent",
           "a declined statistic published as a measurement"
           in rules(hits))
-    check("...and the message names the branch and the neighbouring "
+    check("...and the message names the branch and the neighboring "
           "number, or it cannot be acted on",
           hits and "too_few_observed_pairs" in hits[0]["detail"]
           and "0.1425" in hits[0]["detail"])
@@ -246,7 +246,7 @@ def main():
     # 0.003 on a column with sd 1.0 became "19%". A rule that fires
     # on everything is as useless as one that cannot fire, and worse,
     # because it teaches the reader to skip the section. This file's
-    # standard for a centre is already `within 10% of SPREAD`.
+    # standard for a center is already `within 10% of SPREAD`.
     #
     # A COUNT keeps the mean-relative test, because its mean
     # multiplies out to the row total - an error there is an error in

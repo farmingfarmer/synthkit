@@ -90,7 +90,7 @@ def main():
           "visit_id" not in g.columns)
 
     # marginals
-    check("a numeric column keeps its centre and spread",
+    check("a numeric column keeps its center and spread",
           abs(g["x"].mean() - df["x"].astype(float).mean()) < 0.6
           and abs(g["x"].std() - df["x"].astype(float).std()) < 0.6)
     src_f = (df["sex"] == "F").mean()
@@ -142,21 +142,21 @@ def main():
     # THE TWO DIALS MUST BE INDEPENDENT, and they were not.
     #
     # Applied as `(x + shift) * scale`, the shift is multiplied by the
-    # scale and the scale drags the centre with it. Caught on the
+    # scale and the scale drags the center with it. Caught on the
     # first real run of the dial report: severity.shift=12 with
     # severity.scale=1.5 arrived as +35.8, because 1.5x + 18 moves the
     # mean by half of it plus eighteen.
     #
     # Both checks above passed the whole time. They set ONE dial each,
     # so the interaction was never exercised, and neither asserted the
-    # NEIGHBOURING property - that a spread dial leaves the centre
+    # NEIGHBORING property - that a spread dial leaves the center
     # alone. That is the rule this file already has, applied to the
     # thing the rule was written about.
     src_sd = float(df["x"].astype(float).std())
     wide = json.loads(json.dumps(bp))
     wide["columns"]["x"]["dials"]["scale"] = 2.0
     gw = generate(wide, n_patients=200, seed=5)
-    check("a SCALE dial leaves the centre where it was - it is named "
+    check("a SCALE dial leaves the center where it was - it is named "
           "beside a measured spread, and multiplying raw values moves "
           "the mean by the same factor",
           abs(gw["x"].mean() - g["x"].mean()) < 0.35 * src_sd)
@@ -175,7 +175,7 @@ def main():
 
     fewer = json.loads(json.dumps(bp))
     fewer["patients"]["dials"]["count"] = 40
-    check("the patient-count dial is honoured",
+    check("the patient-count dial is honored",
           generate(fewer, seed=5)["person_id"].nunique() == 40)
 
     covd = json.loads(json.dumps(bp))
@@ -210,7 +210,7 @@ def main():
     # A catalogue reports `A <- B, C` and `B <- A, C` because both are
     # true. Only one can be sampled, and the other is the same
     # dependence read differently - not missing structure. Matching
-    # mirrors on a single parent recognised this only for one-parent
+    # mirrors on a single parent recognized this only for one-parent
     # claims, and on the real extract almost every claim has two or
     # three: all twelve drops were announced to the reader as losses.
     from synthkit.blueprint import resolve
@@ -313,8 +313,8 @@ def main():
                   i, j),
               srcc * genc > 0 and abs(genc - srcc) < 0.15)
 
-    # ---- a BENT curve must not drag the column's centre ----------
-    # The systematic term is added as (curve - centre). Centring on
+    # ---- a BENT curve must not drag the column's center ----------
+    # The systematic term is added as (curve - center). Centering on
     # the mean over the GRID - uniform in quantile space - is not the
     # mean over the parent's real distribution whenever the curve
     # bends, and the difference lands straight on the generated mean.
@@ -337,7 +337,7 @@ def main():
     for rel in b2["relationships"]:
         if rel["child"] == "y_bend":
             eff = (rel["evidence"].get("effect") or {}).get("xx")
-    check("a bent curve stores a centre taken over the parent's REAL "
+    check("a bent curve stores a center taken over the parent's REAL "
           "distribution, which differs from the grid mean - if these "
           "matched, the fix would be doing nothing",
           eff is not None and eff.get("centre") is not None
@@ -346,11 +346,11 @@ def main():
     g2 = generate(b2, n_patients=280, seed=9)
     src_y = pd.to_numeric(d2["y_bend"])
     gen_y = pd.to_numeric(g2["y_bend"], errors="coerce")
-    check("...so the generated column keeps its CENTRE, within a "
+    check("...so the generated column keeps its CENTER, within a "
           "tenth of its own spread",
           abs(float(gen_y.mean()) - float(src_y.mean()))
           < 0.10 * float(src_y.std()))
-    check("...and its spread too, so recentring did not quietly "
+    check("...and its spread too, so recentering did not quietly "
           "rescale it",
           abs(float(gen_y.std()) - float(src_y.std()))
           < 0.25 * float(src_y.std()))
@@ -374,14 +374,14 @@ def main():
     check("the report says what was applied and what was dropped",
           rep["relationships_applied"] >= 1
           and "edges_dropped" in rep)
-    check("...and still names what is NOT modelled, rather than "
+    check("...and still names what is NOT modeled, rather than "
           "leaving it to be discovered downstream. Missingness "
           "clustering and visit-to-visit persistence used to be on "
           "this list and are now measured into the blueprint, so this "
           "check moved with them rather than being deleted",
-          rep["not_modelled"]
-          and any("lagged" in s for s in rep["not_modelled"])
-          and not any("clusters" in s for s in rep["not_modelled"]))
+          rep["not_modeled"]
+          and any("lagged" in s for s in rep["not_modeled"])
+          and not any("clusters" in s for s in rep["not_modeled"]))
 
     # ---- AN INTERACTION SURFACE NAMES ITS OWN TWO COLUMNS -------
     #
@@ -504,7 +504,7 @@ def main():
           "curve plus noise is continuous and cannot land one".format(
               _zc["src_zero"], _zc["gen_zero"]),
           abs(_zc["gen_zero"] - _zc["src_zero"]) < 0.02)
-    check("...and the centre pays only {:.3f} of a standard deviation "
+    check("...and the center pays only {:.3f} of a standard deviation "
           "for it, against a standard of 10%".format(
               _zc["centre_sd"]),
           _zc["centre_sd"] < 0.10)
@@ -515,7 +515,7 @@ def main():
           abs(_zc["sp_gen"] - _zc["sp_src"]) < 0.10)
     _zn = _zero_case(0.0, 2.0)
     check("...while a count with NO zero inflation publishes no share "
-          "and is untouched (centre moves {:.3f} of a sd) - the "
+          "and is untouched (center moves {:.3f} of a sd) - the "
           "correction is for a point mass, not for every count".format(
               _zn["centre_sd"]),
           _zn["published"] is None and _zn["centre_sd"] < 0.01)

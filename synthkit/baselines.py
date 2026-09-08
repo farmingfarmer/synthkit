@@ -1,7 +1,7 @@
 """Reference generators, so a fidelity number has something to beat.
 
 WHY THIS EXISTS. Every fidelity number this project has produced is
-ABSOLUTE. "centre within 10% of spread on 31/33 columns" - against
+ABSOLUTE. "center within 10% of spread on 31/33 columns" - against
 what? A structural generator that learns marginals, a relationship
 graph, effect curves, dynamics and interactions is a large thing to
 build and maintain, and nothing here has ever established that it
@@ -13,7 +13,7 @@ So there are two references, chosen to bracket the question:
   INDEPENDENT   every column drawn from its own marginal, nothing
                 else. The NULL: correct one column at a time and
                 structurally empty. Any generator that fails to beat
-                this on the pair measures is not modelling anything.
+                this on the pair measures is not modeling anything.
 
   COPULA        a Gaussian copula over the numeric columns - rank to
                 normal scores, one correlation matrix, sample, map

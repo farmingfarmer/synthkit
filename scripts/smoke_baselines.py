@@ -89,7 +89,7 @@ def main():
     for name, g in (("copula", cop), ("independent", ind)):
         ms = abs(float(pd.to_numeric(g["a"]).mean())
                  - float(df["a"].mean()))
-        check("{} reproduces the marginal centre it resampled "
+        check("{} reproduces the marginal center it resampled "
               "({:.3f} off) - and that is why it is a ruler and never "
               "a release: those are real patients' values with no "
               "k-screen".format(name, ms), ms < 0.15)

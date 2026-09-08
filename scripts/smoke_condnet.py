@@ -347,9 +347,9 @@ def main():
         taut, group_by="person_id")
     dv = {d["column"]: d["determined_by"]
           for d in n7.report["derived_columns"]}
-    check("a count computed from a list is recognised as DERIVED, "
+    check("a count computed from a list is recognized as DERIVED, "
           "not discovered", dv.get("condition_count") == "conditions")
-    check("an age computed from a birth year is recognised too",
+    check("an age computed from a birth year is recognized too",
           "age" in dv or "year_of_birth" in dv)
     check("derived edges are excluded from the findings count — "
           "the pipeline does not present its own arithmetic as "
@@ -416,7 +416,7 @@ def main():
               & {"age", "creatinine"})
           >= len(set(blind.parents.get("ev", []))
                  & {"age", "creatinine"}))
-    check("columns outside the hypotheses are still modelled, so "
+    check("columns outside the hypotheses are still modeled, so "
           "generated data stays complete",
           all(c in focused.order for c in ("n1", "n5")))
     syn8 = focused.sample(400, seed=4)
@@ -443,7 +443,7 @@ def main():
         ml_rows, group_by="person_id", multilevel=True)
     sl = CondNet(k=10, max_parents=2).learn(
         ml_rows, group_by="person_id", multilevel=False)
-    check("a stable patient trait is recognised as PATIENT-level "
+    check("a stable patient trait is recognized as PATIENT-level "
           "and a fluctuating measure as VISIT-level",
           ml.level.get("trait") == "patient"
           and ml.level.get("varying") == "visit")
@@ -505,7 +505,7 @@ def main():
            for d in rl["derived_columns"]}
     check("a numerically-named column — the mark of a headerless "
           "index or a malformed export — is dropped rather than "
-          "modelled",
+          "modeled",
           "4" in rl["dropped_odd_column_names"]
           and "4" not in nl.order)
     check("LABEL LEAKAGE is barred: the column that DEFINES the "
@@ -597,7 +597,7 @@ def main():
     na = CondNet(k=10, max_parents=2).learn(
         arith, group_by="person_id")
     dnames = {d["column"] for d in na.report["derived_columns"]}
-    check("a sum of two columns is recognised as arithmetic",
+    check("a sum of two columns is recognized as arithmetic",
           "total" in dnames or "a" in dnames or "b" in dnames)
     check("an unrelated column is NOT swept up with it",
           "unrelated" not in dnames)
@@ -1084,7 +1084,7 @@ def main():
           csrc and cgot and 0.75 <= (cgot / csrc) <= 1.15)
 
     # ---- a date is not a category ----------------------------------
-    # Modelled as one, its transition table is levels^2 over the
+    # Modeled as one, its transition table is levels^2 over the
     # calendar. The fault is LATENT: at few patients no single date
     # clears the k-patient floor and every date column collapses to
     # one level, so it looks harmless. At 400 patients over six years
@@ -1114,7 +1114,7 @@ def main():
           len(set(r["visit_start_date"] for r in drows)) > 200)
     check("a date column is refused as a category",
           "visit_start_date" in exc and "date" in exc["visit_start_date"])
-    check("the date column is not modelled at all",
+    check("the date column is not modeled at all",
           "visit_start_date" not in dn.binnings)
     check("ordinary NUMERIC columns are NOT swept up by the bound - "
           "they are binned, so their table is bins^2 already",
@@ -1135,7 +1135,7 @@ def main():
 
     # An identifier: one distinct value per row. No value is held by
     # k patients, so the level count is ZERO and a "too many levels"
-    # bound cannot see it. Observed live: visit_id was modelled and
+    # bound cannot see it. Observed live: visit_id was modeled and
     # generated, coming out steadier visit to visit (0.591) than the
     # source it was learned from (0.209).
     # visit_id is an INTEGER here, as it is in real OMOP. The string

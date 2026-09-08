@@ -55,7 +55,7 @@ privacy unit is the patient: k counts distinct people, not rows.
 Effective sample size is the patient count for between-person
 questions and the visit count for within-person ones. The fidelity
 scorecard grades marginals, dependence shape and interactions; the
-privacy scorecard grades exact matches and nearest-neighbour
+privacy scorecard grades exact matches and nearest-neighbor
 distances. The power curve states how many patients each kind of
 structure needs. The transcriber renders structured facts into
 messy prose under a corruption taxonomy; the truth ledger records

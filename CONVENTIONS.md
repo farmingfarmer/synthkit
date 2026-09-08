@@ -14,7 +14,7 @@ Synthetic clinical data generator and model-evaluation instrument. Core rule: le
   costs a round trip. Reproduced by building a 3.13 venv and running
   the whole net against it; that was the only code incompatibility,
   and CI now runs the net on 3.10 AND 3.13 so the newest library
-  behaviour is covered rather than whatever the author happens to
+  behavior is covered rather than whatever the author happens to
   have. **Test against what the DATA machine will install, not what
   is on this one.**
 - **A PACKAGING CHECK MUST ASK ABOUT THE PACKAGE, NOT THE MACHINE.**
@@ -52,14 +52,14 @@ Synthetic clinical data generator and model-evaluation instrument. Core rule: le
   over fourteen runs: `done` 9 times — the job finished before the
   budget branch ever ran, so the check passed having tested nothing —
   `timeout` once, and `error` three times. The error was not timing:
-  the previous job had been CANCELLED but was still writing the same
+  the previous job had been CANCELED but was still writing the same
   campaign directory the next one read, so the integrity check saw a
   half-written `campaign.json`. **Cancellation is not synchronous,
   and two jobs on one campaign directory corrupt each other** — that
   product limitation still stands. `api_job` decides the budget from
   the job record alone, so the branch is now tested on a planted
-  record: exact, every time, plus the neighbouring checks that a job
-  inside its budget is NOT a timeout and that cancelled beats
+  record: exact, every time, plus the neighboring checks that a job
+  inside its budget is NOT a timeout and that canceled beats
   timeout. 16/16 clean afterwards.
 - `py_compile` every Python file you touch.
 - Assert count==1 before every string replacement — verify the edit, not just the compile.
@@ -85,7 +85,7 @@ development machine and did nothing, or did harm, on the data machine.
   independent missingness and shipped against clustered missingness,
   which no clinical column has — it repaired steadiness and thinned a
   49% missing column to 22%.
-- **When a fix changes one property, assert the neighbouring property
+- **When a fix changes one property, assert the neighboring property
   in the same test.** Steadiness and missingness were fixed and broken
   in one commit because only one of them was checked.
 
@@ -98,7 +98,7 @@ the direction that stops work happening.
 
 - coverage within 0.05 on 45/45 columns, clustering within 0.15 on
   18/18, persistence within 0.15 on 28/34
-- **centre within 10% of spread on only 18/34 numeric columns** — one
+- **center within 10% of spread on only 18/34 numeric columns** — one
   mechanism found and fixed, the rest STILL OPEN. A piecewise-linear
   inverse CDF assumes uniform density between knots, and across the
   top segment that is the whole error: knots at 316.1 and 2175.0, true
@@ -142,8 +142,8 @@ the direction that stops work happening.
   the covariate marginals come through unchanged. What a model is
   asked here is NARROWER than "does this work on our data", and the
   spec says so about itself.
-- **The intercept is SOLVED, not centred.** `sigmoid(E[z])` is not
-  `E[sigmoid(z)]`: centring analytically asked for 25% prevalence and
+- **The intercept is SOLVED, not centered.** `sigmoid(E[z])` is not
+  `E[sigmoid(z)]`: centering analytically asked for 25% prevalence and
   produced 29.4%. Bisection over draws from the columns' own
   marginals gives 27.2%, and the residual is the correlations the
   table applies afterwards - so `semisynth.verify` reports achieved
@@ -187,10 +187,10 @@ the direction that stops work happening.
   between-patient share read 0.754 where the truth was 0.500. Both were
   reported, reasoned from, and withdrawn.
 - **A statistic fed back as a generative parameter is attenuated
-  twice.** Within-patient lag-1 measured by centring on each patient's
+  twice.** Within-patient lag-1 measured by centering on each patient's
   own mean read 0.453 where the truth was 0.700; generating with 0.453
   and re-measuring gave 0.0, and the property vanished while every
-  neighbouring check passed. Derive the parameter from an unbiased
+  neighboring check passed. Derive the parameter from an unbiased
   identity, then confirm the output measures back what went in.
 - **A flag that is read but not used is worse than no flag.**
   `--time-col` was carried into the blueprint and then ignored when
@@ -225,7 +225,7 @@ the direction that stops work happening.
   0.888. Each curve now carries the skill of the model that produced
   it.
 - **THE TWO HALVES NOW MEET, and what does not cross is written on
-  the artefact.** One half learns a blueprint from a real extract; the
+  the artifact.** One half learns a blueprint from a real extract; the
   other grades a vendor model against planted signal in a TableSpec.
   Nothing connected them, so every evaluation so far used marginals
   somebody guessed at. `bridge.py` crosses the measured ones - as a
@@ -246,7 +246,7 @@ the direction that stops work happening.
   would reveal. Letters restart inside each step now, so a repeat or
   a gap is visible on sight and a check can assert the whole
   sequence. Each step also owns a HUE carried by its tab, its banner
-  and its lettered chips: with one accent colour, nothing told you at
+  and its lettered chips: with one accent color, nothing told you at
   a glance which step you were in.
 - **A STEP MUST SAY WHAT IT NEEDS BEFORE IT RUNS.** Every station
   explained what it was ABOUT and then stopped, so the only way to
@@ -277,11 +277,11 @@ the direction that stops work happening.
 - **A DIAGNOSTIC MUST MEASURE THE THING IT NAMES.** The spread report
   attributed a shortfall to the k rule by the share of squared RAW
   values beyond the bound, which on any column not sitting near zero
-  is dominated by the mean. An spo2-shaped column centred at 98.6,
+  is dominated by the mean. An spo2-shaped column centered at 98.6,
   whose low tail the rule removes, reported 0.0% where the honest
   answer is 26.5% - and a real run then read `spo2 48% of source (0%
   beyond bound)`, which sent me hunting a sampler bug that was the
-  privacy rule all along. Spread is deviation from the centre, so its
+  privacy rule all along. Spread is deviation from the center, so its
   attribution has to be too.
 - **TWO CONSTRAINTS CAN CONTRADICT EACH OTHER, and the repair will
   let them.** `a <= b` and `b <= a` both hold on every row exactly
@@ -296,12 +296,12 @@ the direction that stops work happening.
   the wider one let anything through beside a broad column:
   `glasgow_coma_score <= age_at_visit` comes within 12 of touching,
   which is nothing next to age's spread and everything next to a coma
-  score's. Artefacts still get through - the filter is better, not
+  score's. Artifacts still get through - the filter is better, not
   finished - which is why constraints are reported before they are
   enforced and enforcement is opt-in.
 - **A CONSTRAINT MUST BE EXACT AND COMMENSURATE.** At a 0.999
   threshold a real run found 77 orderings, most of them scale
-  artefacts - `span_days <= spo2` at 0.999838 - and the one that
+  artifacts - `span_days <= spo2` at 0.999838 - and the one that
   mattered was buried among them. A rule the source breaks at all is
   not a rule, so exactness is required; and because the repair is a
   SWAP, the two columns must come close on their own scale. Swapping a
@@ -325,7 +325,7 @@ the direction that stops work happening.
 - **Do not infer an order that was never declared.** mild/moderate/
   severe has one and north/south/east/west does not, and no test on
   the strings tells them apart. A boolean needs no parser either: two
-  levels are modelled correctly as two levels. Inventing structure the
+  levels are modeled correctly as two levels. Inventing structure the
   data never carried is worse than missing it - that is the
   partial-dependence lesson again, and it has to be declared.
 - **Being MEASURED is a signal, and it was being thrown away.**
@@ -356,20 +356,20 @@ the direction that stops work happening.
   column or dial name is an ERROR, never a shrug.
 - **`shift` and `scale` were fighting each other.** Applied as
   `(x + shift) * scale`, the shift came out multiplied by the scale
-  and the scale dragged the CENTRE with it - shift 12 beside scale
-  1.5 on a column centred at 34.8 arrived as +35.8. Both dials had
+  and the scale dragged the CENTER with it - shift 12 beside scale
+  1.5 on a column centered at 34.8 arrived as +35.8. Both dials had
   passed their checks for as long as they existed, because each check
-  set ONE dial and neither asserted the neighbouring property. It is
-  `(x - centre) * scale + centre + shift` now, about the PUBLISHED
-  centre rather than the draw's own, so the effect does not depend on
+  set ONE dial and neither asserted the neighboring property. It is
+  `(x - center) * scale + center + shift` now, about the PUBLISHED
+  center rather than the draw's own, so the effect does not depend on
   the seed.
-- **ONE ROW PER MEASUREMENT IS MODELLED WRONG, SILENTLY.** A long/EAV
+- **ONE ROW PER MEASUREMENT IS MODELED WRONG, SILENTLY.** A long/EAV
   extract - a concept column and one value column - arrives as a
   numeric column whose distribution is a mixture. Measured on five
   real concept scales: 94% of the pooled variance is BETWEEN concepts,
   and the deciles run 1.1, 73.8, 139.8, which is not any lab.
   Coverage reads 100%, the concept column is a legitimate categorical
-  so the sentinel guard has nothing to fire on, and centre and spread
+  so the sentinel guard has nothing to fire on, and center and spread
   both pass. `longshape.detect` reports it with the correlation ratio
   - the harm stated directly - before any discovery runs, and `--long
   CONCEPT=VALUE` pivots. The pivot key uses the REQUESTED `--time-col`
@@ -385,7 +385,7 @@ the direction that stops work happening.
   existing spread check is marginal, and a column can have exactly the
   right overall spread and the wrong spread everywhere in particular.
   The profile is a MULTIPLIER on the overall residual sd, measured out
-  of sample, k-screened by patients, normalised so total noise
+  of sample, k-screened by patients, normalized so total noise
   variance is unchanged, and NOT published when the column is
   homoscedastic.
 - **A one-parent fixture cannot test the child's noise model.** With
@@ -408,7 +408,7 @@ the direction that stops work happening.
   drawn and dropped before the file is written. The vocabulary lives
   in `sets.py` and BOTH halves call it: screening tokens twice, in two
   files, is how the two sides come to disagree again. Co-occurrence
-  and informative token SELECTION are still not modelled, and the
+  and informative token SELECTION are still not modeled, and the
   module says so about itself.
 - **The expansion is capped and the cap is REPORTED.** Only an
   expanded token can carry a relationship, so a reader who is not told
@@ -447,7 +447,7 @@ the direction that stops work happening.
   generated rows. Discovered by looking for orderings the source never
   violates, and repaired by SWAPPING the pair rather than clamping -
   a swap leaves both columns holding the same multiset of values, so
-  the centre and spread the rest of this file works to get right are
+  the center and spread the rest of this file works to get right are
   untouched. Pairs on disjoint scales are not constraints: age is
   below year_of_birth on every row and means nothing.
 - **Repair arithmetic BEFORE rendering dates.** The enforcement ran
@@ -475,7 +475,7 @@ the direction that stops work happening.
   drops spread to 86% and would not exercise the check at all - the
   fixture has to be measured, not assumed.
 - **Per-column checks cannot see a broken relationship.** Coverage,
-  centre, steadiness and clustering all pass on a table with no
+  center, steadiness and clustering all pass on a table with no
   structure between its columns at all — the classic way a synthetic
   generator looks right and is useless. Measure the pairs too, and
   report INVERTED separately: a generated relationship with the
@@ -511,13 +511,13 @@ the direction that stops work happening.
   mechanism to attack, not the search.
 - **SKEW WAS NOT THE MISSING AXIS, and adding it broke the fixture.**
   The clinical columns already carry their measured skew - up to 25.6
-  - and this fixture still passes centre on 94% of its columns where
+  - and this fixture still passes center on 94% of its columns where
   the extract passes 53%, so a skewed marginal is not by itself what
-  loses the centre. Applied to the planted columns it also took the
+  loses the center. Applied to the planted columns it also took the
   U-shape's linear correlation from ~0 to +0.27, and "zero linear
   correlation" is the property that relationship exists to test - the
   fixture stopped being true of itself. `--skew-planted` touches the
-  ring only. What loses the centre on 16 of 34 real columns is STILL
+  ring only. What loses the center on 16 of 34 real columns is STILL
   UNKNOWN; the `centre_miss` block exists to diagnose it and has not
   been run on a real extract yet.
 - **A CYCLE CANNOT BE ORDERED, BUT IT DOES NOT HAVE TO BE.** The
@@ -588,7 +588,7 @@ the direction that stops work happening.
   that was read as evidence of a systematic overshoot in the
   visit-count draw. Over 40 seeds the delta is mean +1.5%, sd 4.6%,
   range -6.9% to +11.4%: the observed +6.0% sits one standard
-  deviation from centre and is noise. Visit counts are heavy-tailed,
+  deviation from center and is noise. Visit counts are heavy-tailed,
   so a few hundred patients give the row total a standard error near
   6% all by itself. The same mistake was then made twice more in one
   afternoon - a fixture "reproducing" the inflation at +6.7%, and a
@@ -634,9 +634,9 @@ the direction that stops work happening.
   a `list` marginal contributed its coverage term and nothing else -
   a row holding a p=0.900 token and one holding a p=0.001 token
   scored 0.000000 apart, and rarity is exactly what singles a person
-  out. The nearest-neighbour half compared the whole combination
+  out. The nearest-neighbor half compared the whole combination
   STRING, which on four tokens drawn from hundreds is false for
-  every pair, so the term added a constant and cancelled.
+  every pair, so the term added a constant and canceled.
   A VERBATIM republish was still caught - the strings match - which
   is why the existing leak control never exposed this. A PARTIAL one
   was not: each member's own tokens with ONE swapped scored 0.500,
@@ -697,7 +697,7 @@ the direction that stops work happening.
   Reverting `sets.py` alone raised `KeyError` inside `blueprint.py`
   and the suite died before reaching the new checks - a crash proves
   the files are coupled, not that the checks can fail. Perturb the
-  BEHAVIOUR and leave the interface, then watch the checks go red.
+  BEHAVIOR and leave the interface, then watch the checks go red.
 
 - **AN EMPTY SET MEANS "HELD NOTHING", NEVER "HELD SOMETHING WE
   CANNOT PUBLISH".** A visit with no drugs genuinely has an empty
@@ -723,7 +723,7 @@ the direction that stops work happening.
   one ratio names the bug in a line.
 - **AND THE DEFECT UNDERNEATH IT WAS OLDER THAN THE REGRESSION.**
   `vocabulary` discarded present-but-empty rows entirely, so a visit
-  with no drugs had never been modelled at all and generation
+  with no drugs had never been modeled at all and generation
   invented routes for it. It surfaced only because a change of mine
   made the two halves disagree; a defect that produces a
   self-consistent wrong answer produces no symptom.
@@ -752,7 +752,7 @@ the direction that stops work happening.
 - **AND FOLDING IT AWAY THREW OUT A LARGE FACT ABOUT THE DATA.** On
   the real extract, `procedures` is EMPTY on 80.5% of visits,
   `drug_routes` on 36.0%, `active_drugs` on 31.4% and `conditions`
-  on 15.8% - none of it modelled, so generation invented procedures
+  on 15.8% - none of it modeled, so generation invented procedures
   for four fifths of the visits that had none. Nothing measured it
   because the rows were discarded before any measurement ran. A
   defect upstream of every check is invisible to all of them.
@@ -974,10 +974,10 @@ what follows is what came out wrong anyway.
   curve prediction plus roughly symmetric noise, which is continuous,
   and rounding cannot land a point mass. Measured: mean 2.9206
   against 2.9204 - exact - with zeros at 30.6% against 38.0%. Every
-  centre, spread and coverage check passes while the column's shape
+  center, spread and coverage check passes while the column's shape
   at zero is wrong. The blueprint publishes `zero_share` and the
   zeros go to the LOWEST-predicted rows, so the relationship the
-  curve found survives: point mass exact, centre pays 0.046 of a sd
+  curve found survives: point mass exact, center pays 0.046 of a sd
   at worst against a 10% standard, spearman within 0.03, and a count
   with no zero inflation is untouched.
 - **AND IT DRAGGED A SET COLUMN WITH IT.** The blueprint declares
@@ -999,7 +999,7 @@ what follows is what came out wrong anyway.
   drives CondNet, so a demo through the interface would have shown
   none of the fitted path - the same gap the atlas had, in the UI.
   The Fit station is a WINDOW onto `synthkit fit`: it launches the
-  identical CLI subprocess and reads the identical artefacts, so
+  identical CLI subprocess and reads the identical artifacts, so
   the bench and the terminal cannot drift apart. The gate criteria
   moved into `synthkit/gate.py` for the same reason - the script
   and the UI both call the one computation. And the Roadmap
@@ -1022,10 +1022,10 @@ what follows is what came out wrong anyway.
   real data was one unnumbered ALT button - the operator asked why
   one path was laid out and the other was not. The measure route is
   now its own rail: Source/Fit/Verdict, carrying the SAME step
-  numbers and colours as Describe/Spec/Data, with Campaign and
+  numbers and colors as Describe/Spec/Data, with Campaign and
   Showdown shared by both routes. Parallel structure is itself the
   explanation.
-- **A SECTION'S DOM POSITION IS PART OF ITS BEHAVIOUR.** Both new
+- **A SECTION'S DOM POSITION IS PART OF ITS BEHAVIOR.** Both new
   stations were first appended AFTER </main> closed - valid HTML,
   every content check green, and the panels rendered at the bottom
   of the page under the side tabs, shown only when their tab added
@@ -1079,7 +1079,7 @@ what follows is what came out wrong anyway.
   nobody reads JSON - vendors show original-vs-synthetic profiling
   as stat tables, overlaid histograms and paired correlation
   heatmaps. `scripts/fidelity_deck.py` draws exactly that from
-  artefacts that already existed, one self-contained HTML in the
+  artifacts that already existed, one self-contained HTML in the
   house palette (near-black, gray original, cardinal synthetic),
   with the six gate chips on top and the privacy posture stated in
   the footer in the non-overclaiming words.
@@ -1101,14 +1101,14 @@ what follows is what came out wrong anyway.
   said so for weeks and it still had to bite its own author.
 
 - **THE FOOLPROOFING NEVER LIVED IN THE HUES.** The bench's
-  six-colour rainbow existed to make the parallel routes
+  six-color rainbow existed to make the parallel routes
   unmistakable, but the meaning is carried by words - step numbers,
-  rail labels, you-need/you-get banners, next footers - and colour
+  rail labels, you-need/you-get banners, next footers - and color
   only reinforces. Two accents replaced eight: CARDINAL is the
   create route, GOLD is the measure route, slate is everything
   shared, ink on white throughout. One bit reads faster than six
-  hues, a colour-blind reader loses nothing, and the bench now
-  shares one palette with the deck and the house decks. Colour is
+  hues, a color-blind reader loses nothing, and the bench now
+  shares one palette with the deck and the house decks. Color is
   keyed to a data-route attribute, not the step number, so parallel
   stations still share their NUMBERS while each route wears one
   accent. And gold surfaces carry INK text - white on gold is
@@ -1126,7 +1126,7 @@ what follows is what came out wrong anyway.
   the shape named in words, skill on held-out patients, driver
   attribution, and a verdict: "tracks within X sd" or DEPARTS.
   A kept bend is visible; a lost one is flagged.
-- **THE DEPARTS FLAG'S FIRST FIRING WAS MY OWN ARTEFACT.** np.interp
+- **THE DEPARTS FLAG'S FIRST FIRING WAS MY OWN ARTIFACT.** np.interp
   holds the last value flat outside the synthetic curve's range, so
   a source point past the synthetic edge compared against that
   plateau flagged the STRONGEST relationship at 0.39 sd. Caught
@@ -1146,7 +1146,7 @@ what follows is what came out wrong anyway.
   THE FILE.** The deck was refactored into `fidelity_deck.build_deck`
   returning an HTML string; the CLI writes it, and the bench's
   Dashboard station drops it into a sandboxed iframe. So the
-  interactive view and the shareable artefact are one picture by
+  interactive view and the shareable artifact are one picture by
   construction - a second implementation is how the two sides drift.
 - **A LINTER SILENTLY REVERTED THE REFACTOR.** The first heredoc
   edit landed, then the whole file rolled back to before it - only
@@ -1168,7 +1168,7 @@ what follows is what came out wrong anyway.
   state in it, ask WHICH STATE before shipping a look. The design
   is PORCELAIN LETTERPRESS now: every station, button and chip is
   white, raised, ink-lettered with a dark glyph shadow, at rest;
-  hover lifts and deepens; route colour survives as accents only
+  hover lifts and deepens; route color survives as accents only
   (number chip, accent bar, active bezel ring). Washes stay a few
   points above pure white; inputs stay inset; wash tokens are set
   ONCE.
@@ -1213,13 +1213,13 @@ what follows is what came out wrong anyway.
   sweeps as an indeterminate comet rather than inventing a
   percentage. A fake percentage is the `--time-col` failure wearing
   motion.
-- **THE MOTION RIDES INSIDE THE ARTEFACT.** The deck's reveal and
+- **THE MOTION RIDES INSIDE THE ARTIFACT.** The deck's reveal and
   press-and-hold pull-apart are inline CSS/JS in the emitted HTML,
   so the shared file animates identically to the Dashboard station
   with no network - one code path, again. Press-and-hold separates
   original from synthetic; release settles them back into overlap,
   which is the fidelity claim performed. `prefers-reduced-motion`
-  is honoured in both the bench and the deck.
+  is honored in both the bench and the deck.
 - **WATCH THE MOTION GUARD FAIL ON THE PRE-MOTION OUTPUT.** The
   animation contract was run against the previous build's deck file
   (red) and the new one (green) before entering the suite - the
@@ -1243,6 +1243,19 @@ what follows is what came out wrong anyway.
   the first "fix verified" screenshot was of the unfixed build.
   Kill by port and re-read the build id before believing a
   screenshot, exactly as the operator is told to.
+
+- **SPELLING IS AMERICAN; CONTRACT NAMES ARE FROZEN.** The prose,
+  comments, UI and in-repo identifiers use American English
+  (behavior, artifact, anonymization, center, neighbor, canceled).
+  Three names are deliberate exceptions because they are the
+  ON-DISK CONTRACT, not prose: `catalogue.json` (the artifact file
+  every existing run directory holds), the `centre_ok` /
+  `centre_sd` / `centre_miss` / `"centre"` keys in fidelity.json
+  and blueprints (the centre_miss block exists to be read off the
+  NEXT real run), and `docs/e2e/end_to_end.json` (a record keeps
+  the key names its run produced). A spelling sweep that renames a
+  published key is a format break wearing a copy-edit's clothes;
+  migrate contract names only deliberately, with a read-both shim.
 
 ## Talking to the data machine
 

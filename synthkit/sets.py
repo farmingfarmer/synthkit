@@ -53,7 +53,7 @@ import pandas as pd
 
 LIST_SEPARATORS = (";", "|", ",")
 
-# The marker that makes an indicator recognisable as scaffolding.
+# The marker that makes an indicator recognizable as scaffolding.
 # Split on the LEFTMOST occurrence, so a token that itself contains
 # the marker still resolves back to the right column.
 HAS = "__has__"

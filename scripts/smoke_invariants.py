@@ -181,7 +181,7 @@ def main():
     # the dev fixture, seven thousand values across nineteen columns.
     # The repair SQUEEZES violators into the headroom inside the
     # bound, in rank order - not a clamp, which would pile mass on
-    # the bound and move the centre.
+    # the bound and move the center.
     def _hot_bp():
         grid = [-2.0, -1.0, 0.0, 1.0, 2.0]
         def num(**kw):
@@ -261,7 +261,7 @@ def main():
           "violators took part in survives (spearman {:+.2f}) - a "
           "clamp would tie every violator at the bound and flatten "
           "their ranks".format(r_kid), r_kid > 0.5)
-    check("...and the centre stays the marginal's own ({:+.2f})"
+    check("...and the center stays the marginal's own ({:+.2f})"
           .format(float(pd.to_numeric(gb["kid"],
                                       errors="coerce").mean())),
           abs(float(pd.to_numeric(gb["kid"],
@@ -319,7 +319,7 @@ def main():
               float((wide_v <= tight_v).mean())),
           float((wide_v <= tight_v).mean()) > 0.99)
 
-    # ---- AN IDENTICAL COLUMN IS COPIED, NOT MODELLED -------------
+    # ---- AN IDENTICAL COLUMN IS COPIED, NOT MODELED -------------
     #
     # With the twin excluded from discovery, generation carries the
     # exact identity the only honest way: the rhs is COPIED from the

@@ -3,7 +3,7 @@
     python scripts/export_bundle.py --run RUNDIR --out diagnostics.json
 
 Run this on the machine holding the extract, after a run. It reads
-that run's aggregate artefacts, screens them, and writes ONE file -
+that run's aggregate artifacts, screens them, and writes ONE file -
 about 100KB - that answers "what did the run measure" without
 carrying a record, a row, or a path.
 

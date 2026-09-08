@@ -116,7 +116,7 @@ def group_of(e):
     learned nothing about generating y at this visit, so counting it
     would credit a capability that is not there.
 
-    Normalising both ends scored the XOR as recovered - a
+    Normalizing both ends scored the XOR as recovered - a
     relationship established as structurally invisible - via
     `xor_b__prev <- xor_a__prev, xor_y__prev`. That reversal of a
     settled result is what exposed the error."""
@@ -128,7 +128,7 @@ def group_of(e):
     # `y__prev <- x__prev` is about the previous visit, and
     # `a__x__b <- a, b` is the product's own arithmetic. Neither is
     # evidence the model can generate y here, so the child is never
-    # normalised.
+    # normalized.
     return frozenset(cols)
 
 

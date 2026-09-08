@@ -153,7 +153,7 @@ def main():
         s_m, s_s = float(df[c].astype(float).mean()), \
             float(df[c].astype(float).std())
         g_m, g_s = float(rows[c].mean()), float(rows[c].std())
-        check("{} keeps its measured centre and spread through "
+        check("{} keeps its measured center and spread through "
               "planting - {:.2f}/{:.2f} against {:.2f}/{:.2f}".format(
                   c, g_m, g_s, s_m, s_s),
               abs(g_m - s_m) < 0.15 * s_s and abs(g_s - s_s)

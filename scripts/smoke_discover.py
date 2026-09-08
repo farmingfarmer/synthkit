@@ -68,7 +68,7 @@ def main():
     df = build()
 
     X, ident, _, _, _ = prepare(df, "person_id")
-    check("an INTEGER key unique on every row is recognised as an "
+    check("an INTEGER key unique on every row is recognized as an "
           "identifier and dropped - a model given one memorises the "
           "row instead of explaining it",
           ident == ["visit_id"] and "visit_id" not in X.columns)
@@ -155,7 +155,7 @@ def main():
     cs = discover(dfs, group_by="person_id", targets=["y_curve"],
                   seed=11)
     check("shuffling a column's values destroys its skill, so the "
-          "number reported is evidence and not an artefact of the "
+          "number reported is evidence and not an artifact of the "
           "procedure",
           not cs["claims"] or cs["claims"][0]["skill"] < 0.05)
 

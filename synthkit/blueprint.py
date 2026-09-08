@@ -189,7 +189,7 @@ def _numeric_marginal(s: pd.Series, groups=None,
     }
     # HOW THE TWO EXTREME SEGMENTS ARE SHAPED. Without these the draw
     # runs a straight line from the last knot to the safe bound, which
-    # is the single largest source of centre error on skewed columns.
+    # is the single largest source of center error on skewed columns.
     # Absent when fewer than k patients reach the segment, and
     # generation then keeps the straight line rather than guessing.
     hi_mean = _tail_mean(v, groups, float(np.quantile(arr, inner[-1])),
@@ -306,7 +306,7 @@ def _categorical_marginal(s: pd.Series, groups=None,
     # Generation then invents labels to match. Nothing real leaks,
     # because no label is real, and the column keeps the structure a
     # model needs: the right cardinality with the right skew, rather
-    # than one repeated string. The artefact says the labels are
+    # than one repeated string. The artifact says the labels are
     # invented, because a synthetic code that LOOKS real is worse
     # than an obvious placeholder.
     # THE RAW COLUMN, because by the time it reaches here the frame
@@ -457,7 +457,7 @@ def _presence_model(X: pd.DataFrame, col: str, groups,
 
 
 def _list_marginal(raw: pd.Series, groups, k: int = 10):
-    """A column holding a SET, modelled as one.
+    """A column holding a SET, modeled as one.
 
     CONFIRMED ON THE REAL EXTRACT, not assumed. `conditions` came out
     69% `__other__` and `active_drugs` 53%, and the diagnostic said
@@ -472,13 +472,13 @@ def _list_marginal(raw: pd.Series, groups, k: int = 10):
     five involved these columns - `condition_count <- conditions` fell
     from 0.54 to 0.03.
 
-    So the set is modelled as a set: which tokens appear, how often
+    So the set is modeled as a set: which tokens appear, how often
     each does, and how many of them a row carries. A token held by
     fewer than k PATIENTS is not published, for the same reason a
     level is not.
 
     WHAT THIS DOES NOT DO. Tokens are drawn independently given the
-    set size, so co-occurrence is not modelled - two drugs always
+    set size, so co-occurrence is not modeled - two drugs always
     prescribed together will appear together only by chance. Said here
     rather than found later."""
     # THE VOCABULARY COMES FROM `sets.vocabulary`, NOT FROM A SECOND
@@ -511,7 +511,7 @@ def _list_marginal(raw: pd.Series, groups, k: int = 10):
         "tokens_above_k": v["tokens_above_k"],
         "tokens_are_k_anonymous": k,
         "note": "tokens are drawn independently given the set size, "
-                "so co-occurrence between them is NOT modelled",
+                "so co-occurrence between them is NOT modeled",
     }
 
 
@@ -557,7 +557,7 @@ def _constraints(X: pd.DataFrame, k: int = 10) -> List[Dict[str, Any]]:
                 share = float((lo <= hi).mean())
                 # EXACT, NOT NEARLY EXACT. At 0.999 a real run found
                 # 77 "constraints" of which most were scale
-                # artefacts - span_days <= spo2 at 0.999838,
+                # artifacts - span_days <= spo2 at 0.999838,
                 # span_days <= systolic_blood_pressure at 0.99963 -
                 # and the one that mattered was buried among them.
                 # A rule the source breaks at all is not a rule.
@@ -627,7 +627,7 @@ def build(df: pd.DataFrame,
     # below pairs `X` with `gvals` POSITIONALLY. Handed a subset -
     # one cohort, a train/test split, anything a caller slices - the
     # labels run past the end of the array and the build dies with an
-    # IndexError about a number nobody recognises. Found by fitting on
+    # IndexError about a number nobody recognizes. Found by fitting on
     # half a cohort for a membership attack, which is an ordinary
     # thing to want to do.
     df = df.reset_index(drop=True)
@@ -853,7 +853,7 @@ def build(df: pd.DataFrame,
         # least and most frequently seen person: measured on a
         # 400-patient fixture, `v[-1]` came out 438, held by exactly
         # one patient, while every numeric COLUMN's maximum was
-        # correctly k-anonymised beside it. Someone seen 438 times is
+        # correctly k-anonymized beside it. Someone seen 438 times is
         # findable, and this sits in the file described as
         # aggregates-only.
         #

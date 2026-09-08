@@ -141,7 +141,7 @@ def main():
               name in wide.columns)
     for name, (mu, _sd) in CONCEPTS.items():
         got = float(pd.to_numeric(wide[name], errors="coerce").mean())
-        check("...and {} keeps its own centre after the pivot - {:.2f} "
+        check("...and {} keeps its own center after the pivot - {:.2f} "
               "against {:.2f}, where the pooled column said {:.2f}"
               .format(name, got, mu, float(pooled.mean())),
               abs(got - mu) < 0.15 * abs(mu) + 0.2)

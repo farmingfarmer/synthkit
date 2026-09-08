@@ -55,9 +55,9 @@ from typing import Any, Dict, List, Optional, Tuple
 DEFAULT_PREVALENCE = 0.25
 
 
-def _centre_and_spread(col: Dict[str, Any]) -> Optional[Tuple[float,
+def _center_and_spread(col: Dict[str, Any]) -> Optional[Tuple[float,
                                                               float]]:
-    """A column's measured centre and spread, from the bridged spec.
+    """A column's measured center and spread, from the bridged spec.
 
     Read off the empirical quantile grid the bridge carries, rather
     than from a fitted normal - the whole reason `quantiles` exists as
@@ -132,10 +132,10 @@ def _solve_intercept(coefficients, cols, p, seed=20260816,
     """The intercept that puts the MEAN PROBABILITY at p.
 
     Solved by bisection over draws from the columns' own marginals,
-    not by centring the logit.
+    not by centering the logit.
 
     `sigmoid(E[z])` is not `E[sigmoid(z)]` - Jensen - and the gap is
-    not small on a skewed covariate: centring analytically asked for
+    not small on a skewed covariate: centering analytically asked for
     25% and produced 29.4%. A prevalence that lands four points off
     the number the operator typed is the kind of flag this project
     already has a rule about."""
@@ -196,7 +196,7 @@ def plant(bridged: Dict[str, Any],
     coefficients: Dict[str, float] = {}
     used: List[Dict[str, Any]] = []
     refused: List[Dict[str, str]] = []
-    centre_sum = 0.0
+    center_sum = 0.0
 
     for key, beta in (effects or {}).items():
         beta = float(beta)
@@ -222,7 +222,7 @@ def plant(bridged: Dict[str, Any],
             sd = math.sqrt(max(share * (1.0 - share), 1e-9))
             w = beta / sd
             coefficients[key] = round(w, 6)
-            centre_sum += w * share
+            center_sum += w * share
             used.append({"effect": key, "in_sds": beta,
                          "coefficient": round(w, 6),
                          "level_share": round(share, 6)})
@@ -234,7 +234,7 @@ def plant(bridged: Dict[str, Any],
                             "why": "no column {!r} in the bridged "
                                    "spec".format(key)})
             continue
-        cs = _centre_and_spread(col)
+        cs = _center_and_spread(col)
         if cs is None:
             refused.append({
                 "effect": key,
@@ -242,13 +242,13 @@ def plant(bridged: Dict[str, Any],
                        "against; name a level as {}=LEVEL instead"
                        .format(key, key)})
             continue
-        centre, sd = cs
+        center, sd = cs
         w = beta / sd
         coefficients[key] = round(w, 6)
-        centre_sum += w * centre
+        center_sum += w * center
         used.append({"effect": key, "in_sds": beta,
                      "coefficient": round(w, 6),
-                     "measured_centre": round(centre, 6),
+                     "measured_center": round(center, 6),
                      "measured_spread": round(sd, 6)})
 
     if not coefficients:
@@ -256,13 +256,13 @@ def plant(bridged: Dict[str, Any],
             "no effect could be planted. Refused: {}".format(
                 "; ".join(r["why"] for r in refused) or "none given"))
 
-    # THE INTERCEPT IS SOLVED, not chosen. Centring the logit on the
+    # THE INTERCEPT IS SOLVED, not chosen. Centering the logit on the
     # requested prevalence is what stops a planted outcome coming out
     # at 0.1% positives, which is a table nobody can train on and a
     # ceiling nobody can measure.
     p = min(max(float(prevalence), 0.01), 0.99)
     if kind == "linear":
-        intercept = round(-centre_sum, 6)
+        intercept = round(-center_sum, 6)
     else:
         intercept = _solve_intercept(coefficients, cols, p)
 
@@ -402,16 +402,16 @@ def describe(planted: Dict[str, Any]) -> str:
 # same declaration means the same thing on every seed.
 # ------------------------------------------------------------------
 
-def _bp_centre_spread(marg: Dict[str, Any]) -> Optional[Tuple[float,
+def _bp_center_spread(marg: Dict[str, Any]) -> Optional[Tuple[float,
                                                               float]]:
-    """Published centre and spread off a blueprint marginal.
+    """Published center and spread off a blueprint marginal.
 
-    The same trapezoid `_centre_and_spread` runs on a bridged spec,
+    The same trapezoid `_center_and_spread` runs on a bridged spec,
     on the blueprint's own quantile grid - one calibration, whichever
     side of the bridge the numbers are read from."""
     if (marg or {}).get("type") != "quantiles":
         return None
-    return _centre_and_spread({"distribution": {
+    return _center_and_spread({"distribution": {
         "kind": "quantiles", "q": marg.get("q"), "v": marg.get("v")}})
 
 
@@ -436,7 +436,7 @@ def plant_frame(frame, blueprint: Dict[str, Any],
     prevalence directly rather than leaving the correlations as a
     residual.
 
-    A MISSING COVARIATE CONTRIBUTES ITS CENTRE - a standardized zero.
+    A MISSING COVARIATE CONTRIBUTES ITS CENTER - a standardized zero.
     Absence of a measurement is a fact about the record, and the
     planted truth should not turn missingness into signal the model
     is then graded on finding.
@@ -506,7 +506,7 @@ def plant_frame(frame, blueprint: Dict[str, Any],
                             "why": "no column {!r} in the blueprint "
                                    "and frame".format(key)})
             continue
-        cs = _bp_centre_spread(spec.get("marginal") or {})
+        cs = _bp_center_spread(spec.get("marginal") or {})
         if cs is None:
             refused.append({
                 "effect": key,
@@ -514,15 +514,15 @@ def plant_frame(frame, blueprint: Dict[str, Any],
                        "against; name a level as {}=LEVEL instead"
                        .format(key, key)})
             continue
-        centre, sd = cs
+        center, sd = cs
         x = pd.to_numeric(frame[key], errors="coerce"
                           ).to_numpy(dtype=float)
         w = beta / sd
-        z += w * (np.nan_to_num(x, nan=centre) - centre)
+        z += w * (np.nan_to_num(x, nan=center) - center)
         coefficients[key] = round(w, 6)
         used.append({"effect": key, "in_sds": beta,
                      "coefficient": round(w, 6),
-                     "published_centre": round(centre, 6),
+                     "published_center": round(center, 6),
                      "published_spread": round(sd, 6)})
 
     if not used:
@@ -608,7 +608,7 @@ def verify_frame(frame, planted: Dict[str, Any]):
         else:
             x = pd.to_numeric(frame[key], errors="coerce"
                               ).to_numpy(float)
-            c, sd = u["published_centre"], u["published_spread"]
+            c, sd = u["published_center"], u["published_spread"]
             X.append((np.nan_to_num(x, nan=c) - c) / sd)
         labels.append(key)
     Xm = np.column_stack(X)

@@ -139,7 +139,7 @@ def main():
     check("the blueprint validates - it was just built, so a problem "
           "here is a bug and not an edit",
           bp.get("blueprint_version") is not None)
-    check("the identifier was dropped rather than modelled",
+    check("the identifier was dropped rather than modeled",
           "visit_id" in (bp["excluded"]["identifiers"]))
     check("dynamics were measured into it, so the generator can "
           "reproduce missingness runs and steadiness",
@@ -186,16 +186,16 @@ def main():
     rl = run(["--src", str(lst), "--out", str(tmp / "lout"),
               "--group-by", "person_id"])
     # This was a WARNING while nothing could model a set-valued
-    # column. Now that one is modelled as a set, the honest report is
+    # column. Now that one is modeled as a set, the honest report is
     # what it became - and warning about a solved problem would be
     # the validator mistake again.
-    check("a column holding SEVERAL values in one field is modelled "
+    check("a column holding SEVERAL values in one field is modeled "
           "as a SET and the run says so, rather than leaving it to "
           "look like rare labels",
           "SET of" in rl.stdout and "active_drugs" in rl.stdout)
     check("...and it is NOT still reported as a problem, because it "
           "is no longer one",
-          "could NOT be modelled as sets" not in rl.stdout)
+          "could NOT be modeled as sets" not in rl.stdout)
     check("...while a plain categorical is not called a set either",
           "SET of" not in r.stdout)
 
@@ -371,7 +371,7 @@ def main():
     out6 = tmp / "tcol"
     r6 = run(["--src", str(src), "--out", str(out6), "--lags",
               "--time-col", "visit_start_date"])
-    check("an explicit --time-col is honoured and SAID to be, naming "
+    check("an explicit --time-col is honored and SAID to be, naming "
           "what detection would have chosen instead",
           r6.returncode == 0
           and ("AS REQUESTED" in r6.stdout

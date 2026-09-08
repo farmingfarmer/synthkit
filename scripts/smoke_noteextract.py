@@ -126,10 +126,10 @@ def main():
     notes = [n["clinical_note"] for n in noted]
 
     reps = {}
-    for behaviour in ("naive", "careful", "malformed"):
-        b = ScriptedBackend(facts, behaviour, TERMS)
-        e = NoteExtractor(b, facts, name=behaviour)
-        reps[behaviour] = (score_extraction(
+    for behavior in ("naive", "careful", "malformed"):
+        b = ScriptedBackend(facts, behavior, TERMS)
+        e = NoteExtractor(b, facts, name=behavior)
+        reps[behavior] = (score_extraction(
             ledgers, e.extract_all(notes)), e.reliability())
 
     naive_r, naive_rel = reps["naive"]
@@ -166,7 +166,7 @@ def main():
     with tempfile.TemporaryDirectory() as td:
         res = subprocess.run(
             [sys.executable, "scripts/note_vendor_run.py",
-             "--backend", "stub", "--behaviour", "careful",
+             "--backend", "stub", "--behavior", "careful",
              "--notes", "60", "-o", td, "--report"],
             capture_output=True, text=True, cwd=str(ROOT))
         check("the runner seats a reader and writes a report",

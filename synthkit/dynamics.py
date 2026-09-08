@@ -23,7 +23,7 @@ withdrawn.
 
 Given coverage m and excess e, the two-state chain with a = m + (1-m)e
 and b = m(1-e) has stationary presence exactly m. So clustering can be
-dialled without disturbing coverage, which is what makes them separate
+dialed without disturbing coverage, which is what makes them separate
 dials rather than one confounded one.
 
 A VALUE PERSISTS. A patient's sodium next visit resembles their sodium
@@ -159,7 +159,7 @@ def icc1_detail(values: np.ndarray, groups: np.ndarray):
 
 
 def pooled_lag1(values: np.ndarray, prev_i, cur_i) -> float:
-    """Correlation between consecutive observed values, UNCENTRED."""
+    """Correlation between consecutive observed values, UNCENTERED."""
     return pooled_lag1_detail(values, prev_i, cur_i)[0]
 
 
@@ -191,16 +191,16 @@ def within_from(lag1: float, icc: float) -> float:
     estimated from a handful of visits and absorbs the very
     persistence being measured. Feeding that number back as the
     generative parameter attenuates it a SECOND time, and the property
-    disappears from the output while every neighbouring check passes.
+    disappears from the output while every neighboring check passes.
 
     Measured on a latent with a true AR of 0.700 over ten visits:
 
-        patient-centred lag-1     0.453   <- what direct measurement
+        patient-centered lag-1     0.453   <- what direct measurement
                                              returns
-        pooled uncentred lag-1    0.844
+        pooled uncentered lag-1    0.844
         icc + (1 - icc) * 0.700   0.850   <- the identity
 
-    So the pooled correlation, which needs no centring, is decomposed
+    So the pooled correlation, which needs no centering, is decomposed
     against an ICC that is already unbiased. Generating with
     z = sqrt(icc)*anchor + sqrt(1-icc)*AR(within) then reproduces the
     pooled figure, and re-measuring the output returns what went in."""
@@ -272,7 +272,7 @@ def measure(df: pd.DataFrame, X: pd.DataFrame, group_by: str,
             # `mean_arterial_pressure_invasive` at 0.2% coverage
             # passed the steadiness check on a statistic nobody had
             # made. None here means `resolve` falls back to 0.0 for
-            # generation (identical behaviour) while fidelity skips
+            # generation (identical behavior) while fidelity skips
             # the column from the counts it cannot support.
             d["icc"] = round(icc, 4) if icc_why == "measured" else None
             d["lag1_total"] = (round(lag1, 4)

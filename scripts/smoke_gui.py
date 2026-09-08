@@ -252,9 +252,9 @@ def main():
                     "solver": "autoclean"})["job"]
         post("/api/job-cancel", {"id": job})
         j = post("/api/job", {"id": job})
-        check("cancelled jobs report cancelled (or finish "
+        check("canceled jobs report canceled (or finish "
               "first) with a readable note",
-              j["status"] in ("cancelled", "done"))
+              j["status"] in ("canceled", "done"))
         # THE BUDGET BRANCH IS TESTED DIRECTLY, not by racing a real
         # job, and the old version was BOTH flaky and mostly vacuous.
         #
@@ -263,7 +263,7 @@ def main():
         # `done` 9 times - the job finished before the budget branch
         # ever ran, so the check passed without testing anything -
         # `timeout` once, and `error` three times. The error was not a
-        # timing fluke either: the previous job had been CANCELLED but
+        # timing fluke either: the previous job had been CANCELED but
         # was still writing the same campaign directory this one then
         # read, so the integrity check saw a half-written
         # `campaign.json`. Cancellation is not synchronous.
@@ -273,13 +273,13 @@ def main():
         gui._JOBS["budget_probe"] = {
             "status": "running",
             "started": _time.time() - 30.0,
-            "cancelled": False}
+            "canceled": False}
         gui.JOB_BUDGET_S = 5.0
         try:
             over = post("/api/job", {"id": "budget_probe"})
             gui._JOBS["budget_probe"]["started"] = _time.time()
             under = post("/api/job", {"id": "budget_probe"})
-            gui._JOBS["budget_probe"]["cancelled"] = True
+            gui._JOBS["budget_probe"]["canceled"] = True
             gui._JOBS["budget_probe"]["started"] = _time.time() - 30.0
             both = post("/api/job", {"id": "budget_probe"})
         finally:
@@ -293,10 +293,10 @@ def main():
         check("...and one INSIDE its budget does not - without this "
               "the check above passes on a comparison that always "
               "fires", under["status"] == "running")
-        check("...and a cancelled job reports cancelled rather than "
+        check("...and a canceled job reports canceled rather than "
               "timeout, even when it is also over budget - the user "
               "asked for it to stop, which is the more useful thing "
-              "to say", both["status"] == "cancelled")
+              "to say", both["status"] == "canceled")
         check("the backend switch reaches every LLM seam: "
               "compiler, render, and vendor pickers all offer "
               "openai",
@@ -572,7 +572,7 @@ def main():
 
         # ---------- station 06: learning from real data ----------
         check("the bench offers a station for starting from data "
-              "that already exists - Learn remains, labelled as the "
+              "that already exists - Learn remains, labeled as the "
               "first engine's quick look inside the measure rail",
               'data-s="learn"' in html
               and 'id="s-learn"' in html
@@ -904,10 +904,10 @@ def main():
         # rainbow existed to make the parallel routes unmistakable,
         # but the foolproofing lives in the step numbers, rail
         # labels, you-need/you-get banners and next footers - words,
-        # not hues. Colour is reinforcement: CARDINAL is the create
+        # not hues. Color is reinforcement: CARDINAL is the create
         # route, GOLD is the measure route, slate is shared. Two
         # accents answer "which route, which step" faster than six,
-        # and a colour-blind reader loses nothing.
+        # and a color-blind reader loses nothing.
         check("each ROUTE declares its accent - cardinal for "
               "create, gold for measure, slate for shared - and "
               "the house palette replaces the rainbow",
@@ -940,7 +940,7 @@ def main():
         # whole language now: every station, button and chip is
         # white porcelain, raised at rest, lettered in ink with a
         # dark shadow beneath the glyphs; hover lifts the piece and
-        # deepens the letterpress; route colour survives as accents
+        # deepens the letterpress; route color survives as accents
         # only. Fail-first: none of these tokens exist in the
         # previous build.
         check("every station and button is PORCELAIN - white, "
@@ -956,7 +956,7 @@ def main():
               and "text-shadow:var(--letterpress-deep)" in html
               and "translateY(-2px)" in html
               and "--raise-press:" in html)
-        check("...and route colour survives as ACCENTS only - the "
+        check("...and route color survives as ACCENTS only - the "
               "tinted number chip, the accent bar, the active "
               "ring - never as a filled surface",
               ".station b{background:var(--wash);color:var(--tab)"
@@ -1017,7 +1017,7 @@ def main():
 
         # THE DASHBOARD IS A STATION, drawing the same picture the
         # roadshow file carries - built by one code path, so the
-        # interactive view and the shared artefact cannot drift. It
+        # interactive view and the shared artifact cannot drift. It
         # was the operator's ask: the deck HTML, live, in the UI.
         check("the bench has a Dashboard station with a live iframe "
               "and a titles entry",
@@ -1041,7 +1041,7 @@ def main():
         # reading .04 -> searching i/N scaled -> blueprint .72 ->
         # generating .80 -> comparing .94 -> done 1.
         check("the bench has a living loader - breathing dot, "
-              "travelling sheen, comet fallback - always in motion "
+              "traveling sheen, comet fallback - always in motion "
               "while a job runs",
               "@keyframes lbreathe" in html
               and "@keyframes lsheen" in html
@@ -1064,7 +1064,7 @@ def main():
         # through the UI showed the FIRST engine - the last month of
         # measured work was unreachable from the interface built to
         # show the system. Same lesson as the atlas, in the UI.
-        # THE MEASURE ROUTE IS A NUMBERED, COLOUR-MATCHED RAIL.
+        # THE MEASURE ROUTE IS A NUMBERED, COLOR-MATCHED RAIL.
         # As a single ALT button, learning from real data had no
         # step structure while the from-scratch route counted 01 to
         # 05 - the operator asked why one path was laid out and the
@@ -1088,7 +1088,7 @@ def main():
               'data-step="1" data-s="fitsrc"' in html
               and 'data-step="2" data-s="fitrun"' in html
               and 'data-step="3" data-s="fitver"' in html)
-        check("...and the rails are labelled so two buttons named 01 "
+        check("...and the rails are labeled so two buttons named 01 "
               "read as parallel routes, not a duplicate",
               "create from a description" in html
               and "or measure real data" in html
@@ -1147,7 +1147,7 @@ def main():
         # were first inserted AFTER </main> closed - valid HTML,
         # rendered at the very bottom of the page under the side
         # tabs, outside the grid every other station shares. A
-        # section's position in the DOM is part of its behaviour.
+        # section's position in the DOM is part of its behavior.
         check("...and the measure-route stations sit INSIDE <main>, "
               "in the same content area as every other station - "
               "appended after it, they rendered at the bottom of "

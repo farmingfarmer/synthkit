@@ -172,7 +172,7 @@ COND_PHRASES = [
     'Type 2 diabetes mellitus, without complications',
     'Acute on chronic systolic heart failure, NYHA class III',
     'Chronic kidney disease, stage 3b',
-    'Pneumonia, organism unspecified',
+    'Pneumonia, organizm unspecified',
     'Atrial fibrillation, persistent',
     'COPD exacerbation, moderate',
     'Sepsis, "suspected source: urinary"',

@@ -113,7 +113,7 @@ CATEGORICALS = [("visit_type", 9), ("admitted_from", 14),
                 ("gender", 3), ("race", 10), ("ethnicity", 6)]
 
 # List columns, which condnet EXPANDS into per-item indicators. The
-# real extract's 47 tidy columns become 85 modelled ones that way, and
+# real extract's 47 tidy columns become 85 modeled ones that way, and
 # width is what the multiple-comparison correction is paid over - 3,570
 # comparisons there against 2,145 on a 47-column fixture. A fixture
 # that is not as wide is not as hard.
@@ -204,7 +204,7 @@ def main():
     # search recovers 12 of 13 planted relationships including the
     # XOR, the Simpson reversal and the three-way, and 10 of 10
     # scorable kinds SURVIVE generation. The real run does far worse -
-    # centre within 10% of spread on 18 of 34 columns, and 16 of 26
+    # center within 10% of spread on 18 of 34 columns, and 16 of 26
     # relationships dropped to keep the graph sampleable.
     #
     # Neither loss is about pattern KIND, which is all this fixture
@@ -213,7 +213,7 @@ def main():
     #   --skew-planted  every planted column here is a clean gaussian.
     #                   Real clinical columns are skewed 2.8 and up,
     #                   which is what the piecewise-linear inverse CDF
-    #                   loses the centre on
+    #                   loses the center on
     #   --tangled       the planted structure is disjoint pairs and
     #                   triples - a FOREST. Nothing is ever dropped to
     #                   break a cycle, so a survival score of 10/10
@@ -602,7 +602,7 @@ def main():
 
             # THE RING. Each member is drawn from a shared latent
             # plus its own noise, so every pair genuinely predicts
-            # every neighbouring pair and the discovered graph is
+            # every neighboring pair and the discovered graph is
             # cyclic rather than a tree.
             if TANGLE:
                 latent = rnd.gauss(0, 1)
@@ -627,7 +627,7 @@ def main():
     # `exp` is MONOTONE, so rank order is untouched and every planted
     # relationship survives the reshaping exactly. That is the whole
     # point: it changes the marginal SHAPE, which is what the real
-    # extract loses the centre on, without touching the structure.
+    # extract loses the center on, without touching the structure.
     if a.skew_planted > 0 and rows:
         # THE RING ONLY, and that restriction is a finding.
         #
@@ -640,9 +640,9 @@ def main():
         #
         # And skew was not the missing axis anyway. The clinical
         # columns here already carry their measured skew - up to 25.6
-        # - and this fixture still passes centre on 94% of its columns
+        # - and this fixture still passes center on 94% of its columns
         # where the real extract passes 53%. So whatever loses the
-        # centre on real data, it is not simply that the column is
+        # center on real data, it is not simply that the column is
         # skewed. The `centre_miss` block exists to diagnose the
         # remainder and has not been run on a real extract yet.
         targets = [c for c in header if c.startswith("tangle_")]

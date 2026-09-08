@@ -417,7 +417,7 @@ def additive_departure(surf: Dict[str, Any], eff_a: Optional[dict],
 
     This is what an interaction IS: the pair doing something their
     separate effects do not predict. The first trigger asked instead
-    whether the surface travelled further than the better single
+    whether the surface traveled further than the better single
     curve, which works only when neither parent has much of a main
     effect - the exclusive-or case it was written against.
 
@@ -439,14 +439,14 @@ def additive_departure(surf: Dict[str, Any], eff_a: Optional[dict],
     if r.ndim != 2:
         return None
 
-    def centred(eff, at):
+    def centered(eff, at):
         g, y = eff.get("grid"), eff.get("response")
         if not g or not y or isinstance(g[0], str):
             return None
         y = np.asarray(y, dtype=float)
         return np.interp(at, np.asarray(g, dtype=float), y) - y.mean()
 
-    ca, cb = centred(eff_a, ga), centred(eff_b, gb)
+    ca, cb = centered(eff_a, ga), centered(eff_b, gb)
     if ca is None or cb is None:
         return None
     additive = float(r.mean()) + ca[:, None] + cb[None, :]
@@ -454,28 +454,28 @@ def additive_departure(surf: Dict[str, Any], eff_a: Optional[dict],
     return float(d.max() - d.min())
 
 
-def curve_centre(curve: Dict[str, Any], values) -> float:
+def curve_center(curve: Dict[str, Any], values) -> float:
     """The curve's average over the parent's ACTUAL distribution.
 
     Not the average over the grid. The grid is uniform in QUANTILE
     space, so for any curve that bends, the two differ - and the
     difference lands directly on the generated column's mean, because
-    the systematic term is added as (curve - centre) and a centre that
+    the systematic term is added as (curve - center) and a center that
     is off by d shifts every row by d.
 
     Measured on planted curves, as a share of the child's own spread:
 
-        linear        0.00   grid centre 15.287, real centre 15.273
-        saturating   -0.05   grid centre 16.459, real centre 16.724
-        U-shaped     -0.08   grid centre  9.197, real centre  8.535
+        linear        0.00   grid center 15.287, real center 15.273
+        saturating   -0.05   grid center 16.459, real center 16.724
+        U-shaped     -0.08   grid center  9.197, real center  8.535
 
     The shift matched the mechanism exactly, and straight lines were
     untouched - which is what a bend-driven error looks like.
 
     Stored from the SOURCE distribution rather than recomputed at
-    generation time on purpose: recentring on the generated population
+    generation time on purpose: recentering on the generated population
     would force the child's mean to stay put even when a user
-    deliberately shifts the parent, silently cancelling the dial."""
+    deliberately shifts the parent, silently canceling the dial."""
     grid, resp = curve.get("grid"), curve.get("response")
     if not grid or not resp:
         return 0.0
@@ -494,7 +494,7 @@ def curve_centre(curve: Dict[str, Any], values) -> float:
                                    r, left=r[0], right=r[-1])))
 
 
-def surface_centre(surf: Dict[str, Any], va, vb) -> float:
+def surface_center(surf: Dict[str, Any], va, vb) -> float:
     """The joint surface's average over the parents' real pairs."""
     ga = np.asarray(surf["grid_a"], dtype=float)
     gb = np.asarray(surf["grid_b"], dtype=float)

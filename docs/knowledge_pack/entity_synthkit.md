@@ -54,7 +54,7 @@ delete it.
 
 The privacy unit is the PATIENT, not the row: k-anonymity counts
 distinct people, significance uses the person count, and the
-identity column is excluded from modelling. This was corrected
+identity column is excluded from modeling. This was corrected
 after a heavy-utilising patient's thirty visits were found
 clearing a row-based threshold while describing one individual.
 

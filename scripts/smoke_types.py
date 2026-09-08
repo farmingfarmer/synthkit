@@ -24,7 +24,7 @@ So there are two things here and the first matters more:
 DELIBERATELY NOT PARSED, and asserted so:
 
   booleans     TRUE/FALSE is a two-level categorical and a two-level
-               categorical is modelled correctly
+               categorical is modeled correctly
   ordinals     mild/moderate/severe has an order, north/south/east/
                west does not, and no inspection of the strings tells
                them apart. Guessing invents structure the data never
@@ -81,7 +81,7 @@ def source(seed=7):
 def main():
     df = source()
 
-    # ---- THE GUARD, which is the part that generalises ------------
+    # ---- THE GUARD, which is the part that generalizes ------------
     # A column of near-unique labels: nothing parses it, so it becomes
     # the sentinel. This is what every unhandled type looks like.
     r = np.random.RandomState(2)
@@ -120,7 +120,7 @@ def main():
           and float(X["seen_at"].min()) < 60)
 
     # ---- WHAT MUST NOT BE PARSED ---------------------------------
-    check("a BOOLEAN stays a two-level category - that is modelled "
+    check("a BOOLEAN stays a two-level category - that is modeled "
           "correctly and needs no parser",
           "active" not in quant
           and str(X["active"].dtype) == "category")
@@ -204,7 +204,7 @@ def main():
                                                   regex=False).all()
               and not (vals == OTHER).any())
 
-    # ---- A COLUMN HOLDING A SET IS MODELLED AS ONE ---------------
+    # ---- A COLUMN HOLDING A SET IS MODELED AS ONE ---------------
     # Confirmed on the real extract, not assumed: `conditions` came
     # out 69% `__other__` and `active_drugs` 53%, with 73% and 74% of
     # their values carrying a semicolon across 31,522 and 16,882
@@ -230,7 +230,7 @@ def main():
     bpl = B.build(dfl, {"claims": [], "unexplained": [],
                         "skipped": []}, group_by="person_id")
     ml = bpl["columns"]["active_drugs"]["marginal"]
-    check("a set-valued column is modelled as a SET - tokens and a "
+    check("a set-valued column is modeled as a SET - tokens and a "
           "set size, not one label per combination",
           ml.get("type") == "list" and len(ml.get("tokens") or []) >= 2)
     check("...with the tokens held to the same k as every other "
@@ -238,7 +238,7 @@ def main():
     check("...and a plain categorical is NOT treated as a set",
           bpl["columns"]["plain"]["marginal"].get("type") == "levels")
     check("...and the blueprint says plainly that co-occurrence "
-          "between tokens is not modelled",
+          "between tokens is not modeled",
           "co-occurrence" in (ml.get("note") or ""))
 
     gl_out = generate(bpl, n_patients=npl, seed=5)

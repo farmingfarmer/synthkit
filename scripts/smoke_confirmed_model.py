@@ -97,11 +97,11 @@ def main():
           "correlation to find", {"x_non", "y_non"} <= kept)
     check("NO noise column reaches the confirmed model",
           not any(n.startswith("noise") for n in kept))
-    modelled = set()
+    modeled = set()
     for e in net.report.get("edges", []):
-        modelled |= {e["child"]} | set(e["parents"])
+        modeled |= {e["child"]} | set(e["parents"])
     check("...and none reaches the refitted model either",
-          not any(n.startswith("noise") for n in modelled))
+          not any(n.startswith("noise") for n in modeled))
 
     # ---- the evidence ---------------------------------------------
     ok = True

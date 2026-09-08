@@ -42,7 +42,7 @@ def numeric_dist(p):
     zi = p.get("zero_inflation")
     if zi:
         # a zero-inflated column is a mixture of "exactly zero" and
-        # the fitted body — modelled explicitly rather than smeared
+        # the fitted body — modeled explicitly rather than smeared
         return {"kind": "mixture",
                 "weights": [round(zi, 4), round(1 - zi, 4)],
                 "components": [

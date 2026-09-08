@@ -49,7 +49,7 @@ PLANTED = ["complete_ar", "sparse_ar", "onceonly", "rare", "toorare",
            "birth_year", "walk", "stable", "stable2", "stable3",
            "int_repeats", "assay_unique"]
 # visit_id and visit_start_date are described too. They used to be
-# skipped as "identifiers" while condnet modelled them, which is
+# skipped as "identifiers" while condnet modeled them, which is
 # exactly where a 424 MB fault hid. Only the group column is skipped.
 COLS = PLANTED + ["visit_id", "visit_start_date"]
 
@@ -269,7 +269,7 @@ def main():
 
         if lc.get("decay"):
             base = lc["decay_base_bucket"]
-            check("every decay row is normalised against ONE base "
+            check("every decay row is normalized against ONE base "
                   "bucket, so the rows are comparable rather than "
                   "each resting on its own baseline",
                   base is not None
@@ -404,7 +404,7 @@ def main():
             "lag": {"a": {"1": {"1": 1.0}}},
             "report": {"edges": [{"child": "y", "parents": ["x"]},
                                  {"child": "q", "parents": ["r", "s"]}],
-                       "columns_modelled": 9, "bins": 3,
+                       "columns_modeled": 9, "bins": 3,
                        "effective_n": 120, "rows": 900,
                        "comparisons_corrected_for": 36,
                        "search_mode": "blind",

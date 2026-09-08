@@ -16,7 +16,7 @@ sys.path.insert(0, str(ROOT))
 sys.path.insert(0, str(ROOT / "scripts"))
 from synthkit.condnet import CondNet          # noqa: E402
 from synthkit.attack import (                 # noqa: E402
-    membership_audit, nearest_neighbour_attack)
+    membership_audit, nearest_neighbor_attack)
 
 PASS = FAIL = 0
 
@@ -53,7 +53,7 @@ def main():
                & {r["person_id"] for r in nonmembers}))
 
     # ---- the attack must catch a real leak ----
-    leak = nearest_neighbour_attack(members[:150], nonmembers[:150],
+    leak = nearest_neighbor_attack(members[:150], nonmembers[:150],
                                     members[:2000])
     check("a generator that MEMORISES is caught outright — a "
           "privacy test that cannot fail proves nothing",
@@ -65,11 +65,11 @@ def main():
     audit = membership_audit(net, members, nonmembers, syn,
                              nn_sample=120)
     check("both adversaries are run and reported separately",
-          "likelihood" in audit and "nearest_neighbour" in audit)
+          "likelihood" in audit and "nearest_neighbor" in audit)
     check("the stronger adversary is the one given the published "
           "MODEL, which is what a determined attacker would have",
           audit["likelihood"]["attacker_sees"]
-          != audit["nearest_neighbour"]["attacker_sees"])
+          != audit["nearest_neighbor"]["attacker_sees"])
     check("the verdict is taken from the STRONGEST adversary, not "
           "an average of them",
           audit["worst_auc"] >= audit["likelihood"]["auc"])
@@ -183,7 +183,7 @@ def main():
     # THE GUARD HAS TO BE ABLE TO FAIL. An attack that always reports
     # a coin flip proves nothing at all, so it is handed a generator
     # that leaks everything: the members themselves as the synthetic
-    # data. A nearest-neighbour adversary must find that instantly.
+    # data. A nearest-neighbor adversary must find that instantly.
     _leak = membership_audit(BlueprintLikelihood(_bp),
                              _mdf.to_dict("records"),
                              _ndf.to_dict("records"),
@@ -213,10 +213,10 @@ def main():
     # most common - so the audit was blind to the part of the release
     # that GREW.
     #
-    # The nearest-neighbour half compared the whole combination
+    # The nearest-neighbor half compared the whole combination
     # STRING for equality. On a column drawing four tokens from
     # hundreds that is false on essentially every pair, so the term
-    # added a constant to every distance and cancelled. A verbatim
+    # added a constant to every distance and canceled. A verbatim
     # republish was still caught - the strings match - which is why
     # the existing leak control above never exposed it. A PARTIAL
     # leak was not: handed each member's own tokens with ONE swapped
@@ -260,7 +260,7 @@ def main():
         _t2 = list(_t)
         _t2[_rs2.randint(len(_t2))] = "t{:03d}".format(_rs2.randint(_NT))
         _part.append({"tags": ";".join(sorted(set(_t2)))})
-    _pa = nearest_neighbour_attack(_M, _N, _part)["auc"]
+    _pa = nearest_neighbor_attack(_M, _N, _part)["auc"]
     check("...and a PARTIAL set leak is caught - each member's own "
           "tokens with one swapped scores {:.3f}, where comparing "
           "the combination string scored 0.500".format(_pa),
@@ -268,7 +268,7 @@ def main():
 
     # THE NEGATIVE CONTROL, or the check above only proves that
     # everything with a set column scores high.
-    _hon = nearest_neighbour_attack(
+    _hon = nearest_neighbor_attack(
         _M, _N, [{"tags": ";".join(t)}
                  for t in _mk(300, _np.random.RandomState(9))])["auc"]
     check("...while an HONEST set generator drawing fresh from the "

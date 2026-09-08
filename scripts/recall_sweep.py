@@ -51,7 +51,7 @@ def recall_of(truth_path, model_path):
     return base, adj
 
 
-def summarise(name, vals):
+def summarize(name, vals):
     ok = [v for v in vals if v is not None]
     if not ok:
         return "{}: no runs".format(name)
@@ -73,7 +73,7 @@ def main():
     ap.add_argument("--lags", action="store_true",
                     help="detect the time axis and engineer x__prev")
     ap.add_argument("--products", action="store_true",
-                    help="second pass: centred products among what "
+                    help="second pass: centered products among what "
                          "the first pass left unexplained")
     # Measured at the real extract's width: the first pass leaves 22
     # columns unexplained, so 231 pairs exist and 400 covers all of
@@ -154,11 +154,11 @@ def main():
             sys.stdout.flush()
 
     print()
-    print(summarise("plain    ", plain_b))
-    print(summarise("plain adj", plain_a))
+    print(summarize("plain    ", plain_b))
+    print(summarize("plain adj", plain_a))
     if a.confirm:
-        print(summarise("confirmed", conf_b))
-        print(summarise("confirm adj", conf_a))
+        print(summarize("confirmed", conf_b))
+        print(summarize("confirm adj", conf_a))
         pb = [v for v in plain_b if v is not None]
         cb = [v for v in conf_b if v is not None]
         if pb and cb:

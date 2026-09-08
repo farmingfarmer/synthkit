@@ -1,6 +1,6 @@
 """Smoke: what the blueprint publishes describes groups, not people.
 
-The blueprint is the artefact that leaves the machine holding the
+The blueprint is the artifact that leaves the machine holding the
 extract. Everything in it is meant to be an aggregate, and until this
 suite existed that was an intention rather than a checked property -
 it stored the 0th and 100th percentile of every numeric column, which
@@ -223,7 +223,7 @@ def main():
               "the blueprint at all", True)
         check("...and nothing invents it downstream", True)
 
-    # ---- the neighbouring property ------------------------------
+    # ---- the neighboring property ------------------------------
     # Clipping a tail is a change to the distribution. If it wrecked
     # the marginal the fix would have traded one failure for another.
     g = generate(bp, n_patients=220, seed=4)

@@ -106,7 +106,7 @@ def main() -> None:
                          "representation at all otherwise. The time "
                          "axis is detected, not declared")
     ap.add_argument("--products", action="store_true",
-                    help="engineer centred x*y features among the "
+                    help="engineer centered x*y features among the "
                          "columns a first pass could not explain, so "
                          "a PURE interaction becomes findable - one "
                          "whose factors carry no effect on their own "
@@ -276,7 +276,7 @@ def main() -> None:
         if a.products:
             # The two-pass rule: learn once, and pair only what that
             # pass could NOT explain. Measured at the real extract's
-            # width, 173 modelled columns left 22 unexplained - 231
+            # width, 173 modeled columns left 22 unexplained - 231
             # pairs, which a budget of 400 covers completely.
             from synthkit.engineered import (add_product_features,
                                              unexplained_columns)
@@ -323,8 +323,8 @@ def main() -> None:
         model = out / "condnet_model.json"
         model.write_text(net.to_json(), encoding="utf-8")
         rep = net.report
-        print("  {} columns modelled at {} bins ({})".format(
-            rep["columns_modelled"], rep["bins"],
+        print("  {} columns modeled at {} bins ({})".format(
+            rep["columns_modeled"], rep["bins"],
             rep["bins_chosen"]))
         print("  effective sample size: {} (from {} rows)".format(
             rep["effective_n"], rep["rows"]))

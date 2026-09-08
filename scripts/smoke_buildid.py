@@ -72,7 +72,7 @@ def main():
         d = Path(td)
 
         # THE FIXTURE MUST CONTAIN THE THING THE CHECK IS ABOUT. Every
-        # check below is about behaviour OFF a git checkout, so if
+        # check below is about behavior OFF a git checkout, so if
         # this directory were inside one they would all pass while
         # measuring the git path instead.
         check("the fixture directory is genuinely not a git checkout, "

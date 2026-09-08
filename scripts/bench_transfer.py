@@ -5,7 +5,7 @@
                                      --target COLUMN [--seeds 0,1,2]
 
 WHY THIS EXISTS, AND IT IS THE MISSING PIECE. This project reports
-coverage, centre, spread, steadiness, clustering, pair sign,
+coverage, center, spread, steadiness, clustering, pair sign,
 inversion, identity tightness, constraints, set tokens, interactions
 and heteroscedasticity. Every one of them is a PROXY. The product's
 actual claim is narrower and much more useful: point a vendor's model
@@ -154,7 +154,7 @@ def degrade(bp, how):
             d["coverage"] = 1.0
         elif how == "spread x1.4" and spec.get("kind") == "numeric":
             d["scale"] = 1.4
-        elif how == "centre + 0.5sd" and spec.get("kind") == "numeric":
+        elif how == "center + 0.5sd" and spec.get("kind") == "numeric":
             sd = float(((spec.get("marginal") or {}).get("sd")) or 0.0)
             if not sd:
                 m = spec.get("marginal") or {}
@@ -171,7 +171,7 @@ def degrade(bp, how):
 TOP = 4
 
 ARMS = ["faithful", "no persistence", "no missingness", "no clustering",
-        "spread x1.4", "centre + 0.5sd", "no relationships"]
+        "spread x1.4", "center + 0.5sd", "no relationships"]
 
 
 def main():

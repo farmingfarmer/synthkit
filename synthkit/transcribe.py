@@ -342,7 +342,7 @@ def transcribe_row(row: Dict[str, Any], spec: TranscribeSpec,
     """Return (note text, ledger, structured overrides).
 
     The overrides are how `both_disagree` and `structured_only`
-    are honoured: the structured record keeps the true value while
+    are honored: the structured record keeps the true value while
     the prose says something else, or says nothing at all.
     """
     r = _rng(spec.seed, row_index, "note")

@@ -165,7 +165,7 @@ def _draw_list(m: Dict[str, Any], n: int, rng) -> np.ndarray:
     from SOLVED weights - the published token p is a share of rows,
     not a sampling weight, and feeding it in raw skewed 44 of 96
     shares past tolerance on the real extract. Co-occurrence is not
-    modelled - the blueprint says so on the marginal itself."""
+    modeled - the blueprint says so on the marginal itself."""
     return _draw_list_sized(m, [None] * n, rng)
 
 
@@ -304,7 +304,7 @@ def _curve_delta(eff: Dict[str, Any], parent_vals,
     invented relationship reads as a finding, the same severity as an
     inversion.
 
-    So the labelled branch reads `present` - the pending presence
+    So the labeled branch reads `present` - the pending presence
     mask for the parent, which is decided before the mask is applied
     - and pushes by observed-vs-absent, exactly what the label says
     the effect is. With no presence information the contribution is
@@ -325,25 +325,25 @@ def _curve_delta(eff: Dict[str, Any], parent_vals,
     r = np.asarray(resp, dtype=float)
     # The curve's average over the parent's REAL distribution, stored
     # at build time. Falling back to the grid mean shifts the child's
-    # centre by the amount the curve bends - see shapes.curve_centre.
-    centre = float(eff.get("centre", r.mean()))
+    # center by the amount the curve bends - see shapes.curve_center.
+    center = float(eff.get("centre", r.mean()))
     if isinstance(grid[0], str):
         table = dict(zip([str(g) for g in grid], r))
-        return np.asarray([table.get(str(v), centre) - centre
+        return np.asarray([table.get(str(v), center) - center
                            for v in parent_vals])
     pv = pd.to_numeric(pd.Series(parent_vals), errors="coerce")
     out = np.interp(pv.to_numpy(dtype=float),
                     np.asarray(grid, dtype=float), r,
                     left=r[0], right=r[-1])
-    out = np.where(np.isnan(pv.to_numpy(dtype=float)), centre, out)
-    return out - centre
+    out = np.where(np.isnan(pv.to_numpy(dtype=float)), center, out)
+    return out - center
 
 
 def _surface_delta(it: Dict[str, Any], va, vb) -> np.ndarray:
     ga = np.asarray(it["grid_a"], dtype=float)
     gb = np.asarray(it["grid_b"], dtype=float)
     r = np.asarray(it["response"], dtype=float)
-    centre = float(it.get("centre", r.mean()))
+    center = float(it.get("centre", r.mean()))
     a = pd.to_numeric(pd.Series(va), errors="coerce").to_numpy(
         dtype=float)
     b = pd.to_numeric(pd.Series(vb), errors="coerce").to_numpy(
@@ -360,7 +360,7 @@ def _surface_delta(it: Dict[str, Any], va, vb) -> np.ndarray:
     # at all while every other check passed.
     ia = np.abs(a[:, None] - ga[None, :]).argmin(axis=1)
     ib = np.abs(b[:, None] - gb[None, :]).argmin(axis=1)
-    out = r[ia, ib] - centre
+    out = r[ia, ib] - center
     return np.where(np.isnan(a) | np.isnan(b), 0.0, out)
 
 
@@ -495,10 +495,10 @@ def _order(bp: Dict[str, Any], refine: bool = True):
         # SKIP A RESTATEMENT OF STRUCTURE ALREADY TAKEN.
         #
         # Matched on the whole COLUMN SET, not on one pair. The first
-        # version compared single parents, so it recognised a mirror
+        # version compared single parents, so it recognized a mirror
         # only when a claim had exactly one - and on a real extract
         # almost every claim has two or three. `A <- B, C` and
-        # `B <- A, C` went unrecognised, formed a cycle, and were
+        # `B <- A, C` went unrecognized, formed a cycle, and were
         # reported to the reader as structure that had vanished from
         # their data. All twelve drops on the 800-patient run were
         # announced as losses on that basis.
@@ -966,7 +966,7 @@ def _informative_sets(cname, m, base, routed, out, rng,
     Noise enters per child at sqrt(1 - skill), the numeric path's own
     shrinkage, so a weak claim arranges weakly.
 
-    STILL NOT MODELLED, on purpose and said here: within-patient
+    STILL NOT MODELED, on purpose and said here: within-patient
     persistence of sets (none exists anywhere today), token
     co-occurrence beyond what the drawn combinations carry, and a
     later child whose ordering conflicts with an earlier one inside
@@ -1073,7 +1073,7 @@ def _informative_sets(cname, m, base, routed, out, rng,
     # When sizes are an IDENTITY with another column, every row's set
     # was drawn at that row's own size - so sets may only move
     # between rows of the SAME size, or the rearrangement breaks the
-    # identity it was drawn to honour. Group by size from the start;
+    # identity it was drawn to honor. Group by size from the start;
     # every later child then arranges within those groups.
     if fixed_sizes is not None:
         _, group = np.unique(np.asarray(fixed_sizes, dtype=np.int64),
@@ -1187,7 +1187,7 @@ def _pin_to_bounds(vals, lo, hi, integral):
     the rule said nobody's data would, one of them 25% past.
 
     NOT A CLAMP. Clamping piles every violator onto the bound and
-    moves the centre - the exact loss the swap-repair for constraints
+    moves the center - the exact loss the swap-repair for constraints
     exists to avoid. The violators are the column's extreme ranks, so
     they are SQUEEZED, in rank order, into the headroom between the
     most extreme value already inside and the bound itself. Order is
@@ -1200,7 +1200,7 @@ def _pin_to_bounds(vals, lo, hi, integral):
     the violation in place. For the handful of integral violators the
     squeeze collapses onto that whole number; at the counts involved
     (one to eleven values in fifty-five thousand rows) the pile is
-    invisible to centre and spread, and the count is reported either
+    invisible to center and spread, and the count is reported either
     way.
 
     Returns `(values, n_pinned)`."""
@@ -1252,7 +1252,7 @@ def _pair_index(counts):
 
 
 def _lag1_of(values, prev_i, cur_i):
-    """Pooled uncentred lag-1, or None when there is too little to say."""
+    """Pooled uncentered lag-1, or None when there is too little to say."""
     if not len(prev_i):
         return None
     v = np.asarray(values, dtype=float)
@@ -1408,7 +1408,7 @@ def _enforce(df: pd.DataFrame, constraints, report=None):
     the two values are exchanged, which fixes the row and leaves both
     columns' marginals EXACTLY as they were - the same multiset of
     values, redistributed. Clamping would pile mass on a bound and
-    move the very centre and spread the rest of this file works to
+    move the very center and spread the rest of this file works to
     get right.
 
     Off by default. It changes the output, so a run meant to be
@@ -1561,7 +1561,7 @@ def generate(blueprint: Dict[str, Any],
         # decides whether its persistence needs solving, and the
         # solve has to happen before the uniforms are drawn.
         rels = parents.get(c) or []
-        # AN IDENTICAL COLUMN IS COPIED, NOT MODELLED. Its own
+        # AN IDENTICAL COLUMN IS COPIED, NOT MODELED. Its own
         # marginal, persistence and relationships are all
         # restatements of the partner's; drawing any of them
         # independently is how the identity broke on 78.6% of rows
@@ -1702,7 +1702,7 @@ def generate(blueprint: Dict[str, Any],
                 #
                 # The re-rank keeps the ORDER the relationships
                 # produced and takes the VALUES the marginal drew:
-                # spread and centre exact by construction, every
+                # spread and center exact by construction, every
                 # rank-based association untouched, and the k bound
                 # respected because the marginal draw respects it.
                 arr_rr = np.asarray(base, dtype=float)
@@ -1752,22 +1752,22 @@ def generate(blueprint: Dict[str, Any],
                                       []).append(c)
 
         if numeric:
-            # SCALE ABOUT THE CENTRE, THEN SHIFT. The two dials sit
-            # beside a measured centre and a measured spread, so each
+            # SCALE ABOUT THE CENTER, THEN SHIFT. The two dials sit
+            # beside a measured center and a measured spread, so each
             # must move only its own one.
             #
             # `(x + shift) * scale` made them fight: the shift came
             # out multiplied by the scale, and the scale dragged the
             # mean along with it. Asking for shift 12 and scale 1.5 on
-            # a column centred at 34.8 moved the centre by 35.8, and
+            # a column centered at 34.8 moved the center by 35.8, and
             # the smoke checks passed throughout because each set ONE
             # dial and neither asserted that a spread dial leaves the
-            # centre alone.
+            # center alone.
             sh = float(spec.get("target_shift") or 0.0)
             sc = float(spec.get("target_scale") or 1.0)
             if sh or sc != 1.0:
                 arr = np.asarray(base, dtype=float)
-                # The published centre, not this draw's mean: the
+                # The published center, not this draw's mean: the
                 # draw's own mean carries sampling noise, so tuning
                 # about it would make the dial's effect depend on the
                 # seed.
@@ -1835,7 +1835,7 @@ def generate(blueprint: Dict[str, Any],
                     pm, out[pm["parent"]], counts, float(cov), clus,
                     rng)
                 if keep is not None and report is not None:
-                    report.setdefault("presence_modelled", []).append(
+                    report.setdefault("presence_modeled", []).append(
                         {"column": c, "parent": pm["parent"],
                          "spread": pm.get("spread")})
             if keep is not None:
@@ -1865,7 +1865,7 @@ def generate(blueprint: Dict[str, Any],
     # also where a child reads its parents. Formatting a date inside
     # the loop left every later child reading text: `_curve_delta`
     # coerces a parent to numeric, text becomes NaN, NaN falls back to
-    # the curve's centre, and the relationship applies exactly nothing
+    # the curve's center, and the relationship applies exactly nothing
     # while every column still looks right. A silent no-op is worse
     # than a crash.
     # ---- PUT THE CUT EDGES BACK ---------------------------------
@@ -1995,7 +1995,7 @@ def generate(blueprint: Dict[str, Any],
     # A MISSING MEASUREMENT IS NOT AN ABSENT FACT. The mask used to be
     # applied inside the loop, so a child read NaN for any parent that
     # happened not to be measured on that row - `_curve_delta` coerces
-    # the parent to numeric, NaN falls back to the curve's own centre,
+    # the parent to numeric, NaN falls back to the curve's own center,
     # and the relationship contributed exactly nothing. Silently: the
     # same no-op shape as formatting a date before its children were
     # drawn, and as the banned getattr.
@@ -2010,7 +2010,7 @@ def generate(blueprint: Dict[str, Any],
     # a mean arterial pressure whether or not anybody wrote it down.
     # Absence of a measurement is a fact about the RECORD; the
     # physiology underneath it is unchanged, and a sampler that
-    # deletes the relationship along with the value is modelling the
+    # deletes the relationship along with the value is modeling the
     # wrong thing.
     #
     # So every value is generated, every relationship is applied
@@ -2060,7 +2060,7 @@ def generate(blueprint: Dict[str, Any],
     # it stays inside the sampler.
     _pat = bp.get("patients") or {}
     # ABSENT KEY MEANS AN OLDER BLUEPRINT, and those get the old
-    # behaviour. Only an explicit None says the source had no
+    # behavior. Only an explicit None says the source had no
     # grouping column.
     _real_gid = (_pat.get("id_column") if "id_column" in _pat
                  else gid)
@@ -2177,7 +2177,7 @@ def generate(blueprint: Dict[str, Any],
                                          parents.values()),
             "edges_dropped": dropped,
             "pairs_reconnected": repaired,
-            "not_modelled": [
+            "not_modeled": [
                 "a relationship between two columns is applied "
                 "within a visit; a lagged cross-column effect is "
                 "carried only if a lag feature was present at "
@@ -2268,10 +2268,10 @@ def _apply_numeric(c, spec, m, base, rels, out, masks=None):
     # time - while the MARGINAL spread reads 1.03 and passes, because
     # marginal spread is all anything checked.
     #
-    # NORMALISED so the total noise variance is unchanged. The
+    # NORMALIZED so the total noise variance is unchanged. The
     # multiplier redistributes spread across the range; it must not
     # add or remove any, or this would fix the conditional spread by
-    # breaking the marginal one - which is the neighbouring property
+    # breaking the marginal one - which is the neighboring property
     # this codebase already has a rule about.
     arr = np.asarray(base, dtype=float)
     noise = arr - mean

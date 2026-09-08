@@ -3,7 +3,7 @@
     python scripts/note_vendor_run.py [--backend stub|ollama|openai|
                                        bedrock|anthropic]
                                       [--model NAME] [--notes 120]
-                                      [--behaviour careful|naive|
+                                      [--behavior careful|naive|
                                        malformed]
                                       [--extra-system @file.txt]
                                       [-o DIR] [--report]
@@ -66,7 +66,7 @@ def main() -> None:
     ap.add_argument("--backend", default="stub")
     ap.add_argument("--model", default="")
     ap.add_argument("--notes", type=int, default=120)
-    ap.add_argument("--behaviour", default="careful",
+    ap.add_argument("--behavior", default="careful",
                     choices=["careful", "naive", "malformed"],
                     help="stub backend only: which reader to "
                          "imitate")
@@ -93,11 +93,11 @@ def main() -> None:
 
     backend = build_backend(a.backend, a.model, facts)
     if backend is None:
-        backend = ScriptedBackend(facts, a.behaviour, TERMS)
+        backend = ScriptedBackend(facts, a.behavior, TERMS)
     ex = NoteExtractor(backend, facts,
                        name="{}:{}".format(
                            a.backend,
-                           a.model or a.behaviour),
+                           a.model or a.behavior),
                        extra_system=extra)
 
     print("seating {} on {} notes...".format(ex.name, len(notes)),

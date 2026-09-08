@@ -101,8 +101,8 @@ def main():
           "on {:.0%} of rows, the shape the real extract showed at "
           "69%".format(sentinel), sentinel > 0.25)
 
-    # ---- the set is recognised and expanded -----------------------
-    check("the column is recognised as a SET rather than as a "
+    # ---- the set is recognized and expanded -----------------------
+    check("the column is recognized as a SET rather than as a "
           "category", "conditions" in setspecs)
     spec = setspecs["conditions"]
     check("...and the tokens are screened by PATIENTS, the same rule "
@@ -200,7 +200,7 @@ def main():
           .format(d_src, d_gen),
           d_gen > 0.6 * d_src)
 
-    # The neighbouring property: the count relationship the real run
+    # The neighboring property: the count relationship the real run
     # lost, 0.54 -> 0.03.
     src_n = df["conditions"].str.split(";").map(len)
     gen_n = g["conditions"].astype(str).str.split(";").map(len)
@@ -432,7 +432,7 @@ def main():
         hi3.append(float(has3[mm3].mean()))
         lo3.append(float(has3[~mm3].mean()))
     # WHAT THE CURVES THEMSELVES IMPLY, worked by hand so the bar is
-    # a number and not a vibe. Importance weights normalise to
+    # a number and not a vibe. Importance weights normalize to
     # 0.452/0.419/0.129; each parent's observed delta is
     # +(0.85-0.465) and absent -(0.465-0.15); the other two parents
     # average to zero over their independent presences. So
@@ -546,7 +546,7 @@ def main():
           "placement that would otherwise scramble it".format(
               float(gi["sev"].corr(_hs, method="spearman"))),
           float(gi["sev"].corr(_hs, method="spearman")) > 0.25)
-    check("...and the run names the identity it honoured",
+    check("...and the run names the identity it honored",
           any(e.get("column") == "drugs" and e.get("partner") ==
               "count" for e in (rep_i2.get("set_size_identity")
                                 or [])))
@@ -782,7 +782,7 @@ def main():
     # The first version of this bar reached 0.85 and the DOUBLED
     # path on this fixture reads 0.84 - the check passed against the
     # unfixed code and was decoration. One path measures 0.66 here,
-    # three seeds; the bar sits between the two behaviours, not
+    # three seeds; the bar sits between the two behaviors, not
     # around one of them.
     check("A DEPENDENCE ENTERS ONCE even when the routed rel has "
           "other live pairs: sp(count, |set|) {:+.2f} - one "
@@ -970,7 +970,7 @@ def main():
     # rather than a sampler. 1/1.57 = 0.637 was the share of visits
     # that had any routes at all.
     #
-    # It also means a visit with no drugs had never been modelled:
+    # It also means a visit with no drugs had never been modeled:
     # those rows were invisible to the vocabulary, so generation
     # invented routes for them.
     _n9, _np9 = 6000, 150
@@ -993,7 +993,7 @@ def main():
           "empty sets instead of inventing content for a visit that "
           "had none".format(_voc["empty_after_k_share"]),
           0.30 < _voc["empty_after_k_share"] < 0.42)
-    check("...while the column is still RECOGNISED as a set despite "
+    check("...while the column is still RECOGNIZED as a set despite "
           "those empty rows - judging set-ness on rows with content "
           "is what keeps a legitimately sparse column from falling "
           "back to the categorical path",
@@ -1467,7 +1467,7 @@ def main():
     # and the orderings that were about their data sat buried among
     # them. The fidelity summary already separates scaffolding when
     # it counts columns; the constraint section did not.
-    check("a set indicator is recognised as scaffolding",
+    check("a set indicator is recognized as scaffolding",
           S.is_scaffolding("procedures__has__Oxygen Therapy"))
     check("...and so is a set SIZE column",
           S.is_scaffolding("procedures" + S.SIZE))

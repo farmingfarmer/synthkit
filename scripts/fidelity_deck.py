@@ -124,7 +124,7 @@ path.draw{transition:stroke-dashoffset 1.4s
 
 # The deck's only script: reveal-on-scroll and press-and-hold.
 # Inline and dependency-free, because this file must animate
-# identically as a shared artefact on a machine with no network.
+# identically as a shared artifact on a machine with no network.
 MOTION_JS = """<script>
 (function(){
 var mq=window.matchMedia&&window.matchMedia(
@@ -334,7 +334,7 @@ def heatmap_pair(names, ms, mg):
     lab = 110
     w1 = lab + n * cell + 8
 
-    def colour(v):
+    def color(v):
         if v is None or not math.isfinite(v):
             return "#ffffff"
         t = max(-1.0, min(1.0, v))
@@ -357,14 +357,14 @@ def heatmap_pair(names, ms, mg):
                     '<rect x="{}" y="{}" width="{}" height="{}" '
                     'fill="{}"/>'.format(
                         ox + lab + j * cell, 22 + i * cell,
-                        cell - 1, cell - 1, colour(m[i][j])))
+                        cell - 1, cell - 1, color(m[i][j])))
         return "".join(out)
 
     def one(m, other, title, other_title, ox):
         # Press-and-hold crossfades the OTHER matrix over this one,
         # in place, so any pair that differs blinks into view. The
         # title rides inside each layer - during the fade the half
-        # must be labelled by what it is SHOWING, not by what it
+        # must be labeled by what it is SHOWING, not by what it
         # usually shows.
         t = ('<text x="{}" y="12" font-size="12" font-weight="700" '
              'fill="{}">{}</text>')
@@ -758,7 +758,7 @@ def build_deck(src_path, run_dir, group_by="person_id",
                 # compared against that plateau reads as a
                 # departure that is not there - the strongest
                 # relationship on the demo set was flagged DEPARTS
-                # at 0.39 sd by exactly this artefact.
+                # at 0.39 sd by exactly this artifact.
                 gap = 0.0
                 glo = min(q[0] for q in gp)
                 ghi = max(q[0] for q in gp)

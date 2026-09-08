@@ -71,7 +71,7 @@ def _is_indicator(col: str) -> bool:
 def narrate(net) -> Dict[str, Any]:
     """What the model found, in plain English.
 
-    Findings and bookkeeping are reported separately and labelled
+    Findings and bookkeeping are reported separately and labeled
     as such. An instrument that presents its own arithmetic as a
     discovery is harder to trust than one that says which is which.
     """

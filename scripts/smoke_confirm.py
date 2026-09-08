@@ -136,7 +136,7 @@ def main():
                   for arm in o["arms"] for e in arm["edges"]))
 
         # ---- the patient split is load-bearing --------------------
-        # Same rows, but every visit relabelled as its own patient.
+        # Same rows, but every visit relabeled as its own patient.
         # That is what a row-wise split amounts to, and it inflates
         # the holdout's apparent patient count enormously.
         leaky = Path(td) / "leaky.csv"

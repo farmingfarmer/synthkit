@@ -167,7 +167,7 @@ def main():
               "governance reviewer can check",
               "no closer to real records"
               in R8["privacy"]["reading"])
-        check("both nearest-neighbour distributions are reported "
+        check("both nearest-neighbor distributions are reported "
               "for comparison",
               R7["privacy"]["synthetic_to_source_nn"]["p05"]
               is not None
@@ -185,7 +185,7 @@ def main():
         write(b1, boolsrc)
         write(b2, boolsyn)
         R9 = score(td, b1, b2, "bools")
-        check("True/False and 1/0 are recognised as the SAME "
+        check("True/False and 1/0 are recognized as the SAME "
               "column, not a total mismatch",
               all(m["pass"] for m in R9["marginals"]
                   if m["column"] == "flag"))
@@ -269,7 +269,7 @@ def main():
               Path(ROOT / "scripts" / "phase2_pipeline.py")
               .read_text(encoding="utf-8"))
         check("the repository ignores pipeline run folders and "
-              "any real-data artefacts by default",
+              "any real-data artifacts by default",
               all(pat in (ROOT / ".gitignore").read_text(
                   encoding="utf-8")
                   for pat in ("data/phase2_run/", "data/real*/",
@@ -281,12 +281,12 @@ def main():
         # real-derived output into the repo root. That makes the list
         # a promise about NAMES, and a new runner writing new names
         # breaks it silently: `generated_*.csv` does not match
-        # `generated.csv`, so every artefact of the discover /
+        # `generated.csv`, so every artifact of the discover /
         # blueprint / generate path staged cleanly from a repo-root
         # run until this check existed.
         #
         # Scoped to that runner deliberately. The older pipeline's
-        # artefacts were audited when the section above was written;
+        # artifacts were audited when the section above was written;
         # this is the one that changed.
         import fnmatch
         pats = [ln.strip() for ln in
@@ -299,7 +299,7 @@ def main():
         uncovered = [n for n in writes
                      if not any(fnmatch.fnmatch(n, q) for q in pats)]
         check("every file run_discovery writes is ignored by NAME, so "
-              "an artefact landing in the repo from a machine holding "
+              "an artifact landing in the repo from a machine holding "
               "real data cannot be committed: {}".format(
                   ", ".join(writes)),
               not uncovered)
@@ -604,7 +604,7 @@ def main():
           and "Original" in _h and "Synthetic" in _h)
     check("...in the house palette - near-black ink, gray original, "
           "cardinal synthetic, system font - not the bench's "
-          "station colours",
+          "station colors",
           "-apple-system" in _h and "#8c1515" in _h
           and "#6e6e73" in _h)
     check("...and the report is ITSELF k-screened: source bins "
@@ -636,7 +636,7 @@ def main():
     # Press-and-hold pulls original and synthetic apart; release
     # lets them settle back into overlap - the fidelity claim,
     # performed. The script and styles are inline because this file
-    # must animate identically as a shared artefact with no network.
+    # must animate identically as a shared artifact with no network.
     # Verified fail-first: the pre-animation output fails this exact
     # contract.
     check("each chart's two series are grouped so they can move as "
@@ -653,7 +653,7 @@ def main():
     # THE HEATMAPS CROSSFADE IN PLACE, AND THE TITLE RIDES INSIDE
     # EACH LAYER. Holding fades each side into the other so a
     # differing pair blinks into view - and during the fade the
-    # half must be labelled by what it is SHOWING, or the
+    # half must be labeled by what it is SHOWING, or the
     # "Synthetic" panel would display original data under a false
     # heading. Fail-first: no hm layer exists in the prior build.
     check("the correlation heatmaps crossfade on hold - both cell "

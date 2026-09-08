@@ -14,7 +14,7 @@ been tested rather than merely stated.
 
 Two adversaries are run, because they have different powers:
 
-  nearest neighbour   sees only the synthetic data. Scores each
+  nearest neighbor   sees only the synthetic data. Scores each
                       candidate by how close the closest synthetic
                       record sits. The intuition an attacker would
                       actually have: "if a record like mine came
@@ -95,7 +95,7 @@ def _row_distance(a, b, num_cols, cat_cols, scales,
     return math.sqrt(d)
 
 
-def nearest_neighbour_attack(members, nonmembers, synthetic
+def nearest_neighbor_attack(members, nonmembers, synthetic
                              ) -> Dict[str, Any]:
     """Score by proximity to the closest synthetic record."""
     if not synthetic:
@@ -140,11 +140,11 @@ class BlueprintLikelihood:
     membership-inference test has been run against this path" - a
     design argument where there should be evidence.
 
-    The nearest-neighbour adversary needs no model and works on the
+    The nearest-neighbor adversary needs no model and works on the
     new path unchanged. The likelihood adversary needs something that
     scores a row, and a blueprint IS that: it publishes a quantile
     grid per numeric column and level shares per categorical one, so
-    the density it implies can be read straight off the artefact that
+    the density it implies can be read straight off the artifact that
     leaves the machine. Nothing here uses the source data - that is
     the point. An attacker has the blueprint and the synthetic rows,
     and nothing else.
@@ -373,7 +373,7 @@ def membership_audit(net, members, nonmembers,
     if synthetic:
         m = members[:nn_sample]
         nm = nonmembers[:nn_sample]
-        out["nearest_neighbour"] = nearest_neighbour_attack(
+        out["nearest_neighbor"] = nearest_neighbor_attack(
             m, nm, synthetic[:2000])
     aucs = [v["auc"] for k, v in out.items()
             if isinstance(v, dict) and "auc" in v]

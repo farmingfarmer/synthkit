@@ -3,8 +3,8 @@ breaks nothing next to it.
 
 THE FIXTURE REPRODUCES THE FAULT FIRST. Both properties are planted at
 values derived from the real extract's measured statistics, and the
-suite asserts the OLD behaviour fails on them before asserting the new
-behaviour passes. A guard verified only against a shape invented here
+suite asserts the OLD behavior fails on them before asserting the new
+behavior passes. A guard verified only against a shape invented here
 passes while failing on the shape that exists.
 
   clustered missingness   a 44%-covered vital, planted with excess
@@ -16,7 +16,7 @@ passes while failing on the shape that exists.
   a persistent value      icc 0.5 with within-patient drift, the
                           split the pooled autocorrelation cannot see
 
-AND THE NEIGHBOURING PROPERTY IS CHECKED IN THE SAME TEST. Steadiness
+AND THE NEIGHBORING PROPERTY IS CHECKED IN THE SAME TEST. Steadiness
 and missingness were fixed and broken in one commit once, because only
 one of them was measured afterwards. Every dynamics check here is
 paired with the marginal, the coverage and the relationship it could
@@ -83,7 +83,7 @@ def source(n_pat=320, n_vis=10, seed=17):
 
 def stats(df, col, time_col="visit_no", group="person_id"):
     # NOT a rename of the generated frame: `visit_no` is itself a
-    # modelled column, so renaming visit_number onto it makes two
+    # modeled column, so renaming visit_number onto it makes two
     # columns share a name and every later lookup returns a frame.
     X, _, _, _, _ = prepare(df, group)
     d = measure(df, X, group, time_col)
@@ -120,7 +120,7 @@ def main():
           dyn["icc"] > 0.3 and dyn["within_lag1"] > 0.3
           and dyn["lag1_total"] > dyn["icc"])
 
-    # ---- OLD behaviour must FAIL these ---------------------------
+    # ---- OLD behavior must FAIL these ---------------------------
     # Dialling both to zero is exactly what the first generator did.
     off = json.loads(json.dumps(bp))
     off["columns"]["vital"]["dials"]["missing_clustering"] = 0.0
@@ -133,7 +133,7 @@ def main():
     check("...and WITHOUT it the value does not persist either",
           s_off["icc"] < 0.15 and s_off["lag1_total"] < 0.15)
 
-    # ---- WITH the modelling --------------------------------------
+    # ---- WITH the modeling --------------------------------------
     g = generate(bp, n_patients=320, seed=3)
     gs = stats(g, "vital", "visit_number")
     check("generated missingness now CLUSTERS like the source - runs "
@@ -150,7 +150,7 @@ def main():
           "visit-to-visit steadiness actually means",
           abs(gs["lag1_total"] - src["lag1_total"]) < 0.10)
 
-    # ---- the neighbouring properties, in the same test -----------
+    # ---- the neighboring properties, in the same test -----------
     sv = pd.to_numeric(df["vital"], errors="coerce")
     gv = pd.to_numeric(g["vital"], errors="coerce")
     check("COVERAGE is untouched by the clustering - the chain's "
@@ -202,7 +202,7 @@ def main():
     check("...and white noise carries no lag-1 correlation either",
           abs(pooled_lag1(r.normal(0, 1, n), idx, idx + 1)) < 0.1)
     check("the within-AR is DERIVED from the pooled lag-1 against the "
-          "icc, and inverts exactly - measuring it by centring on "
+          "icc, and inverts exactly - measuring it by centering on "
           "each patient's own mean is attenuated, and feeding that "
           "back attenuates it a second time until the property "
           "vanishes from the output",
@@ -382,7 +382,7 @@ def main():
           .format(_lag1(d_i, "kid")),
           abs(_lag1(d_i, "kid") - 0.70) < 0.06)
 
-    # AND THE NEIGHBOURING PROPERTIES. The noise is independent of the
+    # AND THE NEIGHBORING PROPERTIES. The noise is independent of the
     # parents whichever way it is arranged, so rearranging it must not
     # move the marginal or how much the parents explain.
     ms, ss = [], []
@@ -390,7 +390,7 @@ def main():
         y = pd.to_numeric(_gen(_kid_bp(0.30, 0.0), n_patients=400,
                                seed=s)["kid"]).to_numpy()
         ms.append(float(y.mean())); ss.append(float(y.std()))
-    check("the centre is untouched by the rearrangement ({:+.3f}, "
+    check("the center is untouched by the rearrangement ({:+.3f}, "
           "against -0.041 before it)".format(float(_np.mean(ms))),
           abs(float(_np.mean(ms))) < 0.10)
     # THE BASELINE HAS MOVED TWICE AND EACH MOVE IS A FIX ARRIVING:
@@ -513,7 +513,7 @@ def main():
     # The presence mask used to be applied inside the column loop, so
     # a child read NaN for any parent not measured on that row.
     # `_curve_delta` coerces a parent to numeric, NaN falls back to
-    # the curve's own centre, and the relationship contributed exactly
+    # the curve's own center, and the relationship contributed exactly
     # nothing - silently, which is the shape of every other no-op this
     # repo has been bitten by.
     #
@@ -583,7 +583,7 @@ def main():
           abs(float(_p1.notna().mean()) - 0.45) < 0.05)
     check("...and the run says the mask was applied after the "
           "relationships, so the ordering is visible rather than "
-          "inferred from behaviour",
+          "inferred from behavior",
           _rep_m.get("masked_after_relationships") == 1)
 
     print()

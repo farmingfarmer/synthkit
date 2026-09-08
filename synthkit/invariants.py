@@ -5,7 +5,7 @@ patients whose year of birth changed between their own visits. The
 blueprint DECLARED that column patient-level; generation drew it once
 per patient, correctly; and a later pass put visit-to-visit variation
 back into it. Every fidelity number stayed green, because fidelity
-measures RESEMBLANCE - coverage, centre, spread, steadiness - and a
+measures RESEMBLANCE - coverage, center, spread, steadiness - and a
 column can resemble its source in every aggregate while violating a
 property the source holds on every single row. The defect was caught
 by a person reading two numbers off a photograph, one round trip too

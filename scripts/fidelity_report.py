@@ -21,9 +21,9 @@ FIDELITY compares, column by column and pair by pair:
 PRIVACY asks the only question that matters: is any synthetic
 record too close to a real person? It measures
   exact matches         must be zero
-  nearest-neighbour     distance from each synthetic record to its
+  nearest-neighbor     distance from each synthetic record to its
                         closest source record, compared against the
-                        source's OWN internal nearest-neighbour
+                        source's OWN internal nearest-neighbor
                         distances. Synthetic records must sit no
                         closer to real records than real records
                         already sit to each other — otherwise the
@@ -236,7 +236,7 @@ def nn_distances(A, B, numcols, catcols, stats, sample, seed=5):
 # interesting relationship is gone. A U-shaped dependence has rank
 # correlation near zero; an interaction is invisible to any
 # pairwise measure. These tests compare the SHAPE of dependence —
-# how one column's behaviour changes across bins of another, and
+# how one column's behavior changes across bins of another, and
 # how that changes again across a third — so the scorecard can
 # fail for the reasons that actually matter.
 # ===============================================================
@@ -721,7 +721,7 @@ def main() -> None:
     d_ss = d_ss[sum(1 for d in d_ss if d == 0.0):] or d_ss
     # Calibrated closeness test. If the synthetic set behaves like an
     # independent draw, about 5% of its records should fall below
-    # the source's own 5th-percentile nearest-neighbour distance.
+    # the source's own 5th-percentile nearest-neighbor distance.
     # Substantially more than that means the generator is hugging
     # real individuals — the interpolation failure mode.
     cut = pctl(d_ss, 0.05) if d_ss else 0.0
@@ -886,7 +886,7 @@ def main() -> None:
             exact, "none — required" if exact == 0
             else "LEAK — a synthetic row equals a real row"))
         if d_gs and d_ss:
-            print("  nearest-neighbour distance to a real record")
+            print("  nearest-neighbor distance to a real record")
             print("      synthetic -> source   min {:.3f}  p05 "
                   "{:.3f}  median {:.3f}".format(
                       min(d_gs), pctl(d_gs, .05), pctl(d_gs, .5)))

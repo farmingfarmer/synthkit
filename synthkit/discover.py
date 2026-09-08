@@ -58,9 +58,9 @@ from .dates import (DATE_ORIGIN, date_kind, from_datetime,
                     labeller, to_ordinal)
 from . import sets as _sets
 from .quantities import ordinal_spec, quantity_kind, to_number
-from .shapes import (FLAT_SHARE, additive_departure, curve_centre,
+from .shapes import (FLAT_SHARE, additive_departure, curve_center,
                      describe, describe_joint, effect_curve,
-                     joint_surface, surface_centre)
+                     joint_surface, surface_center)
 
 # HistGradientBoosting bins categoricals into at most 255 slots.
 MAX_LEVELS = 200
@@ -79,7 +79,7 @@ LAG_SUFFIXES = ("__prev", "__delta")
 # `coverage_delta` 0.0 - coverage counts PRESENCE, so the column was
 # destroyed with every per-column check green. What a date means as a
 # number lives in `dates.py`, because generation needs the inverse and
-# must not import a modelling library to format a string.
+# must not import a modeling library to format a string.
 
 
 def _is_numeric(s: pd.Series) -> bool:
@@ -146,7 +146,7 @@ def prepare(df: pd.DataFrame,
     if expand_by not in ("frequency", "signal"):
         raise ValueError(
             "expand_by must be 'frequency' or 'signal', not "
-            "{!r} - an unrecognised value would silently fall back "
+            "{!r} - an unrecognized value would silently fall back "
             "to whichever branch happened to be first".format(
                 expand_by))
 
@@ -443,19 +443,19 @@ def _residual_spread(y_true, y_pred, groups, k: int = 10):
     idx = np.clip(np.searchsorted(edges, y_pred, side="right") - 1,
                   0, len(edges) - 2)
 
-    centres, mults, published = [], [], 0
+    centers, mults, published = [], [], 0
     for b in range(len(edges) - 1):
         m = idx == b
         if int(m.sum()) < 20:
-            centres.append(float(np.mean(edges[b:b + 2])))
+            centers.append(float(np.mean(edges[b:b + 2])))
             mults.append(1.0)
             continue
         if g is not None and len(np.unique(g[m])) < k:
-            centres.append(float(np.mean(edges[b:b + 2])))
+            centers.append(float(np.mean(edges[b:b + 2])))
             mults.append(1.0)
             continue
         sd = float(np.std(resid[m]))
-        centres.append(float(np.mean(y_pred[m])))
+        centers.append(float(np.mean(y_pred[m])))
         mults.append(round(min(max(sd / overall, 0.1), 4.0), 4))
         published += 1
 
@@ -466,7 +466,7 @@ def _residual_spread(y_true, y_pred, groups, k: int = 10):
     # nothing, and the fallback already behaves that way.
     if max(mults) / max(min(mults), 1e-9) < 1.25:
         return None
-    return {"at": [round(c, 6) for c in centres],
+    return {"at": [round(c, 6) for c in centers],
             "multiplier": mults,
             "bins_published": published,
             "bins": len(mults),
@@ -488,10 +488,10 @@ def _set_family(col: str, columns) -> List[str]:
     finding that mattered.
 
     Siblings go too. Two tokens co-occurring IS a real thing to know,
-    but `sets.py` says plainly that co-occurrence is not modelled and
+    but `sets.py` says plainly that co-occurrence is not modeled and
     generation draws tokens independently - so discovering it would
     put a relationship in the report that nothing downstream can
-    honour, and a finding that cannot be acted on reads exactly like
+    honor, and a finding that cannot be acted on reads exactly like
     one that can."""
     base = _sets.source_of(col)
     if base is None:
@@ -583,13 +583,13 @@ def discover(df: pd.DataFrame,
     # a fixture and 69% on the real extract; "what explains this
     # combination string" is not a question anyone asked. The
     # indicators are the targets now, which is also how a token comes
-    # to be explained by its neighbours.
+    # to be explained by its neighbors.
     #
     # It stays in the frame: the blueprint builds the list marginal
     # from it, and generation still emits the column itself.
     set_sources = set(_sets_found)
 
-    # An engineered feature is scaffolding, never a target. Modelling
+    # An engineered feature is scaffolding, never a target. Modeling
     # one asks "what explains last visit's age" and answers "this
     # visit's age" - arithmetic dressed as a finding, and it topped
     # the catalogue by skill on the first run that worked.
@@ -843,7 +843,7 @@ def discover(df: pd.DataFrame,
                     continue
                 p["effect"] = dict(cur)
                 p["effect"]["centre"] = round(
-                    curve_centre(cur, X_all[p["column"]]), 6)
+                    curve_center(cur, X_all[p["column"]]), 6)
                 p["effect"].update(describe(
                     cur, p["column"], target, spread,
                     fmt_parent=labeller(dates.get(p["column"])),
@@ -894,7 +894,7 @@ def discover(df: pd.DataFrame,
                                 base_pred)), 4)
                         except Exception:
                             cm["skill"] = None
-                        cm["centre"] = round(curve_centre(
+                        cm["centre"] = round(curve_center(
                             cm, X_all[p["column"]]), 6)
                         d0 = describe(
                             cm, p["column"], target, spread,
@@ -985,7 +985,7 @@ def discover(df: pd.DataFrame,
                               FLAT_SHARE * max(spread, 1e-9))
                     joint["pair"] = [top[0]["column"],
                                      top[1]["column"]]
-                    joint["centre"] = round(surface_centre(
+                    joint["centre"] = round(surface_center(
                         surf, X_all[top[0]["column"]],
                         X_all[top[1]["column"]]), 6)
                     if dep is not None and dep >= bar:

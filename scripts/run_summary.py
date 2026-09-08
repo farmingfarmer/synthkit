@@ -1,4 +1,4 @@
-"""Summarise a pipeline run in a form that survives a terminal.
+"""Summarize a pipeline run in a form that survives a terminal.
 
     python scripts/run_summary.py --run DIR [--width 56]
 
@@ -87,8 +87,8 @@ def main():
     out = []
     out.append("RUN {}".format(run.name))
     out.append("model bytes {}".format(model_p.stat().st_size))
-    out.append("columns modelled {}".format(
-        rep.get("columns_modelled")))
+    out.append("columns modeled {}".format(
+        rep.get("columns_modeled")))
     out.append("bins {}".format(rep.get("bins")))
     out.append("effective n {} of {} rows".format(
         rep.get("effective_n"), rep.get("rows")))

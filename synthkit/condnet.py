@@ -64,11 +64,11 @@ DP_MAX_ROWS_PER_PERSON = 12
 # supported by twelve people should not yield a point estimate as
 # confident as one supported by twelve hundred, so every table is
 # shrunk toward its own marginal by a pseudo-count. This is where
-# thin-data behaviour lives, and raw maximum likelihood is
+# thin-data behavior lives, and raw maximum likelihood is
 # overconfident exactly where it can least afford to be.
 SMOOTHING = 1.0
 
-# Neighbour smoothing — implemented, MEASURED, and off by default.
+# Neighbor smoothing — implemented, MEASURED, and off by default.
 #
 # The idea: a thin cell is better informed by the cells next door
 # than by the global marginal, because clinical relationships are
@@ -82,13 +82,13 @@ SMOOTHING = 1.0
 # a different way. Cells below k people are never published: they
 # BACK OFF to a smaller parent set, which borrows strength more
 # aggressively and more defensibly than averaging with a
-# neighbour. Every cell that survives to be smoothed already has
+# neighbor. Every cell that survives to be smoothed already has
 # enough support that smoothing is arithmetically negligible.
 #
 # Left in place and set to zero: if k is ever lowered so that
 # genuinely thin cells reach publication, raising this is the
 # first thing to try.
-NEIGHBOUR_WEIGHT = 0.0
+NEIGHBOR_WEIGHT = 0.0
 
 # A column is DERIVED when another column determines it almost
 # perfectly — a count computed from a list, an age computed from a
@@ -118,7 +118,7 @@ NEIGHBOUR_WEIGHT = 0.0
 # heart-failure patients a diuretic scored 0.22 here and was filed
 # as bookkeeping — which would have deleted the most interesting
 # finding in the data and called it tidying up. Anything a
-# clinician would recognise as a fact about patients must survive
+# clinician would recognize as a fact about patients must survive
 # to the findings.
 DERIVED_ENTROPY_RATIO = 0.05
 
@@ -190,11 +190,11 @@ def _num(v) -> Optional[float]:
 
 
 def _median_of(rows, col) -> float:
-    """The centring constant a product feature was built with.
+    """The centering constant a product feature was built with.
 
     It must match synthkit.engineered exactly - lower-middle element
     of the sorted present values - or the regenerated product is
-    centred somewhere else and stops meaning what the learned table
+    centered somewhere else and stops meaning what the learned table
     says it means."""
     vals = sorted(v for v in (_num(r.get(col)) for r in rows)
                   if v is not None)
@@ -358,7 +358,7 @@ class Binning:
         means a cell holding ten rows can be one person's ten
         visits, and k-anonymity on rows would be no protection at
         all. With no groups supplied each row is its own unit, so
-        behaviour is unchanged."""
+        behavior is unchanged."""
         gs = groups or [str(i) for i in range(len(values))]
         pairs = [(v, g) for v, g in zip(values, gs)
                  if str(v).strip() != ""]
@@ -373,7 +373,7 @@ class Binning:
             # be quantile-binned: the quantiles collapse onto the
             # same value, the column reads as constant and gets
             # dropped. That silently destroyed outcome columns, so
-            # low-cardinality numerics are modelled by their actual
+            # low-cardinality numerics are modeled by their actual
             # values instead.
             if len(distinct) <= max(2 * max_bins, 12):
                 by_v = defaultdict(set)
@@ -554,7 +554,7 @@ class Binning:
             # p1/p99 to avoid publishing anyone's true extreme, the
             # synthetic distribution would come out narrower than
             # the source. So the outermost bins reach a little
-            # beyond their edge, by the width of the neighbouring
+            # beyond their edge, by the width of the neighboring
             # interval — the tail regains its spread while every
             # emitted extreme is an extrapolation rather than a
             # copy of a real measurement.
@@ -697,7 +697,7 @@ class CondNet:
         return total, max(df, 1)
 
     def _unmodellable(self, col, values, n_rows, groups=None):
-        """None if the column may be modelled, else why not.
+        """None if the column may be modeled, else why not.
 
         Bound: a categorical's transition table has levels^2 cells, so
         levels^2 must not exceed the observations available to fill
@@ -713,7 +713,7 @@ class CondNet:
         if _looks_like_date(present):
             return ("date: not a category. The calendar carries "
                     "identity; the signal is in ELAPSED TIME, which "
-                    "is NOT YET modelled - so this column is a net "
+                    "is NOT YET modeled - so this column is a net "
                     "LOSS of temporal information until it is")
         # A numeric column is quantile-binned, so its transition table
         # is bins^2 and already bounded. Applying the level bound to it
@@ -725,7 +725,7 @@ class CondNet:
             # let it straight through. The level test cannot see an
             # integer key because a numeric column never becomes
             # levels at all: visit_id survived the first version of
-            # this guard, was modelled, and was GENERATED, coming out
+            # this guard, was modeled, and was GENERATED, coming out
             # steadier visit to visit (0.591) than its own source
             # (0.209). Integer, unique on essentially every row,
             # present on essentially every row: that is a key, not a
@@ -749,7 +749,7 @@ class CondNet:
         # "too many levels" bound cannot see it. visit_id is distinct
         # on every row, so no value is held by k patients, the level
         # count is zero, and it sailed through this guard - then got
-        # modelled and GENERATED, coming out steadier visit to visit
+        # modeled and GENERATED, coming out steadier visit to visit
         # (0.591) than the source it was learned from (0.209). A
         # column present on every row that no k patients share a value
         # of is an identifier, not a variable.
@@ -783,10 +783,10 @@ class CondNet:
         dozen candidate relationships instead of asking the
         machine to find everything collapses the correction and
         buys roughly a doubling of effective sample size, measured.
-        Columns outside the hypotheses are still modelled from
+        Columns outside the hypotheses are still modeled from
         their marginals, so generated data stays complete.
 
-        `multilevel` recognises that not every question costs the
+        `multilevel` recognizes that not every question costs the
         same amount of data. Collapsing to the patient count is
         right for a BETWEEN-person effect — "do elderly patients
         have more events?" has as many independent observations as
@@ -815,8 +815,8 @@ class CondNet:
         else:
             self.groups = [str(i) for i in range(n)]
         # Column names that are purely numeric or blank are almost
-        # always an artefact of a headerless index or a malformed
-        # export, not a clinical field. Modelling them produces
+        # always an artifact of a headerless index or a malformed
+        # export, not a clinical field. Modeling them produces
         # nonsense like `column "4" is determined by column "1"`.
         odd = [c for c in cols
                if not str(c).strip()
@@ -876,11 +876,11 @@ class CondNet:
         if self.list_columns:
             rows = expanded_rows
 
-        # ---- columns that must not be modelled as categories ----
+        # ---- columns that must not be modeled as categories ----
         # Runs AFTER list expansion so the indicators it produces are
         # judged, not the raw list columns it consumes.
         #
-        # A date is not a category. Modelled as one, its transition
+        # A date is not a category. Modeled as one, its transition
         # table is levels^2 over the calendar, and the size of that
         # depends on the COHORT: at 92 patients no single date clears
         # the k-patient floor, so every date column collapses to one
@@ -967,9 +967,9 @@ class CondNet:
             self.level[c] = ("visit" if share > 0.25
                              else "patient")
 
-        # ---- within-person centred encodings ----
+        # ---- within-person centered encodings ----
         # Binning each value's deviation from its own patient's
-        # mean makes associations between centred columns
+        # mean makes associations between centered columns
         # within-person BY CONSTRUCTION: stable patient traits are
         # differenced away and cannot confound them.
         # ---- how a patient's course unfolds ----
@@ -1472,7 +1472,7 @@ class CondNet:
                            for j in range(n)] if parents else None)
                     # If BOTH sides move within a person, the
                     # comparison can be made inside patients: use
-                    # the centred encodings, and the degrees of
+                    # the centered encodings, and the degrees of
                     # freedom that a within-person comparison
                     # actually has. If either side is a fixed
                     # patient trait, only between-person evidence
@@ -1706,11 +1706,11 @@ class CondNet:
                     cells[cfg][enc[c][j]] += 1
                     people[cfg].add(self.groups[j])
                 # which parent positions are ordinal (numeric
-                # bins b0, b1, ...) — only those have neighbours
+                # bins b0, b1, ...) — only those have neighbors
                 ordinal = [ix for ix, pn in enumerate(ps)
                            if self.binnings[pn].kind == "numeric"]
 
-                def neighbours(cfg_str):
+                def neighbors(cfg_str):
                     parts = cfg_str.split("|")
                     out = []
                     for ix in ordinal:
@@ -1737,7 +1737,7 @@ class CondNet:
                         continue          # falls back at sampling
                     marg = self.marginal[c]
                     nb_acc, nb_tot = Counter(), 0
-                    for nb_cfg in neighbours(cfg):
+                    for nb_cfg in neighbors(cfg):
                         nb = cells.get(nb_cfg)
                         if not nb:
                             continue
@@ -1765,7 +1765,7 @@ class CondNet:
                         # of to "we're certain", which is what a
                         # privacy budget should buy.
                         a_s = SMOOTHING + self._dp_scale
-                    w_s = NEIGHBOUR_WEIGHT if nb_tot else 0.0
+                    w_s = NEIGHBOR_WEIGHT if nb_tot else 0.0
                     syms = set(cnt) | set(marg) | set(nb_acc)
                     table[cfg] = {
                         s: (cnt.get(s, 0)
@@ -2053,7 +2053,7 @@ class CondNet:
                 if group_by else
                 "no grouping declared — every row treated as an "
                 "independent unit"),
-            "columns_modelled": len(self.order),
+            "columns_modeled": len(self.order),
             "columns_dropped_no_variation": dropped,
             "edges": [{"child": c, "parents": self.parents[c]}
                       for c in self.order

@@ -5,7 +5,7 @@
                                       [--time-col COL] [--seeds 0,1,2]
 
 WHY THIS EXISTS. Every fidelity number this project has reported is
-ABSOLUTE - "centre within 10% of spread on 31/33 columns", against
+ABSOLUTE - "center within 10% of spread on 31/33 columns", against
 nothing. A structural generator that learns marginals, a relationship
 graph, effect curves, dynamics, interactions and constraints is a
 large thing to own, and until now nothing established that it beats
@@ -29,7 +29,7 @@ is the same reason `pair_fidelity_sweep` shares its discovery.
 READ THE ARMS THIS WAY. The baselines carry no within-patient
 dynamics at all, so losing to synthkit on steadiness and clustering is
 what a row-wise model IS, not a finding. The measures that carry
-information are coverage, centre, spread, and above all the PAIR
+information are coverage, center, spread, and above all the PAIR
 measures - if a structural graph cannot beat one correlation matrix at
 keeping relationships, the graph is not earning its keep.
 

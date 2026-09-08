@@ -1,6 +1,6 @@
 """Smoke: the generated column sits where the source column sat.
 
-THE GAP THIS ATTACKS. The 800-patient run put centre within a tenth of
+THE GAP THIS ATTACKS. The 800-patient run put center within a tenth of
 the column's own spread on 18 of 34 numeric columns. Sixteen columns
 were somewhere else entirely and nothing said why.
 
@@ -111,7 +111,7 @@ def main():
     broke = [n for n, _, must_fail in shapes if must_fail
              and err_of(old_draw(marg[n], u), src[n]) > BAR]
     check("THE FIXTURE REPRODUCES THE FAULT: the old draw misses the "
-          "centre bar on {} - a fixture where it passed would prove "
+          "center bar on {} - a fixture where it passed would prove "
           "nothing about the fix".format(", ".join(broke) or "nothing"),
           len(broke) == 2)
     check("...and it misses it in the direction the run reported - "
@@ -124,16 +124,16 @@ def main():
     # ---- THE FIX --------------------------------------------------
     for name, _raw, _mf in shapes:
         e = err_of(_draw_numeric(marg[name], u), src[name])
-        check("{:<16} centre within {:.0%} of spread ({:.3f})"
+        check("{:<16} center within {:.0%} of spread ({:.3f})"
               .format(name, BAR, e), e <= BAR)
 
-    # ---- THE NEIGHBOURING PROPERTIES ------------------------------
+    # ---- THE NEIGHBORING PROPERTIES ------------------------------
     # A draw can be made to hit the mean and be wrong everywhere else.
     for name in ("heavy tail", "left-skewed"):
         s, m = src[name], marg[name]
         old_sd = float(np.std(old_draw(m, u)))
         new_sd = float(np.std(_draw_numeric(m, u)))
-        check("{}: SPREAD improves too, not just the centre - "
+        check("{}: SPREAD improves too, not just the center - "
               "{:.1f} against a source {:.1f}, from {:.1f}"
               .format(name, new_sd, float(s.std()), old_sd),
               abs(new_sd - float(s.std())) < abs(old_sd - float(s.std())))
@@ -207,7 +207,7 @@ def main():
               .format(col, BAR, e), e <= BAR)
     # ---- SPREAD IS ASSERTED NOW, AND EXPLAINED WHEN IT MISSES ----
     # `6690_2` came out at 27% of its source spread on the real run
-    # and passed every check, because its centre was fine. A shortfall
+    # and passed every check, because its center was fine. A shortfall
     # is not automatically a fault though: when the variance belongs
     # to fewer than k patients, the published bound removes it on
     # purpose. Both cases are planted here.
@@ -275,7 +275,7 @@ def main():
           "minus year of birth on 100% of source rows and {:.1%} of "
           "generated ones".format(held), held < 0.6)
     check("...and every OTHER check still passes on it, which is why "
-          "this one had to exist - centre {}/{} and spread {}/{}"
+          "this one had to exist - center {}/{} and spread {}/{}"
           .format(s3["centre_ok"], s3["numeric"],
                   s3["spread_ok"], s3["numeric"]),
           s3["centre_ok"] == s3["numeric"])
@@ -409,13 +409,13 @@ def main():
     miss5 = sm5.get("spread_miss") or {}
     check("a ceiling-piled column that loses its low tail to the k "
           "rule is ATTRIBUTED to the bound - the share is measured as "
-          "deviation from the centre, which is what spread is",
+          "deviation from the center, which is what spread is",
           not miss5
           or (miss5.get("share_of_magnitude_outside_bounds") or 0) > 0.1)
 
     # ---- A CONSTRAINT MUST BE EXACT AND COMMENSURATE ------------
     # A real run found 77 "constraints" of which most were scale
-    # artefacts - span_days <= spo2, span_days <= systolic - and the
+    # artifacts - span_days <= spo2, span_days <= systolic - and the
     # one that mattered was buried among them.
     rr6 = np.random.RandomState(3)
     npat6, nvis6 = 400, 12
@@ -440,7 +440,7 @@ def main():
           "dates, and blood pressures",
           ("visit_start", "visit_end") in got
           and ("diastolic", "systolic") in got)
-    check("...and a SCALE ARTEFACT is not: a length of stay is below "
+    check("...and a SCALE ARTIFACT is not: a length of stay is below "
           "an oxygen saturation on every row and means nothing, and "
           "swapping the two to 'repair' it would destroy both",
           ("span_days", "spo2") not in got

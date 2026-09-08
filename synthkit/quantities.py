@@ -16,7 +16,7 @@ causes it, and this module removes three common causes.
 Deliberately NOT here:
 
   booleans      TRUE/FALSE and Y/N make a two-level categorical, and
-                a two-level categorical is modelled correctly. There
+                a two-level categorical is modeled correctly. There
                 is nothing to fix.
   ordinals      DECLARED, never detected. mild/moderate/severe has
                 an order and north/south/east/west does not, and no
@@ -126,7 +126,7 @@ def quantity_kind(s: pd.Series) -> Optional[Dict[str, Any]]:
             "seconds": bool(m["s"].notna().any()),
             "unparsed_share": round(1.0 - share, 6),
             "note": "minutes since midnight; the wrap at midnight is "
-                    "not modelled",
+                    "not modeled",
         }
     return None
 

@@ -63,7 +63,7 @@ DO: in the browser (`synthkit gui`), the left rail reads two routes.
 Point at them.
 
 SAY: "Two ways in. The top rail invents data from an English
-description. The second rail - same step numbers, same colours -
+description. The second rail - same step numbers, same colors -
 measures data you already have. Today we take the measure route."
 
 DO: click **01 Source** (second rail). Fill the three fields:
@@ -81,9 +81,9 @@ SEE: every column listed with its type; `meds` as a SET of tokens;
 lines saying how many patients stand behind each categorical level.
 
 SAY: "Two seconds, and it has read every column - numbers, dates,
-categories, and it recognised the medication list as a *list*, not a
+categories, and it recognized the medication list as a *list*, not a
 blob of text. **keep**: It also says, per column, whether
-anonymisation will destroy it - before we spend a minute on
+anonymization will destroy it - before we spend a minute on
 anything. Every silent failure this tool ever had started with a
 column read as the wrong type, so this cheap check always runs
 first."

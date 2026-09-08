@@ -88,7 +88,7 @@ def main():
                              c["b"])) == frozenset(("age",
                                                     "glucose"))]
         check("measured correlation strength is in the right "
-              "neighbourhood of the planted one",
+              "neighborhood of the planted one",
               got and 0.6 <= abs(got[0]["spearman"]) <= 0.95)
         sconf = [s for s in P["joint"]["conditional_shifts"]
                  if s["confirmed"]]
@@ -159,7 +159,7 @@ def main():
               and N["joint"]["multiple_comparisons"]
               ["correlation_z_threshold"] > 1.96)
 
-        # ---------- fitting behaviour ----------
+        # ---------- fitting behavior ----------
         r3 = random.Random(3)
         rows3 = [{"logn": round(math.exp(r3.gauss(1.0, 0.5)), 3),
                   "norm": round(r3.gauss(100, 10), 2),
@@ -181,7 +181,7 @@ def main():
               "and fits the non-zero body",
               0.5 <= F["columns"]["zeros"].get("zero_inflation", 0)
               <= 0.7)
-        check("a 0/1 column is recognised as binary with a rate",
+        check("a 0/1 column is recognized as binary with a rate",
               F["columns"]["flag"]["kind"] == "binary")
 
         # ---------- correlations in the CORE planner ----------

@@ -120,7 +120,7 @@ def main():
         T = [c for c in df.columns if c.startswith("tangle_")]
         nb = [abs(float(df[T[i]].corr(df[T[(i + 1) % len(T)]])))
               for i in range(len(T))]
-        check("neighbours in the ring really do predict each other "
+        check("neighbors in the ring really do predict each other "
               "(mean |r| {:.2f}), or the cycle is nominal".format(
                   float(np.mean(nb))), float(np.mean(nb)) > 0.5)
 

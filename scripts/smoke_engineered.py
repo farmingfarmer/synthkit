@@ -1,11 +1,11 @@
 """Smoke: manufacture the features a pairwise search cannot see,
 without manufacturing all of them.
 
-The centring is the load-bearing part. An exclusive-or is visible in
+The centering is the load-bearing part. An exclusive-or is visible in
 (a - median_a)*(b - median_b) because that product is negative exactly
-when one factor is high and the other low; an UNCENTRED product cannot
-express it. The suite proves the centred form separates the cases and
-the uncentred one does not, rather than taking it on faith.
+when one factor is high and the other low; an UNCENTERED product cannot
+express it. The suite proves the centered form separates the cases and
+the uncentered one does not, rather than taking it on faith.
 """
 import random
 import sys
@@ -88,7 +88,7 @@ def main():
             name = c
     check("the pair that matters is among them", name is not None)
 
-    # the centring is what makes XOR visible
+    # the centering is what makes XOR visible
     def corr(xs, ys):
         m1, m2 = sum(xs) / len(xs), sum(ys) / len(ys)
         nu = sum((p - m1) * (q - m2) for p, q in zip(xs, ys))
@@ -96,22 +96,22 @@ def main():
               * sum((q - m2) ** 2 for q in ys)) ** 0.5
         return nu / de if de else 0.0
     ys = [float(r["y"]) for r in out]
-    centred = [float(r[name]) for r in out]
-    uncentred = [float(r["a"]) * float(r["b"]) for r in out]
+    centered = [float(r[name]) for r in out]
+    uncentered = [float(r["a"]) * float(r["b"]) for r in out]
     check("neither factor alone predicts the outcome - the definition "
           "of a pure interaction, and why a pairwise search is blind "
           "to it",
           abs(corr([float(r["a"]) for r in out], ys)) < 0.12
           and abs(corr([float(r["b"]) for r in out], ys)) < 0.12)
-    check("the CENTRED product does predict it",
-          abs(corr(centred, ys)) > 0.6)
-    check("...and an UNCENTRED product does NOT, which is why the "
-          "centring is not a detail",
-          abs(corr(uncentred, ys)) < abs(corr(centred, ys)) / 2.0)
+    check("the CENTERED product does predict it",
+          abs(corr(centered, ys)) > 0.6)
+    check("...and an UNCENTERED product does NOT, which is why the "
+          "centering is not a detail",
+          abs(corr(uncentered, ys)) < abs(corr(centered, ys)) / 2.0)
 
     # budget
     _o2, r2 = add_product_features(rows, sorted(un), budget=2)
-    check("a budget is honoured and the truncation is REPORTED, not "
+    check("a budget is honored and the truncation is REPORTED, not "
           "silent - a partial search that reads as complete is worse "
           "than one that says so",
           r2["pairs_tried"] == 2 and r2["truncated"] is True

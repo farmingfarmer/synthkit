@@ -1,4 +1,4 @@
-"""One row per measurement, and why that shape is modelled wrong.
+"""One row per measurement, and why that shape is modeled wrong.
 
 WHY THIS EXISTS. A large share of real clinical extracts arrive LONG:
 one row per measurement, with a concept column naming what was
@@ -18,7 +18,7 @@ deciles run 1.1, 7.3, 74.2, 106.7, 139.9, which is not any lab.
 
 AND NOTHING CATCHES IT. Coverage is 100%. The sentinel guard has
 nothing to fire on, because the concept column really is a small
-clean categorical. Centre and spread pass, because each per-column
+clean categorical. Center and spread pass, because each per-column
 check is about the column as presented and the column as presented is
 internally coherent. It is the same silent class as a date read as
 200 levels, and it survives every test for the same reason.
@@ -26,7 +26,7 @@ internally coherent. It is the same silent class as a date read as
 WHAT IS MEASURED HERE. The correlation ratio - the share of the value
 column's variance explained by knowing which concept the row is. That
 IS the harm, stated directly: at 0.94 the pooled distribution is
-almost entirely an artefact of stacking; near 0.0 the column is
+almost entirely an artifact of stacking; near 0.0 the column is
 genuinely one quantity and there is nothing to fix.
 
 DETECTED ALWAYS, PIVOTED ONLY ON REQUEST. Reporting is free and
@@ -44,7 +44,7 @@ import numpy as np
 import pandas as pd
 
 # Above this share of variance explained by the concept, the pooled
-# column is more artefact than quantity. Set where it is because a
+# column is more artifact than quantity. Set where it is because a
 # genuinely single quantity that happens to differ a little by
 # category - systolic pressure by ward, say - sits far below it, while
 # stacked unrelated labs sit far above. Reported with the number, so a
@@ -81,7 +81,7 @@ def correlation_ratio(values: pd.Series, labels: pd.Series) -> float:
 def detect(df: pd.DataFrame,
            group_by: Optional[str] = None,
            time_col: Optional[str] = None) -> List[Dict[str, Any]]:
-    """Concept/value pairs whose pooled column is mostly artefact.
+    """Concept/value pairs whose pooled column is mostly artifact.
 
     Strongest first. Each entry says whether it can actually be
     pivoted and, when it cannot, why - an unactionable finding that

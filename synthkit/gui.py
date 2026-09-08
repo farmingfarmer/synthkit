@@ -79,7 +79,7 @@ def _start_job(fn, payload: dict, budget_s: float = None) -> str:
     _JOBS[job_id] = {"status": "running",
                      "started": time.time(),
                      "budget": float(budget_s or JOB_BUDGET_S),
-                     "cancelled": False}
+                     "canceled": False}
 
     def work():
         try:
@@ -104,8 +104,8 @@ def api_job(payload: dict) -> dict:
         return {"error": "unknown job"}
     elapsed = round(time.time() - job["started"], 1)
     status = job["status"]
-    if status == "running" and job.get("cancelled"):
-        status = "cancelled"
+    if status == "running" and job.get("canceled"):
+        status = "canceled"
     elif status == "running" and elapsed > job.get(
             "budget", JOB_BUDGET_S):
         status = "timeout"
@@ -123,8 +123,8 @@ def api_job(payload: dict) -> dict:
                         "to move on.".format(
                             int(job.get("budget",
                                         JOB_BUDGET_S))))
-    elif status == "cancelled":
-        out["error"] = ("cancelled — the current backend call "
+    elif status == "canceled":
+        out["error"] = ("canceled — the current backend call "
                         "may run to completion in the "
                         "background, then stop")
     return out
@@ -134,7 +134,7 @@ def api_job_cancel(payload: dict) -> dict:
     job = _JOBS.get(payload.get("id", ""))
     if job is None:
         return {"error": "unknown job"}
-    job["cancelled"] = True
+    job["canceled"] = True
     return {"ok": True}
 
 
@@ -944,8 +944,8 @@ def api_learn_audit(payload: dict) -> dict:
         lines.append(aud["reading"].split(". ", 1)[-1])
     return {"verdict": aud["verdict"], "auc": aud["worst_auc"],
             "likelihood": aud["likelihood"]["auc"],
-            "nearest_neighbour": aud.get(
-                "nearest_neighbour", {}).get("auc"),
+            "nearest_neighbor": aud.get(
+                "nearest_neighbor", {}).get("auc"),
             "people": aud.get("members_are_people"),
             "plain": lines}
 
@@ -1203,7 +1203,7 @@ def api_fit_log(payload: dict) -> dict:
 
 def api_fit_open(payload: dict) -> dict:
     """A finished run, judged. Reads only the run directory - the
-    same artefacts the CLI wrote - and the gate criteria come from
+    same artifacts the CLI wrote - and the gate criteria come from
     synthkit.gate, the ONE place they are defined."""
     from . import gate as _gate
     run = Path(str(payload.get("out") or "")).expanduser()
@@ -1292,7 +1292,7 @@ def api_deck(payload: dict) -> dict:
 
     The heavy lifting is `fidelity_deck.build_deck`, the SAME code
     that writes the roadshow file - so the interactive dashboard in
-    the bench and the artefact the team receives are one picture, by
+    the bench and the artifact the team receives are one picture, by
     construction. The HTML comes back as a string the page drops
     into a sandboxed iframe, so the deck's own styles never touch
     the bench's."""
@@ -1779,7 +1779,7 @@ label{font-size:13.5px;color:#2c3a45;font-weight:600}
 /* ================================================
    STEP SYSTEM LAYER (appended: later wins)
 
-   The bench had one accent colour and numbered every
+   The bench had one accent color and numbered every
    control 1.1, 1.2, 4.7 - so nothing told you at a glance
    WHICH step you were in, and a sub-number like 4.7 read
    as a version rather than as "the seventh thing in step
@@ -1791,19 +1791,19 @@ label{font-size:13.5px;color:#2c3a45;font-weight:600}
    number that means something else.
 
    The tabs are the one loud thing on the page. Everything
-   else stays quiet so the colour means "where am I".
+   else stays quiet so the color means "where am I".
    ================================================ */
 :root{
   /* THE HOUSE PALETTE, AND WHY EIGHT HUES BECAME TWO.
      The rainbow existed to make the parallel routes unmistakable,
      but the foolproofing never lived in the hues - it lives in the
      step numbers, the rail labels, the you-need/you-get banners and
-     the next footers, which all carry the meaning in words. Colour
+     the next footers, which all carry the meaning in words. Color
      is reinforcement: CARDINAL means the create route, GOLD means
-     the measure route, grey/ink/white is everything shared. Two
+     the measure route, gray/ink/white is everything shared. Two
      accents answer "which route, which step" faster than six, and a
-     colour-blind reader loses nothing because the words never
-     depended on the colour. */
+     color-blind reader loses nothing because the words never
+     depended on the color. */
   --cardinal:#8C1515; --cardinal-lo:#A94343; --cardinal-wash:#FDFAFA;
   --gold:#B3995D;     --gold-lo:#C9B37E;     --gold-wash:#FDFCF8;
   --slate:#3D4046;    --slate-lo:#5B5F66;    --slate-wash:#FAFAFB;
@@ -2129,7 +2129,7 @@ textarea:focus,input:focus,select:focus{
    THE LIVING LOADER. A long run used to be a wall of log text and
    an elapsed counter - nothing on screen MOVED, so a healthy
    33-minute fit was indistinguishable from a hang. The loader is
-   always in motion: a milled track, a fill with a travelling sheen,
+   always in motion: a milled track, a fill with a traveling sheen,
    a breathing dot. When the log names its stage the bar is TRUE
    progress parsed from the run's own countdown lines; when nothing
    is parseable it sweeps as a comet rather than pretending to know.
@@ -2729,13 +2729,13 @@ textarea:focus,input:focus,select:focus{
 </section>
 <section id="s-fitsrc" data-step="1">
   <div class="stepbanner"><span class="stepchip">Measure &middot; step 1 of 3</span><span>Point at a real CSV</span></div>
-  <dl class="stepgoal"><dt>you need</dt><dd>A tidy CSV on THIS machine (one row per visit), and an output directory of your choosing &mdash; outside any repository. Nothing leaves this machine.</dd><dt>you get</dt><dd>Every column typed, in seconds &mdash; and whether each can SURVIVE anonymisation, before anything expensive runs.</dd></dl>
+  <dl class="stepgoal"><dt>you need</dt><dd>A tidy CSV on THIS machine (one row per visit), and an output directory of your choosing &mdash; outside any repository. Nothing leaves this machine.</dd><dt>you get</dt><dd>Every column typed, in seconds &mdash; and whether each can SURVIVE anonymization, before anything expensive runs.</dd></dl>
   <div class="panel">
     <h2>Point at the data</h2>
     <label>source CSV path
       <input id="fsrc" placeholder="full path to the tidy CSV"></label>
     <label>output directory <span class="hint">(yours to choose; created if missing; keep it out of any repo)</span>
-      <input id="fout" placeholder="full path for this run's artefacts"></label>
+      <input id="fout" placeholder="full path for this run's artifacts"></label>
     <label>patient / entity column
       <input id="fgroup" value="person_id"></label>
     <label><input type="checkbox" id="flags" checked> include lag features (slower, needed for temporal patterns)</label>
@@ -2752,7 +2752,7 @@ textarea:focus,input:focus,select:focus{
 
 <section id="s-fitrun" data-step="2">
   <div class="stepbanner"><span class="stepchip">Measure &middot; step 2 of 3</span><span>Measure the blueprint, then generate</span></div>
-  <dl class="stepgoal"><dt>you need</dt><dd>A source and output directory from Step 1, with the types read correctly.</dd><dt>you get</dt><dd>A k-anonymous blueprint measured from the data, generated rows drawn to it, and the full findings file &mdash; the same artefacts a terminal run writes, because this button RUNS the command line.</dd></dl>
+  <dl class="stepgoal"><dt>you need</dt><dd>A source and output directory from Step 1, with the types read correctly.</dd><dt>you get</dt><dd>A k-anonymous blueprint measured from the data, generated rows drawn to it, and the full findings file &mdash; the same artifacts a terminal run writes, because this button RUNS the command line.</dd></dl>
   <div class="panel">
     <h2>Fit and generate</h2>
     <button class="act" onclick="fitRun()">Fit and generate
@@ -2836,7 +2836,7 @@ textarea:focus,input:focus,select:focus{
     <div class="ev">BUILT: count, coverage, shift, scale, persistence, clustering &mdash; each reports requested AGAINST achieved, because a dial can be capped by privacy and a silent difference is the failure this tool refuses.</div>
     <div class="ev">PLANNED: dials on individual relationships; the full per-class verification pass.</div></div>
   <div class="goal"><h3><span class="chip built">built &middot; ~85%</span> 5 &middot; High-fidelity generation</h3>
-    <div class="ev">MEASURED on the real extract: coverage 42/42, centre 30/33, set token shares 62/62, empty rates 4/4, zero inverted relationships, direction 93.9%. Against a statistical-copy ruler: 119 relationships kept to its 77.</div>
+    <div class="ev">MEASURED on the real extract: coverage 42/42, center 30/33, set token shares 62/62, empty rates 4/4, zero inverted relationships, direction 93.9%. Against a statistical-copy ruler: 119 relationships kept to its 77.</div>
     <div class="ev">REMAINING: one number &mdash; relationship strength within 0.2 on 76.5% of pairs against an 87.9% bar.</div></div>
   <div class="goal"><h3><span class="chip built">built &middot; ~80%</span> 6 &middot; Self-assessment for sign-off</h3>
     <div class="ev">BUILT: the six-criteria gate with an honest exit code; contradiction checks on the report AND the contract; row-level obedience checks that need no source data; diagnosis views. The run states its own privacy costs in place.</div>
@@ -2846,7 +2846,7 @@ textarea:focus,input:focus,select:focus{
     <div class="ev">PLANNED: the loop assembled END TO END on the data machine &mdash; every part exists, the single run has not happened.</div></div>
   <div class="goal"><h3><span class="chip planned">planned &middot; ~45%</span> 8 &middot; Our own challenger, and one report card</h3>
     <div class="ev">BUILT: the structurally-blinded baseline solver; the ceiling / ours / vendor line in the campaign machinery.</div>
-    <div class="ev">PLANNED: the report-card artefact from a real end-to-end run, then a challenger worth the name beyond the floor.</div></div>
+    <div class="ev">PLANNED: the report-card artifact from a real end-to-end run, then a challenger worth the name beyond the floor.</div></div>
   <div class="hint">Overall, equal-weighted: about 63%. What remains
   is mostly assembly plus two genuine unknowns &mdash; and unknowns,
   not assembly, are what move dates. Projection: core complete
@@ -2885,7 +2885,7 @@ document.querySelectorAll('.station').forEach(btn=>{
     /* The heading sits OUTSIDE every section, so it cannot
        inherit the step's hue from the section it describes.
        Stamping the step on <main> puts the whole bench, heading
-       included, into the colour of wherever you are. */
+       included, into the color of wherever you are. */
     document.querySelector('main').dataset.step=
       btn.dataset.step||'1';
     document.querySelector('main').dataset.route=
@@ -3287,8 +3287,8 @@ async function learnAudit(){
         '</span></div>';}
     h+='<div class="hint" style="margin-top:8px">Two adversaries '+
       'were run. One saw only the generated data ('+
-      (d.nearest_neighbour===null?'not run':
-       d.nearest_neighbour.toFixed(3))+'); the other was handed '+
+      (d.nearest_neighbor===null?'not run':
+       d.nearest_neighbor.toFixed(3))+'); the other was handed '+
       'the model itself ('+d.likelihood.toFixed(3)+'), because '+
       'that is what a determined attacker would have. The '+
       'verdict takes the stronger of the two.</div>';
@@ -3597,7 +3597,7 @@ async function poll(jobId,outId,render){
     else{clearInterval(t);activeJob=null;
       loaderDone(outId,j.status==='done');
       if(j.status==='error'||j.status==='timeout'
-        ||j.status==='cancelled'){out(outId,j.error,'bad');}
+        ||j.status==='canceled'){out(outId,j.error,'bad');}
       else{render(j.result);}}},1500);}
 
 async function campaignRun(){

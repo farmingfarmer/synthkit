@@ -232,7 +232,7 @@ def main():
     it2 = cl2[0].get("interaction") if cl2 else None
     check("the interaction is still found UNDER it, because the "
           "trigger is departure from ADDITIVITY rather than distance "
-          "travelled",
+          "traveled",
           it2 is not None and set(it2["pair"]) == {"a2", "b2"})
     check("...and the departure is close to the interaction actually "
           "planted, so the number means something",

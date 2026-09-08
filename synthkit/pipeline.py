@@ -167,7 +167,7 @@ def build_parser(prog=None, add_help=True):
     ap.add_argument("--refine-sweeps", type=int, default=2,
                     help="how many times to re-apply the parents that "
                          "had to be trimmed to order a cycle. 0 "
-                         "restores the older behaviour exactly, which "
+                         "restores the older behavior exactly, which "
                          "is the thing to try first if a cyclic "
                          "column looks wrong on real data - this has "
                          "not been measured on a real extract yet")
@@ -283,12 +283,12 @@ def main(argv=None, args=None):
     # combination - and the listing that catches them sat behind five
     # minutes of discovery. On a file nobody has looked at, that is
     # the wrong way round.
-    # ONE ROW PER MEASUREMENT IS MODELLED WRONG, SILENTLY, so this
+    # ONE ROW PER MEASUREMENT IS MODELED WRONG, SILENTLY, so this
     # runs BEFORE the type listing and before any discovery.
     #
     # It belongs with the cheap checks for the same reason the type
     # listing does: a value column stacking five labs has a marginal
-    # that describes none of them, and coverage, centre and spread
+    # that describes none of them, and coverage, center and spread
     # all pass on it. Learning that after five minutes of discovery
     # is learning it too late.
     #
@@ -741,7 +741,7 @@ def main(argv=None, args=None):
     s = fid["summary"]
     say("coverage within 0.05 on {}/{} columns".format(
         s["coverage_ok"], s["columns"]))
-    say("centre within 10% of spread on {}/{} numeric columns".format(
+    say("center within 10% of spread on {}/{} numeric columns".format(
         s["centre_ok"], s["numeric"]))
     # A COUNT CANNOT BE DIAGNOSED. 18/34 was reported once with
     # nothing to say which mechanism moved them, so the misses are
@@ -923,7 +923,7 @@ def verdicts(fid):
     """One line per column that failed something, naming what.
 
     THE COUNTS DO NOT TELL A READER WHICH COLUMNS TO DISTRUST. A run
-    reports coverage 42/42, centre 29/33, spread 30/33, persistence
+    reports coverage 42/42, center 29/33, spread 30/33, persistence
     29/33 and clustering 18/18, and every one of those is a different
     subset. Answering "can I use this column" meant opening
     fidelity.json and cross-referencing five lists by hand, which is
@@ -1014,7 +1014,7 @@ def render_verdicts(fid):
         for n in notes:
             L.append("        {}".format(n))
     L.append("")
-    L.append("A column absent from this list passed coverage, centre, "
+    L.append("A column absent from this list passed coverage, center, "
              "spread, steadiness")
     L.append("and every relationship it takes part in. That is not the "
              "same as being")
@@ -1041,7 +1041,7 @@ def _report_types(bp, df, say):  # noqa: C901
     from synthkit import sets as _SETS
     say("column types:")
     destroyed = []
-    # SCAFFOLDING IS SUMMARISED ON ITS SET'S OWN LINE, not listed.
+    # SCAFFOLDING IS SUMMARIZED ON ITS SET'S OWN LINE, not listed.
     # This block exists to be READ - one glance caught three silent
     # type faults - and twenty-five `conditions__has__t07  numeric
     # (whole numbers)` rows is how a list stops being glanced at.
@@ -1065,7 +1065,7 @@ def _report_types(bp, df, say):  # noqa: C901
         elif mg.get("type") == "list":
             # Named here rather than warned about. It was a warning
             # while nothing could model these; now that the set is
-            # modelled as a set, the honest report is what it became.
+            # modeled as a set, the honest report is what it became.
             sz = mg.get("set_size") or {}
             avg = sum(float(v) * float(p_) for v, p_
                       in zip(sz.get("v") or [1], sz.get("p") or [1.0]))
@@ -1189,7 +1189,7 @@ def _report_types(bp, df, say):  # noqa: C901
     # the combinations explode, and almost all of them fall under k.
     # The column would then be suppressed not because its values are
     # rare but because it is the wrong shape for a single categorical
-    # - the same class of fault as a date modelled as 200 labels.
+    # - the same class of fault as a date modeled as 200 labels.
     #
     # That is a HYPOTHESIS about those four columns and cannot be
     # settled from a machine with no clinical data on it. So the run
@@ -1201,7 +1201,7 @@ def _report_types(bp, df, say):  # noqa: C901
         lost = ((mg.get("suppressed_levels") or {}).get("share") or 0.0)
         lost += ((mg.get("tail") or {}).get("share_omitted") or 0.0)
         # Only columns that fell back to being ONE LABEL. A column
-        # already modelled as a set is not a problem to report.
+        # already modeled as a set is not a problem to report.
         if mg.get("type") != "levels" or lost < 0.05:
             continue
         if c not in df.columns:
@@ -1217,14 +1217,14 @@ def _report_types(bp, df, say):  # noqa: C901
                               int(vals.nunique())))
                 break
     if listy:
-        say("these look LIST-VALUED but could NOT be modelled as sets "
+        say("these look LIST-VALUED but could NOT be modeled as sets "
             "- too few tokens cleared k, so every combination is "
             "still its own level:")
         for c, sep, share, lost, nun in listy:
             say("  {}: {:.0%} of values contain {!r}, {} distinct "
                 "combinations, {:.0%} of the column suppressed or "
                 "truncated".format(c, share, sep, nun, lost))
-        say("  (modelling these as a set of indicators rather than one "
+        say("  (modeling these as a set of indicators rather than one "
             "label would recover most of that)")
 
 
@@ -1368,7 +1368,7 @@ def render(bp, refine=True):
                 d["child"], ", ".join(d.get("parents") or [])))
         L.append("")
         L.append("Re-run with --refine-sweeps 0 to see the older "
-                 "behaviour, where these")
+                 "behavior, where these")
         L.append("parents really were dropped. The difference between "
                  "the two runs is the")
         L.append("evidence for whether the sweeps help on YOUR data - "
@@ -1585,7 +1585,7 @@ def _pair_fidelity(Xs, Xg, bp):
     """Did the RELATIONSHIPS survive, not just the columns?
 
     Everything else here checks one column at a time - its coverage,
-    its centre, its steadiness. A table can pass all of it and carry
+    its center, its steadiness. A table can pass all of it and carry
     no structure between columns at all, which is the classic way a
     synthetic generator looks right and is useless.
 
@@ -1856,12 +1856,12 @@ def compare(df, g, bp, group_by, time_col, ordinals=None,
                 "sd_source": round(sd, 4),
                 "sd_generated": round(float(q.std() or 0.0), 4)})
             # SPREAD WAS RECORDED AND NEVER ASSERTED. Coverage,
-            # centre, persistence and clustering all had a bar; the
+            # center, persistence and clustering all had a bar; the
             # standard deviation sat in the file with nothing checking
             # it. On the 800-patient run `6690_2` came out at 27% of
             # its source spread - three quarters of the column's
             # variance gone - and passed every check, because its
-            # CENTRE was fine at 7.05 against 7.05.
+            # CENTER was fine at 7.05 against 7.05.
             #
             # A shortfall is not automatically a fault. Reproduced
             # here: when five patients hold values above the published
@@ -1885,7 +1885,7 @@ def compare(df, g, bp, group_by, time_col, ordinals=None,
                     # Squared raw values are dominated by the mean on
                     # any column that does not sit near zero, so a
                     # clipped tail looks like nothing. Measured on an
-                    # spo2-shaped column centred at 98.6 whose low
+                    # spo2-shaped column centered at 98.6 whose low
                     # tail the k rule removes: this reported 0.0%
                     # where the honest answer is 26.5%, and a real
                     # run then read `spo2 48% of source (0% beyond
@@ -1893,7 +1893,7 @@ def compare(df, g, bp, group_by, time_col, ordinals=None,
                     # that was the privacy rule all along.
                     #
                     # Spread is a statement about deviation from the
-                    # centre, so the attribution has to be too.
+                    # center, so the attribution has to be too.
                     lo_b, hi_b = float(vv[0]), float(vv[-1])
                     sv = s.astype(float)
                     total = float(((sv - sv.mean()) ** 2).sum())

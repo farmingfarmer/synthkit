@@ -186,7 +186,7 @@ def main():
           "recovering most of the way".format(grow_on),
           grow_on > 1.3)
 
-    # THE NEIGHBOURING PROPERTY, in the same test.
+    # THE NEIGHBORING PROPERTY, in the same test.
     s_sd = float(df["y"].std())
     for name, frame in (("with", g_on), ("without", g_off)):
         ratio = float(pd.to_numeric(frame["y"],

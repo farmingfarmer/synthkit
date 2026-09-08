@@ -143,7 +143,7 @@ def run_arm(label, rows_tr, rows_te, args, correction):
         "correction": correction,
         "comparisons_corrected_for":
             net.report.get("comparisons_corrected_for"),
-        "columns_modelled": net.report.get("columns_modelled"),
+        "columns_modeled": net.report.get("columns_modeled"),
         "bins": net.report.get("bins"),
         "found": len(out),
         "reproduced": sum(1 for e in out if e["reproduced"]),

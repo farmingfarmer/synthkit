@@ -7,7 +7,7 @@ evidence beside each is not. Milestone letters refer to the roadmap
 agreed 2026-08-25.
 
 The one-line summary: **the middle of the pipeline (discover ->
-anonymise -> generate -> verify) is strong and measured; the edges
+anonymize -> generate -> verify) is strong and measured; the edges
 (intake breadth, PHI scrubbing, the vendor-facing loop run
 end-to-end) are where the remaining work lives.**
 
@@ -118,13 +118,13 @@ on this page.
   written into findings.txt, because a dial can be capped by the k
   bound or undone by constraint repair — a silent difference is the
   failure this tool exists to refuse. Unknown dial names are errors.
-- shift and scale act independently about the PUBLISHED centre
+- shift and scale act independently about the PUBLISHED center
   (they used to fight; measured and fixed).
 
 **What remains**
 - M5: every dial class verified requested-vs-achieved with its
-  neighbouring properties asserted (the shift/scale fight was found
-  exactly because neighbours were not asserted).
+  neighboring properties asserted (the shift/scale fight was found
+  exactly because neighbors were not asserted).
 - Dials over relationships (strengthen/weaken a specific edge) —
   designed nowhere yet; honest gap against "any pattern in any
   proportion".
@@ -137,7 +137,7 @@ on this page.
 ## Goal 5 — High-fidelity generation   **~85%**
 
 **What works, measured — on the real extract**
-- Coverage 42/42; centre within 10% of spread on 30/33 (was 18/34);
+- Coverage 42/42; center within 10% of spread on 30/33 (was 18/34);
   set token shares 62/62 (was 54 of 91 missing); set EMPTY rates
   4/4 including the zero point-mass fix; inverted relationships 0;
   direction kept 108/115 = 93.9%.
@@ -190,7 +190,7 @@ seed noise flips it, so a seed sweep should precede any claim.
 **What works, measured**
 - `semisynth.plant/verify`: effects declared in standard
   deviations, planted +0.9/-0.5 recovered at +0.86/-0.44, a
-  no-effect column reads +0.03, intercept solved not centred,
+  no-effect column reads +0.03, intercept solved not centered,
   achieved-vs-requested reported.
 - `bridge.py`: measured marginals cross into the evaluation
   TableSpec as quantiles (every decile within 0.03 of a source sd

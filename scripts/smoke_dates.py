@@ -31,7 +31,7 @@ THE FIXTURE IS DERIVED FROM MEASURED STATISTICS, named here:
                       because a 4-digit year must NOT be swept up as a
                       date - it is numeric and stays numeric
 
-AND THE NEIGHBOURING PROPERTIES ARE CHECKED IN THE SAME SUITE.
+AND THE NEIGHBORING PROPERTIES ARE CHECKED IN THE SAME SUITE.
 Coverage is what made the fault invisible, so coverage is asserted
 unchanged. The identifier guard runs after the type branch, so a
 near-unique date is asserted to still be dropped as a key. A
@@ -125,7 +125,7 @@ def main():
     X, ident, dates, _, _ = prepare(df, "person_id")
 
     # ---- THE FIX --------------------------------------------------
-    check("a date column is recognised and typed as numeric, so it "
+    check("a date column is recognized and typed as numeric, so it "
           "can carry a relationship instead of being 200 unordered "
           "labels",
           "visit_start_date" in X.columns
@@ -260,7 +260,7 @@ def main():
     # The point of typing dates as numbers is that something can
     # DEPEND on one. This is also where formatting them too early
     # hides: a date rendered to text before its children are drawn
-    # reads back as NaN, every curve falls to its own centre, and the
+    # reads back as NaN, every curve falls to its own center, and the
     # relationship applies nothing while all the per-column checks
     # stay green. So the relationship is measured in the OUTPUT, not
     # asserted from the blueprint.

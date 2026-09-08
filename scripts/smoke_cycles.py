@@ -249,7 +249,7 @@ def main():
                                       clus),
               abs(float(np.mean(got)) - target) < 0.05)
 
-    # AND THE NEIGHBOURING PROPERTY: preserving coverage by quietly
+    # AND THE NEIGHBORING PROPERTY: preserving coverage by quietly
     # skipping the column would pass the check above and refine
     # nothing, which is the silent no-op this repo has been bitten by.
     rep_s = {}

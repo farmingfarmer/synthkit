@@ -1,6 +1,6 @@
 """Turning the dials, and checking they turned.
 
-WHY THIS EXISTS. `blueprint.resolve` has honoured shift, scale,
+WHY THIS EXISTS. `blueprint.resolve` has honored shift, scale,
 coverage, persistence, missing clustering, relationship strength,
 patient count and visits scale since the blueprint existed, and
 `smoke_generate` proves each one changes the output. There was no way
@@ -32,7 +32,7 @@ the detected column. A dial has three ways to do that quietly:
 
 `verify` re-measures the generated data and reports requested against
 achieved for every dial. It does not judge - a bounded scale is
-correct behaviour - it just refuses to let the difference go unsaid.
+correct behavior - it just refuses to let the difference go unsaid.
 """
 from __future__ import annotations
 
