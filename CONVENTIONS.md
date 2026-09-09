@@ -4,7 +4,7 @@ Synthetic clinical data generator and model-evaluation instrument. Core rule: le
 
 ## Verify before claiming
 
-- Run `python scripts/run_all_smokes.py` before claiming anything works. Expect 67 suites, 1864 checks, ALL GREEN **on a checkout**. Off a zipball extract - which is what the data machine runs - it is 1855: nine checks in `smoke_buildid` need git to test the archive path and report SKIPPED without it. Both numbers were measured. Do not quote the checkout number to the data machine; that is how a correct run gets read as a failure.
+- Run `python scripts/run_all_smokes.py` before claiming anything works. Expect 67 suites, 1867 checks, ALL GREEN **on a checkout**. Off a zipball extract - which is what the data machine runs - it is 1858: nine checks in `smoke_buildid` need git to test the archive path and report SKIPPED without it. Both numbers were measured. Do not quote the checkout number to the data machine; that is how a correct run gets read as a failure.
 - **THE DEVELOPMENT MACHINE WAS BEHIND THE DATA MACHINE, and that is
   how a green suite here failed there.** Dev was on Python 3.10 with
   pandas 2.3; the data machine installs fresh and got pandas 3.0.5,
@@ -1270,6 +1270,19 @@ what follows is what came out wrong anyway.
   is noise. And fail-first done wrong: `git stash` of the WHOLE
   tree stashes the new checks too and proves nothing - stash only
   the source files, watch the kept checks go red, pop.
+
+- **FRICTION GETS A LOADER; DONE GETS A LIGHT.** The types check
+  sat silent between button press and response - the operator hit
+  it - and an audit found six more synchronous gaps with the same
+  silence (open-run, bridge, compile, learn, learn-generate,
+  ladder). Every await shows the living loader now. And completion
+  is SAID, twice: a jade lamp on the rail tile, and a completion
+  strip in the panel - "Step complete. You are free to move on -
+  next: ..." - whose next-step name is read from the section's own
+  nextup footer, so the strip and the footer cannot name different
+  destinations. A clean types check completes the Source step
+  immediately; it used to wait for the whole fit, which
+  contradicted the promise the step makes.
 
 ## Talking to the data machine
 

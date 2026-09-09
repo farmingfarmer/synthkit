@@ -1090,6 +1090,38 @@ def main():
               "who asked for reduced motion",
               html.count("prefers-reduced-motion") >= 2)
 
+        # FRICTION GETS A LOADER, EVERYWHERE. The types check sat
+        # silent between button and response - the one gap the
+        # operator hit - and compile, learn, bridge and the ladder
+        # had the same gap. Every synchronous await now shows the
+        # living loader.
+        check("every button-to-response gap shows the living "
+              "loader - types, open-run, bridge, compile, learn, "
+              "generate, ladder",
+              "loaderSet('fit-out'" in html
+              and "loaderSet('fit-verdict'" in html
+              and "loaderSet('fit-bridgeout'" in html
+              and "loaderSet('compile-out'" in html
+              and "loaderSet('learn-out'" in html
+              and "loaderSet('learn-gen-out'" in html
+              and "loaderSet('campaign-out'" in html)
+        # DONE IS A LIGHT, NOT A GUESS. A finished step shows a
+        # jade lamp on its rail tile and a completion strip in the
+        # panel saying the operator is free to move on, naming the
+        # next step off the section's own nextup footer.
+        check("a completed step lights a jade lamp on its tile and "
+              "plants a completion strip naming the next step",
+              ".station.done::before" in html
+              and "@keyframes lampon" in html
+              and 'class="stepdone"' in html.replace(
+                  "className='stepdone'", 'class="stepdone"')
+              and "Step complete." in html
+              and "You are free to move on" in html
+              and ".nextup b" in html)
+        check("...and a clean types check completes the Source "
+              "step - the tick no longer waits for the full fit",
+              "if(!r.error)tick('fitsrc')" in html)
+
         # THE FITTED PATH IS IN THE BENCH. Until it was, a demo
         # through the UI showed the FIRST engine - the last month of
         # measured work was unreachable from the interface built to

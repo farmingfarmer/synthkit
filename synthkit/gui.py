@@ -2109,6 +2109,32 @@ h1 .tstep,.stepbanner .stepchip,.stepno{
 .chip.planned{background:linear-gradient(180deg,#fff,var(--slate-wash));
   color:#5b6675;border:1px solid var(--rule);box-shadow:var(--card)}
 
+/* DONE IS A LIGHT, NOT A GUESS. A finished step shows a jade
+   lamp on its rail tile and a completion strip in its panel naming
+   the next step - the operator should never wonder whether they
+   are free to move on. */
+.station.done::before{content:"";position:absolute;
+  right:11px;top:11px;width:9px;height:9px;border-radius:50%;
+  background:radial-gradient(circle at 35% 30%,#7fd6ac,#2e7d55);
+  box-shadow:0 0 0 2px #fff,0 0 8px rgba(46,125,85,.55),
+    inset 0 1px 1px rgba(255,255,255,.6);
+  animation:lampon .6s cubic-bezier(.22,1,.36,1)}
+@keyframes lampon{from{transform:scale(.2);opacity:0}
+  to{transform:scale(1);opacity:1}}
+.stepdone{display:flex;align-items:center;gap:10px;
+  margin:16px 0 6px;padding:12px 16px;border-radius:11px;
+  background:linear-gradient(180deg,#FFFFFF,#F4FAF7);
+  border:1px solid #D8EAE0;border-left:5px solid #2e7d55;
+  font-size:14px;box-shadow:var(--card);
+  animation:lampon .5s cubic-bezier(.22,1,.36,1)}
+.stepdone .lamp{width:10px;height:10px;border-radius:50%;
+  flex:none;
+  background:radial-gradient(circle at 35% 30%,#7fd6ac,#2e7d55);
+  box-shadow:0 0 8px rgba(46,125,85,.55),
+    inset 0 1px 1px rgba(255,255,255,.6)}
+@media (prefers-reduced-motion:reduce){
+  .station.done::before,.stepdone{animation:none}}
+
 /* WHAT NOW: the gate's failed criteria come with their options,
    clearly labeled, from the shared gate module */
 .whatnow{margin-top:14px;padding:14px 16px;background:#fff;
@@ -2957,10 +2983,12 @@ async function loadPresets(){
 async function compileSpec(){
   if(!gate(['english'],'compile-out'))return;
   out('compile-out','compiling via local model...');
+  loaderSet('compile-out',null,'compiling via local model');
   const d=await api('/api/compile',{
     description:document.getElementById('english').value,
     kind:document.getElementById('kind').value,
     backend:document.getElementById('backend').value});
+  loaderDone('compile-out',!d.error);
   if(d.error){out('compile-out',d.error,'bad');return;}
   try{setSpec(JSON.parse(d.raw_json));}catch(e){}
   out('compile-out',d.ok?
@@ -3102,7 +3130,9 @@ async function learnRun(){
   if(UPLOADED&&!document.getElementById('lpath').value){
     req.filename=UPLOADED.filename;req.content=UPLOADED.content;
   }else{req.path=document.getElementById('lpath').value;}
+  loaderSet('learn-out',null,'reading and measuring the file');
   const d=await api('/api/learn',req);
+  loaderDone('learn-out',!d.error);
   if(d.error){out('learn-out',d.error,'bad');return;}
   renderLearn(d);}
 function renderLearn(d){
@@ -3168,11 +3198,13 @@ function dialMove(el){
 async function learnGenerate(){
   out('learn-gen-out','creating records from the learned '+
     'patterns...');
+  loaderSet('learn-gen-out',null,'creating records');
   const d=await api('/api/learn-generate',{
     rows:parseInt(document.getElementById('lrows').value)||1000,
     transcribe:document.getElementById('lnotes').checked,
     hierarchical:document.getElementById('lhier').checked,
     dials:LEARN_DIALS});
+  loaderDone('learn-gen-out',!d.error);
   if(d.error){out('learn-gen-out',d.error,'bad');return;}
   var msg='Created '+d.rows+' records with '+d.columns+
     ' fields, drawn from the learned patterns.';
@@ -3426,7 +3458,21 @@ function barsExplain(){
 function tick(step){
   var b=document.querySelector(
     '.station[data-s="'+step+'"]');
-  if(b)b.classList.add('done');}
+  if(!b)return;
+  b.classList.add('done');
+  /* the completion strip: says the step is finished and names
+     where to go, inside the panel where the operator is looking */
+  var sec=document.getElementById('s-'+step);
+  if(sec&&!document.getElementById('sd-'+step)){
+    var strip=document.createElement('div');
+    strip.className='stepdone';strip.id='sd-'+step;
+    var nx=sec.querySelector('.nextup b');
+    strip.innerHTML='<span class="lamp"></span><b>Step complete.'+
+      '</b> You are free to move on'+
+      (nx?(' \u2014 next: '+nx.textContent):'')+'.';
+    var anchor=sec.querySelector('.nextup');
+    if(anchor)sec.insertBefore(strip,anchor);
+    else sec.appendChild(strip);}}
 document.addEventListener('input',paintReady);
 document.addEventListener('change',paintReady);
 window.addEventListener('load',function(){
@@ -3518,11 +3564,13 @@ async function campaignCompile(){
     .split(',').forEach(p=>{const[k,v]=p.split('=');
     if(k&&v)bars[k.trim()]=parseFloat(v);});
   out('campaign-out','compiling ladder...');
+  loaderSet('campaign-out',null,'compiling the ladder');
   const d=await api('/api/campaign-compile',{
     goal:document.getElementById('goal').value,
     spec:document.getElementById('spec').value,
     bars:bars,outcome:document.getElementById('outcome').value,
     out:''});
+  loaderDone('campaign-out',!d.error);
   if(d.error){out('campaign-out',d.error,'bad');return;}
   campaignDir=d.campaign_dir;saveSession();
   out('campaign-out',d.title+' -> '+d.campaign_dir+'\n\n'+d.tiers.map((t,i)=>
@@ -3795,8 +3843,11 @@ function fitPayload(){
 async function fitTypes(){
   const o=document.getElementById('fit-out');
   o.textContent='reading the columns...';
+  loaderSet('fit-out',null,'reading the columns');
   const r=await api('/api/fit-types',fitPayload());
-  o.textContent=r.error?('STOPPED: '+r.error):r.text;}
+  loaderDone('fit-out',!r.error);
+  o.textContent=r.error?('STOPPED: '+r.error):r.text;
+  if(!r.error)tick('fitsrc');}
 let fitJob='',fitTimer=null;
 async function fitRun(){
   const o=document.getElementById('fit-runout');
@@ -3832,8 +3883,10 @@ async function fitPoll(){
 async function fitOpen(){
   const v=document.getElementById('fit-verdict');
   v.innerHTML='<div class="hint">reading the run...</div>';
+  loaderSet('fit-verdict',null,'reading the run');
   const r=await api('/api/fit-open',
                     {out:document.getElementById('fout').value});
+  loaderDone('fit-verdict',!r.error);
   if(r.error){v.innerHTML='';
     const d=document.createElement('div');d.className='hint';
     d.textContent='STOPPED: '+r.error;v.appendChild(d);return;}
@@ -3869,8 +3922,10 @@ async function fitOpen(){
 async function fitBridge(){
   const o=document.getElementById('fit-bridgeout');
   o.textContent='bridging the blueprint...';
+  loaderSet('fit-bridgeout',null,'bridging the blueprint');
   const r=await api('/api/fit-bridge',
                     {out:document.getElementById('fout').value});
+  loaderDone('fit-bridgeout',!r.error);
   if(r.error){o.textContent='STOPPED: '+r.error;return;}
   setSpec(r.spec);
   const k=document.getElementById('kind');
