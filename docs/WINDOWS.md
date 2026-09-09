@@ -123,6 +123,13 @@ every one covering the discover/blueprint/generate path — failing on
 their import line and reading as broken code. Running both commands
 is harmless.
 
+**Optional, for the dashboard's driver attribution:** `pip install
+shap` enables the "drivers, attributed" section (SHAP shares per
+driver, original beside synthetic, and the strongest jointly-acting
+pair). It pulls numba, which is a heavier install than the core
+stack - so it is NOT required: without it the report states the
+omission and everything else works unchanged.
+
 **Python 3.10 or newer.** Those four packages all require it. The
 package used to claim 3.8, which did not fail cleanly on an older
 interpreter — pip resolved whatever ancient versions still supported
@@ -146,13 +153,13 @@ main(['version'])"` if -m is not wired).
 python scripts\run_all_smokes.py
 ```
 
-Expect: 67 suites, **1868** checks, ALL GREEN.
+Expect: 67 suites, **1870** checks, ALL GREEN.
 
 **That number is for THIS machine, and it is nine lower than the
 development machine's on purpose.** Nine checks in `smoke_buildid`
 run `git archive` to prove the commit really is substituted into the
 download, and there is no git here to run it with - so they report
-SKIPPED and the total comes out at 1868 against 1877 on a
+SKIPPED and the total comes out at 1870 against 1879 on a
 checkout.
 Both were measured, the second by extracting an archive and running
 the whole net inside it. A total that does not match this page is

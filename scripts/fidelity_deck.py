@@ -915,6 +915,133 @@ def build_deck(src_path, run_dir, group_by="person_id",
                                 for nm, i in imps[:4]) + "</div>")
             body.append(svg)
 
+
+    # THE DRIVERS, ATTRIBUTED - SHAP on BOTH tables. Importance
+    # said which parents matter; SHAP says how much of each row's
+    # prediction each parent carries, and its interaction values
+    # rank which PAIRS act jointly - the question the operator
+    # asked ("what about interactions across more than two
+    # variables, non-linear?"). Attribution is computed on each
+    # table separately, so the paired bars answer a fidelity
+    # question too: does the synthetic data distribute the driving
+    # the same way the original does? Optional dependency, stated
+    # when absent - a silently missing section reads as "nothing
+    # to show".
+    try:
+        import shap as _shap
+        _HAS_SHAP = True
+    except Exception:
+        _HAS_SHAP = False
+    if not _HAS_SHAP:
+        body.append(
+            '<h2>The drivers, attributed</h2>'
+            '<p class="note">The optional <code>shap</code> package '
+            'is not installed on this machine, so driver '
+            'attribution and interaction ranking are omitted - '
+            'run <code>pip install shap</code> and rebuild this '
+            'report to see them. Nothing else on this page '
+            'depends on it.</p>')
+    else:
+        from sklearn.ensemble import HistGradientBoostingRegressor
+        _seen_children = []
+        _seen_names = set()
+        for skill, child, par, shape, desc, svg, gap, preds \
+                in cards[:8]:
+            if child in _seen_names:
+                continue
+            parents = [p.get("column") for p in (preds or [])
+                       if p.get("column") in src.columns
+                       and p.get("column") in gen.columns
+                       and not _sets.is_scaffolding(
+                           p.get("column"))]
+            parents = [p for p in parents
+                       if numeric(src[p]).notna().mean() > 0.5][:6]
+            if len(parents) < 2:
+                continue
+            _seen_children.append((child, parents))
+            _seen_names.add(child)
+        if _seen_children:
+            body.append('<h2>The drivers, attributed &mdash; '
+                        'SHAP, on both tables</h2>')
+            body.append(
+                '<p class="sub">For each pattern, a compact model '
+                'is trained on each table and every prediction is '
+                'split among the drivers (mean |SHAP|). Matching '
+                'bars mean the synthetic data distributes the '
+                'driving the way the original does. The strongest '
+                'jointly-acting pair comes from SHAP interaction '
+                'values - and whether the contract publishes a '
+                'surface for that pair is stated, because an '
+                'unmodeled interaction is a limitation to name, '
+                'not to hide.</p>')
+        for child, parents in _seen_children[:5]:
+            def _shares(frame):
+                import numpy as _n
+                cols = [numeric(frame[p]) for p in parents]
+                yv = numeric(frame[child])
+                ok = yv.notna()
+                for c in cols:
+                    ok &= c.notna()
+                if int(ok.sum()) < 120:
+                    return None, None
+                X = _n.column_stack(
+                    [c[ok].to_numpy(dtype=float)
+                     for c in cols])[:4000]
+                y = yv[ok].to_numpy(dtype=float)[:4000]
+                m = HistGradientBoostingRegressor(
+                    max_iter=60, random_state=0).fit(X, y)
+                ex = _shap.TreeExplainer(m)
+                sv = _n.abs(ex.shap_values(X[:1000])).mean(0)
+                tot = float(sv.sum()) or 1.0
+                return [float(v) / tot for v in sv], (ex, X)
+            ss, sx = _shares(src)
+            gs, _ = _shares(gen)
+            if ss is None or gs is None:
+                continue
+            rows_b = list(zip(parents, ss, gs))
+            rows_b.sort(key=lambda r: -r[1])
+            body.append('<h3>{} &mdash; who drives it</h3>'.format(
+                esc(child)))
+            body.append(bar_pairs_svg(rows_b))
+            # the strongest jointly-acting pair, on the original
+            try:
+                import numpy as _n
+                ex, X = sx
+                iv = _n.abs(ex.shap_interaction_values(
+                    X[:300])).mean(0)
+                best, bv = None, 0.0
+                for i in range(len(parents)):
+                    for j in range(i + 1, len(parents)):
+                        if iv[i, j] > bv:
+                            best, bv = (i, j), float(iv[i, j])
+                if best and bv > 0:
+                    pa, pb = parents[best[0]], parents[best[1]]
+                    pub_pairs = set()
+                    for rel in (bp.get("relationships") or []):
+                        if rel.get("child") != child:
+                            continue
+                        it = (rel.get("evidence") or {}).get(
+                            "interaction") or {}
+                        pr = it.get("pair") or []
+                        if len(pr) == 2:
+                            pub_pairs.add(frozenset(pr))
+                    modeled = frozenset((pa, pb)) in pub_pairs
+                    body.append(
+                        '<p class="note">Strongest jointly-acting '
+                        'pair (SHAP interaction, original): '
+                        '<b>{} &times; {}</b> &mdash; {}</p>'
+                        .format(esc(pa), esc(pb),
+                                'the contract publishes a surface '
+                                'for this pair, and its survival '
+                                'is gated above.' if modeled else
+                                'the contract does NOT publish a '
+                                'surface for this pair - a joint '
+                                'effect the generator will not '
+                                'reproduce. A limitation, '
+                                'stated.'))
+            except Exception:
+                pass
+
     # correlations
     if len(numeric_cols) >= 3:
         body.append('<h2>Correlation, original vs synthetic</h2>')

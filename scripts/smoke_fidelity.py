@@ -596,6 +596,14 @@ def main():
             0.8 * _df20["val"].astype(float)
             + _r20.normal(0, 2.5, _n20), 2)
         _df20["val3"] = _np2.round(_r20.normal(10, 3, _n20), 2)
+        # a TWO-parent child, so the SHAP attribution section has
+        # something to attribute - its own column, because a column
+        # added to a fixture other checks depend on once broke
+        # three of them
+        _df20["val4"] = _np2.round(
+            0.5 * _df20["val"].astype(float)
+            + 0.9 * _df20["val3"].astype(float)
+            + _r20.normal(0, 1.5, _n20), 2)
         _srcp = _d / "tiny.csv"
         _df20.to_csv(_srcp, index=False)
         _rundir = _d / "run"
@@ -622,6 +630,22 @@ def main():
              "-o", str(_deck), "--group-by", "person_id",
              "--compare", "5x=/no-such-run"],
             capture_output=True, text=True, cwd=str(ROOT))
+        # the SHAP omission path, captured while _rundir exists:
+        # block the import and rebuild in-process
+        import builtins as _bi
+        import fidelity_deck as _fd0
+        _real_imp = _bi.__import__
+
+        def _block(nm, *a, **k):
+            if nm == "shap":
+                raise ImportError("blocked by smoke check")
+            return _real_imp(nm, *a, **k)
+        _bi.__import__ = _block
+        try:
+            _doc_blocked, _ = _fd0.build_deck(
+                str(_srcp), str(_rundir), "person_id")
+        finally:
+            _bi.__import__ = _real_imp
     check("the deck writes a self-contained page with both series, "
           "gate chips and paired heatmaps",
           _r2.returncode == 0 and "<svg" in _h
@@ -839,6 +863,43 @@ def main():
                   "interaction surfaces")]}
           and all("[[dashboard]]" in v["inspect"]
                   for v in _g2.EXPLAIN.values()))
+
+    # THE DRIVERS, ATTRIBUTED - SHAP is OPTIONAL and its absence
+    # is STATED. When installed, each drawn pattern child with two
+    # or more numeric parents gets paired driver bars (original
+    # beside synthetic) and the strongest jointly-acting pair from
+    # SHAP interaction values, cross-referenced against whether the
+    # contract publishes a surface for it. When absent, the deck
+    # says so and names the install command - a silently missing
+    # section reads as "nothing to show".
+    try:
+        import shap as _shap_probe  # noqa: F401
+        _has_shap = True
+    except Exception:
+        _has_shap = False
+    if _has_shap:
+        check("with shap installed, the deck attributes drivers - "
+              "paired bars per parent and the strongest "
+              "jointly-acting pair, cross-referenced against the "
+              "contract's surfaces",
+              "The drivers, attributed" in _h
+              and "who drives it" in _h
+              and "Strongest jointly-acting pair" in _h
+              and ("publishes a surface for this pair" in _h
+                   or "does NOT publish a surface" in _h))
+    else:
+        check("without shap, the deck STATES the omission and "
+              "names the install command",
+              "is not installed on this machine" in _h
+              and "pip install shap" in _h)
+    # the omission path must hold on EVERY machine; _doc_blocked
+    # was captured INSIDE the temp block - the run directory is
+    # gone by now, the same trap the compare-refusal check hit
+    check("...and with the import blocked, the same build emits "
+          "the stated omission, never a silent gap",
+          "is not installed on this machine" in _doc_blocked
+          and "pip install shap" in _doc_blocked
+          and "who drives it" not in _doc_blocked)
 
     # A MISSING COMPARE RUN IS A SENTENCE, NOT A STACK. The operator
     # hit a raw FileNotFoundError when --compare named a 5x run that

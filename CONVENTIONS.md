@@ -4,7 +4,7 @@ Synthetic clinical data generator and model-evaluation instrument. Core rule: le
 
 ## Verify before claiming
 
-- Run `python scripts/run_all_smokes.py` before claiming anything works. Expect 67 suites, 1877 checks, ALL GREEN **on a checkout**. Off a zipball extract - which is what the data machine runs - it is 1868: nine checks in `smoke_buildid` need git to test the archive path and report SKIPPED without it. Both numbers were measured. Do not quote the checkout number to the data machine; that is how a correct run gets read as a failure.
+- Run `python scripts/run_all_smokes.py` before claiming anything works. Expect 67 suites, 1879 checks, ALL GREEN **on a checkout**. Off a zipball extract - which is what the data machine runs - it is 1870: nine checks in `smoke_buildid` need git to test the archive path and report SKIPPED without it. Both numbers were measured. Do not quote the checkout number to the data machine; that is how a correct run gets read as a failure.
 - **THE DEVELOPMENT MACHINE WAS BEHIND THE DATA MACHINE, and that is
   how a green suite here failed there.** Dev was on Python 3.10 with
   pandas 2.3; the data machine installs fresh and got pandas 3.0.5,
@@ -1309,6 +1309,28 @@ what follows is what came out wrong anyway.
   BUTTONS that jump there ([[station]] tokens in gate.py; the CLI
   prints the station's name via gate.plain). A PASS the operator
   cannot check for themselves is just a claim.
+
+- **SHAP IS OPTIONAL, AND ITS ABSENCE IS STATED.** The dashboard's
+  "drivers, attributed" section trains a compact model on EACH
+  table and splits every prediction among the drivers (mean
+  |SHAP|), so attribution doubles as a fidelity view - matching
+  bars mean the synthetic data distributes the driving the way the
+  original does. SHAP interaction values rank the strongest
+  jointly-acting pair, cross-referenced against whether the
+  contract publishes a surface for it - an unmodeled interaction
+  is a limitation to NAME. Measured before shipping: TreeExplainer
+  supports HistGradientBoosting including interaction values, a
+  planted XOR pair ranks first at 16x the runner-up, and the
+  install touches nothing in the numeric stack. shap pulls numba,
+  so it is an OPTIONAL extra ([explain]); without it the deck
+  states the omission and names the install command, and the
+  omission path is exercised by force-blocking the import in the
+  checks - a silently missing section reads as "nothing to show".
+  Three self-caught defects: an `a, b = ...` that shadowed the
+  args object two hundred lines later, a dedup guard comparing a
+  string against tuples (one child attributed twice, identically),
+  and the omission check first written OUTSIDE the temp block -
+  the compare-refusal trap, hit a second time.
 
 ## Talking to the data machine
 

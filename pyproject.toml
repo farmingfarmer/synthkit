@@ -37,6 +37,14 @@ dependencies = [
     "scipy>=1.10",
 ]
 
+# OPTIONAL, not required: shap drives the dashboard's driver
+# attribution and interaction ranking. It pulls numba/llvmlite,
+# which is a heavier install than the core stack - so the deck
+# STATES its absence instead of requiring it, and the data machine
+# opts in with `pip install shap` (or `pip install -e .[explain]`).
+[project.optional-dependencies]
+explain = ["shap>=0.44"]
+
 [project.scripts]
 synthkit = "synthkit.cli:main"
 
