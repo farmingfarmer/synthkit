@@ -396,7 +396,7 @@ def heatmap_pair(names, ms, mg):
             + "</svg>")
 
 
-def gate_issues_html(fid, verdict):
+def gate_issues_html(fid, verdict, bp=None):
     """Every failed gate criterion, highlighted and ENUMERATED.
 
     The gate chips said FAIL and stopped; the operator asked,
@@ -415,17 +415,39 @@ def gate_issues_html(fid, verdict):
             if r.get("kind") == "numeric"
             and abs(r.get("source") or 0) >= 0.1]
 
+    # WHICH COLUMNS LOSE MAGNITUDE TO THE k BOUND - so a drifted
+    # pair on such a column is MARKED as partly the privacy rule
+    # working by design, not a fault to chase. The operator asked
+    # for exactly this: the k-rule information beside the drift,
+    # not a note telling them to go look for it.
+    kclip = {}
+    for cname, spec in ((bp or {}).get("columns") or {}).items():
+        m = (spec or {}).get("marginal") or {}
+        v = m.get("share_of_magnitude_outside_bounds")
+        if v and v > 0.1:
+            kclip[cname] = float(v)
+
+    def krule(r):
+        hits = [(c, kclip[c]) for c in (r["child"], r["parent"])
+                if c in kclip]
+        if not hits:
+            return ""
+        return " &middot; ".join(
+            "{} loses {:.0%} of its magnitude to the k bound - "
+            "by design".format(esc(c), v) for c, v in hits)
+
     def pair_table(rs, note_fn):
         out = ['<table><tr><th>relationship</th><th>original</th>'
-               '<th>synthetic</th><th>drift</th><th></th></tr>']
+               '<th>synthetic</th><th>drift</th><th></th>'
+               '<th>k-rule?</th></tr>']
         for r in rs:
             out.append(
                 '<tr><td>{} &larr; {}</td><td class="num">{}</td>'
                 '<td class="num">{}</td><td class="num">{:+.2f}</td>'
-                '<td>{}</td></tr>'.format(
+                '<td>{}</td><td>{}</td></tr>'.format(
                     esc(r["child"]), esc(r["parent"]),
                     fnum(r["source"]), fnum(r["generated"]),
-                    r["delta"], note_fn(r)))
+                    r["delta"], note_fn(r), krule(r)))
         out.append("</table>")
         return "".join(out)
 
@@ -720,7 +742,7 @@ def build_deck(src_path, run_dir, group_by="person_id",
                 "PASS" if c["ok"] else "FAIL", esc(c["name"]))
             for c in verdict["criteria"])
         body.append('<div class="gate">{}</div>'.format(chips))
-        body.append(gate_issues_html(fid, verdict))
+        body.append(gate_issues_html(fid, verdict, bp))
     except Exception:
         pass
 
@@ -877,7 +899,8 @@ def build_deck(src_path, run_dir, group_by="person_id",
                 desc = eff.get("description") or ""
                 skill = float(cl.get("skill") or 0)
                 cards.append((skill, child, par, shape, desc, svg,
-                              gap, cl.get("predictors") or []))
+                              gap, cl.get("predictors") or [],
+                              cl.get("interaction")))
         if cards:
             body.append('<h2>The patterns, drawn</h2>')
             body.append('<p class="note">Each relationship three '
@@ -888,7 +911,8 @@ def build_deck(src_path, run_dir, group_by="person_id",
                         'A faithful pattern is a cardinal line on a '
                         'gray one - including the bends a '
                         'correlation cannot see.</p>')
-        for skill, child, par, shape, desc, svg, gap, preds                 in cards[:8]:
+        for (skill, child, par, shape, desc, svg, gap, preds,
+                _cit) in cards[:8]:
             body.append('<h3>{} &larr; {}</h3>'.format(
                 esc(child), esc(par)))
             verdict = ("the synthetic curve tracks the original "
@@ -913,6 +937,35 @@ def build_deck(src_path, run_dir, group_by="person_id",
                             + " &middot; ".join(
                                 "{} {:.0%}".format(esc(nm), i / tot)
                                 for nm, i in imps[:4]) + "</div>")
+            # SAY THE MULTIVARIATE POSITION OUT LOUD, per pattern.
+            # The operator looked for it and could not find it:
+            # how many variables act jointly, whether a two-way
+            # surface is published, and that higher-order is not
+            # modeled - stated, not implied by absence.
+            n_drv = len(imps)
+            if n_drv > 1:
+                _pr = list((_cit or {}).get("pair") or [])
+                if len(_pr) == 2:
+                    body.append(
+                        '<div class="small">this is a '
+                        'MULTI-VARIABLE pattern: {} variables act '
+                        'jointly (the model is non-linear), and '
+                        'the contract publishes a two-way '
+                        'interaction surface for <b>{} &times; '
+                        '{}</b> - its survival is gated. '
+                        'Interactions above two-way are not '
+                        'modeled.</div>'.format(
+                            n_drv, esc(_pr[0]), esc(_pr[1])))
+                else:
+                    body.append(
+                        '<div class="small">this is a '
+                        'MULTI-VARIABLE pattern: {} variables act '
+                        'jointly through a non-linear model, '
+                        'combined additively per variable - no '
+                        'two-way surface cleared the interaction '
+                        'bar for this child. Interactions above '
+                        'two-way are not modeled.</div>'.format(
+                            n_drv))
             body.append(svg)
 
 
@@ -945,8 +998,8 @@ def build_deck(src_path, run_dir, group_by="person_id",
         from sklearn.ensemble import HistGradientBoostingRegressor
         _seen_children = []
         _seen_names = set()
-        for skill, child, par, shape, desc, svg, gap, preds \
-                in cards[:8]:
+        for (skill, child, par, shape, desc, svg, gap, preds,
+                _cit) in cards[:8]:
             if child in _seen_names:
                 continue
             parents = [p.get("column") for p in (preds or [])

@@ -75,7 +75,11 @@ started within a week).
 
 ---
 
-## Goal 3 — Pattern analysis, explained with receipts   **~70%**
+## Goal 3 — Pattern analysis, explained with receipts   **~80%**
+
+*(2026-09-09: +10 — the dashboard's pattern cards, SHAP attribution
+on both tables with interaction ranking, per-run shape and surface
+fidelity, and the self-explaining gate all landed.)*
 
 **What works, measured**
 - Discovery confirmed out of sample, split by patient. On the
@@ -161,7 +165,12 @@ seed noise flips it, so a seed sweep should precede any claim.
 
 ---
 
-## Goal 6 — Self-assessment for sign-off   **~80%**
+## Goal 6 — Self-assessment for sign-off   **~90%**
+
+*(2026-09-09: +10 — the gate grew to eight criteria including shapes
+and interaction surfaces, every criterion explains itself with an
+inspect-it-yourself pointer, failures are enumerated in the
+dashboard, and what-now guidance carries exact commands.)*
 
 **What works, measured**
 - `fidelity.json` + findings verdicts; `contradictions.find` (the
@@ -249,7 +258,30 @@ the last runtime estimate on this project was wrong by 30x, upward.
 
 ## Weighted overall
 
-Equal-weighting the eight goals: **~63% complete.** The unweighted
+## Proposed working order (updated 2026-09-09)
+
+Durations are from now, deliberately not dates:
+
+1. **Goal 7 — the single end-to-end run** on the data machine.
+   ~1-2 weeks. Pure assembly, no unknowns, and goal 8 is blocked
+   behind it.
+2. **Goal 5 — the close gap**, starting with the 2-3 seed sweep
+   (exact commands are in the Verdict station's what-now panel).
+   ~2-4 weeks. The 76.5% margin has never been seed-swept on real
+   data and may be partly noise.
+3. **Goal 8 — the report card** off the goal-7 run. ~1-2 weeks
+   after goal 7 lands.
+4. **Goal 6 — the sign-off page.** ~1 week; assembly of what now
+   exists.
+5. **Goal 2 — the PHI scrub**, structured fields first, planted-PHI
+   gate before any claim. ~3-4 weeks.
+6. **Goal 1 — multi-table intake.** ~3-6 weeks.
+7. **Goal 4 — relationship dials.** ~2-3 weeks.
+8. **Goal 3 — the research tail** (tangled-graph ceiling), ongoing
+   and unscheduled, because unknowns move dates and this is the
+   genuine unknown.
+
+Equal-weighting the eight goals: **~66% complete.** The unweighted
 number understates the risk profile: what remains is mostly
 assembly and breadth (M1, M2, M3) plus two genuine unknowns — the
 `close` gap and the cycle ceiling — and unknowns, not assembly, are

@@ -2111,6 +2111,20 @@ h1 .tstep,.stepbanner .stepchip,.stepno{
 .chip.planned{background:linear-gradient(180deg,#fff,var(--slate-wash));
   color:#5b6675;border:1px solid var(--rule);box-shadow:var(--card)}
 
+/* THE LOG ROWS: the run's narration, one row at a time */
+.lg-head{font-weight:750;margin:0 0 8px;font-size:13px}
+.lg-line,.lg-stage,.lg-warn,.lg-done,.lg-count{
+  padding:2.5px 0;font-size:12px;line-height:1.5;
+  border-bottom:1px dotted #EEF0F3}
+.lg-stage{font-weight:700;color:var(--ink);margin-top:7px;
+  border-top:1px solid var(--rule);padding-top:7px}
+.lg-warn{color:#B3261E;font-weight:600}
+.lg-done{color:#2e7d55;font-weight:750}
+.lg-count{color:var(--dim);font-style:italic}
+.lg-time{font-family:var(--mono);font-size:10.5px;
+  color:var(--dim);margin-right:9px;display:inline-block;
+  min-width:52px}
+
 /* THE MINIATURE STATION BUTTON: guidance shows the place. A
    tiny porcelain tile wearing the real station's number, label
    and route accent; pressing it jumps there. */
@@ -2884,35 +2898,47 @@ textarea:focus,input:focus,select:focus{
 
 <section id="s-roadmap" data-step="8">
   <div class="stepbanner"><span class="stepchip">The map</span><span>Eight goals &mdash; what is built, what is planned</span></div>
-  <dl class="stepgoal"><dt>you need</dt><dd>Nothing &mdash; this page is for reading, and for the room.</dd><dt>you get</dt><dd>Where each goal stands, with the measured evidence, and what is planned for the parts that do not exist yet. Percentages are judgments; the numbers beside them are not. Full detail: <code>docs/goals_scorecard.md</code>.</dd></dl>
+  <dl class="stepgoal"><dt>you need</dt><dd>Nothing &mdash; this page is for reading, and for the room.</dd><dt>you get</dt><dd>Where each goal stands, with the measured evidence, what is planned, a proposed WORKING ORDER, and a relative timeline per goal (durations from now, deliberately not dates). Percentages are judgments; the numbers beside them are not. Full detail: <code>docs/goals_scorecard.md</code>.</dd></dl>
+  <div class="explain"><b>Proposed working order:</b> 1st &mdash; goal 7's single end-to-end run on the data machine (pure assembly, every part exists; it unblocks goal 8). 2nd &mdash; goal 5's close gap, starting with the 2-3 seed sweep the Verdict station now gives commands for (the margin has never been seed-swept on real data). 3rd &mdash; goal 8's report card off the goal-7 run. 4th &mdash; goal 6's sign-off page. 5th &mdash; goal 2's PHI scrub. Then goals 1, 4, 3's research tail.</div>
   <div class="goal"><h3><span class="chip partial">partial &middot; ~55%</span> 1 &middot; Universal upload with auto schema mapping</h3>
     <div class="ev">BUILT: single-table CSV end to end; types, currency, percent and clock parsers; long/EAV pivot; 22 of 23 dataset shapes come out clean, and flat data comes back flat.</div>
-    <div class="ev">PLANNED: multi-table intake with key auto-detection; Excel / JSON formats. Documents are a later decision, on purpose.</div></div>
+    <div class="ev">PLANNED: multi-table intake with key auto-detection; Excel / JSON formats. Documents are a later decision, on purpose.</div>
+    <div class="ev">NEXT &middot; about 3-6 weeks of work, proposed 6th &mdash; multi-table is the big piece and nothing upstream blocks on it.</div></div>
   <div class="goal"><h3><span class="chip partial">partial &middot; ~45%</span> 2 &middot; Automatic de-identification</h3>
     <div class="ev">BUILT: everything published is k-anonymous over PATIENTS; unpublishable labels are replaced by invented ones (1,436 real codes in, zero republished); attacked with positive controls &mdash; membership worst 0.52 where a cheat scores 1.00 and FAILS.</div>
-    <div class="ev">PLANNED: the PHI scrub itself &mdash; names, addresses, SSNs, birth dates &mdash; with a 100%-catch gate on planted PHI. Free text is a decision gate, not a promise.</div></div>
-  <div class="goal"><h3><span class="chip partial">partial &middot; ~70%</span> 3 &middot; Every pattern found, explained, with receipts</h3>
+    <div class="ev">PLANNED: the PHI scrub itself &mdash; names, addresses, SSNs, birth dates &mdash; with a 100%-catch gate on planted PHI. Free text is a decision gate, not a promise.</div>
+    <div class="ev">NEXT &middot; about 3-4 weeks, proposed 5th &mdash; structured-field scrub first, planted-PHI gate before anything is claimed.</div></div>
+  <div class="goal"><h3><span class="chip partial">partial &middot; ~80%</span> 3 &middot; Every pattern found, explained, with receipts</h3>
     <div class="ev">BUILT: discovery confirmed on held-out patients &mdash; 12/13 planted patterns, zero false; effect curves, interactions, presence-as-signal; the atlas explains all 97 components in plain English and refuses to build if one is missing.</div>
-    <div class="ev">PLANNED: per-claim receipt files; the tangled-graph ceiling &mdash; the one open research item.</div></div>
+    <div class="ev">PLANNED: per-claim receipt files; the tangled-graph ceiling &mdash; the one open research item.</div>
+    <div class="ev">NEXT &middot; research tail, ongoing &mdash; the dashboard, SHAP attribution and self-explaining gate landed this week (70&rarr;80); the tangled-graph ceiling has no calendar because unknowns, not assembly, move dates.</div></div>
   <div class="goal"><h3><span class="chip partial">partial &middot; ~65%</span> 4 &middot; Dials over every pattern</h3>
     <div class="ev">BUILT: count, coverage, shift, scale, persistence, clustering &mdash; each reports requested AGAINST achieved, because a dial can be capped by privacy and a silent difference is the failure this tool refuses.</div>
-    <div class="ev">PLANNED: dials on individual relationships; the full per-class verification pass.</div></div>
+    <div class="ev">PLANNED: dials on individual relationships; the full per-class verification pass.</div>
+    <div class="ev">NEXT &middot; about 2-3 weeks, proposed 7th &mdash; relationship dials ride on machinery the gate now measures.</div></div>
   <div class="goal"><h3><span class="chip built">built &middot; ~85%</span> 5 &middot; High-fidelity generation</h3>
     <div class="ev">MEASURED on the real extract: coverage 42/42, center 30/33, set token shares 62/62, empty rates 4/4, zero inverted relationships, direction 93.9%. Against a statistical-copy ruler: 119 relationships kept to its 77.</div>
-    <div class="ev">REMAINING: one number &mdash; relationship strength within 0.2 on 76.5% of pairs against an 87.9% bar.</div></div>
-  <div class="goal"><h3><span class="chip built">built &middot; ~80%</span> 6 &middot; Self-assessment for sign-off</h3>
+    <div class="ev">REMAINING: one number &mdash; relationship strength within 0.2 on 76.5% of pairs against an 87.9% bar. Shapes and interaction surfaces are now gated per run as well &mdash; unread on real data so far.</div>
+    <div class="ev">NEXT &middot; about 2-4 weeks, proposed 2nd &mdash; FIRST the 2-3 seed sweep (commands in the Verdict station), because the margin has never been seed-swept on real data and may be partly noise; then targeted fixes for whatever survives the sweep.</div></div>
+  <div class="goal"><h3><span class="chip built">built &middot; ~90%</span> 6 &middot; Self-assessment for sign-off</h3>
     <div class="ev">BUILT: the six-criteria gate with an honest exit code; contradiction checks on the report AND the contract; row-level obedience checks that need no source data; diagnosis views. The run states its own privacy costs in place.</div>
-    <div class="ev">PLANNED: the single roll-up page a decision-maker signs.</div></div>
+    <div class="ev">PLANNED: the single roll-up page a decision-maker signs.</div>
+    <div class="ev">NEXT &middot; about 1 week, proposed 4th &mdash; the eight-criteria gate, what-now guidance and enumerated failures landed this week (80&rarr;90); the sign-off page is assembly of what now exists.</div></div>
   <div class="goal"><h3><span class="chip partial">partial &middot; ~60%</span> 7 &middot; Vendor evaluation against planted truth</h3>
     <div class="ev">BUILT: known effects planted on measured covariates &mdash; +0.9/-0.5 recovered at +0.86/-0.44, a no-effect column reads +0.03; the bridge carries measured distributions into the exam; campaigns and this bench.</div>
-    <div class="ev">PLANNED: the loop assembled END TO END on the data machine &mdash; every part exists, the single run has not happened.</div></div>
+    <div class="ev">PLANNED: the loop assembled END TO END on the data machine &mdash; every part exists, the single run has not happened.</div>
+    <div class="ev">NEXT &middot; about 1-2 weeks, proposed 1st &mdash; pure assembly, no unknowns, and goal 8's report card is blocked behind it.</div></div>
   <div class="goal"><h3><span class="chip planned">planned &middot; ~45%</span> 8 &middot; Our own challenger, and one report card</h3>
     <div class="ev">BUILT: the structurally-blinded baseline solver; the ceiling / ours / vendor line in the campaign machinery.</div>
-    <div class="ev">PLANNED: the report-card artifact from a real end-to-end run, then a challenger worth the name beyond the floor.</div></div>
-  <div class="hint">Overall, equal-weighted: about 63%. What remains
-  is mostly assembly plus two genuine unknowns &mdash; and unknowns,
-  not assembly, are what move dates. Projection: core complete
-  mid-November; free text, if its gate says yes, mid-December.</div>
+    <div class="ev">PLANNED: the report-card artifact from a real end-to-end run, then a challenger worth the name beyond the floor.</div>
+    <div class="ev">NEXT &middot; about 1-2 weeks after goal 7 lands, proposed 3rd &mdash; the report card is the artifact the team asked for; the challenger beyond the floor is research, unscheduled.</div></div>
+  <div class="hint">Overall, equal-weighted: about 66%. What remains
+  is mostly assembly plus two genuine unknowns &mdash; the close gap
+  and the tangled-graph ceiling &mdash; and unknowns, not assembly,
+  move dates. In durations from now: the first three proposed steps
+  (end-to-end run, seed sweep, report card) fit in roughly 4-6
+  weeks; core complete in roughly 9-10 weeks; free text, if its
+  decision gate says yes, roughly 3 months.</div>
   <div class="nextup"><span class="lbl">next</span><b>Anywhere</b><span>This page is the map, not a step. Step 1 invents data from English; Fit measures data you already have.</span></div>
 </section>
 </main></div>
@@ -3890,6 +3916,40 @@ async function fitRun(){
   fitJob=r.job;
   if(fitTimer)clearInterval(fitTimer);
   fitTimer=setInterval(fitPoll,4000);}
+/* THE LOG, ONE CLEAN ROW AT A TIME. The raw stream was a wall of
+   text nobody would read. Each line becomes a styled row: stage
+   lines stand out as headers, warnings are red, the search
+   countdown collapses to its LATEST line instead of stacking
+   thirty of them, done is green. The words are untouched - this
+   renders the run's own narration, it does not rewrite it. */
+function fitLogHtml(text){
+  const escj=t=>t.replace(/&/g,'&amp;').replace(/</g,'&lt;')
+    .replace(/>/g,'&gt;');
+  const stages=['reading ','searching ','building the blueprint',
+    'generating','comparing source against generated',
+    'typing columns','invocation:','set tokens expanded',
+    'time axis','pivoted '];
+  const lines=(text||'').split('\n');
+  const out=[];let lastCount=-1;
+  lines.forEach((ln,i)=>{
+    if(/\d+\/\d+ columns, about/.test(ln))lastCount=i;});
+  lines.forEach((ln,i)=>{
+    if(!ln.trim())return;
+    if(/\d+\/\d+ columns, about/.test(ln)&&i!==lastCount)return;
+    const m=ln.match(/^\[\s*([\d.]+)s\]\s?(.*)$/);
+    const t=m?m[1]+'s':'';
+    const body=m?m[2]:ln;
+    let cls='lg-line';
+    const low=body.toLowerCase();
+    if(/warning|stopped|dial ignored|contradict/i.test(body))
+      cls='lg-warn';
+    else if(/^done ->/.test(body))cls='lg-done';
+    else if(/\d+\/\d+ columns, about/.test(body))cls='lg-count';
+    else if(stages.some(st=>low.startsWith(st)))cls='lg-stage';
+    out.push('<div class="'+cls+'">'+
+      (t?'<span class="lg-time">'+t+'</span>':'')+
+      escj(body)+'</div>');});
+  return out.join('');}
 async function fitPoll(){
   const o=document.getElementById('fit-runout');
   const j=await api('/api/job',{id:fitJob});
@@ -3898,16 +3958,18 @@ async function fitPoll(){
   if(j.status==='running'){
     const st=fitStage(log.text||'');
     loaderSet('fit-runout',st.frac,st.label,j.elapsed);
-    o.textContent='running ('+Math.round(j.elapsed)+'s)\n\n'+
-      (log.text||'');o.scrollTop=o.scrollHeight;return;}
+    o.innerHTML='<div class="lg-head">running ('+
+      Math.round(j.elapsed)+'s)</div>'+fitLogHtml(log.text);
+    o.scrollTop=o.scrollHeight;return;}
   clearInterval(fitTimer);fitTimer=null;
   loaderDone('fit-runout',j.status==='done');
   if(j.status==='done'){
-    o.textContent='DONE in '+Math.round(j.elapsed)+'s\n\n'+
-      (log.text||'');
+    o.innerHTML='<div class="lg-head lg-done">DONE in '+
+      Math.round(j.elapsed)+'s</div>'+fitLogHtml(log.text);
     tick('fitsrc');tick('fitrun');fitOpen();}
-  else{o.textContent=(j.status||'error').toUpperCase()+': '+
-    (j.error||'')+'\n\n'+(log.text||'');}}
+  else{o.innerHTML='<div class="lg-head lg-warn">'+
+    (j.status||'error').toUpperCase()+': '+
+    fitLogHtml(j.error||'')+'</div>'+fitLogHtml(log.text);}}
 async function fitOpen(){
   const v=document.getElementById('fit-verdict');
   v.innerHTML='<div class="hint">reading the run...</div>';

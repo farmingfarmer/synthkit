@@ -220,9 +220,11 @@ NEXT_STEPS: Dict[str, Dict[str, Any]] = {
             "relationship found and then trimmed to break a cycle "
             "is invisible in the output, and the trims are counted "
             "there.",
-            "Re-run 2-3 seeds before believing a small margin - a "
-            "single seed cannot resolve one, and this measurement "
-            "moves several points seed to seed.",
+            "Re-run 2-3 seeds before believing a small margin "
+            "(`--seed 11`, `--seed 37`, each into a NEW --out "
+            "directory, all other flags identical) - a single "
+            "seed cannot resolve one, and this measurement moves "
+            "several points seed to seed.",
             "Draw [[dashboard]] and read the pattern cards: a "
             "DEPARTS verdict names which relationships, in sd.",
             "If lags are off and the data is temporal, refit with "
@@ -233,15 +235,23 @@ NEXT_STEPS: Dict[str, Dict[str, Any]] = {
                  "stronger than the source.",
         "steps": [
             "Draw [[dashboard]]: each pattern card states the miss "
-            "in standard deviations, so you can see WHICH pairs "
-            "drift and by how much.",
+            "in standard deviations, and the gate-issues table "
+            "lists every drifted pair by name.",
             "Re-run 2-3 seeds - close moves several points on seed "
             "alone, and a margin inside that noise is a draw, not "
-            "a verdict.",
-            "Check the k-rule notes in findings.txt: a column whose "
-            "magnitude sits beyond the published bound loses "
-            "strength BY DESIGN, and that shortfall is privacy "
-            "working, not a fault to chase.",
+            "a verdict. Exactly: run `python -m synthkit.cli fit "
+            "--src THE_SAME_CSV --out A_NEW_DIRECTORY_YOU_CHOOSE "
+            "--group-by THE_SAME_COLUMN --seed 11 "
+            "--generate`, then again with `--seed 37` into another "
+            "new directory (the default seed is 20260731, so any "
+            "other integer is a fresh draw; keep every flag except "
+            "--out and --seed identical). Open each run in "
+            "[[fitver]] and compare the close lines.",
+            "Read the k-rule column in the gate-issues table of "
+            "[[dashboard]]: a drifted pair is MARKED there when "
+            "its column loses magnitude to the published bound - "
+            "that part of the drift is the privacy rule working "
+            "BY DESIGN, not a fault to chase.",
             "Proceed with the number stated, when the use needs "
             "direction rather than exact strength - direction "
             "PASS with zero inversions means no false findings, "
@@ -286,9 +296,10 @@ NEXT_STEPS: Dict[str, Dict[str, Any]] = {
             "Check whether the drift sits at a k-screened tail - "
             "a bend the privacy rule flattened is the rule "
             "working.",
-            "Re-run a second seed: single-seed shape gaps move, "
-            "and one measurement of a change is worth nothing "
-            "here."]},
+            "Re-run a second seed (`--seed 11` into a NEW --out "
+            "directory, all other flags identical): single-seed "
+            "shape gaps move, and one measurement is worth "
+            "nothing here."]},
     "interaction surfaces": {
         "means": "A two-variable interaction did not survive - "
                  "the child responds to the PAIR differently in "
@@ -300,9 +311,11 @@ NEXT_STEPS: Dict[str, Dict[str, Any]] = {
             "Check the trimmed-parents report in findings.txt: a "
             "surface whose parent was cut to break a cycle "
             "cannot fire at generation.",
-            "Re-run a second seed before treating the gap as "
-            "real - an interaction fix was once shipped on seed 0 "
-            "and failed completely on seed 3."]},
+            "Re-run a second seed (`--seed 11` into a NEW --out "
+            "directory, all other flags identical) before "
+            "treating the gap as real - an interaction fix was "
+            "once shipped on seed 0 and failed completely on "
+            "seed 3."]},
     "set token shares": {
         "means": "Published list tokens (conditions, medications) "
                  "generate at the wrong frequencies.",

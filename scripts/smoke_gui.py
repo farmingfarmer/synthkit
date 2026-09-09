@@ -1153,6 +1153,32 @@ def main():
               and _resp2["stations"]["dashboard"]["label"]
               == "Dashboard")
 
+        # THE LOG, ONE CLEAN ROW AT A TIME. The raw stream was a
+        # wall of text nobody would read: rows now, stages as
+        # headers, warnings red, the countdown collapsed to its
+        # latest line, done green - the run's own words, rendered,
+        # never rewritten.
+        check("the fit log renders one styled row per line - "
+              "stages, warnings, collapsed countdown, green done",
+              "function fitLogHtml" in html
+              and "lg-stage" in html and "lg-warn" in html
+              and "lg-done" in html and "lg-count" in html
+              and "i!==lastCount" in html
+              and "fitLogHtml(log.text)" in html)
+        # THE ROADMAP CARRIES ORDER AND RELATIVE TIME. Updated
+        # percentages with receipts for the moves, a proposed
+        # working order, and durations from now - deliberately not
+        # dates.
+        check("the roadmap states a proposed working order, "
+              "updated percentages, and relative timelines per "
+              "goal",
+              "Proposed working order" in html
+              and "~80%</span> 3" in html
+              and "~90%</span> 6" in html
+              and html.count("NEXT &middot;") == 8
+              and "about 66%" in html
+              and "9-10 weeks" in html)
+
         # THE FITTED PATH IS IN THE BENCH. Until it was, a demo
         # through the UI showed the FIRST engine - the last month of
         # measured work was unreachable from the interface built to

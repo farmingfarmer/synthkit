@@ -808,6 +808,49 @@ def main():
           "u_shape" in _fd.gate_issues_html(_fidS, _vS2)
           and "1.69" in _fd.gate_issues_html(_fidS, _vS2))
 
+    # GUIDANCE GIVES COMMANDS, NOT ADVICE - and survives both
+    # renderers. The seed step carries the exact CLI with
+    # bracket-free placeholders, because <angle brackets> are HTML
+    # tags to the bench and silently vanish - caught by eye in a
+    # screenshot, with the command rendering as "--src --out".
+    from synthkit import gate as _g3
+    _seed_step = _g3.NEXT_STEPS["close"]["steps"][1]
+    check("the seed guidance states the exact command - two seeds, "
+          "new out directory, all other flags identical - with "
+          "renderer-safe placeholders",
+          "--seed 11" in _seed_step and "--seed 37" in _seed_step
+          and "THE_SAME_CSV" in _seed_step
+          and "20260731" in _seed_step
+          and all("<" not in st for v in _g3.NEXT_STEPS.values()
+                  for st in v["steps"]))
+    # THE k-RULE INFORMATION SITS BESIDE THE DRIFT. A drifted pair
+    # whose column loses magnitude to the published bound is MARKED
+    # in the gate-issues table - the operator asked for the
+    # information, not for directions to go find it.
+    _fidK = {"relationships": {"pairs": [
+        {"child": "lab", "parent": "age", "kind": "numeric",
+         "source": 0.6, "generated": 0.25, "delta": -0.35}],
+        "inverted": []}}
+    _vK = {"criteria": [{"name": "close", "ok": False,
+                         "detail": "x"}], "met": False}
+    _bpK = {"columns": {"lab": {"marginal": {
+        "share_of_magnitude_outside_bounds": 0.87}}}}
+    check("the gate-issues table MARKS drift on bound-clipped "
+          "columns as the k rule by design, and stays silent when "
+          "no column is clipped",
+          "loses 87% of its magnitude to the k bound"
+          in _fd.gate_issues_html(_fidK, _vK, _bpK)
+          and "k bound" not in _fd.gate_issues_html(_fidK, _vK))
+    # MULTI-VARIABLE IS SAID OUT LOUD. The operator looked for the
+    # multivariate/non-linear position and could not find it: each
+    # multi-driver pattern now states how many variables act
+    # jointly, whether a two-way surface is published, and that
+    # higher-order is not modeled.
+    check("each multi-driver pattern card states its arity, its "
+          "surface (or the absence), and the two-way limit",
+          "MULTI-VARIABLE pattern" in _h
+          and "above two-way are not modeled" in _h)
+
     # THE GATE, ENUMERATED. FAIL chips said which criterion and
     # stopped; the operator asked where the misses were and how
     # large. gate_issues_html names every drifted pair with its
