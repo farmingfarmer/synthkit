@@ -1226,6 +1226,7 @@ def api_fit_open(payload: dict) -> dict:
              if abs(r.get("delta") or 0) > 0.05]
     return {
         "gate": verdict,
+        "what_now": _gate.next_steps(verdict),
         "summary": {
             "coverage": [s.get("coverage_ok"), s.get("columns")],
             "centre": [s.get("centre_ok"), s.get("numeric")],
@@ -2107,6 +2108,16 @@ h1 .tstep,.stepbanner .stepchip,.stepno{
   color:#6d5a2a;border:1px solid #e9e0cb;box-shadow:var(--card)}
 .chip.planned{background:linear-gradient(180deg,#fff,var(--slate-wash));
   color:#5b6675;border:1px solid var(--rule);box-shadow:var(--card)}
+
+/* WHAT NOW: the gate's failed criteria come with their options,
+   clearly labeled, from the shared gate module */
+.whatnow{margin-top:14px;padding:14px 16px;background:#fff;
+  border:1px solid var(--rule);border-left:5px solid var(--tab);
+  border-radius:0 12px 12px 0;box-shadow:var(--card)}
+.whatnow h3{margin:0 0 8px;font-size:14px}
+.wn-crit{margin:10px 0;font-size:13.5px;line-height:1.55}
+.wn-crit ol{margin:6px 0 0 2px;padding-left:20px}
+.wn-crit li{margin:4px 0}
 
 /* the rail: a sheet of vellum behind the porcelain tiles */
 nav{background:linear-gradient(90deg,#F6F7F9,#F3F4F7);
@@ -3832,6 +3843,18 @@ async function fitOpen(){
     h+='<div class="gaterow"><b class="'+(c.ok?'ok':'bad')+'">'+
       (c.ok?'PASS':'FAIL')+'</b><span>'+c.name+' &mdash; '+
       c.detail+'</span></div>';});
+  if(r.what_now&&r.what_now.length){
+    h+='<div class="whatnow"><h3>What now &mdash; your options, '+
+      'cheapest first</h3>';
+    r.what_now.forEach(g=>{
+      h+='<div class="wn-crit"><b>'+g.name.toUpperCase()+'</b> '+
+        '&mdash; '+g.means+'<ol>';
+      g.steps.forEach(st=>{h+='<li>'+st+'</li>';});
+      h+='</ol></div>';});
+    h+='<div class="hint">These words come from synthkit.gate, the '+
+      'same module scripts/m0_gate.py prints them from - the bench '+
+      'and the script cannot disagree. A gate is a floor, not a '+
+      'certificate; NOT MET is a reading, not a wall.</div></div>';}
   h+='<div class="hint" style="margin-top:8px">build '+r.build+
     ' &middot; '+(r.source.rows_read||'?')+' rows, '+
     (r.source.patients||'?')+' patients &middot; '+

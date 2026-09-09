@@ -73,6 +73,17 @@ def main():
         print("The two proportions restate counts set when the run "
               "related {} pairs; this one relates {}.".format(
                   SET_AT, verdict["pairs"]))
+        # The same words the bench shows - one module, one text. A
+        # gate that says NOT MET and stops talking leaves the
+        # operator to invent next steps under pressure.
+        for g in _gate.next_steps(verdict):
+            print()
+            print("  {} - {}".format(g["name"].upper(), g["means"]))
+            for i, step in enumerate(g["steps"], 1):
+                print("    {}. {}".format(i, step))
+        print()
+        print("A gate is a floor, not a certificate - and NOT MET "
+              "is a reading, not a wall.")
         return 1
     print("M0 MET on all {} criteria.".format(
         len(verdict["criteria"])))

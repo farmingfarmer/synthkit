@@ -1026,6 +1026,36 @@ def main():
               and 'id="deck-frame"' in html
               and "dashboard:[" in html
               and "frame.srcdoc=r.html" in html)
+        # THE VERDICT STATION ANSWERS "WHAT NOW" ON A FAIL. The
+        # panel renders each failed criterion's meaning and numbered
+        # options from gate.next_steps - the SAME module the CLI
+        # prints them from - and renders nothing when the gate is
+        # met.
+        check("the Verdict station renders What-now guidance for "
+              "failed criteria, sourced from the shared gate module",
+              'class="whatnow"' in html
+              and "your options, " in html
+              and "r.what_now.forEach" in html
+              and "cannot disagree" in html)
+        import json as _json
+        import tempfile as _tf
+        from pathlib import Path as _P
+        with _tf.TemporaryDirectory() as _t:
+            _fid = {"summary": {
+                "pairs": 115, "pairs_sign_ok": 108,
+                "pairs_close": 88, "pairs_inverted": 0,
+                "coverage_ok": 42, "columns": 42,
+                "set_tokens_ok": 62, "set_tokens_compared": 62,
+                "set_empty_ok": 4, "set_empty_compared": 4}}
+            (_P(_t) / "fidelity.json").write_text(
+                _json.dumps(_fid), encoding="utf-8")
+            _resp = gui.api_fit_open({"out": _t})
+        check("...and the endpoint carries what_now for the failing "
+              "criterion only - close here, with its four options",
+              "error" not in _resp
+              and [g["name"] for g in _resp["what_now"]] == ["close"]
+              and len(_resp["what_now"][0]["steps"]) == 4)
+
         check("...and it can carry the compare fields, so the "
               "'does 5x degrade it' table is reachable from the UI",
               'id="dcmpdir"' in html and 'id="dcmplabel"' in html)

@@ -528,6 +528,31 @@ def main():
           _rc2 == 1 and "M0 NOT MET" in _out2
           and "direction kept" in _out2 and "close" in _out2)
 
+    # A FAIL COMES WITH ITS OPTIONS, CLEARLY LABELED. The operator
+    # hit NOT MET on the real extract and asked, correctly, "what
+    # are my options?" - the gate said NOT MET and stopped talking.
+    # The guidance lives in synthkit.gate (ONE module), so the
+    # script and the bench print the same words; each failed
+    # criterion gets what it MEANS and numbered next steps, cheapest
+    # first, and "proceed with the failure stated" is on the list
+    # because a gate is a floor, not a release decision.
+    check("...and a NOT MET prints WHAT NOW for each failed "
+          "criterion - meaning plus numbered options, from the "
+          "shared gate module",
+          "DIRECTION KEPT - " in _out2 and "CLOSE - " in _out2
+          and "1." in _out2 and "2." in _out2
+          and "NOT MET is a reading, not a wall" in _out2)
+    check("...and a MET run prints NO guidance - advice under a "
+          "green gate is noise",
+          "What now" not in _out
+          and "NOT MET is a reading" not in _out)
+    _inv = dict(_clean, pairs_inverted=1)
+    _rc3, _out3 = _gate(_inv)
+    check("...and an INVERTED failure says STOP and 'do not send "
+          "this file', because inverted reads as a finding",
+          _rc3 == 1 and "STOP" in _out3
+          and "Do not send this file" in _out3)
+
     # THE OLD ABSOLUTE FORM WOULD HAVE BEEN UNREACHABLE HERE. 124 of
     # 114 pairs cannot happen, so a gate written that way reports
     # failure for a reason that has nothing to do with the data.

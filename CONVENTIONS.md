@@ -4,7 +4,7 @@ Synthetic clinical data generator and model-evaluation instrument. Core rule: le
 
 ## Verify before claiming
 
-- Run `python scripts/run_all_smokes.py` before claiming anything works. Expect 67 suites, 1859 checks, ALL GREEN **on a checkout**. Off a zipball extract - which is what the data machine runs - it is 1850: nine checks in `smoke_buildid` need git to test the archive path and report SKIPPED without it. Both numbers were measured. Do not quote the checkout number to the data machine; that is how a correct run gets read as a failure.
+- Run `python scripts/run_all_smokes.py` before claiming anything works. Expect 67 suites, 1864 checks, ALL GREEN **on a checkout**. Off a zipball extract - which is what the data machine runs - it is 1855: nine checks in `smoke_buildid` need git to test the archive path and report SKIPPED without it. Both numbers were measured. Do not quote the checkout number to the data machine; that is how a correct run gets read as a failure.
 - **THE DEVELOPMENT MACHINE WAS BEHIND THE DATA MACHINE, and that is
   how a green suite here failed there.** Dev was on Python 3.10 with
   pandas 2.3; the data machine installs fresh and got pandas 3.0.5,
@@ -1256,6 +1256,20 @@ what follows is what came out wrong anyway.
   the key names its run produced). A spelling sweep that renames a
   published key is a format break wearing a copy-edit's clothes;
   migrate contract names only deliberately, with a read-both shim.
+
+- **A GATE THAT SAYS NOT MET MUST ALSO SAY WHAT NOW.** The real
+  extract failed `close` (76.5% against 87.9%) and the Verdict
+  station stopped talking; the operator asked, correctly, what
+  their options were. `gate.NEXT_STEPS` now carries, per criterion,
+  what a FAIL means and numbered options cheapest-first - and
+  "proceed with the failure stated" is on the list, because a gate
+  is a floor, not a release decision. INVERTED says STOP, do not
+  send the file. The words live in synthkit.gate ONCE; the bench
+  panel and scripts/m0_gate.py both print them, so they cannot
+  disagree. A green gate prints no guidance - advice under a PASS
+  is noise. And fail-first done wrong: `git stash` of the WHOLE
+  tree stashes the new checks too and proves nothing - stash only
+  the source files, watch the kept checks go red, pop.
 
 ## Talking to the data machine
 
