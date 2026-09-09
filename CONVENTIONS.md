@@ -4,7 +4,7 @@ Synthetic clinical data generator and model-evaluation instrument. Core rule: le
 
 ## Verify before claiming
 
-- Run `python scripts/run_all_smokes.py` before claiming anything works. Expect 67 suites, 1867 checks, ALL GREEN **on a checkout**. Off a zipball extract - which is what the data machine runs - it is 1858: nine checks in `smoke_buildid` need git to test the archive path and report SKIPPED without it. Both numbers were measured. Do not quote the checkout number to the data machine; that is how a correct run gets read as a failure.
+- Run `python scripts/run_all_smokes.py` before claiming anything works. Expect 67 suites, 1877 checks, ALL GREEN **on a checkout**. Off a zipball extract - which is what the data machine runs - it is 1868: nine checks in `smoke_buildid` need git to test the archive path and report SKIPPED without it. Both numbers were measured. Do not quote the checkout number to the data machine; that is how a correct run gets read as a failure.
 - **THE DEVELOPMENT MACHINE WAS BEHIND THE DATA MACHINE, and that is
   how a green suite here failed there.** Dev was on Python 3.10 with
   pandas 2.3; the data machine installs fresh and got pandas 3.0.5,
@@ -1283,6 +1283,32 @@ what follows is what came out wrong anyway.
   destinations. A clean types check completes the Source step
   immediately; it used to wait for the whole fit, which
   contradicted the promise the step makes.
+
+- **RANK CORRELATION CANNOT SEE A U-SHAPE, and the gate now can.**
+  A U-shaped relationship has Spearman near zero on BOTH tables, so
+  it was excluded from the close criterion entirely - generation
+  could flatten it and the gate stayed green. Measured: a planted U
+  at |rho| 0.023 reads gap 1.69 sd when lost, 0.0 when kept.
+  `synthkit.curvecheck` re-measures every published effect curve as
+  a binned conditional mean on both tables (`shapes tracked`,
+  gap <= 0.35 sd - the dashboard's own DEPARTS bar, promoted), and
+  every published two-variable interaction surface as a k-screened
+  3x3 grid (`interaction surfaces`; a planted XOR reads 1.05 sd
+  when lost). ONE implementation: pipeline records, gate reads,
+  deck draws from the same functions. Both criteria are
+  conditional - a run that measured none does not fail on absence -
+  and nothing above two-way is measured, because the engine does
+  not publish higher-order structure and a metric for what the
+  generator cannot produce would only restate a known limitation.
+- **THE GATE ENUMERATES ITS FAILURES IN THE DASHBOARD, and every
+  criterion explains itself.** A FAIL chip gets a highlighted
+  section naming every offender with its magnitude (drifted pairs
+  with drift, departed shapes with gap); every Verdict row, PASS or
+  FAIL, carries what it measures in the data plus "See it
+  yourself" - and station mentions render as MINIATURE STATION
+  BUTTONS that jump there ([[station]] tokens in gate.py; the CLI
+  prints the station's name via gate.plain). A PASS the operator
+  cannot check for themselves is just a claim.
 
 ## Talking to the data machine
 

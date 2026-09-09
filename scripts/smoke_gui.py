@@ -1122,6 +1122,37 @@ def main():
               "step - the tick no longer waits for the full fit",
               "if(!r.error)tick('fitsrc')" in html)
 
+        # GUIDANCE SHOWS THE PLACE. [[station]] tokens render as
+        # miniature station buttons - the real number, label and
+        # route accent - and pressing one jumps to that station via
+        # the same click path the rail uses. Every criterion row,
+        # PASS or FAIL, carries its explanation and an
+        # inspect-it-yourself pointer.
+        check("the verdict renders an explanation under EVERY "
+              "criterion and chipifies [[station]] tokens into "
+              "miniature station buttons that jump",
+              "gate-explain" in html
+              and "chipify" in html
+              and 'class="ministation"' in html
+              and "function goStation" in html
+              and "See it yourself:" in html)
+        _resp2 = None
+        import json as _json2, tempfile as _tf2
+        from pathlib import Path as _P2
+        with _tf2.TemporaryDirectory() as _t2:
+            (_P2(_t2) / "fidelity.json").write_text(_json2.dumps(
+                {"summary": {"pairs": 10, "pairs_sign_ok": 10,
+                             "pairs_close": 10,
+                             "pairs_inverted": 0}}),
+                encoding="utf-8")
+            _resp2 = gui.api_fit_open({"out": _t2})
+        check("...and the endpoint carries the explanations and "
+              "station definitions the chips are built from",
+              "error" not in _resp2
+              and set(_resp2["explain"]) >= {"close", "inverted"}
+              and _resp2["stations"]["dashboard"]["label"]
+              == "Dashboard")
+
         # THE FITTED PATH IS IN THE BENCH. Until it was, a demo
         # through the UI showed the FIRST engine - the last month of
         # measured work was unreachable from the interface built to

@@ -80,7 +80,7 @@ def main():
             print()
             print("  {} - {}".format(g["name"].upper(), g["means"]))
             for i, step in enumerate(g["steps"], 1):
-                print("    {}. {}".format(i, step))
+                print("    {}. {}".format(i, _gate.plain(step)))
         print()
         print("A gate is a floor, not a certificate - and NOT MET "
               "is a reading, not a wall.")

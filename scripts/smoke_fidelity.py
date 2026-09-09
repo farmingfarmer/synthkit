@@ -695,6 +695,151 @@ def main():
           "correlation)",
           "confirmed on held-out patients" in _h)
 
+    # SHAPES AND SURFACES: WHAT RANK CORRELATION CANNOT SEE. A
+    # U-shape has Spearman near zero on BOTH tables, so a U-shaped
+    # relationship was excluded from the close criterion entirely -
+    # generation could flatten it and the gate stayed green. And
+    # the published interaction surfaces' survival had only ever
+    # been proven on the instrumented fixture, never per run.
+    # synthkit.curvecheck is the ONE implementation; the pipeline
+    # records it, the gate reads it, the deck draws from it.
+    import numpy as _np9
+    import pandas as _pd9
+    from synthkit import curvecheck as _cc
+    from synthkit import gate as _g2
+    import fidelity_deck as _fd
+    _r9 = _np9.random.RandomState(7)
+    _n9 = 3000
+    _x9 = _r9.uniform(0, 1, _n9)
+
+    def _mk9(y):
+        return _pd9.DataFrame({
+            "pid": _np9.repeat(_np9.arange(300), 10).astype(str),
+            "x": _x9, "y": y})
+    _srcU = _mk9((_x9 - 0.5) ** 2 * 8 + _r9.normal(0, .1, _n9))
+    _flat = _mk9(_r9.normal(float(_srcU["y"].mean()),
+                            float(_srcU["y"].std()), _n9))
+    _bp9 = {"relationships": [{"child": "y", "parents": ["x"],
+            "evidence": {"effect": {"x": {"grid_kind":
+                                          "numeric"}}}}]}
+    _kept9 = _cc.measure_shapes(_srcU, _srcU.copy(), _bp9,
+                                _srcU["pid"], 10)
+    _lost9 = _cc.measure_shapes(_srcU, _flat, _bp9,
+                                _srcU["pid"], 10)
+    _rho9 = float(_srcU["x"].corr(_srcU["y"], method="spearman"))
+    check("a planted U-shape is INVISIBLE to rank correlation "
+          "(|rho| {:.3f}) yet the shape criterion reads a kept U "
+          "as tracked and a flattened U as departed by {:.1f} "
+          "sd".format(abs(_rho9), _lost9["claims"][0]["gap_sd"]),
+          abs(_rho9) < 0.1
+          and _kept9["claims"][0]["tracks"]
+          and not _lost9["claims"][0]["tracks"]
+          and _lost9["claims"][0]["gap_sd"] > 1.0)
+    _a9 = _r9.uniform(0, 1, _n9)
+    _b9 = _r9.uniform(0, 1, _n9)
+    _xor9 = ((_a9 > .5) ^ (_b9 > .5)).astype(float)
+
+    def _mk29(y):
+        return _pd9.DataFrame({
+            "pid": _np9.repeat(_np9.arange(300), 10).astype(str),
+            "a": _a9, "b": _b9, "y": y})
+    _srcX = _mk29(_xor9 * 2 + _r9.normal(0, .15, _n9))
+    _lostX = _mk29(_r9.normal(float(_srcX["y"].mean()),
+                              float(_srcX["y"].std()), _n9))
+    _bpX = {"relationships": [{"child": "y", "parents": ["a", "b"],
+            "evidence": {"interaction": {"pair": ["a", "b"],
+                         "grid_a": [0, 1], "grid_b": [0, 1],
+                         "response": [[0, 1], [1, 0]]}}}]}
+    _keptX = _cc.measure_surfaces(_srcX, _srcX.copy(), _bpX,
+                                  _srcX["pid"], 10)
+    _lostX2 = _cc.measure_surfaces(_srcX, _lostX, _bpX,
+                                   _srcX["pid"], 10)
+    check("a planted XOR interaction surface reads as tracked when "
+          "kept and departed when generation loses it - the "
+          "per-run metric fixtures could only imply",
+          _keptX["surfaces"][0]["tracks"]
+          and not _lostX2["surfaces"][0]["tracks"]
+          and _lostX2["surfaces"][0]["gap_sd"] > 0.5)
+    _vS = _g2.assess({"summary": {
+        "pairs": 10, "pairs_sign_ok": 10, "pairs_close": 10,
+        "pairs_inverted": 0, "shapes_compared": 5, "shapes_ok": 4,
+        "surfaces_compared": 2, "surfaces_ok": 2}})
+    check("the gate reads the new counters - a departed shape "
+          "fails 'shapes tracked' while absent measurements fail "
+          "nothing",
+          [c["ok"] for c in _vS["criteria"]
+           if c["name"] == "shapes tracked"] == [False]
+          and _g2.assess({"summary": {
+              "pairs": 5, "pairs_sign_ok": 5, "pairs_close": 5,
+              "pairs_inverted": 0}})["met"])
+    _fidS = {"shapes": {"claims": [
+        {"child": "y", "parent": "x", "shape": "u_shape",
+         "gap_sd": 1.69, "tracks": False}]},
+        "surfaces": {"surfaces": []},
+        "relationships": {"pairs": [], "inverted": []}}
+    _vS2 = {"criteria": [{"name": "shapes tracked", "ok": False,
+                          "detail": "4/5"}], "met": False}
+    check("...and the deck enumerates a departed shape by name "
+          "with its gap",
+          "u_shape" in _fd.gate_issues_html(_fidS, _vS2)
+          and "1.69" in _fd.gate_issues_html(_fidS, _vS2))
+
+    # THE GATE, ENUMERATED. FAIL chips said which criterion and
+    # stopped; the operator asked where the misses were and how
+    # large. gate_issues_html names every drifted pair with its
+    # magnitude - and renders NOTHING when the gate is met, because
+    # highlighting under a green gate is noise. Verified against a
+    # crafted report: the close table excludes close pairs and
+    # weak-source pairs, flags direction-lost apart from faded, and
+    # sorts largest drift first.
+    import fidelity_deck as _fd
+    _ffid = {"relationships": {"pairs": [
+        {"child": "crp", "parent": "stress", "kind": "numeric",
+         "source": 0.62, "generated": 0.31, "delta": -0.31},
+        {"child": "hr", "parent": "age", "kind": "numeric",
+         "source": 0.45, "generated": 0.44, "delta": -0.01},
+        {"child": "sleep", "parent": "stress", "kind": "numeric",
+         "source": -0.38, "generated": 0.02, "delta": 0.40}],
+        "inverted": []}}
+    _fv = {"criteria": [
+        {"name": "close", "ok": False, "detail": "x"}],
+        "met": False}
+    _gh = _fd.gate_issues_html(_ffid, _fv)
+    check("the deck ENUMERATES a failed gate criterion - every "
+          "drifted pair by name with magnitude, direction-lost "
+          "flagged apart, largest first, close pairs excluded",
+          "The gate, enumerated" in _gh
+          and _gh.count("<tr>") == 3
+          and "direction lost" in _gh and "faded" in _gh
+          and "hr" not in _gh.replace("relationship", "")
+          and _gh.index("sleep") < _gh.index("crp"))
+    check("...and a MET gate renders no issues section at all",
+          _fd.gate_issues_html(_ffid, {"criteria": [
+              {"name": "close", "ok": True}], "met": True}) == "")
+
+    # STATION REFERENCES RENDER AS THE STATION. gate guidance
+    # carries [[dashboard]] tokens; plain() names the station for
+    # terminals, and m0_gate must never print a raw token.
+    from synthkit import gate as _g2
+    check("station tokens exist in the guidance and plain() names "
+          "the station for terminals",
+          "[[dashboard]]" in _g2.NEXT_STEPS["close"]["steps"][0]
+          and "the VIEW Dashboard station" in _g2.plain(
+              _g2.NEXT_STEPS["close"]["steps"][0])
+          and all("[[" not in _g2.plain(st)
+                  for v in _g2.NEXT_STEPS.values()
+                  for st in v["steps"]))
+    check("...and every criterion carries an explanation AND an "
+          "inspect-it-yourself pointer into the dashboard",
+          set(_g2.EXPLAIN) == {c["name"] for c in [
+              {"name": n} for n in (
+                  "direction kept", "close", "inverted",
+                  "coverage", "set token shares",
+                  "set EMPTY rate", "shapes tracked",
+                  "interaction surfaces")]}
+          and all("[[dashboard]]" in v["inspect"]
+                  for v in _g2.EXPLAIN.values()))
+
     # A MISSING COMPARE RUN IS A SENTENCE, NOT A STACK. The operator
     # hit a raw FileNotFoundError when --compare named a 5x run that
     # had not been generated yet - and the 1x deck they had ALREADY

@@ -1227,6 +1227,8 @@ def api_fit_open(payload: dict) -> dict:
     return {
         "gate": verdict,
         "what_now": _gate.next_steps(verdict),
+        "explain": _gate.EXPLAIN,
+        "stations": _gate.STATIONS,
         "summary": {
             "coverage": [s.get("coverage_ok"), s.get("columns")],
             "centre": [s.get("centre_ok"), s.get("numeric")],
@@ -2108,6 +2110,29 @@ h1 .tstep,.stepbanner .stepchip,.stepno{
   color:#6d5a2a;border:1px solid #e9e0cb;box-shadow:var(--card)}
 .chip.planned{background:linear-gradient(180deg,#fff,var(--slate-wash));
   color:#5b6675;border:1px solid var(--rule);box-shadow:var(--card)}
+
+/* THE MINIATURE STATION BUTTON: guidance shows the place. A
+   tiny porcelain tile wearing the real station's number, label
+   and route accent; pressing it jumps there. */
+.ministation{display:inline-flex;align-items:center;gap:6px;
+  font-family:var(--sans);font-size:11.5px;font-weight:700;
+  color:var(--ink);cursor:pointer;padding:3px 10px 3px 4px;
+  margin:0 2px;vertical-align:-4px;border-radius:8px;
+  background:linear-gradient(180deg,#FFFFFF,#F4F6F8);
+  border:1px solid var(--bevel);
+  border-left:3px solid var(--tab);
+  box-shadow:var(--card);text-shadow:var(--letterpress);
+  transition:box-shadow .16s ease,transform .12s ease}
+.ministation b{font-family:var(--mono);font-size:9px;
+  font-weight:800;letter-spacing:.08em;color:var(--tab);
+  background:var(--wash);border:1px solid var(--bevel);
+  border-radius:5px;padding:1px 5px;text-shadow:none}
+.ministation:hover{box-shadow:var(--raise-hi);
+  transform:translateY(-1px)}
+.gate-explain{margin:2px 0 12px 58px;font-size:12.5px;
+  line-height:1.55;color:var(--dim)}
+.gate-explain i{color:var(--ink);font-style:normal;
+  font-weight:650}
 
 /* DONE IS A LIGHT, NOT A GUESS. A finished step shows a jade
    lamp on its rail tile and a completion strip in its panel naming
@@ -3455,6 +3480,9 @@ function barsExplain(){
       .replace('PCT',(100*val).toFixed(0)+'%'));}
     else{outp.push(k+' \u2265 '+val);}}
   el.innerHTML='In plain terms: '+outp.join('; ')+'.';}
+function goStation(k){
+  const b=document.querySelector('.station[data-s="'+k+'"]');
+  if(b)b.click();}
 function tick(step){
   var b=document.querySelector(
     '.station[data-s="'+step+'"]');
@@ -3892,17 +3920,28 @@ async function fitOpen(){
     d.textContent='STOPPED: '+r.error;v.appendChild(d);return;}
   let h='<h2>The gate &mdash; '+(r.gate.met?
     'MET on all criteria':'NOT MET')+'</h2>';
+  /* [[station]] tokens become miniature station buttons that
+     JUMP there - guidance should show the place, not describe it */
+  const chipify=t=>t.replace(/\[\[(\w+)\]\]/g,(m,k)=>{
+    const st=(r.stations||{})[k];
+    if(!st)return m;
+    return '<button class="ministation" data-goto="'+k+'" '+
+      'data-route="'+st.route+'" onclick="goStation(\''+k+'\')">'+
+      '<b>'+st.num+'</b>'+st.label+'</button>';});
   r.gate.criteria.forEach(c=>{
     h+='<div class="gaterow"><b class="'+(c.ok?'ok':'bad')+'">'+
       (c.ok?'PASS':'FAIL')+'</b><span>'+c.name+' &mdash; '+
-      c.detail+'</span></div>';});
+      c.detail+'</span></div>';
+    const ex=(r.explain||{})[c.name];
+    if(ex)h+='<div class="gate-explain">'+ex.explain+
+      ' <i>See it yourself:</i> '+chipify(ex.inspect)+'</div>';});
   if(r.what_now&&r.what_now.length){
     h+='<div class="whatnow"><h3>What now &mdash; your options, '+
       'cheapest first</h3>';
     r.what_now.forEach(g=>{
       h+='<div class="wn-crit"><b>'+g.name.toUpperCase()+'</b> '+
         '&mdash; '+g.means+'<ol>';
-      g.steps.forEach(st=>{h+='<li>'+st+'</li>';});
+      g.steps.forEach(st=>{h+='<li>'+chipify(st)+'</li>';});
       h+='</ol></div>';});
     h+='<div class="hint">These words come from synthkit.gate, the '+
       'same module scripts/m0_gate.py prints them from - the bench '+

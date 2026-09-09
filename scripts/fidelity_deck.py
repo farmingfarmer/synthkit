@@ -117,6 +117,10 @@ path.draw{transition:stroke-dashoffset 1.4s
   cubic-bezier(.4,0,.2,1)}
 .hold-hint{color:%(gray)s;font-size:12px;margin:8px 0 0;
   font-style:italic}
+.gissue{margin:14px 0;padding:12px 18px;background:#FDFAFA;
+  border:1px solid #efd9d9;border-left:5px solid %(red)s;
+  border-radius:0 12px 12px 0}
+.gissue h3{margin:2px 0 4px;color:%(red)s}
 @media (prefers-reduced-motion:reduce){
   .ser,path.draw{transition:none}
   svg.live:not(.on) .ser{opacity:1;transform:none}}
@@ -392,31 +396,149 @@ def heatmap_pair(names, ms, mg):
             + "</svg>")
 
 
-def cond_curve(parent, child, gid_series, k, nbins=12):
-    """Binned conditional mean of child on parent - the measured
-    SHAPE of the relationship. On the source, bins backed by fewer
-    than k patients are suppressed, the same rule as everywhere."""
-    import numpy as np
-    ok = parent.notna() & child.notna()
-    x = parent[ok].to_numpy(dtype=float)
-    y = child[ok].to_numpy(dtype=float)
-    if len(x) < 60:
-        return []
-    qs = np.unique(np.quantile(x, np.linspace(0, 1, nbins + 1)))
-    if len(qs) < 3:
-        return []
-    idx = np.clip(np.digitize(x, qs[1:-1]), 0, len(qs) - 2)
-    pts = []
-    for b in range(len(qs) - 1):
-        m = idx == b
-        if int(m.sum()) < 5:
-            continue
-        if gid_series is not None:
-            g = gid_series[ok][m]
-            if g.nunique() < k:
-                continue
-        pts.append((float(x[m].mean()), float(y[m].mean())))
-    return pts
+def gate_issues_html(fid, verdict):
+    """Every failed gate criterion, highlighted and ENUMERATED.
+
+    The gate chips said FAIL and stopped; the operator asked,
+    rightly, where the misses were and how large. For the
+    relationship criteria the offenders are named one by one with
+    their magnitudes, because fidelity.json carries every pair; the
+    column and set criteria point at the exact charts below that
+    draw them. Returns "" when the gate is met - highlighting under
+    a green gate is noise."""
+    failed = [c for c in (verdict.get("criteria") or [])
+              if not c.get("ok")]
+    if not failed:
+        return ""
+    rel = fid.get("relationships") or {}
+    rows = [r for r in (rel.get("pairs") or [])
+            if r.get("kind") == "numeric"
+            and abs(r.get("source") or 0) >= 0.1]
+
+    def pair_table(rs, note_fn):
+        out = ['<table><tr><th>relationship</th><th>original</th>'
+               '<th>synthetic</th><th>drift</th><th></th></tr>']
+        for r in rs:
+            out.append(
+                '<tr><td>{} &larr; {}</td><td class="num">{}</td>'
+                '<td class="num">{}</td><td class="num">{:+.2f}</td>'
+                '<td>{}</td></tr>'.format(
+                    esc(r["child"]), esc(r["parent"]),
+                    fnum(r["source"]), fnum(r["generated"]),
+                    r["delta"], note_fn(r)))
+        out.append("</table>")
+        return "".join(out)
+
+    parts = ['<h2>The gate, enumerated &mdash; what missed, '
+             'and by how much</h2>']
+    for c in failed:
+        name = c["name"]
+        parts.append('<div class="gissue"><h3>FAIL &middot; {} '
+                     '&mdash; {}</h3>'.format(
+                         esc(name), esc(c.get("detail") or "")))
+        if name == "close":
+            bad = sorted([r for r in rows
+                          if abs(r["delta"]) > 0.2],
+                         key=lambda r: -abs(r["delta"]))
+            parts.append(
+                '<p class="note">Every drifted pair, largest '
+                'first. These are exactly the cells that blink '
+                'when you press and hold the correlation heatmaps '
+                'below; the strongest also have pattern cards '
+                'drawing the drift as two curves.</p>')
+            parts.append(pair_table(
+                bad, lambda r: ("direction lost"
+                                if r["source"] * r["generated"] <= 0
+                                else ("faded" if abs(r["generated"])
+                                      < abs(r["source"])
+                                      else "overshot"))))
+        elif name == "direction kept":
+            bad = sorted([r for r in rows
+                          if r["source"] * r["generated"] <= 0],
+                         key=lambda r: -abs(r["source"]))
+            parts.append(
+                '<p class="note">Pairs whose direction did not '
+                'survive, strongest source relationship first.</p>')
+            parts.append(pair_table(bad, lambda r: "sign lost"))
+        elif name == "inverted":
+            parts.append(
+                '<p class="note">STOP: these generated '
+                'relationships run OPPOSITE to the source and '
+                'would read as findings. Do not circulate this '
+                'file.</p>')
+            parts.append(pair_table(
+                rel.get("inverted") or [], lambda r: "INVERTED"))
+        elif name == "shapes tracked":
+            bad = sorted([r for r in (fid.get("shapes") or {})
+                          .get("claims") or []
+                          if not r.get("tracks")],
+                         key=lambda r: -(r.get("gap_sd") or 0))
+            parts.append(
+                '<p class="note">Curves whose SHAPE departed by '
+                'more than 0.35 of the child\'s own spread - '
+                'drift the rank correlation cannot see. The '
+                'pattern cards below draw the strongest of these '
+                'as gray-vs-cardinal curves.</p>')
+            parts.append(
+                '<table><tr><th>relationship</th><th>shape</th>'
+                '<th>gap (sd)</th></tr>'
+                + "".join(
+                    '<tr><td>{} &larr; {}</td><td>{}</td>'
+                    '<td class="num">{:.2f}</td></tr>'.format(
+                        esc(r["child"]), esc(r["parent"]),
+                        esc(r.get("shape") or ""), r["gap_sd"])
+                    for r in bad) + "</table>")
+        elif name == "interaction surfaces":
+            bad = sorted([r for r in (fid.get("surfaces") or {})
+                          .get("surfaces") or []
+                          if not r.get("tracks")],
+                         key=lambda r: -(r.get("gap_sd") or 0))
+            parts.append(
+                '<p class="note">Two-variable interactions whose '
+                'joint response drifted by more than 0.35 sd over '
+                'the cells both tables can measure.</p>')
+            parts.append(
+                '<table><tr><th>child</th><th>pair</th>'
+                '<th>cells</th><th>gap (sd)</th></tr>'
+                + "".join(
+                    '<tr><td>{}</td><td>{} &times; {}</td>'
+                    '<td class="num">{}</td>'
+                    '<td class="num">{:.2f}</td></tr>'.format(
+                        esc(r["child"]), esc(r["pair"][0]),
+                        esc(r["pair"][1]), r["cells_compared"],
+                        r["gap_sd"])
+                    for r in bad) + "</table>")
+        elif name == "coverage":
+            parts.append(
+                '<p class="note">A column is present at the wrong '
+                'rate. Scan the per-column stats tables below: the '
+                'missing % row shows original beside synthetic, '
+                'and the offenders are the rows where the two '
+                'disagree by more than 5 points. A miss here '
+                'usually means a column was read as the wrong '
+                'type.</p>')
+        elif name == "set token shares":
+            parts.append(
+                '<p class="note">A published token generates at '
+                'the wrong frequency. The paired bars on each set '
+                'column below draw original beside synthetic share '
+                'per token - the offenders are the visibly '
+                'unequal bar pairs.</p>')
+        elif name == "set EMPTY rate":
+            parts.append(
+                '<p class="note">Rows that hold an empty list in '
+                'the source are not empty at the same rate in the '
+                'synthetic file - the set column sections below '
+                'state both rates side by side.</p>')
+        parts.append("</div>")
+    return "".join(parts)
+
+
+# THE CURVE MEASUREMENT IS SHARED. synthkit.curvecheck is the one
+# implementation; the pipeline records the gaps for the gate and
+# this deck draws from the identical functions - a second copy here
+# is how the two would come to disagree.
+from synthkit.curvecheck import cond_curve, shape_gap  # noqa: E402
 
 
 def curve_svg(pub, src_pts, gen_pts):
@@ -598,6 +720,7 @@ def build_deck(src_path, run_dir, group_by="person_id",
                 "PASS" if c["ok"] else "FAIL", esc(c["name"]))
             for c in verdict["criteria"])
         body.append('<div class="gate">{}</div>'.format(chips))
+        body.append(gate_issues_html(fid, verdict))
     except Exception:
         pass
 
@@ -744,31 +867,12 @@ def build_deck(src_path, run_dir, group_by="person_id",
                     continue
                 pub = list(zip(eff.get("grid") or [],
                                eff.get("response") or []))
-                sp = cond_curve(vs_p, vs_c,
-                                src[gid] if gid else None, k)
-                gp = cond_curve(vg_p, vg_c, None, k)
-                if len(sp) < 3 or len(gp) < 3:
+                r = shape_gap(vs_p, vs_c, vg_p, vg_c,
+                              src[gid] if gid else None, k)
+                if r is None:
                     continue
+                gap, sp, gp = r
                 svg = curve_svg(pub, sp, gp)
-                sd_c = float(vs_c.dropna().std()) or 1.0
-                import numpy as _np3
-                # ONLY WHERE BOTH CURVES EXIST. np.interp holds the
-                # last value flat outside the synthetic curve's
-                # range, so a source point past the synthetic edge
-                # compared against that plateau reads as a
-                # departure that is not there - the strongest
-                # relationship on the demo set was flagged DEPARTS
-                # at 0.39 sd by exactly this artifact.
-                gap = 0.0
-                glo = min(q[0] for q in gp)
-                ghi = max(q[0] for q in gp)
-                sp_in = [q for q in sp if glo <= q[0] <= ghi]
-                if sp_in and gp:
-                    gy = _np3.interp([q[0] for q in sp_in],
-                                     [q[0] for q in gp],
-                                     [q[1] for q in gp])
-                    gap = float(max(abs(gy - _np3.array(
-                        [q[1] for q in sp_in])))) / sd_c
                 shape = eff.get("shape") or "association"
                 desc = eff.get("description") or ""
                 skill = float(cl.get("skill") or 0)

@@ -79,10 +79,129 @@ def assess(fid: Dict[str, Any]) -> Dict[str, Any]:
         add("set EMPTY rate", em_n == em_d,
             "{}/{} - measured, and the token shares cannot see "
             "it".format(em_n, em_d))
+    # SHAPE AND SURFACE CRITERIA - conditional, like the three
+    # above: a run that measured none does not fail on absence.
+    # Rank correlation is monotone, so a U-shaped relationship is
+    # invisible to `close`; these two see what it cannot.
+    sh_n, sh_d = s.get("shapes_ok"), s.get("shapes_compared")
+    if sh_d:
+        add("shapes tracked", sh_n == sh_d,
+            "{}/{} effect curves within 0.35 sd - what `close` "
+            "cannot see: a U-shape has no rank "
+            "correlation".format(sh_n, sh_d))
+    su_n, su_d = s.get("surfaces_ok"), s.get("surfaces_compared")
+    if su_d:
+        add("interaction surfaces", su_n == su_d,
+            "{}/{} two-variable surfaces within 0.35 sd - "
+            "higher-order structure is not published, so nothing "
+            "above two-way is measured".format(su_n, su_d))
 
     return {"criteria": crit,
             "met": all(c["ok"] for c in crit),
             "pairs": pairs}
+
+
+# STATION REFERENCES ARE TOKENS, RENDERED BY EACH CALLER. When
+# guidance names a place in the bench ("draw the Dashboard"), the
+# text carries [[station]] and the caller decides the form: the
+# bench renders a miniature station button the operator can press,
+# the CLI prints the station's name. One text, two renderings -
+# the same reason this module exists at all.
+STATIONS: Dict[str, Dict[str, str]] = {
+    "dashboard": {"num": "VIEW", "label": "Dashboard",
+                  "route": "map"},
+    "fitsrc": {"num": "01", "label": "Source", "route": "measure"},
+    "fitrun": {"num": "02", "label": "Fit", "route": "measure"},
+    "fitver": {"num": "03", "label": "Verdict",
+               "route": "measure"},
+}
+
+
+def plain(text: str) -> str:
+    """Render [[station]] tokens as plain names, for terminals."""
+    for key, st in STATIONS.items():
+        text = text.replace(
+            "[[{}]]".format(key),
+            "the {} {} station".format(st["num"], st["label"]))
+    return text
+
+
+# WHAT EACH CRITERION MEANS IN THE DATA, pass or fail, and how to
+# INSPECT it yourself - shown under every verdict row, because a
+# PASS the operator cannot check for themselves is just a claim.
+EXPLAIN: Dict[str, Dict[str, str]] = {
+    "direction kept": {
+        "explain": "Of the relationships the source really "
+                   "contains, how many still POINT THE SAME WAY in "
+                   "the synthetic file. A falling relationship that "
+                   "generates as rising would read as a false "
+                   "finding.",
+        "inspect": "In [[dashboard]], press and hold a correlation "
+                   "heatmap: a cell that changes colour family "
+                   "under the crossfade is a direction loss. The "
+                   "pattern cards draw the worst as curves that "
+                   "disagree about which way they run."},
+    "close": {
+        "explain": "How many relationships keep their STRENGTH - "
+                   "the generated correlation within 0.2 of the "
+                   "source's. A pair can point the right way and "
+                   "still arrive diluted.",
+        "inspect": "In [[dashboard]], hold a heatmap: the cells "
+                   "that visibly blink are the drifted pairs, and "
+                   "the gate-issues section there lists EVERY "
+                   "drifted pair by name with its source, "
+                   "generated and drift."},
+    "inverted": {
+        "explain": "Relationships that come out OPPOSITE to the "
+                   "source. Worse than missing, because an "
+                   "inverted relationship reads as a finding. The "
+                   "bar is zero, always.",
+        "inspect": "Any inverted pair is named in the gate-issues "
+                   "section of [[dashboard]] and shows as mirrored "
+                   "curves in its pattern card."},
+    "coverage": {
+        "explain": "Each column should be PRESENT (non-missing) at "
+                   "the source's own rate, within 0.05. A miss "
+                   "here usually means a column was read as the "
+                   "wrong type upstream.",
+        "inspect": "In [[dashboard]], every column's stats table "
+                   "shows missing % original beside synthetic - "
+                   "scan for rows where the two disagree."},
+    "set token shares": {
+        "explain": "Each published list token - a condition, a "
+                   "medication - should appear at its source "
+                   "frequency, within 0.05.",
+        "inspect": "In [[dashboard]], the paired bars on each set "
+                   "column draw original beside synthetic share "
+                   "for every published token."},
+    "shapes tracked": {
+        "explain": "Each published effect CURVE re-measured on "
+                   "both tables - the bend itself, not a "
+                   "correlation. A U-shape has rank correlation "
+                   "near zero, so the close criterion cannot see "
+                   "it; this one can.",
+        "inspect": "In [[dashboard]], the pattern cards draw each "
+                   "curve three ways - published, original, "
+                   "synthetic - and state the miss in sd; DEPARTS "
+                   "is the same 0.35 bar this criterion gates."},
+    "interaction surfaces": {
+        "explain": "Each published two-variable interaction "
+                   "surface re-measured as a coarse grid on both "
+                   "tables. Nothing above two-way is published by "
+                   "the engine, so nothing above two-way is "
+                   "measured - a metric for what the generator "
+                   "cannot produce would only restate a known "
+                   "limitation.",
+        "inspect": "The gate-issues section of [[dashboard]] names "
+                   "any departing surface with its column pair and "
+                   "gap."},
+    "set EMPTY rate": {
+        "explain": "Visits holding an EMPTY list in the source "
+                   "should be empty at the same rate in the "
+                   "synthetic file. Token shares cannot see this.",
+        "inspect": "In [[dashboard]], each set column section "
+                   "states the empty rate for both sides."},
+}
 
 
 # WHAT A FAIL MEANS AND WHAT TO DO NEXT, per criterion - here, in
@@ -104,7 +223,7 @@ NEXT_STEPS: Dict[str, Dict[str, Any]] = {
             "Re-run 2-3 seeds before believing a small margin - a "
             "single seed cannot resolve one, and this measurement "
             "moves several points seed to seed.",
-            "Draw the Dashboard and read the pattern cards: a "
+            "Draw [[dashboard]] and read the pattern cards: a "
             "DEPARTS verdict names which relationships, in sd.",
             "If lags are off and the data is temporal, refit with "
             "lags - lagged pairs cannot be found without them."]},
@@ -113,7 +232,7 @@ NEXT_STEPS: Dict[str, Dict[str, Any]] = {
                  "many pairs - the shapes are there, weaker or "
                  "stronger than the source.",
         "steps": [
-            "Draw the Dashboard: each pattern card states the miss "
+            "Draw [[dashboard]]: each pattern card states the miss "
             "in standard deviations, so you can see WHICH pairs "
             "drift and by how much.",
             "Re-run 2-3 seeds - close moves several points on seed "
@@ -156,6 +275,34 @@ NEXT_STEPS: Dict[str, Dict[str, Any]] = {
             "Fix the reading, refit. Do not tune anything else "
             "until coverage passes - every other number is "
             "measured through it."]},
+    "shapes tracked": {
+        "means": "A relationship's SHAPE drifted - the synthetic "
+                 "curve bends differently from the source's, even "
+                 "if the correlation survived.",
+        "steps": [
+            "Open the departing claim's pattern card in "
+            "[[dashboard]]: the gray and cardinal curves show "
+            "WHERE along the range the shapes disagree.",
+            "Check whether the drift sits at a k-screened tail - "
+            "a bend the privacy rule flattened is the rule "
+            "working.",
+            "Re-run a second seed: single-seed shape gaps move, "
+            "and one measurement of a change is worth nothing "
+            "here."]},
+    "interaction surfaces": {
+        "means": "A two-variable interaction did not survive - "
+                 "the child responds to the PAIR differently in "
+                 "the synthetic file.",
+        "steps": [
+            "Read the surface's pair and gap in the gate-issues "
+            "section of [[dashboard]] - the pair names the two "
+            "columns whose joint effect drifted.",
+            "Check the trimmed-parents report in findings.txt: a "
+            "surface whose parent was cut to break a cycle "
+            "cannot fire at generation.",
+            "Re-run a second seed before treating the gap as "
+            "real - an interaction fix was once shipped on seed 0 "
+            "and failed completely on seed 3."]},
     "set token shares": {
         "means": "Published list tokens (conditions, medications) "
                  "generate at the wrong frequencies.",

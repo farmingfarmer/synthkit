@@ -1773,6 +1773,23 @@ def compare(df, g, bp, group_by, time_col, ordinals=None,
         if r.get("capped"))
     pairs = _pair_fidelity(Xs, Xg, bp)
 
+    # SHAPES AND SURFACES, MEASURED PER RUN. Rank correlation is
+    # monotone, so a U-shaped relationship - Spearman near zero on
+    # both sides - was excluded from the pair gate entirely; and
+    # the published interaction surfaces' survival had only ever
+    # been proven on the instrumented fixture. synthkit.curvecheck
+    # is the ONE implementation; the dashboard draws from the same
+    # functions.
+    from synthkit import curvecheck as _curves
+    _gid = Xs[group_by] if group_by in Xs.columns else None
+    _kk = 10
+    for _spec in (bp.get("columns") or {}).values():
+        _m = (_spec or {}).get("marginal") or {}
+        _kk = int(_m.get("bounds_are_k_anonymous") or _kk)
+        break
+    shapes = _curves.measure_shapes(Xs, Xg, bp, _gid, _kk)
+    surfaces = _curves.measure_surfaces(Xs, Xg, bp, _gid, _kk)
+
     # SCAFFOLDING IS COUNTED SEPARATELY, or the headline is inflated.
     # A four-column file expanded to twenty-seven, and the run
     # reported "coverage within 0.05 on 27/27 columns" - a reader
@@ -1996,6 +2013,8 @@ def compare(df, g, bp, group_by, time_col, ordinals=None,
         "set_shape": set_shape,
         "constraints": cons,
         "relationships": pairs,
+        "shapes": shapes,
+        "surfaces": surfaces,
         "summary": {
             "columns": len(cols), "numeric": n_ok["num"],
             # Counted APART from the columns above, which are the
@@ -2018,6 +2037,10 @@ def compare(df, g, bp, group_by, time_col, ordinals=None,
             "pairs_sign_ok": pairs["sign_kept"],
             "pairs_close": pairs["close"],
             "pairs_inverted": len(pairs["inverted"]),
+            "shapes_compared": shapes["compared"],
+            "shapes_ok": shapes["tracked"],
+            "surfaces_compared": surfaces["compared"],
+            "surfaces_ok": surfaces["tracked"],
             "categorical_compared": pairs["categorical_compared"],
             "categorical_kept": pairs["categorical_kept"],
             "deterministic_compared": pairs["deterministic_compared"],

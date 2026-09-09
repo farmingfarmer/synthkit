@@ -146,13 +146,13 @@ main(['version'])"` if -m is not wired).
 python scripts\run_all_smokes.py
 ```
 
-Expect: 67 suites, **1858** checks, ALL GREEN.
+Expect: 67 suites, **1868** checks, ALL GREEN.
 
 **That number is for THIS machine, and it is nine lower than the
 development machine's on purpose.** Nine checks in `smoke_buildid`
 run `git archive` to prove the commit really is substituted into the
 download, and there is no git here to run it with - so they report
-SKIPPED and the total comes out at 1858 against 1867 on a
+SKIPPED and the total comes out at 1868 against 1877 on a
 checkout.
 Both were measured, the second by extracting an archive and running
 the whole net inside it. A total that does not match this page is
