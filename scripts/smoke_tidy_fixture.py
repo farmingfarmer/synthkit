@@ -265,6 +265,35 @@ def main():
                   "0%, which is what made it look blind".format(_emp),
                   _emp > 0.5)
 
+    # THE REPRODUCTION FIXTURES CONTAIN THE MECHANISMS THEY CLAIM.
+    # Both were aimed at statistics MEASURED on the real extract
+    # (2026-09-10): the colinear pressure family behind the seed-37
+    # inversions and departed surfaces, and the attribution
+    # triangle behind the SHAP flip. A fixture that misses its aim
+    # reproduces a different fault than the one that exists.
+    sys.path.insert(0, str(Path(__file__).parent))
+    from repro_mechanisms import build_pressure, build_triangle
+    _pf = build_pressure()
+    check("the pressure fixture hits its measured aims - S-D near "
+          "+0.888, the two weak negatives near -0.304 and -0.126, "
+          "and a tight MAP identity",
+          0.80 <= _pf["systolic"].corr(_pf["diastolic"]) <= 0.95
+          and -0.40 <= _pf["span_days"].corr(_pf["map_calc"])
+          <= -0.20
+          and -0.25 <= _pf["proc_count"].corr(_pf["diastolic"])
+          <= -0.05
+          and float(((_pf["systolic"] + 2 * _pf["diastolic"]) / 3
+                     - _pf["map_calc"]).abs().mean()) < 1.0)
+    _tf = build_triangle()
+    check("the triangle fixture is mutually correlated (a cycle "
+          "for discovery) with the lead driver dominant, and both "
+          "builders are deterministic",
+          _tf["span_like"].corr(_tf["proc_like"]) > 0.7
+          and _tf["span_like"].corr(_tf["drug_like"]) > 0.6
+          and _tf["proc_like"].corr(_tf["drug_like"]) > 0.6
+          and build_pressure().equals(_pf)
+          and build_triangle().equals(_tf))
+
     print()
     if FAIL:
         print("{} FAILED".format(FAIL))

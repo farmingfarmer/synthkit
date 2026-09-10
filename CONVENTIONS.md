@@ -4,7 +4,7 @@ Synthetic clinical data generator and model-evaluation instrument. Core rule: le
 
 ## Verify before claiming
 
-- Run `python scripts/run_all_smokes.py` before claiming anything works. Expect 67 suites, 1887 checks, ALL GREEN **on a checkout**. Off a zipball extract - which is what the data machine runs - it is 1878: nine checks in `smoke_buildid` need git to test the archive path and report SKIPPED without it. Both numbers were measured. Do not quote the checkout number to the data machine; that is how a correct run gets read as a failure.
+- Run `python scripts/run_all_smokes.py` before claiming anything works. Expect 67 suites, 1889 checks, ALL GREEN **on a checkout**. Off a zipball extract - which is what the data machine runs - it is 1880: nine checks in `smoke_buildid` need git to test the archive path and report SKIPPED without it. Both numbers were measured. Do not quote the checkout number to the data machine; that is how a correct run gets read as a failure.
 - **THE DEVELOPMENT MACHINE WAS BEHIND THE DATA MACHINE, and that is
   how a green suite here failed there.** Dev was on Python 3.10 with
   pandas 2.3; the data machine installs fresh and got pandas 3.0.5,
@@ -203,6 +203,34 @@ the direction that stops work happening.
   parent was trimmed cannot fire at generation. This, not centre
   and not blind close-tuning, is the measured target for fidelity
   work.
+
+- **THE REPRODUCTION FIXTURES RAN (`repro_mechanisms.py`), and the
+  scorecard reads: TRIANGLE REPRODUCED, SURFACES REPRODUCED,
+  SHAPES OVER-REPRODUCED, INVERSIONS OPEN.** The attribution
+  triangle (aimed at the measured 75/25) flips its majority driver
+  on 2 of 5 seeds - 77/23 becoming 41/59 and 48/52 - with a mean
+  lead-share drift of 20 points: the real extract's flip, on
+  demand, and hugely seed-dependent (85/15 on one seed, 41/59 on
+  another), matching the single-seed real observation. The
+  colinear pressure family fails the surface criterion on 2 of 5
+  seeds and the SHAPE criterion on 3 of 5 (as low as 5/12 curves
+  tracked) - nastier than the real extract in exactly the
+  dimension worth stressing. Any fix is measured against BOTH
+  fixtures across seeds, flip count and drift for the triangle,
+  with the zero-inversion sweep gate held.
+- **INVERSIONS DID NOT REPRODUCE, and two hypotheses died
+  cleanly.** Dense colinear family: 0 inversions across 5 seeds.
+  Sparse-invasive variant (the one measured difference - the real
+  inverted pairs involve columns present on a minority of rows):
+  0 across 5 more, while close and shapes got WORSE - sparsity
+  stresses the sampler, just not into inversion. Both negatives
+  show structure, so they read as mechanism differences, not
+  script faults. Remaining known differences: --lags and the full
+  44-column graph. NOT pursued by guessing - the real-data seed
+  sweep remains the inversion gate, and a fix that heals the
+  triangle and surfaces is the likeliest candidate to heal
+  inversions too, since all three symptoms sit on the trim
+  machinery.
 
 ## Numbers before conclusions
 
