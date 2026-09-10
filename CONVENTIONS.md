@@ -173,6 +173,37 @@ the direction that stops work happening.
   certificate, and not a release decision for a different cohort. Say
   all of that whenever the posture comes up.
 
+- **THE SEED SWEEP RAN ON THE REAL EXTRACT (2026-09-10), and it
+  re-aimed the fidelity work.** Three seeds (20260731 / 11 / 37):
+  close 76.5% / 80.6% / 80.2% - a four-point spread, every seed
+  7-11 points under the 87.9% bar, so the close gap is REAL, not
+  noise. Direction passed on all three (93.9-97.7%). Shapes
+  survived almost everywhere (8/9, 7/7, 7/7) - the U-shape fear is
+  not realized on this extract. centre is LARGELY FIXED: 29/33
+  within 10% of spread against 18/34 in August; the four remaining
+  misses are all 0.11-0.16 sd. The five spread misses all lose
+  their magnitude to the published bound (68-96% beyond) - privacy
+  by design, now correctly attributed.
+- **TWO INVERSIONS APPEARED ON SEED 37 - the first ever observed
+  on real data.** procedure_count ~ diastolic_blood_pressure_invasive
+  (source -0.126, generated +0.117) and span_days ~
+  mean_arterial_pressure_invasive (source -0.304, generated
+  +0.136). Both involve the invasive-pressure family - the MAP
+  identity territory where the partial-dependence sign flip was
+  first found - and both sources are weak negatives. One seed of
+  three: per the gate's own guidance, that file does not
+  circulate, and the mechanism is a defect to find, not a
+  statistic to average away.
+- **INTERACTION SURFACES FAIL CONSISTENTLY: 1/6, 2/6, 1/6 across
+  seeds.** The first per-run reading of the new criterion says the
+  published two-variable surfaces mostly DO NOT survive generation
+  on the real extract, on every seed - while shapes and direction
+  survive. The suspect mechanism is already named in the fit log:
+  11 relationships trimmed to order the graph, and a surface whose
+  parent was trimmed cannot fire at generation. This, not centre
+  and not blind close-tuning, is the measured target for fidelity
+  work.
+
 ## Numbers before conclusions
 
 - **Recall on the fixture varies 71%-86% across seeds with nothing

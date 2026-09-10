@@ -265,10 +265,14 @@ Durations are from now, deliberately not dates:
 1. **Goal 7 — the single end-to-end run** on the data machine.
    ~1-2 weeks. Pure assembly, no unknowns, and goal 8 is blocked
    behind it.
-2. **Goal 5 — the close gap**, starting with the 2-3 seed sweep
-   (exact commands are in the Verdict station's what-now panel).
-   ~2-4 weeks. The 76.5% margin has never been seed-swept on real
-   data and may be partly noise.
+2. **Goal 5 — the fidelity gap**, RE-AIMED by the seed sweep
+   (run 2026-09-10: close 76.5/80.6/80.2 across three seeds - the
+   gap is REAL, not noise). ~2-4 weeks. The measured targets, in
+   order: the two seed-37 INVERSIONS in the invasive-pressure
+   family (a defect, not a statistic); interaction-surface
+   survival (1/6, 2/6, 1/6 - consistent, suspect mechanism is
+   trimmed parents); then close itself. centre is largely fixed
+   (29/33, worst miss 0.16 sd) and comes off the list.
 3. **Goal 8 — the report card** off the goal-7 run. ~1-2 weeks
    after goal 7 lands.
 4. **Goal 6 — the sign-off page.** ~1 week; assembly of what now
