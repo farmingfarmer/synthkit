@@ -1406,6 +1406,25 @@ what follows is what came out wrong anyway.
   family - MAP = (S+2D)/3 territory. Fidelity work aims there,
   on fixtures first.
 
+- **THE FIRST REAL SHAP READ FOUND AN ATTRIBUTION FLIP.** On the
+  extract, span_days is driven 74/26 by procedure_count over
+  active_drug_count; in the synthetic file the driving flips to
+  22/78 - and procedure_count itself flips 77/23 to 7/93. The
+  pairwise checks cannot see this: each pair can survive as
+  "faded" while WHO DRIVES WHOM is reassigned. Mechanistically
+  consistent with the trim machinery - a parent cut to order the
+  cycle routes its influence through the surviving parent. The
+  span_days / procedure_count / active_drug_count triangle is
+  reproduction fixture number one, beside the pressure family.
+- **AND BOTH STRONGEST JOINT PAIRS ARE UNPUBLISHED.** SHAP
+  interaction values rank procedure_count x active_drug_count and
+  span_days x active_drug_count as the strongest joint effects in
+  the real data - neither has a published surface. Beside the
+  1-2/6 survival of the surfaces that ARE published, the
+  interaction layer is now fully characterized on real data: what
+  is published mostly does not survive, and what matters most is
+  not published. Both halves measured, not suspected.
+
 ## Talking to the data machine
 
 - **The data machine may not be a git repository.** `docs/WINDOWS.md`
