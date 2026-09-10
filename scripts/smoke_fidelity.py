@@ -808,6 +808,41 @@ def main():
           "u_shape" in _fd.gate_issues_html(_fidS, _vS2)
           and "1.69" in _fd.gate_issues_html(_fidS, _vS2))
 
+    # THE centre_miss READER. The diagnosis block has waited in
+    # fidelity.json since it was built, unread on real data because
+    # reading it needed a hand-typed one-liner on a terminal that
+    # mangles pastes. peek.py centre is the reader; the fixture
+    # CONTAINS misses, because a reader checked against an empty
+    # list proves nothing.
+    with tempfile.TemporaryDirectory() as _tc:
+        (Path(_tc) / "fidelity.json").write_text(json.dumps({
+            "summary": {"centre_ok": 1},
+            "columns": [
+                {"column": "lab_a", "mean_source": 1.0,
+                 "centre_miss": {"by_sd": 0.71,
+                                 "direction": "generated above source",
+                                 "skew_source": 2.8,
+                                 "tail_shape_published": False,
+                                 "integral": False}},
+                {"column": "lab_b", "mean_source": 2.0,
+                 "centre_miss": {"by_sd": 0.15,
+                                 "direction": "generated below source",
+                                 "skew_source": 0.1,
+                                 "tail_shape_published": True,
+                                 "integral": True}},
+                {"column": "ok_col", "mean_source": 3.0}]}),
+            encoding="utf-8")
+        _rp = subprocess.run(
+            [sys.executable, "scripts/peek.py", _tc, "centre"],
+            capture_output=True, text=True, cwd=str(ROOT))
+    check("peek.py centre reads the diagnosis worst-first, flags "
+          "the skewed/no-tail suspects, and echoes its settings",
+          _rp.returncode == 0
+          and "centre_view on" in _rp.stdout
+          and _rp.stdout.index("lab_a") < _rp.stdout.index("lab_b")
+          and "1 of 2 missed columns are skewed" in _rp.stdout
+          and "1 had NO tail shape published" in _rp.stdout)
+
     # GUIDANCE GIVES COMMANDS, NOT ADVICE - and survives both
     # renderers. The seed step carries the exact CLI with
     # bracket-free placeholders, because <angle brackets> are HTML

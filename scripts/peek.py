@@ -7,6 +7,7 @@
     python scripts/peek.py RUNDIR columns [SUBSTRING]
     python scripts/peek.py RUNDIR cap
     python scripts/peek.py RUNDIR empty
+    python scripts/peek.py RUNDIR centre
 
 WHY THIS EXISTS. Seven diagnoses in a row were fetched with pasted
 python -c one-liners a hundred characters wide, on a terminal that
@@ -268,6 +269,52 @@ def empty_view(run):
         print()
 
 
+def centre_view(run):
+    """The centre_miss diagnosis, read out of a finished run.
+
+    The centre criterion failed on 16 of 34 numeric columns on the
+    800-patient run with nothing to say why; the block was built to
+    diagnose the remainder and this is its reader. Sorted worst
+    first, with the two candidate mechanisms called out: source
+    skew (the piecewise-CDF loss) and a missing tail shape (the
+    published correction that would have countered it)."""
+    print("centre_view on {}".format(run))
+    fid = _load(run, "fidelity.json")
+    cols = fid.get("columns") or []
+    rows = [(c.get("column"), c.get("centre_miss"))
+            for c in cols if c.get("centre_miss")]
+    n_num = sum(1 for c in cols
+                if c.get("mean_source") is not None)
+    ok = (fid.get("summary") or {}).get("centre_ok")
+    print("centre_ok {} of {} numeric columns; {} carry a "
+          "centre_miss diagnosis".format(ok, n_num, len(rows)))
+    if not rows:
+        print("no centre_miss blocks - every centre landed inside "
+              "a tenth of its column's spread")
+        return
+    print()
+    print("{:<28} {:>7}  {:<24} {:>6}  {:<10} {}".format(
+        "column", "miss_sd", "direction", "skew", "tail_pub",
+        "integral"))
+    for c, m in sorted(rows, key=lambda x: -x[1]["by_sd"]):
+        print("{:<28} {:>7.2f}  {:<24} {:>6}  {:<10} {}".format(
+            c[:28], m["by_sd"], m["direction"],
+            ("{:.1f}".format(m["skew_source"])
+             if m.get("skew_source") is not None else "-"),
+            "yes" if m["tail_shape_published"] else "NO",
+            "yes" if m.get("integral") else "no"))
+    skewed = sum(1 for _c, m in rows
+                 if abs(m.get("skew_source") or 0) >= 1.0)
+    unshaped = sum(1 for _c, m in rows
+                   if not m["tail_shape_published"])
+    print()
+    print("{} of {} missed columns are skewed (|skew| >= 1); "
+          "{} had NO tail shape published - those are the "
+          "piecewise-CDF suspects. A miss that is neither is a "
+          "different mechanism, still to be found.".format(
+              skewed, len(rows), unshaped))
+
+
 def main():
     if len(sys.argv) < 3:
         print(__doc__)
@@ -290,6 +337,8 @@ def main():
         cap_view(run)
     elif what == "empty":
         empty_view(run)
+    elif what == "centre":
+        centre_view(run)
     else:
         print(__doc__)
         return 2
