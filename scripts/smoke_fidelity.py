@@ -4,6 +4,7 @@ A scorecard that always passes is worthless, so every claim here is
 tested against a DELIBERATE failure as well as a success.
 """
 import csv
+import io
 import json
 import random
 import re
@@ -941,6 +942,43 @@ def main():
                   "interaction surfaces")]}
           and all("[[dashboard]]" in v["inspect"]
                   for v in _g2.EXPLAIN.values()))
+
+    # THE CANDIDATE POOL IS EVERY CLAIM, AND THE EMPTY CASE IS
+    # STATED. The first version screened only the top-8 drawn
+    # cards; on the real extract those are token-indicator pairs
+    # whose columns live only inside the search, so the section
+    # rendered NOTHING - the exact silent absence the omission
+    # note exists to prevent, shipped in the branch beside it.
+    import pandas as _pd8
+    _srcE = _pd8.DataFrame({"a": ["1", "2", "3"] * 40,
+                            "b": ["2", "3", "4"] * 40,
+                            "y": ["5", "6", "7"] * 40,
+                            "d": ["2024-01-01"] * 120})
+    _genE = _srcE.copy()
+    check("shap candidates come from EVERY claim - a numeric "
+          "two-driver child qualifies, a token child and a "
+          "date-thinned parent list do not",
+          _fd.shap_candidates(
+              [{"child": "y", "skill": .8, "predictors": [
+                  {"column": "a"}, {"column": "b"}]}],
+              _srcE, _genE) == [(0.8, "y", ["a", "b"])]
+          and _fd.shap_candidates(
+              [{"child": "meds__has__x", "skill": .9,
+                "predictors": [{"column": "a"},
+                               {"column": "b"}]}],
+              _srcE, _genE) == []
+          and _fd.shap_candidates(
+              [{"child": "y", "skill": .8, "predictors": [
+                  {"column": "a"}, {"column": "d"}]}],
+              _srcE, _genE) == [])
+    check("...and when nothing qualifies the section STATES the "
+          "limit rather than vanishing",
+          "nothing to attribute" in io.open(
+              "scripts/fidelity_deck.py",
+              encoding="utf-8").read()
+          and "This is a stated " in io.open(
+              "scripts/fidelity_deck.py",
+              encoding="utf-8").read())
 
     # THE DRIVERS, ATTRIBUTED - SHAP is OPTIONAL and its absence
     # is STATED. When installed, each drawn pattern child with two

@@ -4,7 +4,7 @@ Synthetic clinical data generator and model-evaluation instrument. Core rule: le
 
 ## Verify before claiming
 
-- Run `python scripts/run_all_smokes.py` before claiming anything works. Expect 67 suites, 1885 checks, ALL GREEN **on a checkout**. Off a zipball extract - which is what the data machine runs - it is 1876: nine checks in `smoke_buildid` need git to test the archive path and report SKIPPED without it. Both numbers were measured. Do not quote the checkout number to the data machine; that is how a correct run gets read as a failure.
+- Run `python scripts/run_all_smokes.py` before claiming anything works. Expect 67 suites, 1887 checks, ALL GREEN **on a checkout**. Off a zipball extract - which is what the data machine runs - it is 1878: nine checks in `smoke_buildid` need git to test the archive path and report SKIPPED without it. Both numbers were measured. Do not quote the checkout number to the data machine; that is how a correct run gets read as a failure.
 - **THE DEVELOPMENT MACHINE WAS BEHIND THE DATA MACHINE, and that is
   how a green suite here failed there.** Dev was on Python 3.10 with
   pandas 2.3; the data machine installs fresh and got pandas 3.0.5,
@@ -1384,6 +1384,27 @@ what follows is what came out wrong anyway.
   latest line, done green - and the words are the run's own. The
   renderer was unit-run in node against a real log shape before
   shipping.
+
+- **A STATED-ABSENCE BRANCH DOES NOT COVER THE THIRD CASE.** The
+  SHAP section had two branches - installed, and absent-with-a-
+  note - and shipped a third, silent one: installed but nothing
+  eligible, which is what the real extract hit (its top drawn
+  patterns are token-indicator pairs whose columns live only
+  inside the search). The candidate pool now walks EVERY claim by
+  skill (`shap_candidates`, unit-tested for the token-child and
+  date-parent exclusions), and the genuinely-empty case renders a
+  stated limit. Enumerate the cases; the one without a branch is
+  the one the real data finds. And the fix's own check then hit
+  the wrapped-heading lesson - grepping a phrase a string-literal
+  line break splits - in a check about stating things.
+- **THE FIRST REAL GATE-ISSUES READ GAVE THE ATTACK COORDINATES.**
+  Close drift on the real extract is CONCENTRATED in set-token
+  relationships (has_ <- has_, has_ <- quantity; k-rule column
+  blank, so not bound-explained), while ordinary numeric pairs
+  mostly survive. The departed surfaces and both seed-37
+  inversions converge on the colinear cuff/invasive pressure
+  family - MAP = (S+2D)/3 territory. Fidelity work aims there,
+  on fixtures first.
 
 ## Talking to the data machine
 

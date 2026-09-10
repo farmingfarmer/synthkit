@@ -396,6 +396,48 @@ def heatmap_pair(names, ms, mg):
             + "</svg>")
 
 
+def shap_candidates(claims, src, gen):
+    """Which claims can carry SHAP attribution: a non-scaffolding
+    child present in both written files, with at least TWO drivers
+    that are also present, numeric and non-scaffolding.
+
+    On the real extract the top patterns are token-indicator pairs
+    whose columns live only inside the search, plus date-driven
+    children - so the first version, which screened only the top-8
+    drawn cards, found nothing and rendered NOTHING, the exact
+    silent absence the omission note exists to prevent. This walks
+    EVERY claim by skill instead, and the caller states the empty
+    case out loud."""
+    from synthkit import sets as _sets
+    out, seen = [], set()
+    for cl in sorted(claims or [],
+                     key=lambda c: -(c.get("skill") or 0)):
+        child = cl.get("child")
+        if (not child or child in seen
+                or _sets.is_scaffolding(child)
+                or child not in src.columns
+                or child not in gen.columns):
+            continue
+        if numeric(src[child]).notna().mean() < 0.5:
+            continue
+        parents = []
+        for pr in (cl.get("predictors") or []):
+            c = pr.get("column")
+            if (not c or c == child or c in parents
+                    or _sets.is_scaffolding(c)
+                    or c not in src.columns
+                    or c not in gen.columns):
+                continue
+            if numeric(src[c]).notna().mean() < 0.5:
+                continue
+            parents.append(c)
+        if len(parents) >= 2:
+            seen.add(child)
+            out.append((float(cl.get("skill") or 0), child,
+                        parents[:6]))
+    return out
+
+
 def gate_issues_html(fid, verdict, bp=None):
     """Every failed gate criterion, highlighted and ENUMERATED.
 
@@ -996,23 +1038,20 @@ def build_deck(src_path, run_dir, group_by="person_id",
             'depends on it.</p>')
     else:
         from sklearn.ensemble import HistGradientBoostingRegressor
-        _seen_children = []
-        _seen_names = set()
-        for (skill, child, par, shape, desc, svg, gap, preds,
-                _cit) in cards[:8]:
-            if child in _seen_names:
-                continue
-            parents = [p.get("column") for p in (preds or [])
-                       if p.get("column") in src.columns
-                       and p.get("column") in gen.columns
-                       and not _sets.is_scaffolding(
-                           p.get("column"))]
-            parents = [p for p in parents
-                       if numeric(src[p]).notna().mean() > 0.5][:6]
-            if len(parents) < 2:
-                continue
-            _seen_children.append((child, parents))
-            _seen_names.add(child)
+        _seen_children = [(c, ps) for _sk, c, ps in
+                          shap_candidates(cat.get("claims"),
+                                          src, gen)]
+        if not _seen_children:
+            body.append(
+                '<h2>The drivers, attributed</h2>'
+                '<p class="note">No pattern here has two or more '
+                'numeric drivers present in the written files, so '
+                'there is nothing to attribute - the strongest '
+                'patterns in this run live on list-token '
+                'indicators, which exist only inside the search, '
+                'or on single or date drivers. This is a stated '
+                'limit of the attribution, not an empty '
+                'result.</p>')
         if _seen_children:
             body.append('<h2>The drivers, attributed &mdash; '
                         'SHAP, on both tables</h2>')
