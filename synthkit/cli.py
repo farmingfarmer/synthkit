@@ -405,7 +405,18 @@ def cmd_campaign_compile(args) -> int:
 def cmd_campaign_run(args) -> int:
     from .campaign import load_campaign, run_campaign, \
         write_campaign
-    camp = load_campaign(Path(args.campaign_dir))
+    _cd = Path(args.campaign_dir)
+    if not (_cd / "manifest.json").exists():
+        # the operator hit this as a raw FileNotFoundError after a
+        # one-letter path typo - compile had written to a sibling
+        # directory and nothing said so
+        print("STOPPED: no manifest.json in {} - either "
+              "campaign-compile has not run, or it wrote to a "
+              "differently-spelled directory. `dir {}` shows what "
+              "is actually there.".format(_cd, _cd.parent),
+              file=sys.stderr)
+        return 2
+    camp = load_campaign(_cd)
     extractor = None
     if args.llm:
         if camp.goal != "extract":
@@ -458,7 +469,15 @@ def cmd_campaign_run(args) -> int:
 def cmd_showdown(args) -> int:
     from .autosolver import run_showdown
     from .campaign import load_campaign
-    camp = load_campaign(Path(args.campaign_dir))
+    _cd = Path(args.campaign_dir)
+    if not (_cd / "manifest.json").exists():
+        print("STOPPED: no manifest.json in {} - either "
+              "campaign-compile has not run, or it wrote to a "
+              "differently-spelled directory. `dir {}` shows what "
+              "is actually there.".format(_cd, _cd.parent),
+              file=sys.stderr)
+        return 2
+    camp = load_campaign(_cd)
     if ":" in args.solver:
         _cwd_importable()
         mod_name, fn_name = args.solver.split(":", 1)

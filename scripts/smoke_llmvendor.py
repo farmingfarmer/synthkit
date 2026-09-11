@@ -241,6 +241,27 @@ def main():
           "with directions",
           rc == 2 and "--llm" in err)
 
+    # A MISSING CAMPAIGN DIRECTORY IS A SENTENCE, NOT A STACK. The
+    # operator hit a raw FileNotFoundError after a one-letter path
+    # typo - compile had written to a sibling directory and nothing
+    # said so. Both consumers refuse with the same words and point
+    # at the parent listing.
+    rcm, _om, errm = run_cli(
+        ["campaign-run", str(tmp / "no-such-dir"),
+         "--solver", "autosolver"])
+    check("campaign-run on a missing campaign STOPs, names "
+          "manifest.json, and suggests listing the parent",
+          rcm == 2 and "no manifest.json" in errm
+          and "differently-spelled" in errm
+          and "Traceback" not in errm)
+    rcs, _os, errs = run_cli(
+        ["showdown", str(tmp / "no-such-dir"),
+         "--solver", "autosolver_hybrid"])
+    check("...and showdown refuses the same way, in the same "
+          "words",
+          rcs == 2 and "no manifest.json" in errs
+          and "Traceback" not in errs)
+
     # ---------- GUI wiring ----------
     import json as _json
     import threading
