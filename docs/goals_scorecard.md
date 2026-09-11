@@ -194,7 +194,7 @@ dashboard, and what-now guidance carries exact commands.)*
 
 ---
 
-## Goal 7 — Vendor evaluation against planted truth   **~60%**
+## Goal 7 — Vendor evaluation against planted truth   **~85%**
 
 **What works, measured**
 - `semisynth.plant/verify`: effects declared in standard
@@ -262,7 +262,7 @@ the last runtime estimate on this project was wrong by 30x, upward.
 
 Durations are from now, deliberately not dates:
 
-1. **Goal 7 — the single end-to-end run** on the data machine.
+1. **Goal 7 — the single end-to-end run** — DONE 2026-09-11: bridge -> plant -> ladder -> showdown on 55,428 real-shaped rows; ceiling/baseline/vendor produced, the as-specified bar exposed as sitting above its own ceiling. Was:
    ~1-2 weeks. Pure assembly, no unknowns, and goal 8 is blocked
    behind it.
 2. **Goal 5 — the fidelity gap**, RE-AIMED by the seed sweep
@@ -285,7 +285,7 @@ Durations are from now, deliberately not dates:
    and unscheduled, because unknowns move dates and this is the
    genuine unknown.
 
-Equal-weighting the eight goals: **~66% complete.** The unweighted
+Equal-weighting the eight goals: **~69% complete** (goal 7 60→85 on 2026-09-11: the end-to-end run happened). The unweighted
 number understates the risk profile: what remains is mostly
 assembly and breadth (M1, M2, M3) plus two genuine unknowns — the
 `close` gap and the cycle ceiling — and unknowns, not assembly, are

@@ -1475,6 +1475,26 @@ what follows is what came out wrong anyway.
   arrives by overwriting an error path has removed a guard
   somebody planted on purpose.
 
+- **THE END-TO-END RUN HAPPENED (2026-09-11), and the exam judged
+  its own bar.** run_seed11 -> bridge -> plant (+0.8 age_at_visit,
+  -0.5 span_days, 25%) -> three tiers -> showdown, 55,428 rows:
+  strong ceiling 0.786 / baseline 0.758 (gap 0.028, PASS);
+  as-specified ceiling 0.698 / baseline 0.683 (gap 0.016, bar
+  FAIL); weak ceiling 0.622 / 0.617 (gap 0.005, PASS). The
+  as-specified FAIL is the instrument working: the 0.700 bar sits
+  ABOVE that tier's 0.698 ceiling, so no solver on earth clears
+  it - a miscalibrated bar, visible in one line only because the
+  ceiling is computable from the planted answer. The gap condition
+  held everywhere, which is the solver-quality verdict. LESSON:
+  set bars beneath the ceiling, or judge on gap; a worthwhile
+  future guard is campaign machinery warning when a tier's bar
+  exceeds its own ceiling.
+- **The intercept solve verified at extract scale**: as-specified
+  prevalence landed at 13,846/55,428 = 25.0%, exactly as
+  requested. Amplified tiers shift prevalence by construction
+  (strong tier read 57%) - the coefficients move and the intercept
+  stays solved for the declared tier.
+
 ## Talking to the data machine
 
 - **The data machine may not be a git repository.** `docs/WINDOWS.md`
