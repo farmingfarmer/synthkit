@@ -4,7 +4,7 @@ Synthetic clinical data generator and model-evaluation instrument. Core rule: le
 
 ## Verify before claiming
 
-- Run `python scripts/run_all_smokes.py` before claiming anything works. Expect 67 suites, 1889 checks, ALL GREEN **on a checkout**. Off a zipball extract - which is what the data machine runs - it is 1880: nine checks in `smoke_buildid` need git to test the archive path and report SKIPPED without it. Both numbers were measured. Do not quote the checkout number to the data machine; that is how a correct run gets read as a failure.
+- Run `python scripts/run_all_smokes.py` before claiming anything works. Expect 67 suites, 1892 checks, ALL GREEN **on a checkout**. Off a zipball extract - which is what the data machine runs - it is 1883: nine checks in `smoke_buildid` need git to test the archive path and report SKIPPED without it. Both numbers were measured. Do not quote the checkout number to the data machine; that is how a correct run gets read as a failure.
 - **THE DEVELOPMENT MACHINE WAS BEHIND THE DATA MACHINE, and that is
   how a green suite here failed there.** Dev was on Python 3.10 with
   pandas 2.3; the data machine installs fresh and got pandas 3.0.5,
@@ -1452,6 +1452,28 @@ what follows is what came out wrong anyway.
   interaction layer is now fully characterized on real data: what
   is published mostly does not survive, and what matters most is
   not published. Both halves measured, not suspected.
+
+- **THE END-TO-END LOOP IS ASSEMBLED AND REHEARSED
+  (docs/E2E_EVAL.md).** Goal 7's prediction held: every part
+  existed and the glue did not. `synthkit bridge RUNDIR` writes
+  tablespec.json from an existing run (the bridge lived only
+  inside `fit --emit-spec`, a 40-minute refit for a file the
+  blueprint already implies); `synthkit plant` is the answer-key
+  step that was reachable only from Python (effects in sd, echoed;
+  unknown columns REFUSED by name; all-refused is a sentence, not
+  a stack - it surfaced as a traceback until the rehearsal);
+  campaign-run and showdown accept registry solver names. Rehearsed
+  on the clinic proxy: bridge -> plant -> three tiers -> showdown,
+  ceiling / baseline / vendor 0.827 / 0.822 / 0.822 on the strong
+  tier, gap to ceiling 0.006 everywhere - the line the product
+  exists to produce, working.
+- **AND THE NET CAUGHT THE CONVENIENCE DELETING A REFUSAL.** The
+  registry-name path replaced campaign-run's "no solver given"
+  error, and smoke_llmvendor's guard went red within one cycle -
+  the refusal is restored beside the convenience, and an unknown
+  registry name STOPs with the built-ins listed. A feature that
+  arrives by overwriting an error path has removed a guard
+  somebody planted on purpose.
 
 ## Talking to the data machine
 

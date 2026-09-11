@@ -429,10 +429,21 @@ def cmd_campaign_run(args) -> int:
         _cwd_importable()
         solver = getattr(importlib.import_module(mod_name),
                          fn_name)
-    else:
-        print("solver must be 'package.module:function' "
-              "(or pass --llm)", file=sys.stderr)
+    elif not args.solver:
+        print("pass --solver (a registry name like autosolver, or "
+              "package.module:function) or --llm", file=sys.stderr)
         return 2
+    else:
+        # the registry names the bench uses (autosolver,
+        # autosolver_hybrid, ...) work here too - the operator on
+        # the data machine should not need a dotted path for the
+        # built-ins
+        from .gui import _solver as _gui_solver
+        try:
+            solver = _gui_solver(args.solver)
+        except ValueError as e:
+            print("STOPPED: {}".format(e), file=sys.stderr)
+            return 2
     arm = args.name or args.solver or "llm-vendor"
     result = run_campaign(camp, solver, solver_name=arm)
     write_campaign(Path(args.campaign_dir), camp, result,
@@ -448,13 +459,17 @@ def cmd_showdown(args) -> int:
     from .autosolver import run_showdown
     from .campaign import load_campaign
     camp = load_campaign(Path(args.campaign_dir))
-    if ":" not in args.solver:
-        print("solver must be 'package.module:function'",
-              file=sys.stderr)
-        return 2
-    _cwd_importable()
-    mod_name, fn_name = args.solver.split(":", 1)
-    fn = getattr(importlib.import_module(mod_name), fn_name)
+    if ":" in args.solver:
+        _cwd_importable()
+        mod_name, fn_name = args.solver.split(":", 1)
+        fn = getattr(importlib.import_module(mod_name), fn_name)
+    else:
+        from .gui import _solver as _gui_solver
+        try:
+            fn = _gui_solver(args.solver)
+        except ValueError as e:
+            print("STOPPED: {}".format(e), file=sys.stderr)
+            return 2
     kwargs = {}
     if args.baseline:
         from .gui import _solver as _gui_solver
@@ -491,6 +506,89 @@ def _console_safe():
             stream.reconfigure(errors="replace")
         except (AttributeError, ValueError):
             pass
+
+
+def cmd_bridge(args) -> int:
+    """A fitted run -> TableSpec, without refitting. `fit
+    --emit-spec` does this at fit time; a 40-minute refit to get a
+    file the blueprint already implies is the kind of round trip
+    this CLI exists to remove."""
+    import json as _json
+    from .bridge import blueprint_to_tablespec
+    run = Path(args.rundir)
+    bp_path = run / "blueprint.json"
+    if not bp_path.exists():
+        print("no blueprint.json in {} - run `synthkit fit` "
+              "first".format(run), file=sys.stderr)
+        return 2
+    bp = _json.loads(bp_path.read_text(encoding="utf-8"))
+    made = blueprint_to_tablespec(bp, title=run.name)
+    out = Path(args.out) if args.out else run / "tablespec.json"
+    out.write_text(_json.dumps(made, indent=1), encoding="utf-8")
+    car = made["carried"]
+    print("wrote {} - {} column(s) crossed, {} dropped".format(
+        out, len(made["tablespec"]["columns"]),
+        len(car["columns_dropped"])))
+    print("did NOT cross: {}".format(
+        ", ".join(car["did_not_cross"]) or "(nothing)"))
+    return 0
+
+
+def cmd_plant(args) -> int:
+    """Plant a KNOWN outcome on a bridged spec - the step that lets
+    the two halves meet with an answer key. Effects are declared in
+    STANDARD DEVIATIONS of each covariate; `col=0.8` or, for a
+    categorical level, `col=LEVEL=0.8`."""
+    import json as _json
+    from . import semisynth
+    raw = _json.loads(Path(args.spec).read_text(encoding="utf-8"))
+    bridged = raw if "tablespec" in raw else {"tablespec": raw}
+    effects = {}
+    for e in (args.effect or []):
+        name, beta = e.rsplit("=", 1)
+        try:
+            effects[name] = float(beta)
+        except ValueError:
+            print("--effect needs col=BETA or col=LEVEL=BETA; got "
+                  "{!r}".format(e), file=sys.stderr)
+            return 2
+    if not effects:
+        print("at least one --effect is required - an exam with "
+              "no planted signal grades nothing", file=sys.stderr)
+        return 2
+    try:
+        planted = semisynth.plant(
+            bridged, effects, name=args.outcome_name,
+            kind=args.kind, prevalence=args.prevalence)
+    except ValueError as e:
+        # all effects refused raises - a sentence, not a stack
+        print("STOPPED: {}".format(e), file=sys.stderr)
+        return 2
+    blk = planted.get("planted") or {}
+    used = blk.get("effects_in_sds") or {}
+    for name, beta in used.items():
+        print("planted {}: {:+.2f} sd".format(name, float(beta)))
+    for r in blk.get("refused") or []:
+        print("REFUSED {}: {}".format(r["effect"], r["why"]))
+    cal = blk.get("calibration") or {}
+    if cal:
+        print("requested prevalence {:.0%}; the intercept was "
+              "SOLVED, not centered - achieved is reported by "
+              "semisynth.verify after render".format(
+                  float(blk.get("requested_prevalence") or 0)))
+    if not used:
+        print("every effect was refused - nothing planted",
+              file=sys.stderr)
+        return 2
+    out = Path(args.out)
+    out.write_text(_json.dumps(planted["tablespec"], indent=1),
+                   encoding="utf-8")
+    rec = out.with_suffix(".planted.json")
+    rec.write_text(_json.dumps(planted, indent=1),
+                   encoding="utf-8")
+    print("wrote {} (the exam spec) and {} (the full record - "
+          "the answer key lives there)".format(out, rec))
+    return 0
 
 
 def main(argv=None) -> int:
@@ -671,6 +769,28 @@ def main(argv=None) -> int:
                         "from a file)")
     p.add_argument("--name", default="")
     p.set_defaults(fn=cmd_campaign_run)
+
+    p = sub.add_parser("bridge",
+                       help="fitted run -> tablespec.json, without "
+                            "refitting")
+    p.add_argument("rundir")
+    p.add_argument("-o", "--out", default=None)
+    p.set_defaults(fn=cmd_bridge)
+
+    p = sub.add_parser("plant",
+                       help="plant a known outcome on a bridged "
+                            "spec - effects in sd, e.g. --effect "
+                            "creatinine=0.8")
+    p.add_argument("--spec", required=True,
+                   help="tablespec.json from `synthkit bridge`")
+    p.add_argument("--effect", action="append", default=[],
+                   help="col=BETA or col=LEVEL=BETA, repeatable")
+    p.add_argument("--outcome-name", default="outcome")
+    p.add_argument("--kind", default="logistic",
+                   choices=["logistic", "linear"])
+    p.add_argument("--prevalence", type=float, default=0.25)
+    p.add_argument("-o", "--out", required=True)
+    p.set_defaults(fn=cmd_plant)
 
     args = ap.parse_args(argv)
     return args.fn(args)

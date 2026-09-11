@@ -79,6 +79,67 @@ def main():
     check("the bridge leaves outcomes empty, which is the gap this "
           "closes", not (bridged["tablespec"].get("outcomes") or []))
 
+    # THE CLI PATH EXISTS NOW - bridge and plant were reachable
+    # only from Python, so the end-to-end loop on the data machine
+    # had no road. Exercised as the operator runs them: subprocess,
+    # echoing what was planted and REFUSING what it cannot find.
+    import json as _json
+    import subprocess as _sp
+    import sys as _sys
+    import tempfile as _tf
+    from pathlib import Path as _P
+    _root = _P(__file__).resolve().parent.parent
+    with _tf.TemporaryDirectory() as _td:
+        _run = _P(_td) / "run"
+        _run.mkdir()
+        (_run / "blueprint.json").write_text(
+            _json.dumps(bp), encoding="utf-8")
+        _rb = _sp.run([_sys.executable, "-m", "synthkit.cli",
+                       "bridge", str(_run)],
+                      capture_output=True, text=True,
+                      cwd=str(_root))
+        check("`synthkit bridge RUNDIR` writes tablespec.json from "
+              "an existing run - no 40-minute refit for a file the "
+              "blueprint already implies",
+              _rb.returncode == 0
+              and (_run / "tablespec.json").exists()
+              and "column(s) crossed" in _rb.stdout
+              and "did NOT cross" in _rb.stdout)
+        _exam = _P(_td) / "exam.json"
+        _rp = _sp.run([_sys.executable, "-m", "synthkit.cli",
+                       "plant", "--spec",
+                       str(_run / "tablespec.json"),
+                       "--effect", "creatinine=0.9",
+                       "--effect", "nosuchcol=1.0",
+                       "--prevalence", "0.25",
+                       "-o", str(_exam)],
+                      capture_output=True, text=True,
+                      cwd=str(_root))
+        check("`synthkit plant` echoes what it planted in sd, "
+              "REFUSES the unknown column by name, and writes the "
+              "exam spec beside the full answer-key record",
+              _rp.returncode == 0
+              and "planted creatinine: +0.90 sd" in _rp.stdout
+              and "REFUSED nosuchcol" in _rp.stdout
+              and _exam.exists()
+              and _exam.with_suffix(".planted.json").exists()
+              and (_json.loads(_exam.read_text())
+                   .get("outcomes") or []))
+        _ra = _sp.run([_sys.executable, "-m", "synthkit.cli",
+                       "plant", "--spec",
+                       str(_run / "tablespec.json"),
+                       "--effect", "nosuchcol=1.0",
+                       "-o", str(_P(_td) / "bad.json")],
+                      capture_output=True, text=True,
+                      cwd=str(_root))
+        check("...and a plant whose every effect is refused exits "
+              "non-zero - an exam with no planted signal grades "
+              "nothing",
+              _ra.returncode != 0
+              and "no effect could be planted" in
+              (_ra.stdout + _ra.stderr)
+              and "Traceback" not in (_ra.stdout + _ra.stderr))
+
     effects = {"creatinine": 0.9, "glucose": -0.5, "sex=M": 0.4}
     planted = S.plant(bridged, effects, prevalence=0.25)
     oc = planted["tablespec"]["outcomes"]
