@@ -4,7 +4,7 @@ Synthetic clinical data generator and model-evaluation instrument. Core rule: le
 
 ## Verify before claiming
 
-- Run `python scripts/run_all_smokes.py` before claiming anything works. Expect 67 suites, 1894 checks, ALL GREEN **on a checkout**. Off a zipball extract - which is what the data machine runs - it is 1885: nine checks in `smoke_buildid` need git to test the archive path and report SKIPPED without it. Both numbers were measured. Do not quote the checkout number to the data machine; that is how a correct run gets read as a failure.
+- Run `python scripts/run_all_smokes.py` before claiming anything works. Expect 67 suites, 1897 checks, ALL GREEN **on a checkout**. Off a zipball extract - which is what the data machine runs - it is 1888: nine checks in `smoke_buildid` need git to test the archive path and report SKIPPED without it. Both numbers were measured. Do not quote the checkout number to the data machine; that is how a correct run gets read as a failure.
 - **THE DEVELOPMENT MACHINE WAS BEHIND THE DATA MACHINE, and that is
   how a green suite here failed there.** Dev was on Python 3.10 with
   pandas 2.3; the data machine installs fresh and got pandas 3.0.5,
@@ -1494,6 +1494,20 @@ what follows is what came out wrong anyway.
   requested. Amplified tiers shift prevalence by construction
   (strong tier read 57%) - the coefficients move and the intercept
   stays solved for the declared tier.
+
+- **THE REPORT CARD EXISTS (`scripts/report_card.py`), and it
+  judges the bar as well as the solver.** One page from artifacts
+  the run already wrote - campaign.json, result.json, the planted
+  record, showdown.json - never recomputed, so the card and the
+  terminal cannot disagree. The planted answer is stated first,
+  because the card's authority rests on the answer being known;
+  the ceiling/baseline/vendor table carries the gap AND the bar;
+  and a bar above its own ceiling is called out BY NAME as a
+  miscalibrated bar, not a failed solver - verified against the
+  first real run's exact shape (0.700 demanded over a 0.698
+  ceiling). The honesty section rides on the card itself: measured
+  covariates, invented outcome, what did not cross, narrower than
+  "does this work on our data".
 
 ## Talking to the data machine
 

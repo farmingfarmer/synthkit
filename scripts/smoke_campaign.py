@@ -388,6 +388,77 @@ def main():
     except CampaignError:
         check("predict without a generated outcome refused", True)
 
+    # THE REPORT CARD - one page a decision-maker reads unaided,
+    # assembled from artifacts the run wrote, never recomputed. The
+    # miscalibrated-bar callout is exercised on the REAL first
+    # run's shape: bar 0.700 above a 0.698 ceiling, which no solver
+    # on earth clears - the card must say "miscalibrated bar, not a
+    # failed solver".
+    import json as _json
+    import subprocess as _sp
+    import sys as _sys
+    import tempfile as _tf
+    from pathlib import Path as _P
+    _root = _P(__file__).resolve().parent.parent
+    with _tf.TemporaryDirectory() as _td:
+        _cd = _P(_td) / "camp"
+        _cd.mkdir()
+        (_cd / "campaign.json").write_text(_json.dumps(
+            {"goal": "predict", "title": "t", "outcome": "outcome",
+             "tiers": []}), encoding="utf-8")
+        (_cd / "result.json").write_text(_json.dumps(
+            {"solver": "autosolver", "tiers": [
+                {"tier": "as-specified", "passed": False,
+                 "measured": {"predict.auroc": 0.683,
+                              "predict.auroc_gap": 0.016},
+                 "evidence": "predict.auroc = 0.683 (required >= "
+                             "0.700) -> FAILS"}]}),
+            encoding="utf-8")
+        _pl = _cd / "planted.json"
+        _pl.write_text(_json.dumps({"planted": {
+            "outcome": "outcome", "kind": "logistic",
+            "requested_prevalence": 0.25,
+            "effects_in_sds": {"age_at_visit": 0.8}}}),
+            encoding="utf-8")
+        _sdj = _cd / "showdown.json"
+        _sdj.write_text(_json.dumps({"vendor": "v", "tiers": [
+            {"tier": "as-specified", "ceiling": 0.698,
+             "baseline": 0.683, "vendor": 0.683,
+             "passed": False}]}), encoding="utf-8")
+        _card = _P(_td) / "card.html"
+        _rc = _sp.run([_sys.executable, "scripts/report_card.py",
+                       str(_cd), "--planted", str(_pl),
+                       "--showdown", str(_sdj),
+                       "-o", str(_card)],
+                      capture_output=True, text=True,
+                      cwd=str(_root))
+        _h = (_card.read_text(encoding="utf-8")
+              if _card.exists() else "")
+        check("the report card assembles ceiling/baseline/vendor, "
+              "the planted answer, and the honesty section from "
+              "recorded artifacts",
+              _rc.returncode == 0
+              and "Ceiling / baseline / vendor" in _h
+              and "planted effect (sd)" in _h
+              and "NARROWER than" in _h
+              and "never recomputed" in _h)
+        check("...and a bar above its own ceiling is called out BY "
+              "NAME - miscalibrated bar, not a failed solver",
+              "bar is above its own ceiling" in _h
+              and "miscalibrated bar, not a failed solver" in _h
+              and "1 miscalibrated bar(s)" in _rc.stdout)
+        _rm = _sp.run([_sys.executable, "scripts/report_card.py",
+                       str(_P(_td) / "nope"), "--planted",
+                       str(_pl), "--showdown", str(_sdj),
+                       "-o", str(_card)],
+                      capture_output=True, text=True,
+                      cwd=str(_root))
+        check("...and a missing campaign result is a sentence, "
+              "not a stack",
+              _rm.returncode != 0
+              and "STOPPED" in (_rm.stdout + _rm.stderr)
+              and "Traceback" not in (_rm.stdout + _rm.stderr))
+
     print("\nAll {} checks passed.".format(PASS))
 
 
