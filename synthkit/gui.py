@@ -2920,25 +2920,27 @@ textarea:focus,input:focus,select:focus{
     <div class="ev">MEASURED on the real extract: coverage 42/42, center 30/33, set token shares 62/62, empty rates 4/4, zero inverted relationships, direction 93.9%. Against a statistical-copy ruler: 119 relationships kept to its 77.</div>
     <div class="ev">REMAINING: one number &mdash; relationship strength within 0.2 on 76.5% of pairs against an 87.9% bar. Shapes and interaction surfaces are now gated per run as well &mdash; unread on real data so far.</div>
     <div class="ev">NEXT &middot; about 2-4 weeks, proposed 2nd &mdash; FIRST the 2-3 seed sweep (commands in the Verdict station), because the margin has never been seed-swept on real data and may be partly noise; then targeted fixes for whatever survives the sweep.</div></div>
-  <div class="goal"><h3><span class="chip built">built &middot; ~90%</span> 6 &middot; Self-assessment for sign-off</h3>
+  <div class="goal"><h3><span class="chip built">built &middot; ~100%</span> 6 &middot; Self-assessment for sign-off</h3>
     <div class="ev">BUILT: the six-criteria gate with an honest exit code; contradiction checks on the report AND the contract; row-level obedience checks that need no source data; diagnosis views. The run states its own privacy costs in place.</div>
     <div class="ev">PLANNED: the single roll-up page a decision-maker signs.</div>
-    <div class="ev">NEXT &middot; about 1 week, proposed 4th &mdash; the eight-criteria gate, what-now guidance and enumerated failures landed this week (80&rarr;90); the sign-off page is assembly of what now exists.</div></div>
-  <div class="goal"><h3><span class="chip partial">partial &middot; ~60%</span> 7 &middot; Vendor evaluation against planted truth</h3>
+    <div class="ev">DONE 2026-09-14 &mdash; the sign-off page shipped (scripts/signoff.py): the gate, the privacy posture with measured counts, limitations restated, and a signature block saying what signing accepts. Goal closed; the first of the eight.</div></div>
+  <div class="goal"><h3><span class="chip built">built &middot; ~85%</span> 7 &middot; Vendor evaluation against planted truth</h3>
     <div class="ev">BUILT: known effects planted on measured covariates &mdash; +0.9/-0.5 recovered at +0.86/-0.44, a no-effect column reads +0.03; the bridge carries measured distributions into the exam; campaigns and this bench.</div>
     <div class="ev">PLANNED: the loop assembled END TO END on the data machine &mdash; every part exists, the single run has not happened.</div>
-    <div class="ev">NEXT &middot; about 1-2 weeks, proposed 1st &mdash; pure assembly, no unknowns, and goal 8's report card is blocked behind it.</div></div>
-  <div class="goal"><h3><span class="chip planned">planned &middot; ~45%</span> 8 &middot; Our own challenger, and one report card</h3>
+    <div class="ev">DONE 2026-09-11 &mdash; the end-to-end run happened on 55,428 real-shaped rows: bridge, plant, ladder, showdown; ceiling/baseline/vendor produced, and the as-specified bar exposed as sitting above its own ceiling. Remaining: repeatability, and a real vendor in the vendor seat.</div></div>
+  <div class="goal"><h3><span class="chip partial">partial &middot; ~65%</span> 8 &middot; Our own challenger, and one report card</h3>
     <div class="ev">BUILT: the structurally-blinded baseline solver; the ceiling / ours / vendor line in the campaign machinery.</div>
     <div class="ev">PLANNED: the report-card artifact from a real end-to-end run, then a challenger worth the name beyond the floor.</div>
-    <div class="ev">NEXT &middot; about 1-2 weeks after goal 7 lands, proposed 3rd &mdash; the report card is the artifact the team asked for; the challenger beyond the floor is research, unscheduled.</div></div>
-  <div class="hint">Overall, equal-weighted: about 66%. What remains
-  is mostly assembly plus two genuine unknowns &mdash; the close gap
-  and the tangled-graph ceiling &mdash; and unknowns, not assembly,
-  move dates. In durations from now: the first three proposed steps
-  (end-to-end run, seed sweep, report card) fit in roughly 4-6
-  weeks; core complete in roughly 9-10 weeks; free text, if its
-  decision gate says yes, roughly 3 months.</div>
+    <div class="ev">NEXT &middot; the report card SHIPPED 2026-09-11 (scripts/report_card.py, verified on the real showdown - it judges the bar as well as the solver). Remaining: a challenger worth the name beyond the structurally-blinded floor - research, unscheduled.</div></div>
+  <div class="hint">Overall, equal-weighted: about 72%. The first
+  three proposed steps landed in the sprint's first five days: the
+  end-to-end run, the seed sweep (close is REAL: 76.5/80.6/80.2
+  across seeds), and the report card - plus the sign-off page,
+  closing goal 6. What remains is the fidelity mechanisms the
+  reproduction fixtures now hold (the attribution flip, surface
+  survival), the PHI scrub, multi-table, and the tangled-graph
+  research. Core complete in roughly 7-8 weeks from here; free
+  text, if its gate says yes, roughly 3 months.</div>
   <div class="nextup"><span class="lbl">next</span><b>Anywhere</b><span>This page is the map, not a step. Step 1 invents data from English; Fit measures data you already have.</span></div>
 </section>
 </main></div>

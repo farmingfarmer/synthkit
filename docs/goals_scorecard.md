@@ -165,7 +165,11 @@ seed noise flips it, so a seed sweep should precede any claim.
 
 ---
 
-## Goal 6 — Self-assessment for sign-off   **~90%**
+## Goal 6 — Self-assessment for sign-off   **~100%**
+
+*(2026-09-14: CLOSED — scripts/signoff.py ships the roll-up page;
+read failing before it shipped, on a fixture shaped like the real
+extract's current gate.)*
 
 *(2026-09-09: +10 — the gate grew to eight criteria including shapes
 and interaction surfaces, every criterion explains itself with an
@@ -218,7 +222,7 @@ dashboard, and what-now guidance carries exact commands.)*
 
 ---
 
-## Goal 8 — AutoML competitor and report card   **~45%**
+## Goal 8 — AutoML competitor and report card   **~65%**
 
 **What works, measured**
 - `autosolver.py`: the deliberately modest floor (stdlib logistic
@@ -285,7 +289,7 @@ Durations are from now, deliberately not dates:
    and unscheduled, because unknowns move dates and this is the
    genuine unknown.
 
-Equal-weighting the eight goals: **~69% complete** (goal 7 60→85 on 2026-09-11: the end-to-end run happened). The unweighted
+Equal-weighting the eight goals: **~72% complete** (goal 7 60→85 on 2026-09-11: the end-to-end run happened). The unweighted
 number understates the risk profile: what remains is mostly
 assembly and breadth (M1, M2, M3) plus two genuine unknowns — the
 `close` gap and the cycle ceiling — and unknowns, not assembly, are
