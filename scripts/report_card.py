@@ -38,8 +38,9 @@ h1{font-size:28px;font-weight:700;letter-spacing:-.02em;margin:0}
 h2{font-size:18px;font-weight:700;margin:36px 0 6px;
   padding-top:20px;border-top:1px solid %(rule)s}
 .sub{color:%(gray)s;margin:4px 0 0}
-table{border-collapse:collapse;font-size:13px;margin:12px 0;
-  width:100%%}
+table{border-collapse:collapse;font-size:13px;margin:12px 0}
+table.wide{width:100%%}
+td.num{padding-left:28px}
 th{font-weight:600;text-align:left;color:%(gray)s;
   border-bottom:1px solid %(rule)s;padding:6px 14px 6px 0}
 td{padding:6px 14px 6px 0;border-bottom:1px solid #f0f0f2;
@@ -143,7 +144,8 @@ def build_card(campaign_dir, planted_path, showdown_path):
                 "pass" if ok else "fail",
                 "PASS" if ok else ("FAIL (bar &gt; ceiling)"
                                    if bar_above else "FAIL")))
-    body.append("<table><tr><th>tier</th><th>ceiling</th>"
+    body.append('<table class="wide"><tr><th>tier</th>'
+                "<th>ceiling</th>"
                 "<th>baseline</th><th>vendor</th>"
                 "<th>gap to ceiling</th><th>bar</th>"
                 "<th>verdict</th></tr>" + "".join(rows)

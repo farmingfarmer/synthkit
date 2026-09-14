@@ -887,6 +887,64 @@ def main():
           "MULTI-VARIABLE pattern" in _h
           and "above two-way are not modeled" in _h)
 
+    # THE SIGN-OFF PAGE - goal 6's last piece. One roll-up from
+    # the run's own artifacts: the gate with the same criteria the
+    # Verdict station shows, the privacy posture in the
+    # non-overclaiming words with measured counts beside it, the
+    # limitations restated, and a signature block that says what
+    # signing accepts. Exercised on a NOT-MET fixture shaped like
+    # the real extract, because a sign-off that only renders green
+    # runs has never been read.
+    with tempfile.TemporaryDirectory() as _ts:
+        _sr = Path(_ts)
+        (_sr / "fidelity.json").write_text(json.dumps({
+            "summary": {"pairs": 115, "pairs_sign_ok": 108,
+                        "pairs_close": 88, "pairs_inverted": 0,
+                        "coverage_ok": 42, "columns": 42,
+                        "set_tokens_ok": 62,
+                        "set_tokens_compared": 62,
+                        "set_empty_ok": 4, "set_empty_compared": 4,
+                        "shapes_compared": 9, "shapes_ok": 8,
+                        "surfaces_compared": 6, "surfaces_ok": 1},
+            "contradictions": [], "disobedience": []}),
+            encoding="utf-8")
+        (_sr / "blueprint.json").write_text(json.dumps({
+            "columns": {"conditions": {"marginal": {
+                "type": "list", "bounds_are_k_anonymous": 10,
+                "unpublishable_row_share": 0.027}}}}),
+            encoding="utf-8")
+        _so = Path(_ts) / "signoff.html"
+        _rs = subprocess.run(
+            [sys.executable, "scripts/signoff.py", str(_sr),
+             "-o", str(_so)],
+            capture_output=True, text=True, cwd=str(ROOT))
+        _sh = (_so.read_text(encoding="utf-8")
+               if _so.exists() else "")
+        check("the sign-off page renders a NOT-MET gate honestly - "
+              "banner naming the failed criteria, all eight chips, "
+              "and the full criterion table",
+              _rs.returncode == 0
+              and "NOT MET" in _sh
+              and "FAIL close" in _sh
+              and "FAIL interaction surfaces" in _sh
+              and _sh.count('class="chip') == 8)
+        check("...with the privacy posture in the non-overclaiming "
+              "words and MEASURED counts beside it, and a "
+              "signature block that says what signing accepts",
+              "NOT differential privacy" in _sh
+              and "floor measured on one cohort" in _sh
+              and "conditions 3%" in _sh
+              and "What signing accepts" in _sh
+              and "reviewed by" in _sh)
+        _rs2 = subprocess.run(
+            [sys.executable, "scripts/signoff.py",
+             str(Path(_ts) / "nope"), "-o", str(_so)],
+            capture_output=True, text=True, cwd=str(ROOT))
+        check("...and a missing run refuses in a sentence",
+              _rs2.returncode != 0
+              and "STOPPED" in (_rs2.stdout + _rs2.stderr)
+              and "Traceback" not in (_rs2.stdout + _rs2.stderr))
+
     # THE GATE, ENUMERATED. FAIL chips said which criterion and
     # stopped; the operator asked where the misses were and how
     # large. gate_issues_html names every drifted pair with its

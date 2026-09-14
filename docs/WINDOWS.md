@@ -55,6 +55,15 @@ means the token was rejected and what landed is an error page, not
 an archive — everything after this point will then fail in ways
 that look like something else entirely.
 
+**THE CLEANUP LOOP RUNS BEFORE THE DOWNLOAD, NEVER AFTER THE
+EXTRACT.** Its only job is to remove STALE extractions; run between
+`tar` and `ren` it deletes the folder tar just unpacked - which
+happened on 2026-09-14, and every later command failed as a
+consequence (no folder to rename, so no path to cd into, so pip ran
+in a directory with no project). The safe order is: cleanup, curl,
+size check, tar, ren. If the loop does run late, the zip usually
+survives - re-extract and rename rather than re-downloading.
+
 ```bat
 tar -xf synthkit.zip
 for /d %i in (%SYNTHKIT_DIR%-*) do ren "%i" synthkit
@@ -153,13 +162,13 @@ main(['version'])"` if -m is not wired).
 python scripts\run_all_smokes.py
 ```
 
-Expect: 67 suites, **1888** checks, ALL GREEN.
+Expect: 67 suites, **1891** checks, ALL GREEN.
 
 **That number is for THIS machine, and it is nine lower than the
 development machine's on purpose.** Nine checks in `smoke_buildid`
 run `git archive` to prove the commit really is substituted into the
 download, and there is no git here to run it with - so they report
-SKIPPED and the total comes out at 1888 against 1897 on a
+SKIPPED and the total comes out at 1891 against 1900 on a
 checkout.
 Both were measured, the second by extracting an archive and running
 the whole net inside it. A total that does not match this page is
