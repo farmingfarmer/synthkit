@@ -500,14 +500,30 @@ def cmd_showdown(args) -> int:
     print(result.format_text())
     if args.json_out:
         import json as _json
-        Path(args.json_out).write_text(_json.dumps({
+        payload = _json.dumps({
             "vendor": result.vendor_name,
             "tiers": [{"tier": t.tier, "ceiling": t.ceiling,
                        "baseline": t.baseline_auroc,
                        "vendor": t.vendor_auroc,
                        "passed": t.vendor_passed}
                       for t in result.tiers],
-        }, indent=2), encoding="utf-8")
+        }, indent=2)
+        try:
+            Path(args.json_out).write_text(payload,
+                                           encoding="utf-8")
+        except OSError as e:
+            # The operator hit PermissionError here AFTER a clean
+            # showdown - a locked file, or a folder wearing the
+            # filename - and got a traceback that read as the run
+            # failing. The run is printed above and did not fail.
+            print("STOPPED writing {}: {}. The showdown above "
+                  "still ran - the numbers printed are real. "
+                  "Close whatever holds that file (or remove a "
+                  "folder by that name) and re-run with the same "
+                  "or a fresh --json-out to capture the "
+                  "JSON.".format(args.json_out, e),
+                  file=sys.stderr)
+            return 2
     return 0
 
 

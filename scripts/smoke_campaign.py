@@ -388,6 +388,47 @@ def main():
     except CampaignError:
         check("predict without a generated outcome refused", True)
 
+    # A FAILED --json-out WRITE AFTER A CLEAN SHOWDOWN IS A
+    # SENTENCE THAT SAYS THE RUN STILL RAN. The operator hit
+    # PermissionError writing the report - a folder wearing the
+    # filename - and the traceback read as the showdown failing
+    # when its numbers had printed two lines up.
+    import subprocess as _sp2
+    import sys as _sys2
+    import tempfile as _tf2
+    from pathlib import Path as _P2
+    _root2 = _P2(__file__).resolve().parent.parent
+    with _tf2.TemporaryDirectory() as _td2:
+        _spec2 = _P2(_td2) / "spec.json"
+        _spec2.write_text(predict_table(rows=200).to_json(),
+                          encoding="utf-8")
+        _camp2 = _P2(_td2) / "camp"
+        _c1 = _sp2.run([_sys2.executable, "-m", "synthkit.cli",
+                        "campaign-compile", "--goal", "predict",
+                        "--spec", str(_spec2), "--outcome",
+                        "readmitted", "--bars", "auroc=0.55",
+                        "-o", str(_camp2)],
+                       capture_output=True, text=True,
+                       cwd=str(_root2))
+        _lock2 = _P2(_td2) / "locked.json"
+        _lock2.mkdir()
+        _r2 = _sp2.run([_sys2.executable, "-m", "synthkit.cli",
+                        "showdown", str(_camp2), "--solver",
+                        "autosolver", "--baseline", "autosolver",
+                        "--json-out", str(_lock2)],
+                       capture_output=True, text=True,
+                       cwd=str(_root2))
+        check("a showdown whose --json-out cannot be written "
+              "STOPs in a sentence that says the run above still "
+              "ran - the numbers printed are not lost to a "
+              "traceback",
+              _c1.returncode == 0
+              and _r2.returncode == 2
+              and "STOPPED writing" in _r2.stderr
+              and "still ran" in _r2.stderr
+              and "SHOWDOWN" in _r2.stdout
+              and "Traceback" not in _r2.stderr)
+
     # THE REPORT CARD - one page a decision-maker reads unaided,
     # assembled from artifacts the run wrote, never recomputed. The
     # miscalibrated-bar callout is exercised on the REAL first
