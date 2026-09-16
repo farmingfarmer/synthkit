@@ -232,6 +232,39 @@ the direction that stops work happening.
   inversions too, since all three symptoms sit on the trim
   machinery.
 
+- **THE SWEEPS ARE GAUSS-SEIDEL, AND THE LAST WRITER WAS WINNING.**
+  In-place ordered refinement leaves the last-refined cyclic column
+  aligned to every neighbour's FINAL values while the first sits on
+  stale ones - a privilege assigned by seed accident. Candidate 1,
+  ping-pong (alternate the direction each sweep), measured WORSE on
+  both reproduction fixtures - triangle flips 2/5 -> 3/5, drift 20
+  -> 27 points; pressure surfaces 2/5 -> 3/5 failing - proving the
+  bias is total, not directional: turn-taking amplifies variance.
+  Reverted with the numbers.
+- **ONE SYNCHRONIZED FINAL PASS FIXED SURFACE SURVIVAL.** After the
+  ordinary sweeps, every cyclic column is computed once from the
+  SAME frozen snapshot and all are committed together (Jacobi where
+  the sweeps are Gauss-Seidel). Measured on the pressure fixture,
+  five seeds: the surface criterion went from FAILING ON 2 OF 5
+  SEEDS TO 0 OF 5, with shapes better-or-equal on every seed (5/12
+  -> 6/12 at worst, 9/13 -> 11/13 at best), close never worse, and
+  zero inversions. pair_fidelity_sweep against HEAD: exactly
+  [0,0,0,0] on sign and close across four seeds - the pass moves
+  nothing where the sweeps already converge, which is the
+  change-only-where-the-mechanism-lives property, held at the
+  stronger level. Acyclic bit-identity untouched by construction.
+  The real-extract prediction to check on the next refit:
+  `interaction surfaces` read 1/6, 2/6, 1/6 across the three seed
+  runs; the mechanism transferring should move it sharply up.
+- **STILL OPEN, STATED: the attribution flip and the near-identity
+  shape ceiling.** The triangle flip is unmoved by both candidates
+  (2/5 seeds, drift ~20-24 points) - it is NOT a sweep-order
+  effect; suspect discovery-side orientation. And map_cuff <-
+  map_cuff_bmdi still drifts up to 0.68 sd in shape: the sweeps
+  deliver ~0.78 adjacent correlation where a near-identity needs
+  ~0.97 - the ring-adjacency ceiling, the genuine research item.
+  Both live on the fixtures with measured gates.
+
 ## Numbers before conclusions
 
 - **Recall on the fixture varies 71%-86% across seeds with nothing

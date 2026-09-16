@@ -1949,6 +1949,49 @@ def generate(blueprint: Dict[str, Any],
                 out[c] = fixed_vals
                 n_ref += 1
 
+        # A FINAL SYNCHRONIZED PASS: every cyclic column computed
+        # from the SAME frozen snapshot, then all committed at
+        # once. The in-place sweeps are Gauss-Seidel - the
+        # last-refined column sees every neighbour's final values
+        # while the first goes stale underneath later updates, a
+        # privilege handed out by order position, which is a seed
+        # accident. Alternating the direction (measured first) made
+        # it WORSE - flips 2/5 -> 3/5, drift 20 -> 27 points - so
+        # the bias is total, not directional, and the cure is
+        # simultaneity, not turn-taking. Cyclic children only:
+        # acyclic blueprints never reach this line, so their
+        # bit-identity is untouched.
+        snap = {k: v for k, v in out.items()}
+        staged = {}
+        for c in order:
+            rels = cyclic.get(c)
+            if not rels or c not in marg_draw:
+                continue
+            spec = cols[c]
+            m = spec.get("marginal") or {}
+            usable = [r for r in rels
+                      if all(p in snap for p in r["parents"])]
+            if not usable:
+                continue
+            draw = marg_draw[c]
+            got = np.asarray(_apply_numeric(
+                c, spec, m, draw, usable, snap, masks),
+                dtype=float)
+            held = np.isfinite(np.asarray(out[c], dtype=float))
+            pending = masks.get(c)
+            if pending is not None and len(pending) == len(held):
+                held = held & pending
+            ok = np.isfinite(got) & held
+            if int(ok.sum()) < 2:
+                continue
+            idx = np.argsort(np.argsort(got[ok]))
+            pool = np.sort(draw[ok])
+            fixed_vals = np.array(out[c], dtype=float).copy()
+            fixed_vals[ok] = pool[idx]
+            staged[c] = fixed_vals
+        for c, v in staged.items():
+            out[c] = v
+
     # ---- A FACT ABOUT THE PERSON, RE-ASSERTED AFTER THE SWEEPS --
     #
     # The collapse to one-value-per-patient runs inside the loop, and
