@@ -887,6 +887,44 @@ def main():
           "MULTI-VARIABLE pattern" in _h
           and "above two-way are not modeled" in _h)
 
+    # peek surfaces - the remote diagnosis for the surface fix's
+    # NON-TRANSFER. The fix cured the fixture (2/5-seeds-failing to
+    # 0/5) and moved nothing on the extract (same 2/6, identical
+    # gate line), so the next answer must come from the RUN
+    # DIRECTORY, not a third guessed fixture. The view flags the
+    # three suspect conditions by name; the fixture here contains
+    # all three.
+    with tempfile.TemporaryDirectory() as _tp:
+        _pr = Path(_tp)
+        (_pr / "blueprint.json").write_text(json.dumps({
+            "relationships": [
+                {"child": "a", "parents": ["x", "y"],
+                 "evidence": {"interaction": {
+                     "pair": ["x", "z"]}}},
+                {"child": "b", "parents": ["p", "q"],
+                 "evidence": {"interaction": {
+                     "pair": ["p", "q"]}}}]}), encoding="utf-8")
+        (_pr / "fidelity.json").write_text(json.dumps({
+            "surfaces": {"surfaces": [
+                {"child": "b", "pair": ["p", "q"],
+                 "gap_sd": 1.2, "tracks": False}]},
+            "generation": {"edges_dropped": [
+                {"child": "b", "parents": ["p", "q", "r_lag1"],
+                 "kept_parents": ["p"]}]}}), encoding="utf-8")
+        _rv = subprocess.run(
+            [sys.executable, "scripts/peek.py", str(_pr),
+             "surfaces"],
+            capture_output=True, text=True, cwd=str(ROOT))
+    check("peek.py surfaces flags all three suspects by name - a "
+          "pair member absent from the parents, a lost LAG "
+          "parent, and a lost pair member - beside each "
+          "surface's gap",
+          _rv.returncode == 0
+          and "PAIR MEMBER NOT IN PARENTS: z" in _rv.stdout
+          and "LAG PARENT LOST: r_lag1" in _rv.stdout
+          and "SURFACE PAIR MEMBER LOST: q" in _rv.stdout
+          and "gap 1.2 sd, tracks False" in _rv.stdout)
+
     # THE SIGN-OFF PAGE - goal 6's last piece. One roll-up from
     # the run's own artifacts: the gate with the same criteria the
     # Verdict station shows, the privacy posture in the

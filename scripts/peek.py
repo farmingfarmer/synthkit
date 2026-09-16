@@ -8,6 +8,7 @@
     python scripts/peek.py RUNDIR cap
     python scripts/peek.py RUNDIR empty
     python scripts/peek.py RUNDIR centre
+    python scripts/peek.py RUNDIR surfaces
 
 WHY THIS EXISTS. Seven diagnoses in a row were fetched with pasted
 python -c one-liners a hundred characters wide, on a terminal that
@@ -315,6 +316,74 @@ def centre_view(run):
               skewed, len(rows), unshaped))
 
 
+def surfaces_view(run):
+    """Why each published interaction surface lives or dies.
+
+    The surface fix cured the fixture and moved NOTHING on the
+    extract - same 2/6, identical gate line - so the mechanism
+    there is different, and this reads it out of the run directory
+    instead of a third guessed fixture: per surface, the pair, the
+    blueprint parents, the fidelity gap, and every trimmed edge
+    touching the child (with lag parents flagged, because lag
+    columns exist only during discovery and a refinement that
+    requires ALL original parents present skips such records
+    entirely)."""
+    print("surfaces_view on {}".format(run))
+    bp = _load(run, "blueprint.json")
+    fid = _load(run, "fidelity.json")
+    gaps = {}
+    for r in (fid.get("surfaces") or {}).get("surfaces") or []:
+        gaps[(r["child"], tuple(sorted(r["pair"])))] = r
+    dropped = ((fid.get("generation") or {})
+               .get("edges_dropped") or [])
+    by_child = {}
+    for d in dropped:
+        by_child.setdefault(d.get("child"), []).append(d)
+    n_pub = 0
+    for rel in (bp.get("relationships") or []):
+        it = (rel.get("evidence") or {}).get("interaction")
+        pair = list((it or {}).get("pair") or [])
+        if len(pair) != 2:
+            continue
+        n_pub += 1
+        child = rel.get("child")
+        g = gaps.get((child, tuple(sorted(pair))))
+        print()
+        print("{} <- {} x {}".format(child, pair[0], pair[1]))
+        print("  gap {} sd, tracks {}".format(
+            g.get("gap_sd") if g else "?",
+            g.get("tracks") if g else "(not measured)"))
+        ps = rel.get("parents") or []
+        missing = [x for x in pair if x not in ps]
+        print("  blueprint parents: {}{}".format(
+            ", ".join(ps),
+            "  [PAIR MEMBER NOT IN PARENTS: {}]".format(
+                ", ".join(missing)) if missing else ""))
+        for d in by_child.get(child, []):
+            lost = (d.get("parents_lost")
+                    or [p for p in (d.get("parents") or [])
+                        if p not in (d.get("kept_parents")
+                                     or [])])
+            lags = [p for p in lost if "_lag" in p]
+            pair_lost = [p for p in lost if p in pair]
+            print("  trimmed edge: lost {}{}{}".format(
+                ", ".join(lost) or "(none)",
+                "  [LAG PARENT LOST: {}]".format(
+                    ", ".join(lags)) if lags else "",
+                "  [SURFACE PAIR MEMBER LOST: {}]".format(
+                    ", ".join(pair_lost)) if pair_lost else ""))
+    if not n_pub:
+        print("no interaction surfaces are published in this "
+              "blueprint")
+    print()
+    print("{} surface(s) published. A pair member missing from "
+          "the blueprint parents means the surface cannot fire in "
+          "the FIRST pass; a lost lag parent means the cyclic "
+          "refinement skips the record ENTIRELY, because its "
+          "original parent can never exist in the output.".format(
+                  n_pub))
+
+
 def main():
     if len(sys.argv) < 3:
         print(__doc__)
@@ -339,6 +408,8 @@ def main():
         empty_view(run)
     elif what == "centre":
         centre_view(run)
+    elif what == "surfaces":
+        surfaces_view(run)
     else:
         print(__doc__)
         return 2

@@ -4,7 +4,7 @@ Synthetic clinical data generator and model-evaluation instrument. Core rule: le
 
 ## Verify before claiming
 
-- Run `python scripts/run_all_smokes.py` before claiming anything works. Expect 67 suites, 1901 checks, ALL GREEN **on a checkout**. Off a zipball extract - which is what the data machine runs - it is 1892: nine checks in `smoke_buildid` need git to test the archive path and report SKIPPED without it. Both numbers were measured. Do not quote the checkout number to the data machine; that is how a correct run gets read as a failure.
+- Run `python scripts/run_all_smokes.py` before claiming anything works. Expect 67 suites, 1902 checks, ALL GREEN **on a checkout**. Off a zipball extract - which is what the data machine runs - it is 1893: nine checks in `smoke_buildid` need git to test the archive path and report SKIPPED without it. Both numbers were measured. Do not quote the checkout number to the data machine; that is how a correct run gets read as a failure.
 - **THE DEVELOPMENT MACHINE WAS BEHIND THE DATA MACHINE, and that is
   how a green suite here failed there.** Dev was on Python 3.10 with
   pandas 2.3; the data machine installs fresh and got pandas 3.0.5,
@@ -264,6 +264,22 @@ the direction that stops work happening.
   deliver ~0.78 adjacent correlation where a near-identity needs
   ~0.97 - the ring-adjacency ceiling, the genuine research item.
   Both live on the fixtures with measured gates.
+
+- **THE SURFACE FIX DID NOT TRANSFER, AND THE PREDICTION WAS ON
+  RECORD.** The refit (run_seed11b, build 873eb10) read interaction
+  surfaces 2/6 - the same 2/6, and an IDENTICAL gate line to the
+  pre-fix run. Two non-transfer hypotheses died the same day: the
+  pressure fixture WITH --lags still fixes all surfaces (3/3), and
+  it selects no lag parents at all - the fixture cannot reach the
+  extract's condition. Per the no-third-guess rule, the diagnosis
+  moved into the run directory: `peek.py RUNDIR surfaces` prints
+  each published surface with its pair, blueprint parents, gap,
+  and every trimmed edge touching the child - flagging a pair
+  member absent from the parents (cannot fire in the first pass),
+  a lost LAG parent (the cyclic refinement skips the record
+  entirely - a lag column can never exist in the output), and a
+  lost pair member, by name. One command on the data machine
+  answers what a third fixture would only have guessed at.
 
 ## Numbers before conclusions
 
