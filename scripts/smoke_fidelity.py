@@ -785,6 +785,39 @@ def main():
           _keptX["surfaces"][0]["tracks"]
           and not _lostX2["surfaces"][0]["tracks"]
           and _lostX2["surfaces"][0]["gap_sd"] > 0.5)
+    # THE SURFACE COUNT STATES ITS TOTAL. The real extract
+    # publishes 72 surfaces of which only 6 touch columns in the
+    # written files - the rest are token-indicator surfaces that
+    # exist only inside the search. A criterion reading "2/6"
+    # without naming the other 66 reads as coverage it does not
+    # have, so measure_surfaces counts every skip by reason and
+    # the note says so.
+    _bpT = {"relationships": [
+        {"child": "y", "parents": ["a", "b"],
+         "evidence": {"interaction": {"pair": ["a", "b"],
+                      "grid_a": [0, 1], "grid_b": [0, 1],
+                      "response": [[0, 1], [1, 0]]}}},
+        {"child": "meds__has__x", "parents": ["a"],
+         "evidence": {"interaction": {"pair": ["a", "meds__n"]}}},
+        {"child": "z", "parents": ["a"],
+         "evidence": {"interaction": {"pair": ["a",
+                                              "not_a_column"]}}}]}
+    _resT = _cc.measure_surfaces(_srcX.rename(columns={
+        "a": "a", "b": "b", "y": "y"}), _srcX.copy(),
+        _bpT, _srcX["pid"], 10)
+    check("measure_surfaces states its TOTAL - published, "
+          "measured, and every skip counted by reason, with the "
+          "note saying skipped is never silent",
+          _resT["published"] == 3
+          and _resT["compared"] == 1
+          and _resT["skipped_token_columns"] == 1
+          and _resT["skipped_absent_columns"] == 1
+          and _resT["published"] == _resT["compared"]
+          + _resT["skipped_token_columns"]
+          + _resT["skipped_absent_columns"]
+          + _resT["skipped_thin_data"]
+          and "never silently" in _resT["note"])
+
     _vS = _g2.assess({"summary": {
         "pairs": 10, "pairs_sign_ok": 10, "pairs_close": 10,
         "pairs_inverted": 0, "shapes_compared": 5, "shapes_ok": 4,

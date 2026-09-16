@@ -350,9 +350,24 @@ def surfaces_view(run):
         g = gaps.get((child, tuple(sorted(pair))))
         print()
         print("{} <- {} x {}".format(child, pair[0], pair[1]))
-        print("  gap {} sd, tracks {}".format(
-            g.get("gap_sd") if g else "?",
-            g.get("tracks") if g else "(not measured)"))
+        if g:
+            print("  gap {} sd, tracks {}".format(
+                g.get("gap_sd"), g.get("tracks")))
+        else:
+            # SAY WHY, not just "?": on the real extract 66 of 72
+            # published surfaces are unmeasurable because they
+            # touch token-indicator columns that exist only inside
+            # the search - a bare question mark read as a bug.
+            from synthkit import sets as _sets
+            if _sets.is_scaffolding(child) or any(
+                    _sets.is_scaffolding(x) for x in pair):
+                print("  not measured - touches a token-indicator "
+                      "column, which exists only inside the "
+                      "search, never in the written files")
+            else:
+                print("  not measured - a column is absent from "
+                      "the written files, or the overlapping "
+                      "cells were too thin to bin")
         ps = rel.get("parents") or []
         missing = [x for x in pair if x not in ps]
         print("  blueprint parents: {}{}".format(
@@ -376,12 +391,25 @@ def surfaces_view(run):
         print("no interaction surfaces are published in this "
               "blueprint")
     print()
-    print("{} surface(s) published. A pair member missing from "
-          "the blueprint parents means the surface cannot fire in "
-          "the FIRST pass; a lost lag parent means the cyclic "
-          "refinement skips the record ENTIRELY, because its "
-          "original parent can never exist in the output.".format(
-                  n_pub))
+    from synthkit import sets as _sets2
+    n_tok = 0
+    for rel in (bp.get("relationships") or []):
+        it2 = (rel.get("evidence") or {}).get("interaction")
+        pr2 = list((it2 or {}).get("pair") or [])
+        if len(pr2) != 2:
+            continue
+        if _sets2.is_scaffolding(rel.get("child") or "") or any(
+                _sets2.is_scaffolding(x) for x in pr2):
+            n_tok += 1
+    print("{} surface(s) published: {} measured, {} on "
+          "token-indicator columns (search-only, unmeasurable "
+          "from the written files), {} otherwise unmeasured. A "
+          "pair member missing from the blueprint parents means "
+          "the surface cannot fire in the FIRST pass; a lost lag "
+          "parent means the cyclic refinement skips the record "
+          "ENTIRELY.".format(
+              n_pub, len(gaps), n_tok,
+              n_pub - len(gaps) - n_tok))
 
 
 def main():

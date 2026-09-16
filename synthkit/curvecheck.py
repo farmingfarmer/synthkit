@@ -150,17 +150,32 @@ def measure_surfaces(Xs, Xg, bp, gid_series, k) -> Dict[str, Any]:
     import numpy as np
     from synthkit import sets as _sets
     rows: List[Dict[str, Any]] = []
+    published = 0
+    skipped_tokens = 0
+    skipped_absent = 0
+    skipped_thin = 0
     for rel in (bp.get("relationships") or []):
         child = rel.get("child")
         it = (rel.get("evidence") or {}).get("interaction")
         pair = list((it or {}).get("pair") or [])
-        if (not it or len(pair) != 2 or not child
-                or _sets.is_scaffolding(child)):
+        if not it or len(pair) != 2 or not child:
             continue
+        published += 1
         a, b = pair
+        # A SURFACE ON A SEARCH-ONLY COLUMN CANNOT BE MEASURED
+        # HERE, and the count must SAY so - the real extract
+        # publishes 72 surfaces of which only 6 touch columns that
+        # exist in the written files, and a criterion that reads
+        # "2/6" without naming the other 66 reads as coverage it
+        # does not have.
+        if _sets.is_scaffolding(child) or any(
+                _sets.is_scaffolding(c) for c in pair):
+            skipped_tokens += 1
+            continue
         cols_ok = all(c in Xs.columns and c in Xg.columns
                       for c in (child, a, b))
         if not cols_ok:
+            skipped_absent += 1
             continue
         vs_c = _numeric(Xs[child])
         sd_c = float(vs_c.dropna().std()) or 1.0
@@ -197,9 +212,11 @@ def measure_surfaces(Xs, Xg, bp, gid_series, k) -> Dict[str, Any]:
         cs = grid_means(Xs, gid_series)
         cg = grid_means(Xg, None)
         if not cs or not cg:
+            skipped_thin += 1
             continue
         both = sorted(set(cs) & set(cg))
         if len(both) < 4:
+            skipped_thin += 1
             continue
         gap = max(abs(cs[c] - cg[c]) for c in both) / sd_c
         rows.append({"child": child, "pair": [a, b],
@@ -210,14 +227,19 @@ def measure_surfaces(Xs, Xg, bp, gid_series, k) -> Dict[str, Any]:
         "surfaces": rows,
         "compared": len(rows),
         "tracked": sum(1 for r in rows if r["tracks"]),
-        "note": "Each published two-variable interaction surface "
-                "re-measured as a 3x3 quantile-binned conditional "
-                "mean on both tables; source cells under k patients "
-                "are dropped, and the gap is the largest cell-wise "
-                "difference over cells both tables can measure, in "
-                "units of the child's source spread. The engine "
-                "does not publish higher-order interactions, so "
-                "nothing above two-way is measured here - a metric "
-                "for what the generator cannot produce would only "
-                "restate a known limitation.",
+        "published": published,
+        "skipped_token_columns": skipped_tokens,
+        "skipped_absent_columns": skipped_absent,
+        "skipped_thin_data": skipped_thin,
+        "note": "Of the surfaces the blueprint publishes, only "
+                "those whose child and pair exist as columns in "
+                "the WRITTEN files can be re-measured here - "
+                "token-indicator surfaces live inside the search "
+                "and are counted as skipped, never silently "
+                "dropped. The measured ones are 3x3 "
+                "quantile-binned conditional means on both "
+                "tables, source cells under k patients removed, "
+                "gap in units of the child's source spread. "
+                "Nothing above two-way is measured, because the "
+                "engine publishes nothing above two-way.",
     }

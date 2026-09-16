@@ -4,7 +4,7 @@ Synthetic clinical data generator and model-evaluation instrument. Core rule: le
 
 ## Verify before claiming
 
-- Run `python scripts/run_all_smokes.py` before claiming anything works. Expect 67 suites, 1904 checks, ALL GREEN **on a checkout**. Off a zipball extract - which is what the data machine runs - it is 1895: nine checks in `smoke_buildid` need git to test the archive path and report SKIPPED without it. Both numbers were measured. Do not quote the checkout number to the data machine; that is how a correct run gets read as a failure.
+- Run `python scripts/run_all_smokes.py` before claiming anything works. Expect 67 suites, 1905 checks, ALL GREEN **on a checkout**. Off a zipball extract - which is what the data machine runs - it is 1896: nine checks in `smoke_buildid` need git to test the archive path and report SKIPPED without it. Both numbers were measured. Do not quote the checkout number to the data machine; that is how a correct run gets read as a failure.
 - **THE DEVELOPMENT MACHINE WAS BEHIND THE DATA MACHINE, and that is
   how a green suite here failed there.** Dev was on Python 3.10 with
   pandas 2.3; the data machine installs fresh and got pandas 3.0.5,
@@ -280,6 +280,30 @@ the direction that stops work happening.
   entirely - a lag column can never exist in the output), and a
   lost pair member, by name. One command on the data machine
   answers what a third fixture would only have guessed at.
+
+- **THE SURFACE CHAPTER CLOSED ON THE OPERATOR'S peek OUTPUT
+  (2026-09-16).** 72 surfaces published on the real extract; the
+  application machinery WORKS - `mean_arterial_pressure_cuff <-
+  diastolic x systolic` tracks at 0.22, and `787_2` tracks at
+  0.29 DESPITE losing both pair members to trims, which is the
+  re-application doing its job on real data. Zero LAG flags in 72
+  surfaces: that hypothesis is dead everywhere. What fails is not
+  a mechanism: `diastolic <- MAP_cuff x MAP_cuff_bmdi` at 1.38 sd
+  is the ring-adjacency ceiling expressed in 2D (near-identical
+  variant columns), and the other three sit 0.03-0.14 above the
+  0.35 bar - marginal drift, parked with the ring research, not
+  chased as bugs.
+- **AND THE INSTRUMENT VIOLATED ITS OWN TOTALS RULE: 72
+  published, 6 measured, 66 silent.** The unmeasured surfaces
+  touch token-indicator columns that exist only inside the
+  search, and neither the criterion nor peek said so - a bare
+  "?" that read as a bug. measure_surfaces now counts every skip
+  by reason (published == measured + token + absent + thin, held
+  as an identity in the checks), and peek surfaces prints WHY
+  each unmeasured surface is unmeasured plus the total line.
+  Measuring token-indicator surfaces from the written files would
+  require re-deriving the indicators from the list columns -
+  possible, recorded here as future work, not silently absent.
 
 ## Numbers before conclusions
 
