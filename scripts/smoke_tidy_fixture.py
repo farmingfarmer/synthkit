@@ -294,6 +294,46 @@ def main():
           and build_pressure().equals(_pf)
           and build_triangle().equals(_tf))
 
+    # THE TEAM TEST KIT assembles a folder a teammate runs and
+    # tries to break - and its START_HERE was executed VERBATIM,
+    # end to end through both artifacts, before this check was
+    # written. The check holds the kit's structure and that its
+    # commands name things the CLI actually has, so a renamed
+    # subcommand cannot quietly strand the kit.
+    import subprocess as _sp
+    import sys as _sys
+    import tempfile as _tf
+    _root = Path(__file__).resolve().parent.parent
+    with __import__("tempfile").TemporaryDirectory() as _tk:
+        _rk = _sp.run([_sys.executable,
+                       str(_root / "scripts" / "make_testkit.py"),
+                       "-o", _tk],
+                      capture_output=True, text=True)
+        _kit = Path(_tk)
+        _sh = (_kit / "START_HERE.md").read_text(encoding="utf-8")             if (_kit / "START_HERE.md").exists() else ""
+        _tb = (_kit / "TRY_TO_BREAK.md").read_text(
+            encoding="utf-8")             if (_kit / "TRY_TO_BREAK.md").exists() else ""
+        check("make_testkit assembles the four pieces - data, "
+              "answer key, start-here, try-to-break",
+              _rk.returncode == 0
+              and (_kit / "clinic" / "demo_clinic.csv").exists()
+              and "ANSWER KEY" in (_kit / "answer_key.txt")
+              .read_text(encoding="utf-8")
+              and len(_sh) > 500 and len(_tb) > 500)
+        _help = _sp.run([_sys.executable, "-m", "synthkit.cli",
+                         "--help"], capture_output=True,
+                        text=True, cwd=str(_root)).stdout
+        _cmds = ["types", "fit", "gui", "bridge", "plant",
+                 "campaign-compile", "campaign-run", "showdown"]
+        check("...and every CLI command the kit teaches exists in "
+              "the installed CLI - a renamed subcommand cannot "
+              "quietly strand the kit",
+              all(c in _sh for c in _cmds)
+              and all(c in _help for c in _cmds)
+              and "report_card.py" in _sh
+              and "signoff.py" in _sh
+              and "m0_gate.py" in _sh)
+
     print()
     if FAIL:
         print("{} FAILED".format(FAIL))
