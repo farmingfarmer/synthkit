@@ -305,6 +305,32 @@ the direction that stops work happening.
   require re-deriving the indicators from the list columns -
   possible, recorded here as future work, not silently absent.
 
+- **THE ATTRIBUTION FLIP IS CHARACTERIZED: a two-regime effect
+  governed by discovery's edge inclusion, tested blind on fresh
+  seeds (2026-09-17).** On the triangle fixture across eight
+  seeds: when discovery keeps the third edge (proc <- drug), the
+  generated file's attribution LOCKS to the true driver - 88-93%
+  proc on all three such seeds, zero flips. When the edge misses
+  the inclusion threshold, attribution DESTABILIZES into a
+  40-71% band that contains every flip (2) and the borderline
+  (1) across five seeds. Mechanism: with the edge gone,
+  generation produces drug as a high-skill CHILD of span, so in
+  the written file drug couples to span more tightly than proc
+  does, and attribution measured on the output correctly follows
+  the file, not the source. The flip is NOT a sampler bug - the
+  sampler faithfully renders the blueprint it was given; the
+  instability lives at discovery's inclusion threshold. Tested
+  the honest way: the predictor read only the blueprint and
+  committed before the generated attribution was measured - and
+  its strong form FAILED (edge-absent seeds 23 and 42 kept at
+  69/31 and 71/29), which is what refined "sufficient" down to
+  "necessary". The second factor - where in the band an
+  edge-absent seed lands - is OPEN, recorded rather than hunted
+  blind. Fix directions when this is picked up: stabilize edge
+  inclusion near the threshold (discovery-side), or flag
+  families whose attribution is inclusion-sensitive in the
+  report so a reader knows the number is seed-fragile.
+
 ## Numbers before conclusions
 
 - **Recall on the fixture varies 71%-86% across seeds with nothing
