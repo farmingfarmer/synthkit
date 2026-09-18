@@ -647,6 +647,23 @@ def main():
                 str(_srcp), str(_rundir), "person_id")
         finally:
             _bi.__import__ = _real_imp
+        # THE SCALE CAPTION SAYS WHICH COMPARISON IT IS. It
+        # claimed "same blueprint" unconditionally and the
+        # operator's first real compare paired two INDEPENDENT
+        # fits - the denominators contradicted the caption on the
+        # exhibit itself. Same-run compare must say same
+        # blueprint; a compare against a run whose blueprint
+        # differs by one byte must say independent fits, claimed
+        # as the STRONGER form.
+        import shutil as _sh
+        _rd2 = Path(_d) / "run2"
+        _sh.copytree(_rundir, _rd2)
+        _bp2 = _rd2 / "blueprint.json"
+        _bp2.write_text(_bp2.read_text(encoding="utf-8") + "\n",
+                        encoding="utf-8")
+        _doc_cross, _ = _fd0.build_deck(
+            str(_srcp), str(_rundir), "person_id",
+            ["x={}".format(_rd2)])
     check("the deck writes a self-contained page with both series, "
           "gate chips and paired heatmaps",
           _r2.returncode == 0 and "<svg" in _h
@@ -1145,6 +1162,16 @@ def main():
           "is not installed on this machine" in _doc_blocked
           and "pip install shap" in _doc_blocked
           and "who drives it" not in _doc_blocked)
+
+    check("the scale caption states WHICH comparison it is - "
+          "same-run compare says same blueprint; a one-byte "
+          "blueprint difference flips it to independent fits, "
+          "claimed as the stronger form",
+          "same blueprint" in _h
+          and "independent fits" not in _h
+          and "independent fits" in _doc_cross
+          and "STRONGER form" in _doc_cross
+          and "same blueprint" not in _doc_cross)
 
     # A MISSING COMPARE RUN IS A SENTENCE, NOT A STACK. The operator
     # hit a raw FileNotFoundError when --compare named a 5x run that

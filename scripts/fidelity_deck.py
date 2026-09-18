@@ -1197,14 +1197,40 @@ def build_deck(src_path, run_dir, group_by="person_id",
                         s2.get("coverage_ok"), s2.get("columns"),
                         "MET" if met else "NOT MET"))
         rows.append(one_row("1x (this report)", run))
+        # SAY WHICH COMPARISON THIS IS. The caption claimed "same
+        # blueprint" unconditionally, and the operator's first real
+        # compare paired two INDEPENDENT fits - the denominators
+        # (129 against 117 pairs) contradicted the caption on the
+        # exhibit itself. Hash the blueprints and state what is
+        # actually being compared; independent fits agreeing across
+        # seed AND scale is the stronger claim, and it should be
+        # claimed as itself.
+        import hashlib as _hl
+
+        def _bp_hash(d):
+            fp3 = Path(d) / "blueprint.json"
+            return (_hl.sha256(fp3.read_bytes()).hexdigest()
+                    if fp3.exists() else None)
+        base_hash = _bp_hash(run)
+        same_bp = True
         for spec2 in a.compare:
             label, _, rdir = spec2.partition("=")
             rows.append(one_row(label, rdir))
+            if _bp_hash(rdir) != base_hash or base_hash is None:
+                same_bp = False
         body.append("<table>{}</table>".format("".join(rows)))
-        body.append('<p class="note">same blueprint, different '
-                    'patient counts - the metrics that matter are '
-                    'proportions, so a stable row means no '
-                    'degradation.</p>')
+        if same_bp:
+            body.append('<p class="note">same blueprint, '
+                        'different patient counts - the metrics '
+                        'that matter are proportions, so a stable '
+                        'row means no degradation.</p>')
+        else:
+            body.append('<p class="note">independent fits - each '
+                        'row learned its own blueprint, so the '
+                        'comparison spans seed AND scale at once. '
+                        'The metrics that matter are proportions; '
+                        'a stable row across independent fits is '
+                        'the STRONGER form of no-degradation.</p>')
 
     body.append('<div class="footer">Every published number in the '
                 'contract behind this data describes at least {} '
