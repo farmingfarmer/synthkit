@@ -331,6 +331,17 @@ the direction that stops work happening.
   families whose attribution is inclusion-sensitive in the
   report so a reader knows the number is seed-fragile.
 
+- **5x EXPANSION HOLDS FIDELITY ON THE REAL EXTRACT
+  (2026-09-18).** 288,631 rows for 4,000 patients from the
+  800-patient source: direction 92.3% against 1x's 93.9%, close
+  77.8% against 76.5% - within seed noise both ways - coverage
+  42/42, tokens 63/63, EMPTY 4/4, and center IMPROVED to 31/33
+  (worst miss 0.18 sd; more rows steady the bins). All four
+  spread misses are bound-explained (68-96% of magnitude beyond
+  the k bound - privacy by design). Expansion rides the published
+  ratios, as the clinic rehearsal predicted; contraction, not
+  expansion, is where patterns would thin.
+
 ## Numbers before conclusions
 
 - **Recall on the fixture varies 71%-86% across seeds with nothing

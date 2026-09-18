@@ -1,42 +1,25 @@
-# OUTBOX — next step: the 5x scale measurement
+# OUTBOX — next step: the 5x compare deck (two commands)
 
-Updated 2026-09-17. This file is overwritten each time there are
-new commands — whatever it shows now IS the next step. Run on the
-data machine, one command per line; each block has a copy button
-on the repository page.
+Updated 2026-09-18. The 5x fit is DONE and measured - 288,631 rows
+for 4,000 patients, fidelity within seed noise of 1x (direction
+92.3% vs 93.9%, close 77.8% vs 76.5%, center 31/33, every spread
+miss bound-explained). What remains is the one-table exhibit.
 
-The last open sprint item — the "does 5x degrade it" answer on
-real data. No pull is needed: the current build runs this as-is.
-Total machine time about 40 minutes, mostly unattended.
-
-## 1 — the 5x fit (about 40 minutes; start it and walk away)
-
-```bat
-python -m synthkit.cli fit --src %USERPROFILE%\dev\tidy_visits.csv --out %USERPROFILE%\dev\run_5x --group-by person_id --lags --patients 4000 --generate
-```
-
-Same source and flags as the seed runs, but generating 4,000
-patients (5x the 800). The first line must say
-`build: <sha> (from archive)`.
-
-## 2 — the compare deck (about a minute)
+## 1 — build the compare deck (about a minute)
 
 ```bat
 python scripts\fidelity_deck.py --src %USERPROFILE%\dev\tidy_visits.csv --run %USERPROFILE%\dev\run_seed11b -o %USERPROFILE%\dev\exam\deck_5x.html --group-by person_id --compare "5x=%USERPROFILE%\dev\run_5x"
 ```
 
-## 3 — open it
+## 2 — open it
 
 ```bat
 start %USERPROFILE%\dev\exam\deck_5x.html
 ```
 
-**Expect:** the full dashboard for run_seed11b plus a scale table
-near the top — 1x beside 5x — answering whether expansion degrades
-direction, close, inversions, coverage, and the gate. On the
-clinic rehearsal both scales read identically; the real extract's
-answer is the point of the run.
+**Expect:** the scale table near the top - 1x beside 5x, one row
+per run, across direction, close, inverted, coverage and the gate.
 
-**Send back:** a screenshot of the scale-comparison table (and the
-5x gate line if it differs from 1x). That row is a ready-made
-exhibit for the Wednesday deep dive.
+**Send back:** a screenshot of that table. It is the "does 5x
+degrade it" answer in one exhibit, ready for the Wednesday deep
+dive - and with it, every sprint item is complete.
