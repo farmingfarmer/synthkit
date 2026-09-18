@@ -988,8 +988,11 @@ def _informative_sets(cname, m, base, routed, out, rng,
         if strength == 0.0 or not all(p in out for p in r["parents"]):
             continue
         imp = ev.get("importance") or {}
-        tot = sum(max(float(imp.get(p, 0.0)), 0.0)
-                  for p in r["parents"]) or 1.0
+        es_r = r.get("target_edge_strength") or {}
+        imp = dict((p, max(float(imp.get(p, 0.0)), 0.0)
+                    * float(es_r.get(p, 1.0)))
+                   for p in r["parents"])
+        tot = sum(imp.values()) or 1.0
         sys_ = np.zeros(n, dtype=float)
         for p in r["parents"]:
             eff = (ev.get("effect") or {}).get(p)
@@ -2243,6 +2246,7 @@ def _apply_numeric(c, spec, m, base, rels, out, masks=None):
         ev = r.get("evidence") or {}
         eff = ev.get("effect") or {}
         it = ev.get("interaction")
+        es = r.get("target_edge_strength") or {}
         done = set()
         # THE SURFACE NAMES ITS OWN TWO COLUMNS. Read them; do not
         # assume they are the first two parents.
@@ -2268,7 +2272,11 @@ def _apply_numeric(c, spec, m, base, rels, out, masks=None):
         if it and it.get("grid_a") and len(pair) == 2 \
                 and all(x in r["parents"] and x in out for x in pair):
             a, b = pair[0], pair[1]
-            systematic += s * _surface_delta(it, out[a], out[b])
+            s_surf = s * float(es.get(a, 1.0)) * float(
+                es.get(b, 1.0))
+            if s_surf:
+                systematic += s_surf * _surface_delta(
+                    it, out[a], out[b])
             done.update([a, b])
         # WHICH CURVE. A conditional curve is only meaningful when
         # the parents it was conditioned on are all present. Where a
@@ -2289,8 +2297,8 @@ def _apply_numeric(c, spec, m, base, rels, out, masks=None):
                 # of the claim it came from
                 if e.get("skill") is not None:
                     used_sk = max(used_sk or 0.0, float(e["skill"]))
-            systematic += s * _curve_delta(e, out[p],
-                                           (masks or {}).get(p))
+            systematic += s * float(es.get(p, 1.0)) \
+                * _curve_delta(e, out[p], (masks or {}).get(p))
         sk = (used_sk if used_sk is not None
               else float(ev.get("skill_out_of_sample") or 0.0))
         share = min(max(sk, 0.0), 0.99) * min(s, 1.0)
@@ -2348,8 +2356,12 @@ def _apply_categorical(c, spec, m, base, rels, out, rng,
         if s == 0.0:
             continue
         eff = (r.get("evidence") or {}).get("effect") or {}
+        es_c = r.get("target_edge_strength") or {}
         for p in r["parents"]:
             if p not in out or p not in eff:
+                continue
+            s_edge = s * float(es_c.get(p, 1.0))
+            if s_edge == 0.0:
                 continue
             of = eff[p].get("of_class")
             if of is None:
@@ -2358,8 +2370,8 @@ def _apply_categorical(c, spec, m, base, rels, out, rng,
                 target = of
             if of != target:
                 continue
-            delta += s * _curve_delta(eff[p], out[p],
-                                      (masks or {}).get(p))
+            delta += s_edge * _curve_delta(eff[p], out[p],
+                                           (masks or {}).get(p))
     if target is None or target not in levels:
         return base
     j = levels.index(target)

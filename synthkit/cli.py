@@ -251,9 +251,33 @@ def cmd_dials(args) -> int:
         print("  {:<34} {}{}".format(
             name, ",".join(avail),
             "" if not set_now else "   SET: " + _json.dumps(set_now)))
+    rels = bp.get("relationships") or []
+    if rels:
+        print()
+        print("  relationships ({} edge(s)) - dial: strength"
+              .format(sum(len(r.get("parents") or [])
+                          for r in rels)))
+        shown = 0
+        for r in rels:
+            for par in (r.get("parents") or []):
+                st = (r.get("dials") or {}).get("strength")
+                print("  {}<-{}{}".format(
+                    r.get("child"), par,
+                    "" if st is None
+                    else "   SET: strength={}".format(st)))
+                shown += 1
+                if shown >= 20:
+                    break
+            if shown >= 20:
+                break
+        rest = sum(len(r.get("parents") or []) for r in rels) - shown
+        if rest > 0:
+            print("  ... and {} more edge(s)".format(rest))
     print()
     print("Set one with:  synthkit fit --src ... --out ... --generate "
           "--dial COLUMN.NAME=VALUE")
+    print("A relationship: --dial \"CHILD<-PARENT.strength=0.5\" "
+          "(0 removes it; the achieved correlation is reported)")
     print("What you asked for and what arrived are both reported in "
           "findings.txt.")
     return 0

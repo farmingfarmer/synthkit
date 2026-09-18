@@ -185,7 +185,119 @@ def main():
     if FAIL:
         print("{} FAILED".format(FAIL))
         sys.exit(1)
+    relationship_dial_checks()
+    if FAIL:
+        print("{} FAILED".format(FAIL))
+        sys.exit(1)
     print("All {} checks passed.".format(PASS))
+
+
+def relationship_dial_checks():
+    """The edge dial, held to the contract its first cut broke.
+
+    The record-level version was measured killing an INNOCENT
+    NEIGHBOR edge (span~drug collapsed to 0.007 when span<-proc
+    was dialed to 0) while the named pair survived through the
+    reverse record at 0.907. Per-edge routing fixed both; these
+    checks hold the whole contract: unit branches, then a real
+    two-fit measurement - both directions to 0 kills the pair
+    AND spares the neighbor, and strength=1.0 is bit-identical
+    to an undialed run."""
+    import hashlib
+    import numpy as np
+    import pandas as pd
+
+    # ---- unit branches ----
+    bp = {"columns": {}, "relationships": [
+        {"child": "span", "parents": ["proc", "drug"]},
+        {"child": "proc", "parents": ["span"]}]}
+    probs = D.apply(bp, D.parse(["span<-proc.strength=0"]))
+    check("an edge dial routes to edge_strength on the ONE named "
+          "parent, never the record",
+          not probs
+          and bp["relationships"][0]["dials"]["edge_strength"]
+          ["proc"] == 0.0
+          and "strength" not in bp["relationships"][0]["dials"]
+          or "edge_strength" in bp["relationships"][0]["dials"])
+    probs2 = D.apply(bp, D.parse(["spam<-proc.strength=0"]))
+    check("...an unknown edge is an error with suggestions, not "
+          "a shrug",
+          probs2 and "did you mean" in probs2[0])
+    src = pd.DataFrame({"span": [1, 2, 3, 4] * 30,
+                        "proc": [1, 2, 3, 4] * 30,
+                        "drug": [4, 3, 2, 1] * 30})
+    gen = pd.DataFrame({"span": [1, 2, 3, 4] * 30,
+                        "proc": [2, 1, 4, 3] * 30,
+                        "drug": [4, 3, 2, 1] * 30})
+    rows = D.verify(bp, {"span<-proc": {"strength": 0.0}},
+                    src, gen)
+    check("...a single edge at 0 with a LIVE reverse edge is "
+          "informational, naming the reverse edge instead of "
+          "judging a target it cannot hit",
+          rows[0]["hit"] is None
+          and "reverse" in (rows[0].get("note") or "").lower())
+    txt = D.render(rows)
+    check("...and render shows it as informational with the note, "
+          "never as MISS - a note explaining the number must not "
+          "sit under a verdict contradicting it",
+          "MISS" not in txt and "note:" in txt)
+
+    # ---- the two-fit contract, on a small planted triangle ----
+    r = np.random.RandomState(0)
+    n_pat, vis = 120, 6
+    n = n_pat * vis
+    lat = np.repeat(r.normal(0, 1, n_pat), vis) + r.normal(
+        0, .4, n)
+    y3 = 4 + 1.1 * lat + r.normal(0, 0.9, n)
+    y2 = 6 + 1.3 * lat + 0.45 * (y3 - y3.mean()) + r.normal(
+        0, 1.0, n)
+    y1 = 3 + 1.0 * (y2 - y2.mean()) + 0.75 * (y3 - y3.mean()) \
+        + r.normal(0, 1.1, n)
+    df = pd.DataFrame({
+        "person_id": ["P{:03d}".format(i)
+                      for i in np.repeat(np.arange(n_pat), vis)],
+        "span": np.round(y1, 2), "proc": np.round(y2, 2),
+        "drug": np.round(y3, 2)})
+    with tempfile.TemporaryDirectory() as td:
+        csv = Path(td) / "t.csv"
+        df.to_csv(csv, index=False)
+        root = Path(__file__).resolve().parent.parent
+
+        def fit(out, *dials_args):
+            cmd = [sys.executable, "-m", "synthkit.cli", "fit",
+                   "--src", str(csv), "--out", str(Path(td) / out),
+                   "--group-by", "person_id", "--seed", "11",
+                   "--generate"]
+            for d_ in dials_args:
+                cmd += ["--dial", d_]
+            q = subprocess.run(cmd, capture_output=True,
+                               text=True, cwd=str(root))
+            assert q.returncode == 0, (q.stdout + q.stderr)[-800:]
+            return pd.read_csv(Path(td) / out / "generated.csv")
+
+        g_base = fit("base")
+        g_noop = fit("noop", "span<-proc.strength=1.0")
+        g_kill = fit("kill", "span<-proc.strength=0",
+                     "proc<-span.strength=0")
+
+        def c(f, a, b):
+            return abs(float(f[a].corr(f[b], method="spearman")))
+        check("both directions at 0 REMOVE the pair (|r| {:.2f} "
+              "-> {:.2f}) while the neighbor edge survives "
+              "({:.2f} -> {:.2f}) - the exact combination the "
+              "record-level cut failed".format(
+                  c(g_base, "span", "proc"),
+                  c(g_kill, "span", "proc"),
+                  c(g_base, "span", "drug"),
+                  c(g_kill, "span", "drug")),
+              c(g_kill, "span", "proc") < 0.15
+              and c(g_kill, "span", "drug")
+              > 0.5 * c(g_base, "span", "drug"))
+        h = lambda f: hashlib.sha256(
+            f.to_csv(index=False).encode()).hexdigest()
+        check("...and strength=1.0 is bit-identical to an "
+              "undialed run - a no-op dial must be a true no-op",
+              h(g_noop) == h(g_base))
 
 
 if __name__ == "__main__":

@@ -4,7 +4,7 @@ Synthetic clinical data generator and model-evaluation instrument. Core rule: le
 
 ## Verify before claiming
 
-- Run `python scripts/run_all_smokes.py` before claiming anything works. Expect 67 suites, 1906 checks, ALL GREEN **on a checkout**. Off a zipball extract - which is what the data machine runs - it is 1897: nine checks in `smoke_buildid` need git to test the archive path and report SKIPPED without it. Both numbers were measured. Do not quote the checkout number to the data machine; that is how a correct run gets read as a failure.
+- Run `python scripts/run_all_smokes.py` before claiming anything works. Expect 67 suites, 1912 checks, ALL GREEN **on a checkout**. Off a zipball extract - which is what the data machine runs - it is 1903: nine checks in `smoke_buildid` need git to test the archive path and report SKIPPED without it. Both numbers were measured. Do not quote the checkout number to the data machine; that is how a correct run gets read as a failure.
 - **THE DEVELOPMENT MACHINE WAS BEHIND THE DATA MACHINE, and that is
   how a green suite here failed there.** Dev was on Python 3.10 with
   pandas 2.3; the data machine installs fresh and got pandas 3.0.5,
@@ -341,6 +341,24 @@ the direction that stops work happening.
   the k bound - privacy by design). Expansion rides the published
   ratios, as the clinic rehearsal predicted; contraction, not
   expansion, is where patterns would thin.
+
+- **THE RELATIONSHIP DIAL IS PER-EDGE, AND ITS FIRST CUT KILLED A
+  NEIGHBOR.** `--dial "CHILD<-PARENT.strength=0.5"` reaches one
+  DIRECTED edge. The first implementation set the record-level
+  target_strength, which scales EVERY parent at once - measured:
+  dialing span<-proc to 0 left the named pair at 0.907 (alive via
+  the reverse record) while collapsing the innocent span~drug to
+  0.007. The shift/scale lesson, again: each dial's check must
+  assert the NEIGHBORING property. Per-edge routing
+  (dials.edge_strength -> target_edge_strength, applied at all
+  three generation sites) measures correctly: both directions at
+  0 remove the pair (0.919 -> 0.056) while the neighbor holds
+  (0.555), strength=1.0 is bit-identical to an undialed run, and
+  a single-edge 0 with a live reverse edge reports as
+  INFORMATIONAL naming the reverse edge - render was showing
+  hit=None as MISS under a note explaining the number, and a
+  verdict must not contradict the note beneath it. Unknown edges
+  error with did-you-mean; `synthkit dials` lists every edge.
 
 ## Numbers before conclusions
 

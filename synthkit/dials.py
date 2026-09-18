@@ -44,6 +44,11 @@ from typing import Any, Dict, List, Optional, Tuple
 COLUMN_DIALS = ("coverage", "shift", "scale", "persistence",
                 "missing_clustering")
 PATIENT_DIALS = ("count", "visits_scale")
+# blueprint.resolve has honored rel["dials"]["strength"] since the
+# blueprint existed and generation multiplies by target_strength in
+# three places - but no operator path reached it. The syntax names
+# the edge: CHILD<-PARENT.strength=0.5.
+RELATIONSHIP_DIALS = ("strength",)
 
 
 def parse(items: Optional[List[str]]) -> Dict[str, Dict[str, Any]]:
@@ -56,8 +61,9 @@ def parse(items: Optional[List[str]]) -> Dict[str, Dict[str, Any]]:
     for item in (items or []):
         if "=" not in item or "." not in item.split("=", 1)[0]:
             raise ValueError(
-                "--dial wants COLUMN.NAME=VALUE, for example "
-                "age.shift=5 or patients.count=200 - got {!r}"
+                "--dial wants COLUMN.NAME=VALUE (age.shift=5, "
+                "patients.count=200) or, for a relationship, "
+                "CHILD<-PARENT.strength=0.5 - got {!r}"
                 .format(item))
         lhs, _, rhs = item.partition("=")
         col, _, key = lhs.rpartition(".")
@@ -81,7 +87,42 @@ def apply(bp: Dict[str, Any],
     misspelled dial looks exactly like a dial that did nothing."""
     problems: List[str] = []
     cols = bp.get("columns") or {}
+    rels = bp.get("relationships") or []
     for name, wanted in (overlay or {}).items():
+        if "<-" in name:
+            child, _, parent = name.partition("<-")
+            child, parent = child.strip(), parent.strip()
+            rel = next((r for r in rels
+                        if r.get("child") == child
+                        and parent in (r.get("parents") or [])),
+                       None)
+            if rel is None:
+                have = ["{}<-{}".format(r.get("child"), p)
+                        for r in rels
+                        for p in (r.get("parents") or [])]
+                import difflib
+                near = difflib.get_close_matches(name, have, n=3,
+                                                 cutoff=0.4)
+                problems.append(
+                    "no relationship {!r} in this blueprint{}"
+                    .format(name, "" if not near else
+                            " - did you mean {}?".format(
+                                ", ".join(near))))
+                continue
+            for key, val in wanted.items():
+                if key not in RELATIONSHIP_DIALS:
+                    problems.append(
+                        "{} has no dial {!r}; a relationship has "
+                        "{}".format(name, key,
+                                    ", ".join(RELATIONSHIP_DIALS)))
+                    continue
+                # PER-EDGE, not per-record: the record-level
+                # strength scales EVERY parent at once, which was
+                # measured killing an innocent neighbor edge. The
+                # named edge is the only thing this touches.
+                rel.setdefault("dials", {}).setdefault(
+                    "edge_strength", {})[parent] = val
+            continue
         if name == "patients":
             target = (bp.get("patients") or {}).setdefault("dials", {})
             allowed = PATIENT_DIALS
@@ -135,6 +176,90 @@ def verify(bp_before: Dict[str, Any],
     cols = bp_before.get("columns") or {}
 
     for name, wanted in (overlay or {}).items():
+        if "<-" in name:
+            child, _, parent = name.partition("<-")
+            child, parent = child.strip(), parent.strip()
+            for key, val in wanted.items():
+                row = {"dial": "{}.{}".format(name, key),
+                       "requested": float(val)}
+                try:
+                    sc = pd.to_numeric(source[child]
+                                       .replace("", None),
+                                       errors="coerce")
+                    sp = pd.to_numeric(source[parent]
+                                       .replace("", None),
+                                       errors="coerce")
+                    gc = pd.to_numeric(generated[child]
+                                       .replace("", None),
+                                       errors="coerce")
+                    gp = pd.to_numeric(generated[parent]
+                                       .replace("", None),
+                                       errors="coerce")
+                    r_s = float(sc.corr(sp, method="spearman"))
+                    r_g = float(gc.corr(gp, method="spearman"))
+                except (KeyError, TypeError):
+                    row.update(achieved=None, hit=None,
+                               note="pair not measurable as "
+                                    "numeric")
+                    rows.append(row)
+                    continue
+                ratio = (r_g / r_s) if r_s else float("nan")
+                # STRENGTH HAS ONE CRISP TARGET AND ONE HONEST
+                # RATIO. At 0 the relationship must be GONE - that
+                # is checkable. Between 0 and 1 the dial scales
+                # the systematic part, and generation attenuates
+                # even at 1.0 (the close criterion measures that),
+                # so the ratio is REPORTED and judged against an
+                # undialed run, not against the dial value.
+                if float(val) == 0.0:
+                    rev0 = next(
+                        (r2 for r2 in
+                         (bp_before.get("relationships") or [])
+                         if r2.get("child") == parent
+                         and child in (r2.get("parents") or [])),
+                        None)
+                    rev_dialed = (rev0 is not None and float(
+                        ((rev0.get("dials") or {})
+                         .get("edge_strength") or {})
+                        .get(child, 1.0)) == 0.0)
+                    if rev0 is not None and not rev_dialed:
+                        row.update(
+                            achieved=round(r_g, 4),
+                            source_corr=round(r_s, 4), hit=None,
+                            note="this edge is off, but the "
+                                 "REVERSE edge {}<-{} still "
+                                 "carries the pair - dial both "
+                                 "to 0 to remove it, and then "
+                                 "the pair correlation is the "
+                                 "check.".format(parent, child))
+                    else:
+                        row.update(achieved=round(r_g, 4),
+                                   source_corr=round(r_s, 4),
+                                   hit=abs(r_g) < 0.1)
+                else:
+                    row.update(achieved=round(r_g, 4),
+                               source_corr=round(r_s, 4),
+                               achieved_ratio=round(ratio, 3),
+                               hit=None,
+                               note="ratio is generated/source "
+                                    "correlation; judge against "
+                                    "an undialed run - the engine "
+                                    "attenuates even at 1.0")
+                rev = next(
+                    (r2 for r2 in (bp_before.get("relationships")
+                                   or [])
+                     if r2.get("child") == parent
+                     and child in (r2.get("parents") or [])),
+                    None)
+                if rev is not None:
+                    row["note"] = ((row.get("note") or "")
+                                   + " REVERSE EDGE {}<-{} also "
+                                   "exists and still carries the "
+                                   "pair - dial it too to remove "
+                                   "the pair entirely.".format(
+                                       parent, child)).strip()
+                rows.append(row)
+            continue
         if name == "patients":
             for key, val in wanted.items():
                 if key == "count" and group_by \
@@ -208,11 +333,22 @@ def render(rows: List[Dict[str, Any]]) -> str:
             out.append("  {:<28} requested {:<10.4g} not re-measured"
                        .format(r["dial"], r["requested"]))
             continue
-        mark = "ok " if r.get("hit") else "MISS"
+        # hit=None is INFORMATIONAL, not a miss - the edge dial's
+        # reverse-edge case set hit=None with a note and rendered
+        # as MISS, which sent the reader hunting a fault the note
+        # was already explaining.
+        hit = r.get("hit")
+        mark = ("ok " if hit else "MISS") if hit is not None \
+            else "--  "
         extra = ""
         if r.get("achieved_in_sds") is not None:
             extra = "  ({:+.2f} sd)".format(r["achieved_in_sds"])
+        if r.get("achieved_ratio") is not None:
+            extra += "  (ratio {:.2f} of source)".format(
+                r["achieved_ratio"])
         out.append("  {:<28} requested {:<10.4g} got {:<10.4g} {}{}"
                    .format(r["dial"], r["requested"], r["achieved"],
                            mark, extra))
+        if hit is None and r.get("note"):
+            out.append("      note: {}".format(r["note"]))
     return "\n".join(out) + "\n"

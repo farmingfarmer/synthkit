@@ -1135,6 +1135,15 @@ def resolve(spec: Dict[str, Any]) -> Dict[str, Any]:
     for r in out.get("relationships") or []:
         st = (r.get("dials") or {}).get("strength")
         r["target_strength"] = 1.0 if st is None else _f(st, 1.0)
+        # PER-EDGE strength. The record-level dial scales EVERY
+        # parent's contribution at once - measured killing an
+        # innocent neighbor edge (span~drug collapsed to 0.007
+        # when span<-proc was dialed to 0) while the named pair
+        # survived through the reverse record. An edge dial names
+        # one parent and touches only that parent's share.
+        es = (r.get("dials") or {}).get("edge_strength") or {}
+        r["target_edge_strength"] = dict(
+            (p2, max(_f(v, 1.0), 0.0)) for p2, v in es.items())
     p = out.get("patients") or {}
     pd_ = p.get("dials") or {}
     if "count" in p:
