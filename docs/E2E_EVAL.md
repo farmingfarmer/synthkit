@@ -12,6 +12,17 @@ Paths shown as `RUNDIR` and `EXAMDIR` are yours to choose. One
 command per line. `python -m synthkit.cli` and the bare `synthkit`
 command are the same program.
 
+**The short form (2026-09-18):** the whole loop below is now ONE
+command -
+
+    python -m synthkit.cli exam RUNDIR --effect age_at_visit=0.8 --effect span_days=-0.5 -o EXAMDIR
+
+- bridge, plant, ladder, baseline, showdown, report card, each
+stage echoing what it did, every artifact in `EXAMDIR`. The
+stage-by-stage walk below remains for when one stage needs
+varying (a different bar, a vendor's own solver in the vendor
+seat), and because reading it is how the one command earns trust.
+
 ## 0. What you need
 
 A finished fitted run (blueprint.json present) of the real extract -

@@ -39,7 +39,14 @@ use backslashes and the same words.
     python -m synthkit.cli types --src clinic/demo_clinic.csv --group-by person_id
 
 Every column, how it was read, and whether anonymization would
-destroy it - before anything expensive runs.
+destroy it - before anything expensive runs. Then the PHI check:
+
+    python -m synthkit.cli scrub clinic/demo_clinic.csv --group-by person_id
+
+The clinic data should come back CLEAR - it was invented without
+PHI on purpose - and a long-text column would be reported OUT OF
+SCOPE by name, because this scrub reads structured fields only
+and says so rather than pretending otherwise.
 
 ## 2. Fit and generate (about two minutes)
 
@@ -63,26 +70,30 @@ environment variables). In the Dashboard: press and hold any
 histogram; hold a correlation heatmap; find the planted threshold
 in the pattern cards and check it against `answer_key.txt`.
 
-## 4. The exam loop (about three minutes)
+## 4. The exam loop (about three minutes, one command)
 
-    python -m synthkit.cli bridge run1
-    python -m synthkit.cli plant --spec run1/tablespec.json --effect stress_score=0.9 --effect sleep_hours=-0.5 --prevalence 0.25 -o exam.json
-    python -m synthkit.cli campaign-compile --goal predict --spec exam.json --outcome outcome --bars auroc=0.65 -o campaign
-    python -m synthkit.cli campaign-run campaign --solver autosolver
-    python -m synthkit.cli showdown campaign --solver autosolver_hybrid --baseline autosolver --json-out showdown.json
+    python -m synthkit.cli exam run1 --effect stress_score=0.9 --effect sleep_hours=-0.5 -o exam
 
-The last line prints ceiling / baseline / vendor per tier - the
-ceiling is computable only because the answer was planted, which
-is the product's entire thesis in one number.
+That is bridge -> plant -> ladder -> baseline -> showdown ->
+report card, each stage echoing what it did. The showdown prints
+ceiling / baseline / vendor per tier - the ceiling is computable
+only because the answer was planted, which is the product's
+entire thesis in one number. Every artifact lands in `exam/`.
+
+The stages also exist as separate commands (`bridge`, `plant`,
+`campaign-compile`, `campaign-run`, `showdown`) when you want to
+vary one of them; `python -m synthkit.cli exam --help` names the
+dials (effects, prevalence, bars, solvers).
 
 ## 5. The artifacts
 
-    python scripts/report_card.py campaign --planted exam.planted.json --showdown showdown.json -o report_card.html
     python scripts/signoff.py run1 -o signoff.html
 
-Open both in a browser. The report card judges the BAR as well as
-the solver; the sign-off is the one page a decision-maker signs,
-limitations stated.
+`exam/report_card.html` was already written by the exam command.
+
+Open both in a browser. The report card judges the BAR as well
+as the solver; the sign-off is the one page a decision-maker
+signs, limitations stated.
 
 ## What to read when something says NO
 
@@ -100,13 +111,20 @@ Report what you did, what you expected, and what happened -
 screenshots welcome. Some starting points, roughly in order of
 mischief:
 
+0. Add a column of phone numbers to the clinic CSV under an
+   innocent header (`fax_pref`, say) and run `scrub` - it must
+   still be caught, because values decide and headers only
+   assist. Then add a column NAMED `ssn` holding lab values - it
+   must come back clear. Break either direction and you have
+   found a real bug.
 1. Feed `types` a file it should struggle with: currencies with
    symbols, times like 14:32, percent signs, a column that is
    half numbers and half words. Does the two-second look tell
    the truth about every column?
 2. Point `fit --src` at a FOLDER instead of a file, a file that
    does not exist, and a CSV with one row. Sentences or stacks?
-3. Delete `manifest.json` from a campaign folder and run
+3. Point `exam` at a directory that holds no blueprint.json,
+   then delete `manifest.json` from a campaign folder and run
    showdown. Then point `--json-out` at a folder wearing a
    filename.
 4. Plant an effect on a column that does not exist, and then an

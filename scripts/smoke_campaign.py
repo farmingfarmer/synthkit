@@ -388,6 +388,78 @@ def main():
     except CampaignError:
         check("predict without a generated outcome refused", True)
 
+    # THE WHOLE LOOP IS ONE COMMAND - goal 7's repeatability. The
+    # first end-to-end run took five commands and a one-letter
+    # path typo cost a day; `synthkit exam RUNDIR --effect ... -o
+    # DIR` runs bridge -> plant -> ladder -> baseline -> showdown
+    # -> report card with per-stage echo. Exercised here on a
+    # small fitted blueprint, end to end, plus both refusals.
+    import subprocess as _spx
+    import sys as _sysx
+    import tempfile as _tfx
+    from pathlib import Path as _Px
+    _rootx = _Px(__file__).resolve().parent.parent
+    import json as _jsonx
+    import numpy as _npx
+    import pandas as _pdx
+    sys_path_added = str(_rootx)
+    if sys_path_added not in __import__("sys").path:
+        __import__("sys").path.insert(0, sys_path_added)
+    from synthkit import blueprint as _B
+    from synthkit.discover import discover as _disc
+    _r9 = _npx.random.RandomState(3)
+    _n9 = 480
+    _g9 = _npx.repeat(_npx.arange(80), 6)
+    _df9 = _pdx.DataFrame({
+        "person_id": ["P{:03d}".format(i) for i in _g9],
+        "creatinine": _npx.round(
+            _npx.abs(_r9.normal(1.1, 0.35, _n9)), 3),
+        "glucose": _npx.round(_r9.normal(105, 28, _n9), 1)})
+    _bp9 = _B.build(_df9, _disc(_df9, group_by="person_id",
+                                seed=1), group_by="person_id")
+    with _tfx.TemporaryDirectory() as _tdx:
+        _rdx = _Px(_tdx) / "run"
+        _rdx.mkdir()
+        (_rdx / "blueprint.json").write_text(
+            _jsonx.dumps(_bp9), encoding="utf-8")
+        _ex = _spx.run([_sysx.executable, "-m", "synthkit.cli",
+                        "exam", str(_rdx), "--effect",
+                        "creatinine=0.9", "-o",
+                        str(_Px(_tdx) / "exam")],
+                       capture_output=True, text=True,
+                       cwd=str(_rootx))
+        _eo = _ex.stdout + _ex.stderr
+        check("`synthkit exam` runs the whole loop in one "
+              "command - all six stages echo, the showdown "
+              "prints ceiling/baseline/vendor, and the artifacts "
+              "land in the exam directory",
+              _ex.returncode == 0
+              and all(x in _eo for x in
+                      ("[1/6] bridge", "[2/6] plant",
+                       "planted creatinine: +0.90 sd",
+                       "[5/6] showdown", "ceiling"))
+              and (_Px(_tdx) / "exam" / "showdown.json").exists()
+              and (_Px(_tdx) / "exam"
+                   / "report_card.html").exists())
+        _e2 = _spx.run([_sysx.executable, "-m", "synthkit.cli",
+                        "exam", str(_Px(_tdx) / "nope"),
+                        "--effect", "creatinine=0.9",
+                        "-o", str(_Px(_tdx) / "e2")],
+                       capture_output=True, text=True,
+                       cwd=str(_rootx))
+        _e3 = _spx.run([_sysx.executable, "-m", "synthkit.cli",
+                        "exam", str(_rdx),
+                        "-o", str(_Px(_tdx) / "e3")],
+                       capture_output=True, text=True,
+                       cwd=str(_rootx))
+        check("...and it refuses in sentences: a missing run "
+              "names blueprint.json, no effects names the reason",
+              _e2.returncode == 2
+              and "no blueprint.json" in (_e2.stdout + _e2.stderr)
+              and _e3.returncode == 2
+              and "grades nothing" in (_e3.stdout + _e3.stderr)
+              and "Traceback" not in (_e2.stderr + _e3.stderr))
+
     # A FAILED --json-out WRITE AFTER A CLEAN SHOWDOWN IS A
     # SENTENCE THAT SAYS THE RUN STILL RAN. The operator hit
     # PermissionError writing the report - a folder wearing the

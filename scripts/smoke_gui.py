@@ -1174,11 +1174,13 @@ def main():
               "goal",
               "Proposed working order" in html
               and "~80%</span> 3" in html
+              and "~80%</span> 4" in html
               and "~100%</span> 6" in html
-              and "~85%</span> 7" in html
+              and "~90%</span> 7" in html
               and "~65%</span> 8" in html
-              and html.count("DONE 20") == 2
-              and "about 72%" in html
+              and html.count("DONE 20") == 3
+              and "about 77%" in html
+              and "~60%</span> 2" in html
               and "7-8 weeks" in html)
 
         # THE FITTED PATH IS IN THE BENCH. Until it was, a demo

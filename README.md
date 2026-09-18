@@ -234,6 +234,12 @@ arguable in a meeting.
 pip install -e .
 python scripts/smoke_tables.py        # any suite; 13 suites, 261+ checks
 synthkit gui                          # the bench
+synthkit types --src your.csv --out run1 --group-by id  # 2-second
+                                      # type check, run first
+synthkit scrub your.csv --group-by id # PHI-shaped columns, before fitting
+synthkit fit --src your.csv --out run1 --group-by id  # learn a blueprint
+synthkit exam run1 --effect somecol=0.9 -o exam1      # the whole
+                                      # evaluation loop, one command
 synthkit table-compile -d "a 400-row inpatient encounter extract..." \
     -o spec.json --backend ollama     # English -> spec (+ auto-lint)
 synthkit campaign-compile --goal predict --spec spec.json \

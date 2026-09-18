@@ -1,22 +1,43 @@
-# OUTBOX — nothing required; one optional polish before Wednesday
+# OUTBOX — two new commands worth a run
 
-Updated 2026-09-18. The sprint plan is fully delivered - all eight
-items, both optional runs included. No commands are required.
+Updated 2026-09-18 (evening). Three goals moved today: the exam
+loop is ONE command now (goal 7), a structured PHI scrub exists
+with a two-way gate (goal 2), and relationship dials landed
+earlier (goal 4). Roadmap says ~77% overall.
 
-## Optional — rebuild the 5x deck with the corrected caption
+## 0. Pull as usual
 
-The scale table's caption now states WHICH comparison it makes
-(yours pairs two independent fits - the stronger claim, and the
-caption should say so under the exhibit). If you want the
-corrected wording for Wednesday: pull as usual (the net expects
-**67 suites, 1897 checks, ALL GREEN** on a zipball), then:
+Zipball as in WINDOWS.md section 1. The net now expects
+**68 suites, 1911 checks, ALL GREEN** on a zipball (a new suite,
+`smoke_scrub`, joined the net).
+
+## 1. The PHI scrub, read against the real extract
 
 ```bat
-python scripts\fidelity_deck.py --src %USERPROFILE%\dev\tidy_visits.csv --run %USERPROFILE%\dev\run_seed11b -o %USERPROFILE%\dev\exam\deck_5x.html --group-by person_id --compare "5x=%USERPROFILE%\dev\run_5x"
+python -m synthkit.cli scrub %USERPROFILE%\dev\tidy_visits.csv --group-by person_id
 ```
 
-**Expect:** the same table, with the caption now reading
-"independent fits ... the STRONGER form of no-degradation."
+**Expect:** one line per column - `PHI`, `OUT OF SCOPE`, or
+counted in the `clear` total. On this extract everything should
+read clear (it was de-identified upstream), `person_id` explained
+as the group key. **An exit code of 1 with PHI lines is the
+command WORKING** - it refuses to stay quiet about undropped
+findings - not a crash.
 
-Otherwise: rehearse `docs/demo_script_v2.md` once at your leisure,
-and Wednesday's deep dive has everything it needs.
+**Send back:** the full output, whatever it says. This is goal
+2's "read against the real extract's own headers" item.
+
+## 2. Optional — the whole exam loop, one command
+
+The five-command loop from E2E_EVAL.md is now one command:
+
+```bat
+python -m synthkit.cli exam %USERPROFILE%\dev\run_seed11b --effect age_at_visit=0.8 --effect span_days=-0.5 -o %USERPROFILE%\dev\exam2
+```
+
+**Expect:** six stage echoes - bridge, plant, ladder, baseline,
+showdown, report card - ending in `exam -> ...\exam2` with
+`report_card.html` inside. Same numbers as the September 11 run,
+about 15 minutes, and this time nothing to typo.
+
+**Send back:** nothing needed unless a stage refuses.

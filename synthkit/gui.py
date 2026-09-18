@@ -2904,18 +2904,18 @@ textarea:focus,input:focus,select:focus{
     <div class="ev">BUILT: single-table CSV end to end; types, currency, percent and clock parsers; long/EAV pivot; 22 of 23 dataset shapes come out clean, and flat data comes back flat.</div>
     <div class="ev">PLANNED: multi-table intake with key auto-detection; Excel / JSON formats. Documents are a later decision, on purpose.</div>
     <div class="ev">NEXT &middot; about 3-6 weeks of work, proposed 6th &mdash; multi-table is the big piece and nothing upstream blocks on it.</div></div>
-  <div class="goal"><h3><span class="chip partial">partial &middot; ~45%</span> 2 &middot; Automatic de-identification</h3>
-    <div class="ev">BUILT: everything published is k-anonymous over PATIENTS; unpublishable labels are replaced by invented ones (1,436 real codes in, zero republished); attacked with positive controls &mdash; membership worst 0.52 where a cheat scores 1.00 and FAILS.</div>
-    <div class="ev">PLANNED: the PHI scrub itself &mdash; names, addresses, SSNs, birth dates &mdash; with a 100%-catch gate on planted PHI. Free text is a decision gate, not a promise.</div>
-    <div class="ev">NEXT &middot; about 3-4 weeks, proposed 5th &mdash; structured-field scrub first, planted-PHI gate before anything is claimed.</div></div>
+  <div class="goal"><h3><span class="chip partial">partial &middot; ~60%</span> 2 &middot; Automatic de-identification</h3>
+    <div class="ev">BUILT: everything published is k-anonymous over PATIENTS; unpublishable labels are replaced by invented ones (1,436 real codes in, zero republished); attacked with positive controls &mdash; membership worst 0.52 where a cheat scores 1.00 and FAILS. AND the structured-field scrub (2026-09-18): <code>synthkit scrub CSV</code> detects names, SSNs, phones, emails, addresses, birth dates and per-patient identifiers from their VALUES (a renamed SSN column is still caught; a column named ssn holding labs is not), gated both ways &mdash; 7/7 planted PHI columns caught AND 0 of 7 near-miss clinical columns flagged, because a detector that flags everything also catches everything.</div>
+    <div class="ev">PLANNED: the scrub run on the real extract's headers; free text stays a governance decision gate &mdash; a long-text column is reported OUT OF SCOPE by name, never silently skipped.</div>
+    <div class="ev">NEXT &middot; about 2-3 weeks remaining &mdash; the real-extract reading, then the free-text decision.</div></div>
   <div class="goal"><h3><span class="chip partial">partial &middot; ~80%</span> 3 &middot; Every pattern found, explained, with receipts</h3>
     <div class="ev">BUILT: discovery confirmed on held-out patients &mdash; 12/13 planted patterns, zero false; effect curves, interactions, presence-as-signal; the atlas explains all 97 components in plain English and refuses to build if one is missing.</div>
     <div class="ev">PLANNED: per-claim receipt files; the tangled-graph ceiling &mdash; the one open research item.</div>
     <div class="ev">NEXT &middot; research tail, ongoing &mdash; the dashboard, SHAP attribution and self-explaining gate landed this week (70&rarr;80); the tangled-graph ceiling has no calendar because unknowns, not assembly, move dates.</div></div>
-  <div class="goal"><h3><span class="chip partial">partial &middot; ~65%</span> 4 &middot; Dials over every pattern</h3>
-    <div class="ev">BUILT: count, coverage, shift, scale, persistence, clustering &mdash; each reports requested AGAINST achieved, because a dial can be capped by privacy and a silent difference is the failure this tool refuses.</div>
-    <div class="ev">PLANNED: dials on individual relationships; the full per-class verification pass.</div>
-    <div class="ev">NEXT &middot; about 2-3 weeks, proposed 7th &mdash; relationship dials ride on machinery the gate now measures.</div></div>
+  <div class="goal"><h3><span class="chip partial">partial &middot; ~80%</span> 4 &middot; Dials over every pattern</h3>
+    <div class="ev">BUILT: count, coverage, shift, scale, persistence, clustering &mdash; each reports requested AGAINST achieved, because a dial can be capped by privacy and a silent difference is the failure this tool refuses. AND relationship dials (2026-09-18): <code>CHILD&lt;-PARENT.strength=0..1</code> weakens ONE edge &mdash; measured: the dialed pair falls 0.919&rarr;0.056 while its neighbor on the same child survives at 0.555, strength=1.0 is bit-identical, and an unknown edge is an error with a did-you-mean.</div>
+    <div class="ev">PLANNED: the full per-class verification pass (each dial's check asserting its NEIGHBORING properties &mdash; the shift/scale fight, generalized).</div>
+    <div class="ev">NEXT &middot; about 1-2 weeks remaining &mdash; verification breadth, not new machinery.</div></div>
   <div class="goal"><h3><span class="chip built">built &middot; ~85%</span> 5 &middot; High-fidelity generation</h3>
     <div class="ev">MEASURED on the real extract: coverage 42/42, center 30/33, set token shares 62/62, empty rates 4/4, zero inverted relationships, direction 93.9%. Against a statistical-copy ruler: 119 relationships kept to its 77.</div>
     <div class="ev">REMAINING: one number &mdash; relationship strength within 0.2 on 76.5% of pairs against an 87.9% bar. Shapes and interaction surfaces are now gated per run as well &mdash; unread on real data so far.</div>
@@ -2924,19 +2924,22 @@ textarea:focus,input:focus,select:focus{
     <div class="ev">BUILT: the six-criteria gate with an honest exit code; contradiction checks on the report AND the contract; row-level obedience checks that need no source data; diagnosis views. The run states its own privacy costs in place.</div>
     <div class="ev">PLANNED: the single roll-up page a decision-maker signs.</div>
     <div class="ev">DONE 2026-09-14 &mdash; the sign-off page shipped (scripts/signoff.py): the gate, the privacy posture with measured counts, limitations restated, and a signature block saying what signing accepts. Goal closed; the first of the eight.</div></div>
-  <div class="goal"><h3><span class="chip built">built &middot; ~85%</span> 7 &middot; Vendor evaluation against planted truth</h3>
+  <div class="goal"><h3><span class="chip built">built &middot; ~90%</span> 7 &middot; Vendor evaluation against planted truth</h3>
     <div class="ev">BUILT: known effects planted on measured covariates &mdash; +0.9/-0.5 recovered at +0.86/-0.44, a no-effect column reads +0.03; the bridge carries measured distributions into the exam; campaigns and this bench.</div>
     <div class="ev">PLANNED: the loop assembled END TO END on the data machine &mdash; every part exists, the single run has not happened.</div>
-    <div class="ev">DONE 2026-09-11 &mdash; the end-to-end run happened on 55,428 real-shaped rows: bridge, plant, ladder, showdown; ceiling/baseline/vendor produced, and the as-specified bar exposed as sitting above its own ceiling. Remaining: repeatability, and a real vendor in the vendor seat.</div></div>
+    <div class="ev">DONE 2026-09-11 &mdash; the end-to-end run happened on 55,428 real-shaped rows: bridge, plant, ladder, showdown; ceiling/baseline/vendor produced, and the as-specified bar exposed as sitting above its own ceiling.</div>
+    <div class="ev">DONE 2026-09-18 &mdash; repeatability: <code>synthkit exam RUNDIR --effect col=BETA -o DIR</code> runs the whole loop &mdash; bridge, plant, ladder, baseline, showdown, report card &mdash; as ONE command with per-stage echo and sentence refusals. The five-command version cost a day to a one-letter path typo. Remaining: a real vendor in the vendor seat.</div></div>
   <div class="goal"><h3><span class="chip partial">partial &middot; ~65%</span> 8 &middot; Our own challenger, and one report card</h3>
     <div class="ev">BUILT: the structurally-blinded baseline solver; the ceiling / ours / vendor line in the campaign machinery.</div>
     <div class="ev">PLANNED: the report-card artifact from a real end-to-end run, then a challenger worth the name beyond the floor.</div>
     <div class="ev">NEXT &middot; the report card SHIPPED 2026-09-11 (scripts/report_card.py, verified on the real showdown - it judges the bar as well as the solver). Remaining: a challenger worth the name beyond the structurally-blinded floor - research, unscheduled.</div></div>
-  <div class="hint">Overall, equal-weighted: about 72%. The first
+  <div class="hint">Overall, equal-weighted: about 77%. The first
   three proposed steps landed in the sprint's first five days: the
   end-to-end run, the seed sweep (close is REAL: 76.5/80.6/80.2
   across seeds), and the report card - plus the sign-off page,
-  closing goal 6. What remains is the fidelity mechanisms the
+  closing goal 6; then relationship dials (goal 4, 65&rarr;80) and
+  the one-command exam runner (goal 7, 85&rarr;90), and the
+  structured PHI scrub (goal 2, 45&rarr;60), all 2026-09-18. What remains is the fidelity mechanisms the
   reproduction fixtures now hold (the attribution flip, surface
   survival), the PHI scrub, multi-table, and the tangled-graph
   research. Core complete in roughly 7-8 weeks from here; free

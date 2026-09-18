@@ -43,7 +43,7 @@ holds). Formats: days.
 
 ---
 
-## Goal 2 — Automatic de-identification   **~45%**
+## Goal 2 — Automatic de-identification   **~60%**
 
 **What works, measured**
 - Everything published is k-anonymous over PATIENTS, never rows:
@@ -60,18 +60,29 @@ holds). Formats: days.
   republishing generator; a near-verbatim set republish (one token
   swapped) is caught at 0.998 where string comparison scored 0.500.
 
+- ~~The structured PHI layer~~ SHIPPED 2026-09-18
+  (`synthkit/scrub.py`, `synthkit scrub CSV [--apply OUT]`):
+  names, SSNs, phones, emails, street addresses, birth dates and
+  per-patient identifiers, detected from VALUES with headers only
+  assisting — a renamed SSN column is caught, a column NAMED ssn
+  holding lab values is not. Gated both ways in `smoke_scrub`:
+  7/7 planted PHI columns caught AND 0/7 near-miss clinical
+  controls flagged (visit dates, `Oxygen Therapy`-shaped labels,
+  shared nine-digit accession numbers), because a detector that
+  flags everything also catches everything. Both mutations kill
+  the gate (lexicon emptied → name missed; threshold unreachable
+  → zero findings). Free-text columns are reported OUT OF SCOPE
+  by name, never silently skipped.
+
 **What remains**
-- The PHI layer itself (M2): detection and scrubbing of names,
-  addresses, SSNs, birth dates in structured columns. Unstarted.
-  Gate: 100% catch on planted structured PHI, 0 hits on generated
-  output, attacks re-run green.
+- The scrub read against the real extract's own headers/values.
 - Free text PHI is the M6 decision gate.
 - Honest posture, unchanged: k-anonymity on what is published is
   NOT differential privacy; the attack results are a floor on one
   cohort shape, not a certificate.
 
-**Time**: structured PHI est. 2 weeks (M2, plan Sep 26 — holds if
-started within a week).
+**Time**: the real-extract reading is one command on the data
+machine; the free-text decision is governance, not engineering.
 
 ---
 
@@ -114,7 +125,7 @@ on this page.
 
 ---
 
-## Goal 4 — Dials over every pattern   **~65%**
+## Goal 4 — Dials over every pattern   **~80%**
 
 **What works, measured**
 - `--dial` reaches patients.count, coverage, shift, scale,
@@ -129,9 +140,15 @@ on this page.
 - M5: every dial class verified requested-vs-achieved with its
   neighboring properties asserted (the shift/scale fight was found
   exactly because neighbors were not asserted).
-- Dials over relationships (strengthen/weaken a specific edge) —
-  designed nowhere yet; honest gap against "any pattern in any
-  proportion".
+- ~~Dials over relationships~~ SHIPPED 2026-09-18:
+  `--dial "CHILD<-PARENT.strength=0..1"` weakens ONE edge.
+  Measured on a two-parent child: dialing both directions of the
+  target pair to 0 takes it 0.919 → 0.056 while the neighboring
+  relationship on the same child survives at 0.555; strength=1.0
+  is bit-identical to no dial; an unknown edge errors with a
+  did-you-mean. The first cut scaled ALL parents and killed the
+  neighbor — caught because the check asserted the neighboring
+  property, the shift/scale lesson applied on day one.
 
 **Time**: verification pass est. 1 week; relationship dials est.
 1–2 weeks (M5, plan Nov 14 holds).
@@ -198,7 +215,7 @@ dashboard, and what-now guidance carries exact commands.)*
 
 ---
 
-## Goal 7 — Vendor evaluation against planted truth   **~85%**
+## Goal 7 — Vendor evaluation against planted truth   **~90%**
 
 **What works, measured**
 - `semisynth.plant/verify`: effects declared in standard
@@ -213,12 +230,17 @@ dashboard, and what-now guidance carries exact commands.)*
   offline and is demo-ready.
 
 **What remains**
-- M1: the loop run END TO END on the data machine — 3 planted
-  mechanisms recovered within CI on data shaped like the real
-  extract, one ceiling/ours/vendor report card artifact. All
-  components exist; the assembled run has not happened.
+- ~~M1~~ DONE 2026-09-11: the loop ran end to end on 55,428
+  real-shaped rows; ceiling/baseline/vendor produced, and the
+  as-specified bar exposed as sitting above its own ceiling.
+- ~~Repeatability~~ DONE 2026-09-18: `synthkit exam RUNDIR
+  --effect col=BETA -o DIR` is the whole loop as one command —
+  bridge, plant, ladder, baseline, showdown, report card — with
+  per-stage echo and sentence refusals. The five-command version
+  lost a day to a one-letter path typo.
+- A real vendor in the vendor seat.
 
-**Time**: est. 1–1.5 weeks (M1, plan Sep 12 — tight but feasible).
+**Time**: vendor seat is a scheduling question, not a build.
 
 ---
 
@@ -289,7 +311,9 @@ Durations are from now, deliberately not dates:
    and unscheduled, because unknowns move dates and this is the
    genuine unknown.
 
-Equal-weighting the eight goals: **~72% complete** (goal 7 60→85 on 2026-09-11: the end-to-end run happened). The unweighted
+Equal-weighting the eight goals: **~77% complete** (goal 7
+85→90 on 2026-09-18: the one-command exam runner; goal 4 65→80
+same day: relationship dials). The unweighted
 number understates the risk profile: what remains is mostly
 assembly and breadth (M1, M2, M3) plus two genuine unknowns — the
 `close` gap and the cycle ceiling — and unknowns, not assembly, are

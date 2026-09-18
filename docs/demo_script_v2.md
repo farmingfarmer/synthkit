@@ -88,9 +88,13 @@ before the code."
 
 ## Act 4 - the exam loop, end to end (8 min)
 
-DO: in the terminal, on the fitted run - five commands:
-bridge, plant, campaign-compile, campaign-run, showdown
-(`docs/E2E_EVAL.md` has them verbatim).
+DO: in the terminal, on the fitted run - ONE command:
+
+    python -m synthkit.cli exam RUNDIR --effect age_at_visit=0.8 --effect span_days=-0.5 -o EXAMDIR
+
+It echoes all six stages - bridge, plant, ladder, baseline,
+showdown, report card (`docs/E2E_EVAL.md` still walks the stages
+separately for when one needs varying).
 
 SAY over the output: "The covariates are measured; the OUTCOME is
 planted, in standard deviations, because a grade needs an answer

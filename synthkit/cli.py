@@ -650,6 +650,179 @@ def cmd_plant(args) -> int:
     return 0
 
 
+def cmd_scrub(args) -> int:
+    """Structured-field PHI detection - report, and on request
+    drop. Exit 1 when PHI-shaped columns are present and nothing
+    was done about them, because a detector used in a pipeline
+    must be usable as a gate."""
+    import pandas as pd
+    from . import scrub
+    df = pd.read_csv(args.csv, dtype=str,
+                     keep_default_na=False)
+    rep = scrub.detect(df, group_by=args.group_by)
+    for f in rep["findings"]:
+        print("PHI  {}: {}".format(f["column"], f["why"]))
+    for o in rep["out_of_scope"]:
+        print("OUT OF SCOPE  {}: {}".format(o["column"],
+                                            o["why"]))
+    print("clear: {} of {} column(s)".format(
+        len(rep["clear"]), rep["columns_seen"]))
+    print(rep["note"])
+    if args.apply:
+        out_df, dropped = scrub.apply(df, rep)
+        out_df.to_csv(args.apply, index=False)
+        print("dropped {} column(s) -> {}".format(
+            len(dropped), args.apply))
+        return 0
+    if rep["findings"]:
+        print("PHI-shaped columns present and nothing was "
+              "dropped - re-run with --apply OUT.csv, or remove "
+              "them yourself before fitting", file=sys.stderr)
+        return 1
+    return 0
+
+
+def cmd_exam(args) -> int:
+    """The whole evaluation loop as ONE command - goal 7's
+    repeatability. bridge -> plant -> ladder -> baseline ->
+    showdown (-> report card when the repository's scripts are
+    present), each stage echoing what it did and refusing in a
+    sentence. The first end-to-end run took five commands and one
+    path typo cost a day; a loop that exists should be one
+    command."""
+    import json as _json
+    out = Path(args.out)
+    out.mkdir(parents=True, exist_ok=True)
+    run = Path(args.rundir)
+
+    print("[1/6] bridge")
+    bp_path = run / "blueprint.json"
+    if not bp_path.exists():
+        print("STOPPED: no blueprint.json in {} - run `synthkit "
+              "fit` first".format(run), file=sys.stderr)
+        return 2
+    from .bridge import blueprint_to_tablespec
+    made = blueprint_to_tablespec(
+        _json.loads(bp_path.read_text(encoding="utf-8")),
+        title=run.name)
+    (out / "tablespec.json").write_text(
+        _json.dumps(made, indent=1), encoding="utf-8")
+    print("  {} column(s) crossed, {} dropped; did NOT cross: "
+          "{}".format(len(made["tablespec"]["columns"]),
+                      len(made["carried"]["columns_dropped"]),
+                      ", ".join(made["carried"]
+                                ["did_not_cross"][:3]) + ", ..."))
+
+    print("[2/6] plant")
+    from . import semisynth
+    effects = {}
+    for e in (args.effect or []):
+        name, _, beta = e.rpartition("=")
+        try:
+            effects[name] = float(beta)
+        except ValueError:
+            print("--effect needs col=BETA; got {!r}".format(e),
+                  file=sys.stderr)
+            return 2
+    if not effects:
+        print("at least one --effect is required - an exam with "
+              "no planted signal grades nothing", file=sys.stderr)
+        return 2
+    try:
+        planted = semisynth.plant(
+            made, effects, name=args.outcome_name,
+            kind=args.kind, prevalence=args.prevalence)
+    except ValueError as e:
+        print("STOPPED: {}".format(e), file=sys.stderr)
+        return 2
+    blk = planted.get("planted") or {}
+    for nm, beta in (blk.get("effects_in_sds") or {}).items():
+        print("  planted {}: {:+.2f} sd".format(nm, float(beta)))
+    for r_ in blk.get("refused") or []:
+        print("  REFUSED {}: {}".format(r_["effect"], r_["why"]))
+    (out / "exam_spec.json").write_text(
+        _json.dumps(planted["tablespec"], indent=1),
+        encoding="utf-8")
+    (out / "exam_spec.planted.json").write_text(
+        _json.dumps(planted, indent=1), encoding="utf-8")
+
+    print("[3/6] ladder")
+    from .campaign import CampaignError, compile_campaign,         load_campaign, run_campaign, write_campaign
+    from .tablespec import TableSpec
+    base = TableSpec.from_json(
+        (out / "exam_spec.json").read_text(encoding="utf-8"))
+    try:
+        camp = compile_campaign("predict", base,
+                                bars=_parse_bars(args.bars),
+                                outcome=args.outcome_name)
+    except CampaignError as e:
+        print("STOPPED: campaign invalid: {}".format(e),
+              file=sys.stderr)
+        return 2
+    camp_dir = write_campaign(out / "campaign", camp)
+    print("  {} tier(s) -> {}".format(len(camp.tiers), camp_dir))
+
+    print("[4/6] baseline: {}".format(args.baseline))
+    from .gui import _solver as _gui_solver
+    try:
+        base_solver = _gui_solver(args.baseline)
+        vend_solver = _gui_solver(args.solver)             if ":" not in args.solver else None
+    except ValueError as e:
+        print("STOPPED: {}".format(e), file=sys.stderr)
+        return 2
+    camp2 = load_campaign(Path(camp_dir))
+    result = run_campaign(camp2, base_solver,
+                          solver_name=args.baseline)
+    write_campaign(Path(camp_dir), camp2, result,
+                   result_name=args.baseline)
+    print("  highest tier passed: {}".format(
+        result.highest_passed))
+
+    print("[5/6] showdown: {} vs {}".format(args.solver,
+                                            args.baseline))
+    from .autosolver import run_showdown
+    if vend_solver is None:
+        _cwd_importable()
+        mod_name, fn_name = args.solver.split(":", 1)
+        vend_solver = getattr(
+            importlib.import_module(mod_name), fn_name)
+    sd = run_showdown(camp2, vend_solver,
+                      vendor_name=args.solver,
+                      baseline=base_solver,
+                      baseline_name=args.baseline)
+    print(sd.format_text())
+    payload = _json.dumps({
+        "vendor": sd.vendor_name,
+        "tiers": [{"tier": t.tier, "ceiling": t.ceiling,
+                   "baseline": t.baseline_auroc,
+                   "vendor": t.vendor_auroc,
+                   "passed": t.vendor_passed}
+                  for t in sd.tiers]}, indent=2)
+    (out / "showdown.json").write_text(payload, encoding="utf-8")
+
+    print("[6/6] report card")
+    card_script = (Path(__file__).resolve().parent.parent
+                   / "scripts" / "report_card.py")
+    if card_script.exists():
+        import subprocess as _sp
+        q = _sp.run([sys.executable, str(card_script),
+                     str(camp_dir),
+                     "--planted",
+                     str(out / "exam_spec.planted.json"),
+                     "--showdown", str(out / "showdown.json"),
+                     "-o", str(out / "report_card.html")],
+                    capture_output=True, text=True)
+        print("  " + (q.stdout or q.stderr).strip()
+              .splitlines()[-1])
+    else:
+        print("  scripts/report_card.py is not beside this "
+              "install - build the card from the repository "
+              "checkout; showdown.json above is its input")
+    print()
+    print("exam -> {}".format(out))
+    return 0
+
+
 def main(argv=None) -> int:
     _console_safe()
     ap = argparse.ArgumentParser(prog="synthkit")
@@ -835,6 +1008,34 @@ def main(argv=None) -> int:
     p.add_argument("rundir")
     p.add_argument("-o", "--out", default=None)
     p.set_defaults(fn=cmd_bridge)
+
+    p = sub.add_parser("scrub",
+                       help="detect (and with --apply, drop) "
+                            "PHI-shaped columns in a structured "
+                            "table before fitting")
+    p.add_argument("csv")
+    p.add_argument("--group-by", default=None)
+    p.add_argument("--apply", default=None, metavar="OUT_CSV")
+    p.set_defaults(fn=cmd_scrub)
+
+    p = sub.add_parser("exam",
+                       help="the whole evaluation loop, one "
+                            "command: bridge, plant, ladder, "
+                            "baseline, showdown, report card")
+    p.add_argument("rundir")
+    p.add_argument("--effect", action="append", default=[],
+                   help="col=BETA in sd, repeatable")
+    p.add_argument("--outcome-name", default="outcome")
+    p.add_argument("--kind", default="logistic",
+                   choices=["logistic", "linear"])
+    p.add_argument("--prevalence", type=float, default=0.25)
+    p.add_argument("--bars", default="auroc=0.65",
+                   help="k=v pairs; the default sits under the "
+                        "usual ceilings on purpose")
+    p.add_argument("--solver", default="autosolver_hybrid")
+    p.add_argument("--baseline", default="autosolver")
+    p.add_argument("-o", "--out", required=True)
+    p.set_defaults(fn=cmd_exam)
 
     p = sub.add_parser("plant",
                        help="plant a known outcome on a bridged "
