@@ -55,7 +55,7 @@ and says so rather than pretending otherwise.
 Watch the narration: search with a live countdown, the contract,
 generation, self-grading. Then read the verdict:
 
-    python scripts/m0_gate.py run1
+    python -m synthkit.cli gate run1
 
 Expect the gate MET on all criteria - and read one criterion's
 explanation to see how you would check it yourself.
@@ -87,7 +87,7 @@ dials (effects, prevalence, bars, solvers).
 
 ## 5. The artifacts
 
-    python scripts/signoff.py run1 -o signoff.html
+    python -m synthkit.cli signoff run1 -o signoff.html
 
 `exam/report_card.html` was already written by the exam command.
 

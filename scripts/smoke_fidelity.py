@@ -529,6 +529,42 @@ def main():
           _rc2 == 1 and "M0 NOT MET" in _out2
           and "direction kept" in _out2 and "close" in _out2)
 
+    # ONE VERDICT, ONE TEXT, TWO DOORS. `synthkit gate` exists so
+    # the test kit works from its own folder, where scripts/ does
+    # not; both doors call gate.report, and this asserts they
+    # cannot drift by comparing their bytes on the same run.
+    def _gate_verb(summary):
+        with tempfile.TemporaryDirectory() as _t:
+            _d = Path(_t)
+            (_d / "fidelity.json").write_text(
+                json.dumps({"summary": summary}), encoding="utf-8")
+            _r = subprocess.run(
+                [sys.executable, "-m", "synthkit.cli", "gate",
+                 str(_d)],
+                capture_output=True, text=True, cwd=str(ROOT))
+            _r2 = subprocess.run(
+                [sys.executable, "scripts/m0_gate.py", str(_d)],
+                capture_output=True, text=True, cwd=str(ROOT))
+            return _r, _r2
+    _v, _m = _gate_verb(_short)
+    check("`synthkit gate` prints byte-identical lines to "
+          "scripts/m0_gate.py on the same failing run, with the "
+          "same exit code - one renderer, asserted rather than "
+          "hoped",
+          _v.returncode == 1 and _v.returncode == _m.returncode
+          and _v.stdout.replace(str(Path()), "")
+          == _m.stdout.replace(str(Path()), "")
+          and "M0 NOT MET" in _v.stdout)
+    _v3 = subprocess.run(
+        [sys.executable, "-m", "synthkit.cli", "gate",
+         "no_such_dir_anywhere"],
+        capture_output=True, text=True, cwd=str(ROOT))
+    check("...and a missing run refuses in a sentence naming "
+          "fidelity.json, never a stack",
+          _v3.returncode == 2
+          and "fidelity.json" in (_v3.stdout + _v3.stderr)
+          and "Traceback" not in (_v3.stdout + _v3.stderr))
+
     # A FAIL COMES WITH ITS OPTIONS, CLEARLY LABELED. The operator
     # hit NOT MET on the real extract and asked, correctly, "what
     # are my options?" - the gate said NOT MET and stopped talking.
@@ -1032,6 +1068,18 @@ def main():
               _rs2.returncode != 0
               and "STOPPED" in (_rs2.stdout + _rs2.stderr)
               and "Traceback" not in (_rs2.stdout + _rs2.stderr))
+        # The verb door onto the same builder - the kit runs it
+        # from a folder with no scripts/.
+        _so2 = Path(_ts) / "signoff2.html"
+        _rv = subprocess.run(
+            [sys.executable, "-m", "synthkit.cli", "signoff",
+             str(_sr), "-o", str(_so2)],
+            capture_output=True, text=True, cwd=str(ROOT))
+        check("`synthkit signoff` writes the same page the script "
+              "does, and says so in one line",
+              _rv.returncode == 0 and _so2.exists()
+              and _so2.read_text(encoding="utf-8")
+              == _so.read_text(encoding="utf-8"))
 
     # THE GATE, ENUMERATED. FAIL chips said which criterion and
     # stopped; the operator asked where the misses were and how

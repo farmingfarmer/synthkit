@@ -324,7 +324,7 @@ def main():
                          "--help"], capture_output=True,
                         text=True, cwd=str(_root)).stdout
         _cmds = ["types", "fit", "gui", "scrub", "exam",
-                 "bridge",
+                 "gate", "signoff", "bridge",
                  "plant", "campaign-compile", "campaign-run",
                  "showdown"]
         check("...and every CLI command the kit teaches exists in "
@@ -333,8 +333,7 @@ def main():
               all(c in _sh for c in _cmds)
               and all(c in _help for c in _cmds)
               and "report_card.html" in _sh
-              and "signoff.py" in _sh
-              and "m0_gate.py" in _sh)
+              and "scripts/" not in _sh)
 
     print()
     if FAIL:

@@ -129,8 +129,9 @@ suite grows a check and the kit gets harder."
 
 ## If things go wrong
 
-The terminal does everything the bench does - `m0_gate.py`,
-`findings.txt`, `report_card.py`, `signoff.py` all run without a
-browser. A pre-run backup directory turns any live failure into a
+The terminal does everything the bench does - `synthkit gate`,
+`synthkit signoff`, `synthkit exam` and `findings.txt` all work
+without a browser (the scripts/ forms still exist and print the
+same lines - one renderer, asserted). A pre-run backup directory turns any live failure into a
 thirty-second detour, and saying "we pre-ran this exact command"
 out loud costs nothing and reads as discipline, because it is.

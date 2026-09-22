@@ -61,35 +61,11 @@ def main():
     except ValueError as e:
         sys.exit(str(e))
 
-    print("M0 gate on {}".format(run))
-    print()
-    for c in verdict["criteria"]:
-        print("  {}  {:<18} {}".format("PASS" if c["ok"] else "FAIL",
-                                       c["name"], c["detail"]))
-    print()
-    failed = [c["name"] for c in verdict["criteria"] if not c["ok"]]
-    if failed:
-        print("M0 NOT MET - {}".format(", ".join(failed)))
-        print("The two proportions restate counts set when the run "
-              "related {} pairs; this one relates {}.".format(
-                  SET_AT, verdict["pairs"]))
-        # The same words the bench shows - one module, one text. A
-        # gate that says NOT MET and stops talking leaves the
-        # operator to invent next steps under pressure.
-        for g in _gate.next_steps(verdict):
-            print()
-            print("  {} - {}".format(g["name"].upper(), g["means"]))
-            for i, step in enumerate(g["steps"], 1):
-                print("    {}. {}".format(i, _gate.plain(step)))
-        print()
-        print("A gate is a floor, not a certificate - and NOT MET "
-              "is a reading, not a wall.")
-        return 1
-    print("M0 MET on all {} criteria.".format(
-        len(verdict["criteria"])))
-    print("One cohort, one seed. A gate is a floor, not a "
-          "certificate.")
-    return 0
+    # The rendering lives in gate.report - `synthkit gate` prints
+    # the same lines, one module, one text.
+    lines, code = _gate.report(verdict, run)
+    print("\n".join(lines))
+    return code
 
 
 if __name__ == "__main__":

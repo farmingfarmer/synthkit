@@ -221,9 +221,14 @@ def cmd_types(args) -> int:
     wrong type, and the listing that catches them used to run after
     five minutes of discovery. It is seconds, and on a dataset nobody
     has opened it should be the first thing run."""
+    import tempfile
     from .pipeline import main as pipeline_main
     args.types_only = True
-    return pipeline_main(args=args) or 0
+    if getattr(args, "out", None):
+        return pipeline_main(args=args) or 0
+    with tempfile.TemporaryDirectory() as td:
+        args.out = td
+        return pipeline_main(args=args) or 0
 
 
 def cmd_dials(args) -> int:
@@ -650,6 +655,53 @@ def cmd_plant(args) -> int:
     return 0
 
 
+def cmd_gate(args) -> int:
+    """The M0 gate verdict on a finished run - the same lines
+    scripts/m0_gate.py prints, from the same synthkit.gate
+    renderer, reachable wherever the package is installed. The
+    test kit is run from its own folder, where `scripts/` does
+    not exist; a verb the install carries is the `synthkit fit`
+    lesson applied to the gate."""
+    import json as _json
+    from . import gate as _gate
+    run = Path(args.rundir)
+    fp = run / "fidelity.json"
+    if not fp.exists():
+        print("no fidelity.json in {} - run `synthkit fit` with "
+              "--generate first".format(run), file=sys.stderr)
+        return 2
+    try:
+        verdict = _gate.assess(
+            _json.loads(fp.read_text(encoding="utf-8")))
+    except ValueError as e:
+        print(str(e), file=sys.stderr)
+        return 2
+    lines, code = _gate.report(verdict, run)
+    print("\n".join(lines))
+    return code
+
+
+def cmd_signoff(args) -> int:
+    """The sign-off page, as a verb. The page builder lives in
+    scripts/signoff.py beside the repository; this resolves it the
+    way `exam` resolves the report card, and says so in a sentence
+    when it is not there rather than tracebacking."""
+    import subprocess as _sp
+    script = (Path(__file__).resolve().parent.parent
+              / "scripts" / "signoff.py")
+    if not script.exists():
+        print("scripts/signoff.py is not beside this install - "
+              "run from the repository checkout, where the page "
+              "builder lives", file=sys.stderr)
+        return 2
+    q = _sp.run([sys.executable, str(script), args.rundir,
+                 "-o", args.out], capture_output=True, text=True)
+    msg = (q.stdout or q.stderr).strip()
+    if msg:
+        print(msg.splitlines()[-1])
+    return q.returncode
+
+
 def cmd_scrub(args) -> int:
     """Structured-field PHI detection - report, and on request
     drop. Exit 1 when PHI-shaped columns are present and nothing
@@ -892,6 +944,15 @@ def main(argv=None) -> int:
         "types", parents=[_fit_parser(add_help=False)],
         help="how every column was read, in seconds - run this "
              "first on a dataset nobody has opened")
+    # A LOOK SHOULD NOT DEMAND A DESTINATION. `types` reads and
+    # prints; requiring --out made the test kit's FIRST command an
+    # argparse error. The flag stays honored when given (the report
+    # lands there); omitted, a temporary directory is used and
+    # discarded.
+    for a in p._actions:
+        if "--out" in getattr(a, "option_strings", ()):
+            a.required = False
+            a.default = None
     p.set_defaults(fn=cmd_types)
 
     p = sub.add_parser("dials",
@@ -1008,6 +1069,19 @@ def main(argv=None) -> int:
     p.add_argument("rundir")
     p.add_argument("-o", "--out", default=None)
     p.set_defaults(fn=cmd_bridge)
+
+    p = sub.add_parser("gate",
+                       help="the M0 gate verdict on a finished "
+                            "run, with next steps on a FAIL")
+    p.add_argument("rundir")
+    p.set_defaults(fn=cmd_gate)
+
+    p = sub.add_parser("signoff",
+                       help="the one-page sign-off from a "
+                            "finished run")
+    p.add_argument("rundir")
+    p.add_argument("-o", "--out", required=True)
+    p.set_defaults(fn=cmd_signoff)
 
     p = sub.add_parser("scrub",
                        help="detect (and with --apply, drop) "

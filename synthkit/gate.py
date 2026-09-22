@@ -354,3 +354,41 @@ def next_steps(assessment: Dict[str, Any]) -> List[Dict[str, Any]]:
             out.append({"name": c["name"], "means": g["means"],
                         "steps": list(g["steps"])})
     return out
+
+
+def report(verdict, rundir) -> "tuple":
+    """The gate verdict as text, ONE place - `synthkit gate`,
+    scripts/m0_gate.py and any future caller print these same
+    lines, because two renderings of one verdict is how the
+    terminal and the bench would come to disagree.
+
+    Returns (lines, exit_code)."""
+    lines = []
+    lines.append("M0 gate on {}".format(rundir))
+    lines.append("")
+    for c in verdict["criteria"]:
+        lines.append("  {}  {:<18} {}".format(
+            "PASS" if c["ok"] else "FAIL", c["name"], c["detail"]))
+    lines.append("")
+    failed = [c["name"] for c in verdict["criteria"]
+              if not c["ok"]]
+    if failed:
+        lines.append("M0 NOT MET - {}".format(", ".join(failed)))
+        lines.append("The two proportions restate counts set when "
+                     "the run related {} pairs; this one relates "
+                     "{}.".format(SET_AT, verdict["pairs"]))
+        for g in next_steps(verdict):
+            lines.append("")
+            lines.append("  {} - {}".format(g["name"].upper(),
+                                            g["means"]))
+            for i, step in enumerate(g["steps"], 1):
+                lines.append("    {}. {}".format(i, plain(step)))
+        lines.append("")
+        lines.append("A gate is a floor, not a certificate - and "
+                     "NOT MET is a reading, not a wall.")
+        return lines, 1
+    lines.append("M0 MET on all {} criteria.".format(
+        len(verdict["criteria"])))
+    lines.append("One cohort, one seed. A gate is a floor, not a "
+                 "certificate.")
+    return lines, 0
