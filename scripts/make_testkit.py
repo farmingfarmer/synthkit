@@ -48,7 +48,7 @@ PHI on purpose - and a long-text column would be reported OUT OF
 SCOPE by name, because this scrub reads structured fields only
 and says so rather than pretending otherwise.
 
-## 2. Fit and generate (about two minutes)
+## 2. Fit and generate (a few minutes - watch it narrate)
 
     python -m synthkit.cli fit --src clinic/demo_clinic.csv --out run1 --group-by person_id --generate
 
