@@ -167,6 +167,82 @@ def main():
               and r2.returncode == 0
               and not rep3["findings"])
 
+    # WHAT THE REAL EXTRACT'S FIRST READ FOUND (2026-09-22). The
+    # operator ran the scrub against the real 44-column extract and
+    # three of the five non-clear lines were detector faults. Each
+    # fixture property below is derived from a statistic measured
+    # on that run, and each check was watched RED against the
+    # pre-fix code.
+    import numpy as np
+    r = np.random.RandomState(11)
+    n2 = 600
+    gid2 = np.repeat(np.arange(120), 5)
+    drugs = ["Metoprolol Tartrate", "Lisinopril", "Atorvastatin",
+             "Amlodipine Besylate", "Metformin HCl", "Omeprazole",
+             "Levothyroxine", "Gabapentin", "Hydrochlorothiazide",
+             "Sertraline HCl", "Montelukast", "Pantoprazole",
+             "Furosemide", "Escitalopram", "Rosuvastatin"]
+    df2 = pd.DataFrame({
+        "person_id": ["P{:04d}".format(i) for i in gid2],
+        # the real extract: visit dates with 4,692 distinct values
+        # across 800 patients - about 5.9 per patient, far past
+        # the identifier rule's uniqueness bar, and every value
+        # wears the digits-and-hyphens shape the identifier regex
+        # matched. The fixture's old date control had NINE distinct
+        # values, so it never exercised the rule.
+        "visit_start_date": [
+            str(d.date()) for d in pd.to_datetime("2023-01-01")
+            + pd.to_timedelta(np.arange(n2) % 300, unit="D")],
+        # visit_id on the real extract: 55,428 distinct across 800
+        # patients - one per ROW, ~69 per person - and the line
+        # printed said "one per person" beside those numbers.
+        "visit_id": ["V{:06d}".format(i) for i in range(n2)],
+        # active_drugs: semicolon-joined set, average value length
+        # 91 characters on the real extract - misread as free text
+        # by the long-text rule.
+        "active_drugs": [";".join(
+            drugs[(i * 3 + j) % 15]
+            for j in range(4 + i % 5)) for i in range(n2)],
+        # and a set column whose TOKENS are PHI - unreachable by
+        # whole-value patterns, because the joined string matches
+        # no pattern even when every token does.
+        "contact_emails": ["u{}@example.org;alt{}@example.net"
+                           .format(i, i) for i in gid2],
+        "spo2": np.round(r.normal(97.5, 1.5, n2), 1),
+    })
+    rep4 = scrub.detect(df2, group_by="person_id")
+    fl4 = {f["column"]: f for f in rep4["findings"]}
+    n_dates = df2["visit_start_date"].nunique()
+    check("a DATE column is never an identifier, however many "
+          "distinct values it holds - {} distinct visit dates "
+          "over 120 patients (past the uniqueness bar, as the "
+          "extract's 4,692 over 800 was) come back clear".format(
+              n_dates),
+          n_dates > 108
+          and "visit_start_date" in rep4["clear"]
+          and "visit_start_date" not in fl4)
+    avg_len = df2["active_drugs"].str.len().mean()
+    check("a semicolon-joined SET column is not free text - "
+          "active_drugs shaped after the extract (avg length "
+          "{:.0f} chars against the measured 91) is clear, not "
+          "out of scope".format(avg_len),
+          avg_len > 80
+          and "active_drugs" in rep4["clear"]
+          and "active_drugs" not in
+          {o["column"] for o in rep4["out_of_scope"]})
+    check("a per-ROW identifier is still caught, and its line "
+          "states the measured ratio instead of claiming one per "
+          "person beside numbers that say 5 per person",
+          fl4.get("visit_id", {}).get("kind") == "identifier"
+          and "per row" in fl4.get("visit_id", {}).get("why", "")
+          and "one per person"
+          not in fl4.get("visit_id", {}).get("why", ""))
+    check("...and a set column whose TOKENS are PHI is caught - "
+          "the joined string matches no pattern even when every "
+          "token is an email address",
+          fl4.get("contact_emails", {}).get("kind") == "email"
+          and "spo2" in rep4["clear"])
+
     if FAIL:
         print("{} of {} checks failed.".format(FAIL, PASS + FAIL))
         sys.exit(1)

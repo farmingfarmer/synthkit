@@ -1,43 +1,43 @@
-# OUTBOX — two new commands worth a run
+# OUTBOX — pull, then re-read the scrub
 
-Updated 2026-09-18 (evening). Three goals moved today: the exam
-loop is ONE command now (goal 7), a structured PHI scrub exists
-with a two-way gate (goal 2), and relationship dials landed
-earlier (goal 4). Roadmap says ~77% overall.
+Updated 2026-09-22. Your two runs both landed. The exam loop
+reproduced the September 11 numbers exactly with nothing to typo
+- that chapter is closed. And the scrub's first real read did its
+job on the DETECTOR: of the five non-clear lines, one was a true
+catch and three were scrub faults, now fixed.
 
-## 0. Pull as usual
+What your output taught it:
 
-Zipball as in WINDOWS.md section 1. The net now expects
-**68 suites, 1911 checks, ALL GREEN** on a zipball (a new suite,
-`smoke_scrub`, joined the net).
+- `visit_id` was a TRUE catch - 55,428 distinct over 800 patients
+  is a per-row identifier - but the line said "one per person"
+  beside numbers that say 69 per person. It states the measured
+  ratio now.
+- `visit_start_date` / `visit_end_date` were FALSE positives: a
+  date wears the digits-and-hyphens shape the identifier rule
+  matched, and 4,692 distinct values cleared its bar. Dates are
+  never identifiers now - the pipeline models them and generates
+  invented dates.
+- `active_drugs` is a semicolon-joined SET column, not free text.
+  Set columns are judged by their TOKENS now - which also means a
+  set of email addresses gets caught, where the joined string
+  matches no pattern.
 
-## 1. The PHI scrub, read against the real extract
+## 1. Pull as usual
+
+Zipball per WINDOWS.md section 1. The net now expects
+**68 suites, 1915 checks, ALL GREEN** on a zipball.
+
+## 2. Re-read the scrub
 
 ```bat
 python -m synthkit.cli scrub %USERPROFILE%\dev\tidy_visits.csv --group-by person_id
 ```
 
-**Expect:** one line per column - `PHI`, `OUT OF SCOPE`, or
-counted in the `clear` total. On this extract everything should
-read clear (it was de-identified upstream), `person_id` explained
-as the group key. **An exit code of 1 with PHI lines is the
-command WORKING** - it refuses to stay quiet about undropped
-findings - not a crash.
+**Expect:** `PHI visit_id` (about one per row), `OUT OF SCOPE
+person_id` (group key), and both dates plus `active_drugs` now in
+the clear count - 42 of 44 clear. Exit code 1 is still the
+command working: it refuses to stay quiet about the undropped
+visit_id.
 
-**Send back:** the full output, whatever it says. This is goal
-2's "read against the real extract's own headers" item.
-
-## 2. Optional — the whole exam loop, one command
-
-The five-command loop from E2E_EVAL.md is now one command:
-
-```bat
-python -m synthkit.cli exam %USERPROFILE%\dev\run_seed11b --effect age_at_visit=0.8 --effect span_days=-0.5 -o %USERPROFILE%\dev\exam2
-```
-
-**Expect:** six stage echoes - bridge, plant, ladder, baseline,
-showdown, report card - ending in `exam -> ...\exam2` with
-`report_card.html` inside. Same numbers as the September 11 run,
-about 15 minutes, and this time nothing to typo.
-
-**Send back:** nothing needed unless a stage refuses.
+**Send back:** the full output. If anything besides visit_id is
+flagged, that is the next detector lesson.

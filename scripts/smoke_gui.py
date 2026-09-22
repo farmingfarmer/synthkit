@@ -1179,8 +1179,8 @@ def main():
               and "~90%</span> 7" in html
               and "~65%</span> 8" in html
               and html.count("DONE 20") == 3
-              and "about 77%" in html
-              and "~60%</span> 2" in html
+              and "about 78%" in html
+              and "~65%</span> 2" in html
               and "7-8 weeks" in html)
 
         # THE FITTED PATH IS IN THE BENCH. Until it was, a demo

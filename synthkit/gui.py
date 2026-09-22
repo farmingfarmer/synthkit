@@ -2904,10 +2904,11 @@ textarea:focus,input:focus,select:focus{
     <div class="ev">BUILT: single-table CSV end to end; types, currency, percent and clock parsers; long/EAV pivot; 22 of 23 dataset shapes come out clean, and flat data comes back flat.</div>
     <div class="ev">PLANNED: multi-table intake with key auto-detection; Excel / JSON formats. Documents are a later decision, on purpose.</div>
     <div class="ev">NEXT &middot; about 3-6 weeks of work, proposed 6th &mdash; multi-table is the big piece and nothing upstream blocks on it.</div></div>
-  <div class="goal"><h3><span class="chip partial">partial &middot; ~60%</span> 2 &middot; Automatic de-identification</h3>
+  <div class="goal"><h3><span class="chip partial">partial &middot; ~65%</span> 2 &middot; Automatic de-identification</h3>
     <div class="ev">BUILT: everything published is k-anonymous over PATIENTS; unpublishable labels are replaced by invented ones (1,436 real codes in, zero republished); attacked with positive controls &mdash; membership worst 0.52 where a cheat scores 1.00 and FAILS. AND the structured-field scrub (2026-09-18): <code>synthkit scrub CSV</code> detects names, SSNs, phones, emails, addresses, birth dates and per-patient identifiers from their VALUES (a renamed SSN column is still caught; a column named ssn holding labs is not), gated both ways &mdash; 7/7 planted PHI columns caught AND 0 of 7 near-miss clinical columns flagged, because a detector that flags everything also catches everything.</div>
-    <div class="ev">PLANNED: the scrub run on the real extract's headers; free text stays a governance decision gate &mdash; a long-text column is reported OUT OF SCOPE by name, never silently skipped.</div>
-    <div class="ev">NEXT &middot; about 2-3 weeks remaining &mdash; the real-extract reading, then the free-text decision.</div></div>
+    <div class="ev">AND the real-extract reading happened (2026-09-22): one true catch (visit_id, a per-row identifier) and three detector faults the fixtures could not reach &mdash; visit dates flagged as identifiers, a semicolon-joined set column misread as free text, and a line claiming "one per person" beside 55,428 distinct over 800 patients. All three reproduced from the measured statistics, watched red, fixed: dates are never identifiers, set columns are judged by their TOKENS (a set of email addresses is now caught where the joined string matches nothing), and identifier lines state the measured ratio.</div>
+    <div class="ev">PLANNED: free text stays a governance decision gate &mdash; a long-text column is reported OUT OF SCOPE by name, never silently skipped.</div>
+    <div class="ev">NEXT &middot; about 2 weeks remaining &mdash; the free-text decision, and the scrub re-read on the next real pull.</div></div>
   <div class="goal"><h3><span class="chip partial">partial &middot; ~80%</span> 3 &middot; Every pattern found, explained, with receipts</h3>
     <div class="ev">BUILT: discovery confirmed on held-out patients &mdash; 12/13 planted patterns, zero false; effect curves, interactions, presence-as-signal; the atlas explains all 97 components in plain English and refuses to build if one is missing.</div>
     <div class="ev">PLANNED: per-claim receipt files; the tangled-graph ceiling &mdash; the one open research item.</div>
@@ -2933,7 +2934,7 @@ textarea:focus,input:focus,select:focus{
     <div class="ev">BUILT: the structurally-blinded baseline solver; the ceiling / ours / vendor line in the campaign machinery.</div>
     <div class="ev">PLANNED: the report-card artifact from a real end-to-end run, then a challenger worth the name beyond the floor.</div>
     <div class="ev">NEXT &middot; the report card SHIPPED 2026-09-11 (scripts/report_card.py, verified on the real showdown - it judges the bar as well as the solver). Remaining: a challenger worth the name beyond the structurally-blinded floor - research, unscheduled.</div></div>
-  <div class="hint">Overall, equal-weighted: about 77%. The first
+  <div class="hint">Overall, equal-weighted: about 78%. The first
   three proposed steps landed in the sprint's first five days: the
   end-to-end run, the seed sweep (close is REAL: 76.5/80.6/80.2
   across seeds), and the report card - plus the sign-off page,

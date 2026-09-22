@@ -106,6 +106,27 @@ def _share(vals, rx) -> float:
     return hit / float(len(vals))
 
 
+def _battery(vals):
+    """The value-shape battery - one place, because it runs twice:
+    on whole values, and on the TOKENS of a set column, where the
+    joined string matches no pattern even when every token does."""
+    for kind, rx in (("ssn", _SSN), ("email", _EMAIL),
+                     ("phone", _PHONE), ("address", _STREET)):
+        sh = _share(vals, rx)
+        if sh >= MATCH_SHARE:
+            return kind, sh, ""
+    sh = _share(vals, _NAMEISH)
+    if sh >= MATCH_SHARE:
+        lex = sum(1 for v in vals
+                  if v.split()[0].lower() in _GIVEN)
+        lex_share = lex / float(len(vals))
+        if lex_share >= 0.3:
+            return ("name", sh,
+                    " and {:.0%} start with a common given "
+                    "name".format(lex_share))
+    return None
+
+
 def detect(df, group_by: Optional[str] = None,
            sample: int = 5000) -> Dict[str, Any]:
     """Classify every column; return findings, clear columns, and
@@ -123,6 +144,31 @@ def detect(df, group_by: Optional[str] = None,
         if not vals:
             clear.append(c)
             continue
+        # A SET COLUMN IS JUDGED BY ITS TOKENS. The real extract's
+        # `active_drugs` - semicolon-joined, averaging 91
+        # characters - was misread as free text by the length rule
+        # on its first real run; it is the column kind the rest of
+        # this tool models as a set. And the joined string matches
+        # no PHI pattern even when every token does, so the
+        # battery runs on the split pieces.
+        set_share = (sum(1 for v in vals if ";" in v)
+                     / float(len(vals)))
+        if set_share >= 0.3:
+            toks = [t.strip() for v in vals
+                    for t in v.split(";") if t.strip()]
+            hit = _battery(toks) if toks else None
+            if hit is not None:
+                kind, sh, extra = hit
+                findings.append({
+                    "column": c, "kind": kind,
+                    "share": round(sh, 4),
+                    "why": "a set column whose tokens are {} - "
+                           "{:.0%} of tokens match{}".format(
+                               KINDS[kind], sh, extra)})
+            else:
+                clear.append(c)
+            continue
+
         avg_len = sum(len(v) for v in vals) / float(len(vals))
         if avg_len > LONG_TEXT:
             out_of_scope.append({
@@ -141,35 +187,11 @@ def detect(df, group_by: Optional[str] = None,
                 "why": "{:.0%} of non-empty values are {}{}".format(
                     share, KINDS[kind], extra)})
 
-        s = _share(vals, _SSN)
-        if s >= MATCH_SHARE:
-            found("ssn", s)
+        hit = _battery(vals)
+        if hit is not None:
+            kind, sh, extra = hit
+            found(kind, sh, extra)
             continue
-        s = _share(vals, _EMAIL)
-        if s >= MATCH_SHARE:
-            found("email", s)
-            continue
-        s = _share(vals, _PHONE)
-        if s >= MATCH_SHARE:
-            found("phone", s)
-            continue
-        s = _share(vals, _STREET)
-        if s >= MATCH_SHARE:
-            found("address", s)
-            continue
-        # A name is name-SHAPED values where the given-name lexicon
-        # agrees often enough. Shape alone flags `Oxygen Therapy`;
-        # the lexicon alone flags nothing renamed. Both, or neither.
-        s = _share(vals, _NAMEISH)
-        if s >= MATCH_SHARE:
-            lex = sum(1 for v in vals
-                      if v.split()[0].lower() in _GIVEN)
-            lex_share = lex / float(len(vals))
-            if lex_share >= 0.3:
-                found("name", s,
-                      " and {:.0%} start with a common given "
-                      "name".format(lex_share))
-                continue
         # A birth date is a date column whose NAME says birth -
         # nothing in the value says which event it dates, so this
         # is the one verdict where the header decides. Stated in
@@ -181,10 +203,21 @@ def detect(df, group_by: Optional[str] = None,
                   " and the column name says birth - a RENAMED "
                   "birth-date column is not caught by this rule")
             continue
+        # A DATE IS NEVER AN IDENTIFIER, however many distinct
+        # values it holds. On the real extract's first read,
+        # visit_start_date and visit_end_date - digits and
+        # hyphens, 4,692 distinct across 800 patients - were
+        # flagged as identifiers by the rule below. Calendar
+        # dates other than birth dates are left to the pipeline,
+        # which models them and generates INVENTED dates.
+        if _share(vals, _DATEISH) >= MATCH_SHARE:
+            clear.append(c)
+            continue
         # An identifier: code-shaped values, near-unique per
-        # patient. The declared group key is expected to be one -
-        # it is used for grouping and never reaches the output -
-        # so it is reported as out of scope rather than as a find.
+        # patient or per row. The declared group key is expected
+        # to be one - it is used for grouping and never reaches
+        # the output - so it is reported as out of scope rather
+        # than as a find.
         s = _share(vals, _IDENT)
         if s >= MATCH_SHARE:
             distinct = df[c].nunique()
@@ -199,11 +232,24 @@ def detect(df, group_by: Optional[str] = None,
                      if group_by and group_by in df.columns
                      else len(df))
             if distinct >= 0.9 * n_gid:
+                # SAY WHAT WAS MEASURED. The first version printed
+                # "one per person" beside 55,428 distinct values
+                # over 800 patients - a per-ROW identifier, about
+                # 69 per person - and a line must not contradict
+                # the numbers it carries.
+                per_pat = distinct / float(n_gid)
+                if distinct >= 0.9 * len(df):
+                    ratio = "about one per row"
+                elif per_pat <= 1.1:
+                    ratio = "about one per patient"
+                else:
+                    ratio = "about {:.0f} per patient".format(
+                        per_pat)
                 found("identifier", s,
                       " with {} distinct values across {} "
-                      "patient(s) - one per person is an "
-                      "identifier, not a measurement".format(
-                          distinct, n_gid))
+                      "patient(s), {} - identifying codes, not "
+                      "measurements".format(distinct, n_gid,
+                                            ratio))
                 continue
         clear.append(c)
     return {"findings": findings, "clear": clear,
@@ -211,10 +257,14 @@ def detect(df, group_by: Optional[str] = None,
             "columns_seen": len(df.columns),
             "note": "Structured fields only. Values decide and "
                     "headers assist (birth dates excepted, and "
-                    "the finding says so). Free-text columns are "
-                    "reported out of scope, never silently "
-                    "skipped. This is a detector with a planted-"
-                    "PHI catch gate, not a certification."}
+                    "the finding says so). Set columns are "
+                    "judged by their tokens; calendar dates "
+                    "other than birth dates are left to the "
+                    "pipeline, which generates invented dates. "
+                    "Free-text columns are reported out of "
+                    "scope, never silently skipped. This is a "
+                    "detector with a planted-PHI catch gate, "
+                    "not a certification."}
 
 
 def apply(df, report: Dict[str, Any]):

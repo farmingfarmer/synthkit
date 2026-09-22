@@ -43,7 +43,7 @@ holds). Formats: days.
 
 ---
 
-## Goal 2 — Automatic de-identification   **~60%**
+## Goal 2 — Automatic de-identification   **~65%**
 
 **What works, measured**
 - Everything published is k-anonymous over PATIENTS, never rows:
@@ -74,8 +74,21 @@ holds). Formats: days.
   → zero findings). Free-text columns are reported OUT OF SCOPE
   by name, never silently skipped.
 
+- ~~The real-extract read~~ DONE 2026-09-22, and it earned its
+  place: one true catch (visit_id, a per-row identifier - the
+  wording now states the measured ratio, about one per row, where
+  the first version printed "one per person" beside 55,428
+  distinct over 800 patients) and three detector faults the
+  fixture could not reach - visit dates flagged as identifiers
+  (the fixture's date control had 9 distinct values against a
+  rule that needs 0.9x the patient count; the extract has 4,692),
+  and active_drugs misread as free text when it is a
+  semicolon-joined set. Fixed: dates are never identifiers, set
+  columns are judged by their TOKENS (a set of email addresses is
+  caught where the joined string matches nothing), each fault
+  reproduced from the measured statistic and watched red first.
+
 **What remains**
-- The scrub read against the real extract's own headers/values.
 - Free text PHI is the M6 decision gate.
 - Honest posture, unchanged: k-anonymity on what is published is
   NOT differential privacy; the attack results are a floor on one
@@ -311,7 +324,7 @@ Durations are from now, deliberately not dates:
    and unscheduled, because unknowns move dates and this is the
    genuine unknown.
 
-Equal-weighting the eight goals: **~77% complete** (goal 7
+Equal-weighting the eight goals: **~78% complete** (goal 7
 85→90 on 2026-09-18: the one-command exam runner; goal 4 65→80
 same day: relationship dials). The unweighted
 number understates the risk profile: what remains is mostly
