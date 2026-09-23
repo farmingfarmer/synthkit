@@ -294,6 +294,68 @@ def main():
           and build_pressure().equals(_pf)
           and build_triangle().equals(_tf))
 
+    # `synthkit sample` exists so a LIVE demo can fit real data in
+    # real time - and it must sample PATIENTS, never rows: a row
+    # sample breaks visit counts, persistence, and every
+    # within-patient statistic. Whole patients, seeded, values
+    # untouched.
+    import subprocess as _sp2
+    import sys as _sys2
+    import tempfile as _tf2
+    import pandas as _pd2
+    _root2 = Path(__file__).resolve().parent.parent
+    with __import__("tempfile").TemporaryDirectory() as _ts2:
+        _src2 = Path(_ts2) / "src.csv"
+        _pd2.DataFrame({
+            "pid": ["P{}".format(i // 4) for i in range(120)],
+            "val": [str(i * 3) for i in range(120)],
+            "note": ["", "x;y", "nan", "ok"] * 30,
+        }).to_csv(_src2, index=False)
+        _o1 = Path(_ts2) / "s1.csv"
+        _o2 = Path(_ts2) / "s2.csv"
+        _r1 = _sp2.run([_sys2.executable, "-m", "synthkit.cli",
+                        "sample", str(_src2), "--group-by", "pid",
+                        "--patients", "7", "-o", str(_o1)],
+                       capture_output=True, text=True,
+                       cwd=str(_root2))
+        _sp2.run([_sys2.executable, "-m", "synthkit.cli",
+                  "sample", str(_src2), "--group-by", "pid",
+                  "--patients", "7", "-o", str(_o2)],
+                 capture_output=True, text=True, cwd=str(_root2))
+        _s1 = _pd2.read_csv(_o1, dtype=str, keep_default_na=False)
+        check("sample takes WHOLE patients - 7 requested gives "
+              "exactly 7 ids at 4 rows each, deterministic under "
+              "the seed, settings echoed, and the values pass "
+              "through byte-for-byte (a blank stays a blank, a "
+              "literal 'nan' stays itself)",
+              _r1.returncode == 0
+              and "--patients 7 --seed 7" in _r1.stdout
+              and _s1["pid"].nunique() == 7 and len(_s1) == 28
+              and _o1.read_bytes() == _o2.read_bytes()
+              and sorted(set(_s1["note"])) == ["", "nan", "ok",
+                                               "x;y"])
+        _r3 = _sp2.run([_sys2.executable, "-m", "synthkit.cli",
+                        "sample", str(_src2), "--group-by",
+                        "wrong", "--patients", "7", "-o",
+                        str(Path(_ts2) / "s3.csv")],
+                       capture_output=True, text=True,
+                       cwd=str(_root2))
+        _r4 = _sp2.run([_sys2.executable, "-m", "synthkit.cli",
+                        "sample", str(_src2), "--group-by", "pid",
+                        "--patients", "99", "-o",
+                        str(Path(_ts2) / "s4.csv")],
+                       capture_output=True, text=True,
+                       cwd=str(_root2))
+        check("...an unknown group column refuses in a sentence "
+              "naming the real columns, and asking for more "
+              "patients than exist SAYS it copied rather than "
+              "sampling",
+              _r3.returncode == 2 and "wrong" in _r3.stderr
+              and "pid" in _r3.stderr
+              and "Traceback" not in _r3.stderr
+              and _r4.returncode == 0
+              and "copy, not a sample" in _r4.stdout)
+
     # THE TEAM TEST KIT assembles a folder a teammate runs and
     # tries to break - and its START_HERE was executed VERBATIM,
     # end to end through both artifacts, before this check was

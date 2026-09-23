@@ -87,6 +87,10 @@ holds). Formats: days.
   columns are judged by their TOKENS (a set of email addresses is
   caught where the joined string matches nothing), each fault
   reproduced from the measured statistic and watched red first.
+- ~~The confirming re-read~~ DONE 2026-09-23: the corrected scrub
+  read the extract again — visit_id the lone catch, honestly
+  worded ("about one per row"); both dates and active_drugs back
+  in the clear count, 42 of 44 clear.
 
 **What remains**
 - Free text PHI is the M6 decision gate.
@@ -184,14 +188,26 @@ on this page.
   repaired by swapping, dates rendered after arithmetic.
 
 **What remains**
-- The last M0 criterion: `close` — 88/115 = 76.5% of relationships
-  within 0.2 of source strength, against the 87.9% bar. 27 pairs
-  have the right sign but attenuated strength. This is the single
-  open fidelity number.
+- The last M0 criterion: `close` at 76.5% against the 87.9% bar —
+  and the seed sweep (76.5/80.6/80.2) says the gap is REAL, not
+  noise. The real-data reading is complete: shapes survive
+  (8/9, 7/7, 7/7 across seeds), published surfaces mostly do not
+  (2/6 — the application machinery works, 787_2 tracks despite
+  losing both pair members; the residue is the ring-adjacency
+  ceiling plus 3 marginal misses), close drift concentrates in
+  set-token relationships, and two inversions appeared on seed 37
+  only (that file does not circulate).
+- The mechanisms live on the reproduction fixtures (pressure
+  family, attribution triangle) with measured gates; the
+  synchronized final pass fixed surfaces on the fixture (2/5 →
+  0/5 seeds failing) and did NOT transfer to the extract — the
+  prediction was on record, and `peek surfaces` now diagnoses
+  from the run directory.
 
-**Time**: unknown mechanism, so estimate honestly: 3–10 working
-days. Direction sits exactly at its bar (108/115) — one pair of
-seed noise flips it, so a seed sweep should precede any claim.
+**Time**: ~2–4 weeks on the fixtures, then confirmation on the
+next real refit. The close gap and the ring ceiling are the
+project's two genuine unknowns; everything else on this goal is
+measured.
 
 ---
 
@@ -297,37 +313,42 @@ the last runtime estimate on this project was wrong by 30x, upward.
 
 ## Weighted overall
 
-## Proposed working order (updated 2026-09-09)
+## Proposed working order (updated 2026-09-23)
 
-Durations are from now, deliberately not dates:
+The 2026-09-09 order's five named steps ALL LANDED: the
+end-to-end run (09-11), the seed sweep (09-10), the report card
+(09-11), the sign-off page (09-14), the structured PHI scrub
+(built 09-18, corrected by its first real read 09-22, confirmed
+on re-read 09-23) — plus relationship dials and the one-command
+exam runner (09-18). Durations are from now, deliberately not
+dates:
 
-1. **Goal 7 — the single end-to-end run** — DONE 2026-09-11: bridge -> plant -> ladder -> showdown on 55,428 real-shaped rows; ceiling/baseline/vendor produced, the as-specified bar exposed as sitting above its own ceiling. Was:
-   ~1-2 weeks. Pure assembly, no unknowns, and goal 8 is blocked
-   behind it.
-2. **Goal 5 — the fidelity gap**, RE-AIMED by the seed sweep
-   (run 2026-09-10: close 76.5/80.6/80.2 across three seeds - the
-   gap is REAL, not noise). ~2-4 weeks. The measured targets, in
-   order: the two seed-37 INVERSIONS in the invasive-pressure
-   family (a defect, not a statistic); interaction-surface
-   survival (1/6, 2/6, 1/6 - consistent, suspect mechanism is
-   trimmed parents); then close itself. centre is largely fixed
-   (29/33, worst miss 0.16 sd) and comes off the list.
-3. **Goal 8 — the report card** off the goal-7 run. ~1-2 weeks
-   after goal 7 lands.
-4. **Goal 6 — the sign-off page.** ~1 week; assembly of what now
-   exists.
-5. **Goal 2 — the PHI scrub**, structured fields first, planted-PHI
-   gate before any claim. ~3-4 weeks.
-6. **Goal 1 — multi-table intake.** ~3-6 weeks.
-7. **Goal 4 — relationship dials.** ~2-3 weeks.
-8. **Goal 3 — the research tail** (tangled-graph ceiling), ongoing
-   and unscheduled, because unknowns move dates and this is the
-   genuine unknown.
+1. **The team's try-to-break findings** from the kit handout —
+   each becomes a check; the suite grows and the kit gets
+   harder. ~days, interleaved with everything else.
+2. **Goal 5 — the close-gap mechanisms**, on the reproduction
+   fixtures where they now live (trim machinery: attribution
+   flip, set-token drift; the ring ceiling is the research
+   piece). ~2-4 weeks, then confirmation on the next real refit.
+3. **Goal 1 — multi-table intake**, the last big unstarted
+   piece. ~3-6 weeks.
+4. **Goal 3 — per-claim receipts.** ~1 week.
+5. **Goal 2 — the free-text decision gate**, governance first.
+   ~2-3 weeks of engineering IF the gate says yes.
+6. **Goal 4 — the per-class verification pass.** ~1-2 weeks.
+7. **Goal 7 — a real vendor in the vendor seat**: scheduling,
+   not building.
+8. **Goal 8 and the research tail** — a challenger worth the
+   name, the attribution-flip stabilization, the ring-adjacency
+   ceiling: ongoing and unscheduled, because unknowns move dates
+   and these are the genuine unknowns.
 
-Equal-weighting the eight goals: **~78% complete** (goal 7
-85→90 on 2026-09-18: the one-command exam runner; goal 4 65→80
-same day: relationship dials). The unweighted
+Equal-weighting the eight goals: **~78% complete** (goal 2
+60→65 on 2026-09-23: the real-extract read, its three detector
+lessons, and the confirming re-read). Core complete in roughly
+**6-7 weeks from 2026-09-23** — early November — with free text,
+if its gate says yes, adding ~6 weeks beyond. The unweighted
 number understates the risk profile: what remains is mostly
-assembly and breadth (M1, M2, M3) plus two genuine unknowns — the
-`close` gap and the cycle ceiling — and unknowns, not assembly, are
-what move dates.
+breadth (multi-table, receipts, verification) plus two genuine
+unknowns — the `close` gap and the cycle ceiling — and unknowns,
+not assembly, are what move dates.

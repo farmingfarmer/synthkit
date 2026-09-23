@@ -16,12 +16,46 @@ count `docs/WINDOWS.md` names, rehearse once.
 1. Pull current build; run the net; confirm ALL GREEN.
 2. `python scripts\make_demo_clinic.py -o` a scratch folder, and
    run one fit into a live directory so every station has food.
+2b. Build the LIVE-FIT sample and rehearse it once for time:
+   `synthkit sample` the real extract down to ~300 whole
+   patients, fit it once end to end, and note the minutes and
+   the gate verdict - Act 1 repeats exactly this in the room,
+   and you must know both numbers before the room does. If the
+   rehearsal runs past ~4 minutes, rebuild at 150 patients.
 3. Open in tabs: the bench, the two report cards from the real
    exam (the FAIL card and the clean card), the sign-off page.
 4. Have `CONVENTIONS.md` and `synthkit/gate.py` open in an editor
    - the code half of the session lives there.
 
-## Act 1 - the dashboard is the argument (5 min)
+## Act 1 - real data, fitted live (5 min)
+
+DO: in the bench's 02 Fit station, point --src at the
+300-patient sample (full literal path - browser fields do not
+expand variables), choose a NEW out directory, press fit. Talk
+over the living loader; the countdown is the real search.
+
+SAY: "This is the real extract - three hundred of its patients,
+whole patients, drawn by seed. You are watching the actual
+learning: the search with its live countdown, then the
+contract, then generation, then it GRADES ITSELF. Nothing here
+is staged; the loader is parsed from the run's own log."
+
+DO: when it finishes, 03 Verdict on the fresh run. Read the
+verdict aloud, whichever way it went (you rehearsed it).
+
+SAY: "A smaller cohort pays more to the privacy rule - fewer
+patients per level means more suppression - so the full-extract
+numbers are the report cards you'll see later. **keep**: what
+matters is that the grade you just watched it give itself is
+the same computation the sign-off page carries."
+
+## Act 2 - the dashboard is the argument (5 min)
+
+DO: VIEW Dashboard first on the run the room just watched being
+born - real data, and every gray bin was k-screened before it
+was drawn. Then switch to the clinic run for the pattern cards
+and the answer key.
+
 
 DO: VIEW Dashboard on the fitted run. Scroll slowly; press and
 hold a histogram; press and hold a correlation heatmap.
@@ -44,7 +78,7 @@ rerouting a pattern's driving from one covariate to another -
 invisible to every pairwise number - and that finding is now a
 reproduction fixture with a measured gate."
 
-## Act 2 - the gate that explains itself (5 min)
+## Act 3 - the gate at full scale (5 min)
 
 DO: 03 Verdict on the run. Point at a PASS row's explanation,
 then a FAIL's what-now panel and its mini station buttons.
@@ -58,7 +92,7 @@ floor, not a certificate. On our real extract the gate currently
 reads NOT MET on close and interaction surfaces, and we can say
 exactly why and where."
 
-## Act 3 - the code, in the editor (10 min)
+## Act 4 - the code, in the editor (10 min)
 
 DO: open `synthkit/gate.py`, scroll it top to bottom slowly.
 
@@ -86,7 +120,7 @@ SAY: "The lab notebook. Every rule was paid for by a specific
 failure, recorded with its numbers. New contributors read this
 before the code."
 
-## Act 4 - the exam loop, end to end (8 min)
+## Act 5 - the exam loop, end to end (8 min)
 
 DO: in the terminal, on the CLINIC fit from prep - ONE command,
 about a minute (the clinic's own columns; the real extract's
@@ -115,7 +149,7 @@ an exam that planted its own answer knows the ceiling. And the
 honest scope: what a model is asked here is NARROWER than 'does
 this work on our data', and every artifact says so about itself."
 
-## Act 5 - close (2 min)
+## Act 6 - close (2 min)
 
 DO: MAP Roadmap.
 

@@ -1181,7 +1181,7 @@ def main():
               and html.count("DONE 20") == 3
               and "about 78%" in html
               and "~65%</span> 2" in html
-              and "7-8 weeks" in html)
+              and "6-7 weeks" in html)
 
         # THE FITTED PATH IS IN THE BENCH. Until it was, a demo
         # through the UI showed the FIRST engine - the last month of

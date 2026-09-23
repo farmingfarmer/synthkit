@@ -2899,7 +2899,7 @@ textarea:focus,input:focus,select:focus{
 <section id="s-roadmap" data-step="8">
   <div class="stepbanner"><span class="stepchip">The map</span><span>Eight goals &mdash; what is built, what is planned</span></div>
   <dl class="stepgoal"><dt>you need</dt><dd>Nothing &mdash; this page is for reading, and for the room.</dd><dt>you get</dt><dd>Where each goal stands, with the measured evidence, what is planned, a proposed WORKING ORDER, and a relative timeline per goal (durations from now, deliberately not dates). Percentages are judgments; the numbers beside them are not. Full detail: <code>docs/goals_scorecard.md</code>.</dd></dl>
-  <div class="explain"><b>Proposed working order:</b> 1st &mdash; goal 7's single end-to-end run on the data machine (pure assembly, every part exists; it unblocks goal 8). 2nd &mdash; goal 5's close gap, starting with the 2-3 seed sweep the Verdict station now gives commands for (the margin has never been seed-swept on real data). 3rd &mdash; goal 8's report card off the goal-7 run. 4th &mdash; goal 6's sign-off page. 5th &mdash; goal 2's PHI scrub. Then goals 1, 4, 3's research tail.</div>
+  <div class="explain"><b>Proposed working order</b> (as of 2026-09-23; the previous order's five steps all landed): 1st &mdash; absorb the team's try-to-break findings from the kit handout, each becoming a check. 2nd &mdash; goal 5's close gap, attacked on the reproduction fixtures where the mechanisms now live (the trim machinery: attribution flip, set-token drift). 3rd &mdash; goal 1's multi-table intake, the last big unstarted piece. 4th &mdash; goal 3's per-claim receipts. 5th &mdash; goal 2's free-text decision gate. Goal 7's vendor seat is scheduling, not building; goal 8's challenger and the ring ceiling are the research tail.</div>
   <div class="goal"><h3><span class="chip partial">partial &middot; ~55%</span> 1 &middot; Universal upload with auto schema mapping</h3>
     <div class="ev">BUILT: single-table CSV end to end; types, currency, percent and clock parsers; long/EAV pivot; 22 of 23 dataset shapes come out clean, and flat data comes back flat.</div>
     <div class="ev">PLANNED: multi-table intake with key auto-detection; Excel / JSON formats. Documents are a later decision, on purpose.</div>
@@ -2908,7 +2908,8 @@ textarea:focus,input:focus,select:focus{
     <div class="ev">BUILT: everything published is k-anonymous over PATIENTS; unpublishable labels are replaced by invented ones (1,436 real codes in, zero republished); attacked with positive controls &mdash; membership worst 0.52 where a cheat scores 1.00 and FAILS. AND the structured-field scrub (2026-09-18): <code>synthkit scrub CSV</code> detects names, SSNs, phones, emails, addresses, birth dates and per-patient identifiers from their VALUES (a renamed SSN column is still caught; a column named ssn holding labs is not), gated both ways &mdash; 7/7 planted PHI columns caught AND 0 of 7 near-miss clinical columns flagged, because a detector that flags everything also catches everything.</div>
     <div class="ev">AND the real-extract reading happened (2026-09-22): one true catch (visit_id, a per-row identifier) and three detector faults the fixtures could not reach &mdash; visit dates flagged as identifiers, a semicolon-joined set column misread as free text, and a line claiming "one per person" beside 55,428 distinct over 800 patients. All three reproduced from the measured statistics, watched red, fixed: dates are never identifiers, set columns are judged by their TOKENS (a set of email addresses is now caught where the joined string matches nothing), and identifier lines state the measured ratio.</div>
     <div class="ev">PLANNED: free text stays a governance decision gate &mdash; a long-text column is reported OUT OF SCOPE by name, never silently skipped.</div>
-    <div class="ev">NEXT &middot; about 2 weeks remaining &mdash; the free-text decision, and the scrub re-read on the next real pull.</div></div>
+    <div class="ev">AND CONFIRMED ON RE-READ (2026-09-23): the corrected scrub read the real extract again &mdash; visit_id the lone catch, honestly worded; both dates and the drug set back in the clear count, 42 of 44.</div>
+    <div class="ev">NEXT &middot; about 2 weeks remaining &mdash; the free-text decision gate, which is governance first and engineering second.</div></div>
   <div class="goal"><h3><span class="chip partial">partial &middot; ~80%</span> 3 &middot; Every pattern found, explained, with receipts</h3>
     <div class="ev">BUILT: discovery confirmed on held-out patients &mdash; 12/13 planted patterns, zero false; effect curves, interactions, presence-as-signal; the atlas explains all 97 components in plain English and refuses to build if one is missing.</div>
     <div class="ev">PLANNED: per-claim receipt files; the tangled-graph ceiling &mdash; the one open research item.</div>
@@ -2919,8 +2920,8 @@ textarea:focus,input:focus,select:focus{
     <div class="ev">NEXT &middot; about 1-2 weeks remaining &mdash; verification breadth, not new machinery.</div></div>
   <div class="goal"><h3><span class="chip built">built &middot; ~85%</span> 5 &middot; High-fidelity generation</h3>
     <div class="ev">MEASURED on the real extract: coverage 42/42, center 30/33, set token shares 62/62, empty rates 4/4, zero inverted relationships, direction 93.9%. Against a statistical-copy ruler: 119 relationships kept to its 77.</div>
-    <div class="ev">REMAINING: one number &mdash; relationship strength within 0.2 on 76.5% of pairs against an 87.9% bar. Shapes and interaction surfaces are now gated per run as well &mdash; unread on real data so far.</div>
-    <div class="ev">NEXT &middot; about 2-4 weeks, proposed 2nd &mdash; FIRST the 2-3 seed sweep (commands in the Verdict station), because the margin has never been seed-swept on real data and may be partly noise; then targeted fixes for whatever survives the sweep.</div></div>
+    <div class="ev">REMAINING: one number &mdash; close at 76.5% against the 87.9% bar, and the seed sweep says it is REAL (76.5/80.6/80.2), not noise. The real-data reading is complete: shapes survive (8/9, 7/7, 7/7 across seeds), the published surfaces mostly do not (2/6 &mdash; the application machinery works; the residue is the ring-adjacency ceiling plus marginal drift), and the close drift concentrates in set-token relationships. Two inversions appeared on one seed of three; that file does not circulate.</div>
+    <div class="ev">NEXT &middot; about 2-4 weeks, proposed 2nd &mdash; the mechanisms live on the reproduction fixtures (pressure family, attribution triangle) with measured gates; fixes are sworn against those across seeds, then confirmed on the next real refit.</div></div>
   <div class="goal"><h3><span class="chip built">built &middot; ~100%</span> 6 &middot; Self-assessment for sign-off</h3>
     <div class="ev">BUILT: the six-criteria gate with an honest exit code; contradiction checks on the report AND the contract; row-level obedience checks that need no source data; diagnosis views. The run states its own privacy costs in place.</div>
     <div class="ev">PLANNED: the single roll-up page a decision-maker signs.</div>
@@ -2934,17 +2935,21 @@ textarea:focus,input:focus,select:focus{
     <div class="ev">BUILT: the structurally-blinded baseline solver; the ceiling / ours / vendor line in the campaign machinery.</div>
     <div class="ev">PLANNED: the report-card artifact from a real end-to-end run, then a challenger worth the name beyond the floor.</div>
     <div class="ev">NEXT &middot; the report card SHIPPED 2026-09-11 (scripts/report_card.py, verified on the real showdown - it judges the bar as well as the solver). Remaining: a challenger worth the name beyond the structurally-blinded floor - research, unscheduled.</div></div>
-  <div class="hint">Overall, equal-weighted: about 78%. The first
-  three proposed steps landed in the sprint's first five days: the
-  end-to-end run, the seed sweep (close is REAL: 76.5/80.6/80.2
-  across seeds), and the report card - plus the sign-off page,
-  closing goal 6; then relationship dials (goal 4, 65&rarr;80) and
-  the one-command exam runner (goal 7, 85&rarr;90), and the
-  structured PHI scrub (goal 2, 45&rarr;60), all 2026-09-18. What remains is the fidelity mechanisms the
-  reproduction fixtures now hold (the attribution flip, surface
-  survival), the PHI scrub, multi-table, and the tangled-graph
-  research. Core complete in roughly 7-8 weeks from here; free
-  text, if its gate says yes, roughly 3 months.</div>
+  <div class="hint">Overall, equal-weighted: about 78%. The
+  September sprint landed everything it named: the end-to-end
+  run, the seed sweep (close is REAL: 76.5/80.6/80.2), the report
+  card, the sign-off page closing goal 6, relationship dials
+  (goal 4, 65&rarr;80), the one-command exam runner (goal 7,
+  85&rarr;90), and the structured PHI scrub built, read against
+  the real extract, corrected from what that read taught, and
+  confirmed on a re-read (goal 2, 45&rarr;65). What remains:
+  the close-gap mechanisms on the reproduction fixtures, goal
+  1's multi-table intake, goal 3's receipts, the free-text
+  decision, and the research tail (attribution flip stabilization,
+  ring ceiling, a challenger worth the name). Core complete in
+  roughly 6-7 weeks from 2026-09-23 &mdash; early November; free
+  text, if its governance gate says yes, adds roughly 6 more
+  weeks beyond that.</div>
   <div class="nextup"><span class="lbl">next</span><b>Anywhere</b><span>This page is the map, not a step. Step 1 invents data from English; Fit measures data you already have.</span></div>
 </section>
 </main></div>

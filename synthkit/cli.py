@@ -655,6 +655,45 @@ def cmd_plant(args) -> int:
     return 0
 
 
+def cmd_sample(args) -> int:
+    """A PATIENT-level subsample, for live demonstrations and
+    quick reads - all rows of N randomly chosen patients, chosen
+    by seed. Sampling ROWS instead would break visit counts,
+    persistence and every within-patient statistic the fit
+    measures; a patient either travels whole or stays behind.
+    The values pass through byte-for-byte - read the way the
+    pipeline reads (a blank stays a blank), written with no
+    reformatting - because a sampler that touches values is a
+    second parser waiting to disagree with the first."""
+    import numpy as np
+    import pandas as pd
+    df = pd.read_csv(args.csv, dtype=str, keep_default_na=False)
+    if args.group_by not in df.columns:
+        print("no column named {!r} in {} - the columns are: {}"
+              .format(args.group_by, args.csv,
+                      ", ".join(map(str, df.columns[:12]))),
+              file=sys.stderr)
+        return 2
+    ids = pd.unique(df[args.group_by])
+    print("sample: --patients {} --seed {} from {} ({} rows, "
+          "{} patients)".format(args.patients, args.seed,
+                                args.csv, len(df), len(ids)))
+    if args.patients >= len(ids):
+        print("only {} patient(s) exist, so all of them travel - "
+              "this is a copy, not a sample".format(len(ids)))
+        keep = set(ids)
+    else:
+        rng = np.random.RandomState(args.seed)
+        keep = set(rng.choice(ids, size=args.patients,
+                              replace=False))
+    out = df[df[args.group_by].isin(keep)]
+    out.to_csv(args.out, index=False)
+    print("wrote {} - {} rows for {} patient(s), whole patients "
+          "only".format(args.out, len(out),
+                        out[args.group_by].nunique()))
+    return 0
+
+
 def cmd_gate(args) -> int:
     """The M0 gate verdict on a finished run - the same lines
     scripts/m0_gate.py prints, from the same synthkit.gate
@@ -1069,6 +1108,17 @@ def main(argv=None) -> int:
     p.add_argument("rundir")
     p.add_argument("-o", "--out", default=None)
     p.set_defaults(fn=cmd_bridge)
+
+    p = sub.add_parser("sample",
+                       help="a patient-level subsample of a CSV "
+                            "- whole patients only, seeded, for "
+                            "live demos and quick reads")
+    p.add_argument("csv")
+    p.add_argument("--group-by", required=True)
+    p.add_argument("--patients", type=int, required=True)
+    p.add_argument("--seed", type=int, default=7)
+    p.add_argument("-o", "--out", required=True)
+    p.set_defaults(fn=cmd_sample)
 
     p = sub.add_parser("gate",
                        help="the M0 gate verdict on a finished "
