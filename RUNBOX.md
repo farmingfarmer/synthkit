@@ -18,9 +18,16 @@ checks, ALL GREEN** on a zipball.
 pip install -e .
 ```
 
-Then stop any running `synthkit gui`, relaunch it, hard-refresh
-the browser, and confirm the build id in the wordmark matches
-`synthkit version`. A UI change that cannot be seen is
+Then close any terminal already running the bench, and launch:
+
+```bat
+python -m synthkit.cli gui
+```
+
+It serves at http://127.0.0.1:8377 and opens the browser.
+Hard-refresh (Ctrl+F5) and confirm the build id in the wordmark
+matches `python -m synthkit.cli version` - it should read the
+same id the fit log printed. A UI change that cannot be seen is
 indistinguishable from one never made.
 
 ## 3. Give every station food
