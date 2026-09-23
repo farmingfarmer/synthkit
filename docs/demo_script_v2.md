@@ -88,9 +88,12 @@ before the code."
 
 ## Act 4 - the exam loop, end to end (8 min)
 
-DO: in the terminal, on the fitted run - ONE command:
+DO: in the terminal, on the CLINIC fit from prep - ONE command,
+about a minute (the clinic's own columns; the real extract's
+version of this same command is what minted the report cards you
+are about to open, pre-run because it takes fifteen minutes):
 
-    python -m synthkit.cli exam RUNDIR --effect age_at_visit=0.8 --effect span_days=-0.5 -o EXAMDIR
+    python -m synthkit.cli exam DEMO_RUNDIR --effect stress_score=0.9 --effect sleep_hours=-0.5 -o A_NEW_DIRECTORY_YOU_CHOOSE
 
 It echoes all six stages - bridge, plant, ladder, baseline,
 showdown, report card (`docs/E2E_EVAL.md` still walks the stages
