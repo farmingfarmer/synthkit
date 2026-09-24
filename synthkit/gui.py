@@ -1147,6 +1147,13 @@ def _fit_cmd(payload: dict, types_only: bool):
     group = (payload.get("group_by") or "").strip()
     if group:
         cmd += ["--group-by", group]
+    # The live-demo lever: set-token expansion owns the search
+    # budget, and the bench must be able to run the SAME command
+    # the rehearsal ran - a station that silently drops a flag is
+    # the --time-col failure wearing a form field.
+    excl = (payload.get("exclude") or "").strip()
+    if excl:
+        cmd += ["--exclude", excl]
     if not types_only:
         if payload.get("lags"):
             cmd.append("--lags")
@@ -2815,6 +2822,8 @@ textarea:focus,input:focus,select:focus{
     <label>patient / entity column
       <input id="fgroup" value="person_id"></label>
     <label><input type="checkbox" id="flags" checked> include lag features (slower, needed for temporal patterns)</label>
+    <label>exclude columns (comma-separated; optional)
+      <input id="fexclude" placeholder="e.g. conditions,procedures,drug_routes - set-token expansion owns the search budget, so excluding heavy set columns is how a LIVE fit stays live"></label>
     <button class="act" onclick="fitTypes()">Check the types
     (seconds)</button>
     <div class="hint">Types first, always: every silent fault this
@@ -3904,6 +3913,7 @@ function fitPayload(){
   return {src:document.getElementById('fsrc').value.trim(),
           out:document.getElementById('fout').value.trim(),
           group_by:document.getElementById('fgroup').value.trim(),
+          exclude:document.getElementById('fexclude').value.trim(),
           lags:document.getElementById('flags').checked};}
 async function fitTypes(){
   const o=document.getElementById('fit-out');

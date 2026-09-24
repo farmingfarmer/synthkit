@@ -1183,6 +1183,31 @@ def main():
               and "~65%</span> 2" in html
               and "6-7 weeks" in html)
 
+        # THE FIT STATION CARRIES --exclude, END TO END. The live
+        # demo's rehearsed command excludes the heavy set columns
+        # (set-token expansion owns the search budget), and a
+        # station that cannot pass the rehearsed flag would make
+        # the room's run differ from the rehearsal - the
+        # --time-col class: a field read but not used, or a flag
+        # with no field.
+        from synthkit.gui import _fit_cmd as _fc
+        _cmdE, _, _ = _fc({"src": "a.csv", "out": "o",
+                           "group_by": "pid",
+                           "exclude": "conditions,procedures"},
+                          types_only=False)
+        _cmdN, _, _ = _fc({"src": "a.csv", "out": "o",
+                           "group_by": "pid"}, types_only=False)
+        check("the Fit station's exclude field reaches the CLI "
+              "as --exclude, is absent when empty, and the form "
+              "carries the field",
+              "--exclude" in _cmdE
+              and _cmdE[_cmdE.index("--exclude") + 1]
+              == "conditions,procedures"
+              and "--exclude" not in _cmdN
+              and 'id="fexclude"' in html
+              and "fexclude" in html.split("function fitPayload")
+              [1][:400])
+
         # THE FITTED PATH IS IN THE BENCH. Until it was, a demo
         # through the UI showed the FIRST engine - the last month of
         # measured work was unreachable from the interface built to
