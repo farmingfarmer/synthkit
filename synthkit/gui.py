@@ -1179,6 +1179,31 @@ def api_fit_types(payload: dict) -> dict:
             "ok": r.returncode == 0}
 
 
+def _types_work(payload: dict) -> dict:
+    """The two-second look, as a JOB - so the bench can stream it
+    line by line the way the fit streams, instead of returning
+    one wall of text after the fact. The operator called the
+    blob hideous, and the operator was right: the run narrates
+    itself in timed lines, and the renderer that makes the fit
+    readable makes this readable, one implementation."""
+    import subprocess
+    cmd, src, out = _fit_cmd(payload, types_only=True)
+    if not Path(src).exists():
+        return {"error": "No file at {}.".format(src)}
+    Path(out).mkdir(parents=True, exist_ok=True)
+    log = Path(out) / "bench_types_log.txt"
+    with log.open("w", encoding="utf-8") as fh:
+        r = subprocess.run(cmd, stdout=fh,
+                           stderr=subprocess.STDOUT,
+                           text=True, timeout=900)
+    if r.returncode != 0:
+        tail = log.read_text(encoding="utf-8",
+                             errors="replace")[-1200:]
+        return {"error": "types exited {} - the end of its "
+                         "log:\n{}".format(r.returncode, tail)}
+    return {"out": out}
+
+
 def _fit_work(payload: dict) -> dict:
     """Runs `synthkit fit --generate` as a subprocess, its output
     streamed to a log inside the run directory - the same file a
@@ -1201,7 +1226,12 @@ def _fit_work(payload: dict) -> dict:
 
 
 def api_fit_log(payload: dict) -> dict:
-    log = Path(str(payload.get("out") or "")) / "bench_fit_log.txt"
+    # `name` chooses between the two bench logs and nothing else -
+    # a whitelist, not a path.
+    name = payload.get("name")
+    if name not in ("bench_fit_log.txt", "bench_types_log.txt"):
+        name = "bench_fit_log.txt"
+    log = Path(str(payload.get("out") or "")) / name
     if not log.exists():
         return {"text": "(no log yet)"}
     txt = log.read_text(encoding="utf-8", errors="replace")
@@ -1363,6 +1393,9 @@ _ROUTES = {
     "/api/job-cancel": api_job_cancel,
     "/api/showdown": api_showdown,
     "/api/fit-types": api_fit_types,
+    "/api/types-run": lambda payload: {
+        "job": _start_job(_types_work, payload,
+                          budget_s=900.0)},
     "/api/fit-run": lambda payload: {
         "job": _start_job(_fit_work, payload,
                           budget_s=4 * 3600.0)},
@@ -1690,12 +1723,16 @@ details.explain summary{cursor:pointer;margin-bottom:6px}
    Consistent physical language: raised = clickable,
    inset = editable, flat card = information.
    ================================================ */
-body{font-size:15.5px;line-height:1.55}
-main{max-width:1160px}
-.panel{background:var(--panel);border:1px solid var(--rule);
-  border-radius:12px;padding:18px 22px;margin-bottom:18px;
-  box-shadow:0 1px 2px rgba(23,34,44,.06),
-             0 6px 18px rgba(23,34,44,.07)}
+body{font-size:15.5px;line-height:1.6}
+/* THE GALLERY COLUMN. One narrow, centered measure with real
+   negative space - separation by air, not by borders. The
+   porcelain (tabs, buttons, chips) is untouched; what changed
+   is how much silence surrounds it. */
+main{max-width:860px;margin:0 auto;padding:44px 44px 96px}
+.panel{background:var(--panel);border:none;
+  border-radius:18px;padding:36px 42px;margin-bottom:40px;
+  box-shadow:0 1px 2px rgba(23,34,44,.04),
+             0 14px 40px rgba(23,34,44,.06)}
 /* --- raised, sheened buttons: unmistakably pressable --- */
 .act{
   background:linear-gradient(180deg,#178a7d 0%,
@@ -1759,13 +1796,17 @@ select{
              0 2px 4px rgba(23,34,44,.10)}
 textarea{line-height:1.5}
 /* --- bigger, darker text everywhere --- */
-label{font-size:13.5px;color:#2c3a45;font-weight:600}
-.hint{font-size:13.5px;color:#3d4c46;line-height:1.55}
-.explain{font-size:14px;color:#33424e;
-  box-shadow:0 1px 3px rgba(23,34,44,.06)}
-.stepbanner{font-size:19px}
+label{font-size:13px;color:#46545F;font-weight:650;
+  margin:16px 0 0}
+label:has(input[type=checkbox]){display:flex;
+  align-items:center;gap:9px}
+input[type=checkbox]{width:auto;box-shadow:none;margin:0;
+  accent-color:var(--tab)}
+.hint{font-size:12.5px;color:#6B7883;line-height:1.6;
+  max-width:64ch}
+.stepbanner{font-size:11.5px}
 .eyebrow{font-size:13px}
-.out{font-size:13px;line-height:1.55;
+.out{font-size:13px;line-height:1.55;margin-top:16px;
   box-shadow:inset 0 2px 5px rgba(23,34,44,.09);
   border-radius:8px}
 .outlabel{font-size:11px}
@@ -1878,10 +1919,14 @@ nav{padding:18px 12px}
   padding-top:14px;border-top:1px solid var(--rule)}
 
 /* ---- the step banner ---- */
-.stepbanner{display:flex;align-items:center;gap:12px;
-  flex-wrap:wrap;font-size:21px;font-weight:750;
-  letter-spacing:-.015em;color:var(--ink);
-  margin:2px 0 10px;padding:0}
+.stepbanner{display:flex;align-items:center;gap:10px;
+  flex-wrap:wrap;font-size:11.5px;font-weight:700;
+  letter-spacing:.09em;text-transform:uppercase;
+  color:var(--dim);margin:2px 0 18px;padding:0}
+/* The station h1 and the panel h2 already carry the names; a
+   third telling was clutter. The chip stays - it is the
+   wayfinding - and its twin text hides. */
+.stepbanner>span:not(.stepchip){display:none}
 .stepbanner .stepchip{font-family:var(--mono);font-size:11px;
   font-weight:800;letter-spacing:.10em;text-transform:uppercase;
   color:#fff;padding:6px 12px;border-radius:8px;
@@ -1894,18 +1939,35 @@ nav{padding:18px 12px}
    had to exist before you could run it, so the only way to
    find out was to press the button and read an error. */
 .stepgoal{display:grid;grid-template-columns:auto 1fr;
-  gap:6px 12px;align-items:baseline;
-  background:var(--wash);border:1px solid var(--rule);
-  border-left:5px solid var(--tab);border-radius:0 10px 10px 0;
-  padding:12px 16px;margin:0 0 14px;font-size:14px;
-  line-height:1.5}
+  gap:6px 14px;align-items:baseline;
+  background:transparent;border:none;
+  padding:8px 0 0;margin:0 0 4px;font-size:13.5px;
+  line-height:1.6;max-width:64ch}
 .stepgoal dt{font-family:var(--mono);font-size:10px;
   font-weight:800;letter-spacing:.13em;text-transform:uppercase;
   color:var(--tab);white-space:nowrap}
-.stepgoal dd{margin:0;color:#33414E}
-.explain{background:#fff;border-left:4px solid var(--tab);
-  border-radius:0 10px 10px 0;font-size:14px;
-  padding:11px 15px;color:#3A4855}
+.stepgoal dd{margin:0;color:#55636F}
+.explain{background:transparent;border:none;
+  border-left:2px solid var(--rule);border-radius:0;
+  font-size:13.5px;padding:2px 0 2px 16px;color:#5A6773;
+  max-width:64ch;line-height:1.6}
+/* THE FOLD. Secondary prose one click away behind a micro-label,
+   so the resting view is eyebrow, heading, fields, button - and
+   nothing the eye must fight past. The content is all still in
+   the page; only its resting posture changed. */
+details.fold{margin:0 0 16px}
+details.fold summary{font-family:var(--mono);font-size:10px;
+  font-weight:800;letter-spacing:.14em;text-transform:uppercase;
+  color:var(--dim);cursor:pointer;list-style:none;
+  display:inline-flex;align-items:center;gap:7px;
+  padding:2px 0;user-select:none}
+details.fold summary::-webkit-details-marker{display:none}
+details.fold summary::before{content:"\25B8";font-size:9px;
+  transition:transform .18s ease}
+details.fold[open] summary::before{transform:rotate(90deg)}
+details.fold summary:hover{color:var(--tab)}
+details.fold[open]{margin-bottom:18px}
+details.fold>*:not(summary){margin-top:10px}
 
 /* ---- lettered controls: A, B, C ---- */
 .stepno{display:inline-flex;align-items:center;
@@ -1919,7 +1981,12 @@ nav{padding:18px 12px}
   text-shadow:0 1px 1px rgba(0,0,0,.25)}
 .eyebrow{font-size:11.5px;letter-spacing:.10em;
   color:#44525F;font-weight:700}
-.panel{border-top:3px solid var(--tab)}
+.panel h2{font-size:29px;font-weight:750;
+  letter-spacing:-.022em;line-height:1.15;margin:0 0 22px;
+  display:block}
+.panel h2::after{content:"";display:block;width:64px;
+  height:2px;background:var(--tab);margin-top:12px;
+  border-radius:1px}
 
 /* ---- required / optional, said louder ---- */
 .badge{font-size:10px;font-weight:800;letter-spacing:.07em;
@@ -1931,10 +1998,10 @@ nav{padding:18px 12px}
 
 /* ---- what to do next, at the foot of every step ---- */
 .nextup{display:flex;align-items:center;gap:11px;
-  flex-wrap:wrap;margin:18px 0 6px;padding:13px 16px;
-  border-radius:11px;background:#fff;
-  border:1px solid var(--rule);border-left:5px solid var(--tab);
-  font-size:14px;box-shadow:0 1px 2px rgba(23,34,44,.06)}
+  flex-wrap:wrap;margin:30px 0 0;padding:16px 0 0;
+  border:none;border-top:1px solid var(--rule);
+  border-radius:0;background:transparent;
+  font-size:13.5px;box-shadow:none;color:#5A6773}
 .nextup .lbl{font-family:var(--mono);font-size:10px;
   font-weight:800;letter-spacing:.13em;text-transform:uppercase;
   color:var(--tab)}
@@ -1942,7 +2009,7 @@ nav{padding:18px 12px}
   nav{display:flex;gap:8px;padding:12px}
   .station{margin:0;min-width:172px}
   .railsplit{display:none}
-  .stepbanner{font-size:18px}}
+  .stepbanner{font-size:11px}}
 h1{display:flex;align-items:center;gap:11px;
   font-family:var(--sans);font-size:22px;font-weight:750;
   letter-spacing:-.015em}
@@ -1956,7 +2023,12 @@ h1 .tstep{font-family:var(--mono);font-style:normal;
   text-shadow:0 1px 1px rgba(0,0,0,.22)}
 h1 span{font-size:15px;font-weight:500;color:var(--dim);
   letter-spacing:0}
-#speccard{border-top:3px solid var(--tab);border-radius:10px}
+#speccard{border:none;background:transparent;
+  border-radius:0;padding:6px 0 0;box-shadow:none;
+  font-size:10.5px;color:var(--dim);min-width:0;
+  max-width:340px;opacity:.75}
+#speccard .fp{font-size:11px;font-weight:600;
+  letter-spacing:.05em;color:#5A6773}
 
 /* ================================================================
    PORCELAIN LETTERPRESS - the loved effect, made the whole language.
@@ -2196,7 +2268,7 @@ nav{background:linear-gradient(90deg,#F6F7F9,#F3F4F7);
   border-right:1px solid rgba(27,35,48,.06)}
 
 /* SURFACES: raised porcelain cards; INPUTS: inset, the counterpoint */
-.panel,#speccard,.goal{background:var(--panel);
+.panel,.goal{background:var(--panel);
   border:1px solid var(--rule);border-radius:14px;
   box-shadow:var(--card);transition:box-shadow .22s ease}
 .panel:hover,.goal:hover{box-shadow:var(--raise-hi)}
@@ -3549,8 +3621,26 @@ function tick(step){
     else sec.appendChild(strip);}}
 document.addEventListener('input',paintReady);
 document.addEventListener('change',paintReady);
+/* THE RESTING POSTURE. Secondary prose folds behind micro-labels
+   at boot: what-you-need blocks always, explains when they run
+   long. Every word stays in the page (and in the page SOURCE,
+   which is what the checks read) - one click away, not gone. */
+function calmFold(){
+  document.querySelectorAll('dl.stepgoal').forEach(function(g){
+    var d=document.createElement('details');d.className='fold';
+    var m=document.createElement('summary');
+    m.textContent='what you need \u00b7 what you get';
+    g.parentNode.insertBefore(d,g);
+    d.appendChild(m);d.appendChild(g);});
+  document.querySelectorAll('div.explain').forEach(function(e){
+    if((e.textContent||'').length<170)return;
+    var d=document.createElement('details');d.className='fold';
+    var m=document.createElement('summary');
+    m.textContent='more';
+    e.parentNode.insertBefore(d,e);
+    d.appendChild(m);d.appendChild(e);});}
 window.addEventListener('load',function(){
-  setTimeout(paintReady,150);});
+  calmFold();setTimeout(paintReady,150);});
 function fmtPct(x){return (100*x).toFixed(1)+'%';}
 function dataSummary(d){
   var h='<div class="mcards">'+
@@ -3915,14 +4005,42 @@ function fitPayload(){
           group_by:document.getElementById('fgroup').value.trim(),
           exclude:document.getElementById('fexclude').value.trim(),
           lags:document.getElementById('flags').checked};}
+let typesJob='',typesTimer=null;
 async function fitTypes(){
   const o=document.getElementById('fit-out');
-  o.textContent='reading the columns...';
+  const p=fitPayload();
+  if(!p.src||!p.out){o.textContent=
+    'STOPPED: give both a source CSV and an output directory - '+
+    'the output directory is yours to choose.';return;}
   loaderSet('fit-out',null,'reading the columns');
-  const r=await api('/api/fit-types',fitPayload());
-  loaderDone('fit-out',!r.error);
-  o.textContent=r.error?('STOPPED: '+r.error):r.text;
-  if(!r.error)tick('fitsrc');}
+  const r=await api('/api/types-run',p);
+  if(r.error){loaderDone('fit-out',false);
+    o.textContent='STOPPED: '+r.error;return;}
+  typesJob=r.job;
+  if(typesTimer)clearInterval(typesTimer);
+  typesTimer=setInterval(typesPoll,700);}
+/* The types run narrates LIVE, through the same renderer the fit
+   uses - one implementation of "a log a person can read". The
+   blob it replaced put forty bracketed lines in one paragraph. */
+async function typesPoll(){
+  const o=document.getElementById('fit-out');
+  const j=await api('/api/job',{id:typesJob});
+  const log=await api('/api/fit-log',
+    {out:document.getElementById('fout').value,
+     name:'bench_types_log.txt'});
+  if(j.status==='running'){
+    o.innerHTML='<div class="lg-head">reading ('+
+      Math.round(j.elapsed)+'s)</div>'+fitLogHtml(log.text||'');
+    o.scrollTop=o.scrollHeight;return;}
+  clearInterval(typesTimer);typesTimer=null;
+  loaderDone('fit-out',j.status==='done');
+  if(j.status==='done'){
+    o.innerHTML='<div class="lg-head lg-done">TYPED in '+
+      Math.round(j.elapsed)+'s</div>'+fitLogHtml(log.text||'');
+    tick('fitsrc');}
+  else{o.innerHTML='<div class="lg-head lg-warn">'+
+    (j.status||'error').toUpperCase()+': '+(j.error||'')+
+    '</div>'+fitLogHtml(log.text||'');}}
 let fitJob='',fitTimer=null;
 async function fitRun(){
   const o=document.getElementById('fit-runout');

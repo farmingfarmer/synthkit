@@ -1118,9 +1118,43 @@ def main():
               and "Step complete." in html
               and "You are free to move on" in html
               and ".nextup b" in html)
-        check("...and a clean types check completes the Source "
-              "step - the tick no longer waits for the full fit",
-              "if(!r.error)tick('fitsrc')" in html)
+        # THE CALM CONTRACT. The operator called the resting page
+        # cluttered - three tellings of every title, boxed prose
+        # everywhere, a types blob - and asked for the reference
+        # gif's posture: one narrow centered column, separation by
+        # air, secondary prose folded behind micro-labels, the
+        # porcelain untouched. Assert the postures, not the pixels
+        # (the pixels were verified by headless-Chrome eyes).
+        check("the calm contract: prose folds at boot, the "
+              "banner's twin text hides behind its chip, the "
+              "heading carries a short accent rule, and the spec "
+              "card left the porcelain-card group",
+              "function calmFold()" in html
+              and "dl.stepgoal" in html
+              and ".stepbanner>span:not(.stepchip){display:none}"
+              in html
+              and ".panel h2::after" in html
+              and "details.fold summary" in html
+              and ".panel,#speccard,.goal{" not in html
+              and "max-width:860px;margin:0 auto" in html)
+
+        # THE TYPES RUN STREAMS. It returned one wall of text
+        # after the fact - the operator called it a hideous blob,
+        # correctly - so it is a polled job now, rendered line by
+        # line through the SAME fitLogHtml renderer the fit uses,
+        # writing its own bench_types_log.txt. The tick still
+        # fires on a clean finish, from the job's done branch.
+        from synthkit.gui import _ROUTES as _api_map
+        check("...and the types check runs as a streamed job - "
+              "endpoint registered, poll renders through "
+              "fitLogHtml from its own whitelisted log, and a "
+              "clean finish still completes the Source step",
+              "/api/types-run" in _api_map
+              and "bench_types_log.txt" in html
+              and "typesPoll" in html
+              and html.count("fitLogHtml(log.text") >= 4
+              and "tick('fitsrc')" in (html.split(
+                  "function typesPoll") + [""])[1][:1400])
 
         # GUIDANCE SHOWS THE PLACE. [[station]] tokens render as
         # miniature station buttons - the real number, label and
