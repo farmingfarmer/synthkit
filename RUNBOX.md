@@ -8,12 +8,16 @@ diastolic_blood_pressure_invasive, source -0.139, generated
 during the fit. The demo now scripts that as its centerpiece
 (SPEAKER.html has the words). Two things remain.
 
-## 1. One final pull (the bench gained the exclude field)
+## 1. One final pull (the calm bench + the exclude field)
 
-The Fit station could not carry `--exclude` until this build -
-the room's run must use the rehearsed flags THROUGH the bench,
-so this pull is required. Zipball per WINDOWS.md; expect
-**68 suites, 1924 checks, ALL GREEN**. Then:
+Two builds landed since your trial run: the Fit station carries
+`--exclude` now, and the bench itself was redesigned to the calm
+gallery look you asked for - one centered column, secondary
+prose folded behind micro-labels, and "Check the types" now
+narrates LIVE line by line through the same renderer as the fit
+(the blob is gone; verified by headless-Chrome screenshots
+before shipping). Zipball per WINDOWS.md; expect **68 suites,
+1925 checks, ALL GREEN**. Then:
 
 ```bat
 pip install -e .
