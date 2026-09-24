@@ -4,7 +4,7 @@ Synthetic clinical data generator and model-evaluation instrument. Core rule: le
 
 ## Verify before claiming
 
-- Run `python scripts/run_all_smokes.py` before claiming anything works. Expect 68 suites, 1934 checks, ALL GREEN **on a checkout**. Off a zipball extract - which is what the data machine runs - it is 1925: nine checks in `smoke_buildid` need git to test the archive path and report SKIPPED without it. Both numbers were measured. Do not quote the checkout number to the data machine; that is how a correct run gets read as a failure.
+- Run `python scripts/run_all_smokes.py` before claiming anything works. Expect 69 suites, 1942 checks, ALL GREEN **on a checkout**. Off a zipball extract - which is what the data machine runs - it is 1933: nine checks in `smoke_buildid` need git to test the archive path and report SKIPPED without it. Both numbers were measured. Do not quote the checkout number to the data machine; that is how a correct run gets read as a failure.
 - **THE DEVELOPMENT MACHINE WAS BEHIND THE DATA MACHINE, and that is
   how a green suite here failed there.** Dev was on Python 3.10 with
   pandas 2.3; the data machine installs fresh and got pandas 3.0.5,
@@ -251,6 +251,36 @@ the direction that stops work happening.
   triangle and surfaces is the likeliest candidate to heal
   inversions too, since all three symptoms sit on the trim
   machinery.
+
+- **THE LATENT CHALLENGER EXISTS, AND ITS FIRST READ SAYS THE
+  INTERACTION CEILING IS OURS, NOT THE PROBLEM'S (2026-09-24).**
+  `scripts/latent_challenger.py`: a bottleneck autoencoder over
+  the k-screened frame (sub-k levels folded, numerics clipped to
+  the blueprint's own k bounds BEFORE training, output clipped
+  back inside them), a Gaussian mixture over the latents,
+  hand-decoded - sklearn only, row-level, NO dynamics, built as
+  a fidelity-at-any-cost RULER. Three fixtures, three seeds
+  each: the triangle's attribution lands 75-79% against a 76/23
+  source where the blueprint wanders 69-90 with a flip lottery;
+  the colinear pressure family reads close 63/63 with zero
+  inversions where the blueprint's surfaces fail; the planted
+  core reads sign 900/900, close 94%, and the XOR interaction
+  SURVIVES on every seed (gain 0.56 -> 0.38-0.86, noisy) while
+  the 3-way mostly dies. The memorization tripwire (nn-ratio,
+  generated-to-training over holdout-to-training) reads
+  0.95-1.18 with a positive control that reads 0.00 on a
+  verbatim republish.
+- **AND ITS PRIVACY MODEL IS DIFFERENT IN KIND, SAID EVERY TIME:
+  IT TRAINS ON RECORDS.** The k-screen narrows what the network
+  sees; it does not prevent memorization, which is record-level.
+  The blueprint's membership result (0.52 where a cheat FAILS at
+  1.00) belongs to the blueprint alone. Until the SAME attack
+  battery passes on this path, its output is a MEASUREMENT of
+  headroom - a ruler beside the generator, never a release. The
+  decision it forces is now quantified instead of argued: the
+  interactions the operator sees inverted in SHAP are
+  representable at this privacy posture; the open question is
+  the price of getting them at ours.
 
 - **THE ATTRIBUTION FLIP IS SURGERY-PROVEN AND SHARPER THAN ITS
   FIRST CHARACTERIZATION (2026-09-23).** Eight instrumented seeds

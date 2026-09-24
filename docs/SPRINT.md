@@ -55,6 +55,27 @@ EXIT: (a) fixed and verified at three shapes, or the blocking
 mechanism named; (b) the correlation measured and written down,
 whichever way it reads.
 
+## 3b. The latent challenger - added mid-sprint (2026-09-24)
+
+The operator called the interaction fidelity unacceptable and
+proposed a competing autoencoder generator. Built the same day
+as a RULER (`scripts/latent_challenger.py`, k-screened training,
+memorization tripwire with positive control): on the fixtures it
+holds the triangle's attribution dead-on, the pressure family at
+63/63 close, and the planted XOR on every seed - the ceiling is
+ours, not the problem's.
+
+NEXT: run it against the real 300-patient sample ON THE DATA
+MACHINE (output stays there); adapt the membership attack to
+grade it honestly; then decide - import its strengths into the
+blueprint path (latent-informed surfaces), or promote it as a
+second engine behind the full attack battery.
+
+EXIT: the real-extract comparison table exists (blueprint vs
+latent vs source, interactions and SHAP shares), and the
+membership attack has been RUN on the latent path, whatever it
+reads.
+
 ## 4. Goal 8 - a challenger worth the name (week 2)
 
 The report card half shipped last sprint; the challenger seat is
