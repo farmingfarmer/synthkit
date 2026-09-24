@@ -40,10 +40,23 @@ on real data), the INVERTED count, and the nn-ratio (under ~0.8
 means the memorization tripwire is pulling and the k-screen
 needs tightening before anything else).
 
-## 3. Demo prep (unchanged, still pending)
+## 3. Demo prep - the second-seed check (still pending)
 
-The second-seed check from the previous RUNBOX - sample --seed
-11, fit with the same --exclude flags, gate - and one out-loud
-rehearsal. Commands are in the previous section of this file's
-git history if the terminal scrolled; say the word and they
-reappear here.
+Know before the room whether the rehearsal's inversion
+reproduces on a different 300-patient draw:
+
+```bat
+python -m synthkit.cli sample %USERPROFILE%\dev\tidy_visits.csv --group-by person_id --patients 300 --seed 11 -o %USERPROFILE%\dev\tidy_live300b.csv
+```
+
+```bat
+python -m synthkit.cli fit --src %USERPROFILE%\dev\tidy_live300b.csv --out %USERPROFILE%\dev\live300b_rehearsal --group-by person_id --generate --exclude conditions,procedures,drug_routes
+```
+
+```bat
+python -m synthkit.cli gate %USERPROFILE%\dev\live300b_rehearsal
+```
+
+**Send back:** the gate's INVERTED line either way - it decides
+which in-room sentence is true. Then one out-loud rehearsal, and
+freeze.
