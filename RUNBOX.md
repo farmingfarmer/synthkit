@@ -1,63 +1,49 @@
-# RUNBOX — one final pull, then the second-seed check
+# RUNBOX — demo prep, plus the latent challenger's first real read
 
-Updated 2026-09-23 (night). Your rehearsal landed and it was
-worth every minute: fit 329s, and the gate caught a real
-inversion on the 300-patient sample - span_days ~
-diastolic_blood_pressure_invasive, source -0.139, generated
-+0.188 - the EXACT pair the new fragility flag named first
-during the fit. The demo now scripts that as its centerpiece
-(SPEAKER.html has the words). Two things remain.
+Updated 2026-09-24 (night). Two workstreams share this pull: the
+demo prep (unchanged below) and the new latent challenger - the
+competing autoencoder generator you proposed, built and measured
+today. On fixtures it holds the interactions the blueprint loses
+(XOR nearly exact, the colinear family 63/63 close, driver shares
+transferring 35/65 -> 42/58 where the blueprint flips) and it
+PASSED the membership attack at the fixture (worst 0.546, with a
+weights-leak adversary and a republish control that reads 1.000
+FAIL). It also has its own costs, stated: 2-4 inversions at full
+width where the blueprint holds zero, no within-patient dynamics,
+and it trains on records - every run says "a MEASUREMENT, not a
+release."
 
-## 1. One final pull (the calm bench + the exclude field)
+## 1. Pull once
 
-Two builds landed since your trial run: the Fit station carries
-`--exclude` now, and the bench itself was redesigned to the calm
-gallery look you asked for - one centered column, secondary
-prose folded behind micro-labels, and "Check the types" now
-narrates LIVE line by line through the same renderer as the fit
-(the blob is gone; verified by headless-Chrome screenshots
-before shipping). Zipball per WINDOWS.md; expect **68 suites,
-1925 checks, ALL GREEN**. Then:
+Zipball per WINDOWS.md. Expect **69 suites, 1934 checks, ALL
+GREEN** (new suite: smoke_latent). Then `pip install -e .`,
+relaunch the bench, wordmark check - as before.
 
-```bat
-pip install -e .
-```
+## 2. The latent challenger reads the real 300-patient sample
 
-```bat
-python -m synthkit.cli version
-```
-
-Run version AFTER the install (your rehearsal ran it before,
-which is why it showed a stale id). Relaunch the bench,
-hard-refresh, wordmark must match this version line.
-
-## 2. The second-seed check (the gate's own guidance)
-
-Know before the room whether the inversion reproduces - a
-reproducible inversion is a defect to report, a single-seed one
-is a stop for that file only. Different sample seed, everything
-else identical:
+The named triple is the REAL attribution flip - span_days driven
+by procedure_count vs active_drug_count, where the blueprint's
+SHAP read 74/26 flipping to 22/78:
 
 ```bat
-python -m synthkit.cli sample %USERPROFILE%\dev\tidy_visits.csv --group-by person_id --patients 300 --seed 11 -o %USERPROFILE%\dev\tidy_live300b.csv
+python scripts\latent_challenger.py csv %USERPROFILE%\dev\tidy_live300.csv --group-by person_id --seeds 0,1,2 --shares span_days=procedure_count,active_drug_count
 ```
 
-```bat
-python -m synthkit.cli fit --src %USERPROFILE%\dev\tidy_live300b.csv --out %USERPROFILE%\dev\live300b_rehearsal --group-by person_id --generate --exclude conditions,procedures,drug_routes
-```
+**Expect:** a settings echo, then one line per seed - sign /
+close / INVERTED / nn-ratio / shares src vs gen. A few minutes
+per seed. Nothing is written to disk without --out, and any
+--out output is real-derived and STAYS on this machine.
 
-```bat
-python -m synthkit.cli gate %USERPROFILE%\dev\live300b_rehearsal
-```
+**Send back:** the full output. The three numbers that decide
+the next step: the shares drift (does the driver ordering hold
+on real data), the INVERTED count, and the nn-ratio (under ~0.8
+means the memorization tripwire is pulling and the k-screen
+needs tightening before anything else).
 
-**Expect:** about 5-6 minutes for the fit. Read the INVERTED
-line either way.
+## 3. Demo prep (unchanged, still pending)
 
-**Send back:** the gate output. If seed 11 also inverts that
-pair, the in-room line changes from "single-seed, this file
-stops" to "reproducible at this cohort size, it is on the
-fidelity list by name" - both are honest, but you want to know
-which one is true before someone asks.
-
-Demo day itself: NO pull, no reinstall. The build you verify
-tonight is the build you demo.
+The second-seed check from the previous RUNBOX - sample --seed
+11, fit with the same --exclude flags, gate - and one out-loud
+rehearsal. Commands are in the previous section of this file's
+git history if the terminal scrolled; say the word and they
+reappear here.
