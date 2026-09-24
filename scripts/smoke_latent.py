@@ -128,6 +128,47 @@ def main():
           plan_kind["days"] == "num"
           and gen3["cat"].nunique() > 1)
 
+    # THE HEAD-TO-HEAD IS ONE COMMAND. compare measures the
+    # blueprint run's generated.csv and the latent draws against
+    # the SAME source with the SAME metrics - and refuses in a
+    # sentence when the run directory holds no generated.csv.
+    import subprocess as _sp
+    import tempfile as _tf
+    with _tf.TemporaryDirectory() as _td:
+        _src = Path(_td) / "src.csv"
+        df.to_csv(_src, index=False)
+        _bp = Path(_td) / "bprun"
+        _bp.mkdir()
+        df.sample(frac=0.9, random_state=1).to_csv(
+            _bp / "generated.csv", index=False)
+        _r = _sp.run([sys.executable,
+                      str(_root / "scripts" /
+                          "latent_challenger.py"),
+                      "compare", str(_src), "--group-by",
+                      "person_id", "--blueprint-run", str(_bp),
+                      "--seeds", "0"],
+                     capture_output=True, text=True,
+                     cwd=str(_root))
+        _r2 = _sp.run([sys.executable,
+                       str(_root / "scripts" /
+                           "latent_challenger.py"),
+                       "compare", str(_src), "--group-by",
+                       "person_id", "--blueprint-run",
+                       str(Path(_td) / "absent")],
+                      capture_output=True, text=True,
+                      cwd=str(_root))
+        check("compare prints one table - blueprint and latent "
+              "rows against the same source, the honesty footer "
+              "attached - and a missing generated.csv refuses "
+              "in a sentence with exit 2",
+              _r.returncode == 0
+              and "blueprint" in _r.stdout
+              and "latent seed 0" in _r.stdout
+              and "Fidelity is only one column" in _r.stdout
+              and _r2.returncode == 2
+              and "no generated.csv" in _r2.stderr
+              and "Traceback" not in _r2.stderr)
+
     if FAIL:
         print("{} of {} checks failed.".format(FAIL, PASS + FAIL))
         sys.exit(1)

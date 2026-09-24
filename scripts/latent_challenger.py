@@ -496,6 +496,112 @@ def run_csv(argv):
           "records: a MEASUREMENT, not a release.")
 
 
+def run_compare(argv):
+    """THE HEAD-TO-HEAD, one command, one table. The blueprint
+    run's generated.csv and the latent path's draws are measured
+    against the SAME source frame with the SAME metrics - a
+    comparison assembled by eye from two terminals is not a
+    comparison. Frames are restricted to the columns all three
+    share, and what was dropped is SAID."""
+    import argparse
+    ap = argparse.ArgumentParser(
+        prog="latent_challenger.py compare")
+    ap.add_argument("csv")
+    ap.add_argument("--group-by", required=True)
+    ap.add_argument("--blueprint-run", required=True,
+                    help="a finished fit run directory holding "
+                         "generated.csv")
+    ap.add_argument("--seeds", default="0,1,2")
+    ap.add_argument("--shares", default=None)
+    ap.add_argument("--out", default=None)
+    a = ap.parse_args(argv)
+    seeds = [int(x) for x in a.seeds.split(",")]
+    print("compare: --group-by {} --blueprint-run {} --seeds {} "
+          "--shares {} --out {}".format(
+              a.group_by, a.blueprint_run, a.seeds,
+              a.shares or "(none)", a.out or "(none)"))
+    bp_csv = Path(a.blueprint_run) / "generated.csv"
+    if not bp_csv.exists():
+        print("STOPPED: no generated.csv in {} - point "
+              "--blueprint-run at a finished `synthkit fit "
+              "--generate` run".format(a.blueprint_run),
+              file=sys.stderr)
+        return 2
+    src = pd.read_csv(a.csv, dtype=str,
+                      keep_default_na=False).replace("", np.nan)
+    bpg = pd.read_csv(bp_csv, dtype=str,
+                      keep_default_na=False).replace("", np.nan)
+    common = [c for c in src.columns
+              if c in bpg.columns or c == a.group_by]
+    dropped = [c for c in src.columns if c not in common]
+    if dropped:
+        print("columns not in the blueprint output, dropped "
+              "from ALL sides so the metrics match: {}".format(
+                  ", ".join(dropped[:8])
+                  + (", ..." if len(dropped) > 8 else "")))
+    src = src[common]
+    cols = [c for c in common if c != a.group_by]
+
+    def score(gen, label, g_for_nn=None, ho=None):
+        sign, close, inv, n = _pair_score(
+            _pairs(src, cols), _pairs(gen, cols))
+        extra = ""
+        if a.shares:
+            child, ps = a.shares.split("=")
+            parents = ps.split(",")
+
+            def nf(fr):
+                return fr.assign(**{
+                    c: pd.to_numeric(fr[c], errors="coerce")
+                    for c in [child] + parents}).dropna(
+                        subset=[child] + parents)
+            try:
+                gs, _ = _shares(nf(gen), child, parents)
+                extra = " | shares " + "/".join(
+                    "{:.0%}".format(x) for x in gs)
+            except Exception as e:
+                extra = " | shares unmeasurable ({})".format(e)
+        nnr = ""
+        if g_for_nn is not None:
+            nnr = " | nn-ratio {:.2f}".format(
+                g_for_nn.nn_ratio(gen,
+                                  g_for_nn._re_encode_frame(ho)))
+        print("  {:<18} sign {}/{} close {}/{} INVERTED {}{}{}"
+              .format(label, sign, n, close, n, inv, nnr, extra))
+
+    if a.shares:
+        child, ps = a.shares.split("=")
+        parents = ps.split(",")
+
+        def nf0(fr):
+            return fr.assign(**{
+                c: pd.to_numeric(fr[c], errors="coerce")
+                for c in [child] + parents}).dropna(
+                    subset=[child] + parents)
+        ss, _ = _shares(nf0(src), child, parents)
+        print("  {:<18} shares {}".format(
+            "source", "/".join("{:.0%}".format(x)
+                               for x in ss)))
+    score(bpg, "blueprint")
+    for seed in seeds:
+        tr, ho = _split_patients(src, a.group_by, seed)
+        g = LatentGen(seed=seed).fit(tr, a.group_by)
+        gen = g.generate(len(tr), seed=seed + 1000)
+        score(gen, "latent seed {}".format(seed),
+              g_for_nn=g, ho=ho)
+        if a.out:
+            outd = Path(a.out)
+            outd.mkdir(parents=True, exist_ok=True)
+            gen.to_csv(outd / "latent_gen_seed{}.csv".format(
+                seed), index=False)
+    print("Same source, same metrics, both engines. The latent "
+          "path trains on records and has no dynamics; the "
+          "blueprint publishes k-screened aggregates and passed "
+          "its attack battery. Fidelity is only one column of "
+          "that table.")
+    return 0
+
+
 def _planted_frame(seed):
     """The nonlinear core: the tidy fixture's planted xor, u-shape,
     threshold, 3-way and simpson columns - the kinds the operator's
@@ -520,6 +626,8 @@ if __name__ == "__main__":
     which = sys.argv[1] if len(sys.argv) > 1 else "triangle"
     if which == "csv":
         run_csv(sys.argv[2:])
+    elif which == "compare":
+        sys.exit(run_compare(sys.argv[2:]))
     elif which == "attack":
         seeds = [int(x) for x in sys.argv[2:]] or [0, 1, 2]
         run_attack(seeds)

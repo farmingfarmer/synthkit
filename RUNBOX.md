@@ -15,30 +15,40 @@ release."
 
 ## 1. Pull once
 
-Zipball per WINDOWS.md. Expect **69 suites, 1934 checks, ALL
+Zipball per WINDOWS.md. Expect **69 suites, 1935 checks, ALL
 GREEN** (new suite: smoke_latent). Then `pip install -e .`,
 relaunch the bench, wordmark check - as before.
 
-## 2. The latent challenger reads the real 300-patient sample
+## 2. The head-to-head: new engine vs old, one command, one table
 
-The named triple is the REAL attribution flip - span_days driven
-by procedure_count vs active_drug_count, where the blueprint's
-SHAP read 74/26 flipping to 22/78:
+`compare` trains the latent challenger on the real 300-patient
+sample AND measures your existing blueprint run's generated.csv
+against the SAME source with the SAME metrics - source shares
+first, then one row per engine. The named triple is the REAL
+attribution flip (span_days driven by procedure_count vs
+active_drug_count, where the blueprint's SHAP read 74/26
+flipping to 22/78):
 
 ```bat
-python scripts\latent_challenger.py csv %USERPROFILE%\dev\tidy_live300.csv --group-by person_id --seeds 0,1,2 --shares span_days=procedure_count,active_drug_count
+python scripts\latent_challenger.py compare %USERPROFILE%\dev\tidy_live300.csv --group-by person_id --blueprint-run %USERPROFILE%\dev\live300_rehearsal --seeds 0,1,2 --shares span_days=procedure_count,active_drug_count
 ```
 
-**Expect:** a settings echo, then one line per seed - sign /
-close / INVERTED / nn-ratio / shares src vs gen. A few minutes
-per seed. Nothing is written to disk without --out, and any
---out output is real-derived and STAYS on this machine.
+**Expect:** a settings echo; a note naming the columns dropped
+because the blueprint run excluded them (conditions, procedures,
+drug_routes - all sides are restricted to shared columns so the
+metrics match); then the table - `source ... shares`, one
+`blueprint` row, three `latent seed N` rows, each with sign /
+close / INVERTED / shares, the latent rows also carrying the
+nn-ratio memorization tripwire. A few minutes per latent seed.
+Nothing is written without --out; --out output is real-derived
+and STAYS on this machine.
 
-**Send back:** the full output. The three numbers that decide
-the next step: the shares drift (does the driver ordering hold
-on real data), the INVERTED count, and the nn-ratio (under ~0.8
-means the memorization tripwire is pulling and the k-screen
-needs tightening before anything else).
+**Send back:** the whole table. The four numbers that decide the
+next step: whose shares sit closer to the source's, the INVERTED
+counts side by side (the blueprint's guarantee vs the latent's
+known 2-4-at-width cost), close side by side, and the nn-ratio
+(under ~0.8 means the tripwire is pulling and the k-screen
+tightens before anything else).
 
 ## 3. Demo prep - the second-seed check (still pending)
 
