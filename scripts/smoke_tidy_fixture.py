@@ -346,6 +346,18 @@ def main():
                         str(Path(_ts2) / "s4.csv")],
                        capture_output=True, text=True,
                        cwd=str(_root2))
+        _r5 = _sp2.run([_sys2.executable, "-m", "synthkit.cli",
+                        "sample", str(Path(_ts2) / "absent.csv"),
+                        "--group-by", "pid", "--patients", "3",
+                        "-o", str(Path(_ts2) / "s5.csv")],
+                       capture_output=True, text=True,
+                       cwd=str(_root2))
+        check("...a missing source file refuses in a sentence "
+              "naming the path - found as a raw traceback on the "
+              "first real use, the day it shipped",
+              _r5.returncode == 2
+              and "could not read" in _r5.stderr
+              and "Traceback" not in _r5.stderr)
         check("...an unknown group column refuses in a sentence "
               "naming the real columns, and asking for more "
               "patients than exist SAYS it copied rather than "

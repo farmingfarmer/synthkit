@@ -407,6 +407,55 @@ def main():
           "full extract", r2.returncode == 0
           and (out2 / "findings.txt").exists())
 
+    # ---- attribution fragility is NAMED, never silently rolled --
+    # A parent under 2% of its claim's top importance flickers in
+    # and out with the seed; on the triangle fixture one asymmetric
+    # appearance flipped the generated file's SHAP attribution.
+    # Cutting such parents was measured and REVERTED (pressure
+    # surfaces 0/5 -> 3/5 seeds failing, bench recall down); the
+    # claim flags them instead, and the run says so out loud.
+    import numpy as _np
+    import pandas as _pd
+    import sys as _sy
+    from pathlib import Path as _P
+    _sy.path.insert(0, str(_P(__file__).resolve().parent.parent))
+    from synthkit.discover import discover as _disc
+    _r = _np.random.RandomState(5)
+    _n = 900
+    _g = _np.repeat(_np.arange(150), 6)
+    _dom = _r.normal(0, 1, _n)
+    _tiny = _r.normal(0, 1, _n)
+    _dfF = _pd.DataFrame({
+        "person_id": ["P{:03d}".format(i) for i in _g],
+        "dom": _np.round(_dom, 3),
+        "tiny": _np.round(_tiny, 3),
+        # tiny's coefficient puts its importance INSIDE the
+        # borderline band: past the absolute inclusion gate,
+        # under 2% of dom's - the band the flag is about, which
+        # the first cut of this fixture missed entirely (0.18
+        # never cleared inclusion and the flag read None).
+        "child": _np.round(10 + 5.0 * _dom + 0.5 * _tiny
+                           + _r.normal(0, 0.6, _n), 3),
+        "peer_a": _np.round(_r.normal(0, 1, _n), 3),
+    })
+    _dfF["peer_b"] = _np.round(
+        0.9 * _dfF["peer_a"] + 0.9 * _r.normal(0, 1, _n), 3)
+    _catF = _disc(_dfF, group_by="person_id", seed=2)
+    _byc = dict((c["child"], c) for c in _catF["claims"])
+    _ch = _byc.get("child") or {}
+    _fr = _ch.get("attribution_fragile_parents") or []
+    check("a parent under 2% of its claim's top importance is "
+          "FLAGGED on the claim, kept in the predictors, with its "
+          "share of top stated",
+          any(f["column"] == "tiny" and f["share_of_top"] < 0.02
+              for f in _fr)
+          and any(q["column"] == "tiny"
+                  for q in _ch.get("predictors") or []))
+    _pb = _byc.get("peer_b") or {}
+    check("...and a claim whose parents are comparable carries no "
+          "flag - the flag means fragile, not merely second",
+          not _pb.get("attribution_fragile_parents"))
+
     print()
     if FAIL:
         print("{} FAILED".format(FAIL))

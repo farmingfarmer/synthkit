@@ -4,7 +4,7 @@ Synthetic clinical data generator and model-evaluation instrument. Core rule: le
 
 ## Verify before claiming
 
-- Run `python scripts/run_all_smokes.py` before claiming anything works. Expect 68 suites, 1929 checks, ALL GREEN **on a checkout**. Off a zipball extract - which is what the data machine runs - it is 1920: nine checks in `smoke_buildid` need git to test the archive path and report SKIPPED without it. Both numbers were measured. Do not quote the checkout number to the data machine; that is how a correct run gets read as a failure.
+- Run `python scripts/run_all_smokes.py` before claiming anything works. Expect 68 suites, 1932 checks, ALL GREEN **on a checkout**. Off a zipball extract - which is what the data machine runs - it is 1923: nine checks in `smoke_buildid` need git to test the archive path and report SKIPPED without it. Both numbers were measured. Do not quote the checkout number to the data machine; that is how a correct run gets read as a failure.
 - **THE DEVELOPMENT MACHINE WAS BEHIND THE DATA MACHINE, and that is
   how a green suite here failed there.** Dev was on Python 3.10 with
   pandas 2.3; the data machine installs fresh and got pandas 3.0.5,
@@ -251,6 +251,63 @@ the direction that stops work happening.
   triangle and surfaces is the likeliest candidate to heal
   inversions too, since all three symptoms sit on the trim
   machinery.
+
+- **THE ATTRIBUTION FLIP IS SURGERY-PROVEN AND SHARPER THAN ITS
+  FIRST CHARACTERIZATION (2026-09-23).** Eight instrumented seeds
+  on the triangle: cross-edges live at 0.2-0.9% of their claim's
+  top importance and flicker with the seed; both-absent seeds sit
+  STABLE at 69-71/29-31 against a 77/23 source, edge-present
+  seeds lock at 86-90, and the one flip (39/61) is the
+  ASYMMETRIC case - the reverse edge drug<-proc included alone.
+  Causality by blueprint surgery: removing that ONE parent
+  restored 70/30, removing the whole relationship gave the same
+  70/30 - while dialing the edge's strength to ZERO changed
+  nothing (39/61 -> 40/60). The harm is the edge's PRESENCE in
+  the graph - trim decisions, cycle ordering, coupling - not its
+  curve.
+- **CUTTING THE BORDERLINE PARENTS WAS MEASURED AND REVERTED,
+  WITH THE NUMBERS.** A 2%-of-top relative floor stabilized the
+  triangle completely - 0 flips in 8 seeds, the identical edge
+  set on every seed - and cost the pressure fixture its surfaces
+  (0/5 seeds failing -> 3/5), with drop lists showing
+  hemoglobin-family parents cut at 1-1.7% relative. The bench
+  read 11/13 under the floor and the SAME 11/13 after the
+  revert, identical misses both ways - that delta against the
+  recorded 12/13 is pre-existing drift on HEAD (het is now
+  unexplained at discovery on the default fixture config), NOT
+  the floor's doing, and the misattribution was caught only by
+  re-running the bench after the revert. Locally right,
+  globally worse - the greedy-cut lesson on the discovery side.
+  What shipped instead is the FLAG: claims name their
+  `attribution_fragile_parents` (kept, with share-of-top), the
+  fit narration says "N borderline parent(s) flagged -
+  attribution involving them is seed-fragile", and a future cut
+  must hold pressure at 0/5 seeds failing and the bench at its
+  same-day baseline, not just win the triangle.
+- **THE TOKEN-WEIGHT SOLVE UNDERSHOOTS AT SMALL-COHORT /
+  HUGE-VOCABULARY SHAPE, BY A CONSTANT (OPEN, 2026-09-23).** A
+  300-patient sample of the extract-shaped fixture (active_drugs:
+  1,626 tokens, ~24 above the cap, most of the vocabulary near
+  the k floor) generated EVERY published token at almost exactly
+  one third of its source share - twelve deltas between -0.061
+  and -0.069 on sources near 0.095, `set token shares 0/12`. A
+  constant multiplier across tokens is a denominator or a solve,
+  not twelve faults; the damped solve was verified at the
+  800-patient extract shape and never at this one - the
+  measured-only-at-one-scale lesson, again. NOT fixed; reproduce
+  at this shape before touching the solve, and expect the LIVE
+  demo's 300-patient rehearsal to show it on the real
+  active_drugs.
+- **THE LIVE-FIT DEMO MATH: SET EXPANSION, NOT ROWS, OWNS THE
+  SEARCH BUDGET.** On the 300-patient fixture sample, 85 file
+  columns became 143 searched after token expansion, and the fit
+  blew past 10 minutes; excluding three of four set columns cut
+  the search to 104 and the fit landed. The August "274s with
+  --lags" number predates set expansion and must not be used for
+  estimates. Live-demo configuration: whole-patient `synthkit
+  sample` plus `--exclude` on the heavy set columns, REHEARSED
+  once for minutes and gate verdict before any room sees it -
+  and timing measured on a contended machine is not timing.
 
 - **THE SWEEPS ARE GAUSS-SEIDEL, AND THE LAST WRITER WAS WINNING.**
   In-place ordered refinement leaves the last-refined cyclic column

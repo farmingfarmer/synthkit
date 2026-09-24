@@ -824,6 +824,42 @@ def discover(df: pd.DataFrame,
                               "via": [c for c in members
                                       if c != src] or None})
         preds.sort(key=lambda d: -d["importance"])
+        # A PARENT AT NOISE LEVEL RELATIVE TO ITS OWN CLAIM IS
+        # FLAGGED, NOT DROPPED. On the attribution-triangle
+        # fixture, a cross-edge at 0.2-0.9% of its claim's top
+        # importance flickers in and out with the seed, and the
+        # one seed of eight where it appeared ASYMMETRICALLY
+        # flipped the file's SHAP attribution (39/61 against a
+        # 77/23 source) - proven causal by blueprint surgery:
+        # removing that one parent restored 70/30, while dialing
+        # its strength to zero changed nothing. The harm is the
+        # edge's PRESENCE in the graph (trim decisions, cycle
+        # ordering, coupling), not its curve.
+        #
+        # CUTTING at a 2% relative floor was built and MEASURED:
+        # the triangle stabilized completely (0 flips in 8 seeds,
+        # identical edge set on every seed) - and the pressure
+        # fixture's surface criterion went from 0/5 seeds failing
+        # to 3/5, and the drop lists showed real hemoglobin-
+        # family parents being cut at 1-1.7% relative (the bench
+        # read the same 11/13 with and without the floor - that
+        # delta was pre-existing drift, not this). Locally right, globally worse -
+        # the greedy-cut lesson again, so the cut is REVERTED
+        # with its numbers and the flag ships instead: the claim
+        # names its borderline parents, and a reader of the
+        # attribution knows the number is seed-fragile. A future
+        # cut must beat the pressure 0/5 and the bench 12/13,
+        # not just the triangle.
+        borderline = None
+        if len(preds) > 1:
+            top_m = preds[0]["importance"]
+            borderline = [
+                {"column": q["column"],
+                 "importance": q["importance"],
+                 "share_of_top": round(
+                     q["importance"] / top_m, 5)}
+                for q in preds[1:]
+                if q["importance"] < 0.02 * top_m] or None
         if not preds:
             unexplained.append(target)
             continue
@@ -1035,6 +1071,7 @@ def discover(df: pd.DataFrame,
             "train_patients": n_tr_g,
             "holdout_patients": n_te_g,
             "interaction": interaction,
+            "attribution_fragile_parents": borderline,
             # NEAR-DETERMINISTIC: arithmetic, not a discovery.
             #
             # On the real extract the top of the report was

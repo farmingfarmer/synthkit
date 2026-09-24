@@ -427,6 +427,24 @@ def main(argv=None, args=None):
         "dropped".format(len(cat["claims"]), len(cat["unexplained"]),
                          len(cat["skipped"]),
                          len(cat.get("identifiers_dropped") or [])))
+    # SAY WHEN AN ATTRIBUTION IS SEED-FRAGILE. A parent under 2% of
+    # its claim's top importance flickers in and out of discovery
+    # with the seed, and on the triangle fixture the asymmetric
+    # appearance of one such edge flipped the generated file's SHAP
+    # attribution. Cutting them was measured and reverted (it cost
+    # the pressure fixture its surfaces); naming them costs nothing
+    # and tells the reader which driver shares not to lean on.
+    _frag = [(cl["child"], f["column"])
+             for cl in cat["claims"]
+             for f in (cl.get("attribution_fragile_parents")
+                       or [])]
+    if _frag:
+        say("{} borderline parent(s) flagged - attribution "
+            "involving them is seed-fragile: {}".format(
+                len(_frag),
+                ", ".join("{}<-{}".format(c, p_)
+                          for c, p_ in _frag[:6])
+                + (", ..." if len(_frag) > 6 else "")))
     (out / "catalogue.json").write_text(
         json.dumps(cat, indent=1), encoding="utf-8")
 

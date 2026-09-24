@@ -667,7 +667,13 @@ def cmd_sample(args) -> int:
     second parser waiting to disagree with the first."""
     import numpy as np
     import pandas as pd
-    df = pd.read_csv(args.csv, dtype=str, keep_default_na=False)
+    try:
+        df = pd.read_csv(args.csv, dtype=str,
+                         keep_default_na=False)
+    except OSError as e:
+        print("could not read {}: {}".format(args.csv, e),
+              file=sys.stderr)
+        return 2
     if args.group_by not in df.columns:
         print("no column named {!r} in {} - the columns are: {}"
               .format(args.group_by, args.csv,
