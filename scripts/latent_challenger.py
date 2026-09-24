@@ -69,8 +69,13 @@ def _k_clip(vals: np.ndarray, gid: np.ndarray, k: int):
 
 
 class LatentGen:
-    def __init__(self, k: int = K, bottleneck: int = 8,
-                 hidden: int = 64, seed: int = 0):
+    def __init__(self, k: int = K, bottleneck: int = None,
+                 hidden: int = None, seed: int = 0):
+        # Capacity scales with the frame, decided at fit time. An
+        # 8-dim bottleneck tuned on 6-column fixtures LOST a named
+        # driver triple entirely at 77 columns (shares read 0/0,
+        # close fell to 61%) - a ruler too short for the thing it
+        # measures reads as a finding about the thing.
         self.k, self.b, self.h, self.seed = k, bottleneck, hidden, seed
 
     def fit(self, df: pd.DataFrame, group_by: str):
@@ -82,7 +87,17 @@ class LatentGen:
         mats = []
         for c in cols:
             v = pd.to_numeric(df[c], errors="coerce")
-            if v.notna().mean() >= 0.5 and v.nunique() > 8:
+            # A column whose values are NUMBERS is numeric however
+            # few of them there are - span_days holds seven
+            # distinct day-counts, fell into the categorical
+            # branch, and argmax decoding collapsed it to a
+            # constant. The wrong-type fault, in this repo's own
+            # ruler, found the same way as always: by reading the
+            # output.
+            raw_notna = df[c].notna().mean()
+            is_num = (raw_notna > 0 and v.notna().mean()
+                      >= 0.9 * raw_notna and v.nunique() >= 3)
+            if v.notna().mean() >= 0.5 and is_num:
                 lo, hi = _k_clip(v.to_numpy(dtype=float), gid,
                                  self.k)
                 x = v.clip(lo, hi)
@@ -105,6 +120,10 @@ class LatentGen:
                      for l in levels]))
         X = np.hstack(mats)
         self.d = X.shape[1]
+        if self.b is None:
+            self.b = int(max(8, min(32, self.d // 6)))
+        if self.h is None:
+            self.h = int(max(64, min(256, 2 * self.d)))
         self.net = MLPRegressor(
             hidden_layer_sizes=(self.h, self.b, self.h),
             activation="relu", max_iter=800, tol=1e-5,
@@ -157,9 +176,16 @@ class LatentGen:
                 i += 2
             else:
                 levels = item[2]
-                block = X[:, i:i + len(levels)]
+                block = np.maximum(X[:, i:i + len(levels)], 1e-9)
+                # SAMPLE, do not argmax: argmax hands every row
+                # the modal level and the marginal collapses.
+                pr = block / block.sum(axis=1, keepdims=True)
+                cum = pr.cumsum(axis=1)
+                u = rng.rand(len(pr), 1)
+                idx = (u > cum).sum(axis=1)
                 out[c] = pd.Series(
-                    [levels[j] for j in block.argmax(axis=1)])
+                    [levels[min(j, len(levels) - 1)]
+                     for j in idx])
                 i += len(levels)
         return pd.DataFrame(out)
 
@@ -324,6 +350,152 @@ def run(which, seeds):
           "membership attack.")
 
 
+class ReconstructionAdversary:
+    """The likelihood adversary for the latent path, deliberately
+    GENEROUS to the attacker: it assumes the trained WEIGHTS leak,
+    not just the generated rows, and scores a candidate record by
+    how well the autoencoder reconstructs it - members were
+    trained on, so they reconstruct better. This is the classic
+    autoencoder membership attack, and it is exactly the exposure
+    the blueprint path does not have."""
+
+    def __init__(self, gen: LatentGen):
+        self.g = gen
+
+    def log_likelihood(self, row) -> float:
+        df = pd.DataFrame([row])
+        if "person_id" in df.columns:
+            df = df.drop(columns=["person_id"])
+        X = self.g._re_encode_frame(df)
+        R = self.g._decode(self.g._encode(X))
+        return -float(np.sum((X - R) ** 2))
+
+
+def run_attack(seeds):
+    """The SAME membership question the blueprint path answered at
+    worst 0.52 - asked of the latent path, on the same cohort
+    fixture, with the same bands, plus the republish control that
+    makes any PASS worth reading."""
+    sys.path.insert(0, str(ROOT / "scripts"))
+    from membership_new_path import cohort
+    from synthkit.attack import membership_audit
+    print("MEMBERSHIP ATTACK ON THE LATENT PATH - two "
+          "adversaries, worse one reported; the reconstruction "
+          "adversary assumes the WEIGHTS leak.")
+    worst = []
+    for seed in seeds:
+        df = cohort(600, 6, seed)
+        ids = sorted(df["person_id"].unique())
+        rng = np.random.RandomState(seed + 1)
+        rng.shuffle(ids)
+        half = len(ids) // 2
+        mem = df[df["person_id"].isin(set(ids[:half]))]
+        non = df[df["person_id"].isin(set(ids[half:]))]
+        g = LatentGen(seed=seed).fit(mem, "person_id")
+        synth = g.generate(len(mem), seed=seed + 2)
+        audit = membership_audit(
+            ReconstructionAdversary(g),
+            mem.to_dict("records"), non.to_dict("records"),
+            synthetic=synth.to_dict("records"))
+        print("seed {:>2}: nn {:.3f}  reconstruction {:.3f}  "
+              "worst {:.3f}  {}".format(
+                  seed,
+                  audit.get("nearest_neighbor", {}).get(
+                      "auc", 0.5),
+                  audit["likelihood"]["auc"],
+                  audit["worst_auc"], audit["verdict"]))
+        worst.append(audit["worst_auc"])
+    # THE POSITIVE CONTROL - a "generator" that republishes its
+    # members must FAIL, or the numbers above are decoration.
+    df = cohort(600, 6, seeds[0])
+    ids = sorted(df["person_id"].unique())
+    rng = np.random.RandomState(seeds[0] + 1)
+    rng.shuffle(ids)
+    half = len(ids) // 2
+    mem = df[df["person_id"].isin(set(ids[:half]))]
+    non = df[df["person_id"].isin(set(ids[half:]))]
+    g = LatentGen(seed=seeds[0]).fit(mem, "person_id")
+    leak = membership_audit(
+        ReconstructionAdversary(g),
+        mem.to_dict("records"), non.to_dict("records"),
+        synthetic=mem.drop(columns=[]).to_dict("records"))
+    print()
+    print("republish control: worst {:.3f} {} (must FAIL, or "
+          "the attack cannot see)".format(
+              leak["worst_auc"], leak["verdict"]))
+    print("latent path worst over {} seeds: mean {:.3f}, max "
+          "{:.3f} - read beside the blueprint's recorded 0.52, "
+          "same cohort fixture, same bands.".format(
+              len(seeds), float(np.mean(worst)),
+              float(np.max(worst))))
+    return worst, leak
+
+
+def run_csv(argv):
+    """The real-extract read, for the data machine. Echoes every
+    setting it received - a missing flag must be visible."""
+    import argparse
+    ap = argparse.ArgumentParser(prog="latent_challenger.py csv")
+    ap.add_argument("csv")
+    ap.add_argument("--group-by", required=True)
+    ap.add_argument("--seeds", default="0,1,2")
+    ap.add_argument("--out", default=None,
+                    help="directory for generated.csv per seed - "
+                         "REAL-DERIVED output stays on this "
+                         "machine")
+    ap.add_argument("--shares", default=None,
+                    help="CHILD=PARENT1,PARENT2 - SHAP driver "
+                         "shares on a named triple, source vs "
+                         "generated")
+    a = ap.parse_args(argv)
+    seeds = [int(x) for x in a.seeds.split(",")]
+    print("csv: --group-by {} --seeds {} --out {} --shares {}"
+          .format(a.group_by, a.seeds, a.out or "(none)",
+                  a.shares or "(none)"))
+    df = pd.read_csv(a.csv, dtype=str, keep_default_na=False)
+    df = df.replace("", np.nan)
+    print("read {}: {} rows x {} columns, {} patients".format(
+        a.csv, len(df), df.shape[1],
+        df[a.group_by].nunique()))
+    for seed in seeds:
+        tr, ho = _split_patients(df, a.group_by, seed)
+        g = LatentGen(seed=seed).fit(tr, a.group_by)
+        gen = g.generate(len(tr), seed=seed + 1000)
+        cols = [c for c in df.columns if c != a.group_by]
+        sign, close, inv, n = _pair_score(
+            _pairs(tr, cols), _pairs(gen, cols))
+        nn = g.nn_ratio(gen, g._re_encode_frame(ho))
+        extra = ""
+        if a.shares:
+            child, ps = a.shares.split("=")
+            parents = ps.split(",")
+            # BOTH frames get the same numeric coercion - the
+            # first cut coerced the source and handed the
+            # generated frame over raw, where a folded __other__
+            # string poisons the column and the shares read 0/0.
+            def _numframe(fr):
+                return fr.assign(**{
+                    c: pd.to_numeric(fr[c], errors="coerce")
+                    for c in [child] + parents}).dropna(
+                        subset=[child] + parents)
+            ss, _ = _shares(_numframe(tr), child, parents)
+            gs, _ = _shares(_numframe(gen), child, parents)
+            extra = " | shares src " + "/".join(
+                "{:.0%}".format(x) for x in ss) + " gen " +                 "/".join("{:.0%}".format(x) for x in gs)
+        print("seed {:>2}: sign {}/{} close {}/{} INVERTED {} | "
+              "nn-ratio {:.2f}{}".format(seed, sign, n, close,
+                                         n, inv, nn, extra))
+        if a.out:
+            outd = Path(a.out)
+            outd.mkdir(parents=True, exist_ok=True)
+            gen.to_csv(outd / "latent_gen_seed{}.csv".format(
+                seed), index=False)
+            print("  wrote {}".format(
+                outd / "latent_gen_seed{}.csv".format(seed)))
+    print("Row-level: no within-patient dynamics. Trains on "
+          "records: a MEASUREMENT, not a release.")
+
+
 def _planted_frame(seed):
     """The nonlinear core: the tidy fixture's planted xor, u-shape,
     threshold, 3-way and simpson columns - the kinds the operator's
@@ -346,5 +518,11 @@ def _planted_frame(seed):
 
 if __name__ == "__main__":
     which = sys.argv[1] if len(sys.argv) > 1 else "triangle"
-    seeds = [int(x) for x in sys.argv[2:]] or DEFAULT_SEEDS
-    run(which, seeds)
+    if which == "csv":
+        run_csv(sys.argv[2:])
+    elif which == "attack":
+        seeds = [int(x) for x in sys.argv[2:]] or [0, 1, 2]
+        run_attack(seeds)
+    else:
+        seeds = [int(x) for x in sys.argv[2:]] or DEFAULT_SEEDS
+        run(which, seeds)

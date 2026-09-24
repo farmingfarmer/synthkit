@@ -109,6 +109,25 @@ def main():
           "because the dirty one fails".format(honest, leak),
           honest > 0.5 and leak < 0.1)
 
+    # THE WRONG-TYPE FAULT, IN THE RULER ITSELF. span_days holds
+    # seven distinct day-counts; the first cut sent it down the
+    # categorical branch and argmax decoding collapsed it to a
+    # constant - shares read 0/0 and the instrument measured
+    # nothing while looking healthy. A numeric-valued column is
+    # numeric however few values it has, and a generated
+    # categorical must keep more than its modal level.
+    df2 = df.copy()
+    df2["days"] = (gid % 7 + 1).astype(int)
+    g2 = LatentGen(seed=6).fit(
+        df2[~df2["person_id"].isin(ho_ids)], "person_id")
+    plan_kind = dict((it[1], it[0]) for it in g2.plan)
+    gen3 = g2.generate(800, seed=4)
+    check("a seven-distinct-value integer column is planned "
+          "NUMERIC, and generated categoricals keep more than "
+          "their modal level",
+          plan_kind["days"] == "num"
+          and gen3["cat"].nunique() > 1)
+
     if FAIL:
         print("{} of {} checks failed.".format(FAIL, PASS + FAIL))
         sys.exit(1)

@@ -4,7 +4,7 @@ Synthetic clinical data generator and model-evaluation instrument. Core rule: le
 
 ## Verify before claiming
 
-- Run `python scripts/run_all_smokes.py` before claiming anything works. Expect 69 suites, 1942 checks, ALL GREEN **on a checkout**. Off a zipball extract - which is what the data machine runs - it is 1933: nine checks in `smoke_buildid` need git to test the archive path and report SKIPPED without it. Both numbers were measured. Do not quote the checkout number to the data machine; that is how a correct run gets read as a failure.
+- Run `python scripts/run_all_smokes.py` before claiming anything works. Expect 69 suites, 1943 checks, ALL GREEN **on a checkout**. Off a zipball extract - which is what the data machine runs - it is 1934: nine checks in `smoke_buildid` need git to test the archive path and report SKIPPED without it. Both numbers were measured. Do not quote the checkout number to the data machine; that is how a correct run gets read as a failure.
 - **THE DEVELOPMENT MACHINE WAS BEHIND THE DATA MACHINE, and that is
   how a green suite here failed there.** Dev was on Python 3.10 with
   pandas 2.3; the data machine installs fresh and got pandas 3.0.5,
@@ -270,6 +270,32 @@ the direction that stops work happening.
   generated-to-training over holdout-to-training) reads
   0.95-1.18 with a positive control that reads 0.00 on a
   verbatim republish.
+- **THE LATENT PATH TOOK THE MEMBERSHIP ATTACK AND PASSED AT THE
+  FIXTURE, WITH A MORE DANGEROUS ADVERSARY (2026-09-24).** Same
+  cohort fixture, same bands as the blueprint's recorded 0.52:
+  worst AUC 0.527-0.546 over three seeds - and the likelihood
+  adversary here is RECONSTRUCTION ERROR through the trained
+  weights, which assumes the weights themselves leak. The
+  republish control reads 1.000 FAIL, so the pass is a
+  measurement. One simple cohort at one k: a floor of a floor,
+  and the attack must re-run at real width before it means more.
+- **THE RULER CAUGHT THE WRONG-TYPE FAULT IN ITSELF, and scaling
+  found its own inversion cost.** span_days holds seven distinct
+  day-counts; the v1 gate sent it down the categorical branch and
+  argmax decoding collapsed it to a constant - the named triple's
+  shares read 0/0 while everything looked healthy. Numeric-valued
+  columns are numeric at any cardinality now, categoricals sample
+  proportionally instead of argmax, and capacity scales with the
+  frame (an 8-dim bottleneck at 77 columns read close 61%; scaled,
+  97-99%). After the fixes, at width: the flip triple's driver
+  shares transfer as 35/65 -> 42/58 (ordering held, ~7-point
+  drift), the XOR gain is nearly exact (0.545-0.570 against
+  0.556) - and the latent path produced 2-4 INVERSIONS among
+  ~1,375 pairs where the blueprint holds zero. The ruler has its
+  own failure mode, in the failure class this house treats as
+  worst; neither path dominates, and the comparison table must
+  carry both columns.
+
 - **AND ITS PRIVACY MODEL IS DIFFERENT IN KIND, SAID EVERY TIME:
   IT TRAINS ON RECORDS.** The k-screen narrows what the network
   sees; it does not prevent memorization, which is record-level.
