@@ -71,10 +71,17 @@ grade it honestly; then decide - import its strengths into the
 blueprint path (latent-informed surfaces), or promote it as a
 second engine behind the full attack battery.
 
-EXIT: the real-extract comparison table exists (blueprint vs
-latent vs source, interactions and SHAP shares), and the
-membership attack has been RUN on the latent path, whatever it
-reads.
+PROGRESS 2026-09-24: the real comparison table EXISTS and is
+decisive - blueprint 0.000 on all eight mined interactions and
+the driver flip reproduced (94/6 -> 25/75), latent holding both
+(93/7, interactions at source magnitude), tripwire clean at
+1.52-2.14. The attack ran at the FIXTURE (worst 0.546 PASS,
+republish control 1.000 FAIL); still owed at real width.
+
+EXIT: the membership attack runs at the real sample's width and
+shape, whatever it reads - then the fork is decided on evidence:
+latent-informed surfaces into the blueprint, or two engines with
+two stated postures.
 
 ## 4. Goal 8 - a challenger worth the name (week 2)
 

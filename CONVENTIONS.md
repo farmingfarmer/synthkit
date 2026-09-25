@@ -296,6 +296,36 @@ the direction that stops work happening.
   worst; neither path dominates, and the comparison table must
   carry both columns.
 
+- **THE REAL HEAD-TO-HEAD RAN (2026-09-24), AND THE INTERACTION
+  VERDICT IS A ROUT.** On the real 300-patient sample, the miner
+  found the source's top-8 two-way interactions - all in the
+  span_days / condition_count / active_drug_count /
+  procedure_count family, the exact territory of the operator's
+  SHAP complaint - and the BLUEPRINT READS 0.000 ON EVERY ONE.
+  Not weakened: absent. The latent path holds the strong ones at
+  source magnitude (0.131 -> 0.133/0.131 on two seeds, one
+  overshoot 0.192) and loses only the <=0.02 tail. Driver
+  attribution: source 94/6, blueprint 25/75 (the flip, live),
+  latent 93/7 / 89/11 / 91/9. By the compare's uniform pair
+  metric the blueprint also showed 20 inversions of 443 to the
+  latent's 1-6 of 325 (the GATE's own count on the same run is
+  1 of its 51 related pairs - different denominator and
+  definition, both true, say which one is quoted). The
+  memorization tripwire read 1.52-2.14: no copying signal; the
+  autoencoder smooths. Still owed before any posture change:
+  the membership attack at real width, and dynamics - the
+  latent path has none.
+- **THE BLUEPRINT'S ZERO IS STRUCTURAL, NOT A TUNING MISS.** The
+  engine publishes interaction surfaces only where discovery
+  finds and keeps them, applies them through curves - and the
+  product-gain metric shows the OUTPUT carries none of it on
+  this sample. The fork this forces: mine interactions the
+  challenger's way and PUBLISH them as k-screened surfaces the
+  blueprint samples from (latent-informed surfaces - keeps the
+  aggregates-only privacy posture), or run two engines behind
+  two stated postures. Decide on the attack-at-width result,
+  not before.
+
 - **AND ITS PRIVACY MODEL IS DIFFERENT IN KIND, SAID EVERY TIME:
   IT TRAINS ON RECORDS.** The k-screen narrows what the network
   sees; it does not prevent memorization, which is record-level.
