@@ -1081,6 +1081,65 @@ def main():
               and _so2.read_text(encoding="utf-8")
               == _so.read_text(encoding="utf-8"))
 
+    # THE DUEL PAGE: both engines against one source. Built by
+    # ONE function (fidelity_deck.build_duel) that the CLI and
+    # the bench both call; asserts the three series, the gap
+    # heatmap with both poles explained, the mined interactions,
+    # the k-suppression count, and the posture footer - and that
+    # a missing input refuses with a plain ValueError, because
+    # inside the bench a sys.exit takes the server down.
+    import numpy as _np2
+    import pandas as _pd2
+    sys.path.insert(0, str(ROOT / "scripts"))
+    from fidelity_deck import build_duel
+    with tempfile.TemporaryDirectory() as _dd:
+        _r2 = _np2.random.RandomState(2)
+        _n2 = 900
+        _g2 = _np2.repeat(_np2.arange(150), 6)
+        _x2 = _r2.normal(50, 10, _n2)
+        _src2 = _pd2.DataFrame({
+            "person_id": ["P{:03d}".format(i) for i in _g2],
+            "a": _np2.round(_x2, 2),
+            "b": _np2.round(0.7 * _x2 + _r2.normal(0, 5, _n2),
+                            2),
+            "c": _np2.round(_r2.normal(0, 1, _n2), 2)})
+        _sp2 = Path(_dd) / "src.csv"
+        _src2.to_csv(_sp2, index=False)
+        _rn2 = Path(_dd) / "run"
+        _rn2.mkdir()
+        (_rn2 / "blueprint.json").write_text(
+            json.dumps({"columns": {}}), encoding="utf-8")
+        _src2.sample(frac=0.9, random_state=3).to_csv(
+            _rn2 / "generated.csv", index=False)
+        _lat2 = Path(_dd) / "lat.csv"
+        _src2.sample(frac=0.8, random_state=4).drop(
+            columns=["person_id"]).to_csv(_lat2, index=False)
+        _duel = build_duel(str(_sp2), str(_rn2), str(_lat2),
+                           "person_id")
+        check("the duel page carries three series, the gap map "
+              "with both poles explained, the mined-interaction "
+              "section, the suppression count, and both privacy "
+              "postures",
+              'class="ser lat"' in _duel
+              and 'class="ser src"' in _duel
+              and 'class="ser syn"' in _duel
+              and "The gap, drawn" in _duel
+              and "drifts further" in _duel
+              and "The mined interactions" in _duel
+              and "suppressed by" in _duel
+              and "trains on records" in _duel
+              and "k-screened aggregates" in _duel)
+        try:
+            build_duel(str(_sp2), str(Path(_dd) / "nope"),
+                       str(_lat2), "person_id")
+            _refused = False
+        except ValueError as e:
+            _refused = "generated.csv" in str(e)
+        check("...and a missing blueprint side refuses with a "
+              "plain ValueError naming generated.csv - never "
+              "sys.exit, which would take the bench down",
+              _refused)
+
     # THE GATE, ENUMERATED. FAIL chips said which criterion and
     # stopped; the operator asked where the misses were and how
     # large. gate_issues_html names every drifted pair with its

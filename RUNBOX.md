@@ -1,76 +1,63 @@
-# RUNBOX — demo prep, plus the latent challenger's first real read
+# RUNBOX — the full-extract duel, entirely inside the bench
 
-Updated 2026-09-24 (night). Two workstreams share this pull: the
-demo prep (unchanged below) and the new latent challenger - the
-competing autoencoder generator you proposed, built and measured
-today. On fixtures it holds the interactions the blueprint loses
-(XOR nearly exact, the colinear family 63/63 close, driver shares
-transferring 35/65 -> 42/58 where the blueprint flips) and it
-PASSED the membership attack at the fixture (worst 0.546, with a
-weights-leak adversary and a republish control that reads 1.000
-FAIL). It also has its own costs, stated: 2-4 inversions at full
-width where the blueprint holds zero, no within-patient dynamics,
-and it trains on records - every run says "a MEASUREMENT, not a
-release."
+Updated 2026-09-25. The Duel station exists: both engines against
+the FULL real dataset, one page - every shared column drawn three
+ways (gray original, cardinal blueprint, gold latent), THE GAP as
+its own heatmap saying which engine drifts where, the mined
+interactions per engine, and both privacy postures on the page.
+Verified end to end on fixtures and by headless-Chrome eyes
+before shipping.
 
 ## 1. Pull once
 
-Zipball per WINDOWS.md. Expect **69 suites, 1936 checks, ALL
-GREEN** (new suite: smoke_latent). Then `pip install -e .`,
-relaunch the bench, wordmark check - as before.
-
-## 2. The head-to-head: new engine vs old, one command, one table
-
-`compare` trains the latent challenger on the real 300-patient
-sample AND measures your existing blueprint run's generated.csv
-against the SAME source with the SAME metrics - source shares
-first, then one row per engine. The named triple is the REAL
-attribution flip (span_days driven by procedure_count vs
-active_drug_count, where the blueprint's SHAP read 74/26
-flipping to 22/78):
+Zipball per WINDOWS.md. Expect **69 suites, 1939 checks, ALL
+GREEN**. Then:
 
 ```bat
-python scripts\latent_challenger.py compare %USERPROFILE%\dev\tidy_live300.csv --group-by person_id --blueprint-run %USERPROFILE%\dev\live300_rehearsal --seeds 0,1,2 --shares span_days=procedure_count,active_drug_count --interactions 8 --out %USERPROFILE%\dev\latent_out
+pip install -e .
 ```
 
-**Expect:** a settings echo; a note naming the columns dropped
-because the blueprint run excluded them (all sides restrict to
-shared columns so the metrics match); the table - `source ...
-shares`, one `blueprint` row, three `latent seed N` rows, each
-with sign / close / INVERTED / shares, the latent rows carrying
-the nn-ratio memorization tripwire; then THE MINED INTERACTIONS
-- the top 8 two-way product gains found in YOUR real data by
-model-importance screening (so XOR-shaped parents are findable),
-each measured on source, blueprint, and every latent seed side
-by side. This is the nonlinear head-to-head, mined from the data
-rather than named by hand. The three latent synthetic CSVs are
-written to latent_out - real-derived, they STAY on this machine.
-A few minutes per latent seed plus a minute or two of mining.
+Relaunch the bench, hard-refresh, wordmark matches
+`python -m synthkit.cli version`.
 
-**Send back:** the whole table. The four numbers that decide the
-next step: whose shares sit closer to the source's, the INVERTED
-counts side by side (the blueprint's guarantee vs the latent's
-known 2-4-at-width cost), close side by side, and the nn-ratio
-(under ~0.8 means the tripwire is pulling and the k-screen
-tightens before anything else).
+## 2. The full-extract duel, in the bench
 
-## 3. Demo prep - the second-seed check (still pending)
+Open the new **DUEL** station (map rail, above Roadmap). Fill
+the five fields - BROWSER FIELDS DO NOT EXPAND %USERPROFILE%, so
+type the expanded form of each path (your Desktop RUNBOX.html
+carries them literally, ready to copy):
 
-Know before the room whether the rehearsal's inversion
-reproduces on a different 300-patient draw:
+- source CSV path: your `%USERPROFILE%\dev\tidy_visits.csv`
+- blueprint run directory: your `%USERPROFILE%\dev\run_seed11b`
+  (the full-extract fit; its generated.csv is the blueprint side)
+- patient / entity column: `person_id`
+- latent output directory: your `%USERPROFILE%\dev\latent_full`
+- latent seed: `0`
+
+Press **Generate with the latent engine** - the full 55,428-row
+train runs as a bench job with the loader up; expect minutes to
+tens of minutes, and the honest line that it trains on records.
+When it says the draws are written, press **Draw the duel** -
+the mining alone is a few minutes of real work at full width,
+the loader covers it, and the page lands in the frame below.
+
+**Expect on the page:** the four headline cards (per-engine
+sign/close and INVERTED counts), three-body histograms for every
+shared column (press and hold to fan them apart), the gap
+heatmap (cardinal cells = blueprint drifts further, gold =
+latent does), the mined-interaction bars (on the 300-sample the
+blueprint read 0.000 on all eight - this is the full-data
+version of that reading), and the posture footer.
+
+**Send back:** screenshots of the headline cards, the gap
+heatmap, and the mined-interactions section. Real-derived files
+(the latent output directory) STAY on the machine.
+
+## 3. The same duel from the terminal (fallback / artifact)
+
+The bench and the CLI are one code path; to write the page as a
+shareable-on-this-machine file instead:
 
 ```bat
-python -m synthkit.cli sample %USERPROFILE%\dev\tidy_visits.csv --group-by person_id --patients 300 --seed 11 -o %USERPROFILE%\dev\tidy_live300b.csv
+python scripts\fidelity_deck.py --src %USERPROFILE%\dev\tidy_visits.csv --run %USERPROFILE%\dev\run_seed11b -o %USERPROFILE%\dev\duel_full.html --group-by person_id --latent %USERPROFILE%\dev\latent_full\latent_gen_seed0.csv
 ```
-
-```bat
-python -m synthkit.cli fit --src %USERPROFILE%\dev\tidy_live300b.csv --out %USERPROFILE%\dev\live300b_rehearsal --group-by person_id --generate --exclude conditions,procedures,drug_routes
-```
-
-```bat
-python -m synthkit.cli gate %USERPROFILE%\dev\live300b_rehearsal
-```
-
-**Send back:** the gate's INVERTED line either way - it decides
-which in-room sentence is true. Then one out-loud rehearsal, and
-freeze.

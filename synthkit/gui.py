@@ -1327,6 +1327,75 @@ def api_fit_bridge(payload: dict) -> dict:
             "did_not_cross": carried.get("did_not_cross") or []}
 
 
+def _latent_work(payload: dict) -> dict:
+    """The latent challenger's generation, as a bench job - the
+    bench runs the SAME script CLI a terminal would, streamed to a
+    log the poll can read. One code path, again."""
+    import subprocess
+    import sys as _sys
+    src = str(Path(payload.get("src") or "").expanduser())
+    out = str(Path(payload.get("out") or "").expanduser())
+    if not src or not out:
+        return {"error": "Give the source CSV and an output "
+                         "directory for the latent draws."}
+    if not Path(src).exists():
+        return {"error": "No file at {}.".format(src)}
+    Path(out).mkdir(parents=True, exist_ok=True)
+    script = (Path(__file__).resolve().parent.parent / "scripts"
+              / "latent_challenger.py")
+    if not script.exists():
+        return {"error": "scripts/latent_challenger.py is not "
+                         "beside this install - run from the "
+                         "repository checkout."}
+    cmd = [_sys.executable, "-u", str(script), "csv", src,
+           "--group-by", payload.get("group_by") or "person_id",
+           "--seeds", str(payload.get("seed") or 0),
+           "--out", out]
+    log = Path(out) / "bench_latent_log.txt"
+    with log.open("w", encoding="utf-8") as fh:
+        r = subprocess.run(cmd, stdout=fh,
+                           stderr=subprocess.STDOUT,
+                           text=True, timeout=2 * 3600)
+    if r.returncode != 0:
+        tail = log.read_text(encoding="utf-8",
+                             errors="replace")[-1200:]
+        return {"error": "latent generation exited {} - the end "
+                         "of its log:\n{}".format(r.returncode,
+                                                   tail)}
+    return {"out": out,
+            "csv": str(Path(out) / "latent_gen_seed{}.csv".format(
+                payload.get("seed") or 0))}
+
+
+def api_duel(payload: dict) -> dict:
+    """The duel page - both engines against one source - built by
+    fidelity_deck.build_duel, the same function the CLI writes
+    files with. One picture, two doors."""
+    import sys as _sys
+    sd = str(Path(__file__).resolve().parent.parent / "scripts")
+    if sd not in _sys.path:
+        _sys.path.insert(0, sd)
+    try:
+        from fidelity_deck import build_duel
+    except Exception as e:
+        return {"error": "could not load the duel builder: {}"
+                         .format(e)}
+    src = str(Path(payload.get("src") or "").expanduser())
+    run = str(Path(payload.get("run") or "").expanduser())
+    lat = str(Path(payload.get("latent") or "").expanduser())
+    if not (src and run and lat):
+        return {"error": "Give the source CSV, the blueprint run "
+                         "directory, and the latent output CSV."}
+    try:
+        html = build_duel(src, run, lat,
+                          payload.get("group_by") or "person_id")
+    except ValueError as e:
+        return {"error": str(e)}
+    except OSError as e:
+        return {"error": "could not read an input: {}".format(e)}
+    return {"html": html}
+
+
 def api_deck(payload: dict) -> dict:
     """The original-vs-synthetic dashboard, built live for one run.
 
@@ -1402,6 +1471,10 @@ _ROUTES = {
     "/api/fit-log": api_fit_log,
     "/api/fit-open": api_fit_open,
     "/api/deck": api_deck,
+    "/api/duel": api_duel,
+    "/api/latent-run": lambda payload: {
+        "job": _start_job(_latent_work, payload,
+                          budget_s=2 * 3600.0)},
     "/api/deck-async": lambda payload: {
         "job": _start_job(api_deck, payload, budget_s=1200.0)},
     "/api/fit-bridge": api_fit_bridge,
@@ -2359,6 +2432,8 @@ textarea:focus,input:focus,select:focus{
   <div class="railsplit">see the fidelity</div>
   <button class="station" data-step="8" data-s="dashboard" data-route="map"><b>VIEW</b>
     Dashboard<small class="subt">original vs synthetic, drawn</small></button>
+  <button class="station" data-step="8" data-s="duel" data-route="map"><b>DUEL</b>
+    Duel<small class="subt">two engines, one source</small></button>
   <div class="railsplit">the map</div>
   <button class="station" data-step="8" data-s="roadmap" data-route="map"><b>MAP</b>
     Roadmap<small class="subt">eight goals: built and planned</small></button>
@@ -2977,6 +3052,29 @@ textarea:focus,input:focus,select:focus{
   <div class="nextup"><span class="lbl">next</span><b>Roadmap</b><span>This is where the engine stands on your data; the Roadmap says where the eight goals are going.</span></div>
 </section>
 
+<section id="s-duel" data-step="8" data-route="map">
+  <div class="stepbanner"><span class="stepchip">Duel</span><span>Two engines, one source</span></div>
+  <dl class="stepgoal"><dt>you need</dt><dd>The source CSV, a finished blueprint run (its generated.csv is one side), and a latent output CSV &mdash; or press the generate button here and this station makes it.</dd><dt>you get</dt><dd>Both engines against the same source on one page: every shared column drawn three ways, THE GAP as its own heatmap (cardinal where the blueprint drifts further, gold where the latent does), the mined interactions per engine, and both privacy postures stated. The latent side trains on records and is the RULER, never a release.</dd></dl>
+  <div class="panel">
+    <h2>Point at both engines</h2>
+    <label>source CSV path
+      <input id="qsrc" placeholder="the CSV both runs measured"></label>
+    <label>blueprint run directory
+      <input id="qrun" placeholder="a finished fit run holding generated.csv"></label>
+    <label>patient / entity column
+      <input id="qgroup" value="person_id"></label>
+    <label>latent output directory <span class="hint">(where the generate button writes; also where an existing latent_gen_seedN.csv lives)</span>
+      <input id="qlat" placeholder="a directory of yours, outside any repo"></label>
+    <label>latent seed
+      <input id="qseed" value="0"></label>
+    <button class="act ghost" onclick="latentRun()">Generate with the latent engine (minutes)</button>
+    <button class="act" onclick="duelDraw()">Draw the duel</button>
+    <div class="out" id="duel-out">Nothing yet.</div>
+  </div>
+  <iframe id="duel-frame" sandbox="allow-scripts" style="width:100%;height:900px;border:1px solid var(--rule);border-radius:12px;margin-top:14px;display:none;background:#fff"></iframe>
+  <div class="nextup"><span class="lbl">next</span><b>Roadmap</b><span>The duel is the evidence; the Roadmap holds the decision it feeds &mdash; latent-informed surfaces, with the challenger as the permanent ruler.</span></div>
+</section>
+
 <section id="s-roadmap" data-step="8">
   <div class="stepbanner"><span class="stepchip">The map</span><span>Eight goals &mdash; what is built, what is planned</span></div>
   <dl class="stepgoal"><dt>you need</dt><dd>Nothing &mdash; this page is for reading, and for the room.</dd><dt>you get</dt><dd>Where each goal stands, with the measured evidence, what is planned, a proposed WORKING ORDER, and a relative timeline per goal (durations from now, deliberately not dates). Percentages are judgments; the numbers beside them are not. Full detail: <code>docs/goals_scorecard.md</code>.</dd></dl>
@@ -3051,6 +3149,7 @@ const titles={describe:['Step 1','Describe','say what data you need'],
   fitrun:['Measure 2','Fit','measure the blueprint, then generate'],
   fitver:['Measure 3','Verdict','judge the run'],
   dashboard:['View','Dashboard','original vs synthetic, drawn'],
+  duel:['Duel','Duel','two engines, one source'],
   roadmap:['Map','Roadmap','the eight goals \u2014 built and planned']};
 let campaignDir='';
 document.querySelectorAll('.station').forEach(btn=>{
@@ -4184,6 +4283,60 @@ async function deckPrefill(){
     document.getElementById('dsrc').value=s.value;
   if(o&&o.value&&!document.getElementById('dout').value)
     document.getElementById('dout').value=o.value;}
+let latentJob='',latentTimer=null;
+async function latentRun(){
+  const o=document.getElementById('duel-out');
+  const p={src:document.getElementById('qsrc').value.trim(),
+    out:document.getElementById('qlat').value.trim(),
+    group_by:document.getElementById('qgroup').value.trim(),
+    seed:document.getElementById('qseed').value.trim()};
+  if(!p.src||!p.out){o.textContent='STOPPED: give the source '+
+    'CSV and a latent output directory.';return;}
+  loaderSet('duel-out',null,'training the latent engine');
+  const r=await api('/api/latent-run',p);
+  if(r.error){loaderDone('duel-out',false);
+    o.textContent='STOPPED: '+r.error;return;}
+  latentJob=r.job;
+  if(latentTimer)clearInterval(latentTimer);
+  latentTimer=setInterval(latentPoll,2000);}
+async function latentPoll(){
+  const o=document.getElementById('duel-out');
+  const j=await api('/api/job',{id:latentJob});
+  if(j.status==='running'){
+    loaderSet('duel-out',null,'training the latent engine',
+      j.elapsed);
+    o.textContent='latent engine running ('+
+      Math.round(j.elapsed)+'s) - trains on records; the output '+
+      'is a measurement, not a release.';return;}
+  clearInterval(latentTimer);latentTimer=null;
+  loaderDone('duel-out',j.status==='done');
+  if(j.status==='done'){
+    o.textContent='latent draws written ('+Math.round(j.elapsed)+
+      's). Now press Draw the duel.';}
+  else{o.textContent='STOPPED: '+(j.error||j.status);}}
+async function duelDraw(){
+  const o=document.getElementById('duel-out');
+  const frame=document.getElementById('duel-frame');
+  const seed=document.getElementById('qseed').value.trim()||'0';
+  const latdir=document.getElementById('qlat').value.trim();
+  const body={src:document.getElementById('qsrc').value.trim(),
+    run:document.getElementById('qrun').value.trim(),
+    group_by:document.getElementById('qgroup').value.trim(),
+    latent:latdir?latdir.replace(/[\\\/]+$/,'')+
+      '/latent_gen_seed'+seed+'.csv':''};
+  if(!body.src||!body.run||!body.latent){o.textContent=
+    'STOPPED: give the source CSV, the blueprint run, and the '+
+    'latent output directory.';return;}
+  loaderSet('duel-out',null,'drawing the duel');
+  const r=await api('/api/duel',body);
+  loaderDone('duel-out',!r.error);
+  if(r.error){o.textContent='STOPPED: '+r.error;
+    frame.style.display='none';return;}
+  frame.srcdoc=r.html;
+  frame.style.display='block';
+  o.textContent='drawn. Gray is the original, cardinal the '+
+    'blueprint, gold the latent challenger; the gap heatmap '+
+    'says who drifts where.';}
 async function deckBuild(){
   deckPrefill();
   const out=document.getElementById('deck-out');

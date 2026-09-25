@@ -52,6 +52,7 @@ INK = "#1d1d1f"          # near-black
 GRAY = "#6e6e73"         # the ORIGINAL series
 RED = "#8c1515"          # cardinal - the SYNTHETIC series
 RULE = "#d2d2d7"
+GOLD = "#B3995D"         # the LATENT challenger series (duel view)
 NEG = "#44546a"          # heatmap negative pole
 
 CSS = """
@@ -102,6 +103,8 @@ svg.live:not(.on) .ser.syn{opacity:0;transform:translateY(10px)}
 svg.live:not(.on) .ser.pub{opacity:0}
 svg.live.apart .ser.src{transform:translateY(-16px)}
 svg.live.apart .ser.syn{transform:translateY(16px)}
+svg.live:not(.on) .ser.lat{opacity:0;transform:translateY(18px)}
+svg.live.apart .ser.lat{transform:translateY(34px)}
 svg.live.apart .ser.pub{opacity:.25}
 svg.live.apart:not(.hm) > text,
 svg.live.apart:not(.hm) > line{opacity:.15;
@@ -702,6 +705,294 @@ class _A(object):
         self.compare = list(compare or [])
 
 
+def hist3_svg(vs, vb, vl, pat_counts, k):
+    """The duel histogram: original gray, blueprint cardinal,
+    latent gold - three bodies on one axis, k-screened source
+    bins dropped and counted exactly as everywhere else."""
+    import numpy as np
+    series = [v.dropna().to_numpy(dtype=float)
+              for v in (vs, vb, vl)]
+    allv = np.concatenate([x for x in series if len(x)] or
+                          [np.array([0.0])])
+    lo, hi = float(allv.min()), float(allv.max())
+    if hi <= lo:
+        hi = lo + 1.0
+    nb = 24
+    edges = np.linspace(lo, hi, nb + 1)
+    counts = [np.histogram(x, bins=edges)[0] for x in series]
+    suppressed = 0
+    if pat_counts is not None:
+        for i in range(nb):
+            if 0 < counts[0][i] and pat_counts[i] < k:
+                counts[0][i] = 0
+                suppressed += 1
+    fracs = [c / max(c.sum(), 1) for c in counts]
+    top = max(max(float(f.max()) for f in fracs), 1e-9)
+    W, H, PAD = 620, 170, 26
+    bw = (W - 2 * PAD) / nb
+    parts = ['<svg class="live" viewBox="0 0 {} {}" width="{}" '
+             'height="{}">'.format(W, H + 34, W, H + 34)]
+    parts.append('<line x1="{0}" y1="{1}" x2="{2}" y2="{1}" '
+                 'stroke="{3}"/>'.format(PAD, H, W - PAD, RULE))
+    styles = [("src", GRAY, None), ("syn", RED, 0.55),
+              ("lat", GOLD, 0.55)]
+    for f, (cls, color, opac) in zip(fracs, styles):
+        rects = []
+        for i in range(nb):
+            h = f[i] / top * (H - 14)
+            if h <= 0:
+                continue
+            rects.append(
+                '<rect x="{:.1f}" y="{:.1f}" width="{:.1f}" '
+                'height="{:.1f}" fill="{}"{}/>'.format(
+                    PAD + i * bw + 1, H - h, bw - 2, h, color,
+                    ' fill-opacity="{}"'.format(opac)
+                    if opac else ""))
+        parts.append('<g class="ser {}">'.format(cls)
+                     + "".join(rects) + "</g>")
+    for t, frac, anch in ((lo, 0.0, "start"),
+                          ((lo + hi) / 2, 0.5, "middle"),
+                          (hi, 1.0, "end")):
+        parts.append(
+            '<text x="{:.1f}" y="{}" font-size="10.5" fill="{}" '
+            'text-anchor="{}">{}</text>'.format(
+                PAD + frac * (W - 2 * PAD), H + 16, GRAY, anch,
+                esc(fnum(float(t)))))
+    parts.append("</svg>")
+    return "".join(parts), suppressed
+
+
+def gap_heatmap(names, ms, mb, ml):
+    """THE GAP, drawn: one cell per pair, colored by WHICH engine
+    drifts further from the source's correlation there. Cardinal
+    cells: the blueprint drifts more. Gold cells: the latent
+    drifts more. White: they miss by the same amount - including
+    both hitting it. Depth is the size of the difference."""
+    import numpy as np
+    n = len(names)
+    cell = max(10, min(26, 520 // max(n, 1)))
+    W = H = n * cell + 130
+    parts = ['<svg class="hm-gap" viewBox="0 0 {} {}" '
+             'width="{}" height="{}">'.format(W, H, W, H)]
+
+    def hexmix(base, frac):
+        br, bg, bb = (int(base[i:i + 2], 16) for i in (1, 3, 5))
+        r = int(255 + (br - 255) * frac)
+        g = int(255 + (bg - 255) * frac)
+        b = int(255 + (bb - 255) * frac)
+        return "#{:02x}{:02x}{:02x}".format(r, g, b)
+
+    for i in range(n):
+        for j in range(n):
+            if i == j:
+                continue
+            key = (names[i], names[j]) if i < j else (names[j],
+                                                      names[i])
+            rs, rb, rl = ms.get(key), mb.get(key), ml.get(key)
+            if rs is None or rb is None or rl is None:
+                fill = "#f4f4f6"
+            else:
+                d = abs(rb - rs) - abs(rl - rs)
+                frac = min(abs(d) / 0.4, 1.0)
+                fill = hexmix(RED if d > 0 else GOLD, frac)
+            parts.append(
+                '<rect x="{}" y="{}" width="{}" height="{}" '
+                'fill="{}"/>'.format(120 + j * cell,
+                                     10 + i * cell,
+                                     cell - 1, cell - 1, fill))
+        parts.append(
+            '<text x="114" y="{}" font-size="9" fill="{}" '
+            'text-anchor="end">{}</text>'.format(
+                10 + i * cell + cell * 0.7, GRAY,
+                esc(names[i][:18])))
+    parts.append("</svg>")
+    return "".join(parts)
+
+
+def build_duel(src_path, run_dir, latent_csv,
+               group_by="person_id"):
+    """THE DUEL PAGE: both engines against the same source, per
+    column and per pair, with the gap drawn as its own exhibit.
+    Reuses the challenger's own pair and interaction measures -
+    one implementation - and carries both privacy postures in the
+    footer, because fidelity is one column of that table."""
+    import numpy as np
+    import pandas as pd
+    _scripts = str(Path(__file__).resolve().parent)
+    if _scripts not in sys.path:
+        sys.path.insert(0, _scripts)
+    from latent_challenger import (_interaction_r2,
+                                   _mine_interactions, _pair_score,
+                                   _pairs)
+
+    run = Path(run_dir)
+    if not (run / "generated.csv").exists():
+        raise ValueError("no generated.csv in {} - the blueprint "
+                         "side needs a finished `synthkit fit "
+                         "--generate` run".format(run))
+    if not Path(latent_csv).exists():
+        raise ValueError("no latent output at {} - generate it "
+                         "first (the Duel station's own button, "
+                         "or latent_challenger.py csv --out)"
+                         .format(latent_csv))
+    bp = json.loads((run / "blueprint.json").read_text(
+        encoding="utf-8"))
+    k = 10
+    for spec in (bp.get("columns") or {}).values():
+        m = (spec or {}).get("marginal") or {}
+        k = int(m.get("bounds_are_k_anonymous") or k)
+    src = read_frame(src_path)
+    gen_b = read_frame(run / "generated.csv")
+    gen_l = read_frame(latent_csv)
+    common = [c for c in src.columns
+              if c in gen_b.columns and c in gen_l.columns
+              and c != group_by]
+    dropped = [c for c in src.columns
+               if c not in common and c != group_by]
+    num_cols = []
+    for c in common:
+        v = numeric(src[c])
+        if v.notna().mean() >= 0.5 and v.nunique() >= 3:
+            num_cols.append(c)
+
+    ps = _pairs(src, common)
+    pb = _pairs(gen_b, common)
+    pl = _pairs(gen_l, common)
+    sb = _pair_score(ps, pb)
+    sl = _pair_score(ps, pl)
+
+    # columns the latent path visibly degrades - a constant where
+    # the source varies - are NAMED, not averaged away
+    flat = [c for c in common
+            if gen_l[c].nunique() <= 1 and src[c].nunique() > 1]
+
+    out = ["<h1>The duel: two engines, one source</h1>",
+           '<p class="note">Original in gray, the blueprint '
+           'engine in cardinal, the latent challenger in gold. '
+           'Press and hold any chart to fan the three apart. '
+           'Source bins under {} patients are suppressed and '
+           'counted, as everywhere.</p>'.format(k)]
+    out.append(
+        '<div class="mcards">'
+        '<div class="mcard"><div class="n">{}/{} &middot; {}/{}'
+        '</div><div class="l">blueprint sign &middot; close'
+        '</div></div>'
+        '<div class="mcard"><div class="n">{}</div>'
+        '<div class="l">blueprint INVERTED</div></div>'
+        '<div class="mcard"><div class="n">{}/{} &middot; {}/{}'
+        '</div><div class="l">latent sign &middot; close'
+        '</div></div>'
+        '<div class="mcard"><div class="n">{}</div>'
+        '<div class="l">latent INVERTED</div></div></div>'.format(
+            sb[0], sb[3], sb[1], sb[3], sb[2],
+            sl[0], sl[3], sl[1], sl[3], sl[2]))
+    if dropped:
+        out.append('<p class="note">Not in both outputs, so not '
+                   'in this page: {}</p>'.format(
+                       esc(", ".join(dropped[:10])
+                           + (", ..." if len(dropped) > 10
+                              else ""))))
+
+    gids = src[group_by].astype(str) if group_by in src.columns         else None
+    total_sup = 0
+    out.append("<h2>Every shared column, three bodies</h2>")
+    for c in num_cols[:36]:
+        vs = numeric(src[c])
+        pat_counts = None
+        if gids is not None:
+            a = vs.dropna()
+            if len(a):
+                edges = np.linspace(float(a.min()),
+                                    float(a.max()) or 1.0, 25)
+                idx = np.clip(np.digitize(
+                    a.to_numpy(dtype=float), edges[1:-1]), 0, 23)
+                gsub = gids[a.index]
+                pat_counts = [gsub[idx == i].nunique()
+                              for i in range(24)]
+        svg, sup = hist3_svg(vs, numeric(gen_b[c]),
+                             numeric(gen_l[c]), pat_counts, k)
+        total_sup += sup
+        out.append('<div class="card"><h3>{}</h3>{}</div>'.format(
+            esc(c), svg))
+    out.append('<p class="note">{} source bin(s) suppressed by '
+               'the k rule across this page.</p>'.format(
+                   total_sup))
+
+    gap_cols = num_cols[:28]
+    out.append("<h2>The gap, drawn</h2>"
+               '<p class="note">One cell per pair: '
+               '<b style="color:{}">cardinal</b> where the '
+               'blueprint drifts further from the source\'s '
+               'correlation, <b style="color:{}">gold</b> where '
+               'the latent does, white where they miss by the '
+               'same amount. Depth is the size of the '
+               'difference.</p>'.format(RED, GOLD))
+    out.append(gap_heatmap(
+        gap_cols,
+        dict((k_, v) for k_, v in ps.items()
+             if k_[0] in gap_cols and k_[1] in gap_cols),
+        dict((k_, v) for k_, v in pb.items()
+             if k_[0] in gap_cols and k_[1] in gap_cols),
+        dict((k_, v) for k_, v in pl.items()
+             if k_[0] in gap_cols and k_[1] in gap_cols)))
+
+    out.append("<h2>The mined interactions</h2>"
+               '<p class="note">The top two-way product gains '
+               'found in the SOURCE (parents screened by model '
+               'importance, so an XOR\'s parents are findable; '
+               'higher orders not mined) - and what each engine '
+               'carries of them.</p>')
+    mined = _mine_interactions(src, common, top_n=8)
+    if not mined:
+        out.append('<p class="note">None cleared the 0.005 gain '
+                   'floor - stated, not silent.</p>')
+    for gv, child, pa2, pb2 in mined:
+        gb = _interaction_r2(gen_b, child, pa2, pb2)
+        gl = _interaction_r2(gen_l, child, pa2, pb2)
+        mx = max(gv, gb or 0, gl or 0, 1e-9)
+
+        def bar(val, color):
+            w = 0 if val is None or not np.isfinite(val)                 else max(0.0, val) / mx * 260
+            return ('<div style="background:{};width:{:.0f}px;'
+                    'height:12px;border-radius:3px;'
+                    'margin:2px 0"></div>').format(color, w)
+        out.append(
+            '<div class="card"><h3>{} &larr; {} &times; {}</h3>'
+            '<div class="note">source {:.3f} &middot; blueprint '
+            '{} &middot; latent {}</div>{}{}{}</div>'.format(
+                esc(child), esc(pa2), esc(pb2), gv,
+                fnum(gb, 3) if gb is not None else "n/a",
+                fnum(gl, 3) if gl is not None else "n/a",
+                bar(gv, GRAY), bar(gb, RED), bar(gl, GOLD)))
+
+    out.append("<h2>What this page is, and is not</h2>"
+               '<p class="note">The BLUEPRINT engine publishes '
+               'k-screened aggregates only and has passed its '
+               'membership and attribute-disclosure attacks with '
+               'positive controls. The LATENT challenger trains '
+               'on records: at real width it FAILS the '
+               'weights-leak membership adversary (0.78) while '
+               'its rows-only adversary reads 0.50 - it is the '
+               'fidelity ruler, not a release path. It is '
+               'row-level: no within-patient dynamics.{}'
+               '</p>'.format(
+                   " Columns the latent path flattens to a "
+                   "constant: " + esc(", ".join(flat[:8]))
+                   + "." if flat else ""))
+    body = "".join(out)
+    html = ("<!doctype html><html><head><meta charset='utf-8'>"
+            "<title>The duel</title><style>" + CSS
+            + ".mcards{display:flex;gap:14px;flex-wrap:wrap}"
+              ".mcard{border:1px solid " + RULE + ";"
+              "border-radius:12px;padding:10px 16px}"
+              ".mcard .n{font-size:20px;font-weight:700}"
+              ".mcard .l{font-size:11px;color:" + GRAY + "}"
+              ".card{margin:14px 0}"
+            + "</style></head><body><main>" + body + "</main>"
+            + MOTION_JS + "</body></html>")
+    return html
+
+
 def build_deck(src_path, run_dir, group_by="person_id",
                compares=None):
     """Return the deck HTML as a string. The CLI writes it to a
@@ -1257,11 +1548,21 @@ def main():
     ap.add_argument("--run", required=True)
     ap.add_argument("-o", "--out", required=True)
     ap.add_argument("--group-by", default="person_id")
+    ap.add_argument("--latent", default=None,
+                    help="a latent_challenger output CSV - "
+                         "builds the DUEL page (both engines "
+                         "against the source) instead of the "
+                         "single-engine deck")
     ap.add_argument("--compare", action="append", default=[],
                     help='LABEL=RUNDIR, repeatable')
     a = ap.parse_args()
     try:
-        doc, meta = build_deck(a.src, a.run, a.group_by, a.compare)
+        if a.latent:
+            doc = build_duel(a.src, a.run, a.latent, a.group_by)
+            meta = {"columns": "duel", "suppressed": "in-page"}
+        else:
+            doc, meta = build_deck(a.src, a.run, a.group_by,
+                                   a.compare)
     except ValueError as e:
         sys.exit("STOPPED: {}".format(e))
     out = Path(a.out)

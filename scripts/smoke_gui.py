@@ -1009,11 +1009,35 @@ def main():
               "what it PRODUCES - the old page said what a step was "
               "about and left you to press the button to find out "
               "the rest",
-              html.count('class="stepgoal"') == 11
-              and html.count("<dt>you need</dt>") == 11
-              and html.count("<dt>you get</dt>") == 11)
+              html.count('class="stepgoal"') == 12
+              and html.count("<dt>you need</dt>") == 12
+              and html.count("<dt>you get</dt>") == 12)
         check("...and every step ends by naming where to go next",
-              html.count('class="nextup"') == 11)
+              html.count('class="nextup"') == 12)
+
+        # THE DUEL IS A STATION: both engines, one source, one
+        # page - the latent generation runs as a bench job over
+        # the same script CLI a terminal uses, and the page is
+        # fidelity_deck.build_duel, the same function the CLI
+        # writes files with. The station carries the honest
+        # posture in its own you-get text: the latent side is
+        # the RULER, never a release.
+        from synthkit.gui import _ROUTES as _rt
+        check("the Duel station exists end to end - tile, title, "
+              "fields, sandboxed frame, both endpoints, and the "
+              "ruler-not-release posture stated in the station "
+              "itself",
+              'data-s="duel"' in html
+              and "duel:['Duel'" in html
+              and 'id="qsrc"' in html and 'id="qrun"' in html
+              and 'id="qlat"' in html
+              and 'id="duel-frame" sandbox="allow-scripts"'
+              in html
+              and "/api/duel" in _rt
+              and "/api/latent-run" in _rt
+              and "function latentRun" in html
+              and "function duelDraw" in html
+              and "never a release" in html)
 
         # THE DASHBOARD IS A STATION, drawing the same picture the
         # roadshow file carries - built by one code path, so the
