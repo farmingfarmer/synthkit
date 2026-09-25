@@ -4,7 +4,7 @@ Synthetic clinical data generator and model-evaluation instrument. Core rule: le
 
 ## Verify before claiming
 
-- Run `python scripts/run_all_smokes.py` before claiming anything works. Expect 69 suites, 1948 checks, ALL GREEN **on a checkout**. Off a zipball extract - which is what the data machine runs - it is 1939: nine checks in `smoke_buildid` need git to test the archive path and report SKIPPED without it. Both numbers were measured. Do not quote the checkout number to the data machine; that is how a correct run gets read as a failure.
+- Run `python scripts/run_all_smokes.py` before claiming anything works. Expect 69 suites, 1949 checks, ALL GREEN **on a checkout**. Off a zipball extract - which is what the data machine runs - it is 1940: nine checks in `smoke_buildid` need git to test the archive path and report SKIPPED without it. Both numbers were measured. Do not quote the checkout number to the data machine; that is how a correct run gets read as a failure.
 - **THE DEVELOPMENT MACHINE WAS BEHIND THE DATA MACHINE, and that is
   how a green suite here failed there.** Dev was on Python 3.10 with
   pandas 2.3; the data machine installs fresh and got pandas 3.0.5,
@@ -339,6 +339,42 @@ the direction that stops work happening.
   publish them as k-screened aggregates the blueprint samples
   from - importing the fidelity while keeping the posture that
   passed its attacks. The challenger remains the ruler.
+
+- **THE DUEL IS A STATION, AND THE GAP IS ITS OWN EXHIBIT
+  (2026-09-25).** Both engines against one source on one page:
+  every shared column drawn as THREE bodies (gray original,
+  cardinal blueprint, gold latent - the third series inherits
+  the same press-and-hold fan), a GAP HEATMAP colored by which
+  engine drifts further from the source's correlation in each
+  pair (cardinal = blueprint worse there, gold = latent worse,
+  white = same miss, depth = size of the difference), and the
+  mined interactions as per-engine bars. `build_duel` is ONE
+  function the CLI writes files with and the bench serves into
+  its iframe - the same rule the deck has always had, because a
+  second implementation is how the shipped artifact and the
+  screen come to disagree. The latent side runs as a bench JOB
+  over the same script CLI a terminal would call.
+- **AND A NINE-MINUTE REQUEST IS A HUNG BROWSER.** The duel
+  endpoint shipped SYNCHRONOUS, then the full-scale timing was
+  measured: latent generation 3-7 minutes, the duel page 7-9
+  (the mining is real work over every numeric child). Both are
+  polled JOBS now with elapsed seconds on the loader -
+  discovered by timing the thing rather than by a green suite,
+  which is why the timing was run at all. At that scale the
+  latent side also read close 618/630 with ONE inversion and
+  nn-ratio 1.03, against 2-4 inversions at 300-patient width:
+  more patients, better behavior - the opposite of the
+  small-cohort token defect, and a reason to read the real
+  full-extract duel rather than extrapolating from the sample.
+- **A COMPARISON PAGE MUST CARRY THE POSTURE, NOT JUST THE
+  SCORES.** The duel's footer states both models in place: the
+  blueprint publishes k-screened aggregates and passed its
+  attacks; the latent trains on records, FAILS the weights-leak
+  adversary at width (0.78) while its rows-only adversary reads
+  0.50, and is row-level with no dynamics. It also NAMES any
+  column the latent flattens to a constant rather than letting
+  an averaged score hide it. A page that showed only fidelity
+  would argue for the wrong engine by omission.
 
 - **THE BLUEPRINT'S ZERO IS STRUCTURAL, NOT A TUNING MISS.** The
   engine publishes interaction surfaces only where discovery

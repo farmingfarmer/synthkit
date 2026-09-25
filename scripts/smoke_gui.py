@@ -1038,6 +1038,19 @@ def main():
               and "function latentRun" in html
               and "function duelDraw" in html
               and "never a release" in html)
+        # AND THE DUEL IS A POLLED JOB. Measured at full extract
+        # scale the page takes ~9 minutes to build; a synchronous
+        # request of that length hangs the browser and reads as a
+        # dead bench. Both long operations here - the latent
+        # training and the duel build - run as jobs with the
+        # loader over them.
+        check("...and both long operations are POLLED JOBS, not "
+              "synchronous requests - measured, the duel build "
+              "is ~9 minutes at full extract scale",
+              "/api/duel-async" in _rt
+              and "function duelPoll" in html
+              and "api('/api/duel-async'" in html
+              and "j.result.html" in html)
 
         # THE DASHBOARD IS A STATION, drawing the same picture the
         # roadshow file carries - built by one code path, so the

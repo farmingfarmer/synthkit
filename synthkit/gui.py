@@ -1472,6 +1472,14 @@ _ROUTES = {
     "/api/fit-open": api_fit_open,
     "/api/deck": api_deck,
     "/api/duel": api_duel,
+    # THE DUEL IS A JOB, NOT A REQUEST. Measured at full extract
+    # scale: the page takes ~9 minutes to build (the interaction
+    # mining is real work over every numeric child). A
+    # synchronous call of that length hangs the browser and reads
+    # as a dead bench - the loader must run over a POLLED job,
+    # the same shape the fit and the deck already use.
+    "/api/duel-async": lambda payload: {
+        "job": _start_job(api_duel, payload, budget_s=2 * 3600.0)},
     "/api/latent-run": lambda payload: {
         "job": _start_job(_latent_work, payload,
                           budget_s=2 * 3600.0)},
@@ -4284,6 +4292,7 @@ async function deckPrefill(){
   if(o&&o.value&&!document.getElementById('dout').value)
     document.getElementById('dout').value=o.value;}
 let latentJob='',latentTimer=null;
+let duelJob='',duelTimer=null;
 async function latentRun(){
   const o=document.getElementById('duel-out');
   const p={src:document.getElementById('qsrc').value.trim(),
@@ -4328,15 +4337,35 @@ async function duelDraw(){
     'STOPPED: give the source CSV, the blueprint run, and the '+
     'latent output directory.';return;}
   loaderSet('duel-out',null,'drawing the duel');
-  const r=await api('/api/duel',body);
-  loaderDone('duel-out',!r.error);
-  if(r.error){o.textContent='STOPPED: '+r.error;
+  const r=await api('/api/duel-async',body);
+  if(r.error){loaderDone('duel-out',false);
+    o.textContent='STOPPED: '+r.error;
     frame.style.display='none';return;}
-  frame.srcdoc=r.html;
+  duelJob=r.job;
+  if(duelTimer)clearInterval(duelTimer);
+  duelTimer=setInterval(duelPoll,2000);}
+async function duelPoll(){
+  const o=document.getElementById('duel-out');
+  const frame=document.getElementById('duel-frame');
+  const j=await api('/api/job',{id:duelJob});
+  if(j.status==='running'){
+    loaderSet('duel-out',null,
+      'drawing the duel - mining the interactions',j.elapsed);
+    o.textContent='building ('+Math.round(j.elapsed)+'s) - at '+
+      'full extract scale this took about nine minutes when '+
+      'measured; the mining is real work over every numeric '+
+      'child.';return;}
+  clearInterval(duelTimer);duelTimer=null;
+  loaderDone('duel-out',j.status==='done');
+  if(j.status!=='done'||!j.result||j.result.error){
+    o.textContent='STOPPED: '+((j.result&&j.result.error)||
+      j.error||j.status);
+    frame.style.display='none';return;}
+  frame.srcdoc=j.result.html;
   frame.style.display='block';
-  o.textContent='drawn. Gray is the original, cardinal the '+
-    'blueprint, gold the latent challenger; the gap heatmap '+
-    'says who drifts where.';}
+  o.textContent='drawn in '+Math.round(j.elapsed)+'s. Gray is '+
+    'the original, cardinal the blueprint, gold the latent '+
+    'challenger; the gap heatmap says who drifts where.';}
 async function deckBuild(){
   deckPrefill();
   const out=document.getElementById('deck-out');

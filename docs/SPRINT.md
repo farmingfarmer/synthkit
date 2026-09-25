@@ -87,10 +87,18 @@ SURFACES into the blueprint (mine interactions the challenger's
 way, publish as k-screened aggregates), not a second release
 engine. The challenger remains the ruler.
 
-NEW EXIT: first latent-informed surface published end to end -
-one mined interaction from the challenger, k-screened, carried
-in the blueprint, surviving generation on the fixture where the
-blueprint currently reads 0.000.
+DELIVERED 2026-09-25: the DUEL station - both engines on one
+source, inside the bench, with three graphic sets (per-column
+three-body histograms, the gap heatmap, mined-interaction bars)
+and both privacy postures on the page. Next: the full-extract
+duel READ on the data machine.
+
+NEW EXIT: (a) the full-extract duel run and read - the
+300-sample's "blueprint 0.000 on all eight mined interactions"
+confirmed or corrected at full width; (b) first latent-informed
+surface published end to end - one mined interaction from the
+challenger, k-screened, carried in the blueprint, surviving
+generation where the blueprint currently reads 0.000.
 
 ## 4. Goal 8 - a challenger worth the name (week 2)
 

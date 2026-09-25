@@ -10,7 +10,7 @@ before shipping.
 
 ## 1. Pull once
 
-Zipball per WINDOWS.md. Expect **69 suites, 1939 checks, ALL
+Zipball per WINDOWS.md. Expect **69 suites, 1940 checks, ALL
 GREEN**. Then:
 
 ```bat
@@ -34,12 +34,14 @@ carries them literally, ready to copy):
 - latent output directory: your `%USERPROFILE%\dev\latent_full`
 - latent seed: `0`
 
-Press **Generate with the latent engine** - the full 55,428-row
-train runs as a bench job with the loader up; expect minutes to
-tens of minutes, and the honest line that it trains on records.
-When it says the draws are written, press **Draw the duel** -
-the mining alone is a few minutes of real work at full width,
-the loader covers it, and the page lands in the frame below.
+Press **Generate with the latent engine** - it runs as a bench
+job with the loader up. MEASURED on an extract-shaped stand-in
+at full scale (61,121 rows x 58 columns, 800 patients):
+**3-7 minutes**. When it says the draws are written, press
+**Draw the duel** - also a polled job, MEASURED at **7-9
+minutes** at that scale (the interaction mining is real work
+over every numeric child). Both show elapsed seconds while they
+run; neither blocks the browser.
 
 **Expect on the page:** the four headline cards (per-engine
 sign/close and INVERTED counts), three-body histograms for every
@@ -48,6 +50,12 @@ heatmap (cardinal cells = blueprint drifts further, gold =
 latent does), the mined-interaction bars (on the 300-sample the
 blueprint read 0.000 on all eight - this is the full-data
 version of that reading), and the posture footer.
+
+For calibration, the latent engine on that full-scale stand-in
+read sign 625/630, close 618/630, **INVERTED 1**, nn-ratio 1.03
+- notably better than the 2-4 inversions it showed at
+300-patient width. Whether your real extract agrees is exactly
+what this run answers.
 
 **Send back:** screenshots of the headline cards, the gap
 heatmap, and the mined-interactions section. Real-derived files
