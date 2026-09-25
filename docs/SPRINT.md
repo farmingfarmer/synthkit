@@ -78,10 +78,19 @@ the driver flip reproduced (94/6 -> 25/75), latent holding both
 1.52-2.14. The attack ran at the FIXTURE (worst 0.546 PASS,
 republish control 1.000 FAIL); still owed at real width.
 
-EXIT: the membership attack runs at the real sample's width and
-shape, whatever it reads - then the fork is decided on evidence:
-latent-informed surfaces into the blueprint, or two engines with
-two stated postures.
+RESOLVED 2026-09-24: the attack ran at width (77-column
+fixture): reconstruction adversary 0.776/0.694 FAIL under
+weights-leak, rows-only adversary 0.500 clean - width is where
+AE memorization lives, and the narrow-fixture pass did not
+transfer. The fork is decided by evidence: LATENT-INFORMED
+SURFACES into the blueprint (mine interactions the challenger's
+way, publish as k-screened aggregates), not a second release
+engine. The challenger remains the ruler.
+
+NEW EXIT: first latent-informed surface published end to end -
+one mined interaction from the challenger, k-screened, carried
+in the blueprint, surviving generation on the fixture where the
+blueprint currently reads 0.000.
 
 ## 4. Goal 8 - a challenger worth the name (week 2)
 

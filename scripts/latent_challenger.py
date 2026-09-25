@@ -371,31 +371,45 @@ class ReconstructionAdversary:
         return -float(np.sum((X - R) ** 2))
 
 
-def run_attack(seeds):
+def run_attack(seeds, csv=None, group_by="person_id"):
     """The SAME membership question the blueprint path answered at
-    worst 0.52 - asked of the latent path, on the same cohort
-    fixture, with the same bands, plus the republish control that
-    makes any PASS worth reading."""
+    worst 0.52 - asked of the latent path, with the same bands,
+    plus the republish control that makes any PASS worth reading.
+    Default: the shared cohort fixture, for comparability. With
+    --csv: the REAL frame at its real width, which is where an
+    autoencoder's memorization risk actually lives - members are
+    half the patients, non-members the other half of the SAME
+    population."""
     sys.path.insert(0, str(ROOT / "scripts"))
     from membership_new_path import cohort
     from synthkit.attack import membership_audit
     print("MEMBERSHIP ATTACK ON THE LATENT PATH - two "
           "adversaries, worse one reported; the reconstruction "
           "adversary assumes the WEIGHTS leak.")
+    if csv:
+        print("frame: {} (real width - rows are subsampled to "
+              "1,500 per side for the row-scored adversary)"
+              .format(csv))
+    base = None
+    if csv:
+        base = pd.read_csv(csv, dtype=str,
+                           keep_default_na=False).replace(
+                               "", np.nan)
     worst = []
     for seed in seeds:
-        df = cohort(600, 6, seed)
-        ids = sorted(df["person_id"].unique())
+        df = base if base is not None else cohort(600, 6, seed)
+        ids = sorted(df[group_by].astype(str).unique())
         rng = np.random.RandomState(seed + 1)
         rng.shuffle(ids)
         half = len(ids) // 2
-        mem = df[df["person_id"].isin(set(ids[:half]))]
-        non = df[df["person_id"].isin(set(ids[half:]))]
-        g = LatentGen(seed=seed).fit(mem, "person_id")
-        synth = g.generate(len(mem), seed=seed + 2)
+        mem = df[df[group_by].astype(str).isin(set(ids[:half]))]
+        non = df[df[group_by].astype(str).isin(set(ids[half:]))]
+        g = LatentGen(seed=seed).fit(mem, group_by)
+        synth = g.generate(min(len(mem), 4000), seed=seed + 2)
         audit = membership_audit(
             ReconstructionAdversary(g),
-            mem.to_dict("records"), non.to_dict("records"),
+            mem.to_dict("records")[:1500],
+            non.to_dict("records")[:1500],
             synthetic=synth.to_dict("records"))
         print("seed {:>2}: nn {:.3f}  reconstruction {:.3f}  "
               "worst {:.3f}  {}".format(
@@ -407,18 +421,19 @@ def run_attack(seeds):
         worst.append(audit["worst_auc"])
     # THE POSITIVE CONTROL - a "generator" that republishes its
     # members must FAIL, or the numbers above are decoration.
-    df = cohort(600, 6, seeds[0])
-    ids = sorted(df["person_id"].unique())
+    df = base if base is not None else cohort(600, 6, seeds[0])
+    ids = sorted(df[group_by].astype(str).unique())
     rng = np.random.RandomState(seeds[0] + 1)
     rng.shuffle(ids)
     half = len(ids) // 2
-    mem = df[df["person_id"].isin(set(ids[:half]))]
-    non = df[df["person_id"].isin(set(ids[half:]))]
-    g = LatentGen(seed=seeds[0]).fit(mem, "person_id")
+    mem = df[df[group_by].astype(str).isin(set(ids[:half]))]
+    non = df[df[group_by].astype(str).isin(set(ids[half:]))]
+    g = LatentGen(seed=seeds[0]).fit(mem, group_by)
     leak = membership_audit(
         ReconstructionAdversary(g),
-        mem.to_dict("records"), non.to_dict("records"),
-        synthetic=mem.drop(columns=[]).to_dict("records"))
+        mem.to_dict("records")[:1500],
+        non.to_dict("records")[:1500],
+        synthetic=mem.to_dict("records")[:2000])
     print()
     print("republish control: worst {:.3f} {} (must FAIL, or "
           "the attack cannot see)".format(
@@ -709,8 +724,16 @@ if __name__ == "__main__":
     elif which == "compare":
         sys.exit(run_compare(sys.argv[2:]))
     elif which == "attack":
-        seeds = [int(x) for x in sys.argv[2:]] or [0, 1, 2]
-        run_attack(seeds)
+        import argparse
+        ap = argparse.ArgumentParser(
+            prog="latent_challenger.py attack")
+        ap.add_argument("seeds", nargs="*", type=int,
+                        default=[0, 1, 2])
+        ap.add_argument("--csv", default=None)
+        ap.add_argument("--group-by", default="person_id")
+        aa = ap.parse_args(sys.argv[2:])
+        run_attack(aa.seeds or [0, 1, 2], csv=aa.csv,
+                   group_by=aa.group_by)
     else:
         seeds = [int(x) for x in sys.argv[2:]] or DEFAULT_SEEDS
         run(which, seeds)

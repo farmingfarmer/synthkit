@@ -315,6 +315,31 @@ the direction that stops work happening.
   autoencoder smooths. Still owed before any posture change:
   the membership attack at real width, and dynamics - the
   latent path has none.
+- **THE ATTACK AT WIDTH FAILED THE LATENT PATH, AND THE RELEASE
+  SURFACE IS THE WHOLE QUESTION (2026-09-24).** On the 77-column
+  extract-shaped fixture: reconstruction adversary 0.776 / 0.694
+  - FAIL under the weights-leak assumption, where the narrow
+  cohort fixture had read 0.546 PASS. Width is where autoencoder
+  memorization lives, and a pass measured at the narrow shape
+  was worth exactly what the one-scale token solve was. The
+  row-level adversary - the attacker who sees only GENERATED
+  ROWS - still reads 0.500. So the honest sentence has two
+  halves: output-only release, clean at 0.50; any release of the
+  model itself, FAIL at 0.78. AND the republish control's worst
+  now EQUALS the honest arm's (both dominated by the
+  reconstruction adversary, which never reads the synthetic
+  rows) - two arms that agree are one arm, so at width the
+  control controls only the nn adversary, said out loud.
+- **THE FORK IS THEREFORE DECIDED BY EVIDENCE: LATENT-INFORMED
+  SURFACES, NOT A SECOND ENGINE.** The challenger's interaction
+  fidelity is real and the blueprint's zero is structural - but
+  promoting the latent path to a release engine would require
+  solving width-scale memorization first. The winning move the
+  numbers point at: MINE interactions the challenger's way,
+  publish them as k-screened aggregates the blueprint samples
+  from - importing the fidelity while keeping the posture that
+  passed its attacks. The challenger remains the ruler.
+
 - **THE BLUEPRINT'S ZERO IS STRUCTURAL, NOT A TUNING MISS.** The
   engine publishes interaction surfaces only where discovery
   finds and keeps them, applies them through curves - and the
