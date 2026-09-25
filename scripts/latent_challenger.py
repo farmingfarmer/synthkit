@@ -496,6 +496,52 @@ def run_csv(argv):
           "records: a MEASUREMENT, not a release.")
 
 
+def _mine_interactions(df, cols, group_by=None, top_n=8,
+                       seed=0, max_children=40):
+    """MINE the strongest two-variable interactions from the
+    SOURCE, so both engines are judged on what the real data
+    actually contains rather than on a pair somebody named. Parent
+    screening goes through model importance, NOT rank correlation
+    - an XOR's parents have Spearman near zero with their child,
+    which is precisely why they matter. The gain measured is the
+    product term's R2 beyond the two mains: a screen for TWO-way
+    interactions, said plainly; higher orders are not mined."""
+    from sklearn.ensemble import HistGradientBoostingRegressor
+    from sklearn.inspection import permutation_importance
+    num = {}
+    for c in cols:
+        v = pd.to_numeric(df[c], errors="coerce")
+        if v.notna().mean() >= 0.5 and v.nunique() >= 8:
+            num[c] = v
+    found = []
+    children = list(num)[:max_children]
+    for child in children:
+        feats = [c for c in num if c != child]
+        if len(feats) < 2:
+            continue
+        d = pd.DataFrame({c: num[c] for c in feats + [child]}
+                         ).dropna(subset=[child])
+        if len(d) < 200:
+            continue
+        X = d[feats].to_numpy()
+        y = d[child].to_numpy()
+        m = HistGradientBoostingRegressor(
+            max_iter=60, random_state=seed,
+            early_stopping=False).fit(X, y)
+        sub = min(len(d), 2000)
+        imp = permutation_importance(
+            m, X[:sub], y[:sub], n_repeats=3,
+            random_state=seed).importances_mean
+        top = [feats[i] for i in np.argsort(-imp)[:4]]
+        for i, a in enumerate(top):
+            for b_ in top[i + 1:]:
+                g = _interaction_r2(d, child, a, b_)
+                if pd.notna(g) and g > 0.005:
+                    found.append((float(g), child, a, b_))
+    found.sort(reverse=True)
+    return found[:top_n]
+
+
 def run_compare(argv):
     """THE HEAD-TO-HEAD, one command, one table. The blueprint
     run's generated.csv and the latent path's draws are measured
@@ -512,7 +558,12 @@ def run_compare(argv):
                     help="a finished fit run directory holding "
                          "generated.csv")
     ap.add_argument("--seeds", default="0,1,2")
-    ap.add_argument("--shares", default=None)
+    ap.add_argument("--shares", default=None, action="append",
+                    help="CHILD=P1,P2 - repeatable")
+    ap.add_argument("--interactions", type=int, default=8,
+                    help="mine the top-N two-way interactions "
+                         "from the SOURCE and measure both "
+                         "engines on them; 0 disables")
     ap.add_argument("--out", default=None)
     a = ap.parse_args(argv)
     seeds = [int(x) for x in a.seeds.split(",")]
@@ -546,8 +597,8 @@ def run_compare(argv):
         sign, close, inv, n = _pair_score(
             _pairs(src, cols), _pairs(gen, cols))
         extra = ""
-        if a.shares:
-            child, ps = a.shares.split("=")
+        for spec in (a.shares or []):
+            child, ps = spec.split("=")
             parents = ps.split(",")
 
             def nf(fr):
@@ -557,10 +608,11 @@ def run_compare(argv):
                         subset=[child] + parents)
             try:
                 gs, _ = _shares(nf(gen), child, parents)
-                extra = " | shares " + "/".join(
+                extra += " | {} shares ".format(child) + "/".join(
                     "{:.0%}".format(x) for x in gs)
             except Exception as e:
-                extra = " | shares unmeasurable ({})".format(e)
+                extra += " | {} shares unmeasurable ({})".format(
+                    child, e)
         nnr = ""
         if g_for_nn is not None:
             nnr = " | nn-ratio {:.2f}".format(
@@ -569,8 +621,8 @@ def run_compare(argv):
         print("  {:<18} sign {}/{} close {}/{} INVERTED {}{}{}"
               .format(label, sign, n, close, n, inv, nnr, extra))
 
-    if a.shares:
-        child, ps = a.shares.split("=")
+    for spec in (a.shares or []):
+        child, ps = spec.split("=")
         parents = ps.split(",")
 
         def nf0(fr):
@@ -579,14 +631,16 @@ def run_compare(argv):
                 for c in [child] + parents}).dropna(
                     subset=[child] + parents)
         ss, _ = _shares(nf0(src), child, parents)
-        print("  {:<18} shares {}".format(
-            "source", "/".join("{:.0%}".format(x)
-                               for x in ss)))
+        print("  {:<18} {} shares {}".format(
+            "source", child, "/".join("{:.0%}".format(x)
+                                      for x in ss)))
     score(bpg, "blueprint")
+    latent_gens = []
     for seed in seeds:
         tr, ho = _split_patients(src, a.group_by, seed)
         g = LatentGen(seed=seed).fit(tr, a.group_by)
         gen = g.generate(len(tr), seed=seed + 1000)
+        latent_gens.append((seed, gen))
         score(gen, "latent seed {}".format(seed),
               g_for_nn=g, ho=ho)
         if a.out:
@@ -594,6 +648,32 @@ def run_compare(argv):
             outd.mkdir(parents=True, exist_ok=True)
             gen.to_csv(outd / "latent_gen_seed{}.csv".format(
                 seed), index=False)
+            print("    wrote {}".format(
+                outd / "latent_gen_seed{}.csv".format(seed)))
+    if a.interactions:
+        print()
+        print("THE MINED INTERACTIONS - top {} two-way product "
+              "gains found in the SOURCE (parents screened by "
+              "model importance, so an XOR's parents are "
+              "findable; higher orders not mined). gain = R2 of "
+              "the product term beyond the two mains.".format(
+                  a.interactions))
+        mined = _mine_interactions(src, cols,
+                                   top_n=a.interactions)
+        if not mined:
+            print("  none cleared the 0.005 gain floor - "
+                  "stated, not silent.")
+        for gv, child, pa, pb in mined:
+            gb = _interaction_r2(bpg, child, pa, pb)
+            row = "  {} <- {} x {}: src {:.3f} | blueprint "                   "{}".format(child, pa, pb, gv,
+                              "{:.3f}".format(gb)
+                              if pd.notna(gb) else "n/a")
+            for seed, gen in latent_gens:
+                gl = _interaction_r2(gen, child, pa, pb)
+                row += " | latent s{} {}".format(
+                    seed, "{:.3f}".format(gl)
+                    if pd.notna(gl) else "n/a")
+            print(row)
     print("Same source, same metrics, both engines. The latent "
           "path trains on records and has no dynamics; the "
           "blueprint publishes k-screened aggregates and passed "

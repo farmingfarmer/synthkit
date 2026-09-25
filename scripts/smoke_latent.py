@@ -128,6 +128,29 @@ def main():
           plan_kind["days"] == "num"
           and gen3["cat"].nunique() > 1)
 
+    # THE MINER MUST FIND WHAT CORRELATION CANNOT SEE. An XOR's
+    # parents have Spearman near zero with their child - if the
+    # parent screen ran on rank correlation, the strongest
+    # interaction in the frame would be invisible. Screened by
+    # model importance, the planted XOR must surface at rank 1.
+    from latent_challenger import _mine_interactions, \
+        _planted_frame
+    # The FULL planted frame, decoys included - a first cut
+    # passed only the xor and 3way columns, and a mutation that
+    # disabled the importance screen still found the xor because
+    # any four features included its parents. A screen is only
+    # tested where there is something to screen OUT.
+    _pf = _planted_frame(0)
+    _pcols = [c for c in _pf.columns if c != "person_id"]
+    _mined = _mine_interactions(_pf, _pcols, top_n=3)
+    check("the interaction miner surfaces the planted XOR at "
+          "rank 1 from model-importance screening - rank "
+          "correlation could never see its parents",
+          bool(_mined) and _mined[0][1].startswith("planted_xor")
+          and set(_mined[0][2:]) <= {"planted_xor_a",
+                                     "planted_xor_b",
+                                     "planted_xor_y"})
+
     # THE HEAD-TO-HEAD IS ONE COMMAND. compare measures the
     # blueprint run's generated.csv and the latent draws against
     # the SAME source with the SAME metrics - and refuses in a

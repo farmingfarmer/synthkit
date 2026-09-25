@@ -15,7 +15,7 @@ release."
 
 ## 1. Pull once
 
-Zipball per WINDOWS.md. Expect **69 suites, 1935 checks, ALL
+Zipball per WINDOWS.md. Expect **69 suites, 1936 checks, ALL
 GREEN** (new suite: smoke_latent). Then `pip install -e .`,
 relaunch the bench, wordmark check - as before.
 
@@ -30,18 +30,22 @@ active_drug_count, where the blueprint's SHAP read 74/26
 flipping to 22/78):
 
 ```bat
-python scripts\latent_challenger.py compare %USERPROFILE%\dev\tidy_live300.csv --group-by person_id --blueprint-run %USERPROFILE%\dev\live300_rehearsal --seeds 0,1,2 --shares span_days=procedure_count,active_drug_count
+python scripts\latent_challenger.py compare %USERPROFILE%\dev\tidy_live300.csv --group-by person_id --blueprint-run %USERPROFILE%\dev\live300_rehearsal --seeds 0,1,2 --shares span_days=procedure_count,active_drug_count --interactions 8 --out %USERPROFILE%\dev\latent_out
 ```
 
 **Expect:** a settings echo; a note naming the columns dropped
-because the blueprint run excluded them (conditions, procedures,
-drug_routes - all sides are restricted to shared columns so the
-metrics match); then the table - `source ... shares`, one
-`blueprint` row, three `latent seed N` rows, each with sign /
-close / INVERTED / shares, the latent rows also carrying the
-nn-ratio memorization tripwire. A few minutes per latent seed.
-Nothing is written without --out; --out output is real-derived
-and STAYS on this machine.
+because the blueprint run excluded them (all sides restrict to
+shared columns so the metrics match); the table - `source ...
+shares`, one `blueprint` row, three `latent seed N` rows, each
+with sign / close / INVERTED / shares, the latent rows carrying
+the nn-ratio memorization tripwire; then THE MINED INTERACTIONS
+- the top 8 two-way product gains found in YOUR real data by
+model-importance screening (so XOR-shaped parents are findable),
+each measured on source, blueprint, and every latent seed side
+by side. This is the nonlinear head-to-head, mined from the data
+rather than named by hand. The three latent synthetic CSVs are
+written to latent_out - real-derived, they STAY on this machine.
+A few minutes per latent seed plus a minute or two of mining.
 
 **Send back:** the whole table. The four numbers that decide the
 next step: whose shares sit closer to the source's, the INVERTED
