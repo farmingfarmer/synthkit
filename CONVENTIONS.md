@@ -4,7 +4,7 @@ Synthetic clinical data generator and model-evaluation instrument. Core rule: le
 
 ## Verify before claiming
 
-- Run `python scripts/run_all_smokes.py` before claiming anything works. Expect 69 suites, 1949 checks, ALL GREEN **on a checkout**. Off a zipball extract - which is what the data machine runs - it is 1940: nine checks in `smoke_buildid` need git to test the archive path and report SKIPPED without it. Both numbers were measured. Do not quote the checkout number to the data machine; that is how a correct run gets read as a failure.
+- Run `python scripts/run_all_smokes.py` before claiming anything works. Expect 69 suites, 1954 checks, ALL GREEN **on a checkout**. Off a zipball extract - which is what the data machine runs - it is 1945: nine checks in `smoke_buildid` need git to test the archive path and report SKIPPED without it. Both numbers were measured. Do not quote the checkout number to the data machine; that is how a correct run gets read as a failure.
 - **THE DEVELOPMENT MACHINE WAS BEHIND THE DATA MACHINE, and that is
   how a green suite here failed there.** Dev was on Python 3.10 with
   pandas 2.3; the data machine installs fresh and got pandas 3.0.5,
@@ -339,6 +339,65 @@ the direction that stops work happening.
   publish them as k-screened aggregates the blueprint samples
   from - importing the fidelity while keeping the posture that
   passed its attacks. The challenger remains the ruler.
+
+- **DENOISING TRAINING BUYS PRIVACY AND FIDELITY AT ONCE, AND IS
+  THE DEFAULT (2026-09-25).** The weights-leak membership
+  adversary read 0.776 FAIL at 77-column width. Training the
+  autoencoder to rebuild a CLEAN record from a CORRUPTED one -
+  input noise sd 0.3 - takes it to 0.569 PASS while `close`
+  RISES from 1332/1376 to 1354/1376 and inversions fall 4 to 3;
+  sd 0.6 reads 0.563 with close 1352. Noise during training
+  regularizes, so the network learns the structure instead of
+  the records: the same change is the privacy fix and a fidelity
+  gain, which is why the default follows the measurement rather
+  than a trade-off argument.
+- **A SAMPLING-TIME DEFENSE CANNOT MOVE A WEIGHTS-TIME ATTACK,
+  AND THE MEASUREMENT SAID SO IN THREE DECIMALS.** The k-aware
+  blur governs which latent points are DRAWN; the reconstruction
+  adversary scores candidate records straight through encode /
+  decode and never reads a generated row. Blur on and blur off
+  returned byte-identical AUCs - which by this file's own rule
+  means one arm, not two, and here the reason is structural
+  rather than a bug. Defenses must be built on the surface the
+  attack reads.
+- **THE OUTPUT-SURFACE ADVERSARY IS BLIND AT REAL WIDTH, AND ITS
+  CONTROL PROVED IT.** The nearest-neighbor attack reads 0.500
+  on the honest arm at 77 columns - and 0.500 when handed the
+  members VERBATIM as its "synthetic" output. A control that
+  cannot catch a literal republish is a check that cannot fail,
+  so every reassuring 0.500 that adversary has produced at width
+  is worth nothing. Distance concentration in ~150 one-hot
+  dimensions is the cause. Found only because the control was
+  made to report the arm IT controls: `worst_auc` had been
+  reporting the reconstruction number for both arms and hiding
+  the blind one behind it. An output-surface attack that
+  survives width is now an open item.
+- **THE K-AWARE CONTRACT IS ALREADY MET, AND THE MEASURE HAD TO
+  BE FIXED TWICE TO SEE IT.** The operator asked for
+  reconstruction close on average and NOT close for patterns
+  fewer than k records support. Measured properly, the
+  generator already does this: rare rows sit 1.09x FURTHER from
+  their nearest synthetic row than dense rows do, and the blur
+  moves that ratio by -0.00 while costing +0.1% of average
+  fidelity. Getting there took two corrections, both the same
+  lesson - ask the k question where the pattern lives. Support
+  in the LATENT space found sub-k regions on 0.3% of rows;
+  moving it to the FEATURE space (a rare COMBINATION OF VALUES,
+  which is what k-anonymity has always meant) found 3.8%; and
+  counting distinct patients among a FIXED 40 neighbors can
+  never isolate a small group at all - the neighbor list spills
+  into the population and a cluster of four patients still
+  reports ten - so the count is taken within a RADIUS, which
+  found 25.3%. The blur ships as insurance that costs nothing,
+  with its benefit honestly recorded as unmeasured.
+- **AND A SCRIPT THAT ASSERTS THEN WRITES AT THE END LOSES EVERY
+  EDIT WHEN A LATER ASSERT FAILS.** An edit script made the
+  padding fix and a header rewrite, then died on a later
+  assertion - and because the file write is the last statement,
+  NONE of it landed while the console showed only the traceback.
+  The page was then debugged for a defect that had never been
+  applied. Write after each edit, or read the file back before
+  believing an edit is in.
 
 - **THE DUEL IS A STATION, AND THE GAP IS ITS OWN EXHIBIT
   (2026-09-25).** Both engines against one source on one page:

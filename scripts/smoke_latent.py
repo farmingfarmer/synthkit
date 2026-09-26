@@ -46,6 +46,16 @@ def main():
         "buddy": np.round(0.8 * x + r.normal(0, 4, n), 2),
         "cat": lab,
     })
+    # A GENUINELY RARE COMBINATION, planted on FOUR patients -
+    # ordinary-looking values that only these four hold TOGETHER.
+    # Without it the feature space of three smooth columns has no
+    # sub-k region at all and the k-blur check passes on nothing:
+    # the fixture must contain the thing the check is about.
+    _odd = df["person_id"].isin(
+        ["P00{}".format(i) for i in (1, 3, 5, 7)])
+    df.loc[_odd, "num"] = 95.0 + r.normal(0, 0.4, int(_odd.sum()))
+    df.loc[_odd, "buddy"] = 2.0 + r.normal(0, 0.4,
+                                           int(_odd.sum()))
     rare_patients = df[df["cat"] == "rare_level"][
         "person_id"].nunique()
     check("the fixture contains the thing: the rare level is held "
@@ -127,6 +137,46 @@ def main():
           "their modal level",
           plan_kind["days"] == "num"
           and gen3["cat"].nunique() > 1)
+
+    # THE K-AWARE CONTRACT: faithful where many patients stand
+    # behind a pattern, deliberately blurred where fewer than k
+    # do - and support measured in the FEATURE space, because "a
+    # pattern fewer than k records support" means a rare
+    # COMBINATION OF VALUES, not a sparse latent region.
+    g3 = LatentGen(seed=8, k_blur=True).fit(tr, "person_id")
+    sup_tr = g3.support_of_rows(g3._Xtrain)
+    check("the fixture contains the thing: some training rows "
+          "sit in sub-k regions of the FEATURE space, so the "
+          "blur has something to bite on",
+          (sup_tr < g3.k).any() and (sup_tr >= g3.k).any())
+    _ = g3.generate(600, seed=3)
+    rep = g3.blur_report
+    check("...and the blur fires on them and says how much it "
+          "moved - blurred and snapped counts reported, never "
+          "silent",
+          rep is not None and rep["rows"] == 600
+          and rep["blurred"] > 0
+          and set(rep) == {"rows", "blurred", "snapped"})
+    g4 = LatentGen(seed=8, k_blur=False).fit(tr, "person_id")
+    _ = g4.generate(600, seed=3)
+    check("...and turning it off is possible and honest - the "
+          "arm that measures what the blur costs reports no "
+          "blur at all",
+          g4.blur_report is None)
+
+    # DENOISING TRAINING IS ON BY DEFAULT, because it measured
+    # better on BOTH axes: the weights-surface membership
+    # adversary fell 0.776 FAIL -> 0.569 PASS while close rose
+    # 1332/1376 -> 1354/1376. A defense that also improves
+    # fidelity is not a trade-off, and the default must follow
+    # the measurement.
+    check("denoising training is the default, and the corrupted "
+          "input is what the network is trained FROM while the "
+          "clean record is what it is trained TO",
+          LatentGen().denoise == 0.3
+          and "rs2.normal" in (_root / "scripts"
+                               / "latent_challenger.py")
+          .read_text(encoding="utf-8"))
 
     # THE MINER MUST FIND WHAT CORRELATION CANNOT SEE. An XOR's
     # parents have Spearman near zero with their child - if the

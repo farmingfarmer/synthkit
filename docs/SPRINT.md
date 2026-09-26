@@ -93,6 +93,38 @@ three-body histograms, the gap heatmap, mined-interaction bars)
 and both privacy postures on the page. Next: the full-extract
 duel READ on the data machine.
 
+THE CROWNING QUESTION, ANSWERED WITH EVIDENCE (2026-09-25).
+The operator asked whether the neural engine should become the
+methodology. On the FULL extract it wins decisively on
+cross-sectional fidelity: sign 97.0% against 92.6%, close 86.8%
+against 81.8%, 3 inversions against 11, and it carries all eight
+mined interactions where the rules engine reads 0.000 on every
+one. Denoising training then removed the privacy blocker -
+weights-surface adversary 0.776 FAIL to 0.569 PASS, with
+fidelity IMPROVING - and the k-aware contract measures as
+already met (rare rows sit 1.09x further from their nearest
+synthetic row than dense ones).
+
+IT IS NOT CROWNED YET, FOR ONE MEASURED REASON: its output
+carries NO PATIENT IDENTITY. On a source averaging 76 visits per
+patient, the neural engine returns a table of unlinked visits -
+not degraded longitudinal structure, the absence of one. Every
+fidelity number above is cross-sectional; nothing has measured
+what happens to a patient's history, because there is no history
+in the output to measure. Shipping it as the methodology in that
+state would be the exact failure this project exists to prevent:
+a file that looks right on every check and has silently lost a
+large part of what the data is.
+
+THE PATH, IN ORDER: (1) give the neural engine patient structure
+- generate per-patient sequences, or condition the draw on a
+patient-level code - then (2) measure dynamics in the duel
+(within-patient variance share, persistence, visit counts)
+beside the cross-sectional numbers, and (3) build an
+output-surface attack that survives real width, since the
+current one is blind there. When those three read well, the
+crowning is a measurement rather than a preference.
+
 NEW EXIT: (a) the full-extract duel run and read - the
 300-sample's "blueprint 0.000 on all eight mined interactions"
 confirmed or corrected at full width; (b) first latent-informed

@@ -70,13 +70,45 @@ def _k_clip(vals: np.ndarray, gid: np.ndarray, k: int):
 
 class LatentGen:
     def __init__(self, k: int = K, bottleneck: int = None,
-                 hidden: int = None, seed: int = 0):
+                 hidden: int = None, seed: int = 0,
+                 k_blur: bool = True, support_ref: int = 12000,
+                 support_neighbors: int = 40,
+                 denoise: float = 0.3):
         # Capacity scales with the frame, decided at fit time. An
         # 8-dim bottleneck tuned on 6-column fixtures LOST a named
         # driver triple entirely at 77 columns (shares read 0/0,
         # close fell to 61%) - a ruler too short for the thing it
         # measures reads as a finding about the thing.
         self.k, self.b, self.h, self.seed = k, bottleneck, hidden, seed
+        # K-AWARE RECONSTRUCTION. Faithful where many patients
+        # stand behind the pattern; deliberately BLURRED where
+        # fewer than k do. Screening the INPUTS (sub-k levels
+        # folded, tails clipped) bounds what the network is
+        # shown; it does nothing about a rare COMBINATION of
+        # ordinary values, which is the shape an autoencoder
+        # memorizes and the weights-leak adversary reads back.
+        self.k_blur = k_blur
+        self.support_ref = support_ref
+        self.support_neighbors = support_neighbors
+        self.blur_report = None
+        # DENOISING TRAINING - the defense on the surface that is
+        # actually exposed. The k-aware blur above governs what
+        # is SAMPLED; the membership adversary that fails at
+        # width scores records straight through the WEIGHTS and
+        # never reads a generated row, so no sampling rule can
+        # move it. Training the network to rebuild a clean record
+        # from a corrupted one denies it the exact-record
+        # memorization that adversary reads back. Measured, not
+        # assumed: see the attack numbers in CONVENTIONS.
+        # DEFAULT 0.3, MEASURED. At 77-column width, seed 0:
+        # denoise 0.0 -> weights-surface adversary 0.776 FAIL,
+        # close 1332/1376, 4 inverted; 0.3 -> 0.569 PASS, close
+        # 1354/1376, 3 inverted; 0.6 -> 0.563 PASS, close
+        # 1352/1376. Better on BOTH axes at 0.3 - noise during
+        # training regularizes, so the network learns the
+        # structure instead of the records, which is both the
+        # privacy fix and a fidelity gain.
+        self.denoise = denoise
 
     def fit(self, df: pd.DataFrame, group_by: str):
         from sklearn.mixture import GaussianMixture
@@ -128,14 +160,106 @@ class LatentGen:
             hidden_layer_sizes=(self.h, self.b, self.h),
             activation="relu", max_iter=800, tol=1e-5,
             random_state=self.seed, early_stopping=False)
-        self.net.fit(X, X)
+        if self.denoise > 0:
+            rs2 = np.random.RandomState(self.seed + 5)
+            self.net.fit(
+                X + rs2.normal(0, self.denoise, X.shape), X)
+        else:
+            self.net.fit(X, X)
         z = self._encode(X)
+        # The support index: how many distinct PATIENTS stand
+        # behind a region of the latent space. Measured against a
+        # bounded reference sample of the training latents -
+        # exact nearest-neighbor over every row is quadratic and
+        # would double generation time, and the count below is an
+        # ESTIMATE, reported as one.
+        from sklearn.neighbors import NearestNeighbors as _NN
+        codes = pd.factorize(pd.Series(gid))[0]
+        rs = np.random.RandomState(self.seed + 77)
+        if len(X) > self.support_ref:
+            sel = rs.choice(len(X), self.support_ref,
+                            replace=False)
+        else:
+            sel = np.arange(len(X))
+        # SUPPORT IS MEASURED WHERE THE PATTERN LIVES - in the
+        # FEATURE space, not the latent one. "A pattern fewer
+        # than k records support" means a rare COMBINATION OF
+        # VALUES; latent density is a different question, and
+        # measuring it there found sub-k regions on 0.3% of rows
+        # while the weights-leak attack was reading 0.78. The
+        # honest space for the k question is the one k-anonymity
+        # has always been asked in.
+        self._ref_x = X[sel]
+        self._ref_codes = codes[sel]
+        self._lat_sd = z.std(axis=0)
+        self._lat_sd[self._lat_sd == 0] = 1.0
+        _nnn = min(self.support_neighbors, len(self._ref_x))
+        self._nn_x = _NN(n_neighbors=_nnn).fit(self._ref_x)
+        # THE K QUESTION NEEDS A RADIUS, NOT A COUNT. Counting
+        # distinct patients among a FIXED number of neighbors
+        # cannot find an isolated group: a cluster of four
+        # patients still reports ten, because the neighbor list
+        # spills into the general population once their own rows
+        # run out. A fixed radius - the typical distance to the
+        # 40th neighbor - asks the honest question instead: how
+        # many distinct patients are actually NEAR this
+        # combination of values.
+        _d = self._nn_x.kneighbors(
+            self._ref_x, n_neighbors=_nnn)[0]
+        self._radius = float(np.median(_d[:, -1])) or 1e-6
+        # training points that are THEMSELVES k-supported: the
+        # latent pool a hopeless draw is snapped into
+        own = self.support_of_rows(X)
+        self._dense = z[own >= self.k]
+        if not len(self._dense):
+            self._dense = z
         n_comp = min(10, max(2, len(df) // 200))
         self.gmm = GaussianMixture(
             n_components=n_comp, covariance_type="full",
             random_state=self.seed).fit(z)
         self._Xtrain = X
         return self
+
+    def support_of_rows(self, Xrows):
+        """Distinct training PATIENTS whose records sit closest
+        to each row - the k rule asked of a COMBINATION OF
+        VALUES, which is what 'a pattern fewer than k records
+        support' means. Estimated against a bounded reference
+        sample and reported as an estimate."""
+        idx = self._nn_x.radius_neighbors(
+            Xrows, radius=self._radius, return_distance=False)
+        return np.array([len(np.unique(self._ref_codes[i]))
+                         if len(i) else 0 for i in idx])
+
+    def _blur_sparse(self, Z, rng, rounds=5):
+        """Blur any draw that lands where fewer than k patients
+        stand, escalating until it does - and snap the hopeless
+        remainder into a k-supported region. The dense majority
+        of the table is untouched, which is why average fidelity
+        survives while the rare combination does not."""
+        n0 = len(Z)
+        blurred = np.zeros(n0, dtype=bool)
+        for r in range(rounds):
+            # decode first: the k question is asked of the ROW
+            # the draw would become, not of the code that makes
+            # it.
+            weak = self.support_of_rows(
+                self._decode(np.maximum(Z, 0.0))) < self.k
+            if not weak.any():
+                break
+            blurred |= weak
+            Z[weak] = Z[weak] + rng.normal(
+                0, 0.3 * (r + 1) * self._lat_sd,
+                (int(weak.sum()), Z.shape[1]))
+        weak = self.support_of_rows(
+            self._decode(np.maximum(Z, 0.0))) < self.k
+        n_snap = int(weak.sum())
+        if n_snap:
+            pick = rng.randint(0, len(self._dense), n_snap)
+            Z[weak] = self._dense[pick] + rng.normal(
+                0, 0.4 * self._lat_sd, (n_snap, Z.shape[1]))
+        return Z, {"rows": n0, "blurred": int(blurred.sum()),
+                   "snapped": n_snap}
 
     def _fwd(self, A, layers):
         W, B = self.net.coefs_, self.net.intercepts_
@@ -156,6 +280,8 @@ class LatentGen:
             self.seed if seed is None else seed)
         Z, _ = self.gmm.sample(n)
         Z = Z[rng.permutation(n)]
+        if self.k_blur:
+            Z, self.blur_report = self._blur_sparse(Z, rng)
         X = self._decode(np.maximum(Z, 0.0))
         out = {}
         i = 0
@@ -371,7 +497,8 @@ class ReconstructionAdversary:
         return -float(np.sum((X - R) ** 2))
 
 
-def run_attack(seeds, csv=None, group_by="person_id"):
+def run_attack(seeds, csv=None, group_by="person_id",
+               k_blur=True, denoise=0.0):
     """The SAME membership question the blueprint path answered at
     worst 0.52 - asked of the latent path, with the same bands,
     plus the republish control that makes any PASS worth reading.
@@ -386,6 +513,9 @@ def run_attack(seeds, csv=None, group_by="person_id"):
     print("MEMBERSHIP ATTACK ON THE LATENT PATH - two "
           "adversaries, worse one reported; the reconstruction "
           "adversary assumes the WEIGHTS leak.")
+    print("k-aware blur: {} | denoising training: {}".format(
+        "on" if k_blur else "OFF (measurement only)",
+        "sd {:.2f}".format(denoise) if denoise else "off"))
     if csv:
         print("frame: {} (real width - rows are subsampled to "
               "1,500 per side for the row-scored adversary)"
@@ -404,7 +534,8 @@ def run_attack(seeds, csv=None, group_by="person_id"):
         half = len(ids) // 2
         mem = df[df[group_by].astype(str).isin(set(ids[:half]))]
         non = df[df[group_by].astype(str).isin(set(ids[half:]))]
-        g = LatentGen(seed=seed).fit(mem, group_by)
+        g = LatentGen(seed=seed, k_blur=k_blur,
+                      denoise=denoise).fit(mem, group_by)
         synth = g.generate(min(len(mem), 4000), seed=seed + 2)
         audit = membership_audit(
             ReconstructionAdversary(g),
@@ -428,22 +559,110 @@ def run_attack(seeds, csv=None, group_by="person_id"):
     half = len(ids) // 2
     mem = df[df[group_by].astype(str).isin(set(ids[:half]))]
     non = df[df[group_by].astype(str).isin(set(ids[half:]))]
-    g = LatentGen(seed=seeds[0]).fit(mem, group_by)
+    g = LatentGen(seed=seeds[0], k_blur=k_blur,
+                  denoise=denoise).fit(mem, group_by)
     leak = membership_audit(
         ReconstructionAdversary(g),
         mem.to_dict("records")[:1500],
         non.to_dict("records")[:1500],
         synthetic=mem.to_dict("records")[:2000])
     print()
-    print("republish control: worst {:.3f} {} (must FAIL, or "
-          "the attack cannot see)".format(
-              leak["worst_auc"], leak["verdict"]))
+    # THE CONTROL MUST REPORT THE ARM IT CONTROLS. Feeding the
+    # members back as "synthetic" can only move the adversary
+    # that READS synthetic rows - the nearest-neighbor one. The
+    # reconstruction adversary scores through the weights and is
+    # blind to the output, so `worst_auc` reported the
+    # reconstruction number for both arms and the control read
+    # PASS the moment denoising lowered it: a control that
+    # stopped controlling while still printing a verdict.
+    _ctl_nn = (leak.get("nearest_neighbor") or {}).get("auc", 0.5)
+    print("republish control (the arm it actually controls - "
+          "nearest neighbor on the OUTPUT): {:.3f} {} - a "
+          "verbatim republish must be caught here, or the "
+          "output-surface numbers above mean nothing".format(
+              _ctl_nn, "CAUGHT" if _ctl_nn >= 0.70 else
+              "NOT CAUGHT"))
     print("latent path worst over {} seeds: mean {:.3f}, max "
           "{:.3f} - read beside the blueprint's recorded 0.52, "
           "same cohort fixture, same bands.".format(
               len(seeds), float(np.mean(worst)),
               float(np.max(worst))))
     return worst, leak
+
+
+def run_support(argv):
+    """THE DIRECT READ OF THE K-AWARE CONTRACT: is the synthetic
+    output CLOSE to the real records that many patients stand
+    behind, and FAR from the ones fewer than k stand behind?
+
+    For every real training record, the distance to its nearest
+    synthetic row - split by how many distinct patients support
+    that record's region. Dense rows want a SMALL distance (that
+    is fidelity); rare rows want a LARGE one (that is privacy).
+    Both arms - blur on and blur off - run in ONE command,
+    because a comparison assembled by eye from two terminals is
+    not a comparison.
+
+    This is a different surface from the membership attack on the
+    WEIGHTS: that adversary scores records straight through the
+    trained network and never reads the output at all, so no
+    sampling-time defense can move it. Fixing that one means
+    changing TRAINING, and this measurement does not claim to."""
+    import argparse
+    from sklearn.neighbors import NearestNeighbors
+    ap = argparse.ArgumentParser(
+        prog="latent_challenger.py support")
+    ap.add_argument("csv")
+    ap.add_argument("--group-by", required=True)
+    ap.add_argument("--seed", type=int, default=0)
+    a = ap.parse_args(argv)
+    print("support: --group-by {} --seed {}".format(
+        a.group_by, a.seed))
+    df = pd.read_csv(a.csv, dtype=str,
+                     keep_default_na=False).replace("", np.nan)
+    tr, _ho = _split_patients(df, a.group_by, a.seed)
+    print("{} rows x {} columns, {} patients (training half: "
+          "{} rows)".format(len(df), df.shape[1],
+                            df[a.group_by].nunique(), len(tr)))
+    rows = []
+    for blur in (False, True):
+        g = LatentGen(seed=a.seed, k_blur=blur).fit(tr,
+                                                    a.group_by)
+        gen = g.generate(len(tr), seed=a.seed + 1000)
+        Xtr = g._Xtrain
+        sup = g.support_of_rows(Xtr)
+        rare = sup < g.k
+        if not rare.any():
+            print("  no sub-k regions in this frame - the "
+                  "measurement has nothing to measure, stated "
+                  "rather than reported as a pass")
+            return 0
+        nn = NearestNeighbors(n_neighbors=1).fit(
+            g._re_encode_frame(gen))
+        d = nn.kneighbors(Xtr)[0].ravel()
+        dense_d = float(np.median(d[~rare]))
+        rare_d = float(np.median(d[rare]))
+        br = g.blur_report or {}
+        rows.append((blur, dense_d, rare_d, br))
+        print("  k-blur {:<3}: dense rows median distance {:.3f} "
+              "| RARE rows {:.3f} | ratio {:.2f}x{}".format(
+                  "ON" if blur else "off", dense_d, rare_d,
+                  rare_d / (dense_d or 1e-9),
+                  "  ({:.1%} of draws blurred, {} snapped)".format(
+                      br["blurred"] / max(br["rows"], 1),
+                      br["snapped"]) if br else ""))
+    print("  {} of {} training rows sit in sub-k regions "
+          "({:.1%})".format(int(rare.sum()), len(rare),
+                            rare.mean()))
+    off, on = rows[0], rows[1]
+    d_ratio = (on[2] / (on[1] or 1e-9)) - (off[2] / (off[1] or 1e-9))
+    print()
+    print("VERDICT: the blur moved the rare-to-dense distance "
+          "ratio by {:+.2f}x and the dense (average-fidelity) "
+          "distance by {:+.1%}. The contract wants the first "
+          "POSITIVE and the second near zero.".format(
+              d_ratio, (on[1] - off[1]) / (off[1] or 1e-9)))
+    return 0
 
 
 def run_csv(argv):
@@ -462,6 +681,14 @@ def run_csv(argv):
                     help="CHILD=PARENT1,PARENT2 - SHAP driver "
                          "shares on a named triple, source vs "
                          "generated")
+    ap.add_argument("--no-k-blur", action="store_true",
+                    help="disable the k-aware blur - for "
+                         "MEASURING what it costs and buys, "
+                         "never for a release")
+    ap.add_argument("--denoise", type=float, default=0.3,
+                    help="train as a DENOISING autoencoder with "
+                         "this input-noise sd - the defense on "
+                         "the weights surface")
     a = ap.parse_args(argv)
     seeds = [int(x) for x in a.seeds.split(",")]
     print("csv: --group-by {} --seeds {} --out {} --shares {}"
@@ -472,9 +699,12 @@ def run_csv(argv):
     print("read {}: {} rows x {} columns, {} patients".format(
         a.csv, len(df), df.shape[1],
         df[a.group_by].nunique()))
+    print("k-aware blur: {}".format(
+        "OFF (measurement only)" if a.no_k_blur else "on"))
     for seed in seeds:
         tr, ho = _split_patients(df, a.group_by, seed)
-        g = LatentGen(seed=seed).fit(tr, a.group_by)
+        g = LatentGen(seed=seed, k_blur=not a.no_k_blur,
+                      denoise=a.denoise).fit(tr, a.group_by)
         gen = g.generate(len(tr), seed=seed + 1000)
         cols = [c for c in df.columns if c != a.group_by]
         sign, close, inv, n = _pair_score(
@@ -497,9 +727,15 @@ def run_csv(argv):
             gs, _ = _shares(_numframe(gen), child, parents)
             extra = " | shares src " + "/".join(
                 "{:.0%}".format(x) for x in ss) + " gen " +                 "/".join("{:.0%}".format(x) for x in gs)
+        br = g.blur_report
+        blurb = ""
+        if br:
+            blurb = " | k-blur {:.1%} of rows ({} snapped)".format(
+                br["blurred"] / max(br["rows"], 1), br["snapped"])
         print("seed {:>2}: sign {}/{} close {}/{} INVERTED {} | "
-              "nn-ratio {:.2f}{}".format(seed, sign, n, close,
-                                         n, inv, nn, extra))
+              "nn-ratio {:.2f}{}{}".format(seed, sign, n, close,
+                                           n, inv, nn, extra,
+                                           blurb))
         if a.out:
             outd = Path(a.out)
             outd.mkdir(parents=True, exist_ok=True)
@@ -721,6 +957,8 @@ if __name__ == "__main__":
     which = sys.argv[1] if len(sys.argv) > 1 else "triangle"
     if which == "csv":
         run_csv(sys.argv[2:])
+    elif which == "support":
+        sys.exit(run_support(sys.argv[2:]))
     elif which == "compare":
         sys.exit(run_compare(sys.argv[2:]))
     elif which == "attack":
@@ -731,9 +969,13 @@ if __name__ == "__main__":
                         default=[0, 1, 2])
         ap.add_argument("--csv", default=None)
         ap.add_argument("--group-by", default="person_id")
+        ap.add_argument("--no-k-blur", action="store_true")
+        ap.add_argument("--denoise", type=float, default=0.3)
         aa = ap.parse_args(sys.argv[2:])
         run_attack(aa.seeds or [0, 1, 2], csv=aa.csv,
-                   group_by=aa.group_by)
+                   group_by=aa.group_by,
+                   k_blur=not aa.no_k_blur,
+                   denoise=aa.denoise)
     else:
         seeds = [int(x) for x in sys.argv[2:]] or DEFAULT_SEEDS
         run(which, seeds)

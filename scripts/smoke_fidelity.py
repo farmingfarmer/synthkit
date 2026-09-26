@@ -1116,19 +1116,35 @@ def main():
             columns=["person_id"]).to_csv(_lat2, index=False)
         _duel = build_duel(str(_sp2), str(_rn2), str(_lat2),
                            "person_id")
-        check("the duel page carries three series, the gap map "
-              "with both poles explained, the mined-interaction "
-              "section, the suppression count, and both privacy "
-              "postures",
+        check("the duel page carries three series, the "
+              "who-got-it-more-wrong grid, the combination "
+              "effects, the suppression count, and the safety "
+              "footer that says the two engines are NOT equally "
+              "safe",
               'class="ser lat"' in _duel
               and 'class="ser src"' in _duel
               and 'class="ser syn"' in _duel
-              and "The gap, drawn" in _duel
-              and "drifts further" in _duel
-              and "The mined interactions" in _duel
+              and "Where each engine goes wrong" in _duel
+              and "WHICH ENGINE GOT IT MORE WRONG" in _duel
+              and "The combination effects" in _duel
               and "suppressed by" in _duel
-              and "trains on records" in _duel
-              and "k-screened aggregates" in _duel)
+              and "they are not equally safe" in _duel
+              and "learns from the records themselves" in _duel)
+        # PLAIN ENGLISH IS THE CONTRACT, not a preference. The
+        # operator could not read the page through our own code
+        # names, so every heading, label and legend is written
+        # for a stranger and `blueprint`/`latent` survive ONLY as
+        # parenthetical log names - once each, beside the plain
+        # name, so somebody reading a terminal can still connect
+        # the two.
+        _low = _duel.lower()
+        check("...and the page reads without our jargon - the "
+              "engines are named in plain words, with the code "
+              "names surviving only as one parenthetical each",
+              "rules engine" in _low and "neural engine" in _low
+              and _low.count("blueprint") == 1
+              and _low.count("latent") == 1
+              and "in the logs" in _low)
         try:
             build_duel(str(_sp2), str(Path(_dd) / "nope"),
                        str(_lat2), "person_id")

@@ -59,7 +59,8 @@ CSS = """
 body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',
   Helvetica,Arial,sans-serif;color:%(ink)s;background:#fff;
   margin:0;font-size:14px;line-height:1.5}
-.wrap{max-width:1060px;margin:0 auto;padding:48px 32px}
+.wrap,main{max-width:1060px;margin:0 auto;
+  padding:48px 44px}
 h1{font-size:28px;font-weight:700;letter-spacing:-.02em;margin:0}
 h2{font-size:19px;font-weight:700;margin:40px 0 6px;
   padding-top:22px;border-top:1px solid %(rule)s}
@@ -866,24 +867,46 @@ def build_duel(src_path, run_dir, latent_csv,
     flat = [c for c in common
             if gen_l[c].nunique() <= 1 and src[c].nunique() > 1]
 
-    out = ["<h1>The duel: two engines, one source</h1>",
-           '<p class="note">Original in gray, the blueprint '
-           'engine in cardinal, the latent challenger in gold. '
-           'Press and hold any chart to fan the three apart. '
-           'Source bins under {} patients are suppressed and '
-           'counted, as everywhere.</p>'.format(k)]
+    out = ["<h1>Two ways to make synthetic data, "
+           "side by side</h1>",
+           '<p class="sub">The same real dataset, rebuilt twice '
+           '&mdash; and measured against the original.</p>',
+           '<div class="whois">'
+           '<div><span class="sw" style="background:{}"></span>'
+           '<b>The original data</b><br>the real records, in '
+           'gray. Any bar standing on fewer than {} patients is '
+           'removed before drawing, so nothing here describes a '
+           'group too small to hide in.</div>'
+           '<div><span class="sw" style="background:{}"></span>'
+           '<b>The RULES engine</b> <span class="codename">'
+           '(&ldquo;blueprint&rdquo; in the logs)</span><br>'
+           'studies the real data, writes down what it found as '
+           'published rules and distributions, then builds new '
+           'records from that written recipe alone - it never '
+           'touches a real record while generating.</div>'
+           '<div><span class="sw" style="background:{}"></span>'
+           '<b>The NEURAL engine</b> <span class="codename">'
+           '(&ldquo;latent&rdquo; in the logs)</span><br>'
+           'trains a small neural network to squeeze each record '
+           'down to a handful of numbers and expand it back, '
+           'then invents new records by sampling that squeezed '
+           'space. It learns from the records themselves.</div>'
+           '</div>'
+           '<p class="note">Press and hold any chart to fan the '
+           'three apart; let go and they settle back into '
+           'overlap.</p>'.format(GRAY, k, RED, GOLD)]
     out.append(
         '<div class="mcards">'
         '<div class="mcard"><div class="n">{}/{} &middot; {}/{}'
-        '</div><div class="l">blueprint sign &middot; close'
+        '</div><div class="l">RULES engine: kept direction &middot; kept strength'
         '</div></div>'
         '<div class="mcard"><div class="n">{}</div>'
-        '<div class="l">blueprint INVERTED</div></div>'
+        '<div class="l">RULES engine: BACKWARDS</div></div>'
         '<div class="mcard"><div class="n">{}/{} &middot; {}/{}'
-        '</div><div class="l">latent sign &middot; close'
+        '</div><div class="l">NEURAL engine: kept direction &middot; kept strength'
         '</div></div>'
         '<div class="mcard"><div class="n">{}</div>'
-        '<div class="l">latent INVERTED</div></div></div>'.format(
+        '<div class="l">NEURAL engine: BACKWARDS</div></div></div>'.format(
             sb[0], sb[3], sb[1], sb[3], sb[2],
             sl[0], sl[3], sl[1], sl[3], sl[2]))
     if dropped:
@@ -895,7 +918,8 @@ def build_duel(src_path, run_dir, latent_csv,
 
     gids = src[group_by].astype(str) if group_by in src.columns         else None
     total_sup = 0
-    out.append("<h2>Every shared column, three bodies</h2>")
+    out.append("<h2>Every column, drawn three ways</h2>"
+        + '<p class="note">Each chart is one column of the data: the real distribution in gray, and what each engine produced for it.</p>')
     for c in num_cols[:36]:
         vs = numeric(src[c])
         pat_counts = None
@@ -919,14 +943,16 @@ def build_duel(src_path, run_dir, latent_csv,
                    total_sup))
 
     gap_cols = num_cols[:28]
-    out.append("<h2>The gap, drawn</h2>"
-               '<p class="note">One cell per pair: '
-               '<b style="color:{}">cardinal</b> where the '
-               'blueprint drifts further from the source\'s '
-               'correlation, <b style="color:{}">gold</b> where '
-               'the latent does, white where they miss by the '
-               'same amount. Depth is the size of the '
-               'difference.</p>'.format(RED, GOLD))
+    out.append("<h2>Where each engine goes wrong</h2>"
+               '<p class="note">Every pair of columns in the '
+               'real data has a relationship. This grid asks, '
+               'for each pair, WHICH ENGINE GOT IT MORE WRONG: '
+               '<b style="color:{}">red</b> means the rules '
+               'engine missed by more there, <b style="color:'
+               '{}">gold</b> means the neural engine did, white '
+               'means they missed by the same amount (including '
+               'both getting it right). Darker means a bigger '
+               'difference between them.</p>'.format(RED, GOLD))
     out.append(gap_heatmap(
         gap_cols,
         dict((k_, v) for k_, v in ps.items()
@@ -936,12 +962,18 @@ def build_duel(src_path, run_dir, latent_csv,
         dict((k_, v) for k_, v in pl.items()
              if k_[0] in gap_cols and k_[1] in gap_cols)))
 
-    out.append("<h2>The mined interactions</h2>"
-               '<p class="note">The top two-way product gains '
-               'found in the SOURCE (parents screened by model '
-               'importance, so an XOR\'s parents are findable; '
-               'higher orders not mined) - and what each engine '
-               'carries of them.</p>')
+    out.append("<h2>The combination effects</h2>"
+               '<p class="note">Some effects only appear when '
+               'two columns act TOGETHER - the combination '
+               'matters beyond either column on its own. These '
+               'are the strongest such combinations found in the '
+               'real data, and how much of each one survived in '
+               'each engine\'s output. A short bar against a '
+               'long gray one means that combined effect was '
+               'lost; a bar LONGER than gray means the engine '
+               'exaggerated it. (Two-column combinations only; '
+               'three-way and higher are not measured here.)'
+               '</p>')
     mined = _mine_interactions(src, common, top_n=8)
     if not mined:
         out.append('<p class="note">None cleared the 0.005 gain '
@@ -957,32 +989,56 @@ def build_duel(src_path, run_dir, latent_csv,
                     'height:12px;border-radius:3px;'
                     'margin:2px 0"></div>').format(color, w)
         out.append(
-            '<div class="card"><h3>{} &larr; {} &times; {}</h3>'
-            '<div class="note">source {:.3f} &middot; blueprint '
-            '{} &middot; latent {}</div>{}{}{}</div>'.format(
+            '<div class="card"><h3>{} depends on {} '
+            '<i>combined with</i> {}</h3>'
+            '<div class="note">real data {:.3f} &middot; rules '
+            'engine {} &middot; neural engine {}</div>'
+            '{}{}{}</div>'.format(
                 esc(child), esc(pa2), esc(pb2), gv,
                 fnum(gb, 3) if gb is not None else "n/a",
                 fnum(gl, 3) if gl is not None else "n/a",
                 bar(gv, GRAY), bar(gb, RED), bar(gl, GOLD)))
 
-    out.append("<h2>What this page is, and is not</h2>"
-               '<p class="note">The BLUEPRINT engine publishes '
-               'k-screened aggregates only and has passed its '
-               'membership and attribute-disclosure attacks with '
-               'positive controls. The LATENT challenger trains '
-               'on records: at real width it FAILS the '
-               'weights-leak membership adversary (0.78) while '
-               'its rows-only adversary reads 0.50 - it is the '
-               'fidelity ruler, not a release path. It is '
-               'row-level: no within-patient dynamics.{}'
-               '</p>'.format(
-                   " Columns the latent path flattens to a "
-                   "constant: " + esc(", ".join(flat[:8]))
-                   + "." if flat else ""))
+    out.append("<h2>What this page does not say</h2>"
+               '<p class="note"><b>This page compares how '
+               'closely each engine copies the shape of the '
+               'data. It does not compare how safe they are, '
+               'and they are not equally safe.</b> The RULES '
+               'engine only ever publishes summary numbers that '
+               'already stand on at least {} patients, and has '
+               'been attacked - an adversary trying to tell who '
+               'was in the real cohort does no better than a '
+               'coin flip, while the same attack catches a '
+               'deliberately cheating generator every time. The '
+               'NEURAL engine learns from the records '
+               'themselves: an attacker who only sees its output '
+               'rows also does no better than a coin flip, but '
+               'an attacker who gets hold of the trained network '
+               'CAN tell who it was trained on. <b>And the '
+               'neural engine works one row at a time: its '
+               'output carries no patient identity at all, so '
+               'the same person\'s visits are not linked and '
+               'nothing about how a patient changes over time '
+               'survives it.</b> Every number on this page is '
+               'about one row compared to another; none of it '
+               'measures a patient\'s history, which is a large '
+               'part of what this data is.{}'
+               '</p>'.format(k, 
+                   " Columns the neural engine flattened to a "
+                   "single value, losing them entirely: "
+                   + esc(", ".join(flat[:8])) + "."
+                   if flat else ""))
     body = "".join(out)
     html = ("<!doctype html><html><head><meta charset='utf-8'>"
             "<title>The duel</title><style>" + CSS
-            + ".mcards{display:flex;gap:14px;flex-wrap:wrap}"
+            + ".whois{display:grid;"
+              "grid-template-columns:repeat(auto-fit,minmax("
+              "270px,1fr));gap:18px;margin:22px 0 18px;"
+              "font-size:13px;line-height:1.55}"
+              ".whois>div{border:1px solid " + RULE + ";"
+              "border-radius:12px;padding:14px 16px}"
+              ".codename{color:" + GRAY + ";font-size:11.5px}"
+              ".mcards{display:flex;gap:14px;flex-wrap:wrap}"
               ".mcard{border:1px solid " + RULE + ";"
               "border-radius:12px;padding:10px 16px}"
               ".mcard .n{font-size:20px;font-weight:700}"

@@ -10,7 +10,7 @@ before shipping.
 
 ## 1. Pull once
 
-Zipball per WINDOWS.md. Expect **69 suites, 1940 checks, ALL
+Zipball per WINDOWS.md. Expect **69 suites, 1945 checks, ALL
 GREEN**. Then:
 
 ```bat
