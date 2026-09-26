@@ -4,7 +4,7 @@ Synthetic clinical data generator and model-evaluation instrument. Core rule: le
 
 ## Verify before claiming
 
-- Run `python scripts/run_all_smokes.py` before claiming anything works. Expect 69 suites, 1954 checks, ALL GREEN **on a checkout**. Off a zipball extract - which is what the data machine runs - it is 1945: nine checks in `smoke_buildid` need git to test the archive path and report SKIPPED without it. Both numbers were measured. Do not quote the checkout number to the data machine; that is how a correct run gets read as a failure.
+- Run `python scripts/run_all_smokes.py` before claiming anything works. Expect 69 suites, 1957 checks, ALL GREEN **on a checkout**. Off a zipball extract - which is what the data machine runs - it is 1948: nine checks in `smoke_buildid` need git to test the archive path and report SKIPPED without it. Both numbers were measured. Do not quote the checkout number to the data machine; that is how a correct run gets read as a failure.
 - **THE DEVELOPMENT MACHINE WAS BEHIND THE DATA MACHINE, and that is
   how a green suite here failed there.** Dev was on Python 3.10 with
   pandas 2.3; the data machine installs fresh and got pandas 3.0.5,
@@ -339,6 +339,45 @@ the direction that stops work happening.
   publish them as k-screened aggregates the blueprint samples
   from - importing the fidelity while keeping the posture that
   passed its attacks. The challenger remains the ruler.
+
+- **THE NEURAL ENGINE HAS PATIENTS NOW, AND THE MEASURE THAT
+  PROVES IT ALSO NAMES WHAT IS STILL WRONG (2026-09-25).** It
+  used to emit no `person_id` at all - a table of unlinked
+  visits, which on a source averaging 76 visits per patient is
+  not degraded longitudinal structure but the absence of one.
+  Each row's latent code now splits into the PATIENT's centre
+  and that visit's DEVIATION from it; generation draws a
+  synthetic patient centre once, draws a k-screened visit count
+  for them, and places their visits around that centre, so every
+  visit of a generated patient shares a "who". Identities are
+  INVENTED (S000001 upward), never a real person's, and the
+  visit-count tail is clipped to the mean of the k most extreme
+  patients' counts - the blueprint's own bound rule applied to a
+  count. Measured on the 77-column fixture: person-level columns
+  come through at 0.90-0.96 against a source 1.00, per-visit
+  columns read 0.07-0.14 against a source near 0 (a mild
+  tendency to make visit-level things too patient-like, the
+  residual), and the mean absolute between-share error over 41
+  columns is 0.079.
+- **AND SHRINKING THE VISIT DEVIATION WAS SWEPT AND LOST.** It
+  sounds like pulling a patient's visits tighter around their
+  own centre should RAISE the between-patient share; through the
+  decoder's nonlinearity it does the opposite. dev_scale 1.0 -
+  the measured decomposition, untouched - read mean between-share
+  error 0.079, then 0.108, 0.166 and 0.298 at 0.8, 0.6 and 0.4,
+  with `close` falling too. A hand-rolled version of the same
+  experiment suggested otherwise and was WRONG because it
+  skipped the blur in the generate path: a measurement that does
+  not go through the real code path is not a measurement.
+- **A BETWEEN-PATIENT CHECK ON A PER-ROW COLUMN IS VACUOUS.**
+  The first patient-structure check asserted that a column kept
+  its between-patient share - on a fixture where every column
+  re-rolls per row, so the share is ~0 whether or not the
+  generator has patients at all. Zeroing the patient centre
+  changed nothing and the check stayed green. The fixture now
+  plants `plevel`, a genuine property of the person (0.99 of its
+  variance between patients), and the same mutation takes it to
+  -0.02 and the check goes red.
 
 - **DENOISING TRAINING BUYS PRIVACY AND FIDELITY AT ONCE, AND IS
   THE DEFAULT (2026-09-25).** The weights-leak membership

@@ -116,14 +116,29 @@ state would be the exact failure this project exists to prevent:
 a file that looks right on every check and has silently lost a
 large part of what the data is.
 
-THE PATH, IN ORDER: (1) give the neural engine patient structure
-- generate per-patient sequences, or condition the draw on a
-patient-level code - then (2) measure dynamics in the duel
-(within-patient variance share, persistence, visit counts)
-beside the cross-sectional numbers, and (3) build an
-output-surface attack that survives real width, since the
-current one is blind there. When those three read well, the
-crowning is a measurement rather than a preference.
+THE PATH, IN ORDER: (1) ~~give the neural engine patient
+structure~~ DONE 2026-09-25 - the latent code splits into the
+patient's centre and the visit's deviation, a generated patient
+draws one centre and a k-screened visit count, and the output
+carries an INVENTED person_id. Measured: person-level columns
+0.90-0.96 against a source 1.00, per-visit columns 0.07-0.14
+against ~0, mean between-share error 0.079 over 41 columns, with
+cross-sectional fidelity unchanged (close 1355/1376). (2) ~~measure
+dynamics in the duel~~ DONE - "Does a patient still look like a
+person?" is a section on the page now, per column, both engines,
+with the average distance from the real value stated. (3) build
+an output-surface attack that survives real width - STILL OPEN,
+and it is now the last blocker: the current nearest-neighbor
+adversary reads 0.500 even when handed the members verbatim, so
+nothing certifies that surface at width.
+
+REMAINING BEFORE CROWNING: (3) above, plus the residual that the
+neural engine makes visit-level columns slightly too
+patient-like, plus the governance items the rules engine has and
+the neural one does not - a published, auditable contract and
+the dials. None of these is a reason not to proceed; all of them
+are reasons the decision should be written down with its
+numbers.
 
 NEW EXIT: (a) the full-extract duel run and read - the
 300-sample's "blueprint 0.000 on all eight mined interactions"

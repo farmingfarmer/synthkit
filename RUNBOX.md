@@ -10,7 +10,7 @@ before shipping.
 
 ## 1. Pull once
 
-Zipball per WINDOWS.md. Expect **69 suites, 1945 checks, ALL
+Zipball per WINDOWS.md. Expect **69 suites, 1948 checks, ALL
 GREEN**. Then:
 
 ```bat
@@ -42,6 +42,16 @@ at full scale (61,121 rows x 58 columns, 800 patients):
 minutes** at that scale (the interaction mining is real work
 over every numeric child). Both show elapsed seconds while they
 run; neither blocks the browser.
+
+**NEW since your last duel:** the neural engine now produces
+PATIENTS, not unlinked rows - each generated person gets one
+latent centre and a k-screened visit count, with an invented
+person_id - so the page gained a "Does a patient still look like
+a person?" section comparing both engines on how much of each
+column belongs to the person. Training is also denoising by
+default, which measured BETTER on both privacy and fidelity.
+Re-generate the latent side before drawing, or the page will
+read the old patient-less output.
 
 **Expect on the page:** the four headline cards (per-engine
 sign/close and INVERTED counts), three-body histograms for every

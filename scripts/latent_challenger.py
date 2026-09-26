@@ -73,7 +73,9 @@ class LatentGen:
                  hidden: int = None, seed: int = 0,
                  k_blur: bool = True, support_ref: int = 12000,
                  support_neighbors: int = 40,
-                 denoise: float = 0.3):
+                 denoise: float = 0.3,
+                 hierarchical: bool = True,
+                 dev_scale: float = 1.0):
         # Capacity scales with the frame, decided at fit time. An
         # 8-dim bottleneck tuned on 6-column fixtures LOST a named
         # driver triple entirely at 77 columns (shares read 0/0,
@@ -109,11 +111,35 @@ class LatentGen:
         # structure instead of the records, which is both the
         # privacy fix and a fidelity gain.
         self.denoise = denoise
+        # PATIENT STRUCTURE. Without this the engine returns a
+        # table of UNLINKED VISITS: no person_id, so on a source
+        # averaging 76 visits per patient nothing about a
+        # patient's own history survives - not degraded, absent.
+        # The latent code of every row is split into the
+        # PATIENT's centre and that visit's DEVIATION from it;
+        # generation draws a synthetic patient centre once, then
+        # draws that patient's visits around it. Every visit of a
+        # generated patient therefore shares a "who", which is
+        # what makes within-patient behaviour possible at all.
+        self.hierarchical = hierarchical
+        # How much of the per-visit deviation to keep. SWEPT on
+        # the 77-column fixture, and 1.0 - the measured
+        # decomposition, untouched - won on both axes: mean
+        # absolute between-patient-share error over 41 columns
+        # read 0.079 at 1.0, then 0.108, 0.166 and 0.298 at 0.8,
+        # 0.6 and 0.4, with `close` falling too. Shrinking a
+        # patient's visits toward their own centre sounded like
+        # it should raise the between-share and it does the
+        # opposite once the decoder's nonlinearity is in the
+        # path. The knob stays at 1.0 and exists so the next
+        # person can re-run the sweep rather than re-reason it.
+        self.dev_scale = dev_scale
 
     def fit(self, df: pd.DataFrame, group_by: str):
         from sklearn.mixture import GaussianMixture
         from sklearn.neural_network import MLPRegressor
         gid = df[group_by].astype(str).to_numpy()
+        self._group_name = group_by
         cols = [c for c in df.columns if c != group_by]
         self.plan = []
         mats = []
@@ -218,6 +244,34 @@ class LatentGen:
             n_components=n_comp, covariance_type="full",
             random_state=self.seed).fit(z)
         self._Xtrain = X
+        if self.hierarchical:
+            n_pat = int(codes.max()) + 1
+            centres = np.zeros((n_pat, z.shape[1]))
+            np.add.at(centres, codes, z)
+            counts = np.bincount(codes, minlength=n_pat)
+            centres /= np.maximum(counts, 1)[:, None]
+            dev = z - centres[codes]
+            pc = min(8, max(2, n_pat // 40))
+            self.gmm_pat = GaussianMixture(
+                n_components=pc, covariance_type="full",
+                random_state=self.seed).fit(centres)
+            dc = min(8, max(2, len(z) // 400))
+            self.gmm_dev = GaussianMixture(
+                n_components=dc, covariance_type="full",
+                random_state=self.seed + 1).fit(dev)
+            # VISIT COUNTS ARE K-SCREENED LIKE EVERYTHING ELSE:
+            # one patient with an extreme number of visits must
+            # not set the published tail, so counts are clipped
+            # to the MEAN of the k most extreme patients' counts
+            # - the blueprint's own bound rule, applied to a
+            # count instead of a value.
+            srt = np.sort(counts)
+            kk = min(self.k, max(1, len(srt) // 2))
+            lo_c = max(1, int(round(srt[:kk].mean())))
+            hi_c = max(lo_c, int(round(srt[-kk:].mean())))
+            self._visit_counts = np.clip(counts, lo_c, hi_c)
+            self._mean_visits = float(
+                self._visit_counts.mean()) or 1.0
         return self
 
     def support_of_rows(self, Xrows):
@@ -275,11 +329,26 @@ class LatentGen:
     def _decode(self, Z):
         return self._fwd(Z, [2, 3])
 
-    def generate(self, n: int, seed: int = None) -> pd.DataFrame:
+    def generate(self, n: int, seed: int = None,
+                 n_patients: int = None) -> pd.DataFrame:
         rng = np.random.RandomState(
             self.seed if seed is None else seed)
-        Z, _ = self.gmm.sample(n)
-        Z = Z[rng.permutation(n)]
+        pid = None
+        if self.hierarchical:
+            P = n_patients or max(
+                1, int(round(n / self._mean_visits)))
+            centres, _ = self.gmm_pat.sample(P)
+            centres = centres[rng.permutation(P)]
+            counts = rng.choice(self._visit_counts, P)
+            total = int(counts.sum())
+            dev, _ = self.gmm_dev.sample(total)
+            dev = dev[rng.permutation(total)] * self.dev_scale
+            Z = np.repeat(centres, counts, axis=0) + dev
+            pid = np.repeat(
+                ["S{:06d}".format(i) for i in range(P)], counts)
+        else:
+            Z, _ = self.gmm.sample(n)
+            Z = Z[rng.permutation(n)]
         if self.k_blur:
             Z, self.blur_report = self._blur_sparse(Z, rng)
         X = self._decode(np.maximum(Z, 0.0))
@@ -313,7 +382,12 @@ class LatentGen:
                     [levels[min(j, len(levels) - 1)]
                      for j in idx])
                 i += len(levels)
-        return pd.DataFrame(out)
+        frame = pd.DataFrame(out)
+        if pid is not None:
+            # The identity column goes FIRST, and it is invented -
+            # S000001 upward - never a real person's id.
+            frame.insert(0, self._group_name, pid)
+        return frame
 
     def nn_ratio(self, gen: pd.DataFrame, holdout_X) -> float:
         """The memorization tripwire. Distance from each generated
@@ -745,6 +819,31 @@ def run_csv(argv):
                 outd / "latent_gen_seed{}.csv".format(seed)))
     print("Row-level: no within-patient dynamics. Trains on "
           "records: a MEASUREMENT, not a release.")
+
+
+def between_share(df, col, group_by):
+    """The share of a column's variance that lives BETWEEN
+    patients rather than within one patient's own visits - the
+    single number that says whether a longitudinal table has
+    people in it. Near 1.0: the column is a property of the
+    person (year of birth). Near 0: it is a property of the
+    visit and re-rolls every time. A generator with no patient
+    structure returns ~0 for EVERY column, because its rows
+    belong to nobody."""
+    if group_by not in df.columns:
+        return float("nan")
+    v = pd.to_numeric(df[col], errors="coerce")
+    d = pd.DataFrame({"v": v,
+                      "g": df[group_by].astype(str)}).dropna()
+    if d["g"].nunique() < 5 or len(d) < 50:
+        return float("nan")
+    tot = float(d["v"].var())
+    if not tot or not np.isfinite(tot):
+        return float("nan")
+    within = float(d.groupby("g")["v"].var().mean())
+    if not np.isfinite(within):
+        return float("nan")
+    return float(1.0 - within / tot)
 
 
 def _mine_interactions(df, cols, group_by=None, top_n=8,

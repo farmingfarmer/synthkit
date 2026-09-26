@@ -56,6 +56,16 @@ def main():
     df.loc[_odd, "num"] = 95.0 + r.normal(0, 0.4, int(_odd.sum()))
     df.loc[_odd, "buddy"] = 2.0 + r.normal(0, 0.4,
                                            int(_odd.sum()))
+    # A GENUINELY PATIENT-LEVEL COLUMN. Every other column here
+    # re-rolls per row, so a between-patient-share check on them
+    # passes whether or not the generator has patient structure
+    # at all - a vacuous check, caught by mutating the patient
+    # centre away and watching nothing go red. `plevel` is a
+    # property of the PERSON (their own level, plus small visit
+    # noise), so it can only survive generation if a generated
+    # patient's visits actually share a patient.
+    _plev = r.normal(0, 12, 200)[gid]
+    df["plevel"] = np.round(_plev + r.normal(0, 1.2, n), 2)
     rare_patients = df[df["cat"] == "rare_level"][
         "person_id"].nunique()
     check("the fixture contains the thing: the rare level is held "
@@ -163,6 +173,48 @@ def main():
           "arm that measures what the blur costs reports no "
           "blur at all",
           g4.blur_report is None)
+
+    # PATIENT STRUCTURE. Without it the engine returned a table
+    # of UNLINKED VISITS - no patient column at all - which on a
+    # longitudinal source is not degraded structure but the
+    # absence of one. The latent code splits into the patient's
+    # centre and the visit's deviation; a generated patient's
+    # visits share their centre, so a column that belongs to the
+    # PERSON stays put across their visits.
+    from latent_challenger import between_share
+    g5 = LatentGen(seed=9, hierarchical=True).fit(tr,
+                                                  "person_id")
+    gen5 = g5.generate(900, seed=2)
+    check("the output carries an INVENTED patient identity, "
+          "first column, with several visits per patient - never "
+          "a real person's id",
+          "person_id" in gen5.columns
+          and list(gen5.columns)[0] == "person_id"
+          and gen5["person_id"].str.startswith("S").all()
+          and not set(gen5["person_id"]) & set(tr["person_id"])
+          and gen5["person_id"].nunique() < len(gen5) / 2)
+
+    # A column that belongs to the PERSON must stay with the
+    # person. `num` is patient-linked in this fixture (each
+    # patient's rows share a level plus noise); the check asserts
+    # the generated between-patient share lands near the
+    # source's, and that a flat generator would FAIL it.
+    src_b = between_share(tr, "plevel", "person_id")
+    gen_b = between_share(gen5, "plevel", "person_id")
+    g6 = LatentGen(seed=9, hierarchical=False).fit(tr,
+                                                   "person_id")
+    gen6 = g6.generate(900, seed=2)
+    check("the fixture contains the thing: `plevel` really is a "
+          "person-level column in the source ({:.2f} of its "
+          "variance sits between patients)".format(src_b),
+          src_b > 0.7)
+    check("a person-level column keeps its person-level share "
+          "({:.2f} source, {:.2f} generated) - and without "
+          "patient structure the question cannot even be "
+          "asked".format(src_b, gen_b),
+          np.isfinite(src_b) and np.isfinite(gen_b)
+          and abs(gen_b - src_b) < 0.35
+          and "person_id" not in gen6.columns)
 
     # DENOISING TRAINING IS ON BY DEFAULT, because it measured
     # better on BOTH axes: the weights-surface membership

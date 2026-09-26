@@ -824,7 +824,7 @@ def build_duel(src_path, run_dir, latent_csv,
         sys.path.insert(0, _scripts)
     from latent_challenger import (_interaction_r2,
                                    _mine_interactions, _pair_score,
-                                   _pairs)
+                                   _pairs, between_share)
 
     run = Path(run_dir)
     if not (run / "generated.csv").exists():
@@ -961,6 +961,65 @@ def build_duel(src_path, run_dir, latent_csv,
              if k_[0] in gap_cols and k_[1] in gap_cols),
         dict((k_, v) for k_, v in pl.items()
              if k_[0] in gap_cols and k_[1] in gap_cols)))
+
+    # DOES A PATIENT LOOK LIKE A PERSON? The honest counterweight
+    # to every cross-sectional number above: a longitudinal table
+    # is about people seen repeatedly, and a generator that
+    # returns unlinked rows loses that entirely. Measured as the
+    # share of each column's variance that sits BETWEEN patients.
+    out.append("<h2>Does a patient still look like a person?</h2>"
+               '<p class="note">These records follow people over '
+               'repeated visits. Some things belong to the '
+               '<i>person</i> and barely move between their own '
+               'visits (a year of birth); others belong to the '
+               '<i>visit</i> and change every time. The number '
+               'below is the share of each column that belongs '
+               'to the person. An engine that gets this wrong '
+               'has produced rows that do not add up to '
+               'patients, however well each row reads on its '
+               'own.</p>')
+    dyn_rows = []
+    for c in num_cols[:18]:
+        vs = between_share(src, c, group_by)
+        if not np.isfinite(vs):
+            continue
+        vb = between_share(gen_b, c, group_by)
+        vl = between_share(gen_l, c, group_by)
+        dyn_rows.append((c, vs, vb, vl))
+    if not dyn_rows:
+        out.append('<p class="note">Neither output carries a '
+                   'patient column, so this cannot be measured '
+                   '- stated rather than skipped.</p>')
+    else:
+        out.append('<table><tr><th>column</th>'
+                   '<th class="num">real data</th>'
+                   '<th class="num">rules engine</th>'
+                   '<th class="num">neural engine</th></tr>')
+        eb, el = [], []
+        for c, vs, vb, vl in dyn_rows:
+            if np.isfinite(vb):
+                eb.append(abs(vb - vs))
+            if np.isfinite(vl):
+                el.append(abs(vl - vs))
+            out.append(
+                '<tr><td>{}</td><td class="num">{:.2f}</td>'
+                '<td class="num">{}</td>'
+                '<td class="num">{}</td></tr>'.format(
+                    esc(c), vs,
+                    "{:.2f}".format(vb) if np.isfinite(vb)
+                    else "no patients",
+                    "{:.2f}".format(vl) if np.isfinite(vl)
+                    else "no patients"))
+        out.append("</table>")
+        out.append('<p class="note">Average distance from the '
+                   'real value: rules engine {}, neural engine '
+                   '{}. Smaller is better; "no patients" means '
+                   'that engine\'s output carries no patient '
+                   'identity at all.</p>'.format(
+                       "{:.3f}".format(np.mean(eb)) if eb
+                       else "not measurable",
+                       "{:.3f}".format(np.mean(el)) if el
+                       else "not measurable"))
 
     out.append("<h2>The combination effects</h2>"
                '<p class="note">Some effects only appear when '
