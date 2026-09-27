@@ -2048,6 +2048,19 @@ details.fold summary::before{content:"\25B8";font-size:9px;
 details.fold[open] summary::before{transform:rotate(90deg)}
 details.fold summary:hover{color:var(--tab)}
 details.fold[open]{margin-bottom:18px}
+/* DEPTH BY DIFFERENTIAL RATE. The reference the operator sent
+   layers a page so that bands at different heights scroll at
+   different speeds - measured off that gif, the differential is
+   a restrained 15-25%, not a dramatic one. Four layers here:
+   the eyebrow lags most, the folded prose less, the display
+   heading least, and the what-next footer leads slightly. The
+   PANEL ITSELF NEVER MOVES: a label that drifts away from its
+   own input is a broken form, and no amount of depth is worth
+   that. Displacement is bounded and symmetric about the
+   viewport centre, so nothing accumulates drift. */
+.px{will-change:transform}
+@media(prefers-reduced-motion:reduce){
+  .px{transform:none !important}}
 details.fold>*:not(summary){margin-top:10px}
 
 /* ---- lettered controls: A, B, C ---- */
@@ -3181,6 +3194,10 @@ document.querySelectorAll('.station').forEach(btn=>{
     document.getElementById('title').innerHTML=
       '<em class="tstep">'+t[0]+'</em>'+t[1]+
       ' <span>&mdash; '+t[2]+'</span>';
+    /* The layers of the station just hidden keep the transform
+       they were last painted with; repaint so the one now shown
+       starts from its own true position. */
+    if(typeof pxSchedule==='function')pxSchedule();
   };});
 async function api(path,body){
   const r=await fetch(path,{method:body?'POST':'GET',
@@ -3732,6 +3749,37 @@ document.addEventListener('change',paintReady);
    at boot: what-you-need blocks always, explains when they run
    long. Every word stays in the page (and in the page SOURCE,
    which is what the checks read) - one click away, not gone. */
+/* [layer selector, max displacement px, +1 lags / -1 leads] */
+const PX_LAYERS=[['.stepbanner',26,1],['details.fold',17,1],
+  ['.panel h2',10,1],['.nextup',15,-1]];
+let pxTick=false,pxOff=false;
+function pxPaint(){
+  pxTick=false;
+  if(pxOff)return;
+  const vh=window.innerHeight||1;
+  const sec=document.querySelector('section.active');
+  if(!sec)return;
+  PX_LAYERS.forEach(function(L){
+    sec.querySelectorAll(L[0]).forEach(function(el){
+      const r=el.getBoundingClientRect();
+      if(!r.height){el.style.transform='';return;}
+      /* 0 at the viewport centre, +-max at its edges: a lagging
+         layer therefore travels 2*max LESS than the page does,
+         and returns to true position in the middle of the
+         screen where the eye actually reads it. */
+      const d=((r.top+r.height/2)-vh/2)/vh;
+      /* 1.3, not 2: the displacement then reaches its limit
+         only as the element leaves the screen, so the depth
+         reads for the whole time it is being looked at instead
+         of saturating in the first inch of scroll. */
+      const y=Math.max(-1,Math.min(1,d*1.3))*L[1]*-L[2];
+      el.classList.add('px');
+      el.style.transform='translate3d(0,'+y.toFixed(1)+'px,0)';
+    });
+  });
+}
+function pxSchedule(){
+  if(!pxTick){pxTick=true;requestAnimationFrame(pxPaint);}}
 function calmFold(){
   document.querySelectorAll('dl.stepgoal').forEach(function(g){
     var d=document.createElement('details');d.className='fold';
@@ -3747,7 +3795,13 @@ function calmFold(){
     e.parentNode.insertBefore(d,e);
     d.appendChild(m);d.appendChild(e);});}
 window.addEventListener('load',function(){
-  calmFold();setTimeout(paintReady,150);});
+  calmFold();setTimeout(paintReady,150);
+  pxOff=!!(window.matchMedia&&window.matchMedia(
+    '(prefers-reduced-motion: reduce)').matches);
+  if(!pxOff){
+    window.addEventListener('scroll',pxSchedule,{passive:true});
+    window.addEventListener('resize',pxSchedule);
+    pxSchedule();}});
 function fmtPct(x){return (100*x).toFixed(1)+'%';}
 function dataSummary(d){
   var h='<div class="mcards">'+

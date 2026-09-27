@@ -4,7 +4,7 @@ Synthetic clinical data generator and model-evaluation instrument. Core rule: le
 
 ## Verify before claiming
 
-- Run `python scripts/run_all_smokes.py` before claiming anything works. Expect 69 suites, 1957 checks, ALL GREEN **on a checkout**. Off a zipball extract - which is what the data machine runs - it is 1948: nine checks in `smoke_buildid` need git to test the archive path and report SKIPPED without it. Both numbers were measured. Do not quote the checkout number to the data machine; that is how a correct run gets read as a failure.
+- Run `python scripts/run_all_smokes.py` before claiming anything works. Expect 69 suites, 1959 checks, ALL GREEN **on a checkout**. Off a zipball extract - which is what the data machine runs - it is 1950: nine checks in `smoke_buildid` need git to test the archive path and report SKIPPED without it. Both numbers were measured. Do not quote the checkout number to the data machine; that is how a correct run gets read as a failure.
 - **THE DEVELOPMENT MACHINE WAS BEHIND THE DATA MACHINE, and that is
   how a green suite here failed there.** Dev was on Python 3.10 with
   pandas 2.3; the data machine installs fresh and got pandas 3.0.5,
@@ -339,6 +339,37 @@ the direction that stops work happening.
   publish them as k-screened aggregates the blueprint samples
   from - importing the fidelity while keeping the posture that
   passed its attacks. The challenger remains the ruler.
+
+- **I READ THE REFERENCE'S LAYOUT AND MISSED ITS MOTION, AND THE
+  FIX WAS TO MEASURE THE MOTION (2026-09-26).** Handed a scroll
+  reference as a gif, I extracted four still frames, redesigned
+  the bench from them, and never asked what MOVED - the operator
+  had to point out that the page is layered and the layers
+  scroll at different rates. A gif is not watchable from here,
+  but it is MEASURABLE: cross-correlating horizontal bands
+  between consecutive frames recovers each band's vertical shift,
+  and on that reference the bands differ by 15-25% (-22px at the
+  top against -27px in the middle on one transition). Stills
+  answer layout; only a frame diff answers motion, and the
+  question "what moves" has to be asked out loud or it is not
+  asked at all.
+- **DEPTH BY DIFFERENTIAL RATE, WITH THE FORM AS THE ANCHOR.**
+  Four layers scroll at distinct bounded rates - the eyebrow
+  lags most, then the folded prose, then the display heading,
+  while the what-next footer leads slightly. THE PANEL NEVER
+  MOVES: a label that drifts away from its own input is a broken
+  form and no amount of depth is worth it, so the form is the
+  fixed thing everything else moves against. Displacement is
+  symmetric about the viewport centre and clamped, so a layer
+  returns to true position exactly where the eye reads it and
+  nothing accumulates drift. The editorial reference's 15-25%
+  would need ~130px of lag across a screen and would visibly
+  detach the header from its panel; this lands near 7%, which is
+  the honest translation of the effect into a tool. Verified
+  live at five scroll positions rather than by eye: banner
+  11.8->26.0px, fold 6.5->17.0, heading 2.4->8.8, footer
+  11.4->1.6 the other way, panel `none` throughout - and
+  `prefers-reduced-motion` returns `none` for all of them.
 
 - **THE NEURAL ENGINE HAS PATIENTS NOW, AND THE MEASURE THAT
   PROVES IT ALSO NAMES WHAT IS STILL WRONG (2026-09-25).** It

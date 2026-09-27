@@ -1155,6 +1155,37 @@ def main():
               and "Step complete." in html
               and "You are free to move on" in html
               and ".nextup b" in html)
+        # DEPTH BY DIFFERENTIAL SCROLL RATE. The operator sent a
+        # reference whose bands scroll at different speeds -
+        # measured off that gif, a 15-25% differential - and
+        # asked for the same layering here. Four layers at
+        # distinct rates, and the PANEL IS NOT ONE OF THEM: a
+        # label that drifts away from its own input is a broken
+        # form, so the form is the anchor everything else moves
+        # against. Verified live at five scroll positions: the
+        # banner ran 11.8 -> 26.0px, the fold 6.5 -> 17.0, the
+        # heading 2.4 -> 8.8, the footer 11.4 -> 1.6 the other
+        # way, and the panel read `none` throughout.
+        check("scroll parallax: four layers at distinct bounded "
+              "rates, the form panel anchored and never a layer, "
+              "repainted when the station changes",
+              "PX_LAYERS" in html
+              and "'.stepbanner',26" in html
+              and "'details.fold',17" in html
+              and "'.panel h2',10" in html
+              and "'.nextup',15,-1" in html
+              and "['.panel'," not in html
+              and "function pxPaint" in html
+              and "requestAnimationFrame(pxPaint)" in html
+              and "if(typeof pxSchedule==='function')pxSchedule()"
+              in html)
+        check("...and a reader who asked for reduced motion gets "
+              "none of it - the layers are switched off at the "
+              "driver AND overridden in the stylesheet",
+              "pxOff=!!(window.matchMedia" in html
+              and "if(pxOff)return" in html
+              and ".px{transform:none !important}" in html)
+
         # THE CALM CONTRACT. The operator called the resting page
         # cluttered - three tellings of every title, boxed prose
         # everywhere, a types blob - and asked for the reference
