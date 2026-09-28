@@ -4,7 +4,7 @@ Synthetic clinical data generator and model-evaluation instrument. Core rule: le
 
 ## Verify before claiming
 
-- Run `python scripts/run_all_smokes.py` before claiming anything works. Expect 69 suites, 1961 checks, ALL GREEN **on a checkout**. Off a zipball extract - which is what the data machine runs - it is 1952: nine checks in `smoke_buildid` need git to test the archive path and report SKIPPED without it. Both numbers were measured. Do not quote the checkout number to the data machine; that is how a correct run gets read as a failure.
+- Run `python scripts/run_all_smokes.py` before claiming anything works. Expect 69 suites, 1964 checks, ALL GREEN **on a checkout**. Off a zipball extract - which is what the data machine runs - it is 1955: nine checks in `smoke_buildid` need git to test the archive path and report SKIPPED without it. Both numbers were measured. Do not quote the checkout number to the data machine; that is how a correct run gets read as a failure.
 - **THE DEVELOPMENT MACHINE WAS BEHIND THE DATA MACHINE, and that is
   how a green suite here failed there.** Dev was on Python 3.10 with
   pandas 2.3; the data machine installs fresh and got pandas 3.0.5,
@@ -503,6 +503,25 @@ the direction that stops work happening.
   The page was then debugged for a defect that had never been
   applied. Write after each edit, or read the file back before
   believing an edit is in.
+
+- **THE ENGINE GETS ITS OWN STATION; THE CONTEST STAYS A
+  RULER (2026-09-28).** Running the neural engine required going
+  through the duel, which is backwards: a comparison is how you
+  DECIDE between engines, not how you USE one. The Neural
+  station generates and reviews with no prior run and no second
+  engine - two polled jobs, since each is minutes of real work -
+  and its review page is `build_neural`, the duel's own measures
+  minus the comparison, so the two pages cannot disagree about
+  the same output. The duel remains because the one open
+  certification gap means a reference point is still needed, and
+  because every future change to the engine has to be measured
+  against something.
+- **AND IT LEADS WITH THE PATIENT QUESTION.** The single-engine
+  page puts "does a patient look like a person" ABOVE the
+  per-column charts, asserted by position in the checks. A
+  longitudinal table whose rows belong to nobody passes every
+  per-column number there is; putting that question last would
+  let the page read well while the file was useless.
 
 - **THE DUEL IS A STATION, AND THE GAP IS ITS OWN EXHIBIT
   (2026-09-25).** Both engines against one source on one page:

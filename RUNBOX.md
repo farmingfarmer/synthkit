@@ -87,7 +87,7 @@ build id and reads as a failed pull.
 python scripts\run_all_smokes.py
 ```
 
-**Expect: 69 suites, 1952 checks, ALL GREEN.** That is the
+**Expect: 69 suites, 1955 checks, ALL GREEN.** That is the
 zipball number; a checkout reads 1959 because nine build-id
 checks need git. Do not read 1950 as nine failures.
 
@@ -105,7 +105,22 @@ New since your last session: the bench scrolls in layers now
 which stays put), and the DUEL station runs both engines with
 the neural side producing PATIENTS rather than unlinked rows.
 
-## 8. Run the neural (autoencoder) engine, in the bench
+## 8. Run the neural engine on its own (the short path)
+
+The **GEN / Neural** station in the left rail runs the engine
+with no prior run and no second engine. Four boxes:
+
+- source CSV path - the real extract
+- output directory - a NEW folder of yours
+- patient / entity column - `person_id`
+- seed - `0`
+
+Press **Generate**, wait for it to say the file is written, then
+press **Review the output**. The review leads with "does a
+patient look like a person", then the combination effects, then
+every column drawn twice.
+
+## 9. Or run both engines side by side (the comparison)
 
 Everything below happens in the browser. The station is **DUEL**
 in the left rail, under SEE THE FIDELITY, just beneath Dashboard.

@@ -810,6 +810,233 @@ def gap_heatmap(names, ms, mb, ml):
     return "".join(parts)
 
 
+def hist2_svg(vs, vg, pat_counts, k):
+    """Original gray, neural gold - the single-engine histogram."""
+    import numpy as np
+    a = vs.dropna().to_numpy(dtype=float)
+    b = vg.dropna().to_numpy(dtype=float)
+    if not len(a) and not len(b):
+        return "", 0
+    allv = np.concatenate([x for x in (a, b) if len(x)])
+    lo, hi = float(allv.min()), float(allv.max())
+    if hi <= lo:
+        hi = lo + 1.0
+    nb = 24
+    edges = np.linspace(lo, hi, nb + 1)
+    ca = np.histogram(a, bins=edges)[0]
+    cb = np.histogram(b, bins=edges)[0]
+    suppressed = 0
+    if pat_counts is not None:
+        for i in range(nb):
+            if 0 < ca[i] and pat_counts[i] < k:
+                ca[i] = 0
+                suppressed += 1
+    fa = ca / max(ca.sum(), 1)
+    fb = cb / max(cb.sum(), 1)
+    top = max(float(fa.max()), float(fb.max()), 1e-9)
+    W, H, PAD = 620, 170, 26
+    bw = (W - 2 * PAD) / nb
+    parts = ['<svg class="live" viewBox="0 0 {} {}" width="{}" '
+             'height="{}">'.format(W, H + 34, W, H + 34)]
+    parts.append('<line x1="{0}" y1="{1}" x2="{2}" y2="{1}" '
+                 'stroke="{3}"/>'.format(PAD, H, W - PAD, RULE))
+    for f, cls, col, op in ((fa, "src", GRAY, None),
+                            (fb, "lat", GOLD, 0.6)):
+        r = []
+        for i in range(nb):
+            h = f[i] / top * (H - 14)
+            if h <= 0:
+                continue
+            r.append('<rect x="{:.1f}" y="{:.1f}" width="{:.1f}" '
+                     'height="{:.1f}" fill="{}"{}/>'.format(
+                         PAD + i * bw + 1, H - h, bw - 2, h, col,
+                         ' fill-opacity="{}"'.format(op)
+                         if op else ""))
+        parts.append('<g class="ser {}">'.format(cls)
+                     + "".join(r) + "</g>")
+    for t, frac, anch in ((lo, 0.0, "start"),
+                          ((lo + hi) / 2, 0.5, "middle"),
+                          (hi, 1.0, "end")):
+        parts.append('<text x="{:.1f}" y="{}" font-size="10.5" '
+                     'fill="{}" text-anchor="{}">{}</text>'.format(
+                         PAD + frac * (W - 2 * PAD), H + 16, GRAY,
+                         anch, esc(fnum(float(t)))))
+    parts.append("</svg>")
+    return "".join(parts), suppressed
+
+
+def build_neural(src_path, latent_csv, group_by="person_id",
+                 k=10):
+    """THE NEURAL ENGINE ON ITS OWN. Everything the duel measures,
+    minus the comparison - so a reader who has already accepted
+    which engine to use can run it and read it without going
+    through a contest. Same functions underneath, so this page
+    and the duel cannot disagree about the same output."""
+    import numpy as np
+    import pandas as pd
+    _sd = str(Path(__file__).resolve().parent)
+    if _sd not in sys.path:
+        sys.path.insert(0, _sd)
+    from latent_challenger import (_interaction_r2,
+                                   _mine_interactions, _pair_score,
+                                   _pairs, between_share)
+    if not Path(latent_csv).exists():
+        raise ValueError("no generated file at {} - press "
+                         "Generate first".format(latent_csv))
+    src = read_frame(src_path)
+    gen = read_frame(latent_csv)
+    common = [c for c in src.columns
+              if c in gen.columns and c != group_by]
+    missing = [c for c in src.columns
+               if c not in gen.columns and c != group_by]
+    num_cols = [c for c in common
+                if numeric(src[c]).notna().mean() >= 0.5
+                and numeric(src[c]).nunique() >= 3]
+    ps, pg = _pairs(src, common), _pairs(gen, common)
+    sign, close, inv, n = _pair_score(ps, pg)
+
+    out = ["<h1>The neural engine, measured</h1>",
+           '<p class="sub">Synthetic records built by the '
+           'autoencoder, compared against the real data they were '
+           'learned from.</p>',
+           '<div class="mcards">'
+           '<div class="mcard"><div class="n">{}/{}</div>'
+           '<div class="l">relationships pointing the same way'
+           '</div></div>'
+           '<div class="mcard"><div class="n">{}/{}</div>'
+           '<div class="l">and at about the same strength'
+           '</div></div>'
+           '<div class="mcard"><div class="n">{}</div>'
+           '<div class="l">BACKWARDS &mdash; must be zero'
+           '</div></div>'
+           '<div class="mcard"><div class="n">{}</div>'
+           '<div class="l">synthetic rows</div></div>'
+           '</div>'.format(sign, n, close, n, inv, len(gen))]
+    if missing:
+        out.append('<p class="note">In the real data but not in '
+                   'this output, so not measured here: {}</p>'
+                   .format(esc(", ".join(missing[:10])
+                               + (", ..." if len(missing) > 10
+                                  else ""))))
+
+    # PATIENTS FIRST: the question that decides whether a
+    # longitudinal table has people in it at all.
+    out.append("<h2>Does a patient look like a person?</h2>"
+               '<p class="note">These records follow people over '
+               'repeated visits. Some things belong to the '
+               '<i>person</i> and barely move between their own '
+               'visits; others belong to the <i>visit</i>. The '
+               'number is the share that belongs to the person - '
+               'the engine should land near the real value in '
+               'both directions.</p>')
+    rows = []
+    for c in num_cols[:18]:
+        vs = between_share(src, c, group_by)
+        vg = between_share(gen, c, group_by)
+        if np.isfinite(vs) and np.isfinite(vg):
+            rows.append((c, vs, vg))
+    if not rows:
+        out.append('<p class="note">Not measurable: this output '
+                   'carries no patient column.</p>')
+    else:
+        out.append('<table><tr><th>column</th>'
+                   '<th class="num">real data</th>'
+                   '<th class="num">neural engine</th>'
+                   '<th class="num">off by</th></tr>')
+        for c, vs, vg in rows:
+            out.append('<tr><td>{}</td><td class="num">{:.2f}</td>'
+                       '<td class="num">{:.2f}</td>'
+                       '<td class="num">{:.2f}</td></tr>'.format(
+                           esc(c), vs, vg, abs(vg - vs)))
+        out.append("</table>")
+        out.append('<p class="note">Average distance from the '
+                   'real value: <b>{:.3f}</b>.</p>'.format(
+                       float(np.mean([abs(b - a) for _, a, b
+                                      in rows]))))
+
+    out.append("<h2>The combination effects</h2>"
+               '<p class="note">Effects that exist only when two '
+               'columns act together. These are the strongest '
+               'ones found in the real data, and how much of '
+               'each survived. A bar much longer than the gray '
+               'one means the engine exaggerated it.</p>')
+    mined = _mine_interactions(src, common, top_n=8)
+    if not mined:
+        out.append('<p class="note">None cleared the gain floor '
+                   '- stated, not silent.</p>')
+    for gv, child, pa, pb in mined:
+        gg = _interaction_r2(gen, child, pa, pb)
+        mx = max(gv, gg or 0, 1e-9)
+
+        def bar(v, col):
+            w = 0 if v is None or not np.isfinite(v) \
+                else max(0.0, v) / mx * 280
+            return ('<div style="background:{};width:{:.0f}px;'
+                    'height:12px;border-radius:3px;margin:2px 0">'
+                    '</div>').format(col, w)
+        out.append('<div class="card"><h3>{} depends on {} '
+                   '<i>combined with</i> {}</h3>'
+                   '<div class="note">real data {:.3f} &middot; '
+                   'neural engine {}</div>{}{}</div>'.format(
+                       esc(child), esc(pa), esc(pb), gv,
+                       fnum(gg, 3) if gg is not None else "n/a",
+                       bar(gv, GRAY), bar(gg, GOLD)))
+
+    gids = src[group_by].astype(str) if group_by in src.columns \
+        else None
+    total_sup = 0
+    out.append("<h2>Every column, drawn twice</h2>"
+               '<p class="note">The real distribution in gray, '
+               'what the engine produced in gold. Press and hold '
+               'any chart to pull them apart; let go and they '
+               'settle back.</p>')
+    for c in num_cols[:36]:
+        vs = numeric(src[c])
+        pat_counts = None
+        if gids is not None:
+            a = vs.dropna()
+            if len(a):
+                edges = np.linspace(float(a.min()),
+                                    float(a.max()) or 1.0, 25)
+                idx = np.clip(np.digitize(
+                    a.to_numpy(dtype=float), edges[1:-1]), 0, 23)
+                gsub = gids[a.index]
+                pat_counts = [gsub[idx == i].nunique()
+                              for i in range(24)]
+        svg, sup = hist2_svg(vs, numeric(gen[c]), pat_counts, k)
+        total_sup += sup
+        out.append('<div class="card"><h3>{}</h3>{}</div>'.format(
+            esc(c), svg))
+    out.append('<p class="note">{} source bin(s) suppressed by '
+               'the k rule across this page - a chart of real '
+               'data is itself a release, so bins standing on '
+               'fewer than {} patients are removed before '
+               'drawing.</p>'.format(total_sup, k))
+
+    out.append("<h2>What this page does not say</h2>"
+               '<p class="note">This measures how closely the '
+               'engine copies the shape of the data. It does not '
+               'measure safety. The neural engine learns from the '
+               'records themselves: an attacker who only sees its '
+               'output does no better than a coin flip, but an '
+               'attacker who obtains the trained network can tell '
+               'who it was trained on, and the output-side attack '
+               'we have does not yet survive this many columns. '
+               'Treat the output as a measurement until that is '
+               'closed.</p>')
+    body = "".join(out)
+    return ("<!doctype html><html><head><meta charset='utf-8'>"
+            "<title>The neural engine</title><style>" + CSS
+            + ".mcards{display:flex;gap:14px;flex-wrap:wrap}"
+              ".mcard{border:1px solid " + RULE + ";"
+              "border-radius:12px;padding:10px 16px}"
+              ".mcard .n{font-size:20px;font-weight:700}"
+              ".mcard .l{font-size:11px;color:" + GRAY + "}"
+              ".card{margin:14px 0}"
+            + "</style></head><body><main>" + body + "</main>"
+            + MOTION_JS + "</body></html>")
+
+
 def build_duel(src_path, run_dir, latent_csv,
                group_by="person_id"):
     """THE DUEL PAGE: both engines against the same source, per

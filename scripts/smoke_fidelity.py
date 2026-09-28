@@ -1081,6 +1081,53 @@ def main():
               and _so2.read_text(encoding="utf-8")
               == _so.read_text(encoding="utf-8"))
 
+    # THE SINGLE-ENGINE REVIEW. Same measures as the duel,
+    # minus the comparison - one implementation underneath, so
+    # the two pages cannot disagree about the same output. It
+    # leads with the PATIENT question, because a longitudinal
+    # table whose rows belong to nobody is the failure that
+    # every per-column number would otherwise hide.
+    sys.path.insert(0, str(ROOT / "scripts"))
+    from fidelity_deck import build_neural as _bn
+    import numpy as _np3
+    import pandas as _pd3
+    with tempfile.TemporaryDirectory() as _nd:
+        _rngN = _np3.random.RandomState(4)
+        _nN = 900
+        _g3 = _np3.repeat(_np3.arange(150), 6)
+        _lvl = _rngN.normal(0, 9, 150)[_g3]
+        _s3 = _pd3.DataFrame({
+            "person_id": ["P{:03d}".format(i) for i in _g3],
+            "a": _np3.round(_lvl + _rngN.normal(0, 1, _nN), 2),
+            "b": _np3.round(_rngN.normal(20, 4, _nN), 2)})
+        _sp3 = Path(_nd) / "src.csv"
+        _s3.to_csv(_sp3, index=False)
+        _lp3 = Path(_nd) / "gen.csv"
+        _s3.sample(frac=0.85, random_state=5).to_csv(_lp3,
+                                                     index=False)
+        _pg = _bn(str(_sp3), str(_lp3), "person_id")
+        check("the neural review page leads with the patient "
+              "question, carries the combination effects and "
+              "every column drawn twice, and states what it does "
+              "NOT measure",
+              "The neural engine, measured" in _pg
+              and "Does a patient look like a person" in _pg
+              and _pg.index("Does a patient")
+              < _pg.index("Every column, drawn twice")
+              and "The combination effects" in _pg
+              and 'class="ser lat"' in _pg
+              and "does not measure safety" in _pg
+              and "suppressed by" in _pg)
+        try:
+            _bn(str(_sp3), str(Path(_nd) / "absent.csv"),
+                "person_id")
+            _ref = False
+        except ValueError as e:
+            _ref = "press Generate first" in str(e)
+        check("...and with nothing generated yet it refuses in a "
+              "sentence naming the next action, never a stack",
+              _ref)
+
     # THE DUEL PAGE: both engines against one source. Built by
     # ONE function (fidelity_deck.build_duel) that the CLI and
     # the bench both call; asserts the three series, the gap

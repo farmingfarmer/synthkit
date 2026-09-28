@@ -132,6 +132,14 @@ and it is now the last blocker: the current nearest-neighbor
 adversary reads 0.500 even when handed the members verbatim, so
 nothing certifies that surface at width.
 
+DELIVERED 2026-09-28: the neural engine has its own station -
+Generate and Review, no prior run and no second engine needed,
+both steps as polled jobs with its own single-engine review
+page. The duel stays as the RULER (it is how we know which
+engine is better, and the one open certification gap means we
+still need a reference point), but nobody has to run a contest
+to run the engine.
+
 REMAINING BEFORE CROWNING: (3) above, plus the residual that the
 neural engine makes visit-level columns slightly too
 patient-like, plus the governance items the rules engine has and

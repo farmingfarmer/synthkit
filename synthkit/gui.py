@@ -1367,6 +1367,36 @@ def _latent_work(payload: dict) -> dict:
                 payload.get("seed") or 0))}
 
 
+def api_neural(payload: dict) -> dict:
+    """The neural engine's own review page - the same measures
+    the duel makes, without the comparison, for a reader who has
+    already chosen the engine and wants to run it."""
+    import sys as _sys
+    sd = str(Path(__file__).resolve().parent.parent / "scripts")
+    if sd not in _sys.path:
+        _sys.path.insert(0, sd)
+    try:
+        from fidelity_deck import build_neural
+    except Exception as e:
+        return {"error": "could not load the review builder: {}"
+                         .format(e)}
+    src = str(Path(payload.get("src") or "").expanduser())
+    lat = str(Path(payload.get("latent") or "").expanduser())
+    if not (src and lat):
+        return {"error": "Give the source CSV and the generated "
+                         "file - press Generate first if there "
+                         "is not one yet."}
+    try:
+        html = build_neural(src, lat,
+                            payload.get("group_by")
+                            or "person_id")
+    except ValueError as e:
+        return {"error": str(e)}
+    except OSError as e:
+        return {"error": "could not read an input: {}".format(e)}
+    return {"html": html}
+
+
 def api_duel(payload: dict) -> dict:
     """The duel page - both engines against one source - built by
     fidelity_deck.build_duel, the same function the CLI writes
@@ -1474,6 +1504,9 @@ _ROUTES = {
     "/api/explain": lambda payload: __import__(
         "synthkit.explain", fromlist=["x"]).as_json(),
     "/api/duel": api_duel,
+    "/api/neural-async": lambda payload: {
+        "job": _start_job(api_neural, payload,
+                          budget_s=2 * 3600.0)},
     # THE DUEL IS A JOB, NOT A REQUEST. Measured at full extract
     # scale: the page takes ~9 minutes to build (the interaction
     # mining is real work over every numeric child). A
@@ -2512,6 +2545,8 @@ textarea:focus,input:focus,select:focus{
   <div class="railsplit">see the fidelity</div>
   <button class="station" data-step="8" data-s="dashboard" data-route="map"><b>VIEW</b>
     Dashboard<small class="subt">original vs synthetic, drawn</small></button>
+  <button class="station" data-step="8" data-s="neural" data-route="map"><b>GEN</b>
+    Neural<small class="subt">the engine, on its own</small></button>
   <button class="station" data-step="8" data-s="duel" data-route="map"><b>DUEL</b>
     Duel<small class="subt">two engines, one source</small></button>
   <div class="railsplit">the map</div>
@@ -3132,6 +3167,27 @@ textarea:focus,input:focus,select:focus{
   <div class="nextup"><span class="lbl">next</span><b>Roadmap</b><span>This is where the engine stands on your data; the Roadmap says where the eight goals are going.</span></div>
 </section>
 
+<section id="s-neural" data-step="8" data-route="map">
+  <div class="stepbanner"><span class="stepchip">Gen</span><span>The neural engine, on its own</span></div>
+  <dl class="stepgoal"><dt>you need</dt><dd>A real CSV on THIS machine and an output directory of your choosing. Nothing else &mdash; no prior run, no second engine.</dd><dt>you get</dt><dd>Synthetic records from the autoencoder, written to your directory, and a review page measuring them against the real data: relationships kept, whether a patient still looks like a person, the combination effects, and every column drawn twice. What it does NOT measure &mdash; safety &mdash; is stated on the page.</dd></dl>
+  <div class="panel">
+    <h2>Point at the data</h2>
+    <label>source CSV path
+      <input id="nsrc" placeholder="full path to the real CSV"></label>
+    <label>output directory <span class="hint">(yours to choose; the generated file lands here)</span>
+      <input id="nout" placeholder="a directory outside any repo"></label>
+    <label>patient / entity column
+      <input id="ngroup" value="person_id"></label>
+    <label>seed
+      <input id="nseed" value="0"></label>
+    <button class="act" onclick="neuralRun()">Generate</button>
+    <button class="act ghost" onclick="neuralReview()">Review the output</button>
+    <div class="out" id="neural-out">Nothing yet.</div>
+  </div>
+  <iframe id="neural-frame" sandbox="allow-scripts" style="width:100%;height:900px;border:1px solid var(--rule);border-radius:12px;margin-top:14px;display:none;background:#fff"></iframe>
+  <div class="nextup"><span class="lbl">next</span><b>Duel</b><span>This station runs the engine. The Duel measures it against the rules engine, which is how we know what it is worth.</span></div>
+</section>
+
 <section id="s-duel" data-step="8" data-route="map">
   <div class="stepbanner"><span class="stepchip">Duel</span><span>Two engines, one source</span></div>
   <dl class="stepgoal"><dt>you need</dt><dd>The source CSV, a finished blueprint run (its generated.csv is one side), and a latent output CSV &mdash; or press the generate button here and this station makes it.</dd><dt>you get</dt><dd>Both engines against the same source on one page: every shared column drawn three ways, THE GAP as its own heatmap (cardinal where the blueprint drifts further, gold where the latent does), the mined interactions per engine, and both privacy postures stated. The latent side trains on records and is the RULER, never a release.</dd></dl>
@@ -3238,6 +3294,7 @@ const titles={describe:['Step 1','Describe','say what data you need'],
   fitrun:['Measure 2','Fit','measure the blueprint, then generate'],
   fitver:['Measure 3','Verdict','judge the run'],
   dashboard:['View','Dashboard','original vs synthetic, drawn'],
+  neural:['Gen','Neural','the engine, on its own'],
   duel:['Duel','Duel','two engines, one source'],
   roadmap:['Map','Roadmap','the eight goals \u2014 built and planned']};
 let campaignDir='';
@@ -4499,6 +4556,68 @@ async function deckPrefill(){
     document.getElementById('dsrc').value=s.value;
   if(o&&o.value&&!document.getElementById('dout').value)
     document.getElementById('dout').value=o.value;}
+let nJob='',nTimer=null,nMode='';
+function nPayload(){
+  return {src:document.getElementById('nsrc').value.trim(),
+    out:document.getElementById('nout').value.trim(),
+    group_by:document.getElementById('ngroup').value.trim(),
+    seed:document.getElementById('nseed').value.trim()||'0'};}
+function nLatentPath(){
+  const d=document.getElementById('nout').value.trim();
+  const sd=document.getElementById('nseed').value.trim()||'0';
+  return d?d.replace(/[\\\/]+$/,'')+
+    '/latent_gen_seed'+sd+'.csv':'';}
+async function neuralRun(){
+  const o=document.getElementById('neural-out');
+  const p=nPayload();
+  if(!p.src||!p.out){o.textContent='STOPPED: give the source '+
+    'CSV and an output directory.';return;}
+  loaderSet('neural-out',null,'training the neural engine');
+  const r=await api('/api/latent-run',p);
+  if(r.error){loaderDone('neural-out',false);
+    o.textContent='STOPPED: '+r.error;return;}
+  nJob=r.job;nMode='gen';
+  if(nTimer)clearInterval(nTimer);
+  nTimer=setInterval(nPoll,2000);}
+async function neuralReview(){
+  const o=document.getElementById('neural-out');
+  const lat=nLatentPath();
+  const src=document.getElementById('nsrc').value.trim();
+  if(!src||!lat){o.textContent='STOPPED: give the source CSV '+
+    'and the output directory.';return;}
+  loaderSet('neural-out',null,'measuring the output');
+  const r=await api('/api/neural-async',{src:src,latent:lat,
+    group_by:document.getElementById('ngroup').value.trim()});
+  if(r.error){loaderDone('neural-out',false);
+    o.textContent='STOPPED: '+r.error;return;}
+  nJob=r.job;nMode='review';
+  if(nTimer)clearInterval(nTimer);
+  nTimer=setInterval(nPoll,2000);}
+async function nPoll(){
+  const o=document.getElementById('neural-out');
+  const frame=document.getElementById('neural-frame');
+  const j=await api('/api/job',{id:nJob});
+  if(j.status==='running'){
+    loaderSet('neural-out',null,nMode==='gen'?
+      'training the neural engine':'measuring the output',
+      j.elapsed);
+    o.textContent=(nMode==='gen'?
+      'training and drawing (':'measuring (')+
+      Math.round(j.elapsed)+'s) - it learns from the records, '+
+      'so its output is a measurement until the last attack '+
+      'closes.';return;}
+  clearInterval(nTimer);nTimer=null;
+  loaderDone('neural-out',j.status==='done');
+  if(j.status!=='done'||(j.result&&j.result.error)){
+    o.textContent='STOPPED: '+((j.result&&j.result.error)||
+      j.error||j.status);return;}
+  if(nMode==='gen'){
+    o.textContent='written in '+Math.round(j.elapsed)+
+      's. Now press Review the output.';
+    tick('neural');}
+  else{frame.srcdoc=j.result.html;frame.style.display='block';
+    o.textContent='measured in '+Math.round(j.elapsed)+
+      's. Gray is the real data, gold is the engine.';}}
 let latentJob='',latentTimer=null;
 let duelJob='',duelTimer=null;
 async function latentRun(){

@@ -1009,11 +1009,32 @@ def main():
               "what it PRODUCES - the old page said what a step was "
               "about and left you to press the button to find out "
               "the rest",
-              html.count('class="stepgoal"') == 12
-              and html.count("<dt>you need</dt>") == 12
-              and html.count("<dt>you get</dt>") == 12)
+              html.count('class="stepgoal"') == 13
+              and html.count("<dt>you need</dt>") == 13
+              and html.count("<dt>you get</dt>") == 13)
         check("...and every step ends by naming where to go next",
-              html.count('class="nextup"') == 12)
+              html.count('class="nextup"') == 13)
+
+        # THE NEURAL ENGINE HAS ITS OWN STATION. The duel is how
+        # we know which engine is better; it should not be the
+        # only way to RUN one. This station generates and reviews
+        # with no prior run and no second engine - two polled
+        # jobs, since both steps are minutes of real work -
+        # and its review page carries the same honesty footer.
+        from synthkit.gui import _ROUTES as _routes
+        check("the Neural station runs the engine on its own - "
+              "tile, title, its own fields, both steps as polled "
+              "jobs, and a sandboxed review frame",
+              'data-s="neural"' in html
+              and "neural:['Gen'" in html
+              and 'id="nsrc"' in html and 'id="nout"' in html
+              and 'id="nseed"' in html
+              and "/api/neural-async" in _routes
+              and "function neuralRun" in html
+              and "function neuralReview" in html
+              and "function nPoll" in html
+              and 'id="neural-frame" sandbox="allow-scripts"'
+              in html)
 
         # THE DUEL IS A STATION: both engines, one source, one
         # page - the latent generation runs as a bench job over
