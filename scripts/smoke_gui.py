@@ -1155,6 +1155,32 @@ def main():
               and "Step complete." in html
               and "You are free to move on" in html
               and ".nextup b" in html)
+        # EVERY TERM IS A DOOR. The bench is full of words with
+        # machinery behind them and a reader who does not know
+        # them had no way in. One registry (synthkit/explain.py)
+        # serves the bench; a term opens a panel, the panel's own
+        # words open further panels, and a trail lets the reader
+        # climb back out. Verified live: 27 terms auto-linked,
+        # three levels deep, breadcrumb climb-back working.
+        from synthkit import explain as _ex
+        check("the explanation graph has no broken links and "
+              "every trigger phrase resolves to a real entry - a "
+              "link that goes nowhere is worse than no link, "
+              "because the reader trusted it",
+              _ex.broken_links() == []
+              and all(k in _ex.TERMS for k in _ex.PHRASES)
+              and len(_ex.TERMS) >= 20)
+        check("...and the bench serves it, marks the terms, and "
+              "can drill down and climb back",
+              "/api/explain" in _rt
+              and 'id="exwrap"' in html and 'id="extrail"' in html
+              and "function exMark" in html
+              and "function exOpen" in html
+              and "data-back" in html
+              and "exPath.slice(0,i+1)" in html
+              and "createTreeWalker" in html
+              and "pre,code,script,style,input,textarea," in html)
+
         # DEPTH BY DIFFERENTIAL SCROLL RATE. The operator sent a
         # reference whose bands scroll at different speeds -
         # measured off that gif, a 15-25% differential - and
@@ -1166,14 +1192,24 @@ def main():
         # banner ran 11.8 -> 26.0px, the fold 6.5 -> 17.0, the
         # heading 2.4 -> 8.8, the footer 11.4 -> 1.6 the other
         # way, and the panel read `none` throughout.
-        check("scroll parallax: four layers at distinct bounded "
-              "rates, the form panel anchored and never a layer, "
-              "repainted when the station changes",
+        # Raised and extended after the operator reported
+        # seeing NOTHING: on the Roadmap - the longest scroll in
+        # the bench - every one of its `.goal` cards sat outside
+        # the layer list, so there was literally nothing moving
+        # once the header scrolled away. A goal card's head is a
+        # layer now, measured live: it travels 38px against its
+        # own body while the card moves 16px the other way.
+        check("scroll parallax: layers at distinct bounded "
+              "rates INCLUDING the roadmap's cards, the form "
+              "panel anchored and never a layer, repainted when "
+              "the station changes",
               "PX_LAYERS" in html
-              and "'.stepbanner',26" in html
-              and "'details.fold',17" in html
-              and "'.panel h2',10" in html
-              and "'.nextup',15,-1" in html
+              and "'.stepbanner',38" in html
+              and "'details.fold',26" in html
+              and "'.panel h2',16" in html
+              and "'.nextup',22,-1" in html
+              and "['.ghead',20,1]" in html
+              and "['.goal',9,-1]" in html
               and "['.panel'," not in html
               and "function pxPaint" in html
               and "requestAnimationFrame(pxPaint)" in html
@@ -1271,19 +1307,18 @@ def main():
         # percentages with receipts for the moves, a proposed
         # working order, and durations from now - deliberately not
         # dates.
-        check("the roadmap states a proposed working order, "
-              "updated percentages, and relative timelines per "
-              "goal",
+        check("the roadmap states a working order, a score per "
+              "goal in labelled rows rather than a wall of text, "
+              "and relative timelines",
               "Proposed working order" in html
-              and "~80%</span> 3" in html
-              and "~80%</span> 4" in html
-              and "~100%</span> 6" in html
-              and "~90%</span> 7" in html
-              and "~65%</span> 8" in html
-              and html.count("DONE 20") == 3
-              and "about 78%" in html
-              and "~65%</span> 2" in html
-              and "6-7 weeks" in html)
+              and all("~{}%</span><h3>{}".format(pc, n) in html
+                      for pc, n in [(55, 1), (65, 2), (80, 3),
+                                    (80, 4), (90, 5), (100, 6),
+                                    (90, 7), (65, 8)])
+              and html.count('class="goal"') == 8
+              and html.count('class="glabel') >= 24
+              and "about 80%" in html
+              and "5-6 weeks" in html)
 
         # THE FIT STATION CARRIES --exclude, END TO END. The live
         # demo's rehearsed command excludes the heavy set columns
@@ -1405,11 +1440,20 @@ def main():
               html.index('id="s-fitsrc"') < html.index("</main>")
               and html.index('id="s-fitver"') < html.index("</main>")
               and html.index('id="s-roadmap"') < html.index("</main>"))
+        # The built/planned split used to be inline prose
+        # prefixes inside one dense paragraph per goal - the
+        # operator called it a wall of text, correctly. It is a
+        # labelled two-column row per state now, so the check
+        # asserts the LABELS rather than the old prefixes.
         check("...and the Roadmap station states all eight goals "
-              "with built/planned split, so 'where we plan on "
-              "going' lives in the UI rather than a slide",
+              "with their state in labelled rows, so 'where we "
+              "plan on going' lives in the UI rather than a "
+              "slide - and reads as rows, not a wall",
               html.count('class="goal"') == 8
-              and "PLANNED:" in html and "BUILT:" in html)
+              and '<span class="glabel b">BUILT</span>' in html
+              and '<span class="glabel p">PLANNED</span>' in html
+              and '<span class="glabel n">NEXT</span>' in html
+              and "BUILT:" not in html)
     finally:
         gui.BACKEND_FACTORY = None
         server.shutdown()

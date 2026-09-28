@@ -1471,6 +1471,8 @@ _ROUTES = {
     "/api/fit-log": api_fit_log,
     "/api/fit-open": api_fit_open,
     "/api/deck": api_deck,
+    "/api/explain": lambda payload: __import__(
+        "synthkit.explain", fromlist=["x"]).as_json(),
     "/api/duel": api_duel,
     # THE DUEL IS A JOB, NOT A REQUEST. Measured at full extract
     # scale: the page takes ~9 minutes to build (the interaction
@@ -1789,10 +1791,27 @@ details.explain summary{cursor:pointer;margin-bottom:6px}
 .chip.partial{background:var(--gold-wash);color:#6d5a2a;
   border:1px solid var(--gold)}
 .chip.planned{background:#f2f2f4;color:#5b6675}
-.goal{border:1px solid var(--rule);border-radius:10px;
-  padding:12px 14px;margin:10px 0;background:var(--panel)}
-.goal h3{margin:0 0 4px;font-size:14.5px}
-.goal .ev{font-size:12.5px;color:#44534c;margin:4px 0 0}
+.goal{border:1px solid var(--rule);border-radius:14px;
+  background:var(--panel);padding:20px 22px;margin:16px 0;
+  box-shadow:var(--card)}
+.ghead{display:flex;align-items:center;gap:12px;flex-wrap:wrap;
+  padding-bottom:13px;margin-bottom:13px;
+  border-bottom:1px solid var(--rule)}
+.goal h3{margin:0;font-size:17px;font-weight:700;
+  letter-spacing:-.012em}
+.grow{display:grid;grid-template-columns:76px 1fr;gap:16px;
+  align-items:start;padding:9px 0}
+.grow+.grow{border-top:1px dashed #e7eae9}
+.glabel{font-family:var(--mono);font-size:9.5px;font-weight:800;
+  letter-spacing:.13em;padding:4px 0;color:var(--dim);
+  white-space:nowrap}
+.glabel.b{color:#2E7D5B}
+.glabel.p{color:#8A5A0B}
+.glabel.n{color:var(--tab)}
+.gbody{font-size:13.5px;line-height:1.62;color:#44534c;
+  max-width:62ch}
+.gbody b{color:var(--ink)}
+.goal .ev{font-size:13.5px;color:#44534c;margin:4px 0 0}
 .gaterow{display:flex;gap:10px;font-family:var(--mono);
   font-size:12.5px;padding:4px 0;border-bottom:1px dashed var(--rule)}
 .gaterow b{width:52px}
@@ -2048,6 +2067,46 @@ details.fold summary::before{content:"\25B8";font-size:9px;
 details.fold[open] summary::before{transform:rotate(90deg)}
 details.fold summary:hover{color:var(--tab)}
 details.fold[open]{margin-bottom:18px}
+/* EVERY TERM IS A DOOR. A word with machinery behind it becomes
+   a quiet underline; clicking opens a panel that explains it in
+   plain language, and the panel's own words are doors too - so a
+   reader drills down exactly as far as they wanted and no
+   further. Understated on the page, obvious on hover: the text
+   has to stay readable when nobody is asking. */
+.ex{border-bottom:1px dotted #9aa7b0;cursor:help;
+  text-decoration:none;color:inherit}
+.ex:hover{border-bottom-style:solid;border-bottom-color:var(--tab);
+  background:rgba(179,153,93,.10)}
+.ex::after{content:"\00a0?";font-size:.72em;vertical-align:.32em;
+  color:var(--dim);font-weight:700}
+.ex:hover::after{color:var(--tab)}
+#exwrap{display:none;position:fixed;inset:0;z-index:80;
+  background:rgba(23,34,44,.34);backdrop-filter:blur(2px)}
+#exwrap.on{display:block}
+#exbox{position:absolute;right:0;top:0;bottom:0;width:min(520px,94vw);
+  background:#fff;box-shadow:-18px 0 50px rgba(23,34,44,.22);
+  padding:26px 30px 34px;overflow:auto;
+  animation:exin .28s cubic-bezier(.22,1,.36,1)}
+@keyframes exin{from{transform:translateX(26px);opacity:0}
+  to{transform:none;opacity:1}}
+#extrail{font-family:var(--mono);font-size:10px;
+  letter-spacing:.11em;text-transform:uppercase;color:var(--dim);
+  margin-bottom:14px;display:flex;flex-wrap:wrap;gap:6px;
+  align-items:center}
+#extrail a{color:var(--tab);cursor:pointer;text-decoration:none;
+  border-bottom:1px solid transparent}
+#extrail a:hover{border-bottom-color:var(--tab)}
+#extitle{font-size:24px;font-weight:750;letter-spacing:-.02em;
+  margin:0 0 6px}
+#extitle+.exrule{width:52px;height:2px;background:var(--tab);
+  border-radius:1px;margin-bottom:16px}
+#exbody{font-size:14.5px;line-height:1.66;color:#33424e}
+#exbody .ex{border-bottom:1px dotted var(--tab)}
+#exclose{position:absolute;top:16px;right:20px;border:0;
+  background:none;font-size:22px;line-height:1;cursor:pointer;
+  color:var(--dim)}
+#exclose:hover{color:var(--ink)}
+@media(prefers-reduced-motion:reduce){#exbox{animation:none}}
 /* DEPTH BY DIFFERENTIAL RATE. The reference the operator sent
    layers a page so that bands at different heights scroll at
    different speeds - measured off that gif, the differential is
@@ -3100,56 +3159,65 @@ textarea:focus,input:focus,select:focus{
   <div class="stepbanner"><span class="stepchip">The map</span><span>Eight goals &mdash; what is built, what is planned</span></div>
   <dl class="stepgoal"><dt>you need</dt><dd>Nothing &mdash; this page is for reading, and for the room.</dd><dt>you get</dt><dd>Where each goal stands, with the measured evidence, what is planned, a proposed WORKING ORDER, and a relative timeline per goal (durations from now, deliberately not dates). Percentages are judgments; the numbers beside them are not. Full detail: <code>docs/goals_scorecard.md</code>.</dd></dl>
   <div class="explain"><b>Proposed working order</b> (as of 2026-09-23; the previous order's five steps all landed): 1st &mdash; absorb the team's try-to-break findings from the kit handout, each becoming a check. 2nd &mdash; goal 5's close gap, attacked on the reproduction fixtures where the mechanisms now live (the trim machinery: attribution flip, set-token drift). 3rd &mdash; goal 1's multi-table intake, the last big unstarted piece. 4th &mdash; goal 3's per-claim receipts. 5th &mdash; goal 2's free-text decision gate. Goal 7's vendor seat is scheduling, not building; goal 8's challenger and the ring ceiling are the research tail.</div>
-  <div class="goal"><h3><span class="chip partial">partial &middot; ~55%</span> 1 &middot; Universal upload with auto schema mapping</h3>
-    <div class="ev">BUILT: single-table CSV end to end; types, currency, percent and clock parsers; long/EAV pivot; 22 of 23 dataset shapes come out clean, and flat data comes back flat.</div>
-    <div class="ev">PLANNED: multi-table intake with key auto-detection; Excel / JSON formats. Documents are a later decision, on purpose.</div>
-    <div class="ev">NEXT &middot; about 3-6 weeks of work, proposed 6th &mdash; multi-table is the big piece and nothing upstream blocks on it.</div></div>
-  <div class="goal"><h3><span class="chip partial">partial &middot; ~65%</span> 2 &middot; Automatic de-identification</h3>
-    <div class="ev">BUILT: everything published is k-anonymous over PATIENTS; unpublishable labels are replaced by invented ones (1,436 real codes in, zero republished); attacked with positive controls &mdash; membership worst 0.52 where a cheat scores 1.00 and FAILS. AND the structured-field scrub (2026-09-18): <code>synthkit scrub CSV</code> detects names, SSNs, phones, emails, addresses, birth dates and per-patient identifiers from their VALUES (a renamed SSN column is still caught; a column named ssn holding labs is not), gated both ways &mdash; 7/7 planted PHI columns caught AND 0 of 7 near-miss clinical columns flagged, because a detector that flags everything also catches everything.</div>
-    <div class="ev">AND the real-extract reading happened (2026-09-22): one true catch (visit_id, a per-row identifier) and three detector faults the fixtures could not reach &mdash; visit dates flagged as identifiers, a semicolon-joined set column misread as free text, and a line claiming "one per person" beside 55,428 distinct over 800 patients. All three reproduced from the measured statistics, watched red, fixed: dates are never identifiers, set columns are judged by their TOKENS (a set of email addresses is now caught where the joined string matches nothing), and identifier lines state the measured ratio.</div>
-    <div class="ev">PLANNED: free text stays a governance decision gate &mdash; a long-text column is reported OUT OF SCOPE by name, never silently skipped.</div>
-    <div class="ev">AND CONFIRMED ON RE-READ (2026-09-23): the corrected scrub read the real extract again &mdash; visit_id the lone catch, honestly worded; both dates and the drug set back in the clear count, 42 of 44.</div>
-    <div class="ev">NEXT &middot; about 2 weeks remaining &mdash; the free-text decision gate, which is governance first and engineering second.</div></div>
-  <div class="goal"><h3><span class="chip partial">partial &middot; ~80%</span> 3 &middot; Every pattern found, explained, with receipts</h3>
-    <div class="ev">BUILT: discovery confirmed on held-out patients &mdash; 12/13 planted patterns, zero false; effect curves, interactions, presence-as-signal; the atlas explains all 97 components in plain English and refuses to build if one is missing.</div>
-    <div class="ev">PLANNED: per-claim receipt files; the tangled-graph ceiling &mdash; the one open research item.</div>
-    <div class="ev">NEXT &middot; research tail, ongoing &mdash; the dashboard, SHAP attribution and self-explaining gate landed this week (70&rarr;80); the tangled-graph ceiling has no calendar because unknowns, not assembly, move dates.</div></div>
-  <div class="goal"><h3><span class="chip partial">partial &middot; ~80%</span> 4 &middot; Dials over every pattern</h3>
-    <div class="ev">BUILT: count, coverage, shift, scale, persistence, clustering &mdash; each reports requested AGAINST achieved, because a dial can be capped by privacy and a silent difference is the failure this tool refuses. AND relationship dials (2026-09-18): <code>CHILD&lt;-PARENT.strength=0..1</code> weakens ONE edge &mdash; measured: the dialed pair falls 0.919&rarr;0.056 while its neighbor on the same child survives at 0.555, strength=1.0 is bit-identical, and an unknown edge is an error with a did-you-mean.</div>
-    <div class="ev">PLANNED: the full per-class verification pass (each dial's check asserting its NEIGHBORING properties &mdash; the shift/scale fight, generalized).</div>
-    <div class="ev">NEXT &middot; about 1-2 weeks remaining &mdash; verification breadth, not new machinery.</div></div>
-  <div class="goal"><h3><span class="chip built">built &middot; ~85%</span> 5 &middot; High-fidelity generation</h3>
-    <div class="ev">MEASURED on the real extract: coverage 42/42, center 30/33, set token shares 62/62, empty rates 4/4, zero inverted relationships, direction 93.9%. Against a statistical-copy ruler: 119 relationships kept to its 77.</div>
-    <div class="ev">REMAINING: one number &mdash; close at 76.5% against the 87.9% bar, and the seed sweep says it is REAL (76.5/80.6/80.2), not noise. The real-data reading is complete: shapes survive (8/9, 7/7, 7/7 across seeds), the published surfaces mostly do not (2/6 &mdash; the application machinery works; the residue is the ring-adjacency ceiling plus marginal drift), and the close drift concentrates in set-token relationships. Two inversions appeared on one seed of three; that file does not circulate.</div>
-    <div class="ev">NEXT &middot; about 2-4 weeks, proposed 2nd &mdash; the mechanisms live on the reproduction fixtures (pressure family, attribution triangle) with measured gates; fixes are sworn against those across seeds, then confirmed on the next real refit.</div></div>
-  <div class="goal"><h3><span class="chip built">built &middot; ~100%</span> 6 &middot; Self-assessment for sign-off</h3>
-    <div class="ev">BUILT: the six-criteria gate with an honest exit code; contradiction checks on the report AND the contract; row-level obedience checks that need no source data; diagnosis views. The run states its own privacy costs in place.</div>
-    <div class="ev">PLANNED: the single roll-up page a decision-maker signs.</div>
-    <div class="ev">DONE 2026-09-14 &mdash; the sign-off page shipped (scripts/signoff.py): the gate, the privacy posture with measured counts, limitations restated, and a signature block saying what signing accepts. Goal closed; the first of the eight.</div></div>
-  <div class="goal"><h3><span class="chip built">built &middot; ~90%</span> 7 &middot; Vendor evaluation against planted truth</h3>
-    <div class="ev">BUILT: known effects planted on measured covariates &mdash; +0.9/-0.5 recovered at +0.86/-0.44, a no-effect column reads +0.03; the bridge carries measured distributions into the exam; campaigns and this bench.</div>
-    <div class="ev">PLANNED: the loop assembled END TO END on the data machine &mdash; every part exists, the single run has not happened.</div>
-    <div class="ev">DONE 2026-09-11 &mdash; the end-to-end run happened on 55,428 real-shaped rows: bridge, plant, ladder, showdown; ceiling/baseline/vendor produced, and the as-specified bar exposed as sitting above its own ceiling.</div>
-    <div class="ev">DONE 2026-09-18 &mdash; repeatability: <code>synthkit exam RUNDIR --effect col=BETA -o DIR</code> runs the whole loop &mdash; bridge, plant, ladder, baseline, showdown, report card &mdash; as ONE command with per-stage echo and sentence refusals. The five-command version cost a day to a one-letter path typo. Remaining: a real vendor in the vendor seat.</div></div>
-  <div class="goal"><h3><span class="chip partial">partial &middot; ~65%</span> 8 &middot; Our own challenger, and one report card</h3>
-    <div class="ev">BUILT: the structurally-blinded baseline solver; the ceiling / ours / vendor line in the campaign machinery.</div>
-    <div class="ev">PLANNED: the report-card artifact from a real end-to-end run, then a challenger worth the name beyond the floor.</div>
-    <div class="ev">NEXT &middot; the report card SHIPPED 2026-09-11 (scripts/report_card.py, verified on the real showdown - it judges the bar as well as the solver). Remaining: a challenger worth the name beyond the structurally-blinded floor - research, unscheduled.</div></div>
-  <div class="hint">Overall, equal-weighted: about 78%. The
-  September sprint landed everything it named: the end-to-end
-  run, the seed sweep (close is REAL: 76.5/80.6/80.2), the report
-  card, the sign-off page closing goal 6, relationship dials
-  (goal 4, 65&rarr;80), the one-command exam runner (goal 7,
-  85&rarr;90), and the structured PHI scrub built, read against
-  the real extract, corrected from what that read taught, and
-  confirmed on a re-read (goal 2, 45&rarr;65). What remains:
-  the close-gap mechanisms on the reproduction fixtures, goal
-  1's multi-table intake, goal 3's receipts, the free-text
-  decision, and the research tail (attribution flip stabilization,
-  ring ceiling, a challenger worth the name). Core complete in
-  roughly 6-7 weeks from 2026-09-23 &mdash; early November; free
-  text, if its governance gate says yes, adds roughly 6 more
-  weeks beyond that.</div>
+  <div class="goal">
+    <div class="ghead"><span class="chip partial">partial &middot; ~55%</span><h3>1 &middot; Universal upload with auto schema mapping</h3></div>
+    <div class="grow"><span class="glabel b">BUILT</span><div class="gbody">Single-table CSV end to end. Type detection with currency, percent and clock parsers; long/EAV pivot. <b>22 of 23</b> dataset shapes come out clean, and flat data comes back flat.</div></div>
+    <div class="grow"><span class="glabel p">PLANNED</span><div class="gbody">Multi-table intake with key auto-detection; Excel and JSON. Documents are a later decision, deliberately.</div></div>
+    <div class="grow"><span class="glabel n">NEXT</span><div class="gbody"><b>~3-6 weeks.</b> Multi-table is the big remaining piece and nothing upstream waits on it.</div></div>
+  </div>
+  <div class="goal">
+    <div class="ghead"><span class="chip partial">partial &middot; ~65%</span><h3>2 &middot; Automatic de-identification</h3></div>
+    <div class="grow"><span class="glabel b">BUILT</span><div class="gbody">Everything published is k-anonymous over <b>patients</b>, never rows. Unpublishable labels become invented ones &mdash; 1,436 real codes in, <b>zero</b> republished. Attacked with positive controls: membership worst <b>0.52</b> where a deliberate cheat scores 1.00 and FAILS. The structured PHI scrub reads names, SSNs, phones, emails, addresses and birth dates from their <b>values</b>.</div></div>
+    <div class="grow"><span class="glabel b">MEASURED</span><div class="gbody">Read against the real extract twice. The first read found one true catch and three faults in the detector itself; corrected, the re-read came back <b>42 of 44 columns clear</b> with visit_id the lone catch.</div></div>
+    <div class="grow"><span class="glabel p">PLANNED</span><div class="gbody">Free text stays a governance decision, not a promise. A long-text column is reported OUT OF SCOPE by name, never silently skipped.</div></div>
+    <div class="grow"><span class="glabel n">NEXT</span><div class="gbody"><b>~2 weeks.</b> The free-text gate, which is a governance question first.</div></div>
+  </div>
+  <div class="goal">
+    <div class="ghead"><span class="chip partial">partial &middot; ~80%</span><h3>3 &middot; Every pattern found, explained, with receipts</h3></div>
+    <div class="grow"><span class="glabel b">BUILT</span><div class="gbody">Discovery confirmed on held-out patients: <b>12 of 13</b> planted patterns found, zero false. Effect curves, interaction surfaces, presence-as-signal. The atlas explains all 97 components in plain English and refuses to build if one is missing.</div></div>
+    <div class="grow"><span class="glabel p">PLANNED</span><div class="gbody">Per-claim receipt files.</div></div>
+    <div class="grow"><span class="glabel n">NEXT</span><div class="gbody">Research tail, ongoing. The tangled-graph ceiling has no calendar because unknowns, not assembly, move dates.</div></div>
+  </div>
+  <div class="goal">
+    <div class="ghead"><span class="chip partial">partial &middot; ~80%</span><h3>4 &middot; Dials over every pattern</h3></div>
+    <div class="grow"><span class="glabel b">BUILT</span><div class="gbody">Count, coverage, shift, scale, persistence and clustering, each reporting <b>requested against achieved</b> &mdash; a dial can be capped by privacy, and a silent difference is the failure this tool refuses. Plus per-edge relationship dials: one edge to 0 drops its pair 0.919&rarr;0.056 while its neighbour holds at 0.555.</div></div>
+    <div class="grow"><span class="glabel p">PLANNED</span><div class="gbody">The full per-class verification pass, each dial asserting its neighbouring properties.</div></div>
+    <div class="grow"><span class="glabel n">NEXT</span><div class="gbody"><b>~1-2 weeks.</b> Verification breadth, not new machinery.</div></div>
+  </div>
+  <div class="goal">
+    <div class="ghead"><span class="chip built">built &middot; ~90%</span><h3>5 &middot; High-fidelity generation</h3></div>
+    <div class="grow"><span class="glabel b">BUILT</span><div class="gbody">Two engines now. The <b>rules engine</b> publishes k-screened aggregates and generates from them &mdash; on the real extract: coverage 42/42, centre 30/33, zero inverted, direction 93.9%. The <b>neural engine</b> (autoencoder) trains on the records and carries what the rules engine cannot.</div></div>
+    <div class="grow"><span class="glabel b">MEASURED</span><div class="gbody">Full extract, head to head: neural keeps direction on <b>97.0%</b> of pairs against 92.6%, strength on <b>86.8%</b> against 81.8%, with <b>3</b> backwards relationships against 11. On the eight strongest <b>combination effects</b> mined from the real data, the rules engine reads <b>0.000 on every one</b> and the neural engine carries them. Driver attribution: real 94/6, neural 93/7, rules 25/75 &mdash; a flip.</div></div>
+    <div class="grow"><span class="glabel p">PLANNED</span><div class="gbody">The rules engine's remaining gap is relationship strength (76.5% against an 87.9% bar, seed-swept and real). The neural engine's is that it makes visit-level columns slightly too patient-like.</div></div>
+    <div class="grow"><span class="glabel n">NEXT</span><div class="gbody"><b>~2-4 weeks.</b> Close the neural engine's last certification gap, then decide the rules engine's future on evidence.</div></div>
+  </div>
+  <div class="goal">
+    <div class="ghead"><span class="chip built">built &middot; ~100%</span><h3>6 &middot; Self-assessment for sign-off</h3></div>
+    <div class="grow"><span class="glabel b">BUILT</span><div class="gbody">The eight-criteria gate with an honest exit code; contradiction checks on the report AND the contract; row-level obedience checks needing no source data. The run states its own privacy costs in place.</div></div>
+    <div class="grow"><span class="glabel b">DONE</span><div class="gbody"><b>2026-09-14</b> &mdash; the sign-off page shipped: the gate, the privacy posture with measured counts, limitations restated, and a signature block saying what signing accepts. First of the eight closed.</div></div>
+  </div>
+  <div class="goal">
+    <div class="ghead"><span class="chip built">built &middot; ~90%</span><h3>7 &middot; Vendor evaluation against planted truth</h3></div>
+    <div class="grow"><span class="glabel b">BUILT</span><div class="gbody">Known effects planted on measured covariates &mdash; +0.9/-0.5 recovered at +0.86/-0.44, a no-effect column reads +0.03. The bridge carries measured distributions into the exam.</div></div>
+    <div class="grow"><span class="glabel b">DONE</span><div class="gbody"><b>2026-09-11</b> &mdash; the loop ran end to end on 55,428 real-shaped rows, and exposed a bar sitting ABOVE its own ceiling. <b>2026-09-18</b> &mdash; the whole loop became one command.</div></div>
+    <div class="grow"><span class="glabel n">NEXT</span><div class="gbody">A real vendor in the vendor seat. Scheduling, not building.</div></div>
+  </div>
+  <div class="goal">
+    <div class="ghead"><span class="chip partial">partial &middot; ~65%</span><h3>8 &middot; Our own challenger, and one report card</h3></div>
+    <div class="grow"><span class="glabel b">BUILT</span><div class="gbody">The structurally-blinded baseline solver, and the ceiling / ours / vendor line in the campaign machinery. The report card judges the <b>bar</b> as well as the solver.</div></div>
+    <div class="grow"><span class="glabel p">PLANNED</span><div class="gbody">A challenger worth the name beyond the deliberately modest floor.</div></div>
+    <div class="grow"><span class="glabel n">NEXT</span><div class="gbody">Research, unscheduled.</div></div>
+  </div>
+  <div class="hint">Overall, equal-weighted: <b>about 80%</b>.
+  The September sprint landed everything it named, then went
+  further: a second generation engine was built as a ruler,
+  measured decisively better on the structure that matters, and
+  given patient structure of its own. What remains is one
+  certification gap on that engine, multi-table intake, the
+  free-text decision, and the research tail. Core complete in
+  roughly <b>5-6 weeks</b> from 2026-09-28 &mdash; early
+  November; free text, if its gate says yes, adds about six
+  weeks beyond.</div>
   <div class="nextup"><span class="lbl">next</span><b>Anywhere</b><span>This page is the map, not a step. Step 1 invents data from English; Fit measures data you already have.</span></div>
 </section>
 </main></div>
@@ -3750,8 +3818,16 @@ document.addEventListener('change',paintReady);
    long. Every word stays in the page (and in the page SOURCE,
    which is what the checks read) - one click away, not gone. */
 /* [layer selector, max displacement px, +1 lags / -1 leads] */
-const PX_LAYERS=[['.stepbanner',26,1],['details.fold',17,1],
-  ['.panel h2',10,1],['.nextup',15,-1]];
+/* Raised from the first cut: at 26/17/10/15 the operator could
+   not see the effect at all, and on the Roadmap - which is the
+   longest scroll in the bench - there was literally nothing
+   moving, because every one of its `.goal` cards was outside
+   the layer list. A card's HEAD is a layer now, so each card
+   has depth against its own body, and the whole list has depth
+   against the page. */
+const PX_LAYERS=[['.stepbanner',38,1],['details.fold',26,1],
+  ['.panel h2',16,1],['.nextup',22,-1],['.ghead',20,1],
+  ['.goal',9,-1],['#speccard',30,1]];
 let pxTick=false,pxOff=false;
 function pxPaint(){
   pxTick=false;
@@ -3780,6 +3856,84 @@ function pxPaint(){
 }
 function pxSchedule(){
   if(!pxTick){pxTick=true;requestAnimationFrame(pxPaint);}}
+/* THE EXPLANATION GRAPH. One registry, served from
+   synthkit/explain.py, rendered here: a term opens a panel, the
+   panel's own terms open further panels, and a trail across the
+   top lets the reader climb back out of however deep they
+   went. */
+let EX={terms:{},phrases:{}},exPath=[];
+async function exLoad(){
+  try{EX=await api('/api/explain',{});}catch(e){return;}
+  exMark(document.querySelector('main'));}
+function exBody(t){
+  return (t||'').replace(/\[\[([a-z0-9-]+)\]\]/g,
+    function(m,slug){
+      const e=EX.terms[slug];
+      return e?('<span class="ex" data-ex="'+slug+'">'+
+        e.title+'</span>'):m;});}
+function exOpen(slug,push){
+  const e=EX.terms[slug];if(!e)return;
+  if(push!==false)exPath.push(slug);
+  document.getElementById('extitle').textContent=e.title;
+  document.getElementById('exbody').innerHTML=exBody(e.body);
+  const tr=document.getElementById('extrail');
+  tr.innerHTML=exPath.map(function(sl,i){
+    const nm=(EX.terms[sl]||{}).title||sl;
+    return i===exPath.length-1?('<b>'+nm+'</b>'):
+      ('<a data-back="'+i+'">'+nm+'</a>');}).join(
+        ' <span>&rsaquo;</span> ');
+  document.getElementById('exwrap').classList.add('on');
+  document.body.style.overflow='hidden';}
+function exClose(){
+  document.getElementById('exwrap').classList.remove('on');
+  document.body.style.overflow='';exPath=[];}
+document.addEventListener('click',function(ev){
+  const t=ev.target.closest?ev.target.closest('[data-ex]'):null;
+  if(t){ev.preventDefault();exOpen(t.dataset.ex);return;}
+  const b=ev.target.closest?ev.target.closest('[data-back]'):null;
+  if(b){const i=parseInt(b.dataset.back,10);
+    exPath=exPath.slice(0,i+1);exOpen(exPath[i],false);}});
+document.addEventListener('keydown',function(ev){
+  if(ev.key==='Escape')exClose();});
+/* Mark the FIRST occurrence of each phrase inside a container,
+   skipping anything a reader types into or reads as code. One
+   link per term per section: a page speckled with the same
+   link ten times is harder to read, not easier. */
+function exMark(root){
+  if(!root||!EX.phrases)return;
+  const pairs=[];
+  Object.keys(EX.phrases).forEach(function(slug){
+    (EX.phrases[slug]||[]).forEach(function(ph){
+      pairs.push([ph,slug]);});});
+  pairs.sort(function(a,b){return b[0].length-a[0].length;});
+  root.querySelectorAll('section').forEach(function(sec){
+    const used={};
+    const walk=document.createTreeWalker(
+      sec,NodeFilter.SHOW_TEXT,{acceptNode:function(n){
+        const p=n.parentElement;
+        if(!p)return NodeFilter.FILTER_REJECT;
+        if(p.closest('pre,code,script,style,input,textarea,'+
+          'select,button,.ex,.out,#exbox'))
+          return NodeFilter.FILTER_REJECT;
+        return n.nodeValue&&n.nodeValue.trim().length>2?
+          NodeFilter.FILTER_ACCEPT:NodeFilter.FILTER_REJECT;}});
+    const nodes=[];
+    while(walk.nextNode())nodes.push(walk.currentNode);
+    nodes.forEach(function(n){
+      for(let i=0;i<pairs.length;i++){
+        const ph=pairs[i][0],slug=pairs[i][1];
+        if(used[slug])continue;
+        const at=n.nodeValue.indexOf(ph);
+        if(at<0)continue;
+        const after=n.splitText(at);
+        after.splitText(ph.length);
+        const sp=document.createElement('span');
+        sp.className='ex';sp.dataset.ex=slug;
+        sp.textContent=ph;
+        after.parentNode.replaceChild(sp,after);
+        used[slug]=1;return;
+      }});
+  });}
 function calmFold(){
   document.querySelectorAll('dl.stepgoal').forEach(function(g){
     var d=document.createElement('details');d.className='fold';
@@ -3795,7 +3949,7 @@ function calmFold(){
     e.parentNode.insertBefore(d,e);
     d.appendChild(m);d.appendChild(e);});}
 window.addEventListener('load',function(){
-  calmFold();setTimeout(paintReady,150);
+  calmFold();exLoad();setTimeout(paintReady,150);
   pxOff=!!(window.matchMedia&&window.matchMedia(
     '(prefers-reduced-motion: reduce)').matches);
   if(!pxOff){
@@ -4444,7 +4598,15 @@ async function deckBuild(){
     'same picture the shareable report carries.';
   tick('dashboard');
   frame.scrollIntoView({behavior:'smooth',block:'start'});}
-</script><div id="cellmodal" onclick="if(event.target===this)closeCell()">
+</script><div id="exwrap" onclick="if(event.target===this)exClose()">
+  <div id="exbox">
+    <button id="exclose" onclick="exClose()">&times;</button>
+    <div id="extrail"></div>
+    <h2 id="extitle"></h2><div class="exrule"></div>
+    <div id="exbody"></div>
+  </div>
+</div>
+<div id="cellmodal" onclick="if(event.target===this)closeCell()">
   <div class="box"><span class="close"
     onclick="closeCell()">&times;</span>
   <h4 id="cellmodal-title"></h4>
