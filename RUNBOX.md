@@ -7,30 +7,22 @@ a silently-wrong pull looks exactly like working code.
 
 ## 1. Set up (all local, repo can stay private)
 
+**WRITE THE OWNER/REPO OUT IN FULL - do not use a variable.**
+The `set SYNTHKIT_REPO=...` plus `%SYNTHKIT_REPO%` form in
+WINDOWS.md has never once worked on the data machine: the
+substitution does not survive that terminal, and what reaches
+curl is a URL addressing nothing. Everywhere below that reads
+`OWNER/REPO` or `OWNER-REPO`, type the real thing. The only
+variable that has ever survived there is `%USERPROFILE%`.
+
 ```bat
 cd %USERPROFILE%\dev
 ```
 
-```bat
-set SYNTHKIT_REPO=OWNER/REPO
-```
-
-```bat
-set SYNTHKIT_DIR=%SYNTHKIT_REPO:/=-%
-```
-
-```bat
-echo pulling %SYNTHKIT_REPO% into %SYNTHKIT_DIR%
-```
-
-**STOP AND READ.** That must print an owner and a repo. If it
-echoes `%SYNTHKIT_REPO%` back literally, the variable never got
-set and every command after it addresses nothing.
-
 ## 2. Clear the old copy FIRST (never after the extract)
 
 ```bat
-for /d %i in (%SYNTHKIT_DIR%-*) do rmdir /s /q "%i"
+for /d %i in (OWNER-REPO-*) do rmdir /s /q "%i"
 ```
 
 ```bat
@@ -47,7 +39,7 @@ Flip it public now, run the next command, then flip it back as
 soon as `dir` shows a real size.
 
 ```bat
-curl -L -o synthkit.zip https://api.github.com/repos/%SYNTHKIT_REPO%/zipball/main
+curl -L -o synthkit.zip https://api.github.com/repos/OWNER/REPO/zipball/main
 ```
 
 ```bat
@@ -69,7 +61,7 @@ tar -xf synthkit.zip
 ```
 
 ```bat
-for /d %i in (%SYNTHKIT_DIR%-*) do ren "%i" synthkit
+for /d %i in (OWNER-REPO-*) do ren "%i" synthkit
 ```
 
 ## 5. Install, then verify identity

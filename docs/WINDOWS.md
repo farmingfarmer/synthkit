@@ -33,6 +33,15 @@ curl -L -H "Authorization: Bearer %SYNTHKIT_TOKEN%" -o synthkit.zip https://api.
 dir synthkit.zip
 ```
 
+**THE VARIABLE FORM ABOVE HAS NEVER WORKED ON THE DATA MACHINE
+(2026-09-28).** `set SYNTHKIT_REPO=...` followed by
+`%SYNTHKIT_REPO%` inside the curl URL reaches curl as a URL
+addressing nothing, every time it has been tried. Type the
+owner and repo out IN FULL in the curl line and in both `for /d`
+patterns instead - the only variable that has ever survived that
+terminal is `%USERPROFILE%`. The block above is kept because it
+documents the shape; the literal form is what to run.
+
 **Read that `echo` line before anything else.** If it prints
 `%SYNTHKIT_REPO%` back at you literally rather than an owner and a
 repo, the variable never got set and every command after it is
