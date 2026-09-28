@@ -105,6 +105,46 @@ New since your last session: the bench scrolls in layers now
 which stays put), and the DUEL station runs both engines with
 the neural side producing PATIENTS rather than unlinked rows.
 
+## 8. Run the neural (autoencoder) engine, in the bench
+
+Everything below happens in the browser. The station is **DUEL**
+in the left rail, under SEE THE FIDELITY, just beneath Dashboard.
+
+Click DUEL, then fill the five boxes TOP TO BOTTOM. Browser
+fields do not expand %USERPROFILE%, so type the expanded path -
+your local RUNBOX.html carries them ready to copy.
+
+1. **source CSV path** - the real extract
+2. **blueprint run directory** - your finished full-extract fit
+   (the one holding generated.csv); this is the OTHER engine,
+   and the page needs it to compare against
+3. **patient / entity column** - `person_id`
+4. **latent output directory** - a NEW folder. Do not reuse an
+   older one: anything written before 2026-09-25 holds
+   patient-less output from the previous build, and the page
+   would measure the old engine.
+5. **latent seed** - `0`
+
+Then, in order:
+
+- Press **Generate with the latent engine (minutes)**. This is
+  the autoencoder training and drawing on the full extract. The
+  loader runs with elapsed seconds; it finishes by saying the
+  draws are written.
+- Press **Draw the duel**. Also a job - it mines the
+  interactions out of the real data and measures both engines
+  against them. Your last run drew in 198s.
+
+**What the page gives you, top to bottom:** four headline cards
+(each engine's kept-direction / kept-strength counts and its
+BACKWARDS count), every shared column drawn three ways (gray
+original, cardinal rules engine, gold neural engine - press and
+hold to fan them apart), "Where each engine goes wrong" as a
+grid, "Does a patient still look like a person?" - the new
+section, per column, which is where the neural engine's patient
+structure is judged - then "The combination effects", and a
+closing section on what the page does NOT say about safety.
+
 ## Optional - driver attribution in the dashboard
 
 ```bat
