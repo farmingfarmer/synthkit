@@ -1,81 +1,120 @@
-# RUNBOX — the full-extract duel, entirely inside the bench
+# RUNBOX — recover the data machine after a forced restart
 
-Updated 2026-09-25. The Duel station exists: both engines against
-the FULL real dataset, one page - every shared column drawn three
-ways (gray original, cardinal blueprint, gold latent), THE GAP as
-its own heatmap saying which engine drifts where, the mined
-interactions per engine, and both privacy postures on the page.
-Verified end to end on fixtures and by headless-Chrome eyes
-before shipping.
+Updated 2026-09-28. Fresh pull, install, verify, then the bench.
+One command per line - this terminal has mangled wrapped pastes
+three times. Two STOP-AND-READ points below; they exist because
+a silently-wrong pull looks exactly like working code.
 
-## 1. Pull once
+## 1. Set up (all local, repo can stay private)
 
-Zipball per WINDOWS.md. Expect **69 suites, 1950 checks, ALL
-GREEN**. Then:
+```bat
+cd %USERPROFILE%\dev
+```
+
+```bat
+set SYNTHKIT_REPO=OWNER/REPO
+```
+
+```bat
+set SYNTHKIT_DIR=%SYNTHKIT_REPO:/=-%
+```
+
+```bat
+echo pulling %SYNTHKIT_REPO% into %SYNTHKIT_DIR%
+```
+
+**STOP AND READ.** That must print an owner and a repo. If it
+echoes `%SYNTHKIT_REPO%` back literally, the variable never got
+set and every command after it addresses nothing.
+
+## 2. Clear the old copy FIRST (never after the extract)
+
+```bat
+for /d %i in (%SYNTHKIT_DIR%-*) do rmdir /s /q "%i"
+```
+
+```bat
+rmdir /s /q synthkit
+```
+
+```bat
+del /q synthkit.zip 2>nul
+```
+
+## 3. Download - the repo must be PUBLIC for this one line
+
+Flip it public now, run the next command, then flip it back as
+soon as `dir` shows a real size.
+
+```bat
+curl -L -o synthkit.zip https://api.github.com/repos/%SYNTHKIT_REPO%/zipball/main
+```
+
+```bat
+dir synthkit.zip
+```
+
+**STOP AND READ.** A few hundred KB or more means it worked.
+About 106 bytes means what landed is an error page, not an
+archive - the repo was still private, or the name is wrong.
+Everything after this point would then fail in ways that look
+like something else entirely. Fix it here.
+
+Repo can go back to private now.
+
+## 4. Extract and rename
+
+```bat
+tar -xf synthkit.zip
+```
+
+```bat
+for /d %i in (%SYNTHKIT_DIR%-*) do ren "%i" synthkit
+```
+
+## 5. Install, then verify identity
+
+```bat
+cd %USERPROFILE%\dev\synthkit
+```
 
 ```bat
 pip install -e .
 ```
 
-Relaunch the bench, hard-refresh, wordmark matches
-`python -m synthkit.cli version`.
+```bat
+python -m synthkit.cli version
+```
 
-## 2. The full-extract duel, in the bench
+Run version AFTER the install - running it before shows the old
+build id and reads as a failed pull.
 
-Open the new **DUEL** station (map rail, above Roadmap). Fill
-the five fields - BROWSER FIELDS DO NOT EXPAND %USERPROFILE%, so
-type the expanded form of each path (your Desktop RUNBOX.html
-carries them literally, ready to copy):
-
-- source CSV path: your `%USERPROFILE%\dev\tidy_visits.csv`
-- blueprint run directory: your `%USERPROFILE%\dev\run_seed11b`
-  (the full-extract fit; its generated.csv is the blueprint side)
-- patient / entity column: `person_id`
-- latent output directory: your `%USERPROFILE%\dev\latent_full`
-- latent seed: `0`
-
-Press **Generate with the latent engine** - it runs as a bench
-job with the loader up. MEASURED on an extract-shaped stand-in
-at full scale (61,121 rows x 58 columns, 800 patients):
-**3-7 minutes**. When it says the draws are written, press
-**Draw the duel** - also a polled job, MEASURED at **7-9
-minutes** at that scale (the interaction mining is real work
-over every numeric child). Both show elapsed seconds while they
-run; neither blocks the browser.
-
-**NEW since your last duel:** the neural engine now produces
-PATIENTS, not unlinked rows - each generated person gets one
-latent centre and a k-screened visit count, with an invented
-person_id - so the page gained a "Does a patient still look like
-a person?" section comparing both engines on how much of each
-column belongs to the person. Training is also denoising by
-default, which measured BETTER on both privacy and fidelity.
-Re-generate the latent side before drawing, or the page will
-read the old patient-less output.
-
-**Expect on the page:** the four headline cards (per-engine
-sign/close and INVERTED counts), three-body histograms for every
-shared column (press and hold to fan them apart), the gap
-heatmap (cardinal cells = blueprint drifts further, gold =
-latent does), the mined-interaction bars (on the 300-sample the
-blueprint read 0.000 on all eight - this is the full-data
-version of that reading), and the posture footer.
-
-For calibration, the latent engine on that full-scale stand-in
-read sign 625/630, close 618/630, **INVERTED 1**, nn-ratio 1.03
-- notably better than the 2-4 inversions it showed at
-300-patient width. Whether your real extract agrees is exactly
-what this run answers.
-
-**Send back:** screenshots of the headline cards, the gap
-heatmap, and the mined-interactions section. Real-derived files
-(the latent output directory) STAY on the machine.
-
-## 3. The same duel from the terminal (fallback / artifact)
-
-The bench and the CLI are one code path; to write the page as a
-shareable-on-this-machine file instead:
+## 6. Prove the tree
 
 ```bat
-python scripts\fidelity_deck.py --src %USERPROFILE%\dev\tidy_visits.csv --run %USERPROFILE%\dev\run_seed11b -o %USERPROFILE%\dev\duel_full.html --group-by person_id --latent %USERPROFILE%\dev\latent_full\latent_gen_seed0.csv
+python scripts\run_all_smokes.py
+```
+
+**Expect: 69 suites, 1950 checks, ALL GREEN.** That is the
+zipball number; a checkout reads 1959 because nine build-id
+checks need git. Do not read 1950 as nine failures.
+
+## 7. The bench
+
+```bat
+python -m synthkit.cli gui
+```
+
+Serves at http://127.0.0.1:8377 and opens the browser. Confirm
+the build id in the wordmark matches step 5.
+
+New since your last session: the bench scrolls in layers now
+(titles and instructions drift at different rates past the form,
+which stays put), and the DUEL station runs both engines with
+the neural side producing PATIENTS rather than unlinked rows.
+
+## Optional - driver attribution in the dashboard
+
+```bat
+pip install shap
 ```
