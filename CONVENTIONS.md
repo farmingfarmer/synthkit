@@ -2020,6 +2020,22 @@ what follows is what came out wrong anyway.
 
 ## Talking to the data machine
 
+- **A SHELL VARIABLE IS ONE MORE THING THAT CAN ARRIVE EMPTY, AND
+  ON THAT TERMINAL IT DOES (2026-09-28).** WINDOWS.md built the
+  zipball URL out of `set SYNTHKIT_REPO=...` plus
+  `%SYNTHKIT_REPO%`, with an echo line to catch the failure - and
+  the operator reports it has NEVER once worked: what reaches
+  curl is a URL addressing nothing. The echo was a guard against
+  a mechanism that should not have been there. Type the owner and
+  repo out IN FULL, in the curl line and in both `for /d`
+  patterns; `%USERPROFILE%` is the only variable that has ever
+  survived there. Same lesson as the wrapped paste and the flag
+  that never reached the program: on that terminal, prefer the
+  literal string to anything that has to be substituted first.
+  (The handle itself is banned from tracked files, so the tracked
+  copy carries `OWNER/REPO` and the operator's local RUNBOX
+  carries the real one.)
+
 - **The data machine may not be a git repository.** `docs/WINDOWS.md`
   section 1 is "Pull the repo (no git needed)": it downloads a
   zipball, extracts it and renames the folder. `git pull`, `git
