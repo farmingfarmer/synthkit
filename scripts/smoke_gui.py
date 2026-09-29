@@ -1036,6 +1036,41 @@ def main():
               and 'id="neural-frame" sandbox="allow-scripts"'
               in html)
 
+        # THE DOORS ARE LISTED, NOT ONLY AUTO-LINKED. The
+        # auto-linker marks the first occurrence of a phrase per
+        # section, so a reader who wants to know how the engine
+        # WORKS has to first guess that the words in front of
+        # them are clickable. On the two stations where the
+        # machinery IS the subject, the entries are offered
+        # openly. Every slug on a strip must resolve, for the
+        # same reason a [[slug]] must: a door that opens on
+        # nothing is worse than no door.
+        import re as _rex
+        from synthkit.explain import TERMS as _TRM
+        _bars = _rex.findall(
+            r'<div class="exbar">.*?</div>', html, _rex.S)
+        _slugs = _rex.findall(r"exOpen\('([a-z0-9-]+)'\)",
+                              "".join(_bars))
+        check("the Generate and Verdict stations offer their "
+              "explanations as a labelled strip of ? buttons, "
+              "not only as underlined words a reader has to "
+              "notice",
+              len(_bars) >= 2
+              and "how this works" in html
+              and len(_slugs) >= 12)
+        check("...and every door on those strips opens on a real "
+              "entry",
+              bool(_slugs)
+              and all(sl in _TRM for sl in _slugs))
+        check("...and the machinery the operator asked about is "
+              "reachable by name: how it learns, the "
+              "bottleneck, how records are made, how k is kept, "
+              "and the overfitting check",
+              all(sl in _slugs for sl in
+                  ("how-it-learns", "the-bottleneck",
+                   "how-it-generates", "k-before-training",
+                   "reconstruction-gap")))
+
         # THE AUTOENCODER IS THE MEASURE ROUTE'S STEP 02, and
         # a rail is a claim about which engine the tool leads
         # with. It sat under "see the fidelity" beside the

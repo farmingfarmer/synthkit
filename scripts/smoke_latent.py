@@ -31,7 +31,8 @@ def check(name, ok):
 
 
 def main():
-    from latent_challenger import K, LatentGen, _k_clip
+    from latent_challenger import (K, LatentGen, _k_clip,
+                                   _split_patients)
 
     r = np.random.RandomState(3)
     n = 1200
@@ -495,6 +496,63 @@ def main():
               and abs(len(_n3) - len(df)) / float(len(df)) < 0.12
               and abs(_n3["person_id"].nunique()
                       - df["person_id"].nunique()) <= 2)
+
+    # ---------------------------------------------------------
+    # THE SPLIT EXISTED AND NOTHING MEASURED THE OVERFITTING.
+    # 15% of PATIENTS are held out, and the only thing ever
+    # asked of them was a nearest-neighbor DISTANCE ratio on the
+    # generated file - which never puts a held-out record
+    # through the network at all. So "is it memorizing rather
+    # than learning" had a holdout ready and no measurement on
+    # it: a capability present and wired to nothing, which is
+    # this repository's own recurring fault.
+    #
+    # AND IT NEEDS A POSITIVE CONTROL, because a ratio near 1.0
+    # is exactly what a broken measure returns too. The control
+    # is a frame with NOTHING TO LEARN - every value iid noise -
+    # so any low training error IS memorization and a network
+    # able to memorize must be caught.
+    rn = np.random.RandomState(9)
+    _nr, _nc = 600, 24
+    dnoise = pd.DataFrame(dict(
+        ("n{:02d}".format(i), np.round(rn.normal(0, 1, _nr), 3))
+        for i in range(_nc)))
+    dnoise.insert(0, "person_id",
+                  ["N{:04d}".format(i // 3) for i in range(_nr)])
+    ntr, nho = _split_patients(dnoise, "person_id", 0)
+
+    g_honest = LatentGen(k=10, seed=0,
+                         hierarchical=True).fit(ntr, "person_id")
+    r_honest = g_honest.reconstruction_gap(nho)
+    g_memo = LatentGen(k=10, seed=0, hierarchical=True,
+                       denoise=0.0, bottleneck=96,
+                       hidden=384).fit(ntr, "person_id")
+    r_memo = g_memo.reconstruction_gap(nho)
+
+    check("reconstruction error is measured on HELD-OUT PATIENTS "
+          "- people the network never trained on - and reported "
+          "with the training error beside it, which is the "
+          "question the 15% split was always there to answer",
+          r_honest is not None
+          and set(r_honest) >= {"train", "holdout", "ratio",
+                                "rows_train", "rows_holdout"}
+          and r_honest["rows_holdout"] > 0
+          and r_honest["rows_train"] > r_honest["rows_holdout"])
+    check("...and NOBODY is on both sides: the split is by "
+          "patient, so a person whose visits trained the network "
+          "cannot also be a stranger to it",
+          not (set(ntr["person_id"]) & set(nho["person_id"])))
+    check("POSITIVE CONTROL - on a frame with nothing to learn, "
+          "a wide-bottleneck undefended network memorizes and "
+          "the ratio climbs far above the shipping "
+          "configuration's, so the measure can fail",
+          r_memo["ratio"] > 3.0
+          and r_memo["ratio"] > 2.0 * r_honest["ratio"])
+    check("...while the shipping configuration CANNOT memorize "
+          "even when memorizing is the only way to do well - "
+          "the bottleneck and the denoising are doing the work, "
+          "not the fixture",
+          r_honest["ratio"] < 3.0)
 
     # ---------------------------------------------------------
     # A DATE AND A SET COLUMN ARE THE TWO SHAPES THIS ENGINE READ

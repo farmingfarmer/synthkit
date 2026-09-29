@@ -77,7 +77,8 @@ TERMS: Dict[str, Dict[str, str]] = {
  "body": "An autoencoder. It trains a small neural network to "
  "squeeze each record down to a handful of numbers - its "
  "[[latent-space]] - and expand it back, then invents new "
- "records by sampling that squeezed space.<br><br>Because it "
+ "records by sampling that squeezed space. Step by step: "
+ "[[how-it-learns]], then [[how-it-generates]].<br><br>Because it "
  "learns the data's shape rather than a list of rules, it "
  "carries structure the [[rules-engine]] loses: on the real "
  "extract it keeps direction on 97% of relationships against "
@@ -87,6 +88,123 @@ TERMS: Dict[str, Dict[str, str]] = {
  "from the <i>records</i>, so it needs defending: see "
  "[[denoising]], [[k-aware-blur]] and [[membership-attack]]. It "
  "also needed [[patient-structure]] built into it."},
+
+"how-it-learns": {"title": "How the autoencoder learns",
+ "body": "In four steps, and no step is a black box.<br><br>"
+ "<b>1. Every record becomes numbers.</b> A number column "
+ "becomes two - its value, standardized, and a flag for whether "
+ "it was missing at all. A category becomes one column per "
+ "level. A date is parsed to days since an epoch and treated as "
+ "a number. A [[set-column]] becomes its size plus one flag per "
+ "token. On the real extract 44 columns become about 425 of "
+ "these.<br><br><b>2. The k rule is applied BEFORE training, "
+ "not after.</b> Numbers are clipped to the k-anonymous bound, "
+ "levels held by fewer than k patients are folded away. The "
+ "network never sees the extremes it could leak - see "
+ "[[k-before-training]].<br><br><b>3. One network is trained to "
+ "rebuild its own input.</b> It is deliberately pinched in the "
+ "middle: 425 numbers in, down to a few dozen, back out to 425. "
+ "The only way to get the record back through that pinch is to "
+ "learn what records of this kind LOOK like - see "
+ "[[the-bottleneck]]. It is trained on a corrupted copy of the "
+ "input, which is [[denoising]].<br><br><b>4. New records come "
+ "from the squeezed side.</b> See [[how-it-generates]]. And "
+ "whether it learned rather than memorized is measured on "
+ "people it never saw: [[reconstruction-gap]]."},
+
+"the-bottleneck": {"title": "The bottleneck",
+ "body": "The pinch in the middle of the network, and the whole "
+ "reason this works.<br><br>The network is shaped wide, narrow, "
+ "wide - about 425 numbers in on the real extract, down to a "
+ "few dozen, back out to 425. Those few dozen numbers are the "
+ "[[latent-space]], and everything the network wants to say "
+ "about a record has to fit through them.<br><br>That is a "
+ "constraint, not an inconvenience. There is not enough room to "
+ "store a copy of any individual record, so the cheapest way to "
+ "get records back out is to learn the structure they share - "
+ "which is exactly the thing we want to keep and not the thing "
+ "we must not copy. The width is set from the data's own width "
+ "and bounded, because an 8-wide bottleneck on a 77-column "
+ "frame was measured reconstructing only 61% of the "
+ "relationships.<br><br>It is not the only defense. See "
+ "[[k-before-training]], [[denoising]] and "
+ "[[reconstruction-gap]]."},
+
+"how-it-generates": {"title": "How new records are made",
+ "body": "Nothing is copied and nothing is sampled from a list "
+ "of real records.<br><br>After training, every training record "
+ "is pushed as far as the [[the-bottleneck]] and the cloud of "
+ "points that lands there is described by a statistical model - "
+ "a mixture of gaussian blobs. To invent a record, a NEW point "
+ "is drawn from that model, somewhere the real points tend to "
+ "be but almost certainly not on top of any of them, and pushed "
+ "through the second half of the network to expand back into a "
+ "full record.<br><br>Patients are built the same way, one "
+ "level up: a point is drawn for the PERSON, then each of their "
+ "visits is that point plus a drawn deviation, so every visit "
+ "of a generated patient shares a who. Identities are invented "
+ "(S000001 upward), never a real person's. See "
+ "[[patient-structure]].<br><br>Before a drawn point is used it "
+ "is checked: if it lands where fewer than k real patients "
+ "stand, it is nudged until it does - [[k-aware-blur]]. Then "
+ "the decoded values are clipped back inside the published "
+ "bounds."},
+
+"k-before-training": {"title": "k applied before training",
+ "body": "The order matters more than the rule.<br><br>The "
+ "[[k-rule]] is applied to the data BEFORE the network sees it: "
+ "numbers clipped to the k-anonymous bound (the mean of the k "
+ "most extreme patients' own extremes, never one person's "
+ "value), and any category level held by fewer than k patients "
+ "folded away. A network cannot leak an extreme it was never "
+ "shown.<br><br>Be clear about what this does and does not buy. "
+ "It narrows what CAN be learned; it does not by itself prevent "
+ "memorization, which happens at the record level. That is why "
+ "there are three more things: [[denoising]] during training, "
+ "[[k-aware-blur]] at sampling time, and two measurements after "
+ "the fact - [[reconstruction-gap]] and "
+ "[[membership-attack]].<br><br>This is a genuinely different "
+ "posture from the [[rules-engine]], which never touches a "
+ "record at generation at all. Said every time it comes up."},
+
+"reconstruction-gap": {"title": "The overfitting check",
+ "body": "15% of PATIENTS - never just rows, so no one appears "
+ "on both sides - are held out and the network never trains on "
+ "them. Afterwards both groups are pushed through the network "
+ "and rebuilt, and the errors are compared.<br><br>A network "
+ "that learned the SHAPE of the data rebuilds a stranger about "
+ "as well as a member, so the ratio sits near 1.0. A network "
+ "that memorized rebuilds its own rows far better and the ratio "
+ "climbs - and that is the same signal a membership adversary "
+ "reads, which is why this is a privacy measure and not only a "
+ "quality one.<br><br>It has a [[positive-control]], because a "
+ "number that cannot go bad proves nothing. Measured on a frame "
+ "built with NOTHING to learn - every value pure noise, so any "
+ "low training error IS memorization - an undefended "
+ "wide-bottleneck network reads <b>9.7</b> while the shipping "
+ "configuration reads <b>1.8</b>, because it cannot memorize "
+ "even when memorizing is the only way to do well. On ordinary "
+ "structured data it reads <b>1.16</b>, and <b>1.44</b> with "
+ "[[denoising]] switched off.<br><br>It is REPORTED, not gated: "
+ "see [[the-gate]] for what does gate."},
+
+"set-column": {"title": "A set column",
+ "body": "A cell holding several things at once - a visit's "
+ "conditions, its drugs, its procedures - usually written "
+ "joined by a separator.<br><br>Treating the whole joined "
+ "string as a category is wrong and was wrong here: "
+ "<code>t01;t03</code> and <code>t03;t14</code> share what "
+ "matters and share no category. On the real extract that put "
+ "thousands of distinct combinations against a 60-level cap, so "
+ "nearly every row collapsed onto one meaningless value.<br><br>"
+ "So a set is modeled as its SIZE plus one indicator per "
+ "token that clears the [[k-rule]], and generation draws a size "
+ "and then that many tokens. Two consequences a reader should "
+ "know: generated sets are visibly SHORTER than real ones "
+ "because the rare tokens cannot be published, and an empty set "
+ "means the visit genuinely held nothing - which is different "
+ "from a visit whose contents were all too rare to publish, and "
+ "the two are reported apart."},
 
 "latent-space": {"title": "The latent space",
  "body": "The handful of numbers the [[neural-engine]] squeezes "
@@ -310,6 +428,17 @@ PHRASES: Dict[str, List[str]] = {
     "neural-engine": ["neural engine", "NEURAL engine",
                       "latent engine", "autoencoder"],
     "latent-space": ["latent space"],
+    "how-it-learns": ["how it learns", "learns the patterns",
+                      "measure the patterns"],
+    "the-bottleneck": ["bottleneck", "condensed feature space",
+                       "compressed"],
+    "how-it-generates": ["how it generates", "then generate",
+                         "draws records"],
+    "k-before-training": ["k-screened frame",
+                          "before the network sees"],
+    "reconstruction-gap": ["reconstruction", "held-out",
+                           "overfitting", "holdout"],
+    "set-column": ["set column", "set columns"],
     "patient-structure": ["patient structure",
                           "within-patient dynamics"],
     "between-patient-share": ["between-patient share",

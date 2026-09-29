@@ -2106,6 +2106,26 @@ details.fold[open]{margin-bottom:18px}
    reader drills down exactly as far as they wanted and no
    further. Understated on the page, obvious on hover: the text
    has to stay readable when nobody is asking. */
+/* THE AUTO-LINKING IS NOT ENOUGH ON ITS OWN. It marks the
+   first occurrence of a phrase per section, which means a
+   reader who wants to know how the engine WORKS has to first
+   guess that the words they are looking at are clickable. On
+   the two stations where the machinery is the subject, the
+   doors are listed openly instead, as a labelled strip. */
+.exbar{display:flex;flex-wrap:wrap;gap:7px;align-items:center;
+  margin:0 0 15px}
+.exbar .exlbl{font-family:var(--mono);font-size:10px;
+  letter-spacing:.11em;text-transform:uppercase;color:var(--dim);
+  margin-right:3px}
+.exbar button{font:inherit;font-size:12.5px;cursor:pointer;
+  border:1px solid rgba(23,34,44,.14);background:#fff;
+  color:var(--ink);border-radius:999px;padding:4px 11px 5px;
+  box-shadow:0 1px 0 rgba(255,255,255,.9) inset,
+    0 1px 2px rgba(23,34,44,.08)}
+.exbar button:hover{border-color:var(--tab);
+  background:rgba(179,153,93,.09)}
+.exbar button b{color:var(--tab);font-weight:700;
+  margin-right:5px}
 .ex{border-bottom:1px dotted #9aa7b0;cursor:help;
   text-decoration:none;color:inherit}
 .ex:hover{border-bottom-style:solid;border-bottom-color:var(--tab);
@@ -3115,6 +3135,7 @@ textarea:focus,input:focus,select:focus{
 
 <section id="s-fitver" data-step="3">
   <div class="stepbanner"><span class="stepchip">Measure &middot; step 3 of 3</span><span>Judge the run</span></div>
+  <div class="exbar"><span class="exlbl">how this works</span><button onclick="exOpen('the-gate')"><b>?</b>what the gate is</button><button onclick="exOpen('direction-kept')"><b>?</b>direction kept</button><button onclick="exOpen('close')"><b>?</b>close</button><button onclick="exOpen('backwards')"><b>?</b>backwards</button><button onclick="exOpen('interaction-surface')"><b>?</b>interaction surfaces</button><button onclick="exOpen('reconstruction-gap')"><b>?</b>overfitting &amp; memorization</button><button onclick="exOpen('membership-attack')"><b>?</b>the privacy attacks</button><button onclick="exOpen('privacy-not-a-fault')"><b>?</b>when a miss is the k rule</button></div>
   <dl class="stepgoal"><dt>you need</dt><dd>A finished run in the output directory from Step 1 &mdash; from Step 2, or from any terminal run this machine holds.</dd><dt>you get</dt><dd>The verdict: six gate criteria PASS/FAIL, contradiction and obedience counts, and the build the run is tied to &mdash; plus a bridge that sends the measured recipe into the exam, stating what crossed and what could not. The criteria come from one shared module, so this panel and <code>scripts/m0_gate.py</code> cannot disagree.</dd></dl>
   <div class="panel">
     <h2>Judge a finished run</h2>
@@ -3170,6 +3191,7 @@ textarea:focus,input:focus,select:focus{
 
 <section id="s-neural" data-step="2" data-route="measure">
   <div class="stepbanner"><span class="stepchip">02</span><span>Measure the patterns, then generate &mdash; the autoencoder, on your real data</span></div>
+  <div class="exbar"><span class="exlbl">how this works</span><button onclick="exOpen('how-it-learns')"><b>?</b>how it learns</button><button onclick="exOpen('the-bottleneck')"><b>?</b>the bottleneck</button><button onclick="exOpen('how-it-generates')"><b>?</b>how new records are made</button><button onclick="exOpen('k-before-training')"><b>?</b>how k is kept</button><button onclick="exOpen('reconstruction-gap')"><b>?</b>overfitting &amp; memorization</button><button onclick="exOpen('set-column')"><b>?</b>set columns</button><button onclick="exOpen('patient-structure')"><b>?</b>patients, not rows of visits</button></div>
   <dl class="stepgoal"><dt>you need</dt><dd>A real CSV on THIS machine and an output directory of your choosing. Nothing else &mdash; no prior run, no second engine.</dd><dt>you get</dt><dd>Synthetic records from the autoencoder, written to your directory, and a review page measuring them against the real data: relationships kept, whether a patient still looks like a person, the combination effects, and every column drawn twice. What it does NOT measure &mdash; safety &mdash; is stated on the page.</dd></dl>
   <div class="panel">
     <h2>Point at the data</h2>
@@ -3972,7 +3994,7 @@ function exMark(root){
         const p=n.parentElement;
         if(!p)return NodeFilter.FILTER_REJECT;
         if(p.closest('pre,code,script,style,input,textarea,'+
-          'select,button,.ex,.out,#exbox'))
+          'select,button,.ex,.out,.exbar,#exbox'))
           return NodeFilter.FILTER_REJECT;
         return n.nodeValue&&n.nodeValue.trim().length>2?
           NodeFilter.FILTER_ACCEPT:NodeFilter.FILTER_REJECT;}});

@@ -4,7 +4,7 @@ Synthetic clinical data generator and model-evaluation instrument. Core rule: le
 
 ## Verify before claiming
 
-- Run `python scripts/run_all_smokes.py` before claiming anything works. Expect 69 suites, 1993 checks, ALL GREEN **on a checkout**. Off a zipball extract - which is what the data machine runs - it is 1984: nine checks in `smoke_buildid` need git to test the archive path and report SKIPPED without it. Both numbers were measured. Do not quote the checkout number to the data machine; that is how a correct run gets read as a failure.
+- Run `python scripts/run_all_smokes.py` before claiming anything works. Expect 69 suites, 2000 checks, ALL GREEN **on a checkout**. Off a zipball extract - which is what the data machine runs - it is 1991: nine checks in `smoke_buildid` need git to test the archive path and report SKIPPED without it. Both numbers were measured. Do not quote the checkout number to the data machine; that is how a correct run gets read as a failure.
 - **THE DEVELOPMENT MACHINE WAS BEHIND THE DATA MACHINE, and that is
   how a green suite here failed there.** Dev was on Python 3.10 with
   pandas 2.3; the data machine installs fresh and got pandas 3.0.5,
@@ -749,6 +749,50 @@ the direction that stops work happening.
   so the rules engine's characterized mechanism (discovery's
   edge inclusion) cannot be the cause here. Nothing above is
   expected to fix it. Open, and named as open.
+
+- **THE HOLDOUT EXISTED AND NOTHING ASKED IT THE OVERFITTING
+  QUESTION (2026-09-29).** 15% of PATIENTS have been held out
+  since the engine was written, and the only use of them was
+  `nn_ratio` - a DISTANCE ratio between the GENERATED file and
+  the training rows, which never puts a held-out record through
+  the network at all. So "is it memorizing rather than learning"
+  had a split ready for it and no measurement on it: a
+  capability present and wired to nothing, which is this file's
+  own recurring fault. `reconstruction_gap` encodes and decodes
+  both groups and compares squared error. Asked by the operator,
+  not found by a check.
+- **AND IT NEEDED A POSITIVE CONTROL, BECAUSE A RATIO NEAR 1.0
+  IS ALSO WHAT A BROKEN MEASURE RETURNS.** The first control -
+  a wide bottleneck with denoising off, on STRUCTURED data -
+  read 1.296 against the default's 1.155, which separates
+  nothing: the network generalizes on structured data whatever
+  width you give it. The control that works removes the thing
+  being generalized TO - a frame of iid noise, where any low
+  training error IS memorization.
+      structured, shipping default           1.155
+      structured, denoising off              1.444
+      PURE NOISE, wide bottleneck, no denoise  9.739
+      PURE NOISE, shipping default            1.799
+  The shipping configuration cannot memorize even when
+  memorizing is the only way to score well. The 1.155 against
+  1.444 is also an INDEPENDENT confirmation of the denoising
+  result, which was previously known only through the
+  membership AUC (0.776 -> 0.569).
+- **AND THE ARTIFACTS WERE WRITTEN FROM THE TRAINING SPLIT.**
+  `write_run_artifacts(tr, ...)` discovered the relationships on
+  85% of the data while the Dashboard's own header counted
+  100%, so the gate and the page it sits on used different
+  denominators. The relationships belong to the SOURCE.
+
+- **THE AUTO-LINKER IS NOT ENOUGH WHERE THE MACHINERY IS THE
+  SUBJECT.** Explanations are marked on the FIRST occurrence of
+  a phrase per section, so a reader who wants to know how the
+  engine works must first guess that the words in front of them
+  are clickable. On Generate and Verdict the doors are now
+  listed openly as a labelled strip of `?` buttons, and every
+  slug on a strip is asserted to resolve - the same rule
+  `[[slug]]` already had, because a door that opens on nothing
+  is worse than no door.
 
 - **A RAIL IS A CLAIM ABOUT WHICH ENGINE THE TOOL LEADS WITH.**
   The autoencoder sat under "see the fidelity" beside the
