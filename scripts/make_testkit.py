@@ -85,7 +85,68 @@ The stages also exist as separate commands (`bridge`, `plant`,
 vary one of them; `python -m synthkit.cli exam --help` names the
 dials (effects, prevalence, bars, solvers).
 
-## 5. The artifacts
+## 5. The NEURAL engine (the newer one)
+
+There are two generators. Everything above used the RULES
+engine, which writes down what it found as a published recipe
+and builds from that alone. The NEURAL engine trains a small
+autoencoder on the records themselves and samples what it
+learned. On the real extract it keeps more of the structure -
+notably effects that only exist when two columns act together,
+where the rules engine carries none - and it is the one being
+developed now.
+
+    python -m synthkit.cli gui
+
+Click **GEN Neural** in the left rail, then fill four boxes:
+
+    source CSV path          clinic/demo_clinic.csv   (full path)
+    output directory         neural1                  (full path)
+    patient / entity column  person_id
+    seed                     0
+
+Press **Generate**, wait for "written in NNNs", then press
+**Review the output**. The review leads with whether a patient
+still looks like a person, then how many columns a model cannot
+tell apart from the real ones, then the combination effects,
+then every column drawn twice.
+
+That output directory also works in **03 Verdict** and **VIEW
+Dashboard** - same directory, same boxes.
+
+Read the closing section of the review page once. It says what
+the page does NOT measure, which is safety: the neural engine
+learns from records, and that is a different posture from the
+rules engine.
+
+## 6. YOUR OWN DATA
+
+Everything above works on any tidy CSV - one row per event, a
+column identifying the entity. Point it at something of yours:
+
+    python -m synthkit.cli types --src YOUR.csv --group-by YOUR_ID_COLUMN
+
+Read how every column was typed before anything else. A column
+read as the wrong type is the most expensive fault this tool
+has, because it is silent.
+
+    python -m synthkit.cli scrub YOUR.csv --group-by YOUR_ID_COLUMN
+
+Then fit it, or run it through the Neural station above.
+
+**What has been measured about other shapes:** both engines were
+swept across 23 dataset shapes a customer could plausibly hand
+over - cross-sectional, no time column, numeric-only,
+categorical-only, high-cardinality codes, 120 rows, 60 columns,
+constant and all-empty columns, duplicate rows, unicode, one row
+per entity, one entity holding half the rows, free text, mixed
+types in one column, 92% sparse, extreme skew, boolean-ish
+spellings, and a flat table with no entity column at all. All 23
+come through without a crash, a lost column, or a column
+collapsed to a single value. If YOUR data breaks one of them,
+that is exactly the kind of finding this kit is for.
+
+## 7. The artifacts
 
     python -m synthkit.cli signoff run1 -o signoff.html
 
@@ -111,6 +172,11 @@ Report what you did, what you expected, and what happened -
 screenshots welcome. Some starting points, roughly in order of
 mischief:
 
+0a. Point the Neural station at a CSV of your own with a shape
+   nothing here has: one row per entity, no entity column at
+   all, a column of codes that are all unique, 200 rows, 300
+   columns. All 23 shapes we tried come through clean; find the
+   24th.
 0. Add a column of phone numbers to the clinic CSV under an
    innocent header (`fax_pref`, say) and run `scrub` - it must
    still be caught, because values decide and headers only

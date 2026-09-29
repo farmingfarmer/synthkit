@@ -209,6 +209,60 @@ SHAPES.update({
 })
 
 
+def _one_neural(name, fn):
+    """THE SAME SHAPES, THROUGH THE NEURAL ENGINE. The rules
+    engine was swept across these 23 shapes and four defects fell
+    out that no fixture here could reach. The neural engine has
+    only ever run on extract-shaped data, so every one of those
+    axes is an untested assumption: a flat table has no patients
+    to give a patient centre, one row per entity makes the centre
+    the row itself, a constant column has no spread to
+    standardise by, and a 120-row table has fewer rows than a
+    mixture has components."""
+    warnings.filterwarnings("ignore")
+    import sys as _sys
+    _sd = str(Path(__file__).resolve().parent)
+    if _sd not in _sys.path:
+        _sys.path.insert(0, _sd)
+    from latent_challenger import LatentGen
+    r = np.random.RandomState(3)
+    df = fn(r)
+    gb = "person_id" if "person_id" in df.columns else None
+    if gb is None:
+        # A table with no grouping column: the engine is told so
+        # rather than being handed a column that is not there.
+        df = df.copy()
+        df["__row__"] = ["R{:06d}".format(i) for i in range(len(df))]
+        gb = "__row__"
+    try:
+        g = LatentGen(seed=1).fit(df, gb)
+        out = g.generate(len(df), seed=2)
+    except Exception as e:
+        return "{:<26} CRASH  {}: {}".format(
+            name, type(e).__name__, str(e)[:90])
+    flags = []
+    ratio = len(out) / float(len(df))
+    if abs(ratio - 1.0) > 0.15:
+        flags.append("rows {:+.0%}".format(ratio - 1.0))
+    lost = [c for c in df.columns
+            if c not in out.columns and c != gb]
+    if lost:
+        flags.append("LOST " + ",".join(lost[:3]))
+    collapsed = [c for c in out.columns
+                 if c != gb and c in df.columns
+                 and out[c].nunique(dropna=True) <= 1
+                 and df[c].nunique(dropna=True) > 1]
+    if collapsed:
+        flags.append("COLLAPSED " + ",".join(collapsed[:3]))
+    empty = [c for c in out.columns
+             if c in df.columns and c != gb
+             and out[c].notna().mean() < 0.02
+             and df[c].notna().mean() > 0.10]
+    if empty:
+        flags.append("EMPTIED " + ",".join(empty[:3]))
+    return "{:<26} {}".format(name, "  ".join(flags) or "clean")
+
+
 def _one(name, fn):
     warnings.filterwarnings("ignore")
     from synthkit import blueprint as B
@@ -257,6 +311,16 @@ def _one(name, fn):
 
 
 def main():
+    if "--neural" in sys.argv:
+        print("{} shapes, NEURAL engine\n".format(len(SHAPES)))
+        for nm, fn in SHAPES.items():
+            print(_one_neural(nm, fn), flush=True)
+        print("\nA line is a QUESTION, not a verdict. LOST, "
+              "COLLAPSED and EMPTIED are the ones to read: a "
+              "column that arrives as a single value or as "
+              "nothing has been destroyed, whatever the "
+              "averages say.")
+        return 0
     print("{} shapes\n".format(len(SHAPES)))
     for name, fn in SHAPES.items():
         print(_one(name, fn), flush=True)

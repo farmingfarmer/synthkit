@@ -75,6 +75,41 @@ def _k_clip(vals: np.ndarray, gid: np.ndarray, k: int):
     return lo, hi
 
 
+class _OneCloud:
+    """A stand-in for a mixture when there are too few samples to
+    fit one. `GaussianMixture` requires at least TWO rows however
+    few components are asked for, so a table with a single entity
+    - one patient centre - cannot use it at all. The distribution
+    of one point is that point, plus the spread of everything
+    else; this returns exactly that and says so by existing."""
+
+    def __init__(self, pts, sd):
+        import numpy as np
+        self.pts = np.atleast_2d(pts)
+        self.sd = sd
+
+    def sample(self, n):
+        import numpy as np
+        r = np.random.RandomState(0)
+        base = self.pts[r.randint(0, len(self.pts), n)]
+        return base + r.normal(0, self.sd, base.shape), None
+
+
+def _mixture(X, n_components, seed, sd_fallback):
+    """A mixture where one can be fitted, and an honest stand-in
+    where it cannot."""
+    import numpy as np
+    from sklearn.mixture import GaussianMixture
+    X = np.atleast_2d(X)
+    k = max(1, min(int(n_components), len(X)))
+    if len(X) < 2:
+        return _OneCloud(X, sd_fallback)
+    return GaussianMixture(n_components=k,
+                           covariance_type="full",
+                           reg_covar=1e-4,
+                           random_state=seed).fit(X)
+
+
 class LatentGen:
     def __init__(self, k: int = K, bottleneck: int = None,
                  hidden: int = None, seed: int = 0,
@@ -220,6 +255,17 @@ class LatentGen:
                 s = df[c].astype(str)
                 per = pd.DataFrame({"l": s, "g": gid}) \
                     .groupby("l")["g"].nunique()
+                # A LEVEL THE K RULE CANNOT PUBLISH IS NOT A
+                # REASON TO PUBLISH NOTHING. The rules engine
+                # learned this already: codes, SKUs, postcodes
+                # and free text all have levels held by fewer
+                # than k people, and folding every one of them
+                # into `__other__` returns a CONSTANT column -
+                # measured on the shape sweep, which collapsed a
+                # high-cardinality code, a free-text note and a
+                # date. What CAN be published is the SHAPE: how
+                # many distinct values, and the profile of their
+                # frequencies. The labels are then INVENTED.
                 ok = per[per >= self.k].index
                 # k first, then FREQUENCY - a column with
                 # thousands of qualifying levels still gets only
@@ -227,9 +273,30 @@ class LatentGen:
                 # than enormous.
                 keep = list(s[s.isin(ok)].value_counts()
                             .index[:MAX_LEVELS])
-                lv = s.where(s.isin(keep), "__other__")
+                shape_only = None
+                if not keep:
+                    # Nothing clears the floor: publish the shape
+                    # and invent the labels, rather than emitting
+                    # one value for every row.
+                    vc = s.value_counts()
+                    n_distinct = int(len(vc))
+                    prof = (vc.head(MAX_LEVELS) / float(len(s))
+                            ).tolist()
+                    keep = ["{}_{:04d}".format(c[:12], i)
+                            for i in range(min(n_distinct,
+                                               MAX_LEVELS))]
+                    shape_only = {"distinct": n_distinct,
+                                  "profile": prof}
+                    lv = pd.Series(
+                        np.random.RandomState(self.seed).choice(
+                            keep, len(s),
+                            p=np.array(prof) / sum(prof)),
+                        index=s.index)
+                else:
+                    lv = s.where(s.isin(keep), "__other__")
                 levels = sorted(lv.unique())
-                self.plan.append(("cat", c, levels, None, None))
+                self.plan.append(("cat", c, levels, None,
+                                  shape_only))
                 mats.append(np.column_stack(
                     [(lv == l).astype(float).to_numpy()
                      for l in levels]))
@@ -318,10 +385,8 @@ class LatentGen:
         self._dense = z[own >= self.k]
         if not len(self._dense):
             self._dense = z
-        n_comp = min(10, max(2, len(df) // 200))
-        self.gmm = GaussianMixture(
-            n_components=n_comp, covariance_type="full",
-            random_state=self.seed).fit(z)
+        self.gmm = _mixture(z, min(10, len(df) // 200), self.seed,
+                            np.maximum(z.std(axis=0), 1e-6))
         self._Xtrain = X
         if self.hierarchical:
             n_pat = int(codes.max()) + 1
@@ -330,14 +395,19 @@ class LatentGen:
             counts = np.bincount(codes, minlength=n_pat)
             centres /= np.maximum(counts, 1)[:, None]
             dev = z - centres[codes]
-            pc = min(8, max(2, n_pat // 40))
-            self.gmm_pat = GaussianMixture(
-                n_components=pc, covariance_type="full",
-                random_state=self.seed).fit(centres)
-            dc = min(8, max(2, len(z) // 400))
-            self.gmm_dev = GaussianMixture(
-                n_components=dc, covariance_type="full",
-                random_state=self.seed + 1).fit(dev)
+            # A MIXTURE CANNOT HAVE MORE COMPONENTS THAN
+            # SAMPLES. A table with ONE entity gives one patient
+            # centre, and asking for two crashed the whole run -
+            # found by sweeping the shapes a customer could
+            # plausibly hand over, not by any fixture here.
+            self.gmm_pat = _mixture(centres, min(8, n_pat // 40),
+                                    self.seed,
+                                    np.maximum(z.std(axis=0),
+                                               1e-6))
+            self.gmm_dev = _mixture(dev, min(8, len(z) // 400),
+                                    self.seed + 1,
+                                    np.maximum(dev.std(axis=0),
+                                               1e-6))
             # VISIT COUNTS ARE K-SCREENED LIKE EVERYTHING ELSE:
             # one patient with an extreme number of visits must
             # not set the published tail, so counts are clipped

@@ -334,6 +334,44 @@ def main():
           "__other__ bucket ({} wide, cap {})".format(_wid, _ML),
           _wid <= _ML + 1 and _gm.d < 200)
 
+    # THE SHAPES A CUSTOMER COULD PLAUSIBLY HAND OVER. The rules
+    # engine was swept across 23 of them long ago; the neural
+    # engine had only ever seen extract-shaped data, and the
+    # sweep found a crash and three destroyed columns. Both
+    # classes are pinned here.
+    _one_ent = pd.DataFrame({
+        "person_id": ["ONLY"] * 60,
+        "v": np.round(np.random.RandomState(2).normal(0, 1, 60), 3),
+        "c": ["x", "y"] * 30})
+    _g1 = LatentGen(seed=3).fit(_one_ent, "person_id")
+    _o1 = _g1.generate(60, seed=1)
+    check("a table with ONE entity generates instead of crashing "
+          "- a mixture needs two samples however few components "
+          "it is asked for, so one patient centre cannot use one "
+          "at all",
+          len(_o1) > 0 and "v" in _o1.columns)
+
+    # A COLUMN THE K RULE CANNOT PUBLISH IS NOT A COLUMN TO
+    # DESTROY. Codes, SKUs, postcodes and free text all have
+    # levels held by fewer than k people; folding every one into
+    # __other__ returns a CONSTANT column, which the sweep caught
+    # on a high-cardinality code, a free-text note and a date.
+    _hc = pd.DataFrame({
+        "person_id": ["P{:03d}".format(i) for i in
+                      np.repeat(np.arange(120), 5)],
+        "code": ["C{:05d}".format(i) for i in range(600)],
+        "v": np.round(np.random.RandomState(4).normal(0, 1, 600), 3)})
+    check("the fixture contains the thing: every `code` value is "
+          "unique, so NOTHING clears the k floor",
+          _hc["code"].nunique() == len(_hc))
+    _g2 = LatentGen(seed=3).fit(_hc, "person_id")
+    _o2 = _g2.generate(600, seed=1)
+    check("...and the column comes back with MANY invented "
+          "labels rather than one value for every row - the "
+          "shape is publishable even when no label is",
+          _o2["code"].nunique() > 5
+          and not set(_o2["code"]) & set(_hc["code"]))
+
     # THE JOINT MEASURES. Everything else in this suite names a
     # pattern first; these ask the reverse and need nothing
     # enumerated. Exercised on a fixture where the "synthetic"

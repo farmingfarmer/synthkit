@@ -203,7 +203,7 @@ pip install -e .
 python scripts\run_all_smokes.py
 ```
 
-**Expect: 69 suites, 1965 checks, ALL GREEN.**
+**Expect: 69 suites, 1968 checks, ALL GREEN.**
 
 ```bat
 python -m synthkit.cli gui

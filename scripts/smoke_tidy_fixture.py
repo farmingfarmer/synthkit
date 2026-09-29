@@ -407,7 +407,16 @@ def main():
               all(c in _sh for c in _cmds)
               and all(c in _help for c in _cmds)
               and "report_card.html" in _sh
-              and "scripts/" not in _sh)
+              and "scripts/" not in _sh
+              # THE KIT MUST CARRY WHAT THE TOOL CARRIES. It
+              # taught the rules engine only, while the neural
+              # engine was the one being developed - and it never
+              # told a reader they could point any of it at their
+              # OWN csv, which is the first thing a teammate
+              # wants to do.
+              and "GEN Neural" in _sh
+              and "YOUR OWN DATA" in _sh
+              and "23 dataset shapes" in _sh)
 
     print()
     if FAIL:

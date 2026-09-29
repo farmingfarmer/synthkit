@@ -4,7 +4,7 @@ Synthetic clinical data generator and model-evaluation instrument. Core rule: le
 
 ## Verify before claiming
 
-- Run `python scripts/run_all_smokes.py` before claiming anything works. Expect 69 suites, 1974 checks, ALL GREEN **on a checkout**. Off a zipball extract - which is what the data machine runs - it is 1965: nine checks in `smoke_buildid` need git to test the archive path and report SKIPPED without it. Both numbers were measured. Do not quote the checkout number to the data machine; that is how a correct run gets read as a failure.
+- Run `python scripts/run_all_smokes.py` before claiming anything works. Expect 69 suites, 1977 checks, ALL GREEN **on a checkout**. Off a zipball extract - which is what the data machine runs - it is 1968: nine checks in `smoke_buildid` need git to test the archive path and report SKIPPED without it. Both numbers were measured. Do not quote the checkout number to the data machine; that is how a correct run gets read as a failure.
 - **THE DEVELOPMENT MACHINE WAS BEHIND THE DATA MACHINE, and that is
   how a green suite here failed there.** Dev was on Python 3.10 with
   pandas 2.3; the data machine installs fresh and got pandas 3.0.5,
@@ -503,6 +503,33 @@ the direction that stops work happening.
   The page was then debugged for a defect that had never been
   applied. Write after each edit, or read the file back before
   believing an edit is in.
+
+- **THE NEURAL ENGINE HAD NEVER SEEN A SHAPE THAT WAS NOT THE
+  EXTRACT, AND THE SWEEP FOUND FOUR FAULTS (2026-09-29).**
+  `shape_sweep.py --neural` runs it across the same 23 dataset
+  shapes the rules engine was swept across long ago. First run:
+  one CRASH and three DESTROYED columns. The crash was a table
+  with ONE entity - `GaussianMixture` requires at least two rows
+  however few components are asked for, so a single patient
+  centre cannot use one at all, and the fix is a stand-in that
+  says what the distribution of one point is. The three
+  collapses were a high-cardinality code, a free-text note and a
+  date, all folded entirely into `__other__` because no level
+  cleared the k floor - the SAME lesson the rules engine learned
+  months ago, relearned in a new engine: a level the k rule
+  cannot publish is not a reason to publish nothing, so the
+  SHAPE is published (distinct count, frequency profile) and the
+  labels are INVENTED. 23 of 23 clean afterwards, with both
+  classes pinned as checks and both mutations watched red.
+- **THE KIT MUST CARRY WHAT THE TOOL CARRIES.** It taught the
+  rules engine only - types, scrub, fit, gate, exam, sign-off -
+  while the neural engine was the one being developed and shown
+  to the room. And it never told a reader they could point any
+  of it at their OWN csv, which is the first thing a teammate
+  wants to do. Both are in it now, the second with the 23-shape
+  result stated so "it should handle your data" is a measured
+  claim rather than a hope, and the try-to-break list asks for
+  the 24th shape.
 
 - **A SET COLUMN'S LEVELS ARE ITS COMBINATION STRINGS, AND THE
   NEURAL ENGINE HAD NO CAP ON THEM (2026-09-29).** The blueprint
