@@ -55,10 +55,30 @@ def assess(fid: Dict[str, Any]) -> Dict[str, Any]:
     def add(name, ok, detail):
         crit.append({"name": name, "ok": bool(ok), "detail": detail})
 
+    # THE SPLIT, STATED BESIDE THE HEADLINE. The `__has__` token
+    # indicators are search machinery dropped before the file is
+    # written, and mixing them into one percentage cost a round
+    # trip: fixing the set columns took the pair count from 21 to
+    # 115, so the absolute counts ROSE while the percentage FELL
+    # and it read as a large regression. A reader given only the
+    # percentage cannot tell an expanded measurement surface from
+    # a real loss.
+    own_n = s.get("pairs_own")
+    scaf = s.get("pairs_scaffold") or 0
+    own_note = ""
+    if own_n and scaf:
+        own_note = ("  [of these, {} are your own columns "
+                    "({} direction, {} close, {} inverted) and "
+                    "{} are set-token search scaffolding]"
+                    .format(own_n, s.get("pairs_own_sign_ok"),
+                            s.get("pairs_own_close"),
+                            s.get("pairs_own_inverted"), scaf))
+
     add("direction kept", direction >= DIRECTION_MIN,
         "{}/{} = {:.1%}  (need {:.1%}, which is the {}/{} the gate "
-        "was set at)".format(s.get("pairs_sign_ok"), pairs, direction,
-                             DIRECTION_MIN, 124, SET_AT))
+        "was set at){}".format(s.get("pairs_sign_ok"), pairs,
+                               direction, DIRECTION_MIN, 124,
+                               SET_AT, own_note))
     add("close", close >= CLOSE_MIN,
         "{}/{} = {:.1%}  (need {:.1%}, which is {}/{})".format(
             s.get("pairs_close"), pairs, close, CLOSE_MIN, 116,

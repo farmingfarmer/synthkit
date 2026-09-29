@@ -4,7 +4,7 @@ Synthetic clinical data generator and model-evaluation instrument. Core rule: le
 
 ## Verify before claiming
 
-- Run `python scripts/run_all_smokes.py` before claiming anything works. Expect 69 suites, 2000 checks, ALL GREEN **on a checkout**. Off a zipball extract - which is what the data machine runs - it is 1991: nine checks in `smoke_buildid` need git to test the archive path and report SKIPPED without it. Both numbers were measured. Do not quote the checkout number to the data machine; that is how a correct run gets read as a failure.
+- Run `python scripts/run_all_smokes.py` before claiming anything works. Expect 69 suites, 2008 checks, ALL GREEN **on a checkout**. Off a zipball extract - which is what the data machine runs - it is 1999: nine checks in `smoke_buildid` need git to test the archive path and report SKIPPED without it. Both numbers were measured. Do not quote the checkout number to the data machine; that is how a correct run gets read as a failure.
 - **THE DEVELOPMENT MACHINE WAS BEHIND THE DATA MACHINE, and that is
   how a green suite here failed there.** Dev was on Python 3.10 with
   pandas 2.3; the data machine installs fresh and got pandas 3.0.5,
@@ -750,6 +750,47 @@ the direction that stops work happening.
   edge inclusion) cannot be the cause here. Nothing above is
   expected to fix it. Open, and named as open.
 
+- **THE GATE GOT WORSE BECAUSE THE DENOMINATOR GREW, AND ONE
+  REAL DEFECT WAS UNDERNEATH IT (2026-09-29).** The set/date
+  build read direction 89/115, close 49/115, INVERTED 10 against
+  the previous run's 18/21, 14/21, INVERTED 2 - and the
+  operator reasonably read that as a large regression. It is
+  two things at once and they must not be reported as one.
+  FIRST, the run related **115 pairs where the previous one
+  related 21**: the set columns were emitting a single
+  meaningless token, so ninety-odd token-indicator pairs could
+  not be compared at all and were silently absent from the
+  denominator. In absolute terms direction-kept went 18 -> 89
+  and close 14 -> 49. A criterion that was not even present
+  before (`set token shares`, 70/71) appeared for the same
+  reason. **A percentage whose denominator moved by 5x is not a
+  comparison**, and a report that shows only the percentage
+  invites the wrong conclusion.
+  SECOND, the newly-visible pairs were genuinely failing, and
+  for one nameable reason - below.
+- **A SIZE IDENTITY THE ENGINE DOES NOT DECLARE STILL HAS TO BE
+  FOUND.** `active_drug_count` IS the length of `active_drugs`
+  on every source row - one causal direction, correlation
+  1.000. The neural engine decodes it as an ordinary number,
+  which is a SECOND independent draw of that same quantity, and
+  two independent draws of one marginal agree only by chance.
+  Measured on a fixture whose source identity holds on 100% of
+  rows, the generated file held it on **37.2%**. Every one of
+  the ten inversions was a set token indicator against its own
+  count partner: the tokens track the set's ACTUAL size
+  correctly (+0.277 against a source +0.260) and it is the
+  PARTNER that drifted away from them, so a source +0.41 lands
+  at -0.14 and reads as INVERTED.
+  This file already recorded the identical lesson for the rules
+  engine, where the fix was to OVERWRITE the partner with the
+  set's real size after every column exists - copying enforces
+  an equality, a second draw only exchanges the mismatch. The
+  rules engine is TOLD the identity by its blueprint; this
+  engine declares nothing, so it has to DETECT it: any numeric
+  column equal to a set's length on >=99% of source rows is
+  copied at generation. Identity 37.2% -> 100%, and the token
+  correlations land on their source values.
+
 - **THE HOLDOUT EXISTED AND NOTHING ASKED IT THE OVERFITTING
   QUESTION (2026-09-29).** 15% of PATIENTS have been held out
   since the engine was written, and the only use of them was
@@ -783,6 +824,20 @@ the direction that stops work happening.
   85% of the data while the Dashboard's own header counted
   100%, so the gate and the page it sits on used different
   denominators. The relationships belong to the SOURCE.
+
+- **AND THE DASHBOARD COULD NOT REACH THE EXPLANATIONS AT ALL.**
+  It is served into a SANDBOXED IFRAME, where the bench's panel
+  is unreachable by construction, and the same HTML is a file
+  people send to each other - so the one page an operator
+  actually reads was the one page with no doors on it. The
+  panel travels INSIDE the deck now, fed from the same
+  `synthkit.explain` registry: one dictionary, two renderers,
+  because the hosts genuinely differ while the words must not.
+  Eleven new entries for the words the gate tables actually
+  use - drift, faded, overshot, sign lost, rank correlation,
+  coverage, set token shares, suppressed bins, skill - since a
+  reader meeting "INVERTED" or "-0.55 faded" in a table had no
+  way in.
 
 - **THE AUTO-LINKER IS NOT ENOUGH WHERE THE MACHINERY IS THE
   SUBJECT.** Explanations are marked on the FIRST occurrence of

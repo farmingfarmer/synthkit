@@ -645,6 +645,71 @@ def main():
     # sides - so the measure whose whole job is asking whether a
     # model can tell the tables apart was blind to the column
     # the generator was destroying. Both halves, one module.
+    # A DECLARED SIZE IDENTITY IS ENFORCED BY COPYING, NOT BY
+    # DRAWING TWICE - and this engine declares nothing, so it has
+    # to FIND the identity. The fixture must CONTAIN one: a count
+    # column that IS the length of its set on every source row,
+    # which is what `active_drug_count` is on the real extract.
+    #
+    # Left undetected it is the whole reason that run's gate read
+    # 10 INVERTED: every one of those pairs was a token indicator
+    # against its own count partner, and a partner drawn
+    # independently agrees with the set only by chance - measured
+    # at 37.2% of rows against a source 100%.
+    rid = np.random.RandomState(3)
+    itk = ["d{:03d}".format(i) for i in range(300)]
+    iw = 1.0 / (1.0 + np.arange(300)) ** 0.9
+    iw = iw / iw.sum()
+    irows = []
+    for pp in range(350):
+        lv = rid.rand()
+        for vv in range(rid.randint(3, 10)):
+            nn_ = rid.poisson(2.2 + 2 * lv)
+            ds = sorted(set(rid.choice(itk, nn_, p=iw))) if nn_ \
+                else []
+            irows.append({"person_id": "P{:04d}".format(pp),
+                          "drugs": ";".join(ds),
+                          "drug_count": len(ds),
+                          "sev": round(lv * 10 + rid.randn(), 3)})
+    dfi = pd.DataFrame(irows)
+    gi = LatentGen(k=10, seed=0, hierarchical=True).fit(
+        dfi, "person_id")
+    oi = gi.generate(len(dfi), seed=1)
+
+    def _sz(col):
+        return col.astype(str).str.split(";").map(
+            lambda t: sum(1 for x in t if x))
+
+    _src_id = float((_sz(dfi["drugs"])
+                     == pd.to_numeric(dfi["drug_count"])).mean())
+    _gen_id = float((_sz(oi["drugs"])
+                     == pd.to_numeric(oi["drug_count"])).mean())
+    check("the fixture CONTAINS the identity - a count column "
+          "that IS the length of its set on every source row - "
+          "so the check below is not asserted against data where "
+          "nothing had to be enforced",
+          _src_id > 0.999)
+    check("a count column that IS its set's length in the source "
+          "is COPIED from the generated set, not drawn a second "
+          "time: two independent draws of one quantity agree "
+          "only by chance, measured at 37.2% of rows before this",
+          _gen_id > 0.999
+          and any(t[0] == "drug_count" and t[1] == "drugs"
+                  for t in gi._size_identities))
+    _ta = dfi["drugs"].astype(str).str.split(";").map(
+        lambda z: "d000" in z).astype(float)
+    _tb = oi["drugs"].astype(str).str.split(";").map(
+        lambda z: "d000" in z).astype(float)
+    _ca = float(pd.Series(_ta).corr(
+        pd.to_numeric(dfi["drug_count"]), method="spearman"))
+    _cb = float(pd.Series(_tb).corr(
+        pd.to_numeric(oi["drug_count"]), method="spearman"))
+    check("...and the relationship the gate actually reads comes "
+          "back: a token indicator against its count partner, "
+          "which is where the real extract's inversions all sat",
+          _ca > 0.1 and _cb > 0.1
+          and abs(_cb - _ca) < 0.12)
+
     from synthkit.jointcheck import Encoder as _JE
     _je = _JE(dfx, group_by="person_id")
     _jk = dict((it[1], it[0]) for it in _je.plan)

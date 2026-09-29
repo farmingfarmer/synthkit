@@ -414,6 +414,50 @@ class LatentGen:
                 mats.append(np.column_stack(
                     [(lv == l).astype(float).to_numpy()
                      for l in levels]))
+        # A DECLARED SIZE IDENTITY IS ENFORCED BY COPYING, NOT
+        # BY DRAWING TWICE - and this engine declares nothing, so
+        # it has to FIND them.
+        #
+        # `active_drug_count` IS the length of `active_drugs` on
+        # every source row: one causal direction, correlation
+        # 1.000. Decoded as an ordinary number it becomes a
+        # SECOND, independent draw of that same quantity, and two
+        # independent draws of one marginal agree only by chance.
+        # Measured on a fixture where the source identity holds
+        # on 100% of rows, the generated file held it on 37.2%.
+        #
+        # It is the whole reason the real extract's gate read 10
+        # INVERTED: every one of those pairs is a set token
+        # indicator against its own count partner, and once the
+        # partner stops being the size, a source correlation of
+        # +0.4 lands at -0.14. The token indicators track the
+        # set's ACTUAL size correctly (+0.277 against a source
+        # +0.260) - it is the partner that drifted away from
+        # them. This repository already recorded exactly this,
+        # for the rules engine, and the fix is the same:
+        # COPYING enforces an equality, a second draw only
+        # exchanges the mismatch.
+        self._size_identities = []
+        for it in self.plan:
+            if it[0] != "set":
+                continue
+            sep_ = it[3][0]
+            true_n = sets.sizes_of(df[it[1]], sep_)
+            for jt in self.plan:
+                if jt[0] != "num" or jt[1] == it[1]:
+                    continue
+                cand = pd.to_numeric(df[jt[1]], errors="coerce")
+                both = true_n.notna() & cand.notna()
+                if int(both.sum()) < 50:
+                    continue
+                if float((true_n[both] == cand[both]).mean()) \
+                        >= 0.99:
+                    self._size_identities.append(
+                        (jt[1], it[1], sep_))
+                    print("  {} == len({}) on the source: the "
+                          "generated column will be COPIED from "
+                          "the set, not drawn again"
+                          .format(jt[1], it[1]))
         # float32, not float64: the encoded frame is the biggest
         # array here and half of it is one-hot zeros.
         X = np.hstack(mats).astype(np.float32, copy=False)
@@ -720,6 +764,14 @@ class LatentGen:
                      for j in idx])
                 i += len(levels)
         frame = pd.DataFrame(out)
+        # AFTER EVERY COLUMN EXISTS, never during the draw: the
+        # set may be decoded before or after its partner and the
+        # identity has to hold either way.
+        for cnt_c, set_c, sep_ in getattr(
+                self, "_size_identities", []):
+            if cnt_c in frame.columns and set_c in frame.columns:
+                frame[cnt_c] = sets.sizes_of(
+                    frame[set_c], sep_).astype(float)
         if pid is not None:
             # The identity column goes FIRST, and it is invented -
             # S000001 upward - never a real person's id.

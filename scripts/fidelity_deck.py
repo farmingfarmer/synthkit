@@ -2142,10 +2142,24 @@ def build_deck(src_path, run_dir, group_by="person_id",
                 'privacy; attack results are a floor, not a '
                 'certificate.</div>'.format(k, k, total_suppressed))
 
+    # EVERY TERM ON THIS PAGE IS A DOOR, and it has to be one
+    # HERE rather than in the bench: the Dashboard is served
+    # into a sandboxed iframe, where the bench's own panel
+    # cannot be reached, and the same HTML is a file people send
+    # to each other. The registry is shared - `synthkit.explain`
+    # - so the bench and this page cannot come to say different
+    # things about drift, or faded, or what INVERTED means.
+    from synthkit import explain as _explain
     return ("<!DOCTYPE html><html><head><meta charset='utf-8'>"
             "<title>Original vs synthetic</title><style>" + CSS
             + "</style></head><body><div class='wrap'>"
-            + "".join(body) + "</div>" + MOTION_JS
+            + "".join(body) + "</div>"
+            + '<p class="note" style="margin-top:34px">Words with '
+              'a dotted underline and a <b>?</b> open an '
+              'explanation, and the explanations link on to each '
+              'other - click until you reach the level you '
+              'wanted.</p>'
+            + _explain.embed_html("div.wrap > *") + MOTION_JS
             + "</body></html>"), {
         "columns": len(cols), "suppressed": total_suppressed}
 

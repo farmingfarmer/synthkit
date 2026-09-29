@@ -283,6 +283,101 @@ TERMS: Dict[str, Dict[str, str]] = {
  "why an output-side attack that survives many columns is still "
  "an open item."},
 
+"drift": {"title": "Drift",
+ "body": "The <b>synthetic</b> number minus the <b>original</b> "
+ "one, for a pair of columns. Both are "
+ "[[rank-correlation]]s.<br><br>A drift of -0.36 on a pair the "
+ "source measured at 0.49 means the relationship survived but "
+ "arrived much weaker. The SIGN of the drift only tells you "
+ "which way it moved; what matters is where it landed, which is "
+ "why each row is labelled: [[faded]], [[overshot]], "
+ "[[sign-lost]] or [[backwards]].<br><br>A pair drifting is not "
+ "automatically a fault - see [[privacy-not-a-fault]]."},
+
+"rank-correlation": {"title": "Rank correlation",
+ "body": "Every 'original' and 'synthetic' number in these "
+ "tables is a Spearman rank correlation: -1 to +1, measuring "
+ "whether one column goes up when another does, without "
+ "assuming the relationship is a straight line.<br><br>Rank was "
+ "chosen because clinical columns are skewed and a Pearson "
+ "correlation would be dragged around by a handful of extreme "
+ "values.<br><br>It has one important blind spot: a U-shaped "
+ "relationship has a rank correlation near ZERO even though the "
+ "relationship is strong. That is why [[effect-curve]]s are "
+ "measured separately - [[close]] alone would call a lost "
+ "U-shape a pass."},
+
+"faded": {"title": "Faded",
+ "body": "The relationship still points the same way, but it "
+ "arrived <b>weaker</b>: the source said 0.57 and the synthetic "
+ "data says 0.10.<br><br>This is the gentlest of the four "
+ "verdicts - nothing in the file is misleading about "
+ "DIRECTION - but it fails [[close]], because an analyst "
+ "sizing an effect from this data would understate it. Check "
+ "the k-rule column first: if the pair's columns lose their "
+ "magnitude to the published bound, the fading is "
+ "[[privacy-not-a-fault]]."},
+
+"overshot": {"title": "Overshot",
+ "body": "The relationship points the same way but arrived "
+ "<b>stronger</b> than the source: 0.29 becoming 0.65.<br><br>"
+ "Rarer than [[faded]] and worth more suspicion, because a "
+ "generator inventing strength is putting a finding in the file "
+ "that the real data does not support. Usually it means a "
+ "modelled effect was applied twice, or that a column the "
+ "relationship depended on came out less noisy than it really "
+ "is."},
+
+"sign-lost": {"title": "Sign lost",
+ "body": "The relationship <b>did not survive at all</b>: the "
+ "source had it clearly one way and the synthetic data reads "
+ "near zero or slightly the other way.<br><br>Distinct from "
+ "[[backwards]] by degree, not kind. A pair reading 0.41 in the "
+ "source and -0.14 here has lost its sign, but -0.14 is weak "
+ "enough that nobody would call it a finding. It still fails "
+ "[[direction-kept]].<br><br>When many of these appear at once "
+ "on related columns, suspect one broken mechanism rather than "
+ "many broken pairs - on the real extract, every such pair was "
+ "a set token against its own count partner, and one fix moved "
+ "all of them."},
+
+"coverage": {"title": "Coverage",
+ "body": "Whether each column is PRESENT - not missing - at the "
+ "same rate as in the real data, within 5 percentage "
+ "points.<br><br>It sounds like a minor bookkeeping check and "
+ "it is the most valuable early warning here: a coverage miss "
+ "almost always means a column was read as the WRONG TYPE "
+ "upstream. A date read as a category came back 79.9% missing "
+ "against 0% in the source, and coverage is what said so."},
+
+"set-token-shares": {"title": "Set token shares",
+ "body": "For a [[set-column]], whether each individual item "
+ "appears on the same share of rows as it does in the real "
+ "data.<br><br>Measured per token rather than per column "
+ "because a set can have exactly the right average length and "
+ "still be made of the wrong things. It is checked beside the "
+ "EMPTY rate - the share of rows whose set is genuinely empty - "
+ "because neither number can see the other's failure: a "
+ "generator can spread the right total mass over too many rows "
+ "and every share still reads correctly."},
+
+"suppressed-bins": {"title": "Suppressed bins",
+ "body": "A histogram of real data is a set of counts, and a "
+ "bar holding three people describes a group small enough to "
+ "gossip about. So bars backed by fewer than k patients are "
+ "removed from THIS REPORT, and the number removed is printed "
+ "rather than hidden.<br><br>A fidelity report on real data is "
+ "itself a release. See [[k-rule]]."},
+
+"skill": {"title": "Skill",
+ "body": "How much of a column a model can predict from its "
+ "drivers, measured on <b>patients held out of the fit</b> - "
+ "never on the rows it learned from, which would flatter every "
+ "number here.<br><br>It is what separates a relationship worth "
+ "publishing from a coincidence. The same held-out idea is used "
+ "one level up to ask whether the generator itself is "
+ "memorizing: [[reconstruction-gap]]."},
+
 "the-gate": {"title": "The gate",
  "body": "Eight criteria a finished run either meets or does "
  "not, with an honest exit code: [[direction-kept]], "
@@ -449,6 +544,15 @@ PHRASES: Dict[str, List[str]] = {
                           "membership attack", "membership"],
     "positive-control": ["positive control"],
     "the-gate": ["the gate", "M0 gate"],
+    "drift": ["drift"],
+    "rank-correlation": ["rank correlation", "Spearman"],
+    "faded": ["faded"],
+    "overshot": ["overshot"],
+    "sign-lost": ["sign lost", "direction lost"],
+    "coverage": ["coverage"],
+    "set-token-shares": ["set token shares", "token shares"],
+    "suppressed-bins": ["suppressed", "bin(s) suppressed"],
+    "skill": ["skill", "held-out patients"],
     "direction-kept": ["direction kept", "kept direction",
                        "keep their direction"],
     "close": ["kept strength", "land within 0.2"],
@@ -491,6 +595,112 @@ def orphans() -> List[str]:
         linked.update(re.findall(r"\[\[([a-z0-9-]+)\]\]",
                                  e["body"]))
     return sorted(set(TERMS) - linked)
+
+
+def embed_html(scope: str = "body") -> str:
+    """A SELF-CONTAINED explain panel for a standalone page.
+
+    WHY THE DECK NEEDS ITS OWN. The bench renders this registry
+    into its own panel, but the Dashboard is served into a
+    sandboxed iframe and is ALSO a file people send to each
+    other - so a reader outside the bench, or inside the frame,
+    could reach none of it. The panel travels with the page.
+
+    The REGISTRY is what must not diverge and does not: one
+    dictionary, rendered twice. The markup differs because the
+    hosts differ, which is the honest reason for two renderers
+    rather than a copied vocabulary."""
+    import json as _json
+    data = _json.dumps({"terms": TERMS, "phrases": PHRASES})
+    return """
+<style>
+.xq{border-bottom:1px dotted #9aa7b0;cursor:help;color:inherit}
+.xq::after{content:"\\00a0?";font-size:.72em;vertical-align:.32em;
+  color:#8c1515;font-weight:700}
+.xq:hover{border-bottom-style:solid;border-bottom-color:#8c1515;
+  background:rgba(140,21,21,.07)}
+#xqwrap{display:none;position:fixed;inset:0;z-index:900;
+  background:rgba(23,34,44,.36)}
+#xqwrap.on{display:block}
+#xqbox{position:absolute;top:50%;left:50%;
+  transform:translate(-50%,-50%);width:min(620px,92vw);
+  max-height:78vh;overflow:auto;background:#fff;border-radius:14px;
+  padding:26px 30px 30px;box-shadow:0 30px 80px rgba(23,34,44,.34)}
+#xqbox h3{margin:2px 0 4px;font-size:21px}
+#xqbox .xrule{height:2px;background:#8c1515;width:44px;
+  margin:10px 0 14px}
+#xqbody{font-size:15px;line-height:1.65;color:#1d2a35}
+#xqtrail{font:600 11px/1.4 ui-monospace,Menlo,monospace;
+  letter-spacing:.08em;text-transform:uppercase;color:#6e6e73;
+  margin-bottom:6px}
+#xqtrail a{color:#8c1515;cursor:pointer;text-decoration:none}
+#xqclose{position:absolute;top:12px;right:14px;border:0;
+  background:none;font-size:23px;cursor:pointer;color:#6e6e73}
+</style>
+<div id="xqwrap" onclick="if(event.target===this)xqClose()">
+ <div id="xqbox"><button id="xqclose" onclick="xqClose()">&times;
+ </button><div id="xqtrail"></div><h3 id="xqtitle"></h3>
+ <div class="xrule"></div><div id="xqbody"></div></div></div>
+<script>
+var XQ=__DATA__, xqPath=[];
+function xqBody(t){return t.replace(/\\[\\[([a-z0-9-]+)\\]\\]/g,
+  function(m,k){var e=XQ.terms[k];return e?
+    '<span class="xq" onclick="xqOpen(\''+k+'\')">'+
+    e.title+'</span>':m;});}
+function xqOpen(sl,push){
+  var e=XQ.terms[sl];if(!e)return;
+  if(push!==false)xqPath.push(sl);
+  document.getElementById('xqtitle').textContent=e.title;
+  document.getElementById('xqbody').innerHTML=xqBody(e.body);
+  document.getElementById('xqtrail').innerHTML=xqPath.map(
+    function(k,i){var nm=(XQ.terms[k]||{}).title||k;
+      return i===xqPath.length-1?('<b>'+nm+'</b>'):
+        '<a onclick="xqBack('+i+')">'+nm+'</a>';}).join(' &rsaquo; ');
+  document.getElementById('xqwrap').classList.add('on');}
+function xqBack(i){xqPath=xqPath.slice(0,i+1);
+  xqOpen(xqPath[xqPath.length-1],false);}
+function xqClose(){document.getElementById('xqwrap')
+  .classList.remove('on');xqPath=[];}
+document.addEventListener('keydown',function(e){
+  if(e.key==='Escape')xqClose();});
+/* FIRST OCCURRENCE PER SECTION, and never inside a control, a
+   code block or the panel itself - a page speckled with the same
+   link ten times is harder to read, not easier. */
+function xqMark(){
+  var pairs=[];
+  Object.keys(XQ.phrases).forEach(function(sl){
+    (XQ.phrases[sl]||[]).forEach(function(ph){
+      pairs.push([ph,sl]);});});
+  pairs.sort(function(a,b){return b[0].length-a[0].length;});
+  var scopes=document.querySelectorAll('__SCOPE__');
+  if(!scopes.length)scopes=[document.body];
+  Array.prototype.forEach.call(scopes,function(sec){
+    var used={};
+    var w=document.createTreeWalker(sec,NodeFilter.SHOW_TEXT,{
+      acceptNode:function(n){
+        var p=n.parentElement;
+        if(!p)return NodeFilter.FILTER_REJECT;
+        if(p.closest('pre,code,script,style,svg,button,'+
+          '.xq,#xqbox'))return NodeFilter.FILTER_REJECT;
+        return n.nodeValue&&n.nodeValue.trim().length>2?
+          NodeFilter.FILTER_ACCEPT:NodeFilter.FILTER_REJECT;}});
+    var nodes=[];while(w.nextNode())nodes.push(w.currentNode);
+    nodes.forEach(function(n){
+      for(var i=0;i<pairs.length;i++){
+        var ph=pairs[i][0],sl=pairs[i][1];
+        if(used[sl])continue;
+        var at=n.nodeValue.indexOf(ph);
+        if(at<0)continue;
+        var after=n.splitText(at);after.splitText(ph.length);
+        var sp=document.createElement('span');
+        sp.className='xq';sp.textContent=ph;
+        sp.onclick=(function(k){return function(){xqOpen(k);};})(sl);
+        after.parentNode.replaceChild(sp,after);
+        used[sl]=1;return;}});});}
+if(document.readyState!=='loading')xqMark();
+else document.addEventListener('DOMContentLoaded',xqMark);
+</script>
+""".replace("__DATA__", data).replace("__SCOPE__", scope)
 
 
 def as_json() -> Dict[str, Any]:

@@ -786,6 +786,72 @@ def main():
           and int(_m9.group(2)) == _n_no + _n_yes
           and _n_no + _n_yes > 0)
 
+    # A PERCENTAGE WHOSE DENOMINATOR MOVED IS NOT A COMPARISON.
+    # Fixing the set columns took a real run's pair count from 21
+    # to 115 - ninety-odd token-indicator pairs that had been
+    # silently unmeasurable became measurable - so the absolute
+    # counts ROSE (18 -> 89 direction) while the headline
+    # percentage FELL, and it read as a large regression. The
+    # `__has__` indicators are search machinery, dropped before
+    # the file is written; the fidelity summary already separated
+    # them when counting COLUMNS and did not when counting PAIRS.
+    from synthkit import gate as _gt
+    _mix = _gt.assess({"summary": {
+        "pairs": 115, "pairs_sign_ok": 89, "pairs_close": 49,
+        "pairs_inverted": 10, "pairs_own": 21,
+        "pairs_own_sign_ok": 18, "pairs_own_close": 14,
+        "pairs_own_inverted": 0, "pairs_scaffold": 94}})
+    _dline = [c for c in _mix["criteria"]
+              if c["name"] == "direction kept"][0]["detail"]
+    _plain = _gt.assess({"summary": {
+        "pairs": 20, "pairs_sign_ok": 19, "pairs_close": 18,
+        "pairs_inverted": 0}})
+    _pline = [c for c in _plain["criteria"]
+              if c["name"] == "direction kept"][0]["detail"]
+    check("the gate states the operator's OWN columns apart from "
+          "set-token search scaffolding, so a denominator that "
+          "grew cannot read as a regression - the mistake that "
+          "cost a round trip",
+          "your own columns" in _dline
+          and "21 are your own columns" in _dline
+          and "94 are set-token search scaffolding" in _dline)
+    check("...and a run with no scaffolding says nothing extra, "
+          "because a note that fires on everything is noise",
+          "your own columns" not in _pline)
+
+    # EVERY TERM ON THE DASHBOARD IS A DOOR - and it has to be
+    # one INSIDE the page. The Dashboard is served into a
+    # SANDBOXED IFRAME, where the bench's own explain panel
+    # cannot be reached, and the same HTML is a file people send
+    # to each other. One registry, two renderers: the words are
+    # shared so the two cannot come to say different things
+    # about what drift, or faded, or INVERTED means.
+    import re as _rq
+    from synthkit import explain as _EX
+    _txt9 = _rq.sub(r"<[^>]+>", " ", _doc9)
+    _reach = [sl for sl, phs in _EX.PHRASES.items()
+              if any(ph in _txt9 for ph in phs)]
+    check("the Dashboard carries its own explain panel, so the "
+          "terms are reachable inside the sandboxed iframe AND "
+          "in the file when somebody sends it on",
+          "xqOpen" in _doc9 and "xqwrap" in _doc9
+          and "xqMark" in _doc9 and '"terms"' in _doc9)
+    check("...and the words the reader actually meets are the "
+          "ones that open: drift, faded, sign lost, overshot, "
+          "INVERTED, the k rule, coverage, token shares, "
+          "suppressed bins and what the numbers even are",
+          all(sl in _reach for sl in
+              ("drift", "faded", "sign-lost", "overshot",
+               "backwards", "k-rule", "coverage",
+               "set-token-shares", "suppressed-bins",
+               "rank-correlation", "skill")))
+    check("...and no door opens on nothing - every [[slug]] in "
+          "an entry resolves, which is the same contract the "
+          "bench's panel has, because a link the reader trusted "
+          "and that goes nowhere is worse than no link",
+          _EX.broken_links() == []
+          and all(k in _EX.TERMS for k in _EX.PHRASES))
+
     check("the mined interactions are CACHED beside the run and "
           "the cache is READ on the next draw - each child costs "
           "a fitted model and /api/deck is a blocking request, "

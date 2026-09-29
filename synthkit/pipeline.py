@@ -1599,6 +1599,18 @@ def _tightness(fr, child, parents):
     return round(max(0.0, 1.0 - float(resid.std()) / sd), 4)
 
 
+def _is_scaffold_pair(r):
+    """Does either side of this pair live only inside the search?
+
+    The predicate lives in `sets.py` and BOTH halves call it -
+    two files deciding separately what counts as scaffolding is
+    how the two sides come to disagree, which this repository has
+    recorded once already for the constraint section."""
+    from synthkit import sets as _S
+    return bool(_S.is_scaffolding(str(r.get("child")))
+                or _S.is_scaffolding(str(r.get("parent"))))
+
+
 def _pair_fidelity(Xs, Xg, bp):
     """Did the RELATIONSHIPS survive, not just the columns?
 
@@ -1730,6 +1742,8 @@ def _pair_fidelity(Xs, Xg, bp):
            and r.get("tightness_generated") is not None]
     det_kept = [r for r in det
                 if r["tightness_generated"] >= r["tightness_source"] - 0.2]
+    _own = [r for r in strong
+            if not _is_scaffold_pair(r)]
     return {
         "categorical_compared": len(strong_other),
         "categorical_kept": len(kept_other),
@@ -1746,6 +1760,29 @@ def _pair_fidelity(Xs, Xg, bp):
         "sign_kept": sum(1 for r in strong
                          if r["source"] * r["generated"] > 0),
         "close": sum(1 for r in strong if abs(r["delta"]) <= 0.2),
+        # SCAFFOLDING IS NOT THE OPERATOR'S DATA, and one mixed
+        # percentage hides which half moved. The `__has__` token
+        # indicators exist only inside the search and are DROPPED
+        # before the file is written; the fidelity summary
+        # already separates them when it counts COLUMNS and did
+        # not when it counted PAIRS.
+        #
+        # It cost a round trip: fixing the set columns took the
+        # pair count from 21 to 115 - ninety-odd token pairs that
+        # had been silently unmeasurable became measurable - and
+        # the headline percentage FELL while the absolute counts
+        # rose. A reader with only the percentage cannot tell an
+        # expanded measurement surface from a regression. Counted
+        # apart, both questions have their own answer.
+        "own_compared": len(_own),
+        "own_sign_ok": sum(1 for r in _own
+                           if r["source"] * r["generated"] > 0),
+        "own_close": sum(1 for r in _own
+                         if abs(r["delta"]) <= 0.2),
+        "own_inverted": sum(
+            1 for r in inverted
+            if not _is_scaffold_pair(r)),
+        "scaffold_compared": len(strong) - len(_own),
         "inverted": sorted(inverted,
                            key=lambda r: r["source"] - r["generated"],
                            reverse=True),
@@ -2055,6 +2092,17 @@ def compare(df, g, bp, group_by, time_col, ordinals=None,
             "pairs_sign_ok": pairs["sign_kept"],
             "pairs_close": pairs["close"],
             "pairs_inverted": len(pairs["inverted"]),
+            # THE SAME THREE, over the operator's OWN columns
+            # only. The `__has__` token indicators are search
+            # machinery and are dropped before the file is
+            # written; one mixed percentage cannot say which
+            # half moved, and a denominator that grows makes a
+            # rising absolute count look like a regression.
+            "pairs_own": pairs["own_compared"],
+            "pairs_own_sign_ok": pairs["own_sign_ok"],
+            "pairs_own_close": pairs["own_close"],
+            "pairs_own_inverted": pairs["own_inverted"],
+            "pairs_scaffold": pairs["scaffold_compared"],
             "shapes_compared": shapes["compared"],
             "shapes_ok": shapes["tracked"],
             "surfaces_compared": surfaces["compared"],
