@@ -1,25 +1,154 @@
-# RUNBOX — recover the data machine after a forced restart
+# RUNBOX — what to type in each box, in order
 
-Updated 2026-09-28. Fresh pull, install, verify, then the bench.
-One command per line - this terminal has mangled wrapped pastes
-three times. Two STOP-AND-READ points below; they exist because
-a silently-wrong pull looks exactly like working code.
+Updated 2026-09-29. You have the bench open. Do these in order.
+Every box below is named exactly as it appears on screen, with
+the value to put in it directly underneath.
 
-## 1. Set up (all local, repo can stay private)
+Paths shown as OWNER/REPO or with %USERPROFILE% are placeholders
+here; your local RUNBOX.html on the Desktop has the real ones
+typed out, ready to copy. Browser boxes do NOT expand
+%USERPROFILE%, so type the full path.
 
-**WRITE THE OWNER/REPO OUT IN FULL - do not use a variable.**
-The `set SYNTHKIT_REPO=...` plus `%SYNTHKIT_REPO%` form in
-WINDOWS.md has never once worked on the data machine: the
-substitution does not survive that terminal, and what reaches
-curl is a URL addressing nothing. Everywhere below that reads
-`OWNER/REPO` or `OWNER-REPO`, type the real thing. The only
-variable that has ever survived there is `%USERPROFILE%`.
+---
+
+## STEP 0 — do you have the right build?
+
+Look at the LEFT RAIL of the bench. Under the heading
+`SEE THE FIDELITY` you should see three tiles:
+
+    VIEW   Dashboard
+    GEN    Neural          <- this one
+    DUEL   Duel
+
+**If `GEN  Neural` is NOT there, stop.** You are on an older
+build and nothing below will work. Go to the APPENDIX at the
+bottom, pull, reinstall, relaunch, then come back here.
+
+---
+
+## STEP 1 — click the tile
+
+Click **`GEN  Neural`** in the left rail. The heading at the top
+should change to `Neural — the engine, on its own`.
+
+---
+
+## STEP 2 — fill the four boxes
+
+The panel is titled **Point at the data**. Four boxes, top to
+bottom.
+
+**Box 1 of 4, labelled `source CSV path`**
+
+```
+%USERPROFILE%\dev\tidy_visits.csv
+```
+
+**Box 2 of 4, labelled `output directory`**
+
+```
+%USERPROFILE%\dev\neural_out
+```
+
+Use a NEW folder name. If you reuse an old one you will be
+looking at output from a previous build.
+
+**Box 3 of 4, labelled `patient / entity column`**
+
+```
+person_id
+```
+
+**Box 4 of 4, labelled `seed`**
+
+```
+0
+```
+
+---
+
+## STEP 3 — press Generate
+
+Press the dark button labelled **`Generate`**.
+
+A loader appears with a counter. It is doing two things: training
+the autoencoder and drawing records from it, then measuring what
+your real data contains so the other stations can read the
+result.
+
+**Expect 10 to 25 minutes on the full extract.** The counter
+keeps moving. When it finishes the box underneath says:
+
+    written in NNNs. Now press Review the output.
+
+**If it says STOPPED**, the message names what went wrong; send
+it to me.
+
+---
+
+## STEP 4 — press Review the output
+
+Press the pale button labelled **`Review the output`**.
+
+Another loader. **Expect 5 to 15 minutes.** When it finishes a
+page appears in a frame directly below the buttons, and the box
+says:
+
+    measured in NNNs. Gray is the real data, gold is the engine.
+
+---
+
+## STEP 5 — read the page, top to bottom
+
+Scroll the frame. In order you will see:
+
+1. **Four headline cards** - relationships pointing the same
+   way, at the same strength, how many came out BACKWARDS
+   (this one wants to be zero), and the row count.
+2. **Does a patient look like a person?** - per column, how much
+   of it belongs to the person rather than the visit, real
+   against generated. This is where patient structure is judged.
+3. **The whole table at once** - how many columns a model
+   CANNOT tell apart from real, the per-column list of the ones
+   it can, whether each column is as learnable, whether the
+   synthetic covers the real space, and three-column effects.
+4. **The combination effects** - effects that only exist when
+   two columns act together.
+5. **Every column, drawn twice** - press and hold any chart to
+   pull real and synthetic apart.
+6. **What this page does not say** - the safety statement. Read
+   it once.
+
+---
+
+## STEP 6 — the other stations, same directory
+
+The Generate step wrote the files the rest of the bench reads,
+so these now work on the SAME output directory:
+
+- **`03 Verdict`** - click it, put your output directory in its
+  box, press `Open the run in the output directory from Step 1`.
+  Gives the eight-criteria gate.
+- **`VIEW Dashboard`** - source CSV in the first box, the same
+  output directory in the second, `person_id` in the third.
+- **`DUEL Duel`** - only if you also want the side-by-side
+  against the rules engine; it needs a finished rules-engine run
+  as well.
+
+`ALT Learn` is the first engine entirely and does not apply.
+
+**Send back:** the headline cards, the patient table, and the
+whole-table section.
+
+---
+
+# APPENDIX — pull a fresh build (only if STEP 0 sent you here)
+
+One command per line. Close the bench first.
 
 ```bat
 cd %USERPROFILE%\dev
 ```
-
-## 2. Clear the old copy FIRST (never after the extract)
 
 ```bat
 for /d %i in (OWNER-REPO-*) do rmdir /s /q "%i"
@@ -33,10 +162,8 @@ rmdir /s /q synthkit
 del /q synthkit.zip 2>nul
 ```
 
-## 3. Download - the repo must be PUBLIC for this one line
-
-Flip it public now, run the next command, then flip it back as
-soon as `dir` shows a real size.
+Make the repo public for the next line only, then private again
+once `dir` shows a real size.
 
 ```bat
 curl -L -o synthkit.zip https://api.github.com/repos/OWNER/REPO/zipball/main
@@ -46,15 +173,8 @@ curl -L -o synthkit.zip https://api.github.com/repos/OWNER/REPO/zipball/main
 dir synthkit.zip
 ```
 
-**STOP AND READ.** A few hundred KB or more means it worked.
-About 106 bytes means what landed is an error page, not an
-archive - the repo was still private, or the name is wrong.
-Everything after this point would then fail in ways that look
-like something else entirely. Fix it here.
-
-Repo can go back to private now.
-
-## 4. Extract and rename
+**STOP AND READ.** Hundreds of KB means it worked. About 106
+bytes means what landed is an error page, not an archive.
 
 ```bat
 tar -xf synthkit.zip
@@ -63,8 +183,6 @@ tar -xf synthkit.zip
 ```bat
 for /d %i in (OWNER-REPO-*) do ren "%i" synthkit
 ```
-
-## 5. Install, then verify identity
 
 ```bat
 cd %USERPROFILE%\dev\synthkit
@@ -75,101 +193,13 @@ pip install -e .
 ```
 
 ```bat
-python -m synthkit.cli version
-```
-
-Run version AFTER the install - running it before shows the old
-build id and reads as a failed pull.
-
-## 6. Prove the tree
-
-```bat
 python scripts\run_all_smokes.py
 ```
 
-**Expect: 69 suites, 1963 checks, ALL GREEN.** That is the
-zipball number; a checkout reads 1959 because nine build-id
-checks need git. Do not read 1950 as nine failures.
-
-## 7. The bench
+**Expect: 69 suites, 1963 checks, ALL GREEN.**
 
 ```bat
 python -m synthkit.cli gui
 ```
 
-Serves at http://127.0.0.1:8377 and opens the browser. Confirm
-the build id in the wordmark matches step 5.
-
-New since your last session: the bench scrolls in layers now
-(titles and instructions drift at different rates past the form,
-which stays put), and the DUEL station runs both engines with
-the neural side producing PATIENTS rather than unlinked rows.
-
-## 8. Run the neural engine on its own (the short path)
-
-The **GEN / Neural** station in the left rail runs the engine
-with no prior run and no second engine. Four boxes:
-
-- source CSV path - the real extract
-- output directory - a NEW folder of yours
-- patient / entity column - `person_id`
-- seed - `0`
-
-Press **Generate**, wait for it to say the file is written, then
-press **Review the output**.
-
-The Generate step now also writes the artifacts the rest of the
-bench reads, so when it finishes you can point the **Verdict**
-station and the **Dashboard** at the SAME output directory and
-they will work. (It runs discovery on the real data to do that,
-which is the slow part of the step - the relationships being
-judged belong to your data, not to the engine.) The **Learn**
-station is the first engine entirely and does not apply. The review leads with "does a
-patient look like a person", then the combination effects, then
-every column drawn twice.
-
-## 9. Or run both engines side by side (the comparison)
-
-Everything below happens in the browser. The station is **DUEL**
-in the left rail, under SEE THE FIDELITY, just beneath Dashboard.
-
-Click DUEL, then fill the five boxes TOP TO BOTTOM. Browser
-fields do not expand %USERPROFILE%, so type the expanded path -
-your local RUNBOX.html carries them ready to copy.
-
-1. **source CSV path** - the real extract
-2. **blueprint run directory** - your finished full-extract fit
-   (the one holding generated.csv); this is the OTHER engine,
-   and the page needs it to compare against
-3. **patient / entity column** - `person_id`
-4. **latent output directory** - a NEW folder. Do not reuse an
-   older one: anything written before 2026-09-25 holds
-   patient-less output from the previous build, and the page
-   would measure the old engine.
-5. **latent seed** - `0`
-
-Then, in order:
-
-- Press **Generate with the latent engine (minutes)**. This is
-  the autoencoder training and drawing on the full extract. The
-  loader runs with elapsed seconds; it finishes by saying the
-  draws are written.
-- Press **Draw the duel**. Also a job - it mines the
-  interactions out of the real data and measures both engines
-  against them. Your last run drew in 198s.
-
-**What the page gives you, top to bottom:** four headline cards
-(each engine's kept-direction / kept-strength counts and its
-BACKWARDS count), every shared column drawn three ways (gray
-original, cardinal rules engine, gold neural engine - press and
-hold to fan them apart), "Where each engine goes wrong" as a
-grid, "Does a patient still look like a person?" - the new
-section, per column, which is where the neural engine's patient
-structure is judged - then "The combination effects", and a
-closing section on what the page does NOT say about safety.
-
-## Optional - driver attribution in the dashboard
-
-```bat
-pip install shap
-```
+Then go back to STEP 0.
