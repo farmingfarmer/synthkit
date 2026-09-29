@@ -4,7 +4,7 @@ Synthetic clinical data generator and model-evaluation instrument. Core rule: le
 
 ## Verify before claiming
 
-- Run `python scripts/run_all_smokes.py` before claiming anything works. Expect 69 suites, 1972 checks, ALL GREEN **on a checkout**. Off a zipball extract - which is what the data machine runs - it is 1963: nine checks in `smoke_buildid` need git to test the archive path and report SKIPPED without it. Both numbers were measured. Do not quote the checkout number to the data machine; that is how a correct run gets read as a failure.
+- Run `python scripts/run_all_smokes.py` before claiming anything works. Expect 69 suites, 1974 checks, ALL GREEN **on a checkout**. Off a zipball extract - which is what the data machine runs - it is 1965: nine checks in `smoke_buildid` need git to test the archive path and report SKIPPED without it. Both numbers were measured. Do not quote the checkout number to the data machine; that is how a correct run gets read as a failure.
 - **THE DEVELOPMENT MACHINE WAS BEHIND THE DATA MACHINE, and that is
   how a green suite here failed there.** Dev was on Python 3.10 with
   pandas 2.3; the data machine installs fresh and got pandas 3.0.5,
@@ -503,6 +503,29 @@ the direction that stops work happening.
   The page was then debugged for a defect that had never been
   applied. Write after each edit, or read the file back before
   believing an edit is in.
+
+- **A SET COLUMN'S LEVELS ARE ITS COMBINATION STRINGS, AND THE
+  NEURAL ENGINE HAD NO CAP ON THEM (2026-09-29).** The blueprint
+  has capped categories at 60 since it was written; LatentGen
+  kept every level that cleared k. On the real extract that
+  turned 44 source columns into 4,326 encoded dimensions and
+  training died allocating 1.5 GiB inside the denoising noise.
+  Fixed four ways: the same 60-level cap (k first, then
+  FREQUENCY, rest to `__other__`), float32 instead of float64
+  for the biggest array in the process, the denoising noise
+  added IN CHUNKS rather than materialising a second full frame,
+  and the encoded width PRINTED with its widest columns named so
+  the next blow-up is visible before it is fatal. Measured
+  after: a frame whose `conditions` holds 22,393 distinct
+  combination strings encodes to 425 dimensions, widest
+  categorical 61.
+- **AND THE FIRST FIXTURE FOR THAT CHECK COULD NOT REACH THE
+  CAP.** It planted 900 level strings held by 2 patients each -
+  none cleared the k floor, everything folded to `__other__`,
+  the width was 1, and removing the cap entirely changed
+  nothing. A level cap is only exercised by levels that QUALIFY:
+  120 strings on ~15 patients apiece, and the same mutation then
+  reads 120 wide against a cap of 60 and goes red.
 
 - **THE JOINT MEASURES EXIST, AND THE FIRST ONE FOUND THREE
   DEFECTS IN AN HOUR (`synthkit/jointcheck.py`, 2026-09-28).**

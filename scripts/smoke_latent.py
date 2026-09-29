@@ -298,6 +298,42 @@ def main():
               _v.get("pairs", 0) > 0
               and len(_v.get("criteria") or []) >= 5)
 
+    # A SET COLUMN'S "LEVELS" ARE ITS COMBINATION STRINGS, AND
+    # THERE CAN BE THOUSANDS. Uncapped, one such column puts
+    # thousands of one-hot dimensions into the encoded frame: on
+    # the real extract 44 source columns became 4,326 encoded
+    # ones and training died allocating 1.5 GiB. The blueprint
+    # has capped categories at 60 since it was written; this
+    # engine had no cap at all.
+    from latent_challenger import MAX_LEVELS as _ML
+    _many = pd.DataFrame({
+        "person_id": ["P{:03d}".format(i) for i in
+                      np.repeat(np.arange(300), 6)],
+        # 120 distinct level strings, each held by ~15 DIFFERENT
+        # patients so every one clears the k floor - the first
+        # cut used 900 levels held by 2 patients each, none of
+        # them qualified, everything folded to __other__ and the
+        # cap was never reached: the check passed on a frame
+        # that could not exercise it.
+        "combo": ["t{}".format(i % 120) for i in range(1800)],
+        "num": np.round(np.random.RandomState(1)
+                        .normal(0, 1, 1800), 3)})
+    _lv = _many["combo"].nunique()
+    _qual = int((_many.groupby("combo")["person_id"].nunique()
+                 >= 10).sum())
+    check("the fixture contains the thing: {} level strings "
+          "CLEAR the k floor, well past the cap of {} - levels "
+          "that do not qualify would fold away and never reach "
+          "the cap at all".format(_qual, _ML),
+          _qual > _ML)
+    _gm = LatentGen(seed=1).fit(_many, "person_id")
+    _wid = max((len(it[2]) for it in _gm.plan
+                if it[0] == "cat"), default=0)
+    check("...and the encoded frame stays bounded - no "
+          "categorical contributes more than the cap plus its "
+          "__other__ bucket ({} wide, cap {})".format(_wid, _ML),
+          _wid <= _ML + 1 and _gm.d < 200)
+
     # THE JOINT MEASURES. Everything else in this suite names a
     # pattern first; these ask the reverse and need nothing
     # enumerated. Exercised on a fixture where the "synthetic"

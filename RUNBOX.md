@@ -13,6 +13,13 @@ typed out, ready to copy. Browser boxes do NOT expand
 
 ## STEP 0 — do you have the right build?
 
+**If you already tried Generate and got a STOPPED message about
+`Unable to allocate ... GiB`, that was a real bug and it is
+fixed.** Set columns were being one-hot encoded with thousands
+of combination strings apiece - 44 columns became 4,326 encoded
+ones. Pull first (APPENDIX at the bottom), then start here.
+
+
 Look at the LEFT RAIL of the bench. Under the heading
 `SEE THE FIDELITY` you should see three tiles:
 
@@ -196,7 +203,7 @@ pip install -e .
 python scripts\run_all_smokes.py
 ```
 
-**Expect: 69 suites, 1963 checks, ALL GREEN.**
+**Expect: 69 suites, 1965 checks, ALL GREEN.**
 
 ```bat
 python -m synthkit.cli gui

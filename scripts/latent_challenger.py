@@ -52,6 +52,13 @@ if str(ROOT) not in sys.path:
 
 K = 10
 DEFAULT_SEEDS = [0, 1, 2, 3, 4]
+# THE SAME CAP THE BLUEPRINT USES. Without it a set column -
+# whose "levels" are its distinct COMBINATION strings - puts
+# thousands of one-hot dimensions into the encoded frame: on the
+# real extract, 44 source columns became 4,326 encoded ones and
+# training died allocating 1.5 GiB. Most-common first, the rest
+# folded to __other__.
+MAX_LEVELS = 60
 
 
 def _k_clip(vals: np.ndarray, gid: np.ndarray, k: int):
@@ -213,15 +220,32 @@ class LatentGen:
                 s = df[c].astype(str)
                 per = pd.DataFrame({"l": s, "g": gid}) \
                     .groupby("l")["g"].nunique()
-                keep = sorted(per[per >= self.k].index)
+                ok = per[per >= self.k].index
+                # k first, then FREQUENCY - a column with
+                # thousands of qualifying levels still gets only
+                # the common ones, and the tail is honest rather
+                # than enormous.
+                keep = list(s[s.isin(ok)].value_counts()
+                            .index[:MAX_LEVELS])
                 lv = s.where(s.isin(keep), "__other__")
                 levels = sorted(lv.unique())
                 self.plan.append(("cat", c, levels, None, None))
                 mats.append(np.column_stack(
                     [(lv == l).astype(float).to_numpy()
                      for l in levels]))
-        X = np.hstack(mats)
+        # float32, not float64: the encoded frame is the biggest
+        # array here and half of it is one-hot zeros.
+        X = np.hstack(mats).astype(np.float32, copy=False)
         self.d = X.shape[1]
+        wide = [(it[1], len(it[2])) for it in self.plan
+                if it[0] == "cat" and len(it[2]) > 20]
+        print("  encoded frame: {} rows x {} dimensions"
+              "{}".format(X.shape[0], X.shape[1],
+                          "  (widest: " + ", ".join(
+                              "{} {}".format(c, n)
+                              for c, n in sorted(
+                                  wide, key=lambda t: -t[1])[:3])
+                          + ")" if wide else ""))
         if self.b is None:
             self.b = int(max(8, min(32, self.d // 6)))
         if self.h is None:
@@ -231,9 +255,20 @@ class LatentGen:
             activation="relu", max_iter=800, tol=1e-5,
             random_state=self.seed, early_stopping=False)
         if self.denoise > 0:
+            # IN PLACE, IN CHUNKS. `X + normal(size=X.shape)`
+            # allocates a second frame the size of the first and
+            # is what actually ran out of memory on the real
+            # extract.
             rs2 = np.random.RandomState(self.seed + 5)
-            self.net.fit(
-                X + rs2.normal(0, self.denoise, X.shape), X)
+            Xn = X.copy()
+            step = max(1, 200000 // max(X.shape[1], 1))
+            for a0 in range(0, len(Xn), step):
+                b0 = min(a0 + step, len(Xn))
+                Xn[a0:b0] += rs2.normal(
+                    0, self.denoise,
+                    (b0 - a0, X.shape[1])).astype(np.float32)
+            self.net.fit(Xn, X)
+            del Xn
         else:
             self.net.fit(X, X)
         z = self._encode(X)
