@@ -4,7 +4,9 @@ positive control. Fidelity numbers are measured by running the
 script on the fixtures, not asserted here: a generator's quality
 is seed-swept, never pinned.
 """
+import json
 import sys
+import tempfile
 from pathlib import Path
 
 import numpy as np
@@ -252,6 +254,49 @@ def main():
           and set(_mined[0][2:]) <= {"planted_xor_a",
                                      "planted_xor_b",
                                      "planted_xor_y"})
+
+    # THE NEURAL OUTPUT MUST REACH THE REST OF THE BENCH. The
+    # Verdict station, the Dashboard and the sign-off page all
+    # key off artifacts the rules pipeline writes, so without
+    # them this engine's output could only be read by its own
+    # page - the same question asked of the same data, answerable
+    # by only one instrument. Writing them found two real
+    # contract bugs: a missing catalogue.json silently deleted
+    # the Dashboard's pattern cards, and `source` written as a
+    # STRING instead of a dict killed the sign-off page.
+    from latent_challenger import write_run_artifacts
+    import synthkit.gate as _gt
+    with tempfile.TemporaryDirectory() as _ad:
+        _adir = Path(_ad) / "run"
+        _fid = write_run_artifacts(tr, gen5, "person_id", _adir,
+                                   source_name="fixture.csv")
+        _want = ("blueprint.json", "fidelity.json",
+                 "generated.csv", "catalogue.json",
+                 "provenance.json")
+        check("the neural run directory carries every artifact "
+              "the other stations read ({}) - a missing one "
+              "makes a station refuse, or silently drop a "
+              "section".format(", ".join(_want)),
+              all((_adir / f).exists() for f in _want))
+        _prov = json.loads(
+            (_adir / "provenance.json").read_text(
+                encoding="utf-8"))
+        check("...provenance carries the SHAPES the other pages "
+              "read - source a dict with rows_read and patients, "
+              "build a dict - because a bare string there killed "
+              "the sign-off page with 'str has no attribute get'",
+              isinstance(_prov.get("source"), dict)
+              and "rows_read" in _prov["source"]
+              and "patients" in _prov["source"]
+              and isinstance(_prov.get("build"), dict))
+        _v = _gt.assess(_fid)
+        check("...and the gate can actually READ the result - "
+              "the relationships were discovered from the "
+              "SOURCE, so 'did this output keep what the real "
+              "data contains' is a fair question to put to any "
+              "engine",
+              _v.get("pairs", 0) > 0
+              and len(_v.get("criteria") or []) >= 5)
 
     # THE HEAD-TO-HEAD IS ONE COMMAND. compare measures the
     # blueprint run's generated.csv and the latent draws against

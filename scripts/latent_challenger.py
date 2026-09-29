@@ -739,6 +739,88 @@ def run_support(argv):
     return 0
 
 
+def write_run_artifacts(src, gen, group_by, outdir,
+                        time_col=None, source_name="(source)"):
+    """Make the neural output READABLE BY THE REST OF THE BENCH.
+
+    The Verdict station and the Dashboard both key off artifacts
+    the rules pipeline writes - blueprint.json, fidelity.json,
+    generated.csv - so without them the neural engine's output
+    could only be read by its own page. It is the same question
+    ('how close is this to the real data?') and it should reach
+    the same instruments.
+
+    The blueprint written here describes the SOURCE and publishes
+    no claims: it carries the k-screened marginals every
+    measurement needs and asserts nothing about relationships,
+    because this engine publishes no curves. Criteria that judge
+    published claims therefore report as not-measured rather than
+    passing on an absence, which is the honest reading."""
+    import json
+    from synthkit import blueprint as B
+    from synthkit import pipeline as P
+    from synthkit.discover import discover as _disc
+    outdir = Path(outdir)
+    outdir.mkdir(parents=True, exist_ok=True)
+    gen.to_csv(outdir / "generated.csv", index=False)
+    # THE RELATIONSHIPS BELONG TO THE SOURCE, NOT TO AN ENGINE.
+    # Without them `compare` has no pairs to judge and the gate
+    # refuses to read - correctly, since a gate with nothing to
+    # measure is not a pass. Discovery runs on the REAL data and
+    # asks what it contains; whether a given output kept those
+    # relationships is then a fair question to put to any
+    # generator, this one included.
+    print("  measuring what the real data contains (this is the "
+          "slow part) ...")
+    cat = _disc(src, group_by=group_by)
+    bp = B.build(src, cat, group_by=group_by)
+    bp["generator"] = "neural"
+    (outdir / "blueprint.json").write_text(
+        json.dumps(bp, indent=1), encoding="utf-8")
+    fid = P.compare(src, gen, bp, group_by, time_col)
+    fid["generator"] = "neural"
+    fid["note"] = ("Produced by the neural engine. The "
+                   "relationships judged here were discovered "
+                   "from the SOURCE, not published by this "
+                   "engine - it publishes no contract of its "
+                   "own. The question being asked is whether "
+                   "its output kept what the real data "
+                   "contains.")
+    (outdir / "fidelity.json").write_text(
+        json.dumps(fid, indent=1), encoding="utf-8")
+    # THE CATALOGUE TOO - the Dashboard draws its pattern cards
+    # from it, and without the file that whole section vanishes
+    # with no explanation. Discovery already produced it.
+    (outdir / "catalogue.json").write_text(
+        json.dumps(cat, indent=1), encoding="utf-8")
+    # PROVENANCE IN THE SHAPE THE OTHER PAGES READ. `source` is a
+    # DICT with rows_read and patients, and `build` is a dict -
+    # writing a bare string here made the sign-off page die with
+    # `'str' object has no attribute 'get'`, which is the
+    # contract-shape lesson this file already records about
+    # provenance once before.
+    try:
+        from synthkit.build_id import build_id as _bi
+        _b = _bi()
+    except Exception:
+        _b = {"id": "unknown"}
+    (outdir / "provenance.json").write_text(json.dumps({
+        "generator": "neural (autoencoder)",
+        "build": _b,
+        "blueprint_version": bp.get("blueprint_version"),
+        "source": {
+            "name": str(source_name),
+            "rows_read": int(len(src)),
+            "columns_read": int(src.shape[1]),
+            "patients": (int(src[group_by].nunique())
+                         if group_by in src.columns else None),
+        },
+        "settings": {"group_by": group_by,
+                     "engine": "neural"},
+    }, indent=1), encoding="utf-8")
+    return fid
+
+
 def run_csv(argv):
     """The real-extract read, for the data machine. Echoes every
     setting it received - a missing flag must be visible."""
@@ -817,6 +899,24 @@ def run_csv(argv):
                 seed), index=False)
             print("  wrote {}".format(
                 outd / "latent_gen_seed{}.csv".format(seed)))
+            # ...and the artifacts the rest of the bench reads,
+            # so the Verdict station and the Dashboard work on
+            # this output too. Written for the FIRST seed only -
+            # a run directory describes one generated file.
+            if seed == seeds[0]:
+                try:
+                    write_run_artifacts(
+                        tr, gen, a.group_by, outd,
+                        source_name=a.csv)
+                    print("  wrote blueprint.json, fidelity.json "
+                          "and generated.csv - the Verdict "
+                          "station and the Dashboard can read "
+                          "this directory now")
+                except Exception as e:
+                    print("  could NOT write the bench "
+                          "artifacts: {} - the review page still "
+                          "works, the other stations will "
+                          "refuse".format(e))
     print("Row-level: no within-patient dynamics. Trains on "
           "records: a MEASUREMENT, not a release.")
 

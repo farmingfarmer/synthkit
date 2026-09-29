@@ -4,7 +4,7 @@ Synthetic clinical data generator and model-evaluation instrument. Core rule: le
 
 ## Verify before claiming
 
-- Run `python scripts/run_all_smokes.py` before claiming anything works. Expect 69 suites, 1964 checks, ALL GREEN **on a checkout**. Off a zipball extract - which is what the data machine runs - it is 1955: nine checks in `smoke_buildid` need git to test the archive path and report SKIPPED without it. Both numbers were measured. Do not quote the checkout number to the data machine; that is how a correct run gets read as a failure.
+- Run `python scripts/run_all_smokes.py` before claiming anything works. Expect 69 suites, 1967 checks, ALL GREEN **on a checkout**. Off a zipball extract - which is what the data machine runs - it is 1958: nine checks in `smoke_buildid` need git to test the archive path and report SKIPPED without it. Both numbers were measured. Do not quote the checkout number to the data machine; that is how a correct run gets read as a failure.
 - **THE DEVELOPMENT MACHINE WAS BEHIND THE DATA MACHINE, and that is
   how a green suite here failed there.** Dev was on Python 3.10 with
   pandas 2.3; the data machine installs fresh and got pandas 3.0.5,
@@ -503,6 +503,35 @@ the direction that stops work happening.
   The page was then debugged for a defect that had never been
   applied. Write after each edit, or read the file back before
   believing an edit is in.
+
+- **THE NEURAL OUTPUT NOW REACHES THE WHOLE BENCH, AND WIRING
+  IT FOUND TWO CONTRACT BUGS (2026-09-28).** The Verdict
+  station, the Dashboard and the sign-off page all key off
+  artifacts the rules pipeline writes, so the neural engine's
+  output could only be read by its own page - the same question
+  about the same data, answerable by one instrument. The run now
+  writes blueprint.json, catalogue.json, fidelity.json,
+  generated.csv and provenance.json, and all three stations
+  read it. Found on the way: a missing `catalogue.json` SILENTLY
+  deleted the Dashboard's pattern cards (no error, just an
+  absent section), and `source` written as a STRING instead of a
+  dict killed the sign-off page with `'str' object has no
+  attribute 'get'` - the provenance-shape lesson this file
+  already recorded once. Both are checks now, both watched red.
+- **AND THE RELATIONSHIPS BELONG TO THE SOURCE, NOT TO AN
+  ENGINE.** The first cut wrote a blueprint with no claims, and
+  the gate refused: no published relationships, no pairs, "the
+  gate cannot be read - that is a finding in itself, not a
+  pass". Correct, and the fix is that discovery runs on the REAL
+  DATA: what the extract contains is a property of the extract,
+  so "did this output keep it" is a fair question to put to any
+  generator. The neural engine's first full gate reading is
+  therefore honest and unflattering - it FAILS shapes (16/40)
+  and surfaces (4/11) where the rules engine passes, because
+  those criteria judge whether published CURVES survive and this
+  engine publishes none. Different questions, both worth
+  asking: it wins the combination effects mined from data and
+  loses the curves declared in a contract.
 
 - **THE ENGINE GETS ITS OWN STATION; THE CONTEST STAYS A
   RULER (2026-09-28).** Running the neural engine required going

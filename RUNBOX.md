@@ -87,7 +87,7 @@ build id and reads as a failed pull.
 python scripts\run_all_smokes.py
 ```
 
-**Expect: 69 suites, 1955 checks, ALL GREEN.** That is the
+**Expect: 69 suites, 1958 checks, ALL GREEN.** That is the
 zipball number; a checkout reads 1959 because nine build-id
 checks need git. Do not read 1950 as nine failures.
 
@@ -116,7 +116,15 @@ with no prior run and no second engine. Four boxes:
 - seed - `0`
 
 Press **Generate**, wait for it to say the file is written, then
-press **Review the output**. The review leads with "does a
+press **Review the output**.
+
+The Generate step now also writes the artifacts the rest of the
+bench reads, so when it finishes you can point the **Verdict**
+station and the **Dashboard** at the SAME output directory and
+they will work. (It runs discovery on the real data to do that,
+which is the slow part of the step - the relationships being
+judged belong to your data, not to the engine.) The **Learn**
+station is the first engine entirely and does not apply. The review leads with "does a
 patient look like a person", then the combination effects, then
 every column drawn twice.
 
