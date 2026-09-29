@@ -298,6 +298,58 @@ def main():
               _v.get("pairs", 0) > 0
               and len(_v.get("criteria") or []) >= 5)
 
+    # THE JOINT MEASURES. Everything else in this suite names a
+    # pattern first; these ask the reverse and need nothing
+    # enumerated. Exercised on a fixture where the "synthetic"
+    # side is a SHUFFLE of the real columns - every marginal
+    # identical, every relationship destroyed - which the
+    # pattern-named measures would partly miss and these must
+    # catch.
+    from synthkit import jointcheck as _jc
+    _rs = np.random.RandomState(12)
+    _nj = 1400
+    _gj = np.repeat(np.arange(200), 7)
+    _xj = _rs.normal(0, 1, _nj)
+    _real = pd.DataFrame({
+        "person_id": ["P{:03d}".format(i) for i in _gj],
+        "a": np.round(_xj, 3),
+        "b": np.round(2.0 * _xj + _rs.normal(0, .3, _nj), 3),
+        "c": np.round(_rs.normal(5, 2, _nj), 3)})
+    _broken = _real.copy()
+    for _c in ("a", "b", "c"):
+        _broken[_c] = _rs.permutation(_broken[_c].to_numpy())
+    _dj = _jc.distinguishability(_real, _real.copy(),
+                                 "person_id")
+    check("a table compared against ITSELF is indistinguishable "
+          "- the measure's own control, without which a low "
+          "score would prove nothing",
+          _dj["auc_within_published_range"] < 0.60)
+    _pj = _jc.predictability(_real, _broken, "person_id")
+    _pg = _jc.predictability(_real, _real.copy(), "person_id")
+    check("the predictability profile sees a destroyed "
+          "relationship that every marginal check would pass: "
+          "shuffled columns read a skill gap of {} against {} "
+          "for an identical copy".format(_pj["mean_skill_gap"],
+                                         _pg["mean_skill_gap"]),
+          _pj["mean_skill_gap"] > _pg["mean_skill_gap"] + 0.2)
+    _mj = _jc.manifold(_real, _real.copy(), "person_id")
+    check("manifold precision and recall are near 1.0 against an "
+          "identical copy ({} / {}) - and the docstring says "
+          "plainly that a verbatim copy scoring 1.00 is why this "
+          "is not a privacy measure".format(_mj["precision"],
+                                            _mj["recall"]),
+          _mj["precision"] > 0.9 and _mj["recall"] > 0.9)
+    _uj = _jc.utility(_real, _real.copy(), "b", "person_id")
+    check("train-on-synthetic scores near train-on-real when the "
+          "synthetic IS the real data (retained {})".format(
+              _uj["retained"]),
+          _uj["retained"] is not None and _uj["retained"] > 0.8)
+    _all = _jc.run_all(_real, _broken, "person_id", target="b")
+    check("run_all returns every measure and NAMES any that "
+          "failed rather than dropping it",
+          set(_all) >= {"distinguishability", "predictability",
+                        "three_way", "manifold", "utility"})
+
     # THE HEAD-TO-HEAD IS ONE COMMAND. compare measures the
     # blueprint run's generated.csv and the latent draws against
     # the SAME source with the SAME metrics - and refuses in a

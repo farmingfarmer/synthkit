@@ -4,7 +4,7 @@ Synthetic clinical data generator and model-evaluation instrument. Core rule: le
 
 ## Verify before claiming
 
-- Run `python scripts/run_all_smokes.py` before claiming anything works. Expect 69 suites, 1967 checks, ALL GREEN **on a checkout**. Off a zipball extract - which is what the data machine runs - it is 1958: nine checks in `smoke_buildid` need git to test the archive path and report SKIPPED without it. Both numbers were measured. Do not quote the checkout number to the data machine; that is how a correct run gets read as a failure.
+- Run `python scripts/run_all_smokes.py` before claiming anything works. Expect 69 suites, 1972 checks, ALL GREEN **on a checkout**. Off a zipball extract - which is what the data machine runs - it is 1963: nine checks in `smoke_buildid` need git to test the archive path and report SKIPPED without it. Both numbers were measured. Do not quote the checkout number to the data machine; that is how a correct run gets read as a failure.
 - **THE DEVELOPMENT MACHINE WAS BEHIND THE DATA MACHINE, and that is
   how a green suite here failed there.** Dev was on Python 3.10 with
   pandas 2.3; the data machine installs fresh and got pandas 3.0.5,
@@ -503,6 +503,44 @@ the direction that stops work happening.
   The page was then debugged for a defect that had never been
   applied. Write after each edit, or read the file back before
   believing an edit is in.
+
+- **THE JOINT MEASURES EXIST, AND THE FIRST ONE FOUND THREE
+  DEFECTS IN AN HOUR (`synthkit/jointcheck.py`, 2026-09-28).**
+  Every fidelity measure before this NAMES a pattern first - a
+  pair's rank correlation, a published curve, a two-way product
+  - so it can only find what somebody thought to look for. Five
+  measures now ask the reverse: distinguishability (can a
+  classifier tell the tables apart, and WHAT gives it away),
+  per-column predictability (is each column as learnable, and do
+  the same drivers drive it), train-on-synthetic-test-on-real,
+  three-way interactions, and manifold precision/recall. Within
+  an hour of existing, the first one found: two columns emitted
+  100% EMPTY (a reconstructed missingness indicator cut at a
+  flat 0.5 empties any column absent more than half the time),
+  integers emitted as floats, and continuous columns written to
+  17 decimal places where the source has 4. Every enumerated
+  measure had called that same output good.
+- **AND THE SAME WRONG-TYPE BUG, A THIRD TIME, BY SPARSITY.**
+  `height` is numeric, 4,155 distinct values, present on 46.6%
+  of rows - and a flat `presence >= 0.5` gate sent it down the
+  CATEGORICAL branch, where every value fell below the k floor,
+  folded to `__other__`, and came out empty. Cardinality was
+  fixed once and sparsity was still there. A column whose
+  present values are numbers is numeric, however often it is
+  present and however few distinct values it has.
+- **A JOINT AUC SATURATES, AND READING IT AS A VERDICT WOULD BE
+  WRONG TWICE.** Over ~150 encoded dimensions, differences too
+  small to matter anywhere compound into 1.00, so the number
+  cannot distinguish "slightly off everywhere" from "useless".
+  AND the k rule guarantees separability by itself: 92% of real
+  rows hold at least one value the published bounds forbid, so
+  the classifier wins on privacy alone. Both are handled -
+  each real column is CLIPPED into the synthetic's range (clip,
+  never drop: dropping whole rows kept 4.8% of them and turned
+  the test into "the most central real rows against all
+  synthetic ones"), and every column is also scored ALONE, which
+  is the comparable, actionable number. On the fixture: 46 of 76
+  columns individually indistinguishable, with the rest named.
 
 - **THE NEURAL OUTPUT NOW REACHES THE WHOLE BENCH, AND WIRING
   IT FOUND TWO CONTRACT BUGS (2026-09-28).** The Verdict

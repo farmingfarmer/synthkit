@@ -152,17 +152,61 @@ class LatentGen:
             # constant. The wrong-type fault, in this repo's own
             # ruler, found the same way as always: by reading the
             # output.
+            # A COLUMN WHOSE PRESENT VALUES ARE NUMBERS IS
+            # NUMERIC, however OFTEN it is present and however
+            # FEW distinct values it has. Both halves of that
+            # were learned the hard way and both by reading
+            # output: a seven-value integer column fell into the
+            # categorical branch and collapsed to a constant,
+            # and then `height` - numeric, 4,155 distinct values,
+            # present on 46.6% of rows - failed a flat
+            # presence >= 0.5 gate, went down the same branch,
+            # folded every value to __other__ below the k floor
+            # and came out 100% EMPTY. Sparsity is a fact about
+            # a column, not a reason to change its type.
             raw_notna = df[c].notna().mean()
             is_num = (raw_notna > 0 and v.notna().mean()
                       >= 0.9 * raw_notna and v.nunique() >= 3)
-            if v.notna().mean() >= 0.5 and is_num:
+            if is_num:
                 lo, hi = _k_clip(v.to_numpy(dtype=float), gid,
                                  self.k)
                 x = v.clip(lo, hi)
                 mu, sd = float(x.mean()), float(x.std()) or 1.0
                 filled = ((x - mu) / sd).fillna(0.0)
                 miss = v.isna().astype(float)
-                self.plan.append(("num", c, mu, sd, (lo, hi)))
+                # TWO PROPERTIES THE DECODER CANNOT INVENT, so
+                # they are carried: what share of the column is
+                # ABSENT, and whether its values are WHOLE
+                # NUMBERS. Both were found by the
+                # distinguishability check, which separated the
+                # tables perfectly on them - a column 47%
+                # present in reality came out 100% empty because
+                # a reconstructed missingness indicator was cut
+                # at a flat 0.5, and integer ids came out as
+                # floats.
+                nn = v.dropna()
+                integral = bool(len(nn)) and bool(
+                    (nn == nn.round()).all())
+                # HOW PRECISELY THE COLUMN IS WRITTEN. The
+                # decoder emits full float precision, so a
+                # column recorded to 4 decimal places came out
+                # with 17 - a fingerprint that separates the two
+                # tables perfectly and looks obviously wrong to
+                # anyone opening the file. Read off the SOURCE
+                # STRINGS, because that is where precision
+                # actually lives; a float cannot tell you it was
+                # written as 1.2474.
+                dec = 0
+                if not integral:
+                    ss_ = df[c].dropna().astype(str)
+                    ss_ = ss_[~ss_.str.contains("e|E", na=False)]
+                    if len(ss_):
+                        dd = (ss_.str.split(".").str[1]
+                              .fillna("").str.len())
+                        dec = int(min(int(dd.max()), 8))
+                self.plan.append(("num", c, mu, sd,
+                                  (lo, hi, float(miss.mean()),
+                                   integral, dec)))
                 mats.append(np.column_stack(
                     [filled.to_numpy(), miss.to_numpy()]))
             else:
@@ -357,14 +401,34 @@ class LatentGen:
         for item in self.plan:
             kind, c = item[0], item[1]
             if kind == "num":
-                _, _, mu, sd, (lo, hi) = item
+                (_, _, mu, sd,
+                 (lo, hi, miss_p, integral, dec)) = item
                 # The decoder is unbounded; the PUBLISHED bound is
                 # not. Clipping costs nothing the network ever
                 # legitimately learned - it never saw past the
                 # k-anonymous bound - and makes the bound hold by
                 # construction rather than by hope.
                 vals = np.clip(X[:, i] * sd + mu, lo, hi)
-                miss = X[:, i + 1] > 0.5
+                if integral:
+                    vals = np.round(vals)
+                elif dec:
+                    vals = np.round(vals, dec)
+                # THE MISSING CUT IS PLACED WHERE THE SOURCE RATE
+                # SAYS, not at a flat 0.5. A column absent on 53%
+                # of rows drives its reconstructed indicator above
+                # 0.5 nearly everywhere, and thresholding there
+                # emptied the column completely - present on 47%
+                # of real rows and 0% of generated ones. Taking
+                # the quantile at the published rate reproduces
+                # that rate by construction.
+                ind = X[:, i + 1]
+                if miss_p <= 0:
+                    miss = np.zeros(len(ind), dtype=bool)
+                elif miss_p >= 1:
+                    miss = np.ones(len(ind), dtype=bool)
+                else:
+                    cut = float(np.quantile(ind, 1.0 - miss_p))
+                    miss = ind >= cut
                 v = pd.Series(vals)
                 v[miss] = np.nan
                 out[c] = v

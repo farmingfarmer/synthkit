@@ -87,7 +87,7 @@ build id and reads as a failed pull.
 python scripts\run_all_smokes.py
 ```
 
-**Expect: 69 suites, 1958 checks, ALL GREEN.** That is the
+**Expect: 69 suites, 1963 checks, ALL GREEN.** That is the
 zipball number; a checkout reads 1959 because nine build-id
 checks need git. Do not read 1950 as nine failures.
 

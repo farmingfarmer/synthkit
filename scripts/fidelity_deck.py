@@ -1013,6 +1013,122 @@ def build_neural(src_path, latent_csv, group_by="person_id",
                'fewer than {} patients are removed before '
                'drawing.</p>'.format(total_sup, k))
 
+    # THE JOINT MEASURES. Everything above names a pattern first
+    # and asks whether it survived; these ask the reverse and
+    # need nothing enumerated to find what differs.
+    try:
+        from synthkit import jointcheck as _jc
+        J = _jc.run_all(src, gen, group_by)
+    except Exception as _e:
+        J = {"error": str(_e)}
+    out.append("<h2>The whole table at once</h2>"
+               '<p class="note">Every measure above names a '
+               'pattern first and asks whether it survived. '
+               'These ask the reverse: whatever structure exists '
+               'in the real data, do the two tables behave the '
+               'same way? Nothing has to be listed in advance '
+               'for them to find it.</p>')
+    _d = J.get("distinguishability") or {}
+    if _d.get("error"):
+        out.append('<p class="note">Not measured: {}</p>'.format(
+            esc(_d["error"])))
+    elif _d:
+        out.append(
+            '<div class="mcards">'
+            '<div class="mcard"><div class="n">{}/{}</div>'
+            '<div class="l">columns a model CANNOT tell apart'
+            '</div></div>'
+            '<div class="mcard"><div class="n">{:.2f}</div>'
+            '<div class="l">whole-table separability (saturates)'
+            '</div></div></div>'.format(
+                _d.get("columns_indistinguishable", 0),
+                _d.get("columns_measured", 0),
+                _d.get("auc_within_published_range")
+                or _d.get("auc", 0.5)))
+        out.append('<p class="note">A classifier was trained to '
+                   'tell real rows from synthetic ones; 0.50 '
+                   'means it could not. Judged with each column '
+                   'clipped into the published range, because '
+                   'the privacy rule alone makes the tables '
+                   'separable and that is by design rather than '
+                   'a fidelity fault ({} column(s) clipped). The '
+                   'whole-table number saturates once there are '
+                   'many columns, so the per-column list below '
+                   'is the one to act on.</p>'.format(
+                       _d.get("columns_clipped_to_range", 0)))
+        if _d.get("per_column_auc"):
+            out.append('<table><tr><th>column</th>'
+                       '<th class="num">separability alone</th>'
+                       '</tr>')
+            for _c, _a in _d["per_column_auc"][:10]:
+                out.append('<tr><td>{}</td>'
+                           '<td class="num">{:.2f}</td></tr>'
+                           .format(esc(_c), _a))
+            out.append("</table>")
+    _pr = J.get("predictability") or {}
+    if _pr.get("columns"):
+        out.append("<h3>Is each column as learnable, and do the "
+                   "same things drive it?</h3>"
+                   '<p class="note">For each column a model was '
+                   'trained to predict it from all the others, '
+                   'separately on each table. Skill is how '
+                   'predictable it is; agreement is whether the '
+                   'same drivers do the driving, in the same '
+                   'proportions - 1.00 is identical.</p>'
+                   '<table><tr><th>column</th>'
+                   '<th class="num">real</th>'
+                   '<th class="num">synthetic</th>'
+                   '<th class="num">driver agreement</th></tr>')
+        for _r in _pr["columns"][:12]:
+            out.append('<tr><td>{}</td><td class="num">{:.2f}</td>'
+                       '<td class="num">{:.2f}</td>'
+                       '<td class="num">{:.2f}</td></tr>'.format(
+                           esc(_r["column"]), _r["skill_real"],
+                           _r["skill_syn"],
+                           _r["driver_agreement"]))
+        out.append("</table>")
+        out.append('<p class="note">Across {} column(s): average '
+                   'skill gap <b>{}</b>, average driver '
+                   'agreement <b>{}</b>.</p>'.format(
+                       _pr["scored"], _pr["mean_skill_gap"],
+                       _pr["mean_driver_agreement"]))
+    _mf = J.get("manifold") or {}
+    if _mf.get("precision") is not None:
+        out.append("<h3>Does it cover the real space?</h3>"
+                   '<p class="note"><b>{:.0%}</b> of synthetic '
+                   'rows sit as close to a real row as real rows '
+                   'sit to each other - the rest are records '
+                   'unlike anything real. <b>{:.0%}</b> of real '
+                   'rows have a synthetic row that close - the '
+                   'rest are regions of the real data with no '
+                   'synthetic counterpart at all. Neither number '
+                   'says anything about privacy: a verbatim copy '
+                   'scores 1.00 on both.</p>'.format(
+                       _mf["precision"], _mf["recall"]))
+    _tw = J.get("three_way") or {}
+    if _tw.get("trios"):
+        out.append("<h3>Three columns acting together</h3>"
+                   '<p class="note">The gap every other measure '
+                   'here states it cannot reach: effects needing '
+                   'all THREE columns, beyond every pair among '
+                   'them. Nothing above three is measured.</p>'
+                   '<table><tr><th>effect</th>'
+                   '<th class="num">real</th>'
+                   '<th class="num">synthetic</th></tr>')
+        for _t in _tw["trios"]:
+            out.append('<tr><td>{} &larr; {}</td>'
+                       '<td class="num">{:.3f}</td>'
+                       '<td class="num">{}</td></tr>'.format(
+                           esc(_t["child"]),
+                           esc(" x ".join(_t["trio"])),
+                           _t["source"],
+                           fnum(_t["synthetic"], 3)))
+        out.append("</table>")
+    elif _tw and not _tw.get("error"):
+        out.append("<h3>Three columns acting together</h3>"
+                   '<p class="note">None cleared the gain floor '
+                   'in the real data - stated, not skipped.</p>')
+
     out.append("<h2>What this page does not say</h2>"
                '<p class="note">This measures how closely the '
                'engine copies the shape of the data. It does not '
