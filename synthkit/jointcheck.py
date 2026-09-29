@@ -33,6 +33,8 @@ from __future__ import annotations
 
 from typing import Any, Dict, List, Optional
 
+from synthkit import dates
+
 MAX_LEVELS = 24
 
 
@@ -79,11 +81,28 @@ class Encoder:
                 continue
             v = pd.to_numeric(real[c], errors="coerce")
             raw_ok = real[c].notna().mean()
-            if raw_ok > 0 and v.notna().mean() >= 0.9 * raw_ok \
-                    and v.nunique() >= 3:
+            # A DATE IS A NUMBER, HERE TOO. Encoded as a
+            # category it becomes its 60 most common days plus an
+            # `other` bucket holding nearly every row on both
+            # sides - so this measure, whose whole job is to ask
+            # whether a model can tell the tables apart, was
+            # blind to the column the generating engine was
+            # destroying. Same module, same parse, both halves.
+            dsp = None
+            if not (raw_ok > 0 and v.notna().mean() >= 0.9 * raw_ok
+                    and v.nunique() >= 3):
+                dsp = dates.date_kind(real[c])
+                if dsp:
+                    v = dates.to_ordinal(real[c],
+                                         dsp["parsed_format"])
+                    if not (v.notna().any() and v.nunique() >= 3):
+                        dsp = None
+            if dsp or (raw_ok > 0
+                       and v.notna().mean() >= 0.9 * raw_ok
+                       and v.nunique() >= 3):
                 mu = float(v.mean())
                 sd = float(v.std()) or 1.0
-                self.plan.append(("num", c, mu, sd))
+                self.plan.append(("num", c, mu, sd, dsp))
             else:
                 s = real[c].astype(str)
                 lv = list(s.value_counts().index[:MAX_LEVELS])
@@ -109,8 +128,17 @@ class Encoder:
                 names.append(c)
                 continue
             if kind == "num":
-                _, _, mu, sd = item
-                v = pd.to_numeric(df[c], errors="coerce")
+                _, _, mu, sd, dsp = item
+                if dsp:
+                    # The written file carries the DAY format;
+                    # the source may carry a timestamp.
+                    v = dates.to_ordinal(
+                        df[c], dsp.get("format") or "%Y-%m-%d")
+                    if not v.notna().any():
+                        v = dates.to_ordinal(
+                            df[c], dsp["parsed_format"])
+                else:
+                    v = pd.to_numeric(df[c], errors="coerce")
                 blocks.append(np.column_stack([
                     ((v - mu) / sd).fillna(0.0).to_numpy(),
                     v.isna().astype(float).to_numpy()]))

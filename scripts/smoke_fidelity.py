@@ -700,6 +700,100 @@ def main():
         _doc_cross, _ = _fd0.build_deck(
             str(_srcp), str(_rundir), "person_id",
             ["x={}".format(_rd2)])
+    # COMBINATION EFFECTS, MINED - ITS OWN FIXTURE AND ITS OWN
+    # RUN, because the deck fixture above is purely LINEAR
+    # (val4 = 0.5*val + 0.9*val3) and nothing mines an
+    # interaction out of a sum. A check run against it would
+    # have passed on an empty list, which is the
+    # fixture-must-contain-the-thing rule this file has broken
+    # before. So: a genuine PRODUCT term, whose two parents have
+    # near-zero rank correlation with their child - the shape
+    # only a model-importance screen can find.
+    with tempfile.TemporaryDirectory() as _t9:
+        _d9 = Path(_t9)
+        _r9 = _np2.random.RandomState(11)
+        _n9 = 900
+        _g9 = _np2.repeat(_np2.arange(90), _n9 // 90)
+        _a9 = _r9.normal(0, 1, _n9)
+        _b9 = _r9.normal(0, 1, _n9)
+        _df9 = _pd2.DataFrame({
+            "person_id": ["Q{:03d}".format(x) for x in _g9],
+            "a": _np2.round(_a9, 3), "b": _np2.round(_b9, 3),
+            "c": _np2.round(_r9.normal(5, 1, _n9), 3),
+            "y": _np2.round(3.0 * _a9 * _b9
+                            + _r9.normal(0, 0.4, _n9), 3)})
+        _sp9 = _d9 / "prod.csv"
+        _df9.to_csv(_sp9, index=False)
+        _rd9 = _d9 / "run"
+        subprocess.run(
+            [sys.executable, "scripts/run_discovery.py",
+             "--src", str(_sp9), "--out", str(_rd9),
+             "--group-by", "person_id", "--generate"],
+            capture_output=True, text=True, cwd=str(ROOT))
+        _doc9, _ = _fd0.build_deck(str(_sp9), str(_rd9),
+                                   "person_id")
+        # THE CACHE IS READ, NOT JUST WRITTEN. Mining costs a
+        # fitted model per child and `/api/deck` is a BLOCKING
+        # request, so the Dashboard would pay it on every press.
+        # Proving the file exists proves only that something was
+        # written; poisoning it with a child name the miner could
+        # never produce and finding that name on the page proves
+        # the page READ it.
+        _mc9 = _rd9 / "mined_interactions.json"
+        _cached9 = _mc9.exists()
+        _mc9.write_text(
+            '[{"child": "ZZPOISON", "pair": ["a", "b"], '
+            '"source": 0.5}]', encoding="utf-8")
+        _doc9b, _ = _fd0.build_deck(str(_sp9), str(_rd9),
+                                    "person_id")
+        _sp9r = _pd2.read_csv(_sp9)
+        _rho9 = max(
+            abs(float(_sp9r["y"].corr(_sp9r["a"], method="spearman"))),
+            abs(float(_sp9r["y"].corr(_sp9r["b"], method="spearman"))))
+    check("the fixture CONTAINS a two-way interaction that rank "
+          "correlation cannot see - y = 3ab, whose parents each "
+          "read near zero against it - so the section below is "
+          "not being asserted against an empty list",
+          _rho9 < 0.15)
+    check("the Dashboard mines combination effects from the DATA, "
+          "not only the ones the contract PUBLISHED - it existed "
+          "on the neural and duel pages alone, so a reader seeing "
+          "the gate's '0/8' had no way to learn that eight was a "
+          "publishing choice rather than what the data holds",
+          "Combination effects, mined from the data" in _doc9
+          and "acting together" in _doc9
+          and "model importance" in _doc9)
+    # The TOTAL and the ROWS have to agree. Asserting that the
+    # words "no surface" appear would depend on this fixture
+    # happening to hold an unpublished effect - it does not, its
+    # one interaction IS published - and a check that can only
+    # pass on a lucky fixture is the vacuous kind. The identity
+    # holds whichever way the fixture falls, which is the same
+    # reason the surface counts are held as an identity rather
+    # than a bare number.
+    import re as _re9
+    _m9 = _re9.search(r"(\d+) of the (\d+) strongest combination "
+                      r"effects", _doc9)
+    _n_no = _doc9.count("<b>no surface</b>")
+    _n_yes = _doc9.count("<td>yes</td>")
+    check("...and each mined effect says whether the contract "
+          "publishes a surface for it, with a TOTAL that agrees "
+          "with the rows - an unpublished joint effect is a "
+          "limitation to name, and SHAP ranked two of them first "
+          "on the real extract with neither published",
+          "published?" in _doc9 and _m9 is not None
+          and int(_m9.group(1)) == _n_no
+          and int(_m9.group(2)) == _n_no + _n_yes
+          and _n_no + _n_yes > 0)
+
+    check("the mined interactions are CACHED beside the run and "
+          "the cache is READ on the next draw - each child costs "
+          "a fitted model and /api/deck is a blocking request, "
+          "so a Dashboard that re-mined on every press is the "
+          "hung-browser fault this repo already recorded against "
+          "the duel endpoint",
+          _cached9 and "ZZPOISON" in _doc9b)
+
     check("the deck writes a self-contained page with both series, "
           "gate chips and paired heatmaps",
           _r2.returncode == 0 and "<svg" in _h

@@ -4,7 +4,7 @@ Synthetic clinical data generator and model-evaluation instrument. Core rule: le
 
 ## Verify before claiming
 
-- Run `python scripts/run_all_smokes.py` before claiming anything works. Expect 69 suites, 1977 checks, ALL GREEN **on a checkout**. Off a zipball extract - which is what the data machine runs - it is 1968: nine checks in `smoke_buildid` need git to test the archive path and report SKIPPED without it. Both numbers were measured. Do not quote the checkout number to the data machine; that is how a correct run gets read as a failure.
+- Run `python scripts/run_all_smokes.py` before claiming anything works. Expect 69 suites, 1993 checks, ALL GREEN **on a checkout**. Off a zipball extract - which is what the data machine runs - it is 1984: nine checks in `smoke_buildid` need git to test the archive path and report SKIPPED without it. Both numbers were measured. Do not quote the checkout number to the data machine; that is how a correct run gets read as a failure.
 - **THE DEVELOPMENT MACHINE WAS BEHIND THE DATA MACHINE, and that is
   how a green suite here failed there.** Dev was on Python 3.10 with
   pandas 2.3; the data machine installs fresh and got pandas 3.0.5,
@@ -675,6 +675,114 @@ the direction that stops work happening.
   column the latent flattens to a constant rather than letting
   an averaged score hide it. A page that showed only fidelity
   would argue for the wrong engine by omission.
+
+- **THE NEURAL ENGINE READ EVERY DATE AND EVERY SET COLUMN AS A
+  CATEGORY, AND DESTROYED BOTH (2026-09-29).** Found by reading
+  the real extract's dashboard, not by any check.
+  `pd.to_numeric` returns NaN for `2013-10-03`, so every date
+  fell into the level path: `visit_start_date` went from 4,692
+  distinct values and 0% missing to **60 and 79.9%** - sixty
+  being the level cap, and the rest folded into `__other__`,
+  which is not a date, so the deck read it back as missing. A
+  set column is worse: its "levels" are its distinct COMBINATION
+  strings, thousands of them, so nearly every row landed on
+  `__other__` - a string that is NOT EMPTY and holds NO REAL
+  TOKEN. Measured on a fixture with 400 tokens and a heavy tail:
+  the old code emitted **one distinct token in the entire file**
+  and 100% unparseable dates. On the extract, `procedures` was
+  empty on 80.7% of source rows and 0.0% of generated ones, and
+  `ondansetron` went 9.2% to 0.0%.
+  Both are the same fault: the rules engine has parsed dates and
+  expanded set tokens since the beginning, and the second engine
+  learned neither. THE TWO HALVES COME TO DISAGREE WHENEVER A
+  CAPABILITY IS REBUILT INSTEAD OF CALLED - this file says that
+  about token screening and about the two categorical draw
+  paths, and it now says it about a whole engine. Dates go
+  through `synthkit.dates`; sets go through `synthkit.sets`, one
+  publishable-size rule in one function both halves call.
+      date unparseable   100%  ->  0%
+      distinct tokens       1  ->  50 (of 365; 50 clear k)
+      empty share        29.4% ->  36.0%  (source 36.1%)
+      worst token share  0.208 ->  0.006
+- **AND THE SIZE NEEDED THE POINT-MASS FIX, WHICH THIS FILE
+  ALREADY HELD FOR COUNTS.** A set size decoded as a
+  standardized float plus rounding cannot land a point mass, so
+  36% genuinely-empty rows came out at 29.4% while the mean size
+  ran short. Mapping the decoder's own ordering through the
+  PUBLISHED size quantiles reproduces the mass exactly and keeps
+  whatever ordering the network learned. The remaining 2.16 ->
+  1.39 tokens per row is the k rule plus the token cap, printed
+  by name in the run.
+
+- **THE DELIVERABLE WAS THE SIZE OF THE TRAINING SPLIT, AND
+  NOBODY DECIDED THAT.** `generate(len(tr))` - 85% - so the real
+  run's dashboard opened with "55,428 rows / 800 patients
+  original, 47,163 rows / 687 patients synthetic", which reads
+  as the generator losing an eighth of the cohort. It also made
+  the DUEL UNFAIR: the rules engine writes a full-size file and
+  this one was scored against it at 85%. Holding 15% of patients
+  back is right and stays - the nearest-neighbor tripwire needs
+  real people the network never saw - but that is a decision
+  about TRAINING, and it silently became a decision about the
+  OUTPUT.
+
+- **THE PREDICTION TO CHECK ON THE NEXT REAL RUN, ON RECORD
+  BEFORE IT RUNS.** The failing run read: direction 18/21
+  (85.7%), close 14/21 (66.7%), INVERTED 2, coverage 38/42,
+  surfaces 0/8. Both inversions are `procedure_quantity <-
+  condition_count` and `procedure_count <- condition_count` -
+  every column in them is a set SIZE PARTNER, and the sets they
+  size were being emitted as a single meaningless token. So:
+  coverage should move up (`visit_start_date` alone was one of
+  the four, at 79.9% missing against 0%), the two inversions
+  should go, and the set token-share and EMPTY-rate lines should
+  stay green while meaning something for the first time. If the
+  inversions SURVIVE a fixed set path, they are not a set defect
+  and the search moves to the count columns themselves. Written
+  down first so the answer cannot be read backwards out of
+  whatever comes back.
+- **WHAT IS NOT CLAIMED: the SHAP attribution drift.** On that
+  run `span_days` was driven 59.8/40.2 by procedure_count over
+  condition_count in the source and 74.1/25.9 in the output - 14
+  points. That is far milder than the rules engine's 94/6 ->
+  25/75 on the same data, and this engine has NO trim machinery,
+  so the rules engine's characterized mechanism (discovery's
+  edge inclusion) cannot be the cause here. Nothing above is
+  expected to fix it. Open, and named as open.
+
+- **A RAIL IS A CLAIM ABOUT WHICH ENGINE THE TOOL LEADS WITH.**
+  The autoencoder sat under "see the fidelity" beside the
+  Dashboard while the rules engine held step 02 of the measure
+  route - so the path an operator is walked down generated with
+  the engine the duel exists to show is beaten. The
+  autoencoder is step 02 now (it already measures the source's
+  patterns before generating, which is what the slot means);
+  the rules engine, Learn and the Duel are grouped as "the
+  other engine, for comparison". Asserted on the TILE and on
+  `gate.STATIONS` together, because guidance that says "go to
+  step 02" over a rail that numbers it differently is the
+  two-halves-disagree fault wearing navigation.
+- **AND FAIL-FIRST HIT THE COUPLED-CHANGE TRAP AGAIN.**
+  Reverting gui.py AND gate.py together made `smoke_gui` die on
+  a KeyError at the first new check, proving the files are
+  coupled rather than that the checks can fail. Reverting only
+  the BEHAVIOR - gui.py, keeping the new station table - showed
+  all five predicates red.
+
+- **EIGHT PUBLISHED SURFACES IS A PUBLISHING CHOICE, AND THE
+  DASHBOARD LET IT READ AS WHAT THE DATA HOLDS.** The gate's
+  `interaction surfaces 0/8` counts the surfaces the CONTRACT
+  published; `_mine_interactions` finds joint effects nobody
+  published, by screening parents on MODEL IMPORTANCE rather
+  than correlation - and it had lived on the Neural and Duel
+  pages only, never on the Dashboard, which is where anyone
+  actually looks. It is on the Dashboard now, at 24 rather than
+  8, with a per-row "published?" column and a TOTAL of how many
+  have no surface. The unpublished ones are the interesting
+  half: SHAP had already ranked the two strongest jointly-acting
+  pairs on the real extract and NEITHER had a published surface.
+  A joint effect the contract cannot express is a limitation to
+  NAME, and it cannot be named while it is not measured.
 
 - **THE BLUEPRINT'S ZERO IS STRUCTURAL, NOT A TUNING MISS.** The
   engine publishes interaction surfaces only where discovery

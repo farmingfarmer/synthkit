@@ -13,30 +13,48 @@ typed out, ready to copy. Browser boxes do NOT expand
 
 ## STEP 0 — do you have the right build?
 
-**If you already tried Generate and got a STOPPED message about
-`Unable to allocate ... GiB`, that was a real bug and it is
-fixed.** Set columns were being one-hot encoded with thousands
-of combination strings apiece - 44 columns became 4,326 encoded
-ones. Pull first (APPENDIX at the bottom), then start here.
+**THE RAIL HAS CHANGED. The autoencoder is now step 02 of the
+measure route, not a tile off to the side.** It was sitting
+under `SEE THE FIDELITY` while the rules engine held the
+numbered slot, which meant the path the bench walks you down
+generated with the engine we have been measuring AGAINST.
 
+Look at the LEFT RAIL. Under `or measure real data` you should
+see exactly three numbered tiles:
 
-Look at the LEFT RAIL of the bench. Under the heading
-`SEE THE FIDELITY` you should see three tiles:
+    01   Source       point at a real CSV
+    02   Generate     measure the patterns, then generate   <- this one
+    03   Verdict      judge the run
 
-    VIEW   Dashboard
-    GEN    Neural          <- this one
-    DUEL   Duel
+and further down, a NEW heading:
 
-**If `GEN  Neural` is NOT there, stop.** You are on an older
+    the other engine, for comparison
+    ALT  Fit
+    ALT  Learn
+    DUEL Duel
+
+**If `02 Generate` is not there, stop.** You are on an older
 build and nothing below will work. Go to the APPENDIX at the
 bottom, pull, reinstall, relaunch, then come back here.
+
+**Three fidelity bugs were fixed in this build and they are the
+reason to re-run rather than read the last output.** Every DATE
+column was being read as a category — `visit_start_date` came
+back with 60 distinct values instead of 4,692 and 79.9% missing
+instead of 0%. Every SET column was being read as a category of
+whole combination strings, so almost every row collapsed onto one
+meaningless value: on a fixture the old code emitted ONE distinct
+drug token in the entire file. And the output file was being
+written at the size of the 85% training split, which is why the
+last run said "800 patients original, 687 synthetic".
 
 ---
 
 ## STEP 1 — click the tile
 
-Click **`GEN  Neural`** in the left rail. The heading at the top
-should change to `Neural — the engine, on its own`.
+Click **`02  Generate`** in the left rail. The heading at the top
+should change to `Generate — measure the patterns, then
+generate`.
 
 ---
 

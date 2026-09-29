@@ -1026,7 +1026,7 @@ def main():
               "tile, title, its own fields, both steps as polled "
               "jobs, and a sandboxed review frame",
               'data-s="neural"' in html
-              and "neural:['Gen'" in html
+              and "neural:['Measure 2'" in html
               and 'id="nsrc"' in html and 'id="nout"' in html
               and 'id="nseed"' in html
               and "/api/neural-async" in _routes
@@ -1035,6 +1035,38 @@ def main():
               and "function nPoll" in html
               and 'id="neural-frame" sandbox="allow-scripts"'
               in html)
+
+        # THE AUTOENCODER IS THE MEASURE ROUTE'S STEP 02, and
+        # a rail is a claim about which engine the tool leads
+        # with. It sat under "see the fidelity" beside the
+        # Dashboard while the rules engine held the numbered
+        # slot - so the path the operator is walked down
+        # generated with the engine the Duel exists to show is
+        # beaten. Asserted on the TILE and on gate.STATIONS
+        # together, because guidance that says "go to step 02"
+        # and a rail that numbers it differently is the two-
+        # halves-disagree fault wearing navigation.
+        from synthkit.gate import STATIONS as _ST
+        check("the autoencoder holds step 02 of the measure "
+              "route - on the rail, in its section, and in the "
+              "station table the gate's guidance is rendered "
+              "from",
+              ('<button class="station" data-step="2" '
+               'data-s="neural" data-route="measure">'
+               '<b>02</b>') in html
+              and '<section id="s-neural" data-step="2" '
+                  'data-route="measure">' in html
+              and _ST["neural"]["num"] == "02"
+              and _ST["neural"]["route"] == "measure")
+        check("the rules engine is an ALTERNATE, grouped with "
+              "the other engines rather than numbered inside "
+              "the route it no longer leads - and it still has "
+              "its station, because the Duel needs something to "
+              "duel",
+              'data-s="fitrun" data-route="map"><b>ALT</b>' in html
+              and _ST["fitrun"]["num"] == "ALT"
+              and "the other engine, for comparison" in html
+              and 'data-s="fitrun"' in html)
 
         # THE DUEL IS A STATION: both engines, one source, one
         # page - the latent generation runs as a bench job over
@@ -1381,18 +1413,20 @@ def main():
               "heading entries - a station missing from `titles` is "
               "the exact TypeError the learn station shipped",
               'data-s="fitsrc"' in html
-              and 'data-s="fitrun"' in html
+              and 'data-s="neural"' in html
               and 'data-s="fitver"' in html
               and "fitsrc:['Measure 1'" in html
-              and "fitrun:['Measure 2'" in html
+              and "neural:['Measure 2'" in html
               and "fitver:['Measure 3'" in html
+              and "fitrun:['Alt'" in html
               and "roadmap:['Map'" in html)
         check("...and each measure station reuses its PARALLEL "
-              "station's hue - Source wears Describe's step 1, Fit "
-              "wears Spec's step 2, Verdict wears Data's step 3 - "
+              "station's hue - Source wears Describe's step 1, "
+              "Generate wears Spec's step 2, Verdict wears "
+              "Data's step 3 - "
               "so the two routes read as the same journey",
               'data-step="1" data-s="fitsrc"' in html
-              and 'data-step="2" data-s="fitrun"' in html
+              and 'data-step="2" data-s="neural"' in html
               and 'data-step="3" data-s="fitver"' in html)
         check("...and the rails are labeled so two buttons named 01 "
               "read as parallel routes, not a duplicate",

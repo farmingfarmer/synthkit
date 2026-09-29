@@ -2531,12 +2531,10 @@ textarea:focus,input:focus,select:focus{
   <div class="railsplit">or measure real data</div>
   <button class="station" data-step="1" data-s="fitsrc" data-route="measure"><b>01</b>
     Source<small class="subt">point at a real CSV</small></button>
-  <button class="station" data-step="2" data-s="fitrun" data-route="measure"><b>02</b>
-    Fit<small class="subt">measure &amp; generate</small></button>
+  <button class="station" data-step="2" data-s="neural" data-route="measure"><b>02</b>
+    Generate<small class="subt">measure the patterns, then generate</small></button>
   <button class="station" data-step="3" data-s="fitver" data-route="measure"><b>03</b>
     Verdict<small class="subt">judge the run</small></button>
-  <button class="station" data-step="6" data-s="learn" data-route="measure"><b>ALT</b>
-    Learn<small class="subt">first engine &mdash; quick look</small></button>
   <div class="railsplit">then, for either route</div>
   <button class="station" data-step="4" data-s="campaign" data-route="shared"><b>04</b>
     Campaign<small class="subt">configure the evaluation</small></button>
@@ -2545,8 +2543,11 @@ textarea:focus,input:focus,select:focus{
   <div class="railsplit">see the fidelity</div>
   <button class="station" data-step="8" data-s="dashboard" data-route="map"><b>VIEW</b>
     Dashboard<small class="subt">original vs synthetic, drawn</small></button>
-  <button class="station" data-step="8" data-s="neural" data-route="map"><b>GEN</b>
-    Neural<small class="subt">the engine, on its own</small></button>
+  <div class="railsplit">the other engine, for comparison</div>
+  <button class="station" data-step="8" data-s="fitrun" data-route="map"><b>ALT</b>
+    Fit<small class="subt">rules engine &mdash; blueprint, then generate</small></button>
+  <button class="station" data-step="8" data-s="learn" data-route="map"><b>ALT</b>
+    Learn<small class="subt">first engine &mdash; quick look</small></button>
   <button class="station" data-step="8" data-s="duel" data-route="map"><b>DUEL</b>
     Duel<small class="subt">two engines, one source</small></button>
   <div class="railsplit">the map</div>
@@ -2844,7 +2845,7 @@ textarea:focus,input:focus,select:focus{
   <div class="nextup"><span class="lbl">next</span><b>Step 5 &mdash; Showdown</b><span>You have one model&rsquo;s score. Step 5 puts it beside our own baseline and the theoretical ceiling.</span></div>
 </section>
 
-<section id="s-learn" data-step="6">
+<section id="s-learn" data-step="8" data-route="map">
   <div class="stepbanner"><span class="stepchip">Alternative start</span><span>Begin from data you already have</span></div>
   <dl class="stepgoal"><dt>you need</dt><dd>A CSV of real records, on this machine. Nothing leaves it.</dd><dt>you get</dt><dd>A recipe MEASURED from that data &mdash; which then goes through Steps 2 to 5 exactly like an invented one.</dd></dl>
   <div class="explain">The five steps above INVENT a population
@@ -3094,10 +3095,10 @@ textarea:focus,input:focus,select:focus{
     column that cannot survive is caught here, not after an hour.</div>
     <div class="out" id="fit-out">Nothing yet.</div>
   </div>
-  <div class="nextup"><span class="lbl">next</span><b>Step 2 &mdash; Fit</b><span>Once the types read correctly, Step 2 measures the blueprint and generates data to it.</span></div>
+  <div class="nextup"><span class="lbl">next</span><b>Step 2 &mdash; Generate</b><span>Once the types read correctly, Step 2 measures what the data contains &mdash; every column, every relationship, the interactions &mdash; and the autoencoder generates to it.</span></div>
 </section>
 
-<section id="s-fitrun" data-step="2">
+<section id="s-fitrun" data-step="8" data-route="map">
   <div class="stepbanner"><span class="stepchip">Measure &middot; step 2 of 3</span><span>Measure the blueprint, then generate</span></div>
   <dl class="stepgoal"><dt>you need</dt><dd>A source and output directory from Step 1, with the types read correctly.</dd><dt>you get</dt><dd>A k-anonymous blueprint measured from the data, generated rows drawn to it, and the full findings file &mdash; the same artifacts a terminal run writes, because this button RUNS the command line.</dd></dl>
   <div class="panel">
@@ -3109,7 +3110,7 @@ textarea:focus,input:focus,select:focus{
     run's own narration, streamed live.</div>
     <div class="out" id="fit-runout">Not started.</div>
   </div>
-  <div class="nextup"><span class="lbl">next</span><b>Step 3 &mdash; Verdict</b><span>When the run finishes, Step 3 grades it: the six-criteria gate, contradictions, obedience.</span></div>
+  <div class="nextup"><span class="lbl">next</span><b>Duel</b><span>This is the OTHER engine, kept for comparison: it publishes a k-screened contract and never touches a record at generation. Its output grades on the same Verdict gate; the Duel puts the two side by side on one source.</span></div>
 </section>
 
 <section id="s-fitver" data-step="3">
@@ -3167,8 +3168,8 @@ textarea:focus,input:focus,select:focus{
   <div class="nextup"><span class="lbl">next</span><b>Roadmap</b><span>This is where the engine stands on your data; the Roadmap says where the eight goals are going.</span></div>
 </section>
 
-<section id="s-neural" data-step="8" data-route="map">
-  <div class="stepbanner"><span class="stepchip">Gen</span><span>The neural engine, on its own</span></div>
+<section id="s-neural" data-step="2" data-route="measure">
+  <div class="stepbanner"><span class="stepchip">02</span><span>Measure the patterns, then generate &mdash; the autoencoder, on your real data</span></div>
   <dl class="stepgoal"><dt>you need</dt><dd>A real CSV on THIS machine and an output directory of your choosing. Nothing else &mdash; no prior run, no second engine.</dd><dt>you get</dt><dd>Synthetic records from the autoencoder, written to your directory, and a review page measuring them against the real data: relationships kept, whether a patient still looks like a person, the combination effects, and every column drawn twice. What it does NOT measure &mdash; safety &mdash; is stated on the page.</dd></dl>
   <div class="panel">
     <h2>Point at the data</h2>
@@ -3185,7 +3186,7 @@ textarea:focus,input:focus,select:focus{
     <div class="out" id="neural-out">Nothing yet.</div>
   </div>
   <iframe id="neural-frame" sandbox="allow-scripts" style="width:100%;height:900px;border:1px solid var(--rule);border-radius:12px;margin-top:14px;display:none;background:#fff"></iframe>
-  <div class="nextup"><span class="lbl">next</span><b>Duel</b><span>This station runs the engine. The Duel measures it against the rules engine, which is how we know what it is worth.</span></div>
+  <div class="nextup"><span class="lbl">next</span><b>Step 3 &mdash; Verdict</b><span>The run writes a full set of artifacts, so Step 3 grades it on the same gate as any other run &mdash; and the Dashboard draws it. The Duel measures this engine against the rules engine, which is how we know what it is worth.</span></div>
 </section>
 
 <section id="s-duel" data-step="8" data-route="map">
@@ -3291,10 +3292,11 @@ const titles={describe:['Step 1','Describe','say what data you need'],
   showdown:['Step 5','Showdown','ceiling / baseline / vendor'],
   learn:['Alt','Learn','start from data you already have'],
   fitsrc:['Measure 1','Source','point at a real CSV'],
-  fitrun:['Measure 2','Fit','measure the blueprint, then generate'],
+  fitrun:['Alt','Fit','the rules engine, blueprint then generate'],
   fitver:['Measure 3','Verdict','judge the run'],
   dashboard:['View','Dashboard','original vs synthetic, drawn'],
-  neural:['Gen','Neural','the engine, on its own'],
+  neural:['Measure 2','Generate',
+    'measure the patterns, then generate'],
   duel:['Duel','Duel','two engines, one source'],
   roadmap:['Map','Roadmap','the eight goals \u2014 built and planned']};
 let campaignDir='';

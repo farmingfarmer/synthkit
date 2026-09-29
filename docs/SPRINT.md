@@ -140,6 +140,24 @@ engine is better, and the one open certification gap means we
 still need a reference point), but nobody has to run a contest
 to run the engine.
 
+DELIVERED 2026-09-29: the first real-extract read of that
+station found THREE defects, all of them the same fault - a
+capability rebuilt in the second engine instead of called from
+the first. Every DATE was typed as a category (visit_start_date:
+4,692 distinct values and 0% missing in, 60 and 79.9% out).
+Every SET column was typed as a category of whole COMBINATION
+strings, so nearly every row collapsed onto `__other__` - on a
+fixture the old code emitted ONE distinct token in the entire
+file, and on the extract `procedures` was empty on 80.7% of
+source rows and 0.0% of generated ones. And the output file was
+written at the size of the 85% TRAINING SPLIT, which is the
+"800 patients original, 687 synthetic" on the dashboard. Dates
+now go through `synthkit.dates` and sets through
+`synthkit.sets`, both halves calling the one module; the
+deliverable is the source's size. The engine is also step 02 of
+the measure route now rather than a tile beside the Dashboard -
+the rail was claiming the rules engine leads.
+
 REMAINING BEFORE CROWNING: (3) above, plus the residual that the
 neural engine makes visit-level columns slightly too
 patient-like, plus the governance items the rules engine has and

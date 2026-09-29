@@ -465,6 +465,162 @@ def main():
               and "no generated.csv" in _r2.stderr
               and "Traceback" not in _r2.stderr)
 
+        # THE DELIVERABLE IS THE SIZE OF THE SOURCE. It was the
+        # size of the 85% TRAINING SPLIT, so the real run's
+        # dashboard opened with "55,428 rows / 800 patients
+        # original, 47,163 / 687 synthetic" - an eighth of the
+        # cohort apparently lost by the generator, when nothing
+        # had been lost and nobody had decided this. It also made
+        # the duel unfair: the rules engine writes a full-size
+        # file and this one was scored against it at 85%.
+        _o3 = Path(_td) / "o3"
+        _r3 = _sp.run([sys.executable,
+                       str(_root / "scripts" /
+                           "latent_challenger.py"),
+                       "csv", str(_src), "--group-by",
+                       "person_id", "--seeds", "0",
+                       "--out", str(_o3)],
+                      capture_output=True, text=True,
+                      cwd=str(_root))
+        _g3 = list(_o3.glob("*.csv")) if _o3.exists() else []
+        _n3 = (pd.read_csv(_g3[0], dtype=str,
+                           keep_default_na=False)
+               if _g3 else None)
+        check("the csv run writes a file the size of the SOURCE, "
+              "with the source's patient count - not the 85% it "
+              "trained on. The holdout exists for the "
+              "nearest-neighbor tripwire; sizing the deliverable "
+              "by it was never a decision anyone made",
+              _r3.returncode == 0 and _n3 is not None
+              and abs(len(_n3) - len(df)) / float(len(df)) < 0.12
+              and abs(_n3["person_id"].nunique()
+                      - df["person_id"].nunique()) <= 2)
+
+    # ---------------------------------------------------------
+    # A DATE AND A SET COLUMN ARE THE TWO SHAPES THIS ENGINE READ
+    # AS CATEGORIES, and both were destroyed in the same real run.
+    # The fixture has to CONTAIN them: 400 tokens with a heavy
+    # tail so the k floor and the token cap both bind, and a third
+    # of rows genuinely empty so the point mass at zero exists to
+    # be lost. Before the fix this emitted ONE distinct token
+    # across the whole file and every date unparseable.
+    rr = np.random.RandomState(7)
+    tk = ["d{:03d}".format(i) for i in range(400)]
+    wt = 1.0 / (1.0 + np.arange(400)) ** 0.9
+    wt = wt / wt.sum()
+    rows = []
+    for pp in range(300):
+        base, sev = rr.randint(0, 3000), rr.rand()
+        for vv in range(rr.randint(2, 7)):
+            d = base + vv * rr.randint(5, 60)
+            if rr.rand() < 0.35:
+                ds = ""
+            else:
+                ds = ";".join(sorted(set(rr.choice(
+                    tk, 1 + rr.poisson(2.5), p=wt))))
+            rows.append({
+                "person_id": "P{:04d}".format(pp),
+                "visit_date": (pd.Timestamp("2005-01-01")
+                               + pd.Timedelta(days=int(d))
+                               ).strftime("%Y-%m-%d"),
+                "severity": round(sev * 10 + rr.randn(), 3),
+                "n_visits": vv + 1, "drugs": ds})
+    dfx = pd.DataFrame(rows)
+    gx = LatentGen(k=10, seed=0, hierarchical=True)
+    gx.fit(dfx, "person_id")
+    ox = gx.generate(len(dfx), seed=0)
+
+    kinds = dict((it[1], it[0]) for it in gx.plan)
+    check("a date column is typed NUMERIC, not categorical - "
+          "`pd.to_numeric` returns NaN for 2013-10-03, which sent "
+          "every date down the level path where the cap kept 60 "
+          "days and folded the rest into __other__",
+          kinds.get("visit_date") == "num")
+    check("a set column is typed SET, not categorical - its "
+          "levels are its distinct COMBINATION strings, so the "
+          "cap sent nearly every row to __other__: a string that "
+          "is not empty and holds no real token",
+          kinds.get("drugs") == "set")
+
+    gdt = pd.to_datetime(ox["visit_date"].astype(str),
+                         format="%Y-%m-%d", errors="coerce")
+    check("every generated date PARSES as a date in the format "
+          "the column was read under, and the column keeps its "
+          "range rather than 60 levels",
+          float(gdt.isna().mean()) == 0.0
+          and ox["visit_date"].nunique() > 300)
+
+    ssx = dfx["drugs"].astype(str)
+    gsx = ox["drugs"].astype(str)
+    src_empty = float((ssx.str.len() == 0).mean())
+    gen_empty = float((gsx.str.len() == 0).mean())
+    check("the EMPTY share survives - a third of these visits "
+          "genuinely had no drugs, and a size decoded as a "
+          "standardized float plus rounding cannot land a point "
+          "mass at zero (measured 29.4% against 36.1% before the "
+          "published size quantiles were used)",
+          abs(gen_empty - src_empty) < 0.03)
+
+    gtok = set(x for t in gsx for x in t.split(";") if x)
+    check("MANY distinct tokens are emitted, not one - the "
+          "combination-string encoding emitted exactly 1 here, "
+          "which is what 'looks present, is entirely "
+          "scaffolding' means for a set column",
+          len(gtok) >= 20 and gtok <= set(tk))
+
+    _sc = pd.Series([x for t in ssx for x in t.split(";")
+                     if x]).value_counts()
+    _err = []
+    for _t in list(_sc.index[:10]):
+        _a = float(ssx.str.split(";").map(lambda z: _t in z).mean())
+        _b = float(gsx.str.split(";").map(lambda z: _t in z).mean())
+        _err.append(abs(_a - _b))
+    check("each published token comes back at ITS OWN share - "
+          "the damped per-token offset solved against the "
+          "published shares, worst 0.21 before the set path "
+          "existed",
+          max(_err) < 0.03)
+
+    # THE MEASURING ENCODER HAS TO SEE A DATE AS A DATE TOO.
+    # Encoded as a category it becomes its 60 most common days
+    # plus an `other` bucket holding nearly every row on BOTH
+    # sides - so the measure whose whole job is asking whether a
+    # model can tell the tables apart was blind to the column
+    # the generator was destroying. Both halves, one module.
+    from synthkit.jointcheck import Encoder as _JE
+    _je = _JE(dfx, group_by="person_id")
+    _jk = dict((it[1], it[0]) for it in _je.plan)
+    _jw = _je.groups()
+    check("the joint-measure encoder types a date as NUMERIC - "
+          "two dimensions, value and missingness - rather than "
+          "as sixty levels and an `other` bucket that swallows "
+          "the column on both sides",
+          _jk.get("visit_date") == "num"
+          and len(_jw["visit_date"]) == 2)
+    _jx = _je.transform(ox)
+    import numpy as _jnp
+    check("...and it re-encodes the GENERATED dates, which carry "
+          "the day format rather than the one the source was "
+          "parsed under - the wrong format returns all-NaN and "
+          "the measure silently compares nothing",
+          float(_jnp.abs(
+              _jx[:, _jw["visit_date"][0]]).mean()) > 0.05
+          and float(
+              _jx[:, _jw["visit_date"][1]].mean()) < 0.05)
+
+    from synthkit import sets as _S
+    _vc = _S.vocabulary(dfx["drugs"],
+                        dfx["person_id"].to_numpy(), k=10, cap=60)
+    _gm = float(gsx.str.split(";").map(
+        lambda t: sum(1 for x in t if x)).mean())
+    check("generated set size matches the PUBLISHABLE size, not "
+          "the size the rows held - drawing the held size from a "
+          "vocabulary the k rule thinned runs every survivor hot, "
+          "which is the size-and-vocabulary-describe-different-"
+          "populations rule",
+          abs(_gm - float(_vc["mean_set_size"])) < 0.12
+          and _vc["mean_set_size_source"] > _vc["mean_set_size"])
+
     if FAIL:
         print("{} of {} checks failed.".format(FAIL, PASS + FAIL))
         sys.exit(1)

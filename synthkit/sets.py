@@ -267,8 +267,7 @@ def vocabulary(raw: pd.Series, groups, k: int = 10,
     # fixture whose source is 0% empty and whose zero-size mass is
     # entirely sub-k. An inverted relationship reads as a finding,
     # which is the failure these checks exist to catch.
-    pub_sizes = _pub.where(~((_held > 0) & (_pub == 0)), 1)
-    pub_sizes = pub_sizes.where(_held > 0, 0)
+    pub_sizes = publishable_sizes(txt, sep, keep_set)
     size_counts = pub_sizes.value_counts(normalize=True).sort_index()
     return {
         "separator": sep,
@@ -471,6 +470,32 @@ def sizes_of(raw: pd.Series, sep: str) -> pd.Series:
         if isinstance(ts, list) else np.nan)
     return pd.Series(np.where(present, n, np.nan), index=raw.index,
                      dtype=float)
+
+
+def publishable_sizes(raw: pd.Series, sep: str,
+                      tokens) -> pd.Series:
+    """How many PUBLISHED tokens each row carries: what a generator
+    must draw, as opposed to what the row actually held.
+
+    The distinction between the two zeros lives HERE and nowhere
+    else, because two engines deciding it separately is how the two
+    halves come to disagree - this module already says that about
+    token screening. A row that held nothing gets 0. A row whose
+    tokens ALL fall below the k floor gets 1: that patient had
+    something, and emitting an empty list asserts they had none."""
+    keep = set(tokens)
+    txt = raw.astype(str).str.strip()
+    parts = txt.str.split(sep)
+    held = parts.map(
+        lambda ts: float(sum(1 for x in ts if x.strip()))
+        if isinstance(ts, list) else np.nan)
+    pub = parts.map(
+        lambda ts: float(sum(1 for x in ts if x.strip() in keep))
+        if isinstance(ts, list) else np.nan)
+    out = pub.where(~((held > 0) & (pub == 0)), 1.0)
+    out = out.where(held > 0, 0.0)
+    return pd.Series(np.where(raw.notna(), out, np.nan),
+                     index=raw.index, dtype=float)
 
 
 def expand(raw: pd.Series, spec: Dict[str, Any]) -> Dict[str, pd.Series]:

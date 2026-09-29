@@ -50,6 +50,8 @@ ROOT = Path(__file__).resolve().parent.parent
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
+from synthkit import dates, sets    # noqa: E402
+
 K = 10
 DEFAULT_SEEDS = [0, 1, 2, 3, 4]
 # THE SAME CAP THE BLUEPRINT USES. Without it a set column -
@@ -59,6 +61,29 @@ DEFAULT_SEEDS = [0, 1, 2, 3, 4]
 # training died allocating 1.5 GiB. Most-common first, the rest
 # folded to __other__.
 MAX_LEVELS = 60
+# HOW MANY SET TOKENS GET THEIR OWN DIMENSION. A set column is a
+# BAD CATEGORY and a GOOD SET OF INDICATORS - the rules engine
+# recorded that months ago and this engine had not learned it.
+# Capped for the same reason levels are: `conditions` holds 1,050
+# tokens above a k=10 patient floor on the real extract, and one
+# dimension each would put the encoded frame back where the
+# 1.5 GiB allocation died. The cap is REPORTED, because a reader
+# who is not told how many tokens were modeled cannot tell an
+# absent one from an unexamined one.
+MAX_TOKENS = 60
+
+
+def _topk_mask(score, sizes):
+    """A boolean row-mask keeping the `sizes[r]` largest scores of
+    row r. Vectorized on purpose: the per-row Python loop this
+    replaced ran once per generated row inside a 12-pass solve."""
+    n, m = score.shape
+    order = np.argsort(-score, axis=1)
+    rank = np.empty_like(order)
+    np.put_along_axis(
+        rank, order,
+        np.broadcast_to(np.arange(m), (n, m)), axis=1)
+    return rank < np.asarray(sizes).reshape(-1, 1)
 
 
 def _k_clip(vals: np.ndarray, gid: np.ndarray, k: int):
@@ -180,6 +205,10 @@ class LatentGen:
     def fit(self, df: pd.DataFrame, group_by: str):
         from sklearn.mixture import GaussianMixture
         from sklearn.neural_network import MLPRegressor
+        # `sets.vocabulary` positions its group array by the
+        # frame's own index labels, so a frame that arrived
+        # filtered would read somebody else's patient ids.
+        df = df.reset_index(drop=True)
         gid = df[group_by].astype(str).to_numpy()
         self._group_name = group_by
         cols = [c for c in df.columns if c != group_by]
@@ -209,6 +238,91 @@ class LatentGen:
             raw_notna = df[c].notna().mean()
             is_num = (raw_notna > 0 and v.notna().mean()
                       >= 0.9 * raw_notna and v.nunique() >= 3)
+            # A DATE IS A NUMBER WRITTEN AS TEXT, and reading it
+            # as a CATEGORY destroys it. `pd.to_numeric` returns
+            # NaN for `2013-10-03`, so every date column fell
+            # into the categorical branch, kept its 60 most
+            # common days as levels and folded 4,632 others into
+            # `__other__` - which is not a date, so the deck read
+            # it back as missing. Measured on the real extract:
+            # `visit_start_date` went from 4,692 distinct values
+            # and 0% missing to 60 and 79.9%. The rules engine
+            # has parsed dates since the beginning; this engine
+            # never did, which is the two-halves-disagree fault
+            # this repo keeps rediscovering. Dates go through the
+            # NUMERIC path as days since an epoch and are written
+            # back in the format the column was read under.
+            # A SET COLUMN IS A BAD CATEGORY. Its "levels" are
+            # its distinct COMBINATION strings - 2,000+ of them on
+            # the real extract - so a 60-level cap sent nearly
+            # every row to `__other__`, which is a string that is
+            # NOT EMPTY and contains NO REAL TOKEN. Measured on the
+            # real extract: `procedures` is empty on 80.7% of
+            # source rows and came out empty on 0.0% of generated
+            # ones, `active_drugs` 31.4% against 0.0%, and
+            # `ondansetron` went from 9.2% of rows to 0.0%. The
+            # column looked present and was entirely scaffolding.
+            # Encoded as the publishable SIZE plus one indicator
+            # per published token, which is what the rules engine
+            # has done since `sets.py` was written - and both
+            # halves call that one module, so they cannot come to
+            # disagree about which tokens clear the floor.
+            if not is_num:
+                vocab = sets.vocabulary(df[c], gid, k=self.k,
+                                        cap=MAX_TOKENS)
+                if vocab:
+                    sep = vocab["separator"]
+                    toks = [t["value"] for t in vocab["tokens"]]
+                    tgt = [float(t["p"]) for t in vocab["tokens"]]
+                    szs = sets.publishable_sizes(df[c], sep, toks)
+                    smu = float(szs.mean())
+                    ssd = float(szs.std()) or 1.0
+                    ind = np.column_stack(
+                        [sets.has_token(df[c], sep, t)
+                         .fillna(0.0).to_numpy() for t in toks])
+                    # THE SIZE MARGINAL, AS A QUANTILE GRID.
+                    # A POINT MASS AT ZERO IS NOT A SHAPE A
+                    # CURVE CAN MAKE - this file records that
+                    # for the rules engine's zero-inflated
+                    # counts, and a set size is the same object:
+                    # 36% of these rows are exactly empty and a
+                    # standardized decode plus rounding smears
+                    # that mass, measured at 29.4% emitted
+                    # against 36.1% in source while the mean
+                    # size ran SHORT. Mapping the decoder's own
+                    # ordering through the published quantiles
+                    # reproduces the mass exactly and keeps
+                    # whatever ordering the network learned.
+                    grid = np.quantile(
+                        szs.dropna().to_numpy(dtype=float),
+                        np.linspace(0.0, 1.0, 1001))
+                    print("  {}: {} tokens found, {} clear k, "
+                          "{} modeled; mean set size {:.2f} "
+                          "publishable against {:.2f} held"
+                          .format(c, vocab["tokens_found"],
+                                  vocab["tokens_above_k"],
+                                  len(toks),
+                                  vocab["mean_set_size"],
+                                  vocab["mean_set_size_source"]))
+                    self.plan.append(
+                        ("set", c, toks,
+                         (sep, smu, ssd, float(szs.max()), tgt,
+                          int(vocab["tokens_above_k"]),
+                          [float(x) for x in grid])))
+                    mats.append(np.column_stack(
+                        [((szs - smu) / ssd).fillna(0.0)
+                         .to_numpy()] + [ind]))
+                    continue
+            dspec = None
+            if not is_num:
+                dspec = dates.date_kind(df[c])
+                if dspec:
+                    v = dates.to_ordinal(df[c],
+                                         dspec["parsed_format"])
+                    is_num = bool(v.notna().any()
+                                  and v.nunique() >= 3)
+                    if not is_num:
+                        dspec = None
             if is_num:
                 lo, hi = _k_clip(v.to_numpy(dtype=float), gid,
                                  self.k)
@@ -248,7 +362,7 @@ class LatentGen:
                         dec = int(min(int(dd.max()), 8))
                 self.plan.append(("num", c, mu, sd,
                                   (lo, hi, float(miss.mean()),
-                                   integral, dec)))
+                                   integral, dec, dspec)))
                 mats.append(np.column_stack(
                     [filled.to_numpy(), miss.to_numpy()]))
             else:
@@ -507,7 +621,7 @@ class LatentGen:
             kind, c = item[0], item[1]
             if kind == "num":
                 (_, _, mu, sd,
-                 (lo, hi, miss_p, integral, dec)) = item
+                 (lo, hi, miss_p, integral, dec, dspec)) = item
                 # The decoder is unbounded; the PUBLISHED bound is
                 # not. Clipping costs nothing the network ever
                 # legitimately learned - it never saw past the
@@ -536,8 +650,62 @@ class LatentGen:
                     miss = ind >= cut
                 v = pd.Series(vals)
                 v[miss] = np.nan
+                if dspec:
+                    # Back to text, in the DAY format - the same
+                    # inverse the rules engine uses, so a date
+                    # means one thing whichever engine wrote it.
+                    v = dates.from_ordinal(
+                        v.to_numpy(dtype=float),
+                        dspec.get("format") or "%Y-%m-%d",
+                        dspec.get("origin") or dates.DATE_ORIGIN)
                 out[c] = v
                 i += 2
+            elif kind == "set":
+                toks = item[2]
+                (sep, smu, ssd, smax, tgt,
+                 _above, grid) = item[3]
+                nt = len(toks)
+                raw = X[:, i]
+                # Rank, then read the published quantile at that
+                # rank: the marginal is the source's by
+                # construction and cannot drift.
+                rk = np.argsort(np.argsort(raw))
+                u = rk / float(max(len(raw) - 1, 1))
+                sz = np.clip(
+                    np.round(np.asarray(grid)[
+                        np.round(u * 1000).astype(int)]),
+                    0, min(smax, float(nt))).astype(int)
+                blk = np.log(np.clip(X[:, i + 1:i + 1 + nt],
+                                     1e-6, 1.0))
+                # GUMBEL TOP-k: adding a Gumbel to each log-weight
+                # and taking the largest `size` of them IS a draw
+                # without replacement proportional to those
+                # weights. Sorting the raw activations instead
+                # would hand every row the same modal tokens - the
+                # argmax collapse the categorical branch already
+                # learned about, one level up.
+                gmb = -np.log(-np.log(
+                    rng.rand(*blk.shape) + 1e-12) + 1e-12)
+                # A PER-TOKEN OFFSET, SOLVED AGAINST THE PUBLISHED
+                # SHARES, damped. The undamped multiplicative form
+                # oscillated at extract scale and SWAPPED the ends
+                # of the vocabulary; this file already carries that
+                # lesson for the rules engine's own solve.
+                w = np.zeros(nt)
+                t_arr = np.clip(np.asarray(tgt, dtype=float),
+                                1e-6, 1.0)
+                pick = None
+                for _ in range(12):
+                    pick = _topk_mask(blk + w + gmb, sz)
+                    got = np.clip(pick.mean(axis=0), 1e-6, 1.0)
+                    w = w + 0.5 * (np.log(t_arr) - np.log(got))
+                vals = []
+                for r in range(len(sz)):
+                    js = np.nonzero(pick[r])[0]
+                    vals.append(sep.join(toks[j] for j in js)
+                                if len(js) else "")
+                out[c] = pd.Series(vals)
+                i += 1 + nt
             else:
                 levels = item[2]
                 block = np.maximum(X[:, i:i + len(levels)], 1e-9)
@@ -575,9 +743,28 @@ class LatentGen:
         mats = []
         for item in self.plan:
             kind, c = item[0], item[1]
+            if kind == "set":
+                toks = item[2]
+                sep, smu, ssd = item[3][0], item[3][1], item[3][2]
+                szs = sets.publishable_sizes(df[c], sep, toks)
+                mats.append(np.column_stack(
+                    [((szs - smu) / ssd).fillna(0.0).to_numpy()]
+                    + [np.column_stack(
+                        [sets.has_token(df[c], sep, t)
+                         .fillna(0.0).to_numpy() for t in toks])]))
+                continue
             if kind == "num":
-                _, _, mu, sd, _ = item
-                v = pd.to_numeric(df[c], errors="coerce")
+                _, _, mu, sd, extra = item
+                dsp = extra[5] if len(extra) > 5 else None
+                if dsp:
+                    # The GENERATED frame carries the day format,
+                    # never the parsed one - re-encoding with the
+                    # wrong one returns all-NaN and the tripwire
+                    # silently measures nothing.
+                    v = dates.to_ordinal(
+                        df[c], dsp.get("format") or "%Y-%m-%d")
+                else:
+                    v = pd.to_numeric(df[c], errors="coerce")
                 mats.append(np.column_stack(
                     [((v - mu) / sd).fillna(0.0).to_numpy(),
                      v.isna().astype(float).to_numpy()]))
@@ -1030,7 +1217,21 @@ def run_csv(argv):
         tr, ho = _split_patients(df, a.group_by, seed)
         g = LatentGen(seed=seed, k_blur=not a.no_k_blur,
                       denoise=a.denoise).fit(tr, a.group_by)
-        gen = g.generate(len(tr), seed=seed + 1000)
+        # THE DELIVERABLE IS THE SIZE OF THE SOURCE, NOT OF THE
+        # TRAINING SPLIT. Holding 15% of patients back is right -
+        # the nearest-neighbor tripwire needs real people the
+        # network never saw - and sizing the OUTPUT at 85% is a
+        # different decision that was never made on purpose. On
+        # the real extract it put "55,428 rows / 800 patients
+        # original, 47,163 rows / 687 patients synthetic" at the
+        # top of the dashboard, which reads as the generator
+        # losing an eighth of the cohort. It also made the duel
+        # unfair: the rules engine wrote a full-size file and
+        # this one wrote 85% of it, and they were scored against
+        # each other.
+        gen = g.generate(
+            len(df), seed=seed + 1000,
+            n_patients=int(df[a.group_by].nunique()))
         cols = [c for c in df.columns if c != a.group_by]
         sign, close, inv, n = _pair_score(
             _pairs(tr, cols), _pairs(gen, cols))
@@ -1258,7 +1459,21 @@ def run_compare(argv):
     for seed in seeds:
         tr, ho = _split_patients(src, a.group_by, seed)
         g = LatentGen(seed=seed).fit(tr, a.group_by)
-        gen = g.generate(len(tr), seed=seed + 1000)
+        # THE DELIVERABLE IS THE SIZE OF THE SOURCE, NOT OF THE
+        # TRAINING SPLIT. Holding 15% of patients back is right -
+        # the nearest-neighbor tripwire needs real people the
+        # network never saw - and sizing the OUTPUT at 85% is a
+        # different decision that was never made on purpose. On
+        # the real extract it put "55,428 rows / 800 patients
+        # original, 47,163 rows / 687 patients synthetic" at the
+        # top of the dashboard, which reads as the generator
+        # losing an eighth of the cohort. It also made the duel
+        # unfair: the rules engine wrote a full-size file and
+        # this one wrote 85% of it, and they were scored against
+        # each other.
+        gen = g.generate(
+            len(src), seed=seed + 1000,
+            n_patients=int(src[a.group_by].nunique()))
         latent_gens.append((seed, gen))
         score(gen, "latent seed {}".format(seed),
               g_for_nn=g, ho=ho)

@@ -52,6 +52,35 @@ INK = "#1d1d1f"          # near-black
 GRAY = "#6e6e73"         # the ORIGINAL series
 RED = "#8c1515"          # cardinal - the SYNTHETIC series
 RULE = "#d2d2d7"
+# HOW MANY COMBINATION EFFECTS THE DASHBOARD MINES. Eight was
+# the neural page's number and it is what a reader saw beside
+# the gate's '0/8' - two different eights meaning two
+# different things. Raised, and named here so the cap is a
+# choice somebody made rather than a constant nobody can find.
+MINED_TOP_N = 24
+# ...and the same for the SHAP attribution cards, which were
+# capped at five silently. Five is usually more than
+# qualifies - the real extract's top patterns live on
+# token indicators that exist only inside the search - but a
+# cap nobody can see reads as the whole story.
+SHAP_TOP_N = 8
+# HOW MANY CHILDREN THE MINING VISITS. Each one trains a model and
+# runs permutation importance, so this is the cost dial, and
+# `/api/deck` is a SYNCHRONOUS await - the Dashboard is the one
+# station an operator presses casually. The duel's own mining over
+# every numeric child was MEASURED at 7-9 minutes on the real
+# extract, which as a blocking request is a hung browser; this
+# file already records that lesson against the duel endpoint.
+# Bounded here, and the bound is REPORTED, because a cap nobody
+# can see reads as "this is all the data holds".
+#
+# MEASURED on an extract-shaped frame - 55,428 rows, 34 numeric
+# columns, uncontended: 14 children 30.4s, 34 children 73.5s.
+# 14 is the conservative pick for a BLOCKING press; the result is
+# cached beside the run, so raising it costs once per run and not
+# once per view. The numbers are here so the next person can move
+# it knowing what it buys.
+MINE_CHILDREN = 14
 GOLD = "#B3995D"         # the LATENT challenger series (duel view)
 NEG = "#44546a"          # heatmap negative pole
 
@@ -1815,7 +1844,15 @@ def build_deck(src_path, run_dir, group_by="person_id",
                 'surface for that pair is stated, because an '
                 'unmodeled interaction is a limitation to name, '
                 'not to hide.</p>')
-        for child, parents in _seen_children[:5]:
+        _shown = _seen_children[:SHAP_TOP_N]
+        if len(_seen_children) > len(_shown):
+            body.append(
+                '<p class="note">{} patterns qualify for '
+                'attribution; the {} with the highest skill are '
+                'drawn. A cap that is not reported reads as '
+                '"this is all there was".</p>'.format(
+                    len(_seen_children), len(_shown)))
+        for child, parents in _shown:
             def _shares(frame):
                 import numpy as _n
                 cols = [numeric(frame[p]) for p in parents]
@@ -1882,6 +1919,120 @@ def build_deck(src_path, run_dir, group_by="person_id",
                                 'stated.'))
             except Exception:
                 pass
+
+    # COMBINATION EFFECTS, MINED - not only the ones PUBLISHED.
+    #
+    # The gate reads `interaction surfaces`, which counts the
+    # surfaces the CONTRACT published: 8 on the real extract, and
+    # a reader looking at "0/8" reasonably asks why eight. Eight
+    # is what discovery chose to publish, not what the data
+    # holds. `_mine_interactions` screens parents by MODEL
+    # IMPORTANCE and measures the product term's R2 beyond the
+    # two mains, so it finds joint effects nobody published - and
+    # it existed for a year on the Neural and Duel pages only,
+    # never on the Dashboard, which is where anyone actually
+    # looks.
+    #
+    # The unpublished ones are the interesting half: SHAP already
+    # ranked the two strongest jointly-acting pairs on the real
+    # extract and NEITHER had a published surface. A joint effect
+    # the contract cannot express is a limitation to NAME, and it
+    # cannot be named while it is not measured.
+    if len(numeric_cols) >= 3:
+        # MINED ONCE PER RUN, THEN CACHED BESIDE IT. Each child
+        # costs a fitted model plus permutation importance, and
+        # `/api/deck` is a blocking request - so the first
+        # Dashboard press on a run pays, and every press after it
+        # is free. The cache is keyed to the run directory, which
+        # is what the mining is ABOUT: the source's own structure
+        # does not change between two views of the same run.
+        _mcache = Path(run_dir) / "mined_interactions.json"
+        _mined = []
+        try:
+            if _mcache.exists():
+                _mined = [(float(d["source"]), d["child"],
+                           d["pair"][0], d["pair"][1])
+                          for d in json.loads(
+                              _mcache.read_text(encoding="utf-8"))]
+        except Exception:
+            _mined = []
+        if not _mined:
+            try:
+                from latent_challenger import _mine_interactions
+                _mined = _mine_interactions(
+                    src, numeric_cols, top_n=MINED_TOP_N,
+                    max_children=MINE_CHILDREN)
+                _mcache.write_text(json.dumps(
+                    [{"child": c, "pair": [a, b], "source": g}
+                     for g, c, a, b in _mined], indent=1),
+                    encoding="utf-8")
+            except Exception:
+                _mined = []
+        try:
+            from latent_challenger import _interaction_r2
+        except Exception:
+            _interaction_r2 = None
+        if _mined:
+            _pub = set()
+            for _cl in (cat.get("claims") or []):
+                _ix = _cl.get("interaction") or {}
+                _pr = _ix.get("pair") or []
+                if len(_pr) == 2:
+                    _pub.add((str(_cl.get("child")),
+                              frozenset(str(x) for x in _pr)))
+            body.append(
+                '<h2>Combination effects, mined from the '
+                'data</h2><p class="note">Effects that exist '
+                'only when two columns act TOGETHER, found by '
+                'screening parents on model importance rather '
+                'than correlation - an XOR\'s parents have rank '
+                'correlation near zero with their child, which '
+                'is exactly why they matter. Measured on both '
+                'tables; the gray bar is the real data. This is '
+                'what the data HOLDS, which is a larger set than '
+                'what the contract PUBLISHES - the gate\'s '
+                '<i>interaction surfaces</i> line counts only '
+                'the published ones. Two-way only: higher orders '
+                'are not mined and are not modeled. Searched '
+                'the first {} numeric columns of {} as children, '
+                'in file order - each child costs a fitted model '
+                'and this page is drawn on demand, so the bound '
+                'is a cost limit, not a judgement about which '
+                'columns matter.</p>'.format(
+                    min(MINE_CHILDREN, len(numeric_cols)),
+                    len(numeric_cols)))
+            _rows = ['<tr><th>column</th><th>acting together</th>'
+                     '<th>original</th><th>synthetic</th>'
+                     '<th>published?</th></tr>']
+            _nopub = 0
+            for _gv, _ch, _pa, _pb in _mined:
+                try:
+                    _gg = (_interaction_r2(gen, _ch, _pa, _pb)
+                           if _interaction_r2 else None)
+                except Exception:
+                    _gg = None
+                _has = (str(_ch), frozenset([str(_pa),
+                                             str(_pb)])) in _pub
+                if not _has:
+                    _nopub += 1
+                _rows.append(
+                    '<tr><td>{}</td><td>{} &times; {}</td>'
+                    '<td>{:.3f}</td><td>{}</td>'
+                    '<td>{}</td></tr>'.format(
+                        esc(str(_ch)), esc(str(_pa)),
+                        esc(str(_pb)), _gv,
+                        fnum(_gg, 3) if _gg is not None else "n/a",
+                        "yes" if _has else
+                        "<b>no surface</b>"))
+            body.append('<table>' + "".join(_rows)
+                        + '</table>')
+            body.append(
+                '<p class="note">{} of the {} strongest '
+                'combination effects in this data have NO '
+                'published surface, so the engine has no '
+                'vocabulary for them and the gate cannot count '
+                'them. Stated rather than absent.</p>'.format(
+                    _nopub, len(_mined)))
 
     # correlations
     if len(numeric_cols) >= 3:

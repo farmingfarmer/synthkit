@@ -111,7 +111,12 @@ STATIONS: Dict[str, Dict[str, str]] = {
     "dashboard": {"num": "VIEW", "label": "Dashboard",
                   "route": "map"},
     "fitsrc": {"num": "01", "label": "Source", "route": "measure"},
-    "fitrun": {"num": "02", "label": "Fit", "route": "measure"},
+    # The measure route's step 02 is the AUTOENCODER. The rules
+    # engine kept the slot for as long as it was the only thing
+    # that could fill it; it is an alternate now and wears ALT.
+    "neural": {"num": "02", "label": "Generate",
+               "route": "measure"},
+    "fitrun": {"num": "ALT", "label": "Fit", "route": "map"},
     "fitver": {"num": "03", "label": "Verdict",
                "route": "measure"},
 }

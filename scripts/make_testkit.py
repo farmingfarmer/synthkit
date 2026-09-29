@@ -98,7 +98,13 @@ developed now.
 
     python -m synthkit.cli gui
 
-Click **GEN Neural** in the left rail, then fill four boxes:
+It is **step 02 of the measure route** in the bench - the rail
+reads 01 Source, 02 Generate, 03 Verdict - and the rules engine
+sits below under "the other engine, for comparison". The rail
+used to be the other way round, which meant the path the bench
+walked you down generated with the engine we measure AGAINST.
+
+Click **02 Generate** in the left rail, then fill four boxes:
 
     source CSV path          clinic/demo_clinic.csv   (full path)
     output directory         neural1                  (full path)

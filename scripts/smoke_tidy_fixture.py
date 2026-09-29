@@ -414,7 +414,7 @@ def main():
               # told a reader they could point any of it at their
               # OWN csv, which is the first thing a teammate
               # wants to do.
-              and "GEN Neural" in _sh
+              and "02 Generate" in _sh
               and "YOUR OWN DATA" in _sh
               and "23 dataset shapes" in _sh)
 
