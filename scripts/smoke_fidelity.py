@@ -1344,14 +1344,29 @@ def main():
         # parenthetical log names - once each, beside the plain
         # name, so somebody reading a terminal can still connect
         # the two.
-        _low = _duel.lower()
+        # The count is over what a READER sees. The page now
+        # carries the explain registry as embedded data, and the
+        # registry legitimately says "blueprint" and "latent"
+        # inside explanation bodies a reader only meets by
+        # clicking - so scripts and styles are stripped before
+        # counting, keeping the check about the visible page.
+        import re as _re2
+        _vis = _re2.sub(r"<(script|style)[^>]*>.*?</\1>", "",
+                        _duel, flags=_re2.S).lower()
         check("...and the page reads without our jargon - the "
               "engines are named in plain words, with the code "
-              "names surviving only as one parenthetical each",
-              "rules engine" in _low and "neural engine" in _low
-              and _low.count("blueprint") == 1
-              and _low.count("latent") == 1
-              and "in the logs" in _low)
+              "names surviving only as one parenthetical each "
+              "(counted over the VISIBLE text; the embedded "
+              "explain registry is data, not prose)",
+              "rules engine" in _vis and "neural engine" in _vis
+              and _vis.count("blueprint") == 1
+              and _vis.count("latent") == 1
+              and "in the logs" in _vis)
+        check("...and the duel page carries the explain panel "
+              "too - it is served into a sandboxed iframe and "
+              "sent as a file, the same two reasons the "
+              "Dashboard needed its own",
+              "xqOpen" in _duel and '"terms"' in _duel)
         try:
             build_duel(str(_sp2), str(Path(_dd) / "nope"),
                        str(_lat2), "person_id")

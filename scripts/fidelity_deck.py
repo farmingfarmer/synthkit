@@ -924,6 +924,21 @@ def build_neural(src_path, latent_csv, group_by="person_id",
     ps, pg = _pairs(src, common), _pairs(gen, common)
     sign, close, inv, n = _pair_score(ps, pg)
 
+    # THE OVERFITTING QUESTION, DRAWN. The number has lived in
+    # the terminal and fidelity.json since it was measured; the
+    # operator asked to SEE how reconstruction error compares
+    # between the people the network trained on and the people it
+    # never saw, which is the honest form of "is it memorizing".
+    recon = None
+    try:
+        import json as _json
+        _fj = Path(latent_csv).parent / "fidelity.json"
+        if _fj.exists():
+            recon = _json.loads(_fj.read_text(
+                encoding="utf-8")).get("reconstruction")
+    except Exception:
+        recon = None
+
     out = ["<h1>The neural engine, measured</h1>",
            '<p class="sub">Synthetic records built by the '
            'autoencoder, compared against the real data they were '
@@ -950,6 +965,78 @@ def build_neural(src_path, latent_csv, group_by="person_id",
 
     # PATIENTS FIRST: the question that decides whether a
     # longitudinal table has people in it at all.
+    if recon:
+        rr = float(recon.get("ratio") or 0)
+        out.append(
+            '<h2>Is it memorizing? Reconstruction error, '
+            'training vs held-out patients</h2>'
+            '<p class="note">15% of patients never trained the '
+            'network. Both groups are pushed through it and '
+            'rebuilt; a network that learned the SHAPE of the '
+            'data rebuilds a stranger about as well as a member '
+            '(ratio near 1.0), while a memorizing one rebuilds '
+            'its own rows far better and the ratio climbs - the '
+            'same signal a membership adversary reads. On a '
+            'frame with nothing to learn, an undefended '
+            'wide-bottleneck network reads 9.7 where this '
+            'configuration reads 1.8.</p>'
+            '<div class="mcards">'
+            '<div class="mcard"><div class="n">{:.5f}</div>'
+            '<div class="l">error on the {} training rows</div>'
+            '</div>'
+            '<div class="mcard"><div class="n">{:.5f}</div>'
+            '<div class="l">error on the {} held-out rows</div>'
+            '</div>'
+            '<div class="mcard"><div class="n">{:.2f}</div>'
+            '<div class="l">ratio - near 1.0 is generalizing'
+            '</div></div></div>'.format(
+                float(recon.get("train") or 0),
+                recon.get("rows_train"),
+                float(recon.get("holdout") or 0),
+                recon.get("rows_holdout"), rr))
+        rcols = sorted(recon.get("columns") or [],
+                       key=lambda c: -max(c["train"],
+                                          c["holdout"]))[:24]
+        if rcols:
+            mx = max(max(c["train"], c["holdout"])
+                     for c in rcols) or 1.0
+            bars = []
+            for c in rcols:
+                wt_ = max(1.5, c["train"] / mx * 260)
+                wh_ = max(1.5, c["holdout"] / mx * 260)
+                gap_flag = (' <b style="color:{}">holdout '
+                            '{:+.0%}</b>'.format(
+                                CARDINAL, c["holdout"]
+                                / (c["train"] or 1e-12) - 1)
+                            if c["holdout"]
+                            > 1.5 * (c["train"] or 1e-12)
+                            and c["holdout"] > 0.02 * mx else "")
+                bars.append(
+                    '<div style="margin:3px 0"><span '
+                    'style="display:inline-block;width:230px;'
+                    'text-align:right;padding-right:9px;'
+                    'font-size:12px">{}</span>'
+                    '<span style="display:inline-block;'
+                    'background:{};width:{:.0f}px;height:8px;'
+                    'border-radius:2px"></span><br>'
+                    '<span style="display:inline-block;'
+                    'width:230px"></span>'
+                    '<span style="display:inline-block;'
+                    'background:{};width:{:.0f}px;height:8px;'
+                    'border-radius:2px"></span>{}</div>'.format(
+                        esc(str(c["column"])), GRAY, wt_,
+                        GOLD, wh_, gap_flag))
+            out.append(
+                '<div class="card"><h3>Per column - gray is '
+                'training error, gold is held-out error</h3>'
+                '<p class="note">Matched bar pairs mean the '
+                'network treats strangers like members - '
+                'learning, not memorizing. A gold bar far '
+                'longer than its gray partner is where '
+                'memorization would show first, and is flagged. '
+                'The largest errors sit at the top.</p>'
+                + "".join(bars) + '</div>')
+
     out.append("<h2>Does a patient look like a person?</h2>"
                '<p class="note">These records follow people over '
                'repeated visits. Some things belong to the '
@@ -1169,6 +1256,8 @@ def build_neural(src_path, latent_csv, group_by="person_id",
                'we have does not yet survive this many columns. '
                'Treat the output as a measurement until that is '
                'closed.</p>')
+    from synthkit import explain as _explain
+    out.append(_explain.embed_html("main > *"))
     body = "".join(out)
     return ("<!doctype html><html><head><meta charset='utf-8'>"
             "<title>The neural engine</title><style>" + CSS
@@ -1460,6 +1549,7 @@ def build_duel(src_path, run_dir, latent_csv,
                    + esc(", ".join(flat[:8])) + "."
                    if flat else ""))
     body = "".join(out)
+    from synthkit import explain as _explain_mod
     html = ("<!doctype html><html><head><meta charset='utf-8'>"
             "<title>The duel</title><style>" + CSS
             + ".whois{display:grid;"
@@ -1475,7 +1565,8 @@ def build_duel(src_path, run_dir, latent_csv,
               ".mcard .n{font-size:20px;font-weight:700}"
               ".mcard .l{font-size:11px;color:" + GRAY + "}"
               ".card{margin:14px 0}"
-            + "</style></head><body><main>" + body + "</main>"
+            + "</style></head><body><main>" + body
+            + _explain_mod.embed_html("main > *") + "</main>"
             + MOTION_JS + "</body></html>")
     return html
 

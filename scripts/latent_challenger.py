@@ -71,6 +71,35 @@ MAX_LEVELS = 60
 # who is not told how many tokens were modeled cannot tell an
 # absent one from an unexamined one.
 MAX_TOKENS = 60
+# HOW FAITHFULLY THE TOKEN DRAW FOLLOWS THE DECODER. The Gumbel
+# top-k draw adds noise of fixed scale (~1.28 sd) to the LOG
+# activations, and the decoder's activation differences are of
+# the same order - so the noise drowned the conditional signal.
+# A drug implies its route in the source at rho 0.63-0.73 and the
+# generated file carried 0.24-0.34: the co-occurrence was IN the
+# activations and the draw randomized it away. Multiplying the
+# log-activations sharpens the draw; the per-token offset solve
+# recalibrates the marginals at ANY sharpness, so token shares
+# and the empty rate are unmoved by construction. Value chosen by
+# the sweep in the module docstring's checks, with the
+# memorization tripwire measured beside it - a sharper draw
+# follows the decoder more faithfully, and the decoder was
+# trained on records.
+# Swept 2026-09-29 on a fixture whose drugs imply their routes
+# (source rho 0.56-0.73), three seeds per cell, with the worst
+# token-share error, the empty-rate gap and the memorization
+# tripwire measured beside it:
+#     sharp 1, 12 passes   |cooc drop| 0.276  share 0.008  nn 1.44
+#     sharp 4, 12 passes   |cooc drop| 0.105  share 0.052  nn 1.30
+#     sharp 4, 40 passes   |cooc drop| 0.115  share 0.014  nn 1.31
+#     sharp 8, 80 passes   |cooc drop| 0.097  share 0.015  nn 1.26
+# Sharpness alone trades the marginals away; the solve just needed
+# passes proportional to what it pushes against. 4/40 keeps both.
+TOKEN_SHARPNESS = 4.0
+# The offset solve has to push against activations TOKEN_SHARPNESS
+# times stronger, so its pass count scales with the same dial
+# rather than staying at the 12 that converged at sharpness 1.
+TOKEN_SOLVE_PASSES = 40
 
 
 def _topk_mask(score, sizes):
@@ -458,6 +487,81 @@ class LatentGen:
                           "generated column will be COPIED from "
                           "the set, not drawn again"
                           .format(jt[1], it[1]))
+        # A LINEAR IDENTITY IS THE SIZE IDENTITY ONE LEVEL UP.
+        # mean_arterial_pressure IS (systolic + 2*diastolic)/3,
+        # and age_at_visit IS the visit year minus year_of_birth
+        # - arithmetic, not correlation. Decoded as ordinary
+        # numbers they become independent draws that satisfy the
+        # arithmetic only by chance: measured on a MAP fixture,
+        # the identity held within 0.1 on 100% of source rows and
+        # 40.2% of generated ones. Someone opening the file finds
+        # patients whose numbers contradict each other, and the
+        # pressure-family interaction surfaces sit exactly on
+        # this. Detected from the SOURCE (this engine declares
+        # nothing): child ~ w.parents + b by least squares over
+        # single parents and pairs, kept only when the residual
+        # sd is under 2% of the child's own spread - a rule the
+        # source itself breaks is not a rule. Enforced by
+        # COMPUTING the child from its generated parents, the
+        # same copy-not-redraw rule as the size identity.
+        self._linear_identities = []
+        num_items = [(it[1],
+                      pd.to_numeric(df[it[1]], errors="coerce")
+                      if it[4][5] is None else
+                      dates.to_ordinal(df[it[1]],
+                                       it[4][5]["parsed_format"]))
+                     for it in self.plan if it[0] == "num"]
+        # detection runs on a bounded sample - it is a property
+        # of the columns, not of every row
+        _det = df.index if len(df) <= 4000 else \
+            np.random.RandomState(self.seed).choice(
+                df.index, 4000, replace=False)
+        num_s = [(c, v.loc[_det]) for c, v in num_items]
+        _claimed = set()
+        for ci, (child, cv) in enumerate(num_s):
+            csd = float(cv.std()) or 0.0
+            if csd <= 0 or child in _claimed:
+                continue
+            best = None
+            for pi, (pa, pv) in enumerate(num_s):
+                if pi == ci or pa in _claimed:
+                    continue
+                for qi in range(pi + 1, len(num_s)):
+                    if qi == ci:
+                        continue
+                    pb, qv = num_s[qi]
+                    if pb in _claimed:
+                        continue
+                    d = pd.DataFrame({"c": cv, "a": pv,
+                                      "b": qv}).dropna()
+                    if len(d) < 200:
+                        continue
+                    A = np.column_stack(
+                        [d["a"], d["b"], np.ones(len(d))])
+                    try:
+                        w, *_ = np.linalg.lstsq(
+                            A, d["c"].to_numpy(), rcond=None)
+                    except np.linalg.LinAlgError:
+                        continue
+                    resid = d["c"].to_numpy() - A @ w
+                    rs = float(resid.std())
+                    if rs < 0.02 * csd and (
+                            best is None or rs < best[0]):
+                        best = (rs, pa, pb,
+                                [float(x) for x in w])
+            if best is not None:
+                _, pa, pb, w = best
+                self._linear_identities.append(
+                    (child, pa, pb, w))
+                # a child computed from parents must not also
+                # BE a parent someone else is computed from -
+                # first claim wins, deterministic by column
+                # order
+                _claimed.add(child)
+                print("  {} == {:.4g}*{} + {:.4g}*{} + {:.4g} "
+                      "on the source: computed from its "
+                      "generated parents, not drawn again"
+                      .format(child, w[0], pa, w[1], pb, w[2]))
         # float32, not float64: the encoded frame is the biggest
         # array here and half of it is one-hot zeros.
         X = np.hstack(mats).astype(np.float32, copy=False)
@@ -719,8 +823,8 @@ class LatentGen:
                     np.round(np.asarray(grid)[
                         np.round(u * 1000).astype(int)]),
                     0, min(smax, float(nt))).astype(int)
-                blk = np.log(np.clip(X[:, i + 1:i + 1 + nt],
-                                     1e-6, 1.0))
+                blk = TOKEN_SHARPNESS * np.log(
+                    np.clip(X[:, i + 1:i + 1 + nt], 1e-6, 1.0))
                 # GUMBEL TOP-k: adding a Gumbel to each log-weight
                 # and taking the largest `size` of them IS a draw
                 # without replacement proportional to those
@@ -739,7 +843,7 @@ class LatentGen:
                 t_arr = np.clip(np.asarray(tgt, dtype=float),
                                 1e-6, 1.0)
                 pick = None
-                for _ in range(12):
+                for _ in range(TOKEN_SOLVE_PASSES):
                     pick = _topk_mask(blk + w + gmb, sz)
                     got = np.clip(pick.mean(axis=0), 1e-6, 1.0)
                     w = w + 0.5 * (np.log(t_arr) - np.log(got))
@@ -772,6 +876,47 @@ class LatentGen:
             if cnt_c in frame.columns and set_c in frame.columns:
                 frame[cnt_c] = sets.sizes_of(
                     frame[set_c], sep_).astype(float)
+        # Linear identities, the same rule: computed, not
+        # redrawn. The child's own precision and missingness are
+        # kept - the arithmetic replaces the VALUE, never the
+        # fact of whether it was recorded.
+        _plan_by = dict((it[1], it) for it in self.plan)
+        for child, pa, pb, w in getattr(
+                self, "_linear_identities", []):
+            if not all(c in frame.columns
+                       for c in (child, pa, pb)):
+                continue
+            it = _plan_by.get(child)
+            dspec_c = it[4][5] if it and it[0] == "num" else None
+
+            def _nm(col):
+                jt = _plan_by.get(col)
+                dj = jt[4][5] if jt and jt[0] == "num" else None
+                if dj:
+                    return dates.to_ordinal(
+                        frame[col],
+                        dj.get("format") or "%Y-%m-%d")
+                return pd.to_numeric(frame[col],
+                                     errors="coerce")
+            va, vb = _nm(pa), _nm(pb)
+            vc = _nm(child)
+            newv = w[0] * va + w[1] * vb + w[2]
+            if it:
+                _, _, _, _, (lo_, hi_, _m, integ, dec_,
+                             _d) = it
+                newv = newv.clip(lo_, hi_)
+                if integ:
+                    newv = newv.round()
+                elif dec_:
+                    newv = newv.round(dec_)
+            newv = newv.where(vc.notna() & va.notna()
+                              & vb.notna(), vc)
+            if dspec_c:
+                frame[child] = dates.from_ordinal(
+                    newv.to_numpy(dtype=float),
+                    dspec_c.get("format") or "%Y-%m-%d")
+            else:
+                frame[child] = newv
         if pid is not None:
             # The identity column goes FIRST, and it is invented -
             # S000001 upward - never a real person's id.
@@ -808,14 +953,33 @@ class LatentGen:
             return None
         Xt = self._Xtrain
 
-        def mse(A):
+        def sqerr(A):
             R = self._decode(np.maximum(self._encode(A), 0.0))
-            return float(np.mean((R - A) ** 2))
-        tr, ho = mse(Xt), mse(Xh)
+            return (R - A) ** 2
+        et, eh = sqerr(Xt), sqerr(Xh)
+        tr, ho = float(et.mean()), float(eh.mean())
+        # PER COLUMN, because one overall ratio cannot say WHERE
+        # any gap lives, and the operator asked to SEE the
+        # comparison rather than take a single number's word for
+        # it. Encoded dimensions are mapped back to the columns a
+        # person can name via the plan.
+        cols = []
+        i = 0
+        for item in self.plan:
+            kind, c = item[0], item[1]
+            w = (2 if kind == "num"
+                 else 1 + len(item[2]) if kind == "set"
+                 else len(item[2]))
+            cols.append({
+                "column": c,
+                "train": float(et[:, i:i + w].mean()),
+                "holdout": float(eh[:, i:i + w].mean())})
+            i += w
         return {"train": tr, "holdout": ho,
                 "ratio": ho / (tr or 1e-12),
                 "rows_train": int(len(Xt)),
-                "rows_holdout": int(len(Xh))}
+                "rows_holdout": int(len(Xh)),
+                "columns": cols}
 
     def nn_ratio(self, gen: pd.DataFrame, holdout_X) -> float:
         """The memorization tripwire. Distance from each generated

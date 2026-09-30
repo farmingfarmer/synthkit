@@ -290,6 +290,41 @@ def main():
               and "rows_read" in _prov["source"]
               and "patients" in _prov["source"]
               and isinstance(_prov.get("build"), dict))
+        # THE OVERFITTING NUMBER IS DRAWN, NOT ONLY PRINTED.
+        # The operator asked why nothing SHOWED how
+        # reconstruction error compares between training and
+        # held-out patients; the answer was that the number
+        # lived in the terminal and fidelity.json. The neural
+        # page now draws it: headline cards and per-column
+        # paired bars, from the same recorded dict.
+        _rg5 = g5.reconstruction_gap(ho)
+        import json as _j5
+        _fj5 = _adir / "fidelity.json"
+        _fd5 = _j5.loads(_fj5.read_text(encoding="utf-8"))
+        _fd5["reconstruction"] = _rg5
+        _fj5.write_text(_j5.dumps(_fd5), encoding="utf-8")
+        _sp5 = _adir / "src.csv"
+        tr.to_csv(_sp5, index=False)
+        import fidelity_deck as _fdk5
+        _np5 = _fdk5.build_neural(
+            str(_sp5), str(_adir / "generated.csv"),
+            group_by="person_id")
+        check("the neural page DRAWS the reconstruction "
+              "comparison - training error, held-out error, the "
+              "ratio, and per-column paired bars - rather than "
+              "leaving it in the terminal",
+              "Reconstruction error, training vs held-out" in _np5
+              and "gray is training error" in _np5.lower()
+              or ("Reconstruction error" in _np5
+                  and "held-out" in _np5
+                  and "ratio" in _np5))
+        check("...and per-column bars are present with the "
+              "memorization flag machinery, plus the explain "
+              "panel so its own terms are doors on this page "
+              "too",
+              "Per column" in _np5 and "xqOpen" in _np5
+              and '"terms"' in _np5)
+
         _v = _gt.assess(_fid)
         check("...and the gate can actually READ the result - "
               "the relationships were discovered from the "
@@ -638,6 +673,134 @@ def main():
           "published shares, worst 0.21 before the set path "
           "existed",
           max(_err) < 0.03)
+
+    # A LINEAR IDENTITY IS THE SIZE IDENTITY ONE LEVEL UP.
+    # mean_arterial_pressure IS (systolic + 2*diastolic)/3 -
+    # arithmetic, not correlation - and decoded as three ordinary
+    # numbers the identity held within 0.1 on 40.2% of generated
+    # rows against 100% in source. Someone opening the file finds
+    # blood pressures that contradict each other, and the failing
+    # pressure-family surfaces sit exactly on this. Detected from
+    # the source by least squares (kept only under 2% of the
+    # child's spread - a rule the source breaks is not a rule),
+    # enforced by COMPUTING the child from its generated parents.
+    rl = np.random.RandomState(6)
+    lrows = []
+    for pp in range(350):
+        bs, bd = rl.normal(120, 12), rl.normal(75, 8)
+        for vv in range(rl.randint(3, 9)):
+            s_ = bs + rl.normal(0, 6)
+            d_ = bd + rl.normal(0, 4)
+            lrows.append({"person_id": "P{:04d}".format(pp),
+                          "systolic": round(s_, 1),
+                          "diastolic": round(d_, 1),
+                          "map_cuff": round((s_ + 2 * d_) / 3, 1),
+                          "hr": round(rl.normal(78, 10), 1)})
+    dfl = pd.DataFrame(lrows)
+    gl = LatentGen(k=10, seed=0, hierarchical=True).fit(
+        dfl, "person_id")
+    ol = gl.generate(len(dfl), seed=1)
+    _m = pd.to_numeric(ol["map_cuff"])
+    _s = pd.to_numeric(ol["systolic"])
+    _d = pd.to_numeric(ol["diastolic"])
+    _res = (_m - (_s + 2 * _d) / 3.0).abs()
+    check("a LINEAR identity in the source - MAP is (S+2D)/3 - "
+          "is detected and enforced by computing, so the "
+          "generated pressures agree with each other "
+          "arithmetically (within 0.1 on 40.2% of rows before "
+          "this; three independent draws satisfy arithmetic "
+          "only by chance)",
+          len(gl._linear_identities) >= 1
+          and float((_res <= 0.100001).mean()) > 0.99)
+    check("...and the computed column keeps its NEIGHBORING "
+          "properties - centre within a tenth of spread, spread "
+          "within the band the raw-drawn columns themselves "
+          "land in - because enforcing one property by breaking "
+          "the one beside it is the shift/scale lesson again",
+          abs(float(_s.mean())
+              - float(pd.to_numeric(dfl["systolic"]).mean()))
+          < 0.1 * float(pd.to_numeric(dfl["systolic"]).std())
+          and float(_s.std())
+          > 0.6 * float(pd.to_numeric(dfl["systolic"]).std()))
+    _claimed = [t[0] for t in gl._linear_identities]
+    check("...and no enforced child is another identity's "
+          "PARENT - first claim wins, deterministically - so "
+          "the computations cannot chase each other in a loop",
+          all(pa not in _claimed and pb not in _claimed
+              for _c, pa, pb, _w in gl._linear_identities))
+
+    # A DRUG IMPLIES ITS ROUTE, AND THE DRAW WAS RANDOMIZING
+    # THAT AWAY. The remaining close misses on the real extract
+    # were dominated by CROSS-set-column token pairs -
+    # has_sodium-chloride <-> has_Flush at 0.88 source, 0.20
+    # generated - and the mechanism was the Gumbel top-k noise
+    # (~1.28 sd, fixed) drowning activation differences of the
+    # same order. TOKEN_SHARPNESS multiplies the log-activations;
+    # the offset solve recalibrates marginals at any sharpness
+    # PROVIDED its pass count scales too - sharpness alone read
+    # worst-share 0.052 at 12 passes and 0.014 at 40.
+    rc = np.random.RandomState(4)
+    _dg = ["dr{:02d}".format(i) for i in range(30)]
+    _rt = ["Oral", "IV", "Flush", "Subcut", "Topical"]
+    _map = dict((d, _rt[i % 5]) for i, d in enumerate(_dg))
+    _w = 1.0 / (1.0 + np.arange(30)) ** 0.8
+    _w = _w / _w.sum()
+    crows = []
+    for pp in range(350):
+        lv = rc.rand()
+        for vv in range(rc.randint(3, 9)):
+            nn_ = rc.poisson(1.8 + 1.5 * lv)
+            ds = sorted(set(rc.choice(_dg, nn_, p=_w))) if nn_ \
+                else []
+            crows.append({
+                "person_id": "P{:04d}".format(pp),
+                "drugs": ";".join(ds),
+                "routes": ";".join(sorted(set(
+                    _map[d] for d in ds))),
+                "sev": round(lv * 10 + rc.randn(), 3)})
+    dfc = pd.DataFrame(crows)
+    def _has(fr, col, t):
+        return fr[col].astype(str).str.split(";").map(
+            lambda z: float(t in z))
+
+    _cp = [("dr{:02d}".format(i), _map["dr{:02d}".format(i)])
+           for i in range(4)]
+    # THREE SEEDS, because a single seed of a seeded draw is not
+    # a measurement - this file's own rule, nearly broken by its
+    # own check: seed 0 alone reads 0.210 at the shipping
+    # sharpness while seeds 1-2 read 0.097 and 0.079, and a
+    # threshold that flickers with the seed proves nothing
+    # either way. Averaged, sharpness 4 reads ~0.13 against
+    # ~0.29 at sharpness 1 - separated with margin on both
+    # sides.
+    _seed_means = []
+    for _sd in (0, 1, 2):
+        gc_ = LatentGen(k=10, seed=_sd, hierarchical=True).fit(
+            dfc, "person_id")
+        oc = gc_.generate(len(dfc), seed=100 + _sd)
+        _drops = []
+        for _d, _r in _cp:
+            a = float(pd.Series(_has(dfc, "drugs", _d)).corr(
+                pd.Series(_has(dfc, "routes", _r)),
+                method="spearman"))
+            b = float(pd.Series(_has(oc, "drugs", _d)).corr(
+                pd.Series(_has(oc, "routes", _r)),
+                method="spearman"))
+            _drops.append(abs(a - b))
+        _seed_means.append(float(np.mean(_drops)))
+    check("cross-set-column token co-occurrence SURVIVES the "
+          "draw - a drug implies its route at rho 0.56-0.73 and "
+          "the sharpened draw keeps it (mean drop over three "
+          "seeds under 0.2, against ~0.29 at sharpness 1, where "
+          "the Gumbel noise drowned the activation signal)",
+          float(np.mean(_seed_means)) < 0.2)
+    from latent_challenger import (TOKEN_SHARPNESS,
+                                   TOKEN_SOLVE_PASSES)
+    check("...and the solve's pass count scales with the "
+          "sharpness it pushes against - sharpening alone "
+          "traded the marginals away (worst share 0.052 at 12 "
+          "passes, 0.014 at 40)",
+          TOKEN_SHARPNESS >= 2.0 and TOKEN_SOLVE_PASSES >= 30)
 
     # THE MEASURING ENCODER HAS TO SEE A DATE AS A DATE TOO.
     # Encoded as a category it becomes its 60 most common days

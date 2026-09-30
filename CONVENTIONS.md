@@ -4,7 +4,7 @@ Synthetic clinical data generator and model-evaluation instrument. Core rule: le
 
 ## Verify before claiming
 
-- Run `python scripts/run_all_smokes.py` before claiming anything works. Expect 69 suites, 2008 checks, ALL GREEN **on a checkout**. Off a zipball extract - which is what the data machine runs - it is 1999: nine checks in `smoke_buildid` need git to test the archive path and report SKIPPED without it. Both numbers were measured. Do not quote the checkout number to the data machine; that is how a correct run gets read as a failure.
+- Run `python scripts/run_all_smokes.py` before claiming anything works. Expect 69 suites, 2016 checks, ALL GREEN **on a checkout**. Off a zipball extract - which is what the data machine runs - it is 2007: nine checks in `smoke_buildid` need git to test the archive path and report SKIPPED without it. Both numbers were measured. Do not quote the checkout number to the data machine; that is how a correct run gets read as a failure.
 - **THE DEVELOPMENT MACHINE WAS BEHIND THE DATA MACHINE, and that is
   how a green suite here failed there.** Dev was on Python 3.10 with
   pandas 2.3; the data machine installs fresh and got pandas 3.0.5,
@@ -791,6 +791,73 @@ the direction that stops work happening.
   copied at generation. Identity 37.2% -> 100%, and the token
   correlations land on their source values.
 
+- **THE IDENTITY FIX LANDED ON THE REAL EXTRACT AS PREDICTED,
+  AND THE REMAINING GAP HAS A NAME (2026-09-29, build a381fd1).**
+  INVERTED 10 -> 0, direction kept PASS, coverage PASS, token
+  shares PASS, close 49/115 -> 88/115. The recorded prediction
+  held exactly. What remains: close 76.5% against the 87.9% bar,
+  and the drifted list is dominated by CROSS-set-column token
+  pairs - has_sodium-chloride <-> has_Flush at 0.88 source, 0.20
+  generated. A drug implies its route; the correlation was IN
+  the decoder's activations and the DRAW was randomizing it
+  away: Gumbel top-k adds noise of fixed ~1.28 sd to
+  log-activations of the same order.
+- **SHARPNESS IS THE KNOB, AND ITS SOLVE MUST SCALE WITH IT.**
+  `TOKEN_SHARPNESS` multiplies the log-activations before the
+  Gumbel; the per-token offset solve recalibrates marginals at
+  any sharpness - PROVIDED its pass count grows too. Swept on
+  the drug-implies-route fixture, three seeds per cell:
+      sharp 1, 12 passes   |cooc drop| 0.276  share 0.008  nn 1.44
+      sharp 4, 12 passes   |cooc drop| 0.105  share 0.052  nn 1.30
+      sharp 4, 40 passes   |cooc drop| 0.115  share 0.014  nn 1.31
+      sharp 8, 80 passes   |cooc drop| 0.097  share 0.015  nn 1.26
+  Sharpening alone trades the marginals away (0.052); passes
+  proportional to the push restore them. 4/40 ships. The
+  memorization tripwire IMPROVED with sharpness rather than
+  degrading - checked because a draw that follows the decoder
+  more faithfully could in principle copy more.
+- **AND THE ARITHMETIC IDENTITIES GET THE SAME TREATMENT AS THE
+  SIZE IDENTITY.** MAP is (S+2D)/3 and age_at_visit is the visit
+  year minus year_of_birth - arithmetic, not correlation.
+  Decoded as ordinary numbers the identity held within 0.1 on
+  40.2% of generated rows against 100% in source. Detected from
+  the source by least squares over parent pairs (kept only when
+  the residual sd is under 2% of the child's spread - a rule the
+  source itself breaks is not a rule), enforced by COMPUTING the
+  child from its generated parents, first claim wins so
+  computations cannot chase each other. 40.2% -> 100%, centre
+  exact, neighboring correlations in band.
+- **PREDICTION FOR THE NEXT REAL RUN (before it runs):** the
+  cross-set-token pairs (has_drug <-> has_route) should carry
+  most of the close gap's improvement; the pressure-family
+  identity should hold arithmetically; whether the 1/6
+  interaction surfaces heal is NOT claimed - the failing
+  surfaces involve the near-identical MAP variants, and the
+  ring-adjacency ceiling is a recorded research item this fix
+  does not address. If close still misses the bar after the
+  co-occurrence fix, the remaining drift list names the next
+  mechanism.
+- **SMOTE WAS CONSIDERED AND REJECTED, WITH REASONS THAT ARE
+  MEASUREMENTS.** Asked directly whether SMOTE-style
+  interpolation plus k-means outlier scoring should replace or
+  augment the autoencoder. No: (1) a SMOTE row is a convex
+  combination of TWO REAL PEOPLE's records - nearer to copying
+  than sampling a fitted latent, so the nn-ratio tripwire and
+  the membership adversary both get worse by construction, on
+  the surface where this engine already carries its FAIL; (2)
+  interpolation is undefined for what this data is made of -
+  categories, dates, sets ("Oral;IV" has no midpoint) - which is
+  why the encode step exists at all; (3) the measured failures
+  are not density-estimation failures: co-occurrence was a DRAW
+  defect (fixed above), surfaces are the colinear pressure
+  family. (4) The k-means-distance outlier idea is already
+  implemented in a stronger form: the k-aware blur counts
+  DISTINCT PATIENTS within a radius in feature space - distance
+  to a centroid cannot tell four near-identical patients far
+  from a centroid apart from one genuinely isolated person, and
+  the radius count is the k question asked directly. Recorded so
+  the next "should we SMOTE it" starts from these numbers.
+
 - **THE HOLDOUT EXISTED AND NOTHING ASKED IT THE OVERFITTING
   QUESTION (2026-09-29).** 15% of PATIENTS have been held out
   since the engine was written, and the only use of them was
@@ -824,6 +891,18 @@ the direction that stops work happening.
   85% of the data while the Dashboard's own header counted
   100%, so the gate and the page it sits on used different
   denominators. The relationships belong to the SOURCE.
+
+- **AND THE NUMBER NOBODY DREW WAS READ AS A NUMBER NOBODY
+  MEASURED.** The reconstruction gap lived in the terminal and
+  fidelity.json, and the operator asked why nothing SHOWS how
+  training and held-out error compare - correctly, because a
+  measurement that never reaches a page might as well not
+  exist for the person deciding. The neural page now draws it:
+  three headline cards (train error, holdout error, ratio with
+  the 9.7-vs-1.8 control stated) and per-column paired bars,
+  gray training beside gold held-out, largest first, with any
+  column whose holdout error runs 1.5x past its training error
+  flagged - that is where memorization would show first.
 
 - **AND THE DASHBOARD COULD NOT REACH THE EXPLANATIONS AT ALL.**
   It is served into a SANDBOXED IFRAME, where the bench's panel

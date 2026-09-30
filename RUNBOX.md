@@ -37,16 +37,19 @@ and further down, a NEW heading:
 build and nothing below will work. Go to the APPENDIX at the
 bottom, pull, reinstall, relaunch, then come back here.
 
-**Three fidelity bugs were fixed in this build and they are the
-reason to re-run rather than read the last output.** Every DATE
-column was being read as a category — `visit_start_date` came
-back with 60 distinct values instead of 4,692 and 79.9% missing
-instead of 0%. Every SET column was being read as a category of
-whole combination strings, so almost every row collapsed onto one
-meaningless value: on a fixture the old code emitted ONE distinct
-drug token in the entire file. And the output file was being
-written at the size of the 85% training split, which is why the
-last run said "800 patients original, 687 synthetic".
+**What changed since your last run, and why to re-run.** Two
+fidelity mechanisms were found from your own drift table and
+fixed. (1) A drug implies its route, and the token draw was
+randomizing that away — the correlation was in the network's
+activations but the draw's noise drowned it. The draw is
+sharpened now, with the marginal token shares re-verified. (2)
+MAP is (S+2D)/3 and generating the three pressures independently
+broke the arithmetic on 60% of rows; identities like that are
+now detected from your data and COMPUTED, the same way the
+count-equals-set-length fix worked. Also: the review page now
+DRAWS the overfitting check (training vs held-out reconstruction
+error, per column), and the review and duel pages carry the
+clickable ? explanations the Dashboard got.
 
 ---
 
