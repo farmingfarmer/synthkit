@@ -899,6 +899,109 @@ the direction that stops work happening.
   `systolic <- MAP_cuff_bmdi` faded) - the ring-adjacency
   ceiling, shared by both engines, research item.
 
+- **THE READER FOLDED EMPTY INTO MISSING, AND THE ENGINE'S OWN
+  GATE COULD NOT SEE IT (2026-09-30, found on the morning of the
+  demo).** The Dashboard's set sections read "empty on 80.7% of
+  original rows, 0.0% of synthetic" with every token bar ~5x its
+  source share - beside gate chips reading set EMPTY PASS 4/4
+  and token shares PASS 45/45. Two numbers on one page
+  disagreeing is this file's alarm, and it was right: the latent
+  CLI's `df.replace("", np.nan)` folded present-and-empty set
+  cells into MISSING, so the engine learned token shares from a
+  source in which the medication-free visits did not exist -
+  every share inflated by exactly 1/(1-empty), 5.2x on the
+  80.7%-empty procedures - and the size grid lost its zeros, so
+  no empty set was ever drawn. The gate PASSED both criteria
+  because its reference numbers came from the same folded frame:
+  CONSISTENT WRONGNESS IS INVISIBLE FROM INSIDE; only the deck,
+  which reads the raw file, disagreed. `prepare()` had solved
+  exactly this a month earlier (sets.EMPTY); the latent CLI
+  hand-rolled its own reader - the capability-rebuilt-instead-
+  of-called fault, again, in the same module family.
+- **THE FIX IS A PREDICATE BOTH SIDES SHARE, AND THE CHECK GOES
+  THROUGH THE DISK.** `sets.looks_like_set` is the same gate
+  `vocabulary` applies, exposed so the reader and the model
+  cannot class a column differently; `_read_source` folds "" to
+  NaN for every column EXCEPT sets. Reproduced through the real
+  path (CLI writes generated.csv, deck reads it): empty share
+  0.000 -> 0.363 against a source 0.361, deck section and gate
+  now agree. The smoke check runs the CLI against a CSV ON DISK
+  - every in-memory fixture had passed a DataFrame straight to
+  fit, which is why nothing here could catch a reader fault.
+- **RUN-LEVEL NUMBERS DOWNSTREAM OF A READER FAULT ARE NOT
+  COMPARABLE.** The 2026-09-30 real run's set-pair drift list,
+  its metoclopramide<-count inversion and its close 55/83 were
+  all measured against the folded source; re-read them only
+  after a re-run on the fixed reader. The
+  procedure_count <- MAP_invasive inversion is the piece the
+  reader fault does NOT explain - it survived exactly as the
+  prior prediction said it might, and is now isolated to the
+  sparse invasive family.
+
+- **THE PRESSURE FADE REPRODUCED ONLY AT WIDTH, AND THE SWEEP
+  EXONERATED THE SAMPLER (2026-09-30).** Dense twins do NOT
+  reproduce it (the engine OVER-correlates them, 0.989 vs
+  0.967); sparse twins at 8 columns do not either (sign kept,
+  mild fade). At ~25 columns / ~150 encoded dims - the extract's
+  shape - the sparse second-device twin faded 0.975 -> 0.77-0.88,
+  seed-dependent, which is the real run's `systolic <-
+  MAP_cuff_bmdi 0.5 -> 0.13` class. A WIDER bottleneck made it
+  WORSE (0.67-0.72 at b=64), which acquitted the encoder and
+  indicted the sampler - and then the sampler sweep acquitted
+  the sampler too: GMM at x1/x3/x6 components and a KDE sampler
+  at bw 0.3/0.5/0.7 all land in the same 0.70-0.87 band, with
+  the fade following the TRAINING seed across every arm. The
+  attenuation lives in the network's handling of the sparse
+  channel, and no density estimate downstream can restore it.
+- **THE CURE IS THE IDENTITY TIER, ONE NOTCH RELAXED.** A
+  second-device twin is an identity plus device noise: rho 0.97,
+  residual ~3% of spread. `_near_identities` detects pairs at
+  |pearson| >= 0.95 on >= 200 both-present rows with residual sd
+  under 0.35 of the child's spread, child = the SPARSER column,
+  and generation computes the twin from its generated sibling
+  PLUS noise at the measured residual sd, only where both are
+  present. Wide fixture: 0.973/0.977 against source 0.975 on
+  both seeds - exact by construction - with close, sign,
+  INVERTED and the reconstruction guard unmoved, and the twin's
+  own spread and presence rate held (the shift/scale rule).
+- **ONE SET CONFLATING TWO ROLES SILENTLY DISABLED THE TIER.**
+  The exact tier's parents were seeded into the same exclusion
+  set that bans near-CHILDREN - correct, re-deriving an exact
+  parent would break the arithmetic just enforced - but the
+  same set also gated near-PARENTS, so map_cuff (exact parent
+  AND the twin's sibling) was banned from the one role the tier
+  exists for, and detection returned empty while every gate
+  passed by hand. Two exclusions, two sets, and the check
+  asserts the exact parent IS the near parent.
+- **PREDICTION FOR THE NEXT REAL RUN (before it runs,
+  superseding the previous one):** with the reader fix, the four
+  coverage misses (the set columns, whose folded source read
+  19-84% present against a generated 100%) should clear, the
+  set-pair drift list re-baselines, and the metoclopramide
+  inversion class goes. With the near tier, `systolic <-
+  MAP_cuff_bmdi` and its family land at source strength and the
+  pressure surfaces (0/6) get their first honest chance - the
+  near tier is expected to convert at least the surfaces whose
+  pair members are twins; surfaces on genuinely joint effects
+  are NOT claimed. `procedure_count <- MAP_invasive` did not
+  reproduce on FOUR constructions - narrow sparse (sign kept
+  -0.21), wide weak, and wide strong across three seeds
+  (-0.18/-0.24/-0.35 against source -0.225) - so no fixture
+  claim is made. The plausible account is that the pair was
+  itself DOWNSTREAM of the reader fault: procedure_count is
+  len(procedures), procedures is the 80.7%-empty column whose
+  empties the folded reader erased from both the vocabulary and
+  the gate's reference numbers, so both sides of that
+  correlation were measured on a distorted conditional subset.
+  If it survives the re-run on the fixed reader, it earns a
+  peek diagnostic on the data machine, not a fifth fixture.
+
+- **A NET RUN CONCURRENT WITH EDITS VALIDATES A MIXED STATE.**
+  The 2020-check ALL GREEN finished while the near tier was
+  being written; suites read files at their own start, so that
+  green covers neither the before nor the after. The final
+  state got its own clean net before the push.
+
 - **SMOTE WAS CONSIDERED AND REJECTED, WITH REASONS THAT ARE
   MEASUREMENTS.** Asked directly whether SMOTE-style
   interpolation plus k-means outlier scoring should replace or

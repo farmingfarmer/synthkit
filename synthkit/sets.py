@@ -165,6 +165,30 @@ def _separator(txt: pd.Series) -> Optional[str]:
     return None
 
 
+def looks_like_set(raw: pd.Series) -> bool:
+    """Is this column a SET - several values per cell, joined by a
+    separator? The same gate `vocabulary` applies, exposed on its
+    own because a READER needs the answer before any vocabulary
+    exists: a blanket fold of "" into NaN is right for a category
+    (three spellings of one absence) and WRONG for a set, where an
+    empty list is a fact about the visit. The latent engine's CLI
+    folded both and learned token shares from a world where the
+    medication-free visits did not exist - every share inflated by
+    exactly 1/(1-empty), 5x on an 80%-empty column - while its own
+    gate agreed, because the gate's reference numbers were folded
+    the same way. The one reader that did not fold (the deck)
+    disagreed, and the disagreement was the alarm."""
+    present = raw.dropna().astype(str).str.strip()
+    filled = present[present.str.len() > 0]
+    if len(filled) < MIN_ROWS:
+        return False
+    sep = _separator(filled)
+    if sep is None:
+        return False
+    return float(filled.str.split(sep).map(len).mean()) \
+        >= MIN_MEAN_SIZE
+
+
 def vocabulary(raw: pd.Series, groups, k: int = 10,
                cap: int = 0) -> Optional[Dict[str, Any]]:
     """Which tokens this column holds, screened by PATIENTS.
@@ -195,15 +219,10 @@ def vocabulary(raw: pd.Series, groups, k: int = 10,
     # content - a separator cannot be detected in an empty string,
     # and a column should not stop being a set because many of its
     # rows are legitimately empty.
+    if not looks_like_set(raw):
+        return None
     present = raw.dropna().astype(str).str.strip()
-    filled = present[present.str.len() > 0]
-    if len(filled) < MIN_ROWS:
-        return None
-    sep = _separator(filled)
-    if sep is None:
-        return None
-    if float(filled.str.split(sep).map(len).mean()) < MIN_MEAN_SIZE:
-        return None
+    sep = _separator(present[present.str.len() > 0])
     txt = present
     parts = txt.str.split(sep)
     sizes = parts.map(

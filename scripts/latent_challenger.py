@@ -52,6 +52,30 @@ if str(ROOT) not in sys.path:
 
 from synthkit import dates, sets    # noqa: E402
 
+
+def _read_source(path):
+    """Read a source CSV the way the engine must see it.
+
+    "" folds to NaN for ordinary columns - three spellings of one
+    absence - and is KEPT for set columns, where an empty list is
+    a fact about the visit. The blanket fold fed the engine a
+    source in which the medication-free visits did not exist:
+    token shares inflated by exactly 1/(1-empty) (5x on the 80%-
+    empty procedures), the size grid lost its zeros so no empty
+    set was ever drawn, and the gate PASSED both, because its
+    reference numbers were folded the same way. The deck reads
+    the raw file and disagreed - two numbers on one page, which
+    is this project's alarm. The predicate is `sets.looks_like_
+    set`, the same gate `vocabulary` applies, so the reader and
+    the model cannot class a column differently."""
+    raw = pd.read_csv(path, dtype=str, keep_default_na=False)
+    setcols = [c for c in raw.columns
+               if sets.looks_like_set(raw[c].replace("", np.nan))]
+    df = raw.replace("", np.nan)
+    for c in setcols:
+        df[c] = raw[c]
+    return df
+
 K = 10
 DEFAULT_SEEDS = [0, 1, 2, 3, 4]
 # THE SAME CAP THE BLUEPRINT USES. Without it a set column -
@@ -551,6 +575,78 @@ class LatentGen:
                       "on the source: computed from its "
                       "generated parents, not drawn again"
                       .format(child, w[0], pa, w[1], pb, w[2]))
+        # A NEAR-IDENTITY IS AN IDENTITY ONE NOTCH RELAXED, and
+        # the network cannot carry it. mean_arterial_pressure_
+        # cuff_bmdi IS map_cuff measured by a second device -
+        # source rho 0.975, residual ~3% of spread - and the
+        # decoded twin FADES to 0.70-0.87, seed-dependent. The
+        # sampler was exonerated by measurement: GMM at x1/x3/x6
+        # components and a KDE sampler at three bandwidths all
+        # land in the same band, so the attenuation is in the
+        # network's handling of the sparse channel, not the
+        # density estimate. Same cure as the exact tier, one
+        # notch relaxed: the SPARSER twin is computed from its
+        # denser sibling plus noise at the measured residual sd
+        # - so the pair lands at its source correlation by
+        # construction and the twin's own spread is preserved.
+        # Detected only when rho >= 0.95 on >= 200 both-present
+        # rows; enforced only where both are present in the
+        # generated frame.
+        self._near_identities = []
+        # Two DIFFERENT exclusions, and conflating them silently
+        # disabled the tier: a near-CHILD must not be an exact
+        # identity's parent (re-deriving it would break the
+        # arithmetic just enforced), but an exact parent is a
+        # perfectly good near-PARENT - map_cuff both feeds the
+        # exact MAP identity and is the sibling the sparse bmdi
+        # twin is computed from.
+        _no_child = set(_claimed)
+        for _c2, _pa2, _pb2, _w9 in self._linear_identities:
+            _no_child.add(_pa2)
+            _no_child.add(_pb2)
+        _near_children = set()
+        _num_by = dict(num_items)
+        _order = [c for c, _ in num_items]
+        for ci, child in enumerate(_order):
+            if child in _no_child or child in _near_children:
+                continue
+            cv = _num_by[child]
+            best = None
+            for pa in _order:
+                if pa == child or pa in _near_children:
+                    continue
+                pv = _num_by[pa]
+                # the CHILD is the sparser column: compute the
+                # occasional device from the routine one
+                if pv.notna().mean() < cv.notna().mean():
+                    continue
+                both = cv.notna() & pv.notna()
+                if int(both.sum()) < 200:
+                    continue
+                r_ = float(cv[both].corr(pv[both]))
+                if abs(r_) < 0.95:
+                    continue
+                A2 = np.column_stack(
+                    [pv[both], np.ones(int(both.sum()))])
+                w2, *_ = np.linalg.lstsq(
+                    A2, cv[both].to_numpy(), rcond=None)
+                resid = cv[both].to_numpy() - A2 @ w2
+                rs = float(resid.std())
+                csd = float(cv[both].std()) or 1.0
+                if rs < 0.35 * csd and (
+                        best is None or rs < best[0]):
+                    best = (rs, pa, [float(w2[0]),
+                                     float(w2[1])])
+            if best is not None:
+                rs, pa, w2 = best
+                self._near_identities.append(
+                    (child, pa, w2, rs))
+                _near_children.add(child)
+                print("  {} ~= {:.4g}*{} + {:.4g} (resid sd "
+                      "{:.3g}) on the source: the sparser twin "
+                      "is computed from its sibling plus "
+                      "matched noise, not decoded alone"
+                      .format(child, w2[0], pa, w2[1], rs))
         # float32, not float64: the encoded frame is the biggest
         # array here and half of it is one-hot zeros.
         X = np.hstack(mats).astype(np.float32, copy=False)
@@ -986,6 +1082,32 @@ class LatentGen:
                     dspec_c.get("format") or "%Y-%m-%d")
             else:
                 frame[child] = newv
+        # Near-identities: the sparser twin re-derived from its
+        # sibling plus noise at the measured residual sd, only
+        # where BOTH are present - where the sibling is absent
+        # the decoded value stands, because a twin of nothing is
+        # not computable.
+        for child, pa, w2, rs in getattr(
+                self, "_near_identities", []):
+            if child not in frame.columns \
+                    or pa not in frame.columns:
+                continue
+            it = _plan_by.get(child)
+            vc = pd.to_numeric(frame[child], errors="coerce")
+            vp = pd.to_numeric(frame[pa], errors="coerce")
+            newv = w2[0] * vp + w2[1] + pd.Series(
+                rng.normal(0, rs, len(frame)),
+                index=frame.index)
+            if it and it[0] == "num":
+                _, _, _, _, (lo_, hi_, _m, integ, dec_,
+                             _d) = it
+                newv = newv.clip(lo_, hi_)
+                if integ:
+                    newv = newv.round()
+                elif dec_:
+                    newv = newv.round(dec_)
+            frame[child] = newv.where(
+                vc.notna() & vp.notna(), vc)
         if pid is not None:
             # The identity column goes FIRST, and it is invented -
             # S000001 upward - never a real person's id.
@@ -1554,8 +1676,7 @@ def run_csv(argv):
     print("csv: --group-by {} --seeds {} --out {} --shares {}"
           .format(a.group_by, a.seeds, a.out or "(none)",
                   a.shares or "(none)"))
-    df = pd.read_csv(a.csv, dtype=str, keep_default_na=False)
-    df = df.replace("", np.nan)
+    df = _read_source(a.csv)
     print("read {}: {} rows x {} columns, {} patients".format(
         a.csv, len(df), df.shape[1],
         df[a.group_by].nunique()))
@@ -1771,10 +1892,8 @@ def run_compare(argv):
               "--generate` run".format(a.blueprint_run),
               file=sys.stderr)
         return 2
-    src = pd.read_csv(a.csv, dtype=str,
-                      keep_default_na=False).replace("", np.nan)
-    bpg = pd.read_csv(bp_csv, dtype=str,
-                      keep_default_na=False).replace("", np.nan)
+    src = _read_source(a.csv)
+    bpg = _read_source(bp_csv)
     common = [c for c in src.columns
               if c in bpg.columns or c == a.group_by]
     dropped = [c for c in src.columns if c not in common]

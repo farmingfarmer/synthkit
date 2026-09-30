@@ -674,6 +674,59 @@ def main():
           "existed",
           max(_err) < 0.03)
 
+    # THE FILE PATH IS THE MEASUREMENT THAT COUNTS. Every
+    # in-memory check above passes a DataFrame straight to fit;
+    # the real extract arrives through the CLI's reader, and the
+    # reader blanket-folded "" into NaN - right for a category,
+    # WRONG for a set, where an empty list is a fact about the
+    # visit. The engine learned token shares from a source in
+    # which the medication-free visits did not exist (every
+    # share inflated by 1/(1-empty), 5x on the 80%-empty
+    # procedures), drew no empty sets at all, and its gate
+    # PASSED both criteria because the gate's reference numbers
+    # were folded identically. The deck reads the raw file and
+    # disagreed: 0.0% synthetic empty beside a PASS chip - two
+    # numbers on one page, this project's alarm, on the morning
+    # of a demo. So THIS check goes through the disk and the
+    # CLI, exactly as the extract does.
+    import subprocess as _sp9
+    import tempfile as _tf9
+    with _tf9.TemporaryDirectory() as _tdq:
+        _srcq = Path(_tdq) / "src.csv"
+        dfx.to_csv(_srcq, index=False)
+        _outq = Path(_tdq) / "run"
+        _rq = _sp9.run([sys.executable,
+                        str(_root / "scripts" /
+                            "latent_challenger.py"),
+                        "csv", str(_srcq), "--group-by",
+                        "person_id", "--seeds", "0",
+                        "--out", str(_outq)],
+                       capture_output=True, text=True,
+                       cwd=str(_root))
+        _genq = pd.read_csv(_outq / "generated.csv", dtype=str,
+                            keep_default_na=False)
+        _se = float((dfx["drugs"].astype(str).str.strip()
+                     == "").mean())
+        _ge = float((_genq["drugs"].astype(str).str.strip()
+                     == "").mean())
+        _t0 = "d000"
+        _ss = float(dfx["drugs"].astype(str).str.split(";").map(
+            lambda z: _t0 in z).mean())
+        _gs = float(_genq["drugs"].astype(str).str.split(";").map(
+            lambda z: _t0 in z).mean())
+    check("through the DISK and the CLI - the path the real "
+          "extract takes - the generated file keeps the empty "
+          "share (source {:.0%}): the reader must not fold an "
+          "empty list into a missing cell, which starved the "
+          "size grid of zeros and emitted 0% empty on the real "
+          "run".format(_se),
+          _rq.returncode == 0 and abs(_ge - _se) < 0.06)
+    check("...and the top token lands at its source share of "
+          "ALL rows, not share-of-non-empty-rows - the blanket "
+          "fold inflated every token by exactly 1/(1-empty), "
+          "which is a denominator, not a sampler",
+          abs(_gs - _ss) < 0.05)
+
     # A LINEAR IDENTITY IS THE SIZE IDENTITY ONE LEVEL UP.
     # mean_arterial_pressure IS (systolic + 2*diastolic)/3 -
     # arithmetic, not correlation - and decoded as three ordinary
@@ -728,6 +781,79 @@ def main():
           "the computations cannot chase each other in a loop",
           all(pa not in _claimed and pb not in _claimed
               for _c, pa, pb, _w in gl._linear_identities))
+
+    # A NEAR-IDENTITY IS AN IDENTITY ONE NOTCH RELAXED, AND THE
+    # NETWORK CANNOT CARRY IT. The real extract's failing
+    # pressure pairs are a SPARSE second-device twin: map_cuff_
+    # bmdi IS map_cuff plus device noise (rho 0.97, residual ~3%
+    # of spread), present on a third of visits - and at
+    # realistic width the decoded twin faded to 0.70-0.87,
+    # seed-dependent. The sampler was exonerated by measurement
+    # (GMM x1/x3/x6 and KDE at three bandwidths all land in the
+    # same band), so the cure is the identity tier's, one notch
+    # relaxed: the sparser twin is COMPUTED from its denser
+    # sibling plus noise at the measured residual sd, where both
+    # are present.
+    rn5 = np.random.RandomState(13)
+    nrows5 = []
+    for pp in range(350):
+        sev = rn5.rand()
+        bs5, bd5 = rn5.normal(120, 12), rn5.normal(75, 8)
+        for vv in range(rn5.randint(3, 9)):
+            s5 = bs5 + rn5.normal(0, 6)
+            d5 = bd5 + rn5.normal(0, 4)
+            m5 = (s5 + 2 * d5) / 3.0
+            nrows5.append({
+                "person_id": "P{:04d}".format(pp),
+                "systolic": round(s5, 1),
+                "diastolic": round(d5, 1),
+                "map_cuff": round(m5, 1),
+                "map_cuff_bmdi": (
+                    round(m5 + rn5.normal(0, 1.8), 1)
+                    if rn5.rand() < 0.15 + 0.35 * sev else None),
+                "hr": round(78 + 8 * sev + rn5.normal(0, 7), 1)})
+    dfn = pd.DataFrame(nrows5)
+
+    def _rho5(fr, a, b):
+        return float(pd.to_numeric(fr[a], errors="coerce").corr(
+            pd.to_numeric(fr[b], errors="coerce"),
+            method="spearman"))
+    _src5r = _rho5(dfn, "map_cuff_bmdi", "map_cuff")
+    gn5 = LatentGen(k=10, seed=0, hierarchical=True).fit(
+        dfn, "person_id")
+    on5 = gn5.generate(len(dfn), seed=1)
+    check("the fixture CONTAINS the twin - a sparse second-"
+          "device column at rho {:.2f} to its sibling - and the "
+          "near tier DETECTS it, with the exact tier's parent "
+          "still eligible as the near tier's sibling: one set "
+          "conflating the two roles silently disabled the whole "
+          "tier on its first cut".format(_src5r),
+          _src5r > 0.9
+          and any(t[0] == "map_cuff_bmdi" and t[1] == "map_cuff"
+                  for t in gn5._near_identities)
+          and any(t[0] == "systolic"
+                  for t in gn5._linear_identities))
+    _gen5r = _rho5(on5, "map_cuff_bmdi", "map_cuff")
+    check("...and the generated twin lands at its source "
+          "correlation by construction (decoded alone it faded "
+          "to 0.70-0.87 at width, seed-dependent) - computed "
+          "from its sibling plus noise at the measured residual "
+          "sd, so the twin's own spread survives too",
+          abs(_gen5r - _src5r) < 0.05)
+    _bsd_s = float(pd.to_numeric(dfn["map_cuff_bmdi"],
+                                 errors="coerce").std())
+    _bsd_g = float(pd.to_numeric(on5["map_cuff_bmdi"],
+                                 errors="coerce").std())
+    _cov_s = float(pd.to_numeric(dfn["map_cuff_bmdi"],
+                                 errors="coerce").notna().mean())
+    _cov_g = float(pd.to_numeric(on5["map_cuff_bmdi"],
+                                 errors="coerce").notna().mean())
+    check("...with the NEIGHBORING properties held: the twin's "
+          "spread within 25% of source and its presence rate "
+          "within 0.05 - enforcing one property by breaking the "
+          "one beside it is the shift/scale lesson",
+          abs(_bsd_g - _bsd_s) < 0.25 * _bsd_s
+          and abs(_cov_g - _cov_s) < 0.05)
 
     # A DRUG IMPLIES ITS ROUTE, AND THE DRAW WAS RANDOMIZING
     # THAT AWAY. The remaining close misses on the real extract

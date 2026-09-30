@@ -37,6 +37,21 @@ and further down, a NEW heading:
 build and nothing below will work. Go to the APPENDIX at the
 bottom, pull, reinstall, relaunch, then come back here.
 
+**FOUND AND FIXED THE MORNING OF THE DEMO — pull again and
+re-run when you have a window.** The Dashboard's set sections
+contradicted the gate (0.0% synthetic empty beside an EMPTY PASS
+chip, token bars at ~5x source). The contradiction was real and
+the deck was the honest witness: the engine's file reader folded
+"empty list" into "missing" for set columns, so it learned token
+shares from a source where the medication-free visits did not
+exist, and its gate agreed because its reference numbers were
+folded the same way. Fixed (`sets.looks_like_set` + a selective
+reader), verified through the full file path: empty 0.000 →
+0.363 against a source 0.361, deck and gate in agreement. The
+whole set-pair drift list and the metoclopramide inversion of
+the 09-30 run were measured against the folded source — re-read
+them only after a re-run on this build.
+
 **What changed overnight, and why to re-run before the demo.**
 Your run's two INVERTED pairs were traced to one mechanism and
 the token draw was rebuilt. The old draw made tokens COMPETE
