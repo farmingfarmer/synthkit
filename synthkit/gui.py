@@ -3237,10 +3237,10 @@ textarea:focus,input:focus,select:focus{
 <section id="s-roadmap" data-step="8">
   <div class="stepbanner"><span class="stepchip">The map</span><span>Eight goals &mdash; what is built, what is planned</span></div>
   <dl class="stepgoal"><dt>you need</dt><dd>Nothing &mdash; this page is for reading, and for the room.</dd><dt>you get</dt><dd>Where each goal stands, with the measured evidence, what is planned, a proposed WORKING ORDER, and a relative timeline per goal (durations from now, deliberately not dates). Percentages are judgments; the numbers beside them are not. Full detail: <code>docs/goals_scorecard.md</code>.</dd></dl>
-  <div class="explain"><b>Proposed working order</b> (as of 2026-09-23; the previous order's five steps all landed): 1st &mdash; absorb the team's try-to-break findings from the kit handout, each becoming a check. 2nd &mdash; goal 5's close gap, attacked on the reproduction fixtures where the mechanisms now live (the trim machinery: attribution flip, set-token drift). 3rd &mdash; goal 1's multi-table intake, the last big unstarted piece. 4th &mdash; goal 3's per-claim receipts. 5th &mdash; goal 2's free-text decision gate. Goal 7's vendor seat is scheduling, not building; goal 8's challenger and the ring ceiling are the research tail.</div>
+  <div class="explain"><b>Proposed working order</b> (as of 2026-09-30): 1st &mdash; the neural engine's close gap on the real extract, now attacked mechanism by mechanism: dates, sets, size and arithmetic identities and the independent token draw each landed with a named measurement, and the drift table names whatever is next. 2nd &mdash; absorb the team's try-to-break findings from the kit handout, each becoming a check. 3rd &mdash; goal 1's multi-table intake, the last big unstarted piece. 4th &mdash; goal 3's per-claim receipts. 5th &mdash; goal 2's free-text decision gate. Goal 7's vendor seat is scheduling, not building; goal 8's challenger and the near-identical-variant ceiling are the research tail.</div>
   <div class="goal">
     <div class="ghead"><span class="chip partial">partial &middot; ~55%</span><h3>1 &middot; Universal upload with auto schema mapping</h3></div>
-    <div class="grow"><span class="glabel b">BUILT</span><div class="gbody">Single-table CSV end to end. Type detection with currency, percent and clock parsers; long/EAV pivot. <b>22 of 23</b> dataset shapes come out clean, and flat data comes back flat.</div></div>
+    <div class="grow"><span class="glabel b">BUILT</span><div class="gbody">Single-table CSV end to end, for BOTH engines. Type detection with currency, percent and clock parsers; long/EAV pivot. <b>23 of 23</b> dataset shapes come out clean on each engine &mdash; the neural sweep found one crash and three destroyed columns and all four are fixed and pinned &mdash; and flat data comes back flat.</div></div>
     <div class="grow"><span class="glabel p">PLANNED</span><div class="gbody">Multi-table intake with key auto-detection; Excel and JSON. Documents are a later decision, deliberately.</div></div>
     <div class="grow"><span class="glabel n">NEXT</span><div class="gbody"><b>~3-6 weeks.</b> Multi-table is the big remaining piece and nothing upstream waits on it.</div></div>
   </div>
@@ -3265,10 +3265,10 @@ textarea:focus,input:focus,select:focus{
   </div>
   <div class="goal">
     <div class="ghead"><span class="chip built">built &middot; ~90%</span><h3>5 &middot; High-fidelity generation</h3></div>
-    <div class="grow"><span class="glabel b">BUILT</span><div class="gbody">Two engines now. The <b>rules engine</b> publishes k-screened aggregates and generates from them &mdash; on the real extract: coverage 42/42, centre 30/33, zero inverted, direction 93.9%. The <b>neural engine</b> (autoencoder) trains on the records and carries what the rules engine cannot.</div></div>
-    <div class="grow"><span class="glabel b">MEASURED</span><div class="gbody">Full extract, head to head: neural keeps direction on <b>97.0%</b> of pairs against 92.6%, strength on <b>86.8%</b> against 81.8%, with <b>3</b> backwards relationships against 11. On the eight strongest <b>combination effects</b> mined from the real data, the rules engine reads <b>0.000 on every one</b> and the neural engine carries them. Driver attribution: real 94/6, neural 93/7, rules 25/75 &mdash; a flip.</div></div>
-    <div class="grow"><span class="glabel p">PLANNED</span><div class="gbody">The rules engine's remaining gap is relationship strength (76.5% against an 87.9% bar, seed-swept and real). The neural engine's is that it makes visit-level columns slightly too patient-like.</div></div>
-    <div class="grow"><span class="glabel n">NEXT</span><div class="gbody"><b>~2-4 weeks.</b> Close the neural engine's last certification gap, then decide the rules engine's future on evidence.</div></div>
+    <div class="grow"><span class="glabel b">BUILT</span><div class="gbody">Two engines. The <b>rules engine</b> publishes k-screened aggregates and generates from them; the <b>neural engine</b> (autoencoder) leads the measure route, trains on the k-screened records, and now handles dates, set columns, size identities (a count that IS a set&rsquo;s length is copied, never drawn twice) and arithmetic identities (MAP = (S+2D)/3, computed from its generated parents).</div></div>
+    <div class="grow"><span class="glabel b">MEASURED</span><div class="gbody">On the real extract the neural engine&rsquo;s gate readings have moved fault by named fault: inverted 10 &rarr; <b>0 &rarr; 2</b> (the two remaining are the token-draw class fixed tonight), direction kept <b>95.3% PASS</b>, coverage and EMPTY rate PASS, close 42.6% &rarr; <b>68.9%</b> against the 87.9% bar. Its overfitting check reads <b>1.16</b> where a memorizing control reads 9.7. On the eight strongest <b>combination effects</b> mined from the real data, the rules engine reads 0.000 on every one; the neural engine carries them.</div></div>
+    <div class="grow"><span class="glabel p">PLANNED</span><div class="gbody">The remaining close gap is dominated by cross-set-token pairs at roughly half strength; the token draw was rebuilt tonight so each token follows its own signal instead of competing inside the row &mdash; measured on fixtures, awaiting the next real run. The near-identical pressure variants (the interaction-surface FAIL) are the recorded research ceiling, shared by both engines.</div></div>
+    <div class="grow"><span class="glabel n">NEXT</span><div class="gbody"><b>~2-4 weeks.</b> Read the next real run against the on-record predictions; close the output-surface attack gap at width; then decide the rules engine&rsquo;s future on evidence.</div></div>
   </div>
   <div class="goal">
     <div class="ghead"><span class="chip built">built &middot; ~100%</span><h3>6 &middot; Self-assessment for sign-off</h3></div>
@@ -3289,14 +3289,19 @@ textarea:focus,input:focus,select:focus{
   </div>
   <div class="hint">Overall, equal-weighted: <b>about 80%</b>.
   The September sprint landed everything it named, then went
-  further: a second generation engine was built as a ruler,
-  measured decisively better on the structure that matters, and
-  given patient structure of its own. What remains is one
-  certification gap on that engine, multi-table intake, the
-  free-text decision, and the research tail. Core complete in
-  roughly <b>5-6 weeks</b> from 2026-09-28 &mdash; early
-  November; free text, if its gate says yes, adds about six
-  weeks beyond.</div>
+  further: the autoencoder became the lead engine of the measure
+  route, learned dates, sets and identities the rules engine
+  already had, gained an overfitting check with a working
+  positive control, and had its token draw rebuilt so a token
+  can point against the set size. Every station now explains
+  itself &mdash; every term on the Dashboard, Generate, Verdict,
+  review and duel pages is a clickable door. What remains is the
+  close gap&rsquo;s tail (attacked mechanism by mechanism, each
+  with a prediction on record before the run), one
+  certification gap at width, multi-table intake, the free-text
+  decision, and the research tail. Core complete in roughly
+  <b>5-6 weeks</b> from 2026-09-30 &mdash; early November; free
+  text, if its gate says yes, adds about six weeks beyond.</div>
   <div class="nextup"><span class="lbl">next</span><b>Anywhere</b><span>This page is the map, not a step. Step 1 invents data from English; Fit measures data you already have.</span></div>
 </section>
 </main></div>

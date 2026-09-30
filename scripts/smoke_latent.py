@@ -794,13 +794,75 @@ def main():
           "seeds under 0.2, against ~0.29 at sharpness 1, where "
           "the Gumbel noise drowned the activation signal)",
           float(np.mean(_seed_means)) < 0.2)
-    from latent_challenger import (TOKEN_SHARPNESS,
-                                   TOKEN_SOLVE_PASSES)
-    check("...and the solve's pass count scales with the "
-          "sharpness it pushes against - sharpening alone "
-          "traded the marginals away (worst share 0.052 at 12 "
-          "passes, 0.014 at 40)",
-          TOKEN_SHARPNESS >= 2.0 and TOKEN_SOLVE_PASSES >= 30)
+    from latent_challenger import TOKEN_SHARPNESS
+    check("...at a sharpness that follows the decoder rather "
+          "than the noise - the signal the co-occurrence lives "
+          "in",
+          TOKEN_SHARPNESS >= 2.0)
+
+    # A TOKEN MUST BE FREE TO POINT AGAINST THE SET SIZE. Any
+    # within-row competitive draw (top-size-many by score)
+    # mechanically ties every token to the set size, so a token
+    # whose correlation with a count runs the OTHER way cannot
+    # survive it: on this two-regime fixture (acute visits: many
+    # drugs, none Oral; ambulatory: few drugs, Oral) the
+    # competitive draw emitted corr(has_Oral, count) +0.04 to
+    # +0.16 against a source -0.25 - a sign flip, the class
+    # behind the real extract's has_Oral <- active_drug_count
+    # 0.26 -> -0.64 INVERTED. The independent per-token draw
+    # keeps the sign, because each token's placement follows its
+    # OWN activation ordering across rows.
+    rg2 = np.random.RandomState(11)
+    _od = ["od{:02d}".format(i) for i in range(10)]
+    _iv = ["ivd{:02d}".format(i) for i in range(20)]
+    _ivr = ["IV", "IV Push", "IV Piggyback", "Flush", "Subcut",
+            "Topical", "NG-tube", "Misc"]
+    _rmap = dict((d, _ivr[i % len(_ivr)])
+                 for i, d in enumerate(_iv))
+    rrows = []
+    for pp in range(400):
+        acute = rg2.rand() < 0.4
+        for vv in range(rg2.randint(3, 9)):
+            if acute:
+                n_iv, n_or = 2 + rg2.poisson(2.5), \
+                    rg2.binomial(2, 0.45)
+            else:
+                n_iv, n_or = rg2.binomial(1, 0.15), \
+                    1 + rg2.binomial(1, 0.6)
+            ds = sorted(set(list(rg2.choice(_iv, n_iv))
+                            if n_iv else []) |
+                        set(list(rg2.choice(_od, n_or))
+                            if n_or else []))
+            rr_ = sorted(set("Oral" if d.startswith("od")
+                             else _rmap[d] for d in ds))
+            rrows.append({"person_id": "P{:04d}".format(pp),
+                          "drugs": ";".join(ds),
+                          "routes": ";".join(rr_),
+                          "active_drug_count": len(ds),
+                          "sev": round((3.0 if acute else 1.0)
+                                       + rg2.randn() * 0.5, 2)})
+    dfr = pd.DataFrame(rrows)
+    _src_oral = float(pd.Series(_has(dfr, "routes", "Oral")).corr(
+        pd.to_numeric(dfr["active_drug_count"]),
+        method="spearman"))
+    check("the regime fixture CONTAINS the shape - a broad token "
+          "whose correlation with the count runs NEGATIVE in the "
+          "source, against the size mechanism",
+          _src_oral < -0.15)
+    _oral_gen = []
+    for _sd in (0, 1):
+        gr_ = LatentGen(k=10, seed=_sd, hierarchical=True).fit(
+            dfr, "person_id")
+        orr = gr_.generate(len(dfr), seed=200 + _sd)
+        _oral_gen.append(float(
+            pd.Series(_has(orr, "routes", "Oral")).corr(
+                pd.to_numeric(orr["active_drug_count"]),
+                method="spearman")))
+    check("...and the generated file KEEPS that sign on both "
+          "seeds - the competitive draw flipped it positive, "
+          "which is an INVERTED verdict at the gate, the one "
+          "absolute criterion",
+          all(v < -0.02 for v in _oral_gen))
 
     # THE MEASURING ENCODER HAS TO SEE A DATE AS A DATE TOO.
     # Encoded as a category it becomes its 60 most common days

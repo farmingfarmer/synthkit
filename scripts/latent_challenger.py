@@ -85,34 +85,23 @@ MAX_TOKENS = 60
 # memorization tripwire measured beside it - a sharper draw
 # follows the decoder more faithfully, and the decoder was
 # trained on records.
-# Swept 2026-09-29 on a fixture whose drugs imply their routes
-# (source rho 0.56-0.73), three seeds per cell, with the worst
-# token-share error, the empty-rate gap and the memorization
-# tripwire measured beside it:
-#     sharp 1, 12 passes   |cooc drop| 0.276  share 0.008  nn 1.44
-#     sharp 4, 12 passes   |cooc drop| 0.105  share 0.052  nn 1.30
-#     sharp 4, 40 passes   |cooc drop| 0.115  share 0.014  nn 1.31
-#     sharp 8, 80 passes   |cooc drop| 0.097  share 0.015  nn 1.26
-# Sharpness alone trades the marginals away; the solve just needed
-# passes proportional to what it pushes against. 4/40 keeps both.
+# Swept 2026-09-29 on the drug-implies-route fixture (source rho
+# 0.56-0.73), three seeds per cell, under the INDEPENDENT
+# per-token draw (each token takes its top share-of-rows by its
+# own score; no within-row competition):
+#     sharp 1   |cooc drop| 0.315  share 0.007  nn 1.48
+#     sharp 2   |cooc drop| 0.179  share 0.013  nn 1.44
+#     sharp 4   |cooc drop| 0.101  share 0.018  nn 1.28
+#     sharp 8   |cooc drop| 0.071  share 0.020  nn 1.25
+# Marginal shares are exact by construction here (each token picks
+# round(p*n) rows), so sharpness costs only threshold rounding.
+# The earlier COMPETITIVE draw (Gumbel top-k with an offset solve)
+# was retired after a measured sign flip: any within-row
+# competition mechanically ties every token to the SET SIZE, and
+# corr(has_Oral, drug_count) read +0.04..+0.16 against a source
+# -0.25 at every sharpness - the class behind the real extract's
+# has_Oral <- active_drug_count 0.26 -> -0.64 INVERTED.
 TOKEN_SHARPNESS = 4.0
-# The offset solve has to push against activations TOKEN_SHARPNESS
-# times stronger, so its pass count scales with the same dial
-# rather than staying at the 12 that converged at sharpness 1.
-TOKEN_SOLVE_PASSES = 40
-
-
-def _topk_mask(score, sizes):
-    """A boolean row-mask keeping the `sizes[r]` largest scores of
-    row r. Vectorized on purpose: the per-row Python loop this
-    replaced ran once per generated row inside a 12-pass solve."""
-    n, m = score.shape
-    order = np.argsort(-score, axis=1)
-    rank = np.empty_like(order)
-    np.put_along_axis(
-        rank, order,
-        np.broadcast_to(np.arange(m), (n, m)), axis=1)
-    return rank < np.asarray(sizes).reshape(-1, 1)
 
 
 def _k_clip(vals: np.ndarray, gid: np.ndarray, k: int):
@@ -813,42 +802,122 @@ class LatentGen:
                 (sep, smu, ssd, smax, tgt,
                  _above, grid) = item[3]
                 nt = len(toks)
-                raw = X[:, i]
-                # Rank, then read the published quantile at that
-                # rank: the marginal is the source's by
-                # construction and cannot drift.
-                rk = np.argsort(np.argsort(raw))
-                u = rk / float(max(len(raw) - 1, 1))
-                sz = np.clip(
-                    np.round(np.asarray(grid)[
-                        np.round(u * 1000).astype(int)]),
-                    0, min(smax, float(nt))).astype(int)
-                blk = TOKEN_SHARPNESS * np.log(
-                    np.clip(X[:, i + 1:i + 1 + nt], 1e-6, 1.0))
-                # GUMBEL TOP-k: adding a Gumbel to each log-weight
-                # and taking the largest `size` of them IS a draw
-                # without replacement proportional to those
-                # weights. Sorting the raw activations instead
-                # would hand every row the same modal tokens - the
-                # argmax collapse the categorical branch already
-                # learned about, one level up.
+                A = np.clip(X[:, i + 1:i + 1 + nt], 1e-6, 1.0)
+                nrow = len(A)
+                # EACH TOKEN PICKS ITS OWN ROWS; TOKENS DO NOT
+                # COMPETE WITHIN A ROW. The previous draw ranked
+                # tokens against each other inside each row and
+                # took the top size-many - and any within-row
+                # competition mechanically ties every token to
+                # the SET SIZE, so a token whose correlation with
+                # a count runs AGAINST the size mechanism cannot
+                # survive it. Measured on a two-regime fixture
+                # (acute visits: many drugs, no Oral; ambulatory:
+                # few drugs, Oral): source corr(has_Oral, count)
+                # -0.25, and the competitive draw emitted +0.04
+                # to +0.16 at EVERY sharpness - a sign flip, the
+                # exact class of the real extract's
+                # has_Oral <- active_drug_count 0.26 -> -0.64
+                # INVERTED. Here each token takes its top
+                # p_t-share of rows by ITS OWN score, so its
+                # placement follows the decoder's activation for
+                # THAT token: marginal shares exact by
+                # construction, correlations free to point
+                # whichever way the network learned.
                 gmb = -np.log(-np.log(
-                    rng.rand(*blk.shape) + 1e-12) + 1e-12)
-                # A PER-TOKEN OFFSET, SOLVED AGAINST THE PUBLISHED
-                # SHARES, damped. The undamped multiplicative form
-                # oscillated at extract scale and SWAPPED the ends
-                # of the vocabulary; this file already carries that
-                # lesson for the rules engine's own solve.
-                w = np.zeros(nt)
+                    rng.rand(nrow, nt) + 1e-12) + 1e-12)
+                score = TOKEN_SHARPNESS * np.log(A) + gmb
+                # the EMPTY mass is placed where total token
+                # activation is lowest - the published share of
+                # genuinely-empty rows, on the rows the decoder
+                # says hold the least
+                grid_arr = np.asarray(grid, dtype=float)
+                e_share = float((np.round(grid_arr) <= 0).mean())
+                rowmass = A.sum(axis=1) + 1e-9 * rng.rand(nrow)
+                n_empty = int(round(e_share * nrow))
+                empty_mask = np.zeros(nrow, dtype=bool)
+                if n_empty > 0:
+                    empty_mask[np.argsort(rowmass)[:n_empty]] \
+                        = True
+                score[empty_mask] = -1e18
                 t_arr = np.clip(np.asarray(tgt, dtype=float),
-                                1e-6, 1.0)
-                pick = None
-                for _ in range(TOKEN_SOLVE_PASSES):
-                    pick = _topk_mask(blk + w + gmb, sz)
-                    got = np.clip(pick.mean(axis=0), 1e-6, 1.0)
-                    w = w + 0.5 * (np.log(t_arr) - np.log(got))
+                                0.0, 1.0)
+                pick = np.zeros((nrow, nt), dtype=bool)
+                avail = nrow - n_empty
+                for j in range(nt):
+                    cj = int(round(min(t_arr[j] * nrow, avail)))
+                    if cj > 0:
+                        idx = np.argpartition(
+                            -score[:, j], cj - 1)[:cj]
+                        pick[idx, j] = True
+                # a non-empty row that picked nothing still holds
+                # SOMETHING - an empty set would claim the visit
+                # had none, and the zero/nonzero split is already
+                # exactly the published one
+                none = ~empty_mask & ~pick.any(axis=1)
+                if none.any():
+                    # THE FORCED PICK IS THE ROW'S BEST TOKEN
+                    # RELATIVE TO THAT TOKEN'S OWN SCALE, never
+                    # the raw argmax. Raw argmax sends every
+                    # starved row to the same globally-strong
+                    # token, concentrating the forced mass on
+                    # the SMALLEST rows - measured: the top
+                    # token's corr with its count partner
+                    # flipped +0.26 -> -0.10. Standardized per
+                    # token, the forcing spreads across the
+                    # vocabulary and each token's quota barely
+                    # moves.
+                    # ...standardized over the NON-EMPTY rows:
+                    # the empty rows' scores were set to -1e18
+                    # above, and a mean taken over them poisons
+                    # the standardization back into a global
+                    # argmax - the exact behavior this exists
+                    # to avoid. Watched happen: the fix's first
+                    # cut read WORSE than the bug it fixed.
+                    live = score[~empty_mask]
+                    mu_s = live.mean(axis=0)
+                    sd_s = live.std(axis=0)
+                    sd_s[sd_s == 0] = 1.0
+                    zrel = (score[none] - mu_s) / sd_s
+                    best = np.argmax(zrel, axis=1)
+                    pick[np.nonzero(none)[0], best] = True
+                    # ...and the quota is RESTORED, because the
+                    # forced picks pile onto the globally
+                    # strongest tokens - measured at +0.098 on
+                    # the top token of the 400-token fixture,
+                    # twice the share tolerance. Each over-quota
+                    # token drops its weakest picks, taken only
+                    # from rows that keep at least two, so no
+                    # row returns to empty and the marginals
+                    # land back on round(p*n).
+                    sizes_now = pick.sum(axis=1)
+                    for j in np.unique(best):
+                        cj = int(round(min(t_arr[j] * nrow,
+                                           avail)))
+                        over_n = int(pick[:, j].sum()) - cj
+                        if over_n <= 0:
+                            continue
+                        rows_j = np.nonzero(
+                            pick[:, j] & (sizes_now >= 2))[0]
+                        if not len(rows_j):
+                            continue
+                        order = rows_j[np.argsort(
+                            score[rows_j, j])]
+                        drop = order[:over_n]
+                        pick[drop, j] = False
+                        sizes_now[drop] -= 1
+                # the k rule's size cap still binds: a row over
+                # the published maximum drops its weakest picks
+                cap = int(min(smax, float(nt)))
+                sizes_now = pick.sum(axis=1)
+                over = np.nonzero(sizes_now > cap)[0]
+                for r in over:
+                    js = np.nonzero(pick[r])[0]
+                    drop = js[np.argsort(score[r, js])][
+                        :len(js) - cap]
+                    pick[r, drop] = False
                 vals = []
-                for r in range(len(sz)):
+                for r in range(nrow):
                     js = np.nonzero(pick[r])[0]
                     vals.append(sep.join(toks[j] for j in js)
                                 if len(js) else "")

@@ -4,7 +4,7 @@ Synthetic clinical data generator and model-evaluation instrument. Core rule: le
 
 ## Verify before claiming
 
-- Run `python scripts/run_all_smokes.py` before claiming anything works. Expect 69 suites, 2016 checks, ALL GREEN **on a checkout**. Off a zipball extract - which is what the data machine runs - it is 2007: nine checks in `smoke_buildid` need git to test the archive path and report SKIPPED without it. Both numbers were measured. Do not quote the checkout number to the data machine; that is how a correct run gets read as a failure.
+- Run `python scripts/run_all_smokes.py` before claiming anything works. Expect 69 suites, 2018 checks, ALL GREEN **on a checkout**. Off a zipball extract - which is what the data machine runs - it is 2009: nine checks in `smoke_buildid` need git to test the archive path and report SKIPPED without it. Both numbers were measured. Do not quote the checkout number to the data machine; that is how a correct run gets read as a failure.
 - **THE DEVELOPMENT MACHINE WAS BEHIND THE DATA MACHINE, and that is
   how a green suite here failed there.** Dev was on Python 3.10 with
   pandas 2.3; the data machine installs fresh and got pandas 3.0.5,
@@ -837,6 +837,68 @@ the direction that stops work happening.
   does not address. If close still misses the bar after the
   co-occurrence fix, the remaining drift list names the next
   mechanism.
+- **THE SHARPNESS BUILD CREATED AN INVERSION, AND THE MECHANISM
+  IS THE COMPETITION, NOT THE SHARPNESS (2026-09-30, build
+  429e60b).** The real run read INVERTED 2, led by
+  `drug_routes__has__Oral <- active_drug_count` at 0.26 source,
+  **-0.64** generated - a regression from the co-occurrence fix.
+  Reproducing it took the right fixture: a simple broad token
+  did NOT reproduce (corr held at every sharpness); a TWO-REGIME
+  fixture did (acute visits: many drugs, none Oral; ambulatory:
+  few drugs, Oral) - source corr(has_Oral, count) -0.25, and the
+  competitive draw emitted +0.04 to +0.16 at sharpness 1 AND 4.
+  ANY within-row top-size-many draw mechanically ties every
+  token to the SET SIZE, so a token whose correlation with a
+  count runs AGAINST the size mechanism cannot survive it,
+  sharpened or not. The offset solve then redistributes the
+  broad token into whatever rows its sharpened score wins -
+  which on the extract was the small oral-only visits, hence
+  the hard negative.
+- **THE DRAW IS INDEPENDENT PER TOKEN NOW: each token takes its
+  top share-of-rows by ITS OWN score.** No within-row
+  competition; marginal shares exact by construction
+  (round(p*n) rows per token); the EMPTY mass placed on the
+  rows with least total activation; a non-empty row that picked
+  nothing gets its single best token; the k size cap enforced
+  by dropping weakest picks. Set SIZES are now EMERGENT from
+  the picks - which also fixes a second fault found the same
+  night: the old size draw rank-mapped a near-flat decoder
+  channel through the quantile grid, and the rank of a flat
+  channel is NOISE, which is why `condition_count <-
+  conditions__n` read 0.89 -> 0.03. Measured: regime fixture
+  sign restored (-0.19/-0.21 against source -0.25 on both
+  seeds), cooc drop 0.101 at sharpness 4 (competitive: 0.115),
+  worst share 0.018, empty gap 0.000, nn 1.28,
+  routes_n~count 0.45 -> 0.64.
+- **AND THE REPAIR CHAIN NEEDED THREE PASSES OF ITS OWN
+  MEASUREMENT.** (1) Forcing a starved row's GLOBAL argmax
+  piles the forced mass onto the strongest token - its share
+  overshot by 0.098, twice the tolerance - so each over-quota
+  token drops its weakest picks from rows keeping >=2.
+  (2) Then the top token's count corr read -0.10, because the
+  global argmax also CONCENTRATES forced picks on the smallest
+  rows; forcing by the row's best PER-TOKEN-STANDARDIZED score
+  spreads them. (3) The first cut of that fix read WORSE
+  (-0.196), because the standardization mean was taken over the
+  empty-mask rows whose scores were set to -1e18 - a sentinel
+  in a mean is a poisoned mean, and the z-score collapsed back
+  into global argmax. Standardized over live rows only:
+  d000~count +0.206 against source +0.260, worst share 0.0027,
+  empty exact. An instrument on the RAW picks (corr +0.283
+  before any repair, source +0.26) is what confined the fault
+  to the repair chain instead of the draw.
+- **PREDICTION FOR THE NEXT REAL RUN (before it runs, replacing
+  the previous one):** both inversions should clear - Oral by
+  the mechanism above; `procedure_count <-
+  mean_arterial_pressure_invasive` because procedure_count is
+  copied from len(procedures) and sizes now carry latent signal
+  instead of rank-of-noise. The size-partner pairs
+  (`condition_count <- conditions__n` 0.03, `active_drug_count
+  <- drug_routes__n` 0.14) should recover substantially. NOT
+  claimed: the near-identical pressure variants (surfaces 0/6,
+  `systolic <- MAP_cuff_bmdi` faded) - the ring-adjacency
+  ceiling, shared by both engines, research item.
+
 - **SMOTE WAS CONSIDERED AND REJECTED, WITH REASONS THAT ARE
   MEASUREMENTS.** Asked directly whether SMOTE-style
   interpolation plus k-means outlier scoring should replace or

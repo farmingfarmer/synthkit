@@ -37,19 +37,22 @@ and further down, a NEW heading:
 build and nothing below will work. Go to the APPENDIX at the
 bottom, pull, reinstall, relaunch, then come back here.
 
-**What changed since your last run, and why to re-run.** Two
-fidelity mechanisms were found from your own drift table and
-fixed. (1) A drug implies its route, and the token draw was
-randomizing that away — the correlation was in the network's
-activations but the draw's noise drowned it. The draw is
-sharpened now, with the marginal token shares re-verified. (2)
-MAP is (S+2D)/3 and generating the three pressures independently
-broke the arithmetic on 60% of rows; identities like that are
-now detected from your data and COMPUTED, the same way the
-count-equals-set-length fix worked. Also: the review page now
-DRAWS the overfitting check (training vs held-out reconstruction
-error, per column), and the review and duel pages carry the
-clickable ? explanations the Dashboard got.
+**What changed overnight, and why to re-run before the demo.**
+Your run's two INVERTED pairs were traced to one mechanism and
+the token draw was rebuilt. The old draw made tokens COMPETE
+inside each row for the set's slots, which mechanically ties
+every token to the set size — so `has_Oral`, which runs AGAINST
+drug count in the data (many-drug visits are IV visits), could
+not keep its direction and flipped to −0.64. Each token now
+follows its OWN signal to its own rows: shares land exactly, the
+empty rate lands exactly, and a token is free to point whichever
+way your data says. Set sizes now carry real signal too (they
+were rank-of-noise, which is why `condition_count` vs its list
+length read 0.03). On record before your run: both inversions
+should clear and the size-partner pairs should recover; the
+pressure-variant surfaces are a known research ceiling and are
+NOT claimed. The Roadmap station is current as of tonight —
+open it last during the demo.
 
 ---
 
@@ -224,7 +227,9 @@ pip install -e .
 python scripts\run_all_smokes.py
 ```
 
-**Expect: 69 suites, 1968 checks, ALL GREEN.**
+**Expect: 69 suites, ALL GREEN** (the check count grows
+with every build; the words ALL GREEN are the verdict —
+the zipball count for this build is in docs/WINDOWS.md).
 
 ```bat
 python -m synthkit.cli gui
