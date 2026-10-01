@@ -999,6 +999,22 @@ the direction that stops work happening.
   narrow-token forcing improves the coherence Oral's own
   signal rides on.
 
+- **THE 23-SHAPE SWEEP WAS RE-RUN AFTER THE FIDELITY TIERS
+  LANDED (2026-09-30 evening): 23 of 23 clean.** The kit's
+  "handles your data" claim was measured before the reader fix,
+  the size/arithmetic/near-identity tiers, the independent
+  token draw and the conditional quotas existed - a claim like
+  that does not stay true by argument. Re-measured on the
+  current engine: every shape clean, every new tier inert where
+  its structure is absent, which is the property that makes the
+  fidelity work GENERALIZE - each tier detects from the source
+  and enforces at generation, so on a retail table "a drug
+  implies its route" is "a product implies its category" and on
+  data with none of it the tiers do nothing. Known residual
+  sensitivities, stated: the adoption thresholds were swept on
+  extract-shaped fixtures; conditioners come from EARLIER file
+  columns only; negative token associations are not modeled.
+
 - **THE IMPLICATION-TIER RUN MOVED ONE PAIR, AND THE DRIFT LIST
   NAMED WHY (2026-09-30 build bd0f7ba).** close 72/94 -> 73/94:
   the near-deterministic pairs cleared (sodium-chloride <->
