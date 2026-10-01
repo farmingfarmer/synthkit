@@ -48,16 +48,35 @@ SET_AT = _gate.SET_AT
 
 
 def main():
-    if len(sys.argv) < 2:
-        sys.exit("usage: python scripts/m0_gate.py RUNDIR")
-    run = Path(sys.argv[1])
+    import argparse
+    ap = argparse.ArgumentParser(
+        description="Judge a finished run against the gate.")
+    ap.add_argument("rundir")
+    ap.add_argument("--direction-bar", type=float, default=None,
+                    help="override the direction threshold "
+                         "(default {:.1%}; clamped to "
+                         "[0.5, 1.0]; a chosen bar is stated "
+                         "beside the verdict)".format(
+                             DIRECTION_MIN))
+    ap.add_argument("--close-bar", type=float, default=None,
+                    help="override the close threshold (default "
+                         "{:.1%}; same clamp and the same "
+                         "statement - MET against YOUR bar says "
+                         "so)".format(CLOSE_MIN))
+    a = ap.parse_args()
+    run = Path(a.rundir)
     fp = run / "fidelity.json"
     if not fp.exists():
         sys.exit("no fidelity.json in {} - run `synthkit fit` with "
                  "--generate first".format(run))
     fid = json.loads(fp.read_text(encoding="utf-8"))
+    bars = {}
+    if a.direction_bar is not None:
+        bars["direction"] = a.direction_bar
+    if a.close_bar is not None:
+        bars["close"] = a.close_bar
     try:
-        verdict = _gate.assess(fid)
+        verdict = _gate.assess(fid, bars=bars or None)
     except ValueError as e:
         sys.exit(str(e))
 

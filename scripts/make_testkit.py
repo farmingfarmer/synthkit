@@ -98,6 +98,11 @@ developed now.
 
     python -m synthkit.cli gui
 
+The bench now OPENS on a HOME page - the front door: what the
+tool is in one paragraph, both routes, and how to read any page
+(the dotted-underline ? words are doors that explain themselves).
+If you are ever lost, click HOME.
+
 It is **step 02 of the measure route** in the bench - the rail
 reads 01 Source, 02 Generate, 03 Verdict - and the rules engine
 sits below under "the other engine, for comparison". The rail
@@ -111,6 +116,14 @@ Click **02 Generate** in the left rail, then fill five boxes:
     patient / entity column  person_id
     seed                     0
     privacy floor k          10
+
+On 03 Verdict you will also find two GATE BAR boxes, by team
+request: the direction and close thresholds are YOUR policy -
+set them, and the verdict states that it was met against your
+bar beside the recorded default, so a shared verdict always
+names its contract. Two things are deliberately not dials:
+INVERTED stays zero (a reversed relationship reads as a finding
+at any threshold), and bars clamp at 0.5.
 
 The k box is new, by team request: every published pattern must
 rest on at least k distinct patients. You may RAISE it - try 25

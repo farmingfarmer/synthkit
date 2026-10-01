@@ -529,6 +529,28 @@ def main():
           _rc2 == 1 and "M0 NOT MET" in _out2
           and "direction kept" in _out2 and "close" in _out2)
 
+    # THE GATE BARS REACH THE CLI, and the exit code follows the
+    # chosen bar - the k-floor refusal taught that a dispatcher
+    # can DISCARD a return value, so the flag is tested through
+    # the process boundary, not the function.
+    with tempfile.TemporaryDirectory() as _tb:
+        _d = Path(_tb)
+        (_d / "fidelity.json").write_text(
+            json.dumps({"summary": _short}), encoding="utf-8")
+        _rb = subprocess.run(
+            [sys.executable, "scripts/m0_gate.py", str(_d),
+             "--direction-bar", "0.90", "--close-bar", "0.75"],
+            capture_output=True, text=True, cwd=str(ROOT))
+    check("--direction-bar/--close-bar flip the same run from "
+          "NOT MET to MET through the process boundary, and the "
+          "printed lines say YOUR bar beside the recorded "
+          "default - a MET that does not name its contract is "
+          "a number nobody can trust (exit {})".format(
+              _rb.returncode),
+          _rb.returncode == 0 and "M0 MET" in _rb.stdout
+          and "YOUR bar" in _rb.stdout
+          and "87.9%" in _rb.stdout)
+
     # ONE VERDICT, ONE TEXT, TWO DOORS. `synthkit gate` exists so
     # the test kit works from its own folder, where scripts/ does
     # not; both doors call gate.report, and this asserts they

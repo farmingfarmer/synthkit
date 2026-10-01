@@ -1015,11 +1015,11 @@ def main():
               "what it PRODUCES - the old page said what a step was "
               "about and left you to press the button to find out "
               "the rest",
-              html.count('class="stepgoal"') == 13
-              and html.count("<dt>you need</dt>") == 13
-              and html.count("<dt>you get</dt>") == 13)
+              html.count('class="stepgoal"') == 14
+              and html.count("<dt>you need</dt>") == 14
+              and html.count("<dt>you get</dt>") == 14)
         check("...and every step ends by naming where to go next",
-              html.count('class="nextup"') == 13)
+              html.count('class="nextup"') == 14)
 
         # THE NEURAL ENGINE HAS ITS OWN STATION. The duel is how
         # we know which engine is better; it should not be the
@@ -1076,6 +1076,78 @@ def main():
                   ("how-it-learns", "the-bottleneck",
                    "how-it-generates", "k-before-training",
                    "reconstruction-gap")))
+
+        # THE FRONT DOOR. The bench used to open into step 01 of
+        # the create route - a form, before anyone was told what
+        # the tool is. A kit lands in the hands of someone who
+        # has never seen it; the first screen has to carry the
+        # one-sentence contract (learn the patterns, never copy
+        # the records), both routes, and how to read the pages.
+        check("the bench opens on a HOME landing page - default "
+              "active on the rail and in the sections - that "
+              "states the contract, both routes, the privacy "
+              "posture in one sentence, and the ?-door reading "
+              "model",
+              'data-s="home"' in html
+              and html.count('class="station active"') == 1
+              and 'data-s="home" data-route="map"><b>HOME</b>'
+                  in html.split('class="station active"')[1][:80]
+              and '<section id="s-home" class="active"' in html
+              and "learn the patterns, never copy the records"
+                  in html
+              and "floor, not a certificate" in html
+              and "home:['Home'" in html)
+        check("...and no OTHER section starts active - two "
+              "active sections render stacked, which is the "
+              "appended-after-main class of fault",
+              html.count("<section id=\"s-home\" class=\"active\"")
+              == 1
+              and html.count('class="active"') == 1)
+
+        # THE GATE BARS ARE A DIAL, WITH THE CHOICE STATED. The
+        # team asked to determine for themselves what degree
+        # passes: direction and close take a chosen bar; a MET
+        # against YOUR bar says so in the verdict line; INVERTED
+        # is not a dial and the page says why.
+        from synthkit import gate as _gt2
+        _fid9 = {"summary": {"pairs": 94, "pairs_sign_ok": 92,
+                             "pairs_close": 76,
+                             "pairs_inverted": 0}}
+        _rd = _gt2.assess(_fid9)
+        _rc = _gt2.assess(_fid9, bars={"close": 0.75})
+        _rl = _gt2.assess(_fid9, bars={"close": 0.1})
+        check("gate.assess takes bars for the two proportional "
+              "criteria: the default fails this fixture, a 0.75 "
+              "close bar passes it, and the verdict line names "
+              "it as YOUR bar beside the recorded default - a "
+              "MET that does not say which contract it met is "
+              "a number nobody can trust",
+              not _rd["met"] and _rc["met"]
+              and any("YOUR bar" in c["detail"]
+                      and "87.9%" in c["detail"]
+                      for c in _rc["criteria"]
+                      if c["name"] == "close")
+              and not _rd["bars"]["custom"]
+              and _rc["bars"]["custom"])
+        check("...bars clamp to [0.5, 1.0] - below half, 'most "
+              "patterns wrong' could read MET, which this "
+              "module will not print - and INVERTED has no bar "
+              "at all",
+              _rl["bars"]["close"] == 0.5
+              and not _gt2.assess({"summary": {
+                  "pairs": 10, "pairs_sign_ok": 10,
+                  "pairs_close": 10,
+                  "pairs_inverted": 1}},
+                  bars={"close": 0.5,
+                        "direction": 0.5})["met"])
+        check("the Verdict station carries the two bar fields "
+              "with the policy stated in their hints - YOUR "
+              "policy, stated verdicts, and the reason INVERTED "
+              "stays zero",
+              'id="vdirbar"' in html
+              and 'id="vclosebar"' in html
+              and "INVERTED is not a dial" in html
+              and "direction_bar" in html)
 
         # THE K DIAL AND THE TEMPLATES - both asked for at the
         # team demo. The k field must exist, carry the floor in

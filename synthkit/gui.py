@@ -1302,8 +1302,24 @@ def api_fit_open(payload: dict) -> dict:
                          "generation first, or check the path."
                          .format(run)}
     fid = json.loads(fp.read_text(encoding="utf-8"))
+    # THE GATE BARS ARE POLICY, AND THE OPERATOR SETS POLICY -
+    # the team asked to determine for themselves what degree
+    # passes. The two proportional criteria take a chosen bar;
+    # a chosen bar is STATED beside its verdict (a MET against
+    # a lowered bar must say so); INVERTED stays absolute, and
+    # the full-marks criteria stay full marks.
+    bars = {}
+    for key in ("direction", "close"):
+        raw = payload.get(key + "_bar")
+        if raw not in (None, ""):
+            try:
+                bars[key] = float(raw)
+            except (TypeError, ValueError):
+                return {"error": "The {} bar must be a number "
+                        "between 0.5 and 1.0 (you gave "
+                        "{!r}).".format(key, raw)}
     try:
-        verdict = _gate.assess(fid)
+        verdict = _gate.assess(fid, bars=bars or None)
     except ValueError as e:
         return {"error": str(e)}
     s = fid.get("summary") or {}
@@ -2601,8 +2617,10 @@ textarea:focus,input:focus,select:focus{
     <span id="fp" title="version &middot; built &middot; build
     fingerprint; compare with `synthkit version`">loading
     build...</span></small></div>
+  <button class="station active" data-step="8" data-s="home" data-route="map"><b>HOME</b>
+    Start here<small class="subt">what this is, in one page</small></button>
   <div class="railsplit">create from a description</div>
-  <button class="station active" data-step="1" data-s="describe" data-route="create"><b>01</b>
+  <button class="station" data-step="1" data-s="describe" data-route="create"><b>01</b>
     Describe<small class="subt">define the dataset</small></button>
   <button class="station" data-step="2" data-s="spec" data-route="create"><b>02</b>
     Spec<small class="subt">review the recipe</small></button>
@@ -2634,7 +2652,21 @@ textarea:focus,input:focus,select:focus{
   <button class="station" data-step="8" data-s="roadmap" data-route="map"><b>MAP</b>
     Roadmap<small class="subt">eight goals: built and planned</small></button>
 </nav>
-<main data-step="1" data-route="create">
+<main data-step="8" data-route="map">
+<section id="s-home" class="active" data-step="8" data-route="map">
+  <div class="stepbanner"><span class="stepchip">HOME</span><span>Synthkit &mdash; synthetic data you can check</span></div>
+  <dl class="stepgoal"><dt>you need</dt><dd>Nothing yet &mdash; this page is the front door.</dd><dt>you get</dt><dd>What this tool is, which of the two routes to take, and where every claim it makes can be checked.</dd></dl>
+  <div class="panel">
+    <h2>What this is</h2>
+    <div class="explain">Synthkit learns the statistical patterns of a real dataset and manufactures a brand-new one that behaves like it &mdash; <b>learn the patterns, never copy the records</b>. Every published pattern must rest on at least <b>k</b> distinct patients (10 by default, raisable, never lowerable), and every claim of fidelity is measured by an eight-criterion gate that will refuse, by name and with numbers, to clear a file that misses. The refusal is the product: this tool&rsquo;s answer is never &ldquo;trust us&rdquo; &mdash; it is a number, beside the way to check the number.</div>
+    <h2>Two ways in</h2>
+    <div class="explain"><b>Measure real data</b> (the main route): point step <b>01 Source</b> at any tidy CSV &mdash; one row per event &mdash; check the types, then <b>02 Generate</b> trains the autoencoder and writes a synthetic file, and <b>03 Verdict</b> grades it against the original. <b>Create from a description</b> (the other route): describe a dataset in plain English in <b>01 Describe</b> &mdash; three TEMPLATE presets are fill-in-the-blanks skeletons &mdash; review the compiled recipe, and generate from nothing; useful for rare shapes the privacy rule will never let the measure route copy.</div>
+    <h2>How to read anything here</h2>
+    <div class="explain">Words with a dotted underline and a small <b>?</b> are doors &mdash; click one and it explains itself in plain language, and the explanation&rsquo;s own terms are doors too, as deep as you want to go. Every station states what it <i>needs</i> and what it <i>produces</i> before you press anything, and ends by naming where to go next. If you are holding a test kit: START_HERE.md in the kit walks every box in order, and the standing rule is that anything you break becomes a permanent check.</div>
+    <div class="hint">The privacy posture in one sentence: k-anonymous publication over patients (never rows) plus an attack battery with planted cheats as controls &mdash; a floor, not a certificate, and not differential privacy; the pages say so wherever it matters.</div>
+  </div>
+  <div class="nextup"><span class="lbl">next</span><b>Measure 1 &mdash; Source</b><span>Have a CSV? Start there. Want to invent data from English instead? Step 1 &mdash; Describe.</span></div>
+</section>
 <header class="bar">
   <h1 id="title"><em class="tstep">Step 1</em>Describe <span>— say what data you need</span></h1>
   <div id="speccard" class="empty">
@@ -2643,7 +2675,7 @@ textarea:focus,input:focus,select:focus{
   </div>
 </header>
 
-<section id="s-describe" class="active" data-step="1">
+<section id="s-describe" data-step="1">
   <div class="stepbanner"><span class="stepchip">Step 1 of 5</span><span>Say what data you need</span></div>
   <dl class="stepgoal"><dt>you need</dt><dd>Nothing &mdash; this is the start.</dd><dt>you get</dt><dd>A plain-English description, ready to become a recipe in Step 2.</dd></dl>
   <div class="gov"><span>&#128274; Synthetic only &mdash; no real
@@ -3199,6 +3231,10 @@ textarea:focus,input:focus,select:focus{
   <dl class="stepgoal"><dt>you need</dt><dd>A finished run in the output directory from Step 1 &mdash; from Step 2, or from any terminal run this machine holds.</dd><dt>you get</dt><dd>The verdict: six gate criteria PASS/FAIL, contradiction and obedience counts, and the build the run is tied to &mdash; plus a bridge that sends the measured recipe into the exam, stating what crossed and what could not. The criteria come from one shared module, so this panel and <code>scripts/m0_gate.py</code> cannot disagree.</dd></dl>
   <div class="panel">
     <h2>Judge a finished run</h2>
+    <label>direction bar <span class="hint">(default 0.939 &mdash; the share of relationships that must keep their direction; YOUR policy, and a chosen bar is stated beside the verdict. Clamped to 0.5&ndash;1.0. INVERTED is not a dial: it stays zero, because a reversed relationship reads as a finding at any threshold.)</span>
+      <input id="vdirbar" placeholder="0.939"></label>
+    <label>close bar <span class="hint">(default 0.879 &mdash; the share that must keep their strength within 0.2)</span>
+      <input id="vclosebar" placeholder="0.879"></label>
     <button class="act" onclick="fitOpen()">Open the run in the
     output directory from Step 1</button>
     <div id="fit-verdict"></div>
@@ -3374,7 +3410,8 @@ textarea:focus,input:focus,select:focus{
    station left the heading showing the previous step's name and the
    rest of the handler never ran. The station worked, the label lied,
    and nothing said so. */
-const titles={describe:['Step 1','Describe','say what data you need'],
+const titles={home:['Home','Start here','what this is, in one page'],
+  describe:['Step 1','Describe','say what data you need'],
   spec:['Step 2','Spec','review the recipe'],
   data:['Step 3','Data','create the data'],
   campaign:['Step 4','Campaign','set the exam'],
@@ -4577,13 +4614,23 @@ async function fitOpen(){
   v.innerHTML='<div class="hint">reading the run...</div>';
   loaderSet('fit-verdict',null,'reading the run');
   const r=await api('/api/fit-open',
-                    {out:document.getElementById('fout').value});
+                    {out:document.getElementById('fout').value,
+                     direction_bar:document.getElementById(
+                       'vdirbar').value.trim(),
+                     close_bar:document.getElementById(
+                       'vclosebar').value.trim()});
   loaderDone('fit-verdict',!r.error);
   if(r.error){v.innerHTML='';
     const d=document.createElement('div');d.className='hint';
     d.textContent='STOPPED: '+r.error;v.appendChild(d);return;}
   let h='<h2>The gate &mdash; '+(r.gate.met?
     'MET on all criteria':'NOT MET')+'</h2>';
+  if(r.gate.bars&&r.gate.bars.custom)
+    h+='<div class="hint">Judged against YOUR bars (direction '+
+      (100*r.gate.bars.direction).toFixed(1)+'%, close '+
+      (100*r.gate.bars.close).toFixed(1)+'%), not the recorded '+
+      'defaults - the verdict lines state both numbers, and a '+
+      'file shared onward should carry this page with it.</div>';
   /* [[station]] tokens become miniature station buttons that
      JUMP there - guidance should show the place, not describe it */
   const chipify=t=>t.replace(/\[\[(\w+)\]\]/g,(m,k)=>{

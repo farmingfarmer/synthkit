@@ -30,12 +30,37 @@ CLOSE_MIN = 0.879
 SET_AT = 132
 
 
-def assess(fid: Dict[str, Any]) -> Dict[str, Any]:
+def assess(fid: Dict[str, Any],
+           bars: Dict[str, float] = None) -> Dict[str, Any]:
     """Judge a fidelity report against the gate.
 
-    Returns {"criteria": [...], "met": bool, "pairs": int}; each
-    criterion is {"name", "ok", "detail"}. Raises ValueError when the
-    report relates no pairs - that is a finding, not a pass."""
+    `bars` may override the DIRECTION and CLOSE thresholds - the
+    two proportional criteria are POLICY, and the operator sets
+    policy; the defaults remain the recorded ones, and a chosen
+    bar is STATED beside its verdict so a reader always knows
+    which contract a MET was met against. What is NOT a dial:
+    INVERTED stays absolute at zero, because a relationship
+    pointing the wrong way reads as a finding at any threshold;
+    and the full-marks criteria (coverage, token shares, EMPTY,
+    shapes, surfaces) stay full marks. Bars are clamped to
+    [0.5, 1.0]: below half, "most patterns wrong" could read
+    MET, which is not a policy this module will print.
+
+    Returns {"criteria": [...], "met": bool, "pairs": int,
+    "bars": {...}}; each criterion is {"name", "ok", "detail"}.
+    Raises ValueError when the report relates no pairs - that is
+    a finding, not a pass."""
+    bars = bars or {}
+
+    def _bar(name, default):
+        try:
+            v = float(bars.get(name, default))
+        except (TypeError, ValueError):
+            return default, False
+        v = min(1.0, max(0.5, v))
+        return v, abs(v - default) > 1e-9
+    dir_bar, dir_custom = _bar("direction", DIRECTION_MIN)
+    close_bar, close_custom = _bar("close", CLOSE_MIN)
     s = fid.get("summary") or {}
     pairs = int(s.get("pairs") or 0)
     if not pairs:
@@ -74,15 +99,23 @@ def assess(fid: Dict[str, Any]) -> Dict[str, Any]:
                             s.get("pairs_own_close"),
                             s.get("pairs_own_inverted"), scaf))
 
-    add("direction kept", direction >= DIRECTION_MIN,
-        "{}/{} = {:.1%}  (need {:.1%}, which is the {}/{} the gate "
-        "was set at){}".format(s.get("pairs_sign_ok"), pairs,
-                               direction, DIRECTION_MIN, 124,
-                               SET_AT, own_note))
-    add("close", close >= CLOSE_MIN,
-        "{}/{} = {:.1%}  (need {:.1%}, which is {}/{})".format(
-            s.get("pairs_close"), pairs, close, CLOSE_MIN, 116,
-            SET_AT))
+    add("direction kept", direction >= dir_bar,
+        "{}/{} = {:.1%}  ({}){}".format(
+            s.get("pairs_sign_ok"), pairs, direction,
+            "need {:.1%}, YOUR bar - the recorded default is "
+            "{:.1%}".format(dir_bar, DIRECTION_MIN)
+            if dir_custom else
+            "need {:.1%}, which is the {}/{} the gate was set "
+            "at".format(dir_bar, 124, SET_AT),
+            own_note))
+    add("close", close >= close_bar,
+        "{}/{} = {:.1%}  ({})".format(
+            s.get("pairs_close"), pairs, close,
+            "need {:.1%}, YOUR bar - the recorded default is "
+            "{:.1%}".format(close_bar, CLOSE_MIN)
+            if close_custom else
+            "need {:.1%}, which is {}/{}".format(
+                close_bar, 116, SET_AT)))
     add("inverted", inverted == 0,
         "{} - absolute, and it stays absolute: an inverted "
         "relationship reads as a finding".format(inverted))
@@ -118,7 +151,9 @@ def assess(fid: Dict[str, Any]) -> Dict[str, Any]:
 
     return {"criteria": crit,
             "met": all(c["ok"] for c in crit),
-            "pairs": pairs}
+            "pairs": pairs,
+            "bars": {"direction": dir_bar, "close": close_bar,
+                     "custom": bool(dir_custom or close_custom)}}
 
 
 # STATION REFERENCES ARE TOKENS, RENDERED BY EACH CALLER. When

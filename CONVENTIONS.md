@@ -4,7 +4,7 @@ Synthetic clinical data generator and model-evaluation instrument. Core rule: le
 
 ## Verify before claiming
 
-- Run `python scripts/run_all_smokes.py` before claiming anything works. Expect 69 suites, 2030 checks, ALL GREEN **on a checkout**. Off a zipball extract - which is what the data machine runs - it is 2021: nine checks in `smoke_buildid` need git to test the archive path and report SKIPPED without it. Both numbers were measured. Do not quote the checkout number to the data machine; that is how a correct run gets read as a failure.
+- Run `python scripts/run_all_smokes.py` before claiming anything works. Expect 69 suites, 2036 checks, ALL GREEN **on a checkout**. Off a zipball extract - which is what the data machine runs - it is 2027: nine checks in `smoke_buildid` need git to test the archive path and report SKIPPED without it. Both numbers were measured. Do not quote the checkout number to the data machine; that is how a correct run gets read as a failure.
 - **THE DEVELOPMENT MACHINE WAS BEHIND THE DATA MACHINE, and that is
   how a green suite here failed there.** Dev was on Python 3.10 with
   pandas 2.3; the data machine installs fresh and got pandas 3.0.5,
@@ -998,6 +998,23 @@ the direction that stops work happening.
   STRONGER than before the tier (-0.13/-0.16), because the
   narrow-token forcing improves the coherence Oral's own
   signal rides on.
+
+- **THE FRONT DOOR AND THE GATE DIAL (2026-10-01, follow-ups
+  from the demo).** The bench opened into step 01's FORM - a
+  first-time kit user met input boxes before anyone told them
+  what the tool is. A HOME landing page is the default station
+  now: the one-sentence contract, both routes, the privacy
+  posture in one line, and the ?-door reading model; exactly
+  one section may start active, asserted, because two active
+  sections render stacked (the appended-after-main fault
+  wearing a default). And the gate's two PROPORTIONAL criteria
+  are a dial: assess(fid, bars=...) with the bench fields and
+  m0_gate flags riding the one implementation. The policy
+  rules, stated everywhere they bind: a chosen bar is printed
+  as YOUR bar beside the recorded default (a MET that does not
+  name its contract is a number nobody can trust); bars clamp
+  to [0.5, 1.0]; INVERTED is not a dial at any setting, and
+  the full-marks criteria stay full marks.
 
 - **THE TEAM DEMO LANDED, AND ITS ASKS SHIPPED THE SAME DAY
   (2026-10-01).** Three asks from the room. (1) A USER-SETTABLE
