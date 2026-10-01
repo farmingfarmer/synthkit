@@ -4,7 +4,7 @@ Synthetic clinical data generator and model-evaluation instrument. Core rule: le
 
 ## Verify before claiming
 
-- Run `python scripts/run_all_smokes.py` before claiming anything works. Expect 69 suites, 2023 checks, ALL GREEN **on a checkout**. Off a zipball extract - which is what the data machine runs - it is 2014: nine checks in `smoke_buildid` need git to test the archive path and report SKIPPED without it. Both numbers were measured. Do not quote the checkout number to the data machine; that is how a correct run gets read as a failure.
+- Run `python scripts/run_all_smokes.py` before claiming anything works. Expect 69 suites, 2026 checks, ALL GREEN **on a checkout**. Off a zipball extract - which is what the data machine runs - it is 2017: nine checks in `smoke_buildid` need git to test the archive path and report SKIPPED without it. Both numbers were measured. Do not quote the checkout number to the data machine; that is how a correct run gets read as a failure.
 - **THE DEVELOPMENT MACHINE WAS BEHIND THE DATA MACHINE, and that is
   how a green suite here failed there.** Dev was on Python 3.10 with
   pandas 2.3; the data machine installs fresh and got pandas 3.0.5,
@@ -937,6 +937,67 @@ the direction that stops work happening.
   reader fault does NOT explain - it survived exactly as the
   prior prediction said it might, and is now isolated to the
   sparse invasive family.
+
+- **THE READER-FIX RUN CAME BACK, AND THE PREDICTIONS READ
+  ALMOST EXACTLY AS WRITTEN (2026-09-30 pm, build abe13cf).**
+  coverage 38/42 -> PASS 42/42 (the four misses were the set
+  columns); the metoclopramide inversion gone; the Dashboard's
+  set sections and the gate AGREE (procedures empty 80.7% /
+  81.1%, token bars at source scale); close 66.3% -> 76.6%
+  (72/94); direction 96.8% PASS; the twin surface's gap 1.10 ->
+  0.92, still FAIL, correctly unclaimed. And `procedure_count <-
+  mean_arterial_pressure_invasive` SURVIVED (-0.31 -> +0.23),
+  exactly the branch the prediction reserved: it is real, it is
+  not the reader fault's shadow, and it has earned a run-side
+  diagnostic rather than a fifth fixture.
+- **A DRUG IMPLIES ITS ROUTE, AND INDEPENDENT PER-COLUMN DRAWS
+  CANNOT SAY SO.** The remaining close misses cluster on CROSS-
+  set-column token pairs (has_sodium-chloride <- has_Flush 0.88
+  source, 0.58 generated; has_albuterol <- has_HH Neb 0.66 ->
+  0.23) - near-FUNCTIONAL implications: the route column is
+  essentially derived from the drug column. Each set column
+  draws its tokens from its own activations, so cross-column
+  coherence flows only through the latent and arrives at a
+  fraction of its strength. No sharpness can fix a relationship
+  the draw never consults.
+- **THE IMPLICATION TIER: detect P(b|a) >= 0.9 from the source
+  (on >= 3k rows holding a, b not near-universal), FORCE b
+  where any implying a was drawn, then RESTORE the books** -
+  b's quota by dropping its weakest non-forced picks from ANY
+  row, rows the restore empties repaired with their best
+  remaining token (the base draw's own starved-row rule), and
+  the column's empty count restored by emptying the weakest
+  unforced rows that forcing made non-empty. The first cut
+  dropped only from rows keeping >= 2 - and a route column's
+  rows mostly hold ONE route, so the excess could not drain:
+  the broad token's share overshot 0.86 -> 0.92 and the
+  surplus piled into high-score rows, flipping the regime
+  fixture's guarded negative sign to +0.01. The suite's own
+  Oral check caught it within the hour. On the
+  deterministic drug->route fixture every token pair lands ON
+  its source value (worst drop < 0.01 against 0.1-0.2 for the
+  draw alone), the empty rate holds at 8.6% vs 8.5%, and the
+  size pair n~n improves 0.65 -> 0.71 (source 0.91 - the
+  derivation oracle reads 0.85, so more remains on sizes). The
+  exactness is structural: forcing reproduces the source's own
+  P(b|a)=1 and the restores pin the marginals, so the pair
+  correlation is determined to be the source's.
+- **A BROAD TOKEN KEEPS ITS OWN PLACEMENT - the tier adopts an
+  implication only when the implied token's share is <= 0.5.**
+  Forcing b wherever any implier lands replaces b's decoded
+  signal with the UNION of independently-placed impliers, and a
+  union cannot carry a macro signal: on the two-regime fixture,
+  forcing Oral (share 0.86) via its ten implying drugs flipped
+  corr(has_Oral, count) from the draw's own -0.13 to +0.19
+  against a source -0.25 - an INVERTED verdict, manufactured by
+  the fix for a close verdict. The suite's own sign guard
+  caught it within the hour. For narrow tokens the pair
+  correlation IS the co-occurrence, which forcing fixes; with
+  the cap, the implication fixture still lands exact (worst
+  drop 0.04) and the regime fixture's Oral sign comes out
+  STRONGER than before the tier (-0.13/-0.16), because the
+  narrow-token forcing improves the coherence Oral's own
+  signal rides on.
 
 - **THE PRESSURE FADE REPRODUCED ONLY AT WIDTH, AND THE SWEEP
   EXONERATED THE SAMPLER (2026-09-30).** Dense twins do NOT

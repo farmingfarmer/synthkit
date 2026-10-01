@@ -247,6 +247,7 @@ class LatentGen:
     def fit(self, df: pd.DataFrame, group_by: str):
         from sklearn.mixture import GaussianMixture
         from sklearn.neural_network import MLPRegressor
+        self._set_inds = {}
         # `sets.vocabulary` positions its group array by the
         # frame's own index labels, so a frame that arrived
         # filtered would read somebody else's patient ids.
@@ -351,6 +352,10 @@ class LatentGen:
                          (sep, smu, ssd, float(szs.max()), tgt,
                           int(vocab["tokens_above_k"]),
                           [float(x) for x in grid])))
+                    # kept for cross-column implication
+                    # detection below - one indicator matrix per
+                    # set column, published tokens only
+                    self._set_inds[c] = (toks, ind)
                     mats.append(np.column_stack(
                         [((szs - smu) / ssd).fillna(0.0)
                          .to_numpy()] + [ind]))
@@ -592,6 +597,64 @@ class LatentGen:
         # Detected only when rho >= 0.95 on >= 200 both-present
         # rows; enforced only where both are present in the
         # generated frame.
+        # A DRUG IMPLIES ITS ROUTE, AND INDEPENDENT PER-COLUMN
+        # DRAWS CANNOT SAY SO. The real extract's remaining close
+        # misses cluster on CROSS-set-column token pairs -
+        # has_sodium-chloride <- has_Flush at 0.88 source, 0.58
+        # generated - and the relationship is near-FUNCTIONAL:
+        # the route column is essentially derived from the drug
+        # column. Each set column's tokens follow their own
+        # activations, so cross-column coherence flows only
+        # through the latent and arrives at a fraction of its
+        # strength. Detected from the source: for tokens a in
+        # column A and b in column B, keep a -> b when
+        # P(b | a) >= 0.9 on at least 3k rows holding a, and b is
+        # not near-universal anyway. Generation FORCES b where
+        # any implying a was drawn, then restores b's quota and
+        # B's empty count, so the marginals stay published while
+        # the implication holds by construction.
+        self._token_implications = []
+        _setcols = list(self._set_inds)
+        for cb in _setcols:
+            toks_b, ind_b = self._set_inds[cb]
+            pb_all = ind_b.mean(axis=0)
+            for ca in _setcols:
+                if ca == cb:
+                    continue
+                toks_a, ind_a = self._set_inds[ca]
+                na = ind_a.sum(axis=0)
+                co = ind_a.T @ ind_b        # count(a & b)
+                for j, b_ in enumerate(toks_b):
+                    # A BROAD token keeps its OWN placement.
+                    # Forcing b wherever any implier lands
+                    # replaces b's decoded signal with the UNION
+                    # of independently-placed impliers, and a
+                    # union cannot carry a macro signal - on the
+                    # two-regime fixture, forcing Oral (share
+                    # 0.86) via its ten implying drugs flipped
+                    # corr(has_Oral, count) from the draw's own
+                    # -0.13 to +0.19 against a source -0.25,
+                    # which is the INVERTED verdict, the one
+                    # absolute criterion. For a NARROW token the
+                    # pair correlation is dominated by the
+                    # co-occurrence itself - the real extract's
+                    # failing class - and forcing fixes exactly
+                    # that. The suite's own sign guard caught
+                    # this within the hour of the tier existing.
+                    if pb_all[j] > 0.5:
+                        continue
+                    imps = [toks_a[i2] for i2 in range(len(toks_a))
+                            if na[i2] >= 3 * self.k
+                            and co[i2, j] / max(na[i2], 1.0)
+                            >= 0.9]
+                    if imps:
+                        self._token_implications.append(
+                            (cb, b_, ca, imps))
+        if self._token_implications:
+            print("  {} cross-column token implication(s) "
+                  "detected (P(b|a) >= 0.9): enforced at "
+                  "generation, quotas restored".format(
+                      len(self._token_implications)))
         self._near_identities = []
         # Two DIFFERENT exclusions, and conflating them silently
         # disabled the tier: a near-CHILD must not be an exact
@@ -829,6 +892,7 @@ class LatentGen:
                  n_patients: int = None) -> pd.DataFrame:
         rng = np.random.RandomState(
             self.seed if seed is None else seed)
+        _set_state = {}
         pid = None
         if self.hierarchical:
             P = n_patients or max(
@@ -1018,6 +1082,14 @@ class LatentGen:
                     vals.append(sep.join(toks[j] for j in js)
                                 if len(js) else "")
                 out[c] = pd.Series(vals)
+                # state kept for the implication pass below -
+                # the restore needs the scores, and by frame
+                # time they are gone
+                _set_state[c] = {"toks": toks, "sep": sep,
+                                 "score": score, "pick": pick,
+                                 "t_arr": t_arr,
+                                 "n_empty": n_empty,
+                                 "rowmass": rowmass}
                 i += 1 + nt
             else:
                 levels = item[2]
@@ -1032,6 +1104,103 @@ class LatentGen:
                     [levels[min(j, len(levels) - 1)]
                      for j in idx])
                 i += len(levels)
+        # THE IMPLICATION PASS: a drug implies its route, so the
+        # implied token is FORCED where any of its impliers was
+        # drawn, and the books are balanced afterwards - the
+        # token's quota restored by dropping its weakest
+        # NON-forced picks (from rows keeping >= 2), and the
+        # column's empty count restored by emptying the weakest
+        # non-forced rows that were empty before forcing made
+        # them not. Marginals stay published; the implication
+        # holds by construction.
+        if getattr(self, "_token_implications", None) \
+                and _set_state:
+            by_b = {}
+            for cb, b_, ca, imps in self._token_implications:
+                if cb in _set_state and ca in _set_state:
+                    by_b.setdefault(cb, []).append(
+                        (b_, ca, imps))
+            for cb, rules in by_b.items():
+                st = _set_state[cb]
+                toks_b = st["toks"]
+                pick_b = st["pick"]
+                score_b = st["score"]
+                was_empty = ~pick_b.any(axis=1)
+                forced = np.zeros_like(pick_b)
+                for b_, ca, imps in rules:
+                    if b_ not in toks_b:
+                        continue
+                    jb = toks_b.index(b_)
+                    sa = _set_state[ca]
+                    ja = [sa["toks"].index(a_) for a_ in imps
+                          if a_ in sa["toks"]]
+                    if not ja:
+                        continue
+                    trig = sa["pick"][:, ja].any(axis=1)
+                    add = trig & ~pick_b[:, jb]
+                    pick_b[add, jb] = True
+                    forced[trig, jb] = True
+                    # QUOTA RESTORE, FROM ANY ROW. The first cut
+                    # dropped only from rows keeping >= 2, and a
+                    # route column's rows mostly hold ONE route -
+                    # so the excess could not drain, the broad
+                    # token's share overshot (0.86 -> 0.92), and
+                    # the surplus piled into high-score rows,
+                    # killing the very sign the regime check
+                    # guards. Dropped rows that go empty are
+                    # repaired below with their best remaining
+                    # token, which is the base draw's own
+                    # starved-row rule.
+                    nrow_b = len(pick_b)
+                    cj = int(round(min(
+                        st["t_arr"][jb] * nrow_b,
+                        nrow_b - st["n_empty"])))
+                    over_n = int(pick_b[:, jb].sum()) - cj
+                    if over_n > 0:
+                        cand = np.nonzero(
+                            pick_b[:, jb] & ~forced[:, jb])[0]
+                        if len(cand):
+                            order = cand[np.argsort(
+                                score_b[cand, jb])]
+                            pick_b[order[:over_n], jb] = False
+                # rows the restore emptied (they were non-empty
+                # by draw and are not forced) get their best
+                # remaining token back - per-token standardized,
+                # the same rule as the base draw's starved rows
+                emptied = ~pick_b.any(axis=1) & ~was_empty
+                if emptied.any():
+                    live_b = score_b[~was_empty]
+                    mu_b = live_b.mean(axis=0)
+                    sd_b2 = live_b.std(axis=0)
+                    sd_b2[sd_b2 == 0] = 1.0
+                    zb = (score_b[emptied] - mu_b) / sd_b2
+                    bestb = np.argmax(zb, axis=1)
+                    pick_b[np.nonzero(emptied)[0], bestb] = True
+                # empty-count restore: rows forced out of
+                # emptiness are compensated by emptying the
+                # weakest still-unforced non-empty rows
+                now_nonempty = pick_b.any(axis=1)
+                target_empty = st["n_empty"]
+                cur_empty = int((~now_nonempty).sum())
+                deficit = target_empty - cur_empty
+                if deficit > 0:
+                    any_forced = forced.any(axis=1)
+                    cand = np.nonzero(now_nonempty
+                                      & ~any_forced
+                                      & ~was_empty)[0]
+                    if len(cand):
+                        order = cand[np.argsort(
+                            st["rowmass"][cand])]
+                        for r in order[:deficit]:
+                            pick_b[r, :] = False
+                sep_b = st["sep"]
+                vals_b = []
+                for r in range(len(pick_b)):
+                    js = np.nonzero(pick_b[r])[0]
+                    vals_b.append(sep_b.join(
+                        toks_b[j] for j in js)
+                        if len(js) else "")
+                out[cb] = pd.Series(vals_b)
         frame = pd.DataFrame(out)
         # AFTER EVERY COLUMN EXISTS, never during the draw: the
         # set may be decoded before or after its partner and the
@@ -1600,6 +1769,63 @@ def write_run_artifacts(src, gen, group_by, outdir,
         json.dumps(bp, indent=1), encoding="utf-8")
     fid = P.compare(src, gen, bp, group_by, time_col)
     fid["generator"] = "neural"
+    # AN INVERSION THAT SURVIVES ITS FIXTURES EARNS A DIAGNOSTIC
+    # WHERE THE DATA IS. `procedure_count <- MAP_invasive`
+    # refused to reproduce on four constructions and then
+    # survived the reader fix on the real extract (-0.31 ->
+    # +0.23) - so instead of a fifth guess, every INVERTED pair
+    # whose columns exist raw in both frames is DECOMPOSED here
+    # and the pieces travel with the run: the overall sign is
+    # the sum of a conditional-value part (both present) and a
+    # presence-coupling part, and which piece flipped names the
+    # mechanism. A pair that inverts because the parent's
+    # conditional values lost their signal is a sparse-decode
+    # fault; one that inverts because presence landed on the
+    # wrong rows is a placement fault. One block decides,
+    # from the run directory alone.
+    inv_rows = (fid.get("relationships") or {}).get(
+        "inverted") or []
+    diags = []
+    for r in inv_rows:
+        ch, pa = str(r.get("child")), str(r.get("parent"))
+        if ch not in src.columns or pa not in src.columns \
+                or ch not in gen.columns or pa not in gen.columns:
+            diags.append({"child": ch, "parent": pa,
+                          "note": "scaffolding pair - measure "
+                                  "from the expanded frame"})
+            continue
+
+        def _dz(fr):
+            cv = pd.to_numeric(fr[ch], errors="coerce")
+            pv = pd.to_numeric(fr[pa], errors="coerce")
+            both = cv.notna() & pv.notna()
+            cond = (float(cv[both].corr(pv[both],
+                                        method="spearman"))
+                    if int(both.sum()) >= 30 else None)
+            pres = pv.notna().astype(float)
+            coup = (float(cv.corr(pres, method="spearman"))
+                    if pres.nunique() > 1 else None)
+            return {"conditional_value_corr": cond,
+                    "presence_coupling_corr": coup,
+                    "parent_present_share":
+                        round(float(pres.mean()), 4),
+                    "both_present_rows": int(both.sum())}
+        d = {"child": ch, "parent": pa,
+             "source": _dz(src), "generated": _dz(gen)}
+        diags.append(d)
+        sd_, gd_ = d["source"], d["generated"]
+        print("  INVERTED diagnostic {} <- {}:".format(ch, pa))
+        print("    conditional value corr  src {} gen {}".format(
+            sd_["conditional_value_corr"],
+            gd_["conditional_value_corr"]))
+        print("    presence coupling       src {} gen {}".format(
+            sd_["presence_coupling_corr"],
+            gd_["presence_coupling_corr"]))
+        print("    parent present share    src {} gen {}".format(
+            sd_["parent_present_share"],
+            gd_["parent_present_share"]))
+    if diags:
+        fid["inverted_diagnostics"] = diags
     # THE OVERFITTING NUMBER TRAVELS WITH THE RUN, so the Verdict
     # station and the sign-off page can state it rather than
     # asking the reader to go and find the terminal log.

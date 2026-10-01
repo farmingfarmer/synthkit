@@ -782,6 +782,83 @@ def main():
           all(pa not in _claimed and pb not in _claimed
               for _c, pa, pb, _w in gl._linear_identities))
 
+    # A DRUG IMPLIES ITS ROUTE, AND INDEPENDENT PER-COLUMN DRAWS
+    # CANNOT SAY SO. The remaining close misses on the real
+    # extract cluster on CROSS-set-column token pairs
+    # (has_sodium-chloride <- has_Flush: 0.88 source, 0.58
+    # generated) - near-functional implications each column's
+    # own draw cannot carry, because cross-column coherence
+    # flows only through the latent. The implication tier
+    # detects P(b|a) >= 0.9 from the source, FORCES the implied
+    # token where its implier was drawn, and restores both the
+    # token's quota and the column's empty count. On the
+    # deterministic drug->route fixture this lands every token
+    # pair on its source value exactly, because forcing
+    # reproduces the source's own structure and the restore
+    # pins the marginals.
+    ri = np.random.RandomState(4)
+    _di = ["dr{:02d}".format(i) for i in range(30)]
+    _ri = ["Oral", "IV", "IV Push", "Subcut", "Topical",
+           "Flush", "Rectal", "Chewed", "Misc", "NG-tube"]
+    _dm = dict((d, _ri[1 + (i % 9)] if i % 3 else "Oral")
+               for i, d in enumerate(_di))
+    irows = []
+    for pp in range(400):
+        lv = ri.rand()
+        for vv in range(ri.randint(3, 9)):
+            nn_ = ri.poisson(1.8 + 1.6 * lv)
+            ds = sorted(set(ri.choice(_di, nn_, p=None))) \
+                if nn_ else []
+            irows.append({
+                "person_id": "P{:04d}".format(pp),
+                "drugs": ";".join(ds),
+                "routes": ";".join(sorted(set(
+                    _dm[d] for d in ds))),
+                "sev": round(lv * 10 + ri.randn(), 3)})
+    dfimp = pd.DataFrame(irows)
+
+    def _has(fr, col, t):
+        return fr[col].astype(str).str.split(";").map(
+            lambda z: float(t in z))
+
+    gim = LatentGen(k=10, seed=0, hierarchical=True).fit(
+        dfimp, "person_id")
+    oim = gim.generate(len(dfimp), seed=1)
+    check("cross-column token implications are DETECTED from "
+          "the source - P(route|drug) >= 0.9 on enough rows - "
+          "and at least a handful exist on a fixture whose "
+          "routes are literally derived from its drugs",
+          len(gim._token_implications) >= 3)
+    _tp = [(d, _dm[d]) for d in _di[:5]]
+    _errs = []
+    for _d, _r in _tp:
+        a_ = float(pd.Series(_has(dfimp, "drugs", _d)).corr(
+            pd.Series(_has(dfimp, "routes", _r)),
+            method="spearman"))
+        b_ = float(pd.Series(_has(oim, "drugs", _d)).corr(
+            pd.Series(_has(oim, "routes", _r)),
+            method="spearman"))
+        _errs.append(abs(a_ - b_))
+    check("...and the generated drug<->route pairs land at "
+          "their source correlation (worst drop over five "
+          "pairs under 0.1; the independent draw alone left "
+          "0.1-0.2 on the strongest and the real extract "
+          "showed 0.3)",
+          max(_errs) < 0.1)
+    _es = float((dfimp["routes"].astype(str) == "").mean())
+    _eg = float((oim["routes"].astype(str) == "").mean())
+    _shs, _shg = [], []
+    for _r in set(_dm.values()):
+        _shs.append(float(_has(dfimp, "routes", _r).mean()))
+        _shg.append(float(_has(oim, "routes", _r).mean()))
+    _sherr = max(abs(a_ - b_) for a_, b_ in zip(_shs, _shg))
+    check("...and the books balance: the empty rate within "
+          "0.02 and every route token share within 0.05 of "
+          "source - forcing without the quota and empty "
+          "restores would inflate exactly what the reader bug "
+          "inflated",
+          abs(_eg - _es) < 0.02 and _sherr < 0.05)
+
     # A NEAR-IDENTITY IS AN IDENTITY ONE NOTCH RELAXED, AND THE
     # NETWORK CANNOT CARRY IT. The real extract's failing
     # pressure pairs are a SPARSE second-device twin: map_cuff_
@@ -885,10 +962,6 @@ def main():
                     _map[d] for d in ds))),
                 "sev": round(lv * 10 + rc.randn(), 3)})
     dfc = pd.DataFrame(crows)
-    def _has(fr, col, t):
-        return fr[col].astype(str).str.split(";").map(
-            lambda z: float(t in z))
-
     _cp = [("dr{:02d}".format(i), _map["dr{:02d}".format(i)])
            for i in range(4)]
     # THREE SEEDS, because a single seed of a seeded draw is not
