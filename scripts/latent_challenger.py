@@ -613,47 +613,64 @@ class LatentGen:
         # any implying a was drawn, then restores b's quota and
         # B's empty count, so the marginals stay published while
         # the implication holds by construction.
+        # CONDITIONAL QUOTAS, NOT ONLY HARD IMPLICATIONS. The
+        # P(b|a) >= 0.9 tier cleared the near-deterministic pairs
+        # (sodium-chloride <-> Flush left the drift list) and the
+        # extract's remaining fades are MODERATE conditionals on
+        # RARE tokens - docusate <-> Rectal at 0.4 -> 0.08,
+        # tacrolimus <-> NG-tube at 0.39 -> 0.1 - reproduced at
+        # width only when the paired tokens sit at 1.5-6% share:
+        # a rare token's thin activation cannot place it among
+        # its partner's rows by itself. Hard-forcing a q = 0.6
+        # conditional would overshoot it to 1.0, so each adopted
+        # token gets a QUOTA SPLIT instead: round(q * |trigger|)
+        # of its picks inside its partner's rows, the rest
+        # outside - any q lands by construction, and q ~ 1 is
+        # just the old forcing. One conditioner per token (its
+        # best by excess over base), the conditioner always from
+        # an EARLIER plan column so triggers read final state,
+        # and a broad token (base > 0.5) keeps its own placement
+        # - the Oral lesson, retained.
         self._token_implications = []
-        _setcols = list(self._set_inds)
-        for cb in _setcols:
+        _setcols = [it[1] for it in self.plan if it[0] == "set"]
+        for bi, cb in enumerate(_setcols):
             toks_b, ind_b = self._set_inds[cb]
             pb_all = ind_b.mean(axis=0)
-            for ca in _setcols:
-                if ca == cb:
-                    continue
+            # SEVERAL CONDITIONERS PER TOKEN, because one
+            # route is preferred by several drugs: with a single
+            # best conditioner, IV Push conditioned on
+            # ondansetron alone leaves its acetaminophen and
+            # metoclopramide pairs exactly as faded as before -
+            # measured: the single-conditioner cut landed only
+            # the pairs whose token happened to pick THEM.
+            cands = {}
+            for ca in _setcols[:bi]:
                 toks_a, ind_a = self._set_inds[ca]
                 na = ind_a.sum(axis=0)
                 co = ind_a.T @ ind_b        # count(a & b)
                 for j, b_ in enumerate(toks_b):
-                    # A BROAD token keeps its OWN placement.
-                    # Forcing b wherever any implier lands
-                    # replaces b's decoded signal with the UNION
-                    # of independently-placed impliers, and a
-                    # union cannot carry a macro signal - on the
-                    # two-regime fixture, forcing Oral (share
-                    # 0.86) via its ten implying drugs flipped
-                    # corr(has_Oral, count) from the draw's own
-                    # -0.13 to +0.19 against a source -0.25,
-                    # which is the INVERTED verdict, the one
-                    # absolute criterion. For a NARROW token the
-                    # pair correlation is dominated by the
-                    # co-occurrence itself - the real extract's
-                    # failing class - and forcing fixes exactly
-                    # that. The suite's own sign guard caught
-                    # this within the hour of the tier existing.
                     if pb_all[j] > 0.5:
                         continue
-                    imps = [toks_a[i2] for i2 in range(len(toks_a))
-                            if na[i2] >= 3 * self.k
-                            and co[i2, j] / max(na[i2], 1.0)
-                            >= 0.9]
-                    if imps:
-                        self._token_implications.append(
-                            (cb, b_, ca, imps))
+                    for i2 in range(len(toks_a)):
+                        if na[i2] < 3 * self.k:
+                            continue
+                        q = co[i2, j] / max(na[i2], 1.0)
+                        gain = q - pb_all[j]
+                        if gain < 0.15 or q < 1.5 * pb_all[j]:
+                            continue
+                        cands.setdefault(b_, []).append(
+                            (float(gain), ca, toks_a[i2],
+                             float(q)))
+            for b_, lst in cands.items():
+                lst.sort(reverse=True)
+                self._token_implications.append(
+                    (cb, b_, [(ca, a_, q) for _g, ca, a_, q
+                              in lst[:6]]))
         if self._token_implications:
-            print("  {} cross-column token implication(s) "
-                  "detected (P(b|a) >= 0.9): enforced at "
-                  "generation, quotas restored".format(
+            print("  {} conditional token quota(s) detected "
+                  "(P(b|a) exceeding base by >= 0.15): enforced "
+                  "at generation, marginals exact by "
+                  "construction".format(
                       len(self._token_implications)))
         self._near_identities = []
         # Two DIFFERENT exclusions, and conflating them silently
@@ -1104,98 +1121,94 @@ class LatentGen:
                     [levels[min(j, len(levels) - 1)]
                      for j in idx])
                 i += len(levels)
-        # THE IMPLICATION PASS: a drug implies its route, so the
-        # implied token is FORCED where any of its impliers was
-        # drawn, and the books are balanced afterwards - the
-        # token's quota restored by dropping its weakest
-        # NON-forced picks (from rows keeping >= 2), and the
-        # column's empty count restored by emptying the weakest
-        # non-forced rows that were empty before forcing made
-        # them not. Marginals stay published; the implication
-        # holds by construction.
+        # THE CONDITIONAL-QUOTA PASS. Each adopted token b is
+        # REASSIGNED: round(q * |trigger|) of its exactly-cj
+        # picks go to the rows where its conditioner landed
+        # (best by b's own score within them), the rest to the
+        # best rows outside. Marginals stay exactly cj by
+        # construction; empty rows stay empty (selection is
+        # over live rows only); rows the reassignment starves
+        # are repaired with their best remaining token, the base
+        # draw's own rule. Conditioners come from EARLIER plan
+        # columns only, so a trigger always reads a column that
+        # will not move again.
         if getattr(self, "_token_implications", None) \
                 and _set_state:
             by_b = {}
-            for cb, b_, ca, imps in self._token_implications:
-                if cb in _set_state and ca in _set_state:
+            for cb, b_, conds in self._token_implications:
+                conds = [(ca, a_, q) for ca, a_, q in conds
+                         if ca in _set_state]
+                if cb in _set_state and conds:
                     by_b.setdefault(cb, []).append(
-                        (b_, ca, imps))
+                        (b_, conds))
             for cb, rules in by_b.items():
                 st = _set_state[cb]
                 toks_b = st["toks"]
                 pick_b = st["pick"]
                 score_b = st["score"]
-                was_empty = ~pick_b.any(axis=1)
-                forced = np.zeros_like(pick_b)
-                for b_, ca, imps in rules:
+                live = score_b[:, 0] > -1e17
+                nrow_b = len(pick_b)
+                avail_b = int(live.sum())
+                pre_nonempty = pick_b.any(axis=1)
+                for b_, conds in rules:
                     if b_ not in toks_b:
                         continue
                     jb = toks_b.index(b_)
-                    sa = _set_state[ca]
-                    ja = [sa["toks"].index(a_) for a_ in imps
-                          if a_ in sa["toks"]]
-                    if not ja:
-                        continue
-                    trig = sa["pick"][:, ja].any(axis=1)
-                    add = trig & ~pick_b[:, jb]
-                    pick_b[add, jb] = True
-                    forced[trig, jb] = True
-                    # QUOTA RESTORE, FROM ANY ROW. The first cut
-                    # dropped only from rows keeping >= 2, and a
-                    # route column's rows mostly hold ONE route -
-                    # so the excess could not drain, the broad
-                    # token's share overshot (0.86 -> 0.92), and
-                    # the surplus piled into high-score rows,
-                    # killing the very sign the regime check
-                    # guards. Dropped rows that go empty are
-                    # repaired below with their best remaining
-                    # token, which is the base draw's own
-                    # starved-row rule.
-                    nrow_b = len(pick_b)
                     cj = int(round(min(
-                        st["t_arr"][jb] * nrow_b,
-                        nrow_b - st["n_empty"])))
-                    over_n = int(pick_b[:, jb].sum()) - cj
-                    if over_n > 0:
-                        cand = np.nonzero(
-                            pick_b[:, jb] & ~forced[:, jb])[0]
-                        if len(cand):
-                            order = cand[np.argsort(
-                                score_b[cand, jb])]
-                            pick_b[order[:over_n], jb] = False
-                # rows the restore emptied (they were non-empty
-                # by draw and are not forced) get their best
-                # remaining token back - per-token standardized,
-                # the same rule as the base draw's starved rows
-                emptied = ~pick_b.any(axis=1) & ~was_empty
-                if emptied.any():
-                    live_b = score_b[~was_empty]
-                    mu_b = live_b.mean(axis=0)
-                    sd_b2 = live_b.std(axis=0)
+                        st["t_arr"][jb] * nrow_b, avail_b)))
+                    pick_b[:, jb] = False
+                    any_trig = np.zeros(nrow_b, dtype=bool)
+                    budget = cj
+                    # strongest conditioner first; each gets its
+                    # own q on ITS trigger rows, overlaps counted
+                    # once via the running pick state
+                    for ca, a_, q in conds:
+                        if budget <= 0:
+                            break
+                        sa = _set_state[ca]
+                        if a_ not in sa["toks"]:
+                            continue
+                        ja = sa["toks"].index(a_)
+                        trig = sa["pick"][:, ja] & live
+                        any_trig |= trig
+                        n_t = int(trig.sum())
+                        have = int((pick_b[:, jb]
+                                    & trig).sum())
+                        need = int(min(round(q * n_t) - have,
+                                       budget))
+                        if need <= 0:
+                            continue
+                        free = trig & ~pick_b[:, jb]
+                        fi = np.nonzero(free)[0]
+                        if not len(fi):
+                            continue
+                        order = fi[np.argsort(
+                            -score_b[fi, jb])]
+                        take = order[:need]
+                        pick_b[take, jb] = True
+                        budget -= len(take)
+                    rest = live & ~any_trig
+                    want_r = int(min(budget, int(rest.sum())))
+                    if want_r > 0:
+                        rs_idx = np.nonzero(rest)[0]
+                        order = rs_idx[np.argsort(
+                            -score_b[rs_idx, jb])]
+                        pick_b[order[:want_r], jb] = True
+                # starved-row repair: rows the reassignment left
+                # with nothing, that the draw had made non-empty
+                starved = live & pre_nonempty \
+                    & ~pick_b.any(axis=1)
+                if starved.any():
+                    live_sc = score_b[live]
+                    mu_b = live_sc.mean(axis=0)
+                    sd_b2 = live_sc.std(axis=0)
                     sd_b2[sd_b2 == 0] = 1.0
-                    zb = (score_b[emptied] - mu_b) / sd_b2
+                    zb = (score_b[starved] - mu_b) / sd_b2
                     bestb = np.argmax(zb, axis=1)
-                    pick_b[np.nonzero(emptied)[0], bestb] = True
-                # empty-count restore: rows forced out of
-                # emptiness are compensated by emptying the
-                # weakest still-unforced non-empty rows
-                now_nonempty = pick_b.any(axis=1)
-                target_empty = st["n_empty"]
-                cur_empty = int((~now_nonempty).sum())
-                deficit = target_empty - cur_empty
-                if deficit > 0:
-                    any_forced = forced.any(axis=1)
-                    cand = np.nonzero(now_nonempty
-                                      & ~any_forced
-                                      & ~was_empty)[0]
-                    if len(cand):
-                        order = cand[np.argsort(
-                            st["rowmass"][cand])]
-                        for r in order[:deficit]:
-                            pick_b[r, :] = False
+                    pick_b[np.nonzero(starved)[0], bestb] = True
                 sep_b = st["sep"]
                 vals_b = []
-                for r in range(len(pick_b)):
+                for r in range(nrow_b):
                     js = np.nonzero(pick_b[r])[0]
                     vals_b.append(sep_b.join(
                         toks_b[j] for j in js)

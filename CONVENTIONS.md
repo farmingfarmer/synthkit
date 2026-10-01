@@ -999,6 +999,42 @@ the direction that stops work happening.
   narrow-token forcing improves the coherence Oral's own
   signal rides on.
 
+- **THE IMPLICATION-TIER RUN MOVED ONE PAIR, AND THE DRIFT LIST
+  NAMED WHY (2026-09-30 build bd0f7ba).** close 72/94 -> 73/94:
+  the near-deterministic pairs cleared (sodium-chloride <->
+  Flush LEFT the list; n~n 0.58 -> 0.63) and eleven MODERATE
+  pairs on RARE tokens remained - docusate <-> Rectal 0.4 ->
+  0.08, tacrolimus <-> NG-tube 0.39 -> 0.1 - all BELOW the
+  P(b|a) >= 0.9 bar, where hard forcing would overshoot a 0.6
+  conditional to 1.0.
+- **THE CLASS REPRODUCES ONLY WHEN THE TOKENS ARE RARE AND THE
+  FRAME IS WIDE.** Moderate conditionals on COMMON tokens
+  survive the draw even at width (measured, worst drop ~0.1);
+  the same conditionals on tokens at 1.5-6% share fade to half
+  strength at width (source +0.37/+0.72/+0.62 -> +0.17/+0.35/
+  +0.41) - a rare token's thin activation cannot place it among
+  its partner's rows by itself. Two negatives and a positive,
+  all needed before the mechanism had its true name: not
+  "co-occurrence", but RARE-token co-occurrence at width.
+- **CONDITIONAL QUOTAS SUBSUME THE IMPLICATION TIER.** Each
+  adopted token b gets a quota SPLIT: round(q * |trigger|) of
+  its exactly-cj picks inside its conditioner's rows (best by
+  b's own score), the rest outside - any q lands by
+  construction and q ~ 1 IS the old forcing. Adoption: q
+  exceeding base by >= 0.15 and 1.5x, base <= 0.5 (the Oral
+  lesson retained), conditioners from EARLIER plan columns only
+  so a trigger reads a column that will not move again.
+- **AND ONE CONDITIONER PER TOKEN UNDER-COVERS, measured before
+  it shipped.** One route is preferred by several drugs: with a
+  single best conditioner, IV-Push-conditioned-on-ondansetron
+  leaves its acetaminophen and metoclopramide pairs exactly as
+  faded as before - the single-conditioner cut landed only the
+  pairs whose token happened to pick THEM (3 of 8). Up to six
+  conditioners per token now, strongest first, overlaps counted
+  once through the running pick state, budget capped at cj. On
+  the rare-wide fixture ALL EIGHT pairs land on source (worst
+  drop 0.04, both seeds).
+
 - **THE PRESSURE FADE REPRODUCED ONLY AT WIDTH, AND THE SWEEP
   EXONERATED THE SAMPLER (2026-09-30).** Dense twins do NOT
   reproduce it (the engine OVER-correlates them, 0.989 vs
