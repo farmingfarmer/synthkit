@@ -663,9 +663,14 @@ class LatentGen:
                              float(q)))
             for b_, lst in cands.items():
                 lst.sort(reverse=True)
+                # ALL qualifying conditioners, not a top-N: on
+                # the real extract one route is implied by a
+                # dozen drugs, and a partner outside a cap gets
+                # no allocation while the rest-fill excludes its
+                # rows - the budget caps the total on its own.
                 self._token_implications.append(
                     (cb, b_, [(ca, a_, q) for _g, ca, a_, q
-                              in lst[:6]]))
+                              in lst]))
         if self._token_implications:
             print("  {} conditional token quota(s) detected "
                   "(P(b|a) exceeding base by >= 0.15): enforced "
@@ -1743,7 +1748,7 @@ def run_support(argv):
 
 def write_run_artifacts(src, gen, group_by, outdir,
                         time_col=None, source_name="(source)",
-                        reconstruction=None):
+                        reconstruction=None, gen_engine=None):
     """Make the neural output READABLE BY THE REST OF THE BENCH.
 
     The Verdict station and the Dashboard both key off artifacts
@@ -1796,6 +1801,61 @@ def write_run_artifacts(src, gen, group_by, outdir,
     # fault; one that inverts because presence landed on the
     # wrong rows is a placement fault. One block decides,
     # from the run directory alone.
+    # DID THE QUOTAS LAND? The conditional-quota tier reads
+    # exact on every fixture and moved ONE pair on the real
+    # extract - so the run now measures its own enforcement:
+    # for each adopted token, the corr of (token, its top
+    # conditioner) on both tables. If these land while the
+    # gate's close criterion does not move, the drift list's
+    # pairs are NOT the adopted pairs and the adoption gates
+    # are the question; if these do NOT land, the enforcement
+    # is broken at extract scale. One block decides, from the
+    # run directory.
+    tq = getattr(gen_engine, "_token_implications", None) \
+        if gen_engine is not None else None
+    if tq:
+        from synthkit import sets as _S2
+        landing = []
+        for cb, b_, conds in tq[:40]:
+            if not conds or cb not in src.columns:
+                continue
+            ca, a_, q = conds[0]
+            if ca not in src.columns:
+                continue
+            sep_b = _S2._separator(
+                src[cb].dropna().astype(str).str.strip()
+                .pipe(lambda t: t[t.str.len() > 0]))
+            sep_a = _S2._separator(
+                src[ca].dropna().astype(str).str.strip()
+                .pipe(lambda t: t[t.str.len() > 0]))
+            if not sep_b or not sep_a:
+                continue
+
+            def _corr(fr):
+                x = _S2.has_token(fr[ca], sep_a, a_).fillna(0)
+                y = _S2.has_token(fr[cb], sep_b, b_).fillna(0)
+                return (float(x.corr(y, method="spearman"))
+                        if x.std() > 0 and y.std() > 0 else None)
+            landing.append({
+                "token": "{}__has__{}".format(cb, b_),
+                "conditioner": "{}__has__{}".format(ca, a_),
+                "q": round(q, 3),
+                "source": _corr(src), "generated": _corr(gen)})
+        if landing:
+            fid["quota_landing"] = landing
+            miss = [d for d in landing
+                    if d["source"] is not None
+                    and d["generated"] is not None
+                    and abs(d["source"] - d["generated"]) > 0.15]
+            print("  quota landing: {} adopted pairs measured, "
+                  "{} off by more than 0.15{}".format(
+                      len(landing), len(miss),
+                      " - " + "; ".join(
+                          "{}~{} {:+.2f}->{:+.2f}".format(
+                              d["token"][-14:],
+                              d["conditioner"][-14:],
+                              d["source"], d["generated"])
+                          for d in miss[:4]) if miss else ""))
     inv_rows = (fid.get("relationships") or {}).get(
         "inverted") or []
     diags = []
@@ -2010,7 +2070,7 @@ def run_csv(argv):
                     write_run_artifacts(
                         df, gen, a.group_by, outd,
                         source_name=a.csv,
-                        reconstruction=rg)
+                        reconstruction=rg, gen_engine=g)
                     print("  wrote blueprint.json, fidelity.json "
                           "and generated.csv - the Verdict "
                           "station and the Dashboard can read "

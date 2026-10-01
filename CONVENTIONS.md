@@ -999,6 +999,33 @@ the direction that stops work happening.
   narrow-token forcing improves the coherence Oral's own
   signal rides on.
 
+- **THE QUOTA RUN MOVED ONE PAIR, THE FIXTURES LAND EXACT, AND
+  THE RUN NOW MEASURES ITS OWN ENFORCEMENT (2026-09-30 night,
+  build 0991b3e).** close 73/94 -> 74/94 while the rare-wide
+  fixture lands all eight pairs within 0.04 - and through the
+  FULL CLI disk path within 0.06 (12 quotas adopted, close
+  135/136). The build-to-build pair wiggles on the extract
+  (ondansetron 0.54 -> 0.36, docusate 0.08 -> 0.14, mixed
+  directions) read as single-seed draw variance, which this
+  file already forbids chasing. The honest open question -
+  does adoption or enforcement differ at extract scale - is
+  one no fixture here has answered, so the run answers it
+  itself: `quota_landing` in fidelity.json measures every
+  adopted token against its top conditioner on BOTH tables and
+  prints the verdict. If those land while close does not move,
+  the drift pairs are not the adopted pairs and the ADOPTION
+  gates are the question; if they do not land, ENFORCEMENT
+  breaks at scale. Same move as the inverted diagnostic, same
+  reason: a fifth fixture would be a fifth guess.
+- **AND THE CONDITIONER CAP IS GONE.** Top-6-by-gain could
+  exclude exactly the partners the gate measures (a route on
+  the extract is implied by a dozen drugs) while the rest-fill
+  excluded their rows. All qualifying conditioners now; the
+  budget bounds the total on its own. The cap-harm fixture
+  built to prove it could NOT reproduce harm - recorded as a
+  negative, the uncapping ships on coverage grounds, not on a
+  measured rescue.
+
 - **THE 23-SHAPE SWEEP WAS RE-RUN AFTER THE FIDELITY TIERS
   LANDED (2026-09-30 evening): 23 of 23 clean.** The kit's
   "handles your data" claim was measured before the reader fix,
