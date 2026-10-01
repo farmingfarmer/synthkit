@@ -31,7 +31,7 @@ TERMS: Dict[str, Dict[str, str]] = {
 
 "k-rule": {"title": "The k rule",
  "body": "Nothing is published unless at least <b>k</b> different "
- "people stand behind it (k is 10 here). A value held by three "
+ "people stand behind it . k is 10 by default, and the Generate station lets you RAISE it - a stronger guarantee that visibly costs fidelity, with every page stating which k it was built under. It cannot go below 10: beneath that, a pattern starts describing individuals. A value held by three "
  "patients never leaves the machine; a pattern shared by "
  "hundreds does. This one rule is why the synthetic data can be "
  "shared at all.<br><br>It is counted in [[patients-not-rows]], "

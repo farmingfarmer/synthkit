@@ -104,12 +104,21 @@ sits below under "the other engine, for comparison". The rail
 used to be the other way round, which meant the path the bench
 walked you down generated with the engine we measure AGAINST.
 
-Click **02 Generate** in the left rail, then fill four boxes:
+Click **02 Generate** in the left rail, then fill five boxes:
 
     source CSV path          clinic/demo_clinic.csv   (full path)
     output directory         neural1                  (full path)
     patient / entity column  person_id
     seed                     0
+    privacy floor k          10
+
+The k box is new, by team request: every published pattern must
+rest on at least k distinct patients. You may RAISE it - try 25
+and compare the two dashboards; the stronger guarantee visibly
+costs fidelity, and every page states which k it was built
+under. You cannot lower it below 10: the tool refuses, with the
+reason, because below 10 a pattern starts describing
+individuals.
 
 Press **Generate**, wait for "written in NNNs", then press
 **Review the output**. The review leads with whether a patient
@@ -124,6 +133,17 @@ Read the closing section of the review page once. It says what
 the page does NOT measure, which is safety: the neural engine
 learns from records, and that is a different posture from the
 rules engine.
+
+## 5b. DESCRIBE FROM SCRATCH, WITH TEMPLATES
+
+The create route (01 Describe) builds data from ENGLISH, from
+nothing - useful for outliers and rare shapes the k rule will
+never let the measure route copy. Three presets named TEMPLATE
+are fill-in-the-blanks skeletons: pick one, replace every
+bracketed part with your own domain, compile, and then measure
+the result with the same instruments. The honest exercise: you
+know your data well - describe it from memory, generate it, and
+let the dashboard show you how well you actually knew it.
 
 ## 6. YOUR OWN DATA
 

@@ -278,6 +278,58 @@ def api_presets() -> dict:
                     "days, potassium normally distributed around "
                     "4.1, ten percent missing results, occasional "
                     "wrong-value dates, a few duplicate rows"},
+        # TEMPLATES FOR PEOPLE NOT IN THE KNOW - asked for in
+        # the team demo: a newcomer should be able to start from
+        # a skeleton and swap in their own domain, rather than
+        # face a blank box. Each is ENGLISH, editable, and
+        # deliberately generic: the exercise is describing data
+        # you know well enough to specify, then measuring how
+        # well you actually knew it.
+        {"name": "TEMPLATE - describe your own tabular data",
+         "kind": "table",
+         "description": "a fill-in-the-blanks skeleton: edit "
+                        "every bracketed part to match a "
+                        "dataset you know, then compile and "
+                        "compare against your expectations",
+         "english": "a [500]-row [your domain] extract: a "
+                    "[record id] column; an [entity id] column "
+                    "where each [person/site/device] appears "
+                    "[3 to 8] times; a [category] column with "
+                    "levels [A, B, C] weighted toward [A]; a "
+                    "[measurement] column normally distributed "
+                    "around [value] with spread [value]; a "
+                    "[date] column spanning [a year] where "
+                    "[later records trend higher]; [10] percent "
+                    "missing [measurement]; and a relationship "
+                    "where [measurement rises with category B]"},
+        {"name": "TEMPLATE - appointments / scheduling table",
+         "kind": "table",
+         "description": "generic operations shape: entities, "
+                        "dates, categories, a no-show pattern "
+                        "to rediscover",
+         "english": "a 400-row appointment table: appointment "
+                    "id, patient id appearing one to six times, "
+                    "clinic site from five sites weighted "
+                    "unevenly, scheduled date across six "
+                    "months, visit type from new/follow-up/"
+                    "procedure, a no-show flag at 12 percent "
+                    "overall but twice as likely for new "
+                    "visits, and lead-time in days where longer "
+                    "lead time raises no-show odds"},
+        {"name": "TEMPLATE - device / sensor readings",
+         "kind": "table",
+         "description": "generic longitudinal shape: repeated "
+                        "readings per device with drift and a "
+                        "fault pattern",
+         "english": "a 600-row sensor readings table: device id "
+                    "with twenty devices read thirty times "
+                    "each, a reading timestamp over one month, "
+                    "a temperature reading around 70 with "
+                    "spread 5 that drifts upward over the "
+                    "month, a battery percentage declining per "
+                    "device over time, and an error flag at 5 "
+                    "percent that is three times more likely "
+                    "when battery is below 20"},
         {"name": "Progress notes corpus",
          "kind": "document",
          "description": "the reference clinical-notes vertical "
@@ -1347,9 +1399,17 @@ def _latent_work(payload: dict) -> dict:
         return {"error": "scripts/latent_challenger.py is not "
                          "beside this install - run from the "
                          "repository checkout."}
+    # the chosen k rides the SAME CLI flag a terminal would
+    # use; the engine re-validates the floor, so the bench and
+    # the command line cannot disagree about what is allowed
+    try:
+        k = int(payload.get("k") or 10)
+    except (TypeError, ValueError):
+        k = 10
     cmd = [_sys.executable, "-u", str(script), "csv", src,
            "--group-by", payload.get("group_by") or "person_id",
            "--seeds", str(payload.get("seed") or 0),
+           "--k", str(k),
            "--out", out]
     log = Path(out) / "bench_latent_log.txt"
     with log.open("w", encoding="utf-8") as fh:
@@ -3203,6 +3263,8 @@ textarea:focus,input:focus,select:focus{
       <input id="ngroup" value="person_id"></label>
     <label>seed
       <input id="nseed" value="0"></label>
+    <label>privacy floor k <span class="hint">(minimum 10 &mdash; every published pattern must rest on at least k distinct patients; RAISING k strengthens the guarantee and costs fidelity, and the trade is reported, never silent. It cannot be lowered: below 10, a pattern starts describing individuals.)</span>
+      <input id="nk" value="10"></label>
     <button class="act" onclick="neuralRun()">Generate</button>
     <button class="act ghost" onclick="neuralReview()">Review the output</button>
     <div class="out" id="neural-out">Nothing yet.</div>
@@ -4590,7 +4652,8 @@ function nPayload(){
   return {src:document.getElementById('nsrc').value.trim(),
     out:document.getElementById('nout').value.trim(),
     group_by:document.getElementById('ngroup').value.trim(),
-    seed:document.getElementById('nseed').value.trim()||'0'};}
+    seed:document.getElementById('nseed').value.trim()||'0',
+    k:document.getElementById('nk').value.trim()||'10'};}
 function nLatentPath(){
   const d=document.getElementById('nout').value.trim();
   const sd=document.getElementById('nseed').value.trim()||'0';
@@ -4601,6 +4664,15 @@ async function neuralRun(){
   const p=nPayload();
   if(!p.src||!p.out){o.textContent='STOPPED: give the source '+
     'CSV and an output directory.';return;}
+  /* the k floor is refused HERE as well as in the engine - a
+     wrong value should stop before minutes of training, and
+     the same sentence appears in both places */
+  const kv=parseInt(p.k,10);
+  if(!(kv>=10)){o.textContent='STOPPED: k must be a whole '+
+    'number of at least 10. The floor exists because a pattern '+
+    'resting on fewer than 10 distinct patients begins to '+
+    'describe individuals; k may be raised, never lowered.';
+    return;}
   loaderSet('neural-out',null,'training the neural engine');
   const r=await api('/api/latent-run',p);
   if(r.error){loaderDone('neural-out',false);

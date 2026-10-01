@@ -79,13 +79,16 @@ def main():
         # ---------- presets ----------
         status, raw = get("/api/presets")
         presets = json.loads(raw)["presets"]
-        check("presets carry specs, an English brief, and a "
-              "document spec",
-              len(presets) == 5
+        check("presets carry specs, an English brief, THREE "
+              "editable templates for newcomers, and a document "
+              "spec",
+              len(presets) == 8
               and "spec" in presets[0]
               and "spec" in presets[1]
               and "english" in presets[3]
-              and presets[4]["kind"] == "document")
+              and sum(1 for q in presets
+                      if q["name"].startswith("TEMPLATE")) == 3
+              and presets[-1]["kind"] == "document")
 
         # ---------- validation ----------
         good = reference_table(rows=40).to_json()
@@ -223,7 +226,7 @@ def main():
         check("the vendor demo leads the presets, encounter "
               "benchmark second, both carrying declared "
               "prevalence",
-              len(presets) == 5
+              len(presets) == 8
               and presets[0]["name"].startswith(
                   "CHF readmission")
               and presets[0]["spec"]["outcomes"][0][
@@ -343,8 +346,11 @@ def main():
               "async LLM route",
               'id="rbackend"' in html and "render-async"
               in gui.PAGE and "renderDone" in gui.PAGE)
-        doc_spec = json.loads(get("/api/presets")[1])[
-            "presets"][4]
+        # by KIND, not position - the template presets inserted
+        # mid-list shifted every positional index after them
+        doc_spec = [q for q in json.loads(
+            get("/api/presets")[1])["presets"]
+            if q["kind"] == "document"][0]
         d = post("/api/render",
                  {"kind": "document",
                   "spec": json.dumps(doc_spec["spec"]),
@@ -1070,6 +1076,38 @@ def main():
                   ("how-it-learns", "the-bottleneck",
                    "how-it-generates", "k-before-training",
                    "reconstruction-gap")))
+
+        # THE K DIAL AND THE TEMPLATES - both asked for at the
+        # team demo. The k field must exist, carry the floor in
+        # its own words, and reach the CLI command (a dial that
+        # is read but not used is the --time-col failure); the
+        # Describe presets must include editable ENGLISH
+        # templates a newcomer can adapt to their own domain.
+        from synthkit.gui import _latent_work as _lw
+        import inspect as _ins
+        _lws = _ins.getsource(_lw)
+        check("the Generate panel has a privacy-floor k field "
+              "whose hint states both halves of the contract - "
+              "raising is a stated trade, lowering is refused "
+              "with the reason - and the bench passes it to the "
+              "SAME CLI flag a terminal would use",
+              'id="nk"' in html
+              and "minimum 10" in html
+              and "RAISING k" in html
+              and "describing individuals" in html.replace(
+                  "describe individuals", "describing individuals")
+              and '"--k", str(k)' in _lws)
+        from synthkit.gui import api_presets as _ap
+        _ps = _ap()["presets"]
+        _tpl = [q for q in _ps
+                if q["name"].startswith("TEMPLATE")]
+        check("the Describe presets include fill-in ENGLISH "
+              "templates for people not in the know - a "
+              "skeleton, a scheduling shape, a sensor shape - "
+              "each editable text, not a fixed spec",
+              len(_tpl) >= 3
+              and all(q.get("english") for q in _tpl)
+              and any("[" in q["english"] for q in _tpl))
 
         # THE AUTOENCODER IS THE MEASURE ROUTE'S STEP 02, and
         # a rail is a claim about which engine the tool leads

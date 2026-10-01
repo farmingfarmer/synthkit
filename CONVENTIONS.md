@@ -4,7 +4,7 @@ Synthetic clinical data generator and model-evaluation instrument. Core rule: le
 
 ## Verify before claiming
 
-- Run `python scripts/run_all_smokes.py` before claiming anything works. Expect 69 suites, 2026 checks, ALL GREEN **on a checkout**. Off a zipball extract - which is what the data machine runs - it is 2017: nine checks in `smoke_buildid` need git to test the archive path and report SKIPPED without it. Both numbers were measured. Do not quote the checkout number to the data machine; that is how a correct run gets read as a failure.
+- Run `python scripts/run_all_smokes.py` before claiming anything works. Expect 69 suites, 2030 checks, ALL GREEN **on a checkout**. Off a zipball extract - which is what the data machine runs - it is 2021: nine checks in `smoke_buildid` need git to test the archive path and report SKIPPED without it. Both numbers were measured. Do not quote the checkout number to the data machine; that is how a correct run gets read as a failure.
 - **THE DEVELOPMENT MACHINE WAS BEHIND THE DATA MACHINE, and that is
   how a green suite here failed there.** Dev was on Python 3.10 with
   pandas 2.3; the data machine installs fresh and got pandas 3.0.5,
@@ -998,6 +998,29 @@ the direction that stops work happening.
   STRONGER than before the tier (-0.13/-0.16), because the
   narrow-token forcing improves the coherence Oral's own
   signal rides on.
+
+- **THE TEAM DEMO LANDED, AND ITS ASKS SHIPPED THE SAME DAY
+  (2026-10-01).** Three asks from the room. (1) A USER-SETTABLE
+  k WITH A FLOOR: --k on the csv CLI and a fifth box on the
+  Generate panel; raising k is a stated trade (the k=40 bound
+  sits strictly inside the k=10 bound - asserted, because a
+  dial that is read but not used is the --time-col failure);
+  lowering below 10 is REFUSED with the same sentence at the
+  bench and the CLI, before any training. The chosen k rides
+  the blueprint's `bounds_are_k_anonymous`, which every deck
+  page already reads - so "fewer than N patients" went dynamic
+  for free. One bug en route: run_csv's return value was
+  DISCARDED by the dispatcher, so the floor refusal exited 0 -
+  a refused run reporting success. (2) TEMPLATES for people not
+  in the know: three editable-English presets (a
+  fill-in-the-blanks skeleton, a scheduling shape, a sensor
+  shape); inserting them mid-list broke a positional
+  presets[4] in a check, now selected by KIND. (3) The Keck
+  push: a single clean filtered commit, never our history;
+  exclusion list and both command blocks (Mac and data-machine,
+  one command per line) in the operator's export file; the
+  export runs 68 suites green because smoke_no_personal - which
+  contains the scan patterns themselves - stays home.
 
 - **THE QUOTA RUN MOVED ONE PAIR, THE FIXTURES LAND EXACT, AND
   THE RUN NOW MEASURES ITS OWN ENFORCEMENT (2026-09-30 night,

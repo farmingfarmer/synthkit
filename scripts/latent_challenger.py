@@ -1748,7 +1748,8 @@ def run_support(argv):
 
 def write_run_artifacts(src, gen, group_by, outdir,
                         time_col=None, source_name="(source)",
-                        reconstruction=None, gen_engine=None):
+                        reconstruction=None, gen_engine=None,
+                        k=K):
     """Make the neural output READABLE BY THE REST OF THE BENCH.
 
     The Verdict station and the Dashboard both key off artifacts
@@ -1781,7 +1782,10 @@ def write_run_artifacts(src, gen, group_by, outdir,
     print("  measuring what the real data contains (this is the "
           "slow part) ...")
     cat = _disc(src, group_by=group_by)
-    bp = B.build(src, cat, group_by=group_by)
+    # the CHOSEN k travels on the blueprint, and every page that
+    # says "fewer than N patients" reads it from there - one
+    # number, stated where it binds
+    bp = B.build(src, cat, group_by=group_by, k=k)
     bp["generator"] = "neural"
     (outdir / "blueprint.json").write_text(
         json.dumps(bp, indent=1), encoding="utf-8")
@@ -1966,15 +1970,36 @@ def run_csv(argv):
                     help="disable the k-aware blur - for "
                          "MEASURING what it costs and buys, "
                          "never for a release")
+    ap.add_argument("--k", type=int, default=K,
+                    help="the k-anonymity floor: no published "
+                         "pattern may rest on fewer than k "
+                         "distinct patients. {} is the minimum "
+                         "and the default; RAISING it trades "
+                         "fidelity for a stronger guarantee, "
+                         "and the trade is reported, not "
+                         "silent".format(K))
     ap.add_argument("--denoise", type=float, default=0.3,
                     help="train as a DENOISING autoencoder with "
                          "this input-noise sd - the defense on "
                          "the weights surface")
     a = ap.parse_args(argv)
+    # THE FLOOR IS A FLOOR. The team asked for a user-settable k
+    # with clarity on what can and cannot move: HIGHER is a
+    # policy choice the operator may make; LOWER is not offered,
+    # because below 10 distinct patients a published pattern
+    # starts describing individuals, which is the one thing this
+    # tool exists to refuse.
+    if a.k < K:
+        print("STOP: --k {} is below the floor of {}. The floor "
+              "exists because a pattern resting on fewer than "
+              "{} distinct patients begins to describe "
+              "individuals; k may be raised, never lowered."
+              .format(a.k, K, K), file=sys.stderr)
+        return 2
     seeds = [int(x) for x in a.seeds.split(",")]
-    print("csv: --group-by {} --seeds {} --out {} --shares {}"
-          .format(a.group_by, a.seeds, a.out or "(none)",
-                  a.shares or "(none)"))
+    print("csv: --group-by {} --seeds {} --out {} --shares {} "
+          "--k {}".format(a.group_by, a.seeds, a.out or "(none)",
+                          a.shares or "(none)", a.k))
     df = _read_source(a.csv)
     print("read {}: {} rows x {} columns, {} patients".format(
         a.csv, len(df), df.shape[1],
@@ -1983,7 +2008,8 @@ def run_csv(argv):
         "OFF (measurement only)" if a.no_k_blur else "on"))
     for seed in seeds:
         tr, ho = _split_patients(df, a.group_by, seed)
-        g = LatentGen(seed=seed, k_blur=not a.no_k_blur,
+        g = LatentGen(seed=seed, k=a.k,
+                      k_blur=not a.no_k_blur,
                       denoise=a.denoise).fit(tr, a.group_by)
         # THE DELIVERABLE IS THE SIZE OF THE SOURCE, NOT OF THE
         # TRAINING SPLIT. Holding 15% of patients back is right -
@@ -2070,7 +2096,8 @@ def run_csv(argv):
                     write_run_artifacts(
                         df, gen, a.group_by, outd,
                         source_name=a.csv,
-                        reconstruction=rg, gen_engine=g)
+                        reconstruction=rg, gen_engine=g,
+                        k=a.k)
                     print("  wrote blueprint.json, fidelity.json "
                           "and generated.csv - the Verdict "
                           "station and the Dashboard can read "
@@ -2330,7 +2357,10 @@ def _planted_frame(seed):
 if __name__ == "__main__":
     which = sys.argv[1] if len(sys.argv) > 1 else "triangle"
     if which == "csv":
-        run_csv(sys.argv[2:])
+        # the return value IS the exit code - the k-floor
+        # refusal returns 2, and a discarded return exits 0,
+        # which told the caller a refused run succeeded
+        sys.exit(run_csv(sys.argv[2:]))
     elif which == "support":
         sys.exit(run_support(sys.argv[2:]))
     elif which == "compare":

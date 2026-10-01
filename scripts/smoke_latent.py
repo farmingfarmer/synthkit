@@ -533,6 +533,44 @@ def main():
                       - df["person_id"].nunique()) <= 2)
 
     # ---------------------------------------------------------
+    # THE K DIAL: the team asked for a user-settable k with
+    # CLARITY on what can and cannot move. Higher is a policy
+    # choice; lower is refused with the reason, in the same
+    # sentence at the bench and at the CLI. And a raised k must
+    # actually BIND - a dial that is read but not used is worse
+    # than no dial, which is this repository's oldest lesson.
+    from latent_challenger import _k_clip as _kc9
+    r9 = np.random.RandomState(2)
+    g9v = np.repeat(np.arange(120), 5)
+    v9 = r9.normal(50, 10, 600)
+    v9[g9v == 0] += 300          # a few extreme patients
+    v9[g9v == 1] += 250
+    v9[g9v == 2] += 200
+    lo10, hi10 = _kc9(v9, g9v.astype(str), 10)
+    lo40, hi40 = _kc9(v9, g9v.astype(str), 40)
+    check("a RAISED k binds: the k=40 published bound averages "
+          "over the 40 most extreme patients and sits strictly "
+          "inside the k=10 bound - the dial reaches the "
+          "computation, it is not a label",
+          hi40 < hi10 and lo40 >= lo10)
+    import subprocess as _spk
+    _rk = _spk.run([sys.executable,
+                    str(_root / "scripts" /
+                        "latent_challenger.py"),
+                    "csv", "nonexistent.csv", "--group-by",
+                    "person_id", "--k", "5"],
+                   capture_output=True, text=True,
+                   cwd=str(_root))
+    check("...and k below the floor of 10 is REFUSED before any "
+          "work, with the reason stated - a pattern resting on "
+          "fewer than 10 distinct patients begins to describe "
+          "individuals - never a traceback",
+          _rk.returncode == 2
+          and "below the floor" in _rk.stderr
+          and "describe" in _rk.stderr
+          and "Traceback" not in _rk.stderr)
+
+    # ---------------------------------------------------------
     # THE SPLIT EXISTED AND NOTHING MEASURED THE OVERFITTING.
     # 15% of PATIENTS are held out, and the only thing ever
     # asked of them was a nearest-neighbor DISTANCE ratio on the
