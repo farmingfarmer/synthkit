@@ -37,6 +37,37 @@ and further down, a NEW heading:
 build and nothing below will work. Go to the APPENDIX at the
 bottom, pull, reinstall, relaunch, then come back here.
 
+**FOR THE DEMO MORNING.** The run you have on screen (build
+abe13cf) is the one to demo — its story is already strong:
+close 42.6% → 76.6% in three builds, ten inversions → one,
+coverage healed exactly as the written prediction said. Last
+night's build (7fa2086) adds the implication tier — a drug
+implies its route, and the draw can now say so — aimed at the
+drug↔route block that dominates the remaining drift list. IF
+you have a spare 30-40 minutes before the room: pull, re-run
+Generate into a NEW directory, and demo whichever run finished.
+If not, demo abe13cf and say the next mechanism is already
+built, measured and pushed, with its prediction on record —
+which is true and is the better story anyway.
+
+Look at the LEFT RAIL. Under `or measure real data` you should
+see exactly three numbered tiles:
+
+    01   Source       point at a real CSV
+    02   Generate     measure the patterns, then generate   <- this one
+    03   Verdict      judge the run
+
+and further down, a NEW heading:
+
+    the other engine, for comparison
+    ALT  Fit
+    ALT  Learn
+    DUEL Duel
+
+**If `02 Generate` is not there, stop.** You are on an older
+build and nothing below will work. Go to the APPENDIX at the
+bottom, pull, reinstall, relaunch, then come back here.
+
 **FOUND AND FIXED THE MORNING OF THE DEMO — pull again and
 re-run when you have a window.** The Dashboard's set sections
 contradicted the gate (0.0% synthetic empty beside an EMPTY PASS
