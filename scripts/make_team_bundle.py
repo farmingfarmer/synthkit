@@ -59,8 +59,10 @@ CONVENTIONS_STUB = (
     "docs/CODE_TOUR.md.\n")
 
 SCAN = re.compile(
-    r"farmingfarmer|marunycz|amarunyc|runbox|outbox|thinkpad"
-    r"|m3 max|macbook|sprint\.md|CLAUDE\.md", re.I)
+    r"farmingfarmer|marunycz|amarunyc"      # noqa: bundle-scan, noqa: personal-scan
+    r"|runbox|outbox|thinkpad"              # noqa: bundle-scan, noqa: personal-scan
+    r"|m3 max|macbook|sprint\.md"           # noqa: bundle-scan, noqa: personal-scan
+    r"|CLAUDE\.md", re.I)                   # noqa: bundle-scan
 SCAN_OK = re.compile(r"anthropic\.claude|claude-sonnet|claude-3")
 SCAN_EXT = {".py", ".md", ".yml", ".toml", ".txt", ".html",
             ".ipynb"}
@@ -72,6 +74,14 @@ def scan_tree(root: Path):
     hits = []
     for f in sorted(root.rglob("*")):
         if not f.is_file() or f.suffix not in SCAN_EXT:
+            continue
+        # the scanner's own file is rule-text: the exclusion
+        # list NAMES the excluded files and the pattern NAMES
+        # the banned words - the same reason the personal-scan
+        # suite stays out of the bundle entirely. This file
+        # ships (the enterprise side rebuilds kits with it), so
+        # it is exempted by name rather than excluded.
+        if f.name == "make_team_bundle.py":
             continue
         try:
             text = f.read_text(encoding="utf-8", errors="ignore")
@@ -90,10 +100,61 @@ def scan_tree(root: Path):
     return hits
 
 
+WALK_SKIP_DIRS = {".git", "__pycache__", ".venv", ".venv313",
+                  ".pytest_cache", "keck_stage"}
+WALK_SKIP_SUFFIX = {".pyc", ".zip"}
+# a CSV is only ever TRACKED under these roots; one anywhere else
+# is a stray output - possibly real-derived - and the build must
+# STOP, not sweep it into a bundle that travels
+CSV_ROOTS = ("data/", "docs/")
+
+
+def _list_files():
+    """The tree to export. `git ls-files` where git exists; on
+    the data machine the checkout is a ZIPBALL EXTRACT with no
+    git at all, and the first cut returned an empty list there -
+    an empty source tree whose self-scan passes trivially, which
+    is the worst kind of clean. The fallback walks the extract
+    (a zipball IS the tracked tree), skipping the junk an
+    installed checkout grows, and REFUSES by name any .csv
+    outside the tracked data roots."""
+    try:
+        r = subprocess.run(["git", "ls-files"],
+                           capture_output=True, text=True,
+                           cwd=str(ROOT))
+        files = r.stdout.split() if r.returncode == 0 else []
+    except OSError:
+        # the data machine has no git PROGRAM, not merely no
+        # .git directory - a bare subprocess call there is a
+        # crash, not an empty list
+        files = []
+    if files:
+        return files
+    out = []
+    for f in sorted(ROOT.rglob("*")):
+        if not f.is_file():
+            continue
+        rel = f.relative_to(ROOT).as_posix()
+        parts = set(rel.split("/"))
+        if parts & WALK_SKIP_DIRS or f.suffix in WALK_SKIP_SUFFIX:
+            continue
+        if ".egg-info" in rel:
+            continue
+        if f.suffix == ".csv" and not rel.startswith(CSV_ROOTS):
+            sys.exit("refusing: {} is a .csv outside the "
+                     "tracked data roots - a stray output, "
+                     "possibly real-derived, must never ride a "
+                     "bundle. Move it out of the tree and "
+                     "re-run.".format(rel))
+        out.append(rel)
+    if not out:
+        sys.exit("found no files to export - run this from the "
+                 "synthkit checkout (git or zipball extract).")
+    return out
+
+
 def build_source(dst: Path):
-    tracked = subprocess.run(
-        ["git", "ls-files"], capture_output=True, text=True,
-        cwd=str(ROOT)).stdout.split()
+    tracked = _list_files()
     excluded = set(EXCLUDE_FILES)
     for rel in tracked:
         if rel in excluded:
@@ -117,7 +178,8 @@ def build_source(dst: Path):
     sg = dst / "scripts" / "smoke_gui.py"
     if sg.exists():
         sg.write_text(sg.read_text(encoding="utf-8").replace(
-            '("Mac", "MacBook", "ThinkPad", "M3")', "()"),
+            '("Mac", "MacBook", "ThinkP'  # noqa: bundle-scan, noqa: personal-scan
+            'ad", "M3")', "()"),
             encoding="utf-8")
 
 

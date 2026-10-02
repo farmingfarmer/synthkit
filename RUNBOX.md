@@ -1,284 +1,134 @@
-# RUNBOX — what to type in each box, in order
+# RUNBOX — pull, push to the enterprise repo, build the kits
 
-Updated 2026-09-29. You have the bench open. Do these in order.
-Every box below is named exactly as it appears on screen, with
-the value to put in it directly underneath.
-
-Paths shown as OWNER/REPO or with %USERPROFILE% are placeholders
-here; your local RUNBOX.html on the Desktop has the real ones
-typed out, ready to copy. Browser boxes do NOT expand
-%USERPROFILE%, so type the full path.
+Updated 2026-10-02. Three jobs, in order, every command typed on
+one line. `OWNER/REPO` and `<KECK_REPO_URL>` are placeholders in
+this tracked copy; your local RUNBOX.html on the Desktop carries
+the real values ready to copy. `%USERPROFILE%` is the only
+variable that survives on this terminal — everything else is
+typed out in full.
 
 ---
 
-## STEP 0 — do you have the right build?
+## STEP 0 — pull the fresh build
 
-**THE RAIL HAS CHANGED. The autoencoder is now step 02 of the
-measure route, not a tile off to the side.** It was sitting
-under `SEE THE FIDELITY` while the rules engine held the
-numbered slot, which meant the path the bench walks you down
-generated with the engine we have been measuring AGAINST.
-
-Look at the LEFT RAIL. Under `or measure real data` you should
-see exactly three numbered tiles:
-
-    01   Source       point at a real CSV
-    02   Generate     measure the patterns, then generate   <- this one
-    03   Verdict      judge the run
-
-and further down, a NEW heading:
-
-    the other engine, for comparison
-    ALT  Fit
-    ALT  Learn
-    DUEL Duel
-
-**If `02 Generate` is not there, stop.** You are on an older
-build and nothing below will work. Go to the APPENDIX at the
-bottom, pull, reinstall, relaunch, then come back here.
-
-**FOR THE DEMO MORNING.** The run you have on screen (build
-abe13cf) is the one to demo — its story is already strong:
-close 42.6% → 76.6% in three builds, ten inversions → one,
-coverage healed exactly as the written prediction said. Last
-night's build (7fa2086) adds the implication tier — a drug
-implies its route, and the draw can now say so — aimed at the
-drug↔route block that dominates the remaining drift list. IF
-you have a spare 30-40 minutes before the room: pull, re-run
-Generate into a NEW directory, and demo whichever run finished.
-If not, demo abe13cf and say the next mechanism is already
-built, measured and pushed, with its prediction on record —
-which is true and is the better story anyway.
-
-Look at the LEFT RAIL. Under `or measure real data` you should
-see exactly three numbered tiles:
-
-    01   Source       point at a real CSV
-    02   Generate     measure the patterns, then generate   <- this one
-    03   Verdict      judge the run
-
-and further down, a NEW heading:
-
-    the other engine, for comparison
-    ALT  Fit
-    ALT  Learn
-    DUEL Duel
-
-**If `02 Generate` is not there, stop.** You are on an older
-build and nothing below will work. Go to the APPENDIX at the
-bottom, pull, reinstall, relaunch, then come back here.
-
-**FOUND AND FIXED THE MORNING OF THE DEMO — pull again and
-re-run when you have a window.** The Dashboard's set sections
-contradicted the gate (0.0% synthetic empty beside an EMPTY PASS
-chip, token bars at ~5x source). The contradiction was real and
-the deck was the honest witness: the engine's file reader folded
-"empty list" into "missing" for set columns, so it learned token
-shares from a source where the medication-free visits did not
-exist, and its gate agreed because its reference numbers were
-folded the same way. Fixed (`sets.looks_like_set` + a selective
-reader), verified through the full file path: empty 0.000 →
-0.363 against a source 0.361, deck and gate in agreement. The
-whole set-pair drift list and the metoclopramide inversion of
-the 09-30 run were measured against the folded source — re-read
-them only after a re-run on this build.
-
-**What changed overnight, and why to re-run before the demo.**
-Your run's two INVERTED pairs were traced to one mechanism and
-the token draw was rebuilt. The old draw made tokens COMPETE
-inside each row for the set's slots, which mechanically ties
-every token to the set size — so `has_Oral`, which runs AGAINST
-drug count in the data (many-drug visits are IV visits), could
-not keep its direction and flipped to −0.64. Each token now
-follows its OWN signal to its own rows: shares land exactly, the
-empty rate lands exactly, and a token is free to point whichever
-way your data says. Set sizes now carry real signal too (they
-were rank-of-noise, which is why `condition_count` vs its list
-length read 0.03). On record before your run: both inversions
-should clear and the size-partner pairs should recover; the
-pressure-variant surfaces are a known research ceiling and are
-NOT claimed. The Roadmap station is current as of tonight —
-open it last during the demo.
-
----
-
-## STEP 1 — click the tile
-
-Click **`02  Generate`** in the left rail. The heading at the top
-should change to `Generate — measure the patterns, then
-generate`.
-
----
-
-## STEP 2 — fill the four boxes
-
-The panel is titled **Point at the data**. Four boxes, top to
-bottom.
-
-**Box 1 of 4, labelled `source CSV path`**
+Close the bench first. Then, in a new terminal:
 
 ```
-%USERPROFILE%\dev\tidy_visits.csv
-```
-
-**Box 2 of 4, labelled `output directory`**
-
-```
-%USERPROFILE%\dev\neural_out
-```
-
-Use a NEW folder name. If you reuse an old one you will be
-looking at output from a previous build.
-
-**Box 3 of 4, labelled `patient / entity column`**
-
-```
-person_id
-```
-
-**Box 4 of 4, labelled `seed`**
-
-```
-0
-```
-
----
-
-## STEP 3 — press Generate
-
-Press the dark button labelled **`Generate`**.
-
-A loader appears with a counter. It is doing two things: training
-the autoencoder and drawing records from it, then measuring what
-your real data contains so the other stations can read the
-result.
-
-**Expect 10 to 25 minutes on the full extract.** The counter
-keeps moving. When it finishes the box underneath says:
-
-    written in NNNs. Now press Review the output.
-
-**If it says STOPPED**, the message names what went wrong; send
-it to me.
-
----
-
-## STEP 4 — press Review the output
-
-Press the pale button labelled **`Review the output`**.
-
-Another loader. **Expect 5 to 15 minutes.** When it finishes a
-page appears in a frame directly below the buttons, and the box
-says:
-
-    measured in NNNs. Gray is the real data, gold is the engine.
-
----
-
-## STEP 5 — read the page, top to bottom
-
-Scroll the frame. In order you will see:
-
-1. **Four headline cards** - relationships pointing the same
-   way, at the same strength, how many came out BACKWARDS
-   (this one wants to be zero), and the row count.
-2. **Does a patient look like a person?** - per column, how much
-   of it belongs to the person rather than the visit, real
-   against generated. This is where patient structure is judged.
-3. **The whole table at once** - how many columns a model
-   CANNOT tell apart from real, the per-column list of the ones
-   it can, whether each column is as learnable, whether the
-   synthetic covers the real space, and three-column effects.
-4. **The combination effects** - effects that only exist when
-   two columns act together.
-5. **Every column, drawn twice** - press and hold any chart to
-   pull real and synthetic apart.
-6. **What this page does not say** - the safety statement. Read
-   it once.
-
----
-
-## STEP 6 — the other stations, same directory
-
-The Generate step wrote the files the rest of the bench reads,
-so these now work on the SAME output directory:
-
-- **`03 Verdict`** - click it, put your output directory in its
-  box, press `Open the run in the output directory from Step 1`.
-  Gives the eight-criteria gate.
-- **`VIEW Dashboard`** - source CSV in the first box, the same
-  output directory in the second, `person_id` in the third.
-- **`DUEL Duel`** - only if you also want the side-by-side
-  against the rules engine; it needs a finished rules-engine run
-  as well.
-
-`ALT Learn` is the first engine entirely and does not apply.
-
-**Send back:** the headline cards, the patient table, and the
-whole-table section.
-
----
-
-# APPENDIX — pull a fresh build (only if STEP 0 sent you here)
-
-One command per line. Close the bench first.
-
-```bat
 cd %USERPROFILE%\dev
-```
-
-```bat
 for /d %i in (OWNER-REPO-*) do rmdir /s /q "%i"
-```
-
-```bat
 rmdir /s /q synthkit
-```
-
-```bat
 del /q synthkit.zip 2>nul
 ```
 
 Make the repo public for the next line only, then private again
-once `dir` shows a real size.
+once `dir` shows a real size:
 
-```bat
-curl -L -o synthkit.zip https://api.github.com/repos/OWNER/REPO/zipball/main
 ```
-
-```bat
+curl -L -o synthkit.zip https://api.github.com/repos/OWNER/REPO/zipball/main
 dir synthkit.zip
 ```
 
-**STOP AND READ.** Hundreds of KB means it worked. About 106
-bytes means what landed is an error page, not an archive.
+**STOP AND READ.** Hundreds of KB means it worked; about 106
+bytes means an error page landed, not an archive.
 
-```bat
+```
 tar -xf synthkit.zip
-```
-
-```bat
 for /d %i in (OWNER-REPO-*) do ren "%i" synthkit
-```
-
-```bat
 cd %USERPROFILE%\dev\synthkit
-```
-
-```bat
 pip install -e .
-```
-
-```bat
 python scripts\run_all_smokes.py
 ```
 
-**Expect: 69 suites, ALL GREEN** (the check count grows
-with every build; the words ALL GREEN are the verdict —
-the zipball count for this build is in docs/WINDOWS.md).
+**Expect: 69 suites, ALL GREEN** (the check count grows with
+every build; ALL GREEN is the verdict — the zipball count for
+this build is in docs/WINDOWS.md).
 
-```bat
-python -m synthkit.cli gui
+---
+
+## STEP 1 — push to the enterprise repo
+
+Needs: git on this machine, and credentials for the team repo.
+The push is a SINGLE CLEAN COMMIT of a filtered tree — never our
+history. The filtering is done by the bundle script, which
+applies the one exclusion list, scrubs the two in-flight items,
+writes the lab-notebook stub, and REFUSES to finish unless its
+own deep scan prints `self-scan: CLEAN`. This exact filtered
+tree was verified on the development side: scan CLEAN, and its
+own net run came back ALL GREEN, 68 suites, 2021 checks.
+
+```
+cd %USERPROFILE%\dev\synthkit
+rmdir /s /q %USERPROFILE%\dev\keck_stage 2>nul
+python scripts\make_team_bundle.py -o %USERPROFILE%\dev\keck_stage --wheels skip
 ```
 
-Then go back to STEP 0.
+**The last line of that command must read `self-scan: CLEAN`.**
+If it prints DIRTY lines instead, STOP and report them — the
+script will have refused to finish, which is the design. Then:
+
+```
+cd %USERPROFILE%\dev\keck_stage\synthkit_src
+git init -b main
+git remote add keck <KECK_REPO_URL>
+git add -A
+git commit -m "synthkit: two engines, eight-criterion gate, team test kits"
+git push keck main --force
+```
+
+`--force` is correct only because this repo's convention is
+whole-version replacement — confirm nobody commits to it
+directly before using it.
+
+**Verify from a second clone:**
+
+```
+cd %USERPROFILE%\dev
+git clone <KECK_REPO_URL> keck_check
+cd keck_check
+pip install -e .
+python scripts\run_all_smokes.py
+```
+
+Expect 68 suites, ALL GREEN (one suite fewer than our checkout:
+the personal-scan suite stays home by design; the buildid suite
+reports nine checks SKIPPED off a non-git tree, expected and
+stated in its own output).
+
+---
+
+## STEP 2 — build and send the team bundle
+
+Needs: network for the dependency wheels (one pip download).
+From the pulled checkout:
+
+```
+cd %USERPROFILE%\dev\synthkit
+python scripts\make_team_bundle.py -o %USERPROFILE%\Desktop\synthkit_team_bundle --wheels win
+```
+
+The build REFUSES to finish unless its own deep scan prints
+`self-scan: CLEAN` — if it prints DIRTY lines instead, stop and
+report them. Then zip and send:
+
+```
+cd %USERPROFILE%\Desktop
+tar -a -c -f synthkit_team_bundle.zip synthkit_team_bundle
+```
+
+Send `synthkit_team_bundle.zip` through the team channel. What a
+teammate gets, needing only Python 3.10+: the enterprise-clean
+source, offline Windows wheels (`pip install --no-index` — no
+network needed on their machine), the test kit with its printed
+answer key, INSTALL.md one command per line, and the honest AI
+page (the measure route needs no language model; the hospital
+cloud path is named before any local install; Ollama steps
+included for machines where it is approved, with the
+fully-offline model-copy route).
+
+---
+
+## If anything surprises you
+
+Copy the exact terminal output and send it back. Every refusal
+in these tools states its reason in a sentence; a traceback or a
+silent difference is a finding, not an inconvenience.

@@ -4,7 +4,7 @@ Synthetic clinical data generator and model-evaluation instrument. Core rule: le
 
 ## Verify before claiming
 
-- Run `python scripts/run_all_smokes.py` before claiming anything works. Expect 69 suites, 2040 checks, ALL GREEN **on a checkout**. Off a zipball extract - which is what the data machine runs - it is 2031: nine checks in `smoke_buildid` need git to test the archive path and report SKIPPED without it. Both numbers were measured. Do not quote the checkout number to the data machine; that is how a correct run gets read as a failure.
+- Run `python scripts/run_all_smokes.py` before claiming anything works. Expect 69 suites, 2043 checks, ALL GREEN **on a checkout**. Off a zipball extract - which is what the data machine runs - it is 2034: nine checks in `smoke_buildid` need git to test the archive path and report SKIPPED without it. Both numbers were measured. Do not quote the checkout number to the data machine; that is how a correct run gets read as a failure.
 - **THE DEVELOPMENT MACHINE WAS BEHIND THE DATA MACHINE, and that is
   how a green suite here failed there.** Dev was on Python 3.10 with
   pandas 2.3; the data machine installs fresh and got pandas 3.0.5,
@@ -998,6 +998,36 @@ the direction that stops work happening.
   STRONGER than before the tier (-0.13/-0.16), because the
   narrow-token forcing improves the coherence Oral's own
   signal rides on.
+
+- **THE BUNDLE'S GIT PATH WAS EMPTY ON THE ONE MACHINE THAT
+  MATTERS, AND THE WALK FALLBACK REFUSES STRAYS (2026-10-02).**
+  `git ls-files` on the data machine's zipball extract returns
+  NOTHING - an empty source tree whose self-scan passes
+  trivially, the worst kind of clean, caught by dry-running the
+  flow as the data machine would run it. The fallback walks the
+  extract (a zipball IS the tracked tree), was verified to
+  produce a tree IDENTICAL to the git path, and refuses BY NAME
+  any .csv outside the tracked data roots - on the machine that
+  holds real extracts, sweeping an unexpected file into a
+  bundle is the one failure that must be loud. The scanner also
+  flagged its own rule-text (the exclusion list names the
+  excluded files; the pattern names the banned words) once the
+  script became tracked - exempted by FILE for the rules file,
+  by LINE everywhere else, both stated. And RUNBOX was
+  rewritten to delegate the enterprise filtering to this one
+  script rather than fifteen manual commands, because the
+  manual block's own scan line contained the banned words and
+  would have failed the tracked-file scan - the rules and the
+  procedure now live in one place. Two more from running the net
+  AS the data machine would: the smoke proving the git-less path
+  enumerated the tree with `git ls-files` itself - the check for
+  git-lessness REQUIRED git, and crashed on the extract instead
+  of failing - so it calls the script's own `_list_files()` and
+  asserts the enumeration is non-empty; and that lister would
+  raise FileNotFoundError on a machine with no git PROGRAM (the
+  data machine, not merely no .git directory), so the subprocess
+  call is wrapped and an absent binary reads as an empty list,
+  which the walk fallback then serves.
 
 - **THE BUNDLE SCANS ITSELF, AND ITS FIRST CATCH WAS ITS OWN
   TEST (2026-10-01).** `make_team_bundle.py` assembles the

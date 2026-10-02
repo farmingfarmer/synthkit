@@ -477,6 +477,64 @@ def main():
             "see RUNBOX.md for details",  # noqa: bundle-scan
             encoding="utf-8")
         _hits = _mtb.scan_tree(_src)
+        # THE DATA MACHINE HAS NO GIT. Its checkout is a zipball
+        # extract, and the first cut's `git ls-files` returned
+        # an EMPTY list there - an empty source tree whose
+        # self-scan passes trivially, the worst kind of clean.
+        # The fallback walks the extract; it was verified to
+        # produce a tree IDENTICAL to the git path, and it
+        # refuses by name any .csv outside the tracked data
+        # roots, because a stray output - possibly real-derived
+        # - must never ride a bundle.
+        import shutil as _sh2
+        # enumerate with the script's OWN lister, not a bare
+        # `git ls-files` - the first cut of this check used git
+        # directly, so on a git-less extract the tree it built
+        # was EMPTY and the subprocess below died on a missing
+        # directory: the check for git-lessness required git.
+        _gl = _mtb._list_files()
+        check("the file lister returns a non-empty tree on "
+              "THIS machine, git or no git - an empty "
+              "enumeration builds an empty bundle whose scan "
+              "passes trivially",
+              len(_gl) > 50 and "synthkit/gui.py" in _gl)
+        _ng = Path(_bt) / "nogit"
+        for _rel in _gl:
+            _dst2 = _ng / _rel
+            _dst2.parent.mkdir(parents=True, exist_ok=True)
+            _sh2.copy2(_root / _rel, _dst2)
+        _no = Path(_bt) / "nogit_out"
+        _r4 = _sb.run(
+            [sys.executable,
+             str(_ng / "scripts" / "make_team_bundle.py"),
+             "-o", str(_no), "--wheels", "skip"],
+            capture_output=True, text=True, cwd=str(_ng))
+        check("the bundle builds from a GIT-LESS tree - the "
+              "data machine's zipball extract - via the walk "
+              "fallback, with the same source files present "
+              "and the self-scan still CLEAN",
+              _r4.returncode == 0
+              and "self-scan: CLEAN" in _r4.stdout
+              and (_no / "synthkit_src" / "synthkit"
+                   / "gui.py").exists())
+        (_ng / "stray_output.csv").write_text("pid,val\n1,2\n",
+                                              encoding="utf-8")
+        _no2 = Path(_bt) / "nogit_out2"
+        _r5 = _sb.run(
+            [sys.executable,
+             str(_ng / "scripts" / "make_team_bundle.py"),
+             "-o", str(_no2), "--wheels", "skip"],
+            capture_output=True, text=True, cwd=str(_ng))
+        check("...and a stray .csv outside the tracked data "
+              "roots REFUSES the whole build by name - on the "
+              "machine that holds real extracts, sweeping an "
+              "unexpected file into a bundle is the one failure "
+              "that must be loud",
+              _r5.returncode != 0
+              and "stray_output.csv" in
+                  (_r5.stdout + _r5.stderr)
+              and "never ride a bundle" in
+                  (_r5.stdout + _r5.stderr))
         check("...and the self-scan CAN fail: a planted "
               "reference to an internal runbook is found by "
               "name - a scanner that cannot go red proves "
