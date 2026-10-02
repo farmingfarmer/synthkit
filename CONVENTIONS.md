@@ -4,7 +4,7 @@ Synthetic clinical data generator and model-evaluation instrument. Core rule: le
 
 ## Verify before claiming
 
-- Run `python scripts/run_all_smokes.py` before claiming anything works. Expect 69 suites, 2036 checks, ALL GREEN **on a checkout**. Off a zipball extract - which is what the data machine runs - it is 2027: nine checks in `smoke_buildid` need git to test the archive path and report SKIPPED without it. Both numbers were measured. Do not quote the checkout number to the data machine; that is how a correct run gets read as a failure.
+- Run `python scripts/run_all_smokes.py` before claiming anything works. Expect 69 suites, 2040 checks, ALL GREEN **on a checkout**. Off a zipball extract - which is what the data machine runs - it is 2031: nine checks in `smoke_buildid` need git to test the archive path and report SKIPPED without it. Both numbers were measured. Do not quote the checkout number to the data machine; that is how a correct run gets read as a failure.
 - **THE DEVELOPMENT MACHINE WAS BEHIND THE DATA MACHINE, and that is
   how a green suite here failed there.** Dev was on Python 3.10 with
   pandas 2.3; the data machine installs fresh and got pandas 3.0.5,
@@ -998,6 +998,25 @@ the direction that stops work happening.
   STRONGER than before the tier (-0.13/-0.16), because the
   narrow-token forcing improves the coherence Oral's own
   signal rides on.
+
+- **THE BUNDLE SCANS ITSELF, AND ITS FIRST CATCH WAS ITS OWN
+  TEST (2026-10-01).** `make_team_bundle.py` assembles the
+  self-contained team bundle - the kit, the enterprise-filtered
+  source (one exclusion list, with a stub CONVENTIONS.md
+  because ten code comments reference the notebook by name),
+  offline Windows wheels pulled cross-platform (--platform
+  win_amd64, 65 MB covers numpy/pandas/sklearn/scipy), and an
+  honest AI page: the measure route needs NO language model,
+  Describe-from-English needs one of four backends, and the
+  hospital cloud path is named before any local install. The
+  bundle REFUSES to finish if its own deep scan hits - and the
+  first thing the scan caught was the new smoke check whose
+  assertions name the excluded files; the `noqa: bundle-scan`
+  marker exempts exactly those lines, the same pattern the
+  personal scan already uses. The dry-run export was also
+  executed and verified here first: scan CLEAN, and the
+  filtered tree's own net run - a push whose tree was never run
+  is a push on hope.
 
 - **THE FRONT DOOR AND THE GATE DIAL (2026-10-01, follow-ups
   from the demo).** The bench opened into step 01's FORM - a

@@ -418,6 +418,71 @@ def main():
               and "YOUR OWN DATA" in _sh
               and "23 dataset shapes" in _sh)
 
+    # THE SELF-CONTAINED BUNDLE. A teammate's machine may have
+    # no network and no prior installs, so the bundle carries
+    # the kit, the enterprise-clean source, offline wheels, and
+    # install steps - and it SCANS ITSELF before finishing,
+    # because a bundle that cannot prove it is clean does not
+    # ship. Wheels are skipped here (network); the scan and the
+    # assembly are what the check is about.
+    import subprocess as _sb
+    import tempfile as _tb
+    with _tb.TemporaryDirectory() as _bt:
+        _bd = Path(_bt) / "bundle"
+        _rb = _sb.run(
+            [sys.executable,
+             str(_root / "scripts" / "make_team_bundle.py"),
+             "-o", str(_bd), "--wheels", "skip"],
+            capture_output=True, text=True, cwd=str(_root))
+        _src = _bd / "synthkit_src"
+        check("the team bundle assembles - filtered source, the "
+              "kit, INSTALL.md and the honest AI page - and its "
+              "self-scan prints CLEAN",
+              _rb.returncode == 0
+              and "self-scan: CLEAN" in _rb.stdout
+              and (_bd / "kit" / "START_HERE.md").exists()
+              and (_bd / "INSTALL.md").exists()
+              and (_bd / "OLLAMA_OPTIONAL.md").exists()
+              and (_src / "synthkit" / "gui.py").exists())
+        check("...the exclusions held: no internal runbook or "
+              "lab notebook content in the source, the stub "
+              "CONVENTIONS.md stands in for the ten comment "
+              "references, and the personal-scan suite stayed "
+              "home",
+              not (_src / "RUNBOX.md").exists()  # noqa: bundle-scan
+              and not (_src / "docs" / "SPRIN"  # noqa: bundle-scan
+                       "T.md").exists()
+              and not (_src / "scripts"
+                       / "smoke_no_personal.py").exists()
+              and "internal development repo" in
+                  (_src / "CONVENTIONS.md").read_text(
+                      encoding="utf-8"))
+        check("...INSTALL.md is offline-first and honest about "
+              "the AI: the measure route needs no model, and "
+              "the hospital cloud path is named before any "
+              "local install",
+              "--no-index" in (_bd / "INSTALL.md").read_text(
+                  encoding="utf-8")
+              and "NOTHING in the measure route uses a language "
+                  "model" in (_bd / "OLLAMA_OPTIONAL.md"
+                              ).read_text(encoding="utf-8"))
+        # fail-first ON THE SCANNER, the piece everything rests
+        # on: plant a dirty file and watch the scan name it
+        import importlib.util as _ilu
+        _spec = _ilu.spec_from_file_location(
+            "mtb", str(_root / "scripts" / "make_team_bundle.py"))
+        _mtb = _ilu.module_from_spec(_spec)
+        _spec.loader.exec_module(_mtb)
+        (_src / "planted.md").write_text(
+            "see RUNBOX.md for details",  # noqa: bundle-scan
+            encoding="utf-8")
+        _hits = _mtb.scan_tree(_src)
+        check("...and the self-scan CAN fail: a planted "
+              "reference to an internal runbook is found by "
+              "name - a scanner that cannot go red proves "
+              "nothing about the bundles it blessed",
+              any("planted.md" in h[0] for h in _hits))
+
     print()
     if FAIL:
         print("{} FAILED".format(FAIL))
