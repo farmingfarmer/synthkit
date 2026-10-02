@@ -999,6 +999,20 @@ the direction that stops work happening.
   narrow-token forcing improves the coherence Oral's own
   signal rides on.
 
+- **A RUNBOOK THAT CANNOT REACH THE MACHINE IT RUNS ON IS A
+  MAC-SIDE DECORATION (2026-10-02).** The copy-button RUNBOX.html
+  lived on the Desktop because its baked-in real values are
+  banned from tracked files - so the one page built for the data
+  machine's terminal could never get there. The operator asked
+  what use it was, correctly. RUNBOX.html is TRACKED now and
+  carries only the placeholders; the page itself substitutes -
+  two input boxes, values held in localStorage, every copy
+  button yields the real command after typing the owner/name
+  once per machine. The substitution logic was unit-run in node
+  before shipping, the file is on the bundle's exclusion list
+  beside RUNBOX.md, and the scan passes because the secret
+  stays in the browser, never in the file.
+
 - **THE BUNDLE'S GIT PATH WAS EMPTY ON THE ONE MACHINE THAT
   MATTERS, AND THE WALK FALLBACK REFUSES STRAYS (2026-10-02).**
   `git ls-files` on the data machine's zipball extract returns

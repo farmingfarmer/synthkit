@@ -41,7 +41,7 @@ ROOT = Path(__file__).resolve().parent.parent
 # must change with it - stated here because the duplication is a
 # known risk, accepted so the manual path has no import step.
 EXCLUDE_FILES = [
-    "RUNBOX.md", "CONVENTIONS.md",
+    "RUNBOX.md", "RUNBOX.html", "CONVENTIONS.md",
     "docs/SPRINT.md", "docs/WINDOWS.md",
     "docs/DEMO_LLM_WINDOWS.md",
     "docs/demo_script.md", "docs/demo_script_v2.md",

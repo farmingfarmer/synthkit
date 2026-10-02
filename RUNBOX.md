@@ -2,8 +2,11 @@
 
 Updated 2026-10-02. Three jobs, in order, every command typed on
 one line. `OWNER/REPO` and `<KECK_REPO_URL>` are placeholders in
-this tracked copy; your local RUNBOX.html on the Desktop carries
-the real values ready to copy. `%USERPROFILE%` is the only
+this tracked copy. RUNBOX.html (tracked beside this file) is the
+same runbook with copy buttons: open it in a browser, type the
+owner/name and the enterprise URL into its two boxes once, and
+every command fills itself in - the values live in the browser,
+never in the file. `%USERPROFILE%` is the only
 variable that survives on this terminal — everything else is
 typed out in full.
 
