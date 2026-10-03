@@ -52,17 +52,22 @@ def main():
     ap = argparse.ArgumentParser(
         description="Judge a finished run against the gate.")
     ap.add_argument("rundir")
+    # argparse %-formats help strings, so a literal percent must
+    # arrive doubled - Python 3.14 validates this EAGERLY at
+    # add_argument, so a bare % kills the script on every
+    # invocation, not just -h. Found by the data machine, which
+    # installs the newest Python.
     ap.add_argument("--direction-bar", type=float, default=None,
                     help="override the direction threshold "
                          "(default {:.1%}; clamped to "
                          "[0.5, 1.0]; a chosen bar is stated "
                          "beside the verdict)".format(
-                             DIRECTION_MIN))
+                             DIRECTION_MIN).replace("%", "%%"))
     ap.add_argument("--close-bar", type=float, default=None,
                     help="override the close threshold (default "
                          "{:.1%}; same clamp and the same "
                          "statement - MET against YOUR bar says "
-                         "so)".format(CLOSE_MIN))
+                         "so)".format(CLOSE_MIN).replace("%", "%%"))
     a = ap.parse_args()
     run = Path(a.rundir)
     fp = run / "fidelity.json"

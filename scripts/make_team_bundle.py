@@ -186,7 +186,9 @@ def build_source(dst: Path):
 INSTALL_MD = """# Install, offline, one command per line (Windows)
 
 You need Python 3.10 or newer (`python --version` to check).
-Everything else is in this folder. From a terminal opened HERE:
+The OFFLINE wheels in this folder cover Python 3.12 and 3.14 on
+Windows; any other version needs network access for the four
+numeric packages. Everything else is in this folder. From a terminal opened HERE:
 
     cd synthkit_src
     pip install --no-index --find-links ..\\wheels -e .
@@ -267,17 +269,25 @@ def main():
                  + r.stderr[-800:])
     if a.wheels != "skip":
         print("wheels ({}) ...".format(a.wheels))
-        cmd = [sys.executable, "-m", "pip", "download",
-               "-d", str(out / "wheels"),
-               "numpy>=1.24", "pandas>=2.0",
-               "scikit-learn>=1.4", "scipy>=1.10"]
+        base = [sys.executable, "-m", "pip", "download",
+                "-d", str(out / "wheels"),
+                "numpy>=1.24", "pandas>=2.0",
+                "scikit-learn>=1.4", "scipy>=1.10"]
         if a.wheels == "win":
-            cmd += ["--platform", "win_amd64",
-                    "--only-binary=:all:",
-                    "--python-version", "312"]
-        r = subprocess.run(cmd, capture_output=True, text=True)
-        if r.returncode != 0:
-            sys.exit("pip download failed:\n" + r.stderr[-800:])
+            # wheels are ABI-specific: the kit that shipped only
+            # cp312 could not install on the data machine, which
+            # had installed Python 3.14. Cover both; INSTALL.md
+            # names them.
+            runs = [base + ["--platform", "win_amd64",
+                            "--only-binary=:all:",
+                            "--python-version", v]
+                    for v in ("312", "314")]
+        else:
+            runs = [base]
+        for cmd in runs:
+            r = subprocess.run(cmd, capture_output=True, text=True)
+            if r.returncode != 0:
+                sys.exit("pip download failed:\n" + r.stderr[-800:])
     (out / "INSTALL.md").write_text(INSTALL_MD, encoding="utf-8")
     (out / "OLLAMA_OPTIONAL.md").write_text(OLLAMA_MD,
                                             encoding="utf-8")

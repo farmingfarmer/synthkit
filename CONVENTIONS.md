@@ -4,7 +4,7 @@ Synthetic clinical data generator and model-evaluation instrument. Core rule: le
 
 ## Verify before claiming
 
-- Run `python scripts/run_all_smokes.py` before claiming anything works. Expect 69 suites, 2043 checks, ALL GREEN **on a checkout**. Off a zipball extract - which is what the data machine runs - it is 2034: nine checks in `smoke_buildid` need git to test the archive path and report SKIPPED without it. Both numbers were measured. Do not quote the checkout number to the data machine; that is how a correct run gets read as a failure.
+- Run `python scripts/run_all_smokes.py` before claiming anything works. Expect 69 suites, 2044 checks, ALL GREEN **on a checkout**. Off a zipball extract - which is what the data machine runs - it is 2035: nine checks in `smoke_buildid` need git to test the archive path and report SKIPPED without it. Both numbers were measured. Do not quote the checkout number to the data machine; that is how a correct run gets read as a failure.
 - **THE DEVELOPMENT MACHINE WAS BEHIND THE DATA MACHINE, and that is
   how a green suite here failed there.** Dev was on Python 3.10 with
   pandas 2.3; the data machine installs fresh and got pandas 3.0.5,
@@ -13,7 +13,7 @@ Synthetic clinical data generator and model-evaluation instrument. Core rule: le
   passed here and crashed there - on the one machine where a crash
   costs a round trip. Reproduced by building a 3.13 venv and running
   the whole net against it; that was the only code incompatibility,
-  and CI now runs the net on 3.10 AND 3.13 so the newest library
+  and CI now runs the net on 3.10, 3.13 AND 3.14 so the newest library
   behavior is covered rather than whatever the author happens to
   have. **Test against what the DATA machine will install, not what
   is on this one.**
@@ -998,6 +998,28 @@ the direction that stops work happening.
   STRONGER than before the tier (-0.13/-0.16), because the
   narrow-token forcing improves the coherence Oral's own
   signal rides on.
+
+- **THE DATA MACHINE INSTALLED PYTHON 3.14, AND A LATENT CRASH
+  IN A HELP STRING TOOK DOWN ALL EIGHT GATE CHECKS (2026-10-02).**
+  smoke_fidelity failed 8/107 there and passed everywhere here -
+  same libraries to the digit, so the interpreter was the only
+  suspect left, and a local 3.14 venv reproduced all eight
+  exactly. argparse %-formats help text, so the "93.9%" that
+  `.format` put into m0_gate's bar-flag help was a ValueError
+  WAITING FOR WHOEVER ASKED FOR HELP - latent on every Python
+  since the flags shipped, because no check ever rendered -h.
+  Python 3.14 validates help strings EAGERLY at add_argument, so
+  the script died on EVERY invocation, and every check that
+  crosses the m0_gate process boundary went red at once - eight
+  failures, one defect. The literal percent is doubled now, -h
+  is rendered through the process boundary as a check (watched
+  red against the old script on 3.10 - the crash was always
+  reachable, 3.14 only removed the need to ask), CI gained a
+  3.14 lane, and the team bundle ships cp312 AND cp314 wheels,
+  because the cp312-only set could not install on the Python
+  the data machine actually has. The same lesson as pandas 3,
+  one layer down: test against the INTERPRETER the data machine
+  will install, not just the libraries.
 
 - **A RUNBOOK THAT CANNOT REACH THE MACHINE IT RUNS ON IS A
   MAC-SIDE DECORATION (2026-10-02).** The copy-button RUNBOX.html

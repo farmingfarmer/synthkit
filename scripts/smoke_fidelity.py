@@ -551,6 +551,24 @@ def main():
           and "YOUR bar" in _rb.stdout
           and "87.9%" in _rb.stdout)
 
+    # argparse %-formats help text, so a formatted "93.9%" in a
+    # help string is a latent ValueError - it sat green for as
+    # long as nothing rendered -h, and Python 3.14 then validated
+    # it EAGERLY, killing the script on EVERY invocation and
+    # taking all eight gate checks down on the data machine. -h
+    # is rendered through the process boundary here so the crash
+    # has a check at every interpreter, not just the newest.
+    _rh = subprocess.run(
+        [sys.executable, "scripts/m0_gate.py", "--help"],
+        capture_output=True, text=True, cwd=str(ROOT))
+    check("m0_gate --help RENDERS, with both bar flags and the "
+          "default percentages in it - a literal % in argparse "
+          "help is a crash that waits for whoever asks for help "
+          "(and on Python 3.14, for everyone)",
+          _rh.returncode == 0 and "--direction-bar" in _rh.stdout
+          and "--close-bar" in _rh.stdout
+          and "93.9%" in _rh.stdout and "87.9%" in _rh.stdout)
+
     # ONE VERDICT, ONE TEXT, TWO DOORS. `synthkit gate` exists so
     # the test kit works from its own folder, where scripts/ does
     # not; both doors call gate.report, and this asserts they
