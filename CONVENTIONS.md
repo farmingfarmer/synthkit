@@ -4,7 +4,7 @@ Synthetic clinical data generator and model-evaluation instrument. Core rule: le
 
 ## Verify before claiming
 
-- Run `python scripts/run_all_smokes.py` before claiming anything works. Expect 69 suites, 2044 checks, ALL GREEN **on a checkout**. Off a zipball extract - which is what the data machine runs - it is 2035: nine checks in `smoke_buildid` need git to test the archive path and report SKIPPED without it. Both numbers were measured. Do not quote the checkout number to the data machine; that is how a correct run gets read as a failure.
+- Run `python scripts/run_all_smokes.py` before claiming anything works. Expect 69 suites, 2045 checks, ALL GREEN **on a checkout**. Off a zipball extract - which is what the data machine runs - it is 2036: nine checks in `smoke_buildid` need git to test the archive path and report SKIPPED without it. Both numbers were measured. Do not quote the checkout number to the data machine; that is how a correct run gets read as a failure.
 - **THE DEVELOPMENT MACHINE WAS BEHIND THE DATA MACHINE, and that is
   how a green suite here failed there.** Dev was on Python 3.10 with
   pandas 2.3; the data machine installs fresh and got pandas 3.0.5,
@@ -998,6 +998,25 @@ the direction that stops work happening.
   STRONGER than before the tier (-0.13/-0.16), because the
   narrow-token forcing improves the coherence Oral's own
   signal rides on.
+
+- **A SUBSTITUTED STAMP IS AN ARCHIVE ARTIFACT, NOT A SOURCE
+  FILE, AND STAGING IT POISONED THE TEAM REPO'S IDENTITY
+  (2026-10-05).** The first enterprise push's verify clone
+  failed smoke_buildid 2/26 - and the checks were RIGHT.
+  BUILD_SHA.txt is export-subst, so the data machine's zipball
+  arrived with OUR commit's sha already substituted in; the
+  stage swept that file verbatim into the keck commit, and a
+  repo whose tracked stamp is a bare 40-hex has archives that
+  name a commit that is not in it - git archive substitutes
+  PLACEHOLDERS, and there was none left to substitute. Staging
+  now resets the stamp to the raw `$Format:%H$`; the fixture
+  plants a substituted stamp and asserts the reset (watched
+  red); and the full chain - substituted stamp in, placeholder
+  staged, single-commit clone, smoke_buildid on 3.14 - was run
+  here before asking the operator to push again. Three verify
+  environments have now each found a real defect (zipball:
+  empty git enumeration; 3.14: the argparse help crash; the
+  enterprise clone: this) - the verify clone is not ceremony.
 
 - **THE DATA MACHINE INSTALLED PYTHON 3.14, AND A LATENT CRASH
   IN A HELP STRING TOOK DOWN ALL EIGHT GATE CHECKS (2026-10-02).**

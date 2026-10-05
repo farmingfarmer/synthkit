@@ -503,6 +503,11 @@ def main():
             _dst2 = _ng / _rel
             _dst2.parent.mkdir(parents=True, exist_ok=True)
             _sh2.copy2(_root / _rel, _dst2)
+        # a zipball's BUILD_SHA.txt arrives SUBSTITUTED - plant
+        # that state so the stage must prove it resets the stamp
+        _fake_sha = "a" * 40
+        (_ng / "BUILD_SHA.txt").write_text(_fake_sha + "\n",
+                                           encoding="utf-8")
         _no = Path(_bt) / "nogit_out"
         _r4 = _sb.run(
             [sys.executable,
@@ -517,6 +522,19 @@ def main():
               and "self-scan: CLEAN" in _r4.stdout
               and (_no / "synthkit_src" / "synthkit"
                    / "gui.py").exists())
+        check("...and the staged BUILD_SHA.txt is the RAW "
+              "placeholder, not the substituted sha the zipball "
+              "arrived with - a stamp naming OUR commit, "
+              "committed to the team repo, makes that repo's "
+              "own archives name a commit that is not in it "
+              "(the verify clone's smoke_buildid went red on "
+              "exactly this)",
+              (_no / "synthkit_src" / "BUILD_SHA.txt"
+               ).read_text(encoding="utf-8").strip()
+              == "$Format:%H$"
+              and _fake_sha not in
+              (_no / "synthkit_src" / "BUILD_SHA.txt"
+               ).read_text(encoding="utf-8"))
         (_ng / "stray_output.csv").write_text("pid,val\n1,2\n",
                                               encoding="utf-8")
         _no2 = Path(_bt) / "nogit_out2"

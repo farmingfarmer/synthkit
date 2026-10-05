@@ -171,7 +171,7 @@ main(['version'])"` if -m is not wired).
 python scripts\run_all_smokes.py
 ```
 
-Expect: 69 suites, **2035** checks, ALL GREEN.
+Expect: 69 suites, **2036** checks, ALL GREEN.
 
 **That number is for THIS machine, and it is nine lower than the
 development machine's on purpose.** Nine checks in `smoke_buildid`

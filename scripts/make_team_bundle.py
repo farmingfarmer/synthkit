@@ -168,6 +168,16 @@ def build_source(dst: Path):
     # the stub that keeps ten comment references honest
     (dst / "CONVENTIONS.md").write_text(CONVENTIONS_STUB,
                                         encoding="utf-8")
+    # BUILD_SHA.txt is export-subst: a zipball arrives with the
+    # sha ALREADY substituted, and staging that file verbatim
+    # commits OUR commit's hash into the team repo - whose own
+    # archives then name a commit that is not in it. A tracked
+    # stamp is the PLACEHOLDER; a substituted one is an archive
+    # artifact, not a source file. Found by the verify clone's
+    # own smoke_buildid, two checks red on the data machine.
+    stamp = dst / "BUILD_SHA.txt"
+    if stamp.exists():
+        stamp.write_text("$Format:%H$\n", encoding="utf-8")
     # scrub the two in-flight items the manual export also scrubs
     gi = dst / ".gitignore"
     if gi.exists():

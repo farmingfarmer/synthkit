@@ -57,7 +57,7 @@ applies the one exclusion list, scrubs the two in-flight items,
 writes the lab-notebook stub, and REFUSES to finish unless its
 own deep scan prints `self-scan: CLEAN`. This exact filtered
 tree was verified on the development side: scan CLEAN, and its
-own net run came back ALL GREEN, 68 suites, 2021 checks.
+own net run came back ALL GREEN, 68 suites, 2023 checks.
 
 ```
 cd %USERPROFILE%\dev\synthkit
