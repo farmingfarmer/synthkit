@@ -1,14 +1,19 @@
-# RUNBOX — pull, push to the enterprise repo, build the kits
+# RUNBOX — from scratch, in order: pull, verify, push, kits
 
-Updated 2026-10-02. Three jobs, in order, every command typed on
-one line. `OWNER/REPO` and `<KECK_REPO_URL>` are placeholders in
-this tracked copy. RUNBOX.html (tracked beside this file) is the
-same runbook with copy buttons: open it in a browser, type the
+Updated 2026-10-07. Four steps. Each step ends in a CHECKPOINT
+that must pass before the next step starts — every failure this
+runbook has ever seen was a later step running on an earlier
+step's stale output. If a checkpoint fails, the problem is
+upstream of where you are standing.
+
+`OWNER/REPO` and `<KECK_REPO_URL>` are placeholders in this
+tracked copy. RUNBOX.html (tracked beside this file) is the same
+runbook with copy buttons: open it in a browser, type the
 owner/name and the enterprise URL into its two boxes once, and
-every command fills itself in - the values live in the browser,
-never in the file. `%USERPROFILE%` is the only
-variable that survives on this terminal — everything else is
-typed out in full.
+every command fills itself in — the values live in the browser,
+never in the file. `%USERPROFILE%` is the only variable that
+survives on this terminal — everything else is typed out in
+full, one command per line.
 
 ---
 
@@ -37,27 +42,46 @@ bytes means an error page landed, not an archive.
 ```
 tar -xf synthkit.zip
 for /d %i in (OWNER-REPO-*) do ren "%i" synthkit
+```
+
+**CHECKPOINT — which commit are you holding?**
+
+```
+type %USERPROFILE%\dev\synthkit\BUILD_SHA.txt
+```
+
+Compare the first seven characters against the newest commit on
+the repo page. If they differ, the pull brought an old build and
+NOTHING BELOW is worth running — a whole day was once spent
+rebuilding bundles from a stale extract that one `type` would
+have exposed in two seconds.
+
+---
+
+## STEP 1 — install and verify the extract
+
+```
 cd %USERPROFILE%\dev\synthkit
 pip install -e .
 python scripts\run_all_smokes.py
 ```
 
-**Expect: 69 suites, ALL GREEN** (the check count grows with
-every build; ALL GREEN is the verdict — the zipball count for
-this build is in docs/WINDOWS.md).
+**CHECKPOINT: 69 suites, ALL GREEN.** The words are the verdict;
+the exact zipball check count for this build is pinned in
+docs/WINDOWS.md. A FAILED suite stops everything — copy the
+lines that start with FAIL and send them back.
 
 ---
 
-## STEP 1 — push to the enterprise repo
+## STEP 2 — push to the enterprise repo
 
 Needs: git on this machine, and credentials for the team repo.
 The push is a SINGLE CLEAN COMMIT of a filtered tree — never our
 history. The filtering is done by the bundle script, which
-applies the one exclusion list, scrubs the two in-flight items,
-writes the lab-notebook stub, and REFUSES to finish unless its
-own deep scan prints `self-scan: CLEAN`. This exact filtered
-tree was verified on the development side: scan CLEAN, and its
-own net run came back ALL GREEN, 68 suites, 2025 checks.
+applies the one exclusion list, scrubs the in-flight items,
+resets the build stamp to its placeholder, writes the
+lab-notebook stub, and REFUSES to finish unless its own deep
+scan prints `self-scan: CLEAN`.
 
 ```
 cd %USERPROFILE%\dev\synthkit
@@ -65,9 +89,20 @@ rmdir /s /q %USERPROFILE%\dev\keck_stage 2>nul
 python scripts\make_team_bundle.py -o %USERPROFILE%\dev\keck_stage --wheels skip
 ```
 
-**The last line of that command must read `self-scan: CLEAN`.**
-If it prints DIRTY lines instead, STOP and report them — the
-script will have refused to finish, which is the design. Then:
+**CHECKPOINT, two lines.** The build must end `self-scan: CLEAN`
+(DIRTY lines mean it refused — stop and report them). Then:
+
+```
+type %USERPROFILE%\dev\keck_stage\synthkit_src\BUILD_SHA.txt
+```
+
+This must print `$Format:%H$` — the raw placeholder. A 40-hex
+string here would poison the team repo's identity (its own
+archives would name a commit that is not in it); that happened
+once, the verify clone caught it, and this line is why it
+cannot happen silently again.
+
+Now the push:
 
 ```
 cd %USERPROFILE%\dev\keck_stage\synthkit_src
@@ -82,56 +117,79 @@ git push keck main --force
 whole-version replacement — confirm nobody commits to it
 directly before using it.
 
-**Verify from a second clone:**
+**CHECKPOINT — verify from a second clone.** Always delete the
+old clone first; re-running inside a stale `keck_check` verifies
+the previous push, not this one:
 
 ```
 cd %USERPROFILE%\dev
+rmdir /s /q keck_check 2>nul
 git clone <KECK_REPO_URL> keck_check
 cd keck_check
 pip install -e .
 python scripts\run_all_smokes.py
 ```
 
-Expect 68 suites, ALL GREEN (one suite fewer than our checkout:
-the personal-scan suite stays home by design; the buildid suite
-reports nine checks SKIPPED off a non-git tree, expected and
-stated in its own output).
+Expect **68 suites, ALL GREEN** (one suite fewer than our
+checkout: the personal-scan suite stays home by design). This
+clone has found a real defect on every shape it was first run
+against — it is not ceremony.
 
 ---
 
-## STEP 2 — build and send the team bundle
+## STEP 3 — build, rehearse and send the team bundle
 
 Needs: network for the dependency wheels (one pip download).
 From the pulled checkout:
 
 ```
 cd %USERPROFILE%\dev\synthkit
+rmdir /s /q %USERPROFILE%\Desktop\synthkit_team_bundle 2>nul
+del /q %USERPROFILE%\Desktop\synthkit_team_bundle.zip 2>nul
 python scripts\make_team_bundle.py -o %USERPROFILE%\Desktop\synthkit_team_bundle --wheels win
 ```
 
-The build REFUSES to finish unless its own deep scan prints
-`self-scan: CLEAN` — if it prints DIRTY lines instead, stop and
-report them. Then zip and send:
+**CHECKPOINT.** The build must end `self-scan: CLEAN`, and:
+
+```
+dir %USERPROFILE%\Desktop\synthkit_team_bundle
+```
+
+must show `START_SYNTHKIT.bat` and `RUN_CHECKS.bat` at the top
+level, beside INSTALL.md, kit, synthkit_src and wheels. Missing
+launchers mean the extract is stale — back to STEP 0. Then zip:
 
 ```
 cd %USERPROFILE%\Desktop
 tar -a -c -f synthkit_team_bundle.zip synthkit_team_bundle
 ```
 
-Send `synthkit_team_bundle.zip` through the team channel. What a
-teammate gets, needing only Python 3.10+: the enterprise-clean
-source, offline Windows wheels (`pip install --no-index` — no
-network needed on their machine), the test kit with its printed
-answer key, INSTALL.md one command per line, and the honest AI
-page (the measure route needs no language model; the hospital
-cloud path is named before any local install; Ollama steps
-included for machines where it is approved, with the
-fully-offline model-copy route).
+**CHECKPOINT — be the first teammate.** Unzip a copy somewhere
+else, double-click `START_SYNTHKIT.bat` (one-time setup, then
+the bench opens in the browser), then double-click
+`RUN_CHECKS.bat` and expect ALL GREEN. Only a bundle that passed
+this rehearsal gets sent. What a teammate then needs is one
+sentence: unzip, double-click START_SYNTHKIT.bat — the offline
+wheels mean their machine needs no network, only Python 3.12 or
+3.14.
+
+---
+
+## STEP 4 — housekeeping
+
+`keck_stage` and `keck_check` are disposable by design — the
+runbook recreates both from scratch every time:
+
+```
+rmdir /s /q %USERPROFILE%\dev\keck_stage 2>nul
+rmdir /s /q %USERPROFILE%\dev\keck_check 2>nul
+```
 
 ---
 
 ## If anything surprises you
 
-Copy the exact terminal output and send it back. Every refusal
-in these tools states its reason in a sentence; a traceback or a
-silent difference is a finding, not an inconvenience.
+Copy the exact terminal output (or photograph the window) and
+send it back. Every refusal in these tools states its reason in
+a sentence; a traceback or a silent difference is a finding, not
+an inconvenience.

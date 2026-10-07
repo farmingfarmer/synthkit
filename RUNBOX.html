@@ -20,17 +20,22 @@ padding:5px 12px}.cmd button.done{background:#2E7D5B;color:#fff}
 border-radius:7px;padding:5px 9px;width:340px}
 </style></head><body><div class="wrap">
 
-<h1>RUNBOX — pull, push to the enterprise repo, build the kits</h1>
-<div class="note">Updated 2026-10-02. Three jobs, in order, every command typed on</div>
-<div class="note">one line. This page is TRACKED, so it carries placeholders; type</div>
-<div class="note">the repo (owner/name) and the enterprise remote URL into the two</div>
-<div class="note">boxes below once and every command on the page fills itself in -</div>
-<div class="note">the values stay in this browser, never in the file.</div>
+<h1>RUNBOX — from scratch, in order: pull, verify, push, kits</h1>
+<div class="note">Updated 2026-10-07. Four steps. Each step ends in a CHECKPOINT</div>
+<div class="note">that must pass before the next step starts — every failure this</div>
+<div class="note">runbook has ever seen was a later step running on an earlier</div>
+<div class="note">step&#x27;s stale output. If a checkpoint fails, the problem is</div>
+<div class="note">upstream of where you are standing.</div>
+<div class="note"><code>OWNER/REPO</code> and <code>&lt;KECK_REPO_URL&gt;</code> are placeholders in this</div>
+<div class="note">tracked copy. RUNBOX.html (tracked beside this file) is the same</div>
+<div class="note">runbook with copy buttons: open it in a browser, type the</div>
+<div class="note">owner/name and the enterprise URL into its two boxes once, and</div>
+<div class="note">every command fills itself in — the values live in the browser,</div>
+<div class="note">never in the file. <code>%USERPROFILE%</code> is the only variable that</div>
+<div class="note">survives on this terminal — everything else is typed out in</div>
+<div class="note">full, one command per line.</div>
 <div class="fill">github repo (owner/name): <input id="frepo" placeholder="OWNER/REPO" spellcheck="false"></div>
 <div class="fill">enterprise remote URL: <input id="fkeck" placeholder="https://..." spellcheck="false"></div>
-<div class="note"><code>%USERPROFILE%</code> is the only</div>
-<div class="note">variable that survives on this terminal — everything else is</div>
-<div class="note">typed out in full.</div>
 <hr>
 <h2>STEP 0 — pull the fresh build</h2>
 <div class="note">Close the bench first. Then, in a new terminal:</div>
@@ -46,28 +51,43 @@ border-radius:7px;padding:5px 9px;width:340px}
 <div class="note">bytes means an error page landed, not an archive.</div>
 <div class="cmd"><pre>tar -xf synthkit.zip</pre><button>copy</button></div>
 <div class="cmd"><pre>for /d %i in (OWNER-REPO-*) do ren &quot;%i&quot; synthkit</pre><button>copy</button></div>
+<div class="note"><b>CHECKPOINT — which commit are you holding?</b></div>
+<div class="cmd"><pre>type %USERPROFILE%\dev\synthkit\BUILD_SHA.txt</pre><button>copy</button></div>
+<div class="note">Compare the first seven characters against the newest commit on</div>
+<div class="note">the repo page. If they differ, the pull brought an old build and</div>
+<div class="note">NOTHING BELOW is worth running — a whole day was once spent</div>
+<div class="note">rebuilding bundles from a stale extract that one <code>type</code> would</div>
+<div class="note">have exposed in two seconds.</div>
+<hr>
+<h2>STEP 1 — install and verify the extract</h2>
 <div class="cmd"><pre>cd %USERPROFILE%\dev\synthkit</pre><button>copy</button></div>
 <div class="cmd"><pre>pip install -e .</pre><button>copy</button></div>
 <div class="cmd"><pre>python scripts\run_all_smokes.py</pre><button>copy</button></div>
-<div class="note"><b>Expect: 69 suites, ALL GREEN</b> (the check count grows with</div>
-<div class="note">every build; ALL GREEN is the verdict — the zipball count for</div>
-<div class="note">this build is in docs/WINDOWS.md).</div>
+<div class="note"><b>CHECKPOINT: 69 suites, ALL GREEN.</b> The words are the verdict;</div>
+<div class="note">the exact zipball check count for this build is pinned in</div>
+<div class="note">docs/WINDOWS.md. A FAILED suite stops everything — copy the</div>
+<div class="note">lines that start with FAIL and send them back.</div>
 <hr>
-<h2>STEP 1 — push to the enterprise repo</h2>
+<h2>STEP 2 — push to the enterprise repo</h2>
 <div class="note">Needs: git on this machine, and credentials for the team repo.</div>
 <div class="note">The push is a SINGLE CLEAN COMMIT of a filtered tree — never our</div>
 <div class="note">history. The filtering is done by the bundle script, which</div>
-<div class="note">applies the one exclusion list, scrubs the two in-flight items,</div>
-<div class="note">writes the lab-notebook stub, and REFUSES to finish unless its</div>
-<div class="note">own deep scan prints <code>self-scan: CLEAN</code>. This exact filtered</div>
-<div class="note">tree was verified on the development side: scan CLEAN, and its</div>
-<div class="note">own net run came back ALL GREEN, 68 suites, 2025 checks.</div>
+<div class="note">applies the one exclusion list, scrubs the in-flight items,</div>
+<div class="note">resets the build stamp to its placeholder, writes the</div>
+<div class="note">lab-notebook stub, and REFUSES to finish unless its own deep</div>
+<div class="note">scan prints <code>self-scan: CLEAN</code>.</div>
 <div class="cmd"><pre>cd %USERPROFILE%\dev\synthkit</pre><button>copy</button></div>
 <div class="cmd"><pre>rmdir /s /q %USERPROFILE%\dev\keck_stage 2&gt;nul</pre><button>copy</button></div>
 <div class="cmd"><pre>python scripts\make_team_bundle.py -o %USERPROFILE%\dev\keck_stage --wheels skip</pre><button>copy</button></div>
-<div class="note"><b>The last line of that command must read <code>self-scan: CLEAN</code>.</b></div>
-<div class="stop">If it prints DIRTY lines instead, STOP and report them — the</div>
-<div class="note">script will have refused to finish, which is the design. Then:</div>
+<div class="note"><b>CHECKPOINT, two lines.</b> The build must end <code>self-scan: CLEAN</code></div>
+<div class="note">(DIRTY lines mean it refused — stop and report them). Then:</div>
+<div class="cmd"><pre>type %USERPROFILE%\dev\keck_stage\synthkit_src\BUILD_SHA.txt</pre><button>copy</button></div>
+<div class="note">This must print <code>$Format:%H$</code> — the raw placeholder. A 40-hex</div>
+<div class="note">string here would poison the team repo&#x27;s identity (its own</div>
+<div class="note">archives would name a commit that is not in it); that happened</div>
+<div class="note">once, the verify clone caught it, and this line is why it</div>
+<div class="note">cannot happen silently again.</div>
+<div class="note">Now the push:</div>
 <div class="cmd"><pre>cd %USERPROFILE%\dev\keck_stage\synthkit_src</pre><button>copy</button></div>
 <div class="cmd"><pre>git init -b main</pre><button>copy</button></div>
 <div class="cmd"><pre>git remote add keck &lt;KECK_REPO_URL&gt;</pre><button>copy</button></div>
@@ -77,58 +97,54 @@ border-radius:7px;padding:5px 9px;width:340px}
 <div class="note"><code>--force</code> is correct only because this repo&#x27;s convention is</div>
 <div class="note">whole-version replacement — confirm nobody commits to it</div>
 <div class="note">directly before using it.</div>
-<div class="note"><b>Verify from a second clone:</b></div>
+<div class="note"><b>CHECKPOINT — verify from a second clone.</b> Always delete the</div>
+<div class="note">old clone first; re-running inside a stale <code>keck_check</code> verifies</div>
+<div class="note">the previous push, not this one:</div>
 <div class="cmd"><pre>cd %USERPROFILE%\dev</pre><button>copy</button></div>
+<div class="cmd"><pre>rmdir /s /q keck_check 2&gt;nul</pre><button>copy</button></div>
 <div class="cmd"><pre>git clone &lt;KECK_REPO_URL&gt; keck_check</pre><button>copy</button></div>
 <div class="cmd"><pre>cd keck_check</pre><button>copy</button></div>
 <div class="cmd"><pre>pip install -e .</pre><button>copy</button></div>
 <div class="cmd"><pre>python scripts\run_all_smokes.py</pre><button>copy</button></div>
-<div class="note">Expect 68 suites, ALL GREEN (one suite fewer than our checkout:</div>
-<div class="note">the personal-scan suite stays home by design; the buildid suite</div>
-<div class="note">reports nine checks SKIPPED off a non-git tree, expected and</div>
-<div class="note">stated in its own output).</div>
+<div class="note">Expect <b>68 suites, ALL GREEN</b> (one suite fewer than our</div>
+<div class="note">checkout: the personal-scan suite stays home by design). This</div>
+<div class="note">clone has found a real defect on every shape it was first run</div>
+<div class="note">against — it is not ceremony.</div>
 <hr>
-<h2>STEP 2 — build and send the team bundle</h2>
+<h2>STEP 3 — build, rehearse and send the team bundle</h2>
 <div class="note">Needs: network for the dependency wheels (one pip download).</div>
 <div class="note">From the pulled checkout:</div>
 <div class="cmd"><pre>cd %USERPROFILE%\dev\synthkit</pre><button>copy</button></div>
+<div class="cmd"><pre>rmdir /s /q %USERPROFILE%\Desktop\synthkit_team_bundle 2&gt;nul</pre><button>copy</button></div>
+<div class="cmd"><pre>del /q %USERPROFILE%\Desktop\synthkit_team_bundle.zip 2&gt;nul</pre><button>copy</button></div>
 <div class="cmd"><pre>python scripts\make_team_bundle.py -o %USERPROFILE%\Desktop\synthkit_team_bundle --wheels win</pre><button>copy</button></div>
-<div class="note">The build REFUSES to finish unless its own deep scan prints</div>
-<div class="note"><code>self-scan: CLEAN</code> — if it prints DIRTY lines instead, stop and</div>
-<div class="note">report them. Then zip and send:</div>
+<div class="note"><b>CHECKPOINT.</b> The build must end <code>self-scan: CLEAN</code>, and:</div>
+<div class="cmd"><pre>dir %USERPROFILE%\Desktop\synthkit_team_bundle</pre><button>copy</button></div>
+<div class="note">must show <code>START_SYNTHKIT.bat</code> and <code>RUN_CHECKS.bat</code> at the top</div>
+<div class="note">level, beside INSTALL.md, kit, synthkit_src and wheels. Missing</div>
+<div class="note">launchers mean the extract is stale — back to STEP 0. Then zip:</div>
 <div class="cmd"><pre>cd %USERPROFILE%\Desktop</pre><button>copy</button></div>
 <div class="cmd"><pre>tar -a -c -f synthkit_team_bundle.zip synthkit_team_bundle</pre><button>copy</button></div>
-<div class="note">Send <code>synthkit_team_bundle.zip</code> through the team channel. What a</div>
-<div class="note">teammate gets, needing only Python 3.10+: the enterprise-clean</div>
-<div class="note">source, offline Windows wheels (<code>pip install --no-index</code> — no</div>
-<div class="note">network needed on their machine), the test kit with its printed</div>
-<div class="note">answer key, INSTALL.md one command per line, and the honest AI</div>
-<div class="note">page (the measure route needs no language model; the hospital</div>
-<div class="note">cloud path is named before any local install; Ollama steps</div>
-<div class="note">included for machines where it is approved, with the</div>
-<div class="note">fully-offline model-copy route).</div>
+<div class="note"><b>CHECKPOINT — be the first teammate.</b> Unzip a copy somewhere</div>
+<div class="note">else, double-click <code>START_SYNTHKIT.bat</code> (one-time setup, then</div>
+<div class="note">the bench opens in the browser), then double-click</div>
+<div class="note"><code>RUN_CHECKS.bat</code> and expect ALL GREEN. Only a bundle that passed</div>
+<div class="note">this rehearsal gets sent. What a teammate then needs is one</div>
+<div class="note">sentence: unzip, double-click START_SYNTHKIT.bat — the offline</div>
+<div class="note">wheels mean their machine needs no network, only Python 3.12 or</div>
+<div class="note">3.14.</div>
+<hr>
+<h2>STEP 4 — housekeeping</h2>
+<div class="note"><code>keck_stage</code> and <code>keck_check</code> are disposable by design — the</div>
+<div class="note">runbook recreates both from scratch every time:</div>
+<div class="cmd"><pre>rmdir /s /q %USERPROFILE%\dev\keck_stage 2&gt;nul</pre><button>copy</button></div>
+<div class="cmd"><pre>rmdir /s /q %USERPROFILE%\dev\keck_check 2&gt;nul</pre><button>copy</button></div>
 <hr>
 <h2>If anything surprises you</h2>
-<div class="note">Copy the exact terminal output and send it back. Every refusal</div>
-<div class="note">in these tools states its reason in a sentence; a traceback or a</div>
-<div class="note">silent difference is a finding, not an inconvenience.</div>
-<hr>
-<h2>DIAGNOSTIC &mdash; the smoke_fidelity failure (2026-10-02)</h2>
-<div class="note">The suite fails 8 checks on this machine and passes everywhere</div>
-<div class="note">the dev side can reach, including a venv holding exactly what a</div>
-<div class="note">fresh install pulls today. The FAIL lines name the checks; the</div>
-<div class="note">err lines carry any traceback; the last line reports the exact</div>
-<div class="note">Python and library versions this machine actually runs.</div>
-<div class="cmd"><pre>cd %USERPROFILE%\dev\synthkit</pre><button>copy</button></div>
-<div class="cmd"><pre>python -u scripts\smoke_fidelity.py > fid_out.txt 2>&amp;1</pre><button>copy</button></div>
-<div class="cmd"><pre>findstr /B /C:"FAIL" fid_out.txt</pre><button>copy</button></div>
-<div class="cmd"><pre>findstr /C:"err" fid_out.txt</pre><button>copy</button></div>
-<div class="cmd"><pre>python -c "import sys,numpy,pandas,sklearn,scipy,shap; print(sys.version); print(numpy.__version__, pandas.__version__, sklearn.__version__, scipy.__version__, shap.__version__)"</pre><button>copy</button></div>
-<div class="note">Photograph what the two findstr lines and the version line print</div>
-<div class="note">and send it back. fid_out.txt holds only smoke output from the</div>
-<div class="note">invented fixture data &mdash; nothing from a real extract &mdash; but it</div>
-<div class="note">stays on this machine like everything else; the photo of the</div>
-<div class="note">screen is what travels.</div>
+<div class="note">Copy the exact terminal output (or photograph the window) and</div>
+<div class="note">send it back. Every refusal in these tools states its reason in</div>
+<div class="note">a sentence; a traceback or a silent difference is a finding, not</div>
+<div class="note">an inconvenience.</div>
 <script>
 var pres=document.querySelectorAll('.cmd pre');
 pres.forEach(function(p){p.dataset.tpl=p.textContent});
