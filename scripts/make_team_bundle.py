@@ -65,7 +65,7 @@ SCAN = re.compile(
     r"|CLAUDE\.md", re.I)                   # noqa: bundle-scan
 SCAN_OK = re.compile(r"anthropic\.claude|claude-sonnet|claude-3")
 SCAN_EXT = {".py", ".md", ".yml", ".toml", ".txt", ".html",
-            ".ipynb"}
+            ".ipynb", ".bat"}
 
 
 def scan_tree(root: Path):
@@ -193,7 +193,17 @@ def build_source(dst: Path):
             encoding="utf-8")
 
 
+LAUNCH_BAT = '@echo off\r\nsetlocal\r\ncd /d %~dp0\r\necho ================================================\r\necho  synthkit - one-time setup, then the bench opens\r\necho ================================================\r\nwhere python >nul 2>nul\r\nif errorlevel 1 goto :nopython\r\nif not exist .venv (\r\n  echo [1/3] creating a private Python environment...\r\n  python -m venv .venv\r\n  if errorlevel 1 goto :fail\r\n)\r\nif not exist .venv\\ok.marker (\r\n  echo [2/3] installing synthkit from the offline wheels, no network needed...\r\n  .venv\\Scripts\\python -m pip install --no-index --find-links wheels -e synthkit_src\r\n  if errorlevel 1 goto :fail\r\n  echo ok> .venv\\ok.marker\r\n)\r\necho [3/3] starting the bench - your browser opens on the HOME page...\r\n.venv\\Scripts\\python -m synthkit.cli gui\r\npause\r\nexit /b 0\r\n:nopython\r\necho Python was not found on this machine.\r\necho Install Python 3.12 or newer, then run this file again.\r\npause\r\nexit /b 1\r\n:fail\r\necho.\r\necho A step failed - read the message above; a photo of this\r\necho window is enough for whoever supports the kit.\r\npause\r\nexit /b 1\r\n'
+CHECKS_BAT = '@echo off\r\nsetlocal\r\ncd /d %~dp0\r\nif not exist .venv\\ok.marker (\r\n  echo Run START_SYNTHKIT.bat first - it installs everything.\r\n  pause\r\n  exit /b 1\r\n)\r\ncd synthkit_src\r\n..\\.venv\\Scripts\\python -u scripts\\run_all_smokes.py\r\necho.\r\necho The words ALL GREEN are the verdict.\r\npause\r\n'
+
 INSTALL_MD = """# Install, offline, one command per line (Windows)
+
+THE EASY WAY: double-click START_SYNTHKIT.bat. It creates a
+private environment, installs synthkit from the offline wheels,
+and opens the bench in your browser - first run takes a minute,
+after that it just opens. RUN_CHECKS.bat proves the install:
+expect the words ALL GREEN. Everything below is the same thing
+done by hand, for anyone who prefers a terminal.
 
 You need Python 3.10 or newer (`python --version` to check).
 The OFFLINE wheels in this folder cover Python 3.12 and 3.14 on
@@ -279,10 +289,15 @@ def main():
                  + r.stderr[-800:])
     if a.wheels != "skip":
         print("wheels ({}) ...".format(a.wheels))
+        # setuptools and wheel are BUILD dependencies: a modern
+        # venv ships neither, so `pip install --no-index -e .`
+        # fails while a machine with quiet network access never
+        # shows it. Measured both ways on a fresh 3.14 venv.
         base = [sys.executable, "-m", "pip", "download",
                 "-d", str(out / "wheels"),
                 "numpy>=1.24", "pandas>=2.0",
-                "scikit-learn>=1.4", "scipy>=1.10"]
+                "scikit-learn>=1.4", "scipy>=1.10",
+                "setuptools", "wheel"]
         if a.wheels == "win":
             # wheels are ABI-specific: the kit that shipped only
             # cp312 could not install on the data machine, which
@@ -298,6 +313,14 @@ def main():
             r = subprocess.run(cmd, capture_output=True, text=True)
             if r.returncode != 0:
                 sys.exit("pip download failed:\n" + r.stderr[-800:])
+    # the easiest thing to run is the thing you double-click:
+    # the launcher makes the venv, installs offline, starts the
+    # bench, and PAUSES on every exit so an error is readable
+    # rather than a vanished window.
+    (out / "START_SYNTHKIT.bat").write_bytes(
+        LAUNCH_BAT.encode("ascii"))
+    (out / "RUN_CHECKS.bat").write_bytes(
+        CHECKS_BAT.encode("ascii"))
     (out / "INSTALL.md").write_text(INSTALL_MD, encoding="utf-8")
     (out / "OLLAMA_OPTIONAL.md").write_text(OLLAMA_MD,
                                             encoding="utf-8")

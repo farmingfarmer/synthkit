@@ -522,6 +522,30 @@ def main():
               and "self-scan: CLEAN" in _r4.stdout
               and (_no / "synthkit_src" / "synthkit"
                    / "gui.py").exists())
+        _lb = _no / "START_SYNTHKIT.bat"
+        _cb = _no / "RUN_CHECKS.bat"
+        check("the bundle ships double-click launchers - "
+              "START_SYNTHKIT.bat makes the venv, installs from "
+              "the offline wheels and opens the bench; "
+              "RUN_CHECKS.bat runs the net - and both PAUSE so "
+              "an error is a readable window, not a vanished one",
+              _lb.exists() and _cb.exists()
+              and "--no-index" in _lb.read_text(encoding="ascii")
+              and "wheels" in _lb.read_text(encoding="ascii")
+              and "pause" in _lb.read_text(encoding="ascii")
+              and "run_all_smokes" in
+                  _cb.read_text(encoding="ascii")
+              and "pause" in _cb.read_text(encoding="ascii"))
+        check("...INSTALL.md leads with the double-click, and "
+              "the wheel list carries setuptools - a modern venv "
+              "ships no build backend, so the offline install "
+              "this kit promises fails without it (measured both "
+              "ways on a fresh 3.14 venv)",
+              "START_SYNTHKIT.bat" in
+              (_no / "INSTALL.md").read_text(encoding="utf-8")
+              and '"setuptools", "wheel"' in
+              (_ng / "scripts" / "make_team_bundle.py"
+               ).read_text(encoding="utf-8"))
         check("...and the staged BUILD_SHA.txt is the RAW "
               "placeholder, not the substituted sha the zipball "
               "arrived with - a stamp naming OUR commit, "
