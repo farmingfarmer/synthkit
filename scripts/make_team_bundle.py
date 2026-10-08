@@ -101,7 +101,7 @@ def scan_tree(root: Path):
 
 
 WALK_SKIP_DIRS = {".git", "__pycache__", ".venv", ".venv313",
-                  ".pytest_cache", "keck_stage"}
+                  ".venv314", ".pytest_cache", "keck_stage"}
 WALK_SKIP_SUFFIX = {".pyc", ".zip"}
 # a CSV is only ever TRACKED under these roots; one anywhere else
 # is a stray output - possibly real-derived - and the build must

@@ -4,7 +4,7 @@ Synthetic clinical data generator and model-evaluation instrument. Core rule: le
 
 ## Verify before claiming
 
-- Run `python scripts/run_all_smokes.py` before claiming anything works. Expect 69 suites, 2047 checks, ALL GREEN **on a checkout**. Off a zipball extract - which is what the data machine runs - it is 2038: nine checks in `smoke_buildid` need git to test the archive path and report SKIPPED without it. Both numbers were measured. Do not quote the checkout number to the data machine; that is how a correct run gets read as a failure.
+- Run `python scripts/run_all_smokes.py` before claiming anything works. Expect 69 suites, 2050 checks, ALL GREEN **on a checkout**. Off a zipball extract - which is what the data machine runs - it is 2041: nine checks in `smoke_buildid` need git to test the archive path and report SKIPPED without it. Both numbers were measured. Do not quote the checkout number to the data machine; that is how a correct run gets read as a failure.
 - **THE DEVELOPMENT MACHINE WAS BEHIND THE DATA MACHINE, and that is
   how a green suite here failed there.** Dev was on Python 3.10 with
   pandas 2.3; the data machine installs fresh and got pandas 3.0.5,
@@ -998,6 +998,36 @@ the direction that stops work happening.
   STRONGER than before the tier (-0.13/-0.16), because the
   narrow-token forcing improves the coherence Oral's own
   signal rides on.
+
+- **THE WIDTH BLINDNESS WAS A PARSE HOLE WEARING A THEORY, AND
+  THE OUTPUT SURFACE IS NOW CERTIFIED AT FIXTURE WIDTH
+  (2026-10-08).** The output-surface adversary read 0.500 at 77
+  columns even on a VERBATIM REPUBLISH, recorded as "distance
+  concentration" - but true concentration cannot put a
+  distance-0 copy at 0.500, and that contradiction sat unread.
+  The fact: float("nan") PARSES, so a missing cell sailed past
+  every `is None` guard as nan, poisoned the distance, and
+  `nan < best` being always-False tied every candidate at
+  infinity - sparsity was the trigger, width only guarantees
+  sparsity. Fixed in `_num` (nan/inf -> None, which also heals
+  the scales profiler) plus one semantic change: absent on BOTH
+  sides is agreement about absence, so a sparse row is distance
+  ZERO from itself - the property the republish control stands
+  on. Watched red on the old code. Measured at the 77-column
+  extract-shaped fixture (400 patients, 3 seeds, shipping
+  defaults): output-surface honest arm 0.495-0.556 with the
+  republish control at 1.000 CAUGHT on the same arm;
+  weights-leak reconstruction 0.544-0.574; worst mean 0.560,
+  max 0.574 - PASS in the recorded bands, beside the
+  blueprint's 0.52. THE CROWNING POSTURE, WRITTEN: output-only
+  release is the release surface and it reads clean under an
+  attack that can fail; the network itself is never part of any
+  release and its adversary reads 0.544-0.574 with denoising;
+  the duel footer now states exactly this, plus the one still
+  true limitation - patient identity is carried (invented,
+  0.90-0.96 person-level) but a patient's course over TIME is
+  not modeled. Still owed: the same battery on the real extract
+  (data machine), which is the run of record.
 
 - **THE OFFLINE INSTALL HAD NEVER BEEN OFFLINE, AND THE EASY
   PATH IS A DOUBLE-CLICK (2026-10-06).** `pip install --no-index

@@ -1,0 +1,27 @@
+{
+  "domain": "work",
+  "project": "synthkit",
+  "display_name": "Synthkit synthetic-data toolkit",
+  "aliases": [
+    "answer key",
+    "campaign",
+    "ceiling",
+    "planted truth",
+    "sprint",
+    "synth kit",
+    "synthetic data",
+    "synthetic datasets",
+    "synthkit status",
+    "vendor assessment"
+  ],
+  "files": [
+    {
+      "path": "docs/intervention_status.txt",
+      "tag": "intervention_status"
+    },
+    {
+      "path": "docs/SPRINT.md",
+      "tag": "current_sprint"
+    }
+  ]
+}

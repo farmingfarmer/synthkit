@@ -41,9 +41,19 @@ from .mlmetrics import auroc
 
 def _num(v):
     try:
-        return float(str(v).strip())
+        x = float(str(v).strip())
     except (TypeError, ValueError):
         return None
+    # float("nan") PARSES, so a missing cell sailed past every
+    # `is None` guard as nan, poisoned the distance, and
+    # `nan < best` is False - on a sparse wide frame EVERY
+    # candidate tied at infinity and the attack read 0.500 for
+    # everyone, including a verbatim republish. "Distance
+    # concentration" was the recorded theory; a one-line parse
+    # hole was the fact. A metric must treat absent as absent.
+    if math.isnan(x) or math.isinf(x):
+        return None
+    return x
 
 
 def _profile_scales(rows: List[Dict[str, Any]], cols: List[str]):
@@ -70,6 +80,12 @@ def _row_distance(a, b, num_cols, cat_cols, scales,
     d = 0.0
     for c in num_cols:
         x, y = _num(a.get(c)), _num(b.get(c))
+        if x is None and y is None:
+            # absent on BOTH sides is agreement about absence -
+            # charging it kept a row from ever being distance 0
+            # from ITSELF, which is the property the republish
+            # control stands on
+            continue
         if x is None or y is None:
             d += 1.0
             continue

@@ -277,6 +277,44 @@ def main():
           "every set column".format(_hon),
           _hon < 0.60)
 
+    # SPARSITY MUST NOT BLIND THE ATTACK. float("nan") parses, so
+    # a missing cell sailed past every `is None` guard, poisoned
+    # the distance, and on a sparse wide frame every candidate
+    # tied at infinity - the attack read 0.500 for a VERBATIM
+    # REPUBLISH and the blindness was recorded as "distance
+    # concentration". A control that cannot fail certifies
+    # nothing; these three checks are the control's control.
+    _rs3 = _np.random.RandomState(0)
+    def _sprow(i, rs):
+        r = {"person_id": "P{:03d}".format(i)}
+        for c in range(40):
+            r["col{:02d}".format(c)] = (
+                round(float(rs.normal(0, 1)), 3)
+                if rs.rand() > 0.45 else float("nan"))
+        return r
+    _SM = [_sprow(i, _rs3) for i in range(80)]
+    _SN = [_sprow(i + 500, _rs3) for i in range(80)]
+    _srep = nearest_neighbor_attack(_SM, _SN, list(_SM))["auc"]
+    check("a verbatim republish of SPARSE wide rows is caught "
+          "({:.3f}) - with the nan hole this read exactly 0.500 "
+          "and the blindness wore a theory".format(_srep),
+          _srep > 0.95)
+    from synthkit.attack import _row_distance, _profile_scales
+    _cols = ["col{:02d}".format(c) for c in range(40)]
+    _sd = _row_distance(_SM[0], _SM[0], _cols, [],
+                        _profile_scales(_SM, _cols))
+    check("...a sparse row is distance ZERO from itself - absent "
+          "on both sides is agreement about absence, and charging "
+          "it kept the republish control from ever reading 0",
+          _sd == 0.0)
+    _shon = nearest_neighbor_attack(
+        _SM, _SN, [_sprow(i + 2000, _rs3) for i in range(160)]
+        )["auc"]
+    check("...while an honest generator over the same sparse "
+          "population is NOT flagged ({:.3f}) - the fix must open "
+          "the attack's eyes, not teach it to shout".format(_shon),
+          _shon < 0.65)
+
     print()
     if FAIL:
         print("{} FAILED".format(FAIL))

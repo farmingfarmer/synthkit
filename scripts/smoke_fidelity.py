@@ -1376,7 +1376,10 @@ def main():
               and "The combination effects" in _duel
               and "suppressed by" in _duel
               and "they are not equally safe" in _duel
-              and "learns from the records themselves" in _duel)
+              and "learns from the records themselves" in _duel
+              and "never part of any release" in _duel
+              and "INVENTED patient identity" in _duel
+              and "visits are not linked" not in _duel)
         # PLAIN ENGLISH IS THE CONTRACT, not a preference. The
         # operator could not read the page through our own code
         # names, so every heading, label and legend is written

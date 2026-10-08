@@ -48,6 +48,18 @@ whichever way it reads. With it, the crowning decision written
 with its numbers: what is certified, what is not, both
 postures stated.
 
+PROGRESS 2026-10-08: the blindness was a PARSE HOLE, not
+geometry - float("nan") passed the `is None` guards and tied
+every sparse candidate at infinity; a verbatim republish at
+0.500 could never have been concentration, and the
+contradiction sat unread. Fixed, watched red, and measured at
+the 77-column fixture over 3 seeds: honest output arm
+0.495-0.556 with the republish control 1.000 CAUGHT on the
+same arm, weights arm 0.544-0.574, worst mean 0.560 PASS. The
+duel footer now carries the decided posture. REMAINING for
+this item: the same battery on the REAL extract - one command
+on the data machine - which is the run of record.
+
 ## 3. The close bar - 80.9% against 87.9% (weeks 1-2)
 
 The drift list after the quota build names rare-token pairs
