@@ -1,221 +1,121 @@
-# Sprint plan: 2026-09-24 to 2026-10-08
+# Sprint plan: 2026-10-08 to 2026-10-22
 
-The previous sprint's five items all closed (end-to-end run, seed
-sweep, close-gap verdict, first SHAP reading, report card), plus
-the unplanned: goal 6 closed, relationship dials, the PHI scrub
-with its real-read correction cycle, the one-command exam runner,
-the team kit, and the fragility flag. This sprint is the demo,
-the feedback it generates, and the two measured fidelity targets
-the last sprint's diagnostics aimed.
+Last sprint delivered the demo with its asks shipped same-day,
+the self-contained team bundle with double-click launchers, and
+the neural engine's fidelity campaign on the real extract -
+close 42.6% -> 80.9% against the 87.9 bar, direction 97.9%
+PASS, inversions 10 -> 1, every fix behind a prediction on
+record. The enterprise channel is live and verified from a
+second clone, and three different verify environments each
+caught a real defect, which is the argument for keeping them.
+Goal 5's two measured targets were NOT touched (superseded in
+priority by the neural path) and goals 7/8 and the multi-table
+stretch did not move - carried below with that said plainly.
+
+This sprint is the team actually using the thing, the last
+certification blocker, and the close bar.
 
 Each item states its EXIT CRITERION - the sentence that must be
-true on 2026-10-08.
+true on 2026-10-22.
 
-## 1. The demo, delivered (week 1)
+## 1. The kit feedback loop (weeks 1-2)
 
-Prep is staged: RUNBOX has the final pull and the second-seed
-check; SPEAKER carries the rehearsed numbers including the live
-inversion beat. Remaining: the second-seed gate read, one full
-out-loud rehearsal, the room.
-
-EXIT: the demo happened on the rehearsed build; the room's
-questions are captured as additions to the speaker doc or, where
-they exposed a gap, as items below.
-
-## 2. Test kits: hand out, absorb, harden (weeks 1-2)
-
-One kit folder per teammate (or one shared zip), TRY_TO_BREAK
-stated. The standing rule is the point: anything broken becomes
-a check, and the kit gets harder.
+The bundles are distributable as of this week - repo for
+networked teammates, zip with launchers for locked-down
+machines. The standing rule is the point: anything broken
+becomes a check, and the kit gets harder.
 
 EXIT: every reported break is either a new check in the net
 (counted: breaks in -> checks added) or a recorded won't-fix
 with its reason. A kit session that finds nothing is also a
-result - record who tried what.
+result - record who tried what. Zero sessions by anyone is the
+one failing outcome.
 
-## 3. Goal 5 - the two measured fidelity targets (weeks 1-2)
+## 2. The output-surface attack at width (week 1)
 
-(a) THE SMALL-COHORT TOKEN SOLVE. The extract-shaped fixture at
-300 patients generates every published token at ~1/3 of its
-source share (constant multiplier, 0/12 within tolerance) while
-the real 300-patient sample reads 23/23 - the defect lives at
-the flat-vocabulary shape. Reproduce minimally, fix the solve,
-verify at BOTH shapes plus the 800-patient scale.
+The last certification blocker before the neural engine's
+posture can be written down as decided. The nearest-neighbor
+adversary reads 0.500 at 77-column width even when handed the
+members VERBATIM - a control that cannot catch a republish
+certifies nothing. Distance concentration is the named cause;
+the attack must be rebuilt on a surface where a republish is
+catchable (per-column match counts, rare-combination hits, or
+a learned distinguisher - whatever survives width).
 
-(b) THE INVERSION-FRAGILITY LINK. Monday's rehearsal showed the
-fragility flag naming the pair that then inverted. Measure on
-the second-seed run and the reproduction fixtures whether
-flagged-fragile predicts inversion/close-drift beyond chance -
-if it does, the flag becomes a gate-adjacent warning and a
-trim-priority signal; if not, that is recorded too. Any
-discovery-side change must hold pressure at 0/5 seeds failing
-surfaces and the bench at its same-day baseline.
+EXIT: an output-surface attack whose republish control FAILS
+loudly at real width, and the honest arm's reading recorded -
+whichever way it reads. With it, the crowning decision written
+with its numbers: what is certified, what is not, both
+postures stated.
 
-EXIT: (a) fixed and verified at three shapes, or the blocking
-mechanism named; (b) the correlation measured and written down,
-whichever way it reads.
+## 3. The close bar - 80.9% against 87.9% (weeks 1-2)
 
-## 3b. The latent challenger - added mid-sprint (2026-09-24)
+The drift list after the quota build names rare-token pairs
+and the parked ring-adjacency family. Next mechanism from the
+list, fixture first, prediction on record before the real run
+- same discipline that carried 42.6 -> 80.9.
 
-The operator called the interaction fidelity unacceptable and
-proposed a competing autoencoder generator. Built the same day
-as a RULER (`scripts/latent_challenger.py`, k-screened training,
-memorization tripwire with positive control): on the fixtures it
-holds the triangle's attribution dead-on, the pressure family at
-63/63 close, and the planted XOR on every seed - the ceiling is
-ours, not the problem's.
+EXIT: either close MET on a real run, or the next mechanism
+named with its fixture reproduction and the residual gap
+attributed (bound-explained / ring-parked / open), stated on
+the gate's own denominator.
 
-NEXT: run it against the real 300-patient sample ON THE DATA
-MACHINE (output stays there); adapt the membership attack to
-grade it honestly; then decide - import its strengths into the
-blueprint path (latent-informed surfaces), or promote it as a
-second engine behind the full attack battery.
+## 4. Governance parity for the neural engine (week 2)
 
-PROGRESS 2026-09-24: the real comparison table EXISTS and is
-decisive - blueprint 0.000 on all eight mined interactions and
-the driver flip reproduced (94/6 -> 25/75), latent holding both
-(93/7, interactions at source magnitude), tripwire clean at
-1.52-2.14. The attack ran at the FIXTURE (worst 0.546 PASS,
-republish control 1.000 FAIL); still owed at real width.
+The rules engine has a published auditable contract and dials;
+the neural engine has neither, and that gap is on the crowning
+list. Scope: the run artifacts state what was learned and
+under what bounds (k, visit-count cap, token caps, identity
+tiers adopted), readable by the same deck pages - not a new
+dial system, a written contract of what this run did.
 
-RESOLVED 2026-09-24: the attack ran at width (77-column
-fixture): reconstruction adversary 0.776/0.694 FAIL under
-weights-leak, rows-only adversary 0.500 clean - width is where
-AE memorization lives, and the narrow-fixture pass did not
-transfer. The fork is decided by evidence: LATENT-INFORMED
-SURFACES into the blueprint (mine interactions the challenger's
-way, publish as k-screened aggregates), not a second release
-engine. The challenger remains the ruler.
+EXIT: a neural run's artifacts carry the contract statement,
+the sign-off page renders it, and one check asserts it cannot
+be silently absent.
 
-DELIVERED 2026-09-25: the DUEL station - both engines on one
-source, inside the bench, with three graphic sets (per-column
-three-body histograms, the gap heatmap, mined-interaction bars)
-and both privacy postures on the page. Next: the full-extract
-duel READ on the data machine.
+## 5. Goal 8 - a challenger worth the name (carried, week 2)
 
-THE CROWNING QUESTION, ANSWERED WITH EVIDENCE (2026-09-25).
-The operator asked whether the neural engine should become the
-methodology. On the FULL extract it wins decisively on
-cross-sectional fidelity: sign 97.0% against 92.6%, close 86.8%
-against 81.8%, 3 inversions against 11, and it carries all eight
-mined interactions where the rules engine reads 0.000 on every
-one. Denoising training then removed the privacy blocker -
-weights-surface adversary 0.776 FAIL to 0.569 PASS, with
-fidelity IMPROVING - and the k-aware contract measures as
-already met (rare rows sit 1.09x further from their nearest
-synthetic row than dense ones).
-
-IT IS NOT CROWNED YET, FOR ONE MEASURED REASON: its output
-carries NO PATIENT IDENTITY. On a source averaging 76 visits per
-patient, the neural engine returns a table of unlinked visits -
-not degraded longitudinal structure, the absence of one. Every
-fidelity number above is cross-sectional; nothing has measured
-what happens to a patient's history, because there is no history
-in the output to measure. Shipping it as the methodology in that
-state would be the exact failure this project exists to prevent:
-a file that looks right on every check and has silently lost a
-large part of what the data is.
-
-THE PATH, IN ORDER: (1) ~~give the neural engine patient
-structure~~ DONE 2026-09-25 - the latent code splits into the
-patient's centre and the visit's deviation, a generated patient
-draws one centre and a k-screened visit count, and the output
-carries an INVENTED person_id. Measured: person-level columns
-0.90-0.96 against a source 1.00, per-visit columns 0.07-0.14
-against ~0, mean between-share error 0.079 over 41 columns, with
-cross-sectional fidelity unchanged (close 1355/1376). (2) ~~measure
-dynamics in the duel~~ DONE - "Does a patient still look like a
-person?" is a section on the page now, per column, both engines,
-with the average distance from the real value stated. (3) build
-an output-surface attack that survives real width - STILL OPEN,
-and it is now the last blocker: the current nearest-neighbor
-adversary reads 0.500 even when handed the members verbatim, so
-nothing certifies that surface at width.
-
-DELIVERED 2026-09-28: the neural engine has its own station -
-Generate and Review, no prior run and no second engine needed,
-both steps as polled jobs with its own single-engine review
-page. The duel stays as the RULER (it is how we know which
-engine is better, and the one open certification gap means we
-still need a reference point), but nobody has to run a contest
-to run the engine.
-
-DELIVERED 2026-09-29: the first real-extract read of that
-station found THREE defects, all of them the same fault - a
-capability rebuilt in the second engine instead of called from
-the first. Every DATE was typed as a category (visit_start_date:
-4,692 distinct values and 0% missing in, 60 and 79.9% out).
-Every SET column was typed as a category of whole COMBINATION
-strings, so nearly every row collapsed onto `__other__` - on a
-fixture the old code emitted ONE distinct token in the entire
-file, and on the extract `procedures` was empty on 80.7% of
-source rows and 0.0% of generated ones. And the output file was
-written at the size of the 85% TRAINING SPLIT, which is the
-"800 patients original, 687 synthetic" on the dashboard. Dates
-now go through `synthkit.dates` and sets through
-`synthkit.sets`, both halves calling the one module; the
-deliverable is the source's size. The engine is also step 02 of
-the measure route now rather than a tile beside the Dashboard -
-the rail was claiming the rules engine leads.
-
-REMAINING BEFORE CROWNING: (3) above, plus the residual that the
-neural engine makes visit-level columns slightly too
-patient-like, plus the governance items the rules engine has and
-the neural one does not - a published, auditable contract and
-the dials. None of these is a reason not to proceed; all of them
-are reasons the decision should be written down with its
-numbers.
-
-NEW EXIT: (a) the full-extract duel run and read - the
-300-sample's "blueprint 0.000 on all eight mined interactions"
-confirmed or corrected at full width; (b) first latent-informed
-surface published end to end - one mined interaction from the
-challenger, k-screened, carried in the blueprint, surviving
-generation where the blueprint currently reads 0.000.
-
-## 4. Goal 8 - a challenger worth the name (week 2)
-
-The report card half shipped last sprint; the challenger seat is
-still our structurally-blinded floor. Build one real challenger
-(gradient-boosted, feature-engineering pass, still structurally
-blinded from test labels) and put it in the vendor seat of the
-existing exams.
+Unmoved last sprint. Build the gradient-boosted challenger
+with a feature-engineering pass, structurally blinded, in the
+vendor seat of the existing exams.
 
 EXIT: on the clinic exam and the real-shaped exam, the card
-shows floor / challenger / ceiling with the challenger closing a
-measured share of the floor-to-ceiling gap - whatever share it
-is, stated. Goal 8 re-scored on the number.
+shows floor / challenger / ceiling with the measured share of
+the gap closed. Goal 8 re-scored on the number.
 
-## 5. Goal 7 - a real vendor in the seat (scheduling)
+## 6. Goal 7 - a real vendor in the seat (carried, scheduling)
 
-The machinery takes any `package.module:function`. Ask the team
-- or a teammate's kit-built solver - to sit the exam.
+The backend deep-dive puts the team in front of the code; the
+exam seat takes any `package.module:function`, and a
+teammate's kit-built solver counts.
 
-EXIT: one showdown where the vendor seat is not ours, or a named
-commitment with a date.
+EXIT: one showdown where the vendor seat is not ours, or a
+named commitment with a date.
 
-## 6. Stretch: goal 1 multi-table intake, first cut
+## 7. Goal 5 residuals (carried, explicitly deprioritized)
 
-The last big unstarted piece. Scope the first milestone only:
-two tables with a declared key, joined into the tidy shape the
-pipeline already eats, with the join REPORTED (rows matched,
-orphans counted) rather than silent.
+(a) The small-cohort token solve (rules engine, flat-vocabulary
+shape, constant ~1/3 multiplier) and (b) the
+inversion-fragility correlation. Both stand exactly as
+recorded; both matter less while the neural path leads. Touch
+only if an item above closes early.
 
-EXIT (stretch): the two-table fixture round-trips, or the design
-note exists stating why not yet.
+EXIT: moved or re-parked with this paragraph updated either way.
 
 ## Small debts carried in
 
 - The bench reads 11/13 on its default config (het unexplained
-  at discovery) against a recorded 12/13 - pre-existing drift,
-  proven not the flag's doing; find which change moved it.
-- `discover.py`'s `Xq[c] = keep[c]` SettingWithCopyWarning spam
-  on pandas 2.x - cosmetic in logs, gone in pandas 3, fix at
-  leisure.
+  at discovery) against a recorded 12/13 - still unattributed.
+- `discover.py` SettingWithCopyWarning spam on pandas 2.x -
+  cosmetic, gone on the 3.13/3.14 lanes, fix at leisure.
+- The enterprise repo maintenance rule is now written in the
+  RUNBOX (push only when a pull brought something the team
+  repo should have) - keep it true.
 
 ## Not this sprint, said out loud
 
 The ring-adjacency ceiling and free-text PHI stay parked - one
-is the genuine research unknown, the other is a governance gate.
-Neither moves on a two-week clock, and pretending otherwise is
-how dates slip silently.
+is the genuine research unknown, the other is a governance
+gate. The multi-table intake (goal 1) drops OFF the stretch
+list this sprint rather than pretending a third time; it comes
+back when an item above frees a week.
