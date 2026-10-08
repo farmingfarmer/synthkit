@@ -102,5 +102,5 @@ CLAUDE.md
 # the better answer and this file would only go stale.
 BUILD_ID.txt
 
-# local meeting-copilot pointer, personal tooling
+# local pointer file, personal tooling - stays home
 .mnemo.json
