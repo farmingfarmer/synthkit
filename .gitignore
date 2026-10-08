@@ -101,3 +101,6 @@ CLAUDE.md
 # names the commit that was extracted there; on a checkout git is
 # the better answer and this file would only go stale.
 BUILD_ID.txt
+
+# local meeting-copilot pointer, personal tooling
+.mnemo.json
