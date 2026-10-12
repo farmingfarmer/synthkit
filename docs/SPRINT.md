@@ -56,9 +56,14 @@ contradiction sat unread. Fixed, watched red, and measured at
 the 77-column fixture over 3 seeds: honest output arm
 0.495-0.556 with the republish control 1.000 CAUGHT on the
 same arm, weights arm 0.544-0.574, worst mean 0.560 PASS. The
-duel footer now carries the decided posture. REMAINING for
-this item: the same battery on the REAL extract - one command
-on the data machine - which is the run of record.
+duel footer now carries the decided posture.
+
+RESOLVED 2026-10-12: the battery ran on the REAL extract.
+Output surface 0.514/0.523/0.551 over three seeds with the
+republish control 1.000 CAUGHT on the same arm - certified.
+Weights arm 0.366/0.479/0.619, one MARGINAL, recorded as-is;
+the network never leaves. Item CLOSED; the crowning posture
+stands as written, now on the data of record.
 
 ## 3. The close bar - 80.9% against 87.9% (weeks 1-2)
 
@@ -71,6 +76,16 @@ EXIT: either close MET on a real run, or the next mechanism
 named with its fixture reproduction and the residual gap
 attributed (bound-explained / ring-parked / open), stated on
 the gate's own denominator.
+
+PROGRESS 2026-10-12: the re-baseline ran (run_oct12): close
+76/94 = 80.9%, direction 97.9% PASS, INVERTED 1 - identical to
+the prior build, stable, no regression. quota_landing says
+enforcement LANDS at scale (40 adopted, 1 off), so the drift
+is not the adopted pairs. The inversion has coordinates:
+conditional value corr src -0.306 gen +0.229 on a 0.2%-present
+parent with a copied-set-size child - the next fixture is that
+exact shape. Still wanted from the run: the Dashboard's
+gate-issues drifted list, which names the other 18 pairs.
 
 ## 4. Governance parity for the neural engine (week 2)
 

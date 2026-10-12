@@ -999,6 +999,34 @@ the direction that stops work happening.
   narrow-token forcing improves the coherence Oral's own
   signal rides on.
 
+- **THE RUNS OF RECORD CAME BACK (2026-10-12, build 2b16b18):
+  THE ATTACK IS CERTIFIED ON THE REAL EXTRACT, THE GATE
+  REPRODUCES ITS BASELINE, AND THE INVERSION HAS COORDINATES.**
+  Attack battery on tidy_visits (3 seeds): output-surface
+  adversary 0.514/0.523/0.551 with the republish control at
+  1.000 CAUGHT on the same arm - the output surface is now
+  certified by an attack that can fail, on the data that
+  matters. The weights arm read 0.366/0.479/0.619 - seed-
+  dependent, one MARGINAL at 0.619 - recorded as-is; the
+  network is never part of any release, and the duel footer
+  quotes the real-extract worst now, not the fixture's 0.57.
+  Fidelity re-run (run_oct12): gate direction 92/94 = 97.9%
+  PASS, close 76/94 = 80.9% FAIL against 87.9% - the same
+  numbers as the previous build, a stable baseline, no
+  regression - shapes 7/8, surfaces 0/5 (ring-parked),
+  INVERTED 1. quota_landing: 40 adopted pairs, 1 off by more
+  than 0.15 - ENFORCEMENT LANDS AT EXTRACT SCALE, so the
+  remaining close drift is not the adopted pairs. The console's
+  own sign/close/INVERTED (22-28 of ~420 uniform pairs) is the
+  challenger metric, NOT the gate - different denominator,
+  both true, say which is quoted. And the one inversion,
+  procedure_count <- mean_arterial_pressure_invasive, now has
+  measured coordinates: conditional value corr src -0.306 gen
+  +0.229 on a parent PRESENT ON 0.2% OF ROWS, child a copied
+  set size, presence share reproduced exactly - a conditional-
+  value flip inside a ~90-row subset, a shape no previous
+  reproduction fixture had. That is the next fixture.
+
 - **THE WIDTH BLINDNESS WAS A PARSE HOLE WEARING A THEORY, AND
   THE OUTPUT SURFACE IS NOW CERTIFIED AT FIXTURE WIDTH
   (2026-10-08).** The output-surface adversary read 0.500 at 77
