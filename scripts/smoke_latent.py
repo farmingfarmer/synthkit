@@ -1253,9 +1253,19 @@ def main():
         "spo2": np.round(np.clip(
             98 - _sev9 + _rs9.normal(0, 1.5, _n9), 70,
             100), 1),
-        **{"press{}".format(j): np.round(
-            100 + 0.9 * _bs9 + 10 * _rs9.normal(0, 1, _n9)
-            + 3 * _sev9, 1) for j in range(4)}})
+        **{"press{}".format(j): (lambda _dv9, _jj9: np.where(
+            # the sparse siblings are CO-MEASURED with the
+            # child, like the invasive family on ICU visits:
+            # present on most of ITS rows plus a sliver of
+            # background - which is how they qualify as
+            # partners (enough both-present rows) AND how the
+            # all-partners-present intersection collapsed
+            (np.isfinite(_val9) & (_rs9.rand(_n9) < 0.8))
+            | (_rs9.rand(_n9) < 0.003), _dv9, np.nan)
+            if _jj9 >= 2 else _dv9)(np.round(
+                100 + 0.9 * _bs9
+                + 10 * _rs9.normal(0, 1, _n9)
+                + 3 * _sev9, 1), j) for j in range(4)}})
     _m9s = _df9["sparse_dev"].notna()
     _src_sd9 = float(_df9.loc[_m9s, "sparse_dev"].std())
     _src_c9 = float(_df9.loc[_m9s, "sparse_dev"].corr(
@@ -1281,6 +1291,15 @@ def main():
           "inversion survived its own fix".format(len(_ps9)),
           any(pa == "cnt" for pa, _r in _ps9)
           and len(_ps9) >= 5)
+    check("...two of the decoys are SPARSE SIBLINGS, barely "
+          "overlapping the child's rows - requiring every "
+          "partner present on the same row emptied the "
+          "intersection on the real extract and the tier "
+          "silently skipped, twice; an absent partner now "
+          "contributes its mean instead of a veto, so the "
+          "sparse siblings must still be among the partners",
+          any(pa in ("press2", "press3")
+              for pa, _r in _ps9))
     _gen9 = _g9.generate(len(_df9), seed=1000)
     _gv9 = pd.to_numeric(_gen9["sparse_dev"], errors="coerce")
     _gc9 = pd.to_numeric(_gen9["cnt"], errors="coerce")

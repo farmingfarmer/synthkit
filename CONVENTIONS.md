@@ -4,7 +4,7 @@ Synthetic clinical data generator and model-evaluation instrument. Core rule: le
 
 ## Verify before claiming
 
-- Run `python scripts/run_all_smokes.py` before claiming anything works. Expect 69 suites, 2056 checks, ALL GREEN **on a checkout**. Off a zipball extract - which is what the data machine runs - it is 2047: nine checks in `smoke_buildid` need git to test the archive path and report SKIPPED without it. Both numbers were measured. Do not quote the checkout number to the data machine; that is how a correct run gets read as a failure.
+- Run `python scripts/run_all_smokes.py` before claiming anything works. Expect 69 suites, 2057 checks, ALL GREEN **on a checkout**. Off a zipball extract - which is what the data machine runs - it is 2048: nine checks in `smoke_buildid` need git to test the archive path and report SKIPPED without it. Both numbers were measured. Do not quote the checkout number to the data machine; that is how a correct run gets read as a failure.
 - **THE DEVELOPMENT MACHINE WAS BEHIND THE DATA MACHINE, and that is
   how a green suite here failed there.** Dev was on Python 3.10 with
   pandas 2.3; the data machine installs fresh and got pandas 3.0.5,
@@ -998,6 +998,34 @@ the direction that stops work happening.
   STRONGER than before the tier (-0.13/-0.16), because the
   narrow-token forcing improves the coherence Oral's own
   signal rides on.
+
+- **THE SECOND FIX ALSO NEVER RAN, AND SEVENTEEN IDENTICAL
+  DIGITS WERE THE PROOF (2026-10-13, run_oct13).** The uncapped
+  tier's real run came back with the INVERTED diagnostic at
+  gen +0.24023546807476087 - BYTE-IDENTICAL to the previous
+  build's. Two arms that agree to the last digit are one arm:
+  detection now kept the procedure_count coupling (visible in
+  the narration), but enforcement required EVERY partner
+  present on the same row, and a sparse column's strongest
+  partners are its sparse SIBLINGS - co-measured on the same
+  ICU visits, overlapping enough to qualify at detection, and
+  jointly emptying the all-present intersection at generation.
+  The tier silently skipped, in BOTH runs; the first fixture
+  missed it because its decoys were dense, and the second
+  because its sparse decoys were INDEPENDENT of the child's
+  rows - the real siblings are CO-MEASURED, which is both how
+  they qualify and how they veto. Enforcement now anchors on
+  the child's present rows alone, an absent partner
+  contributes its standardized mean instead of a veto, and
+  every reorder PRINTS ran-or-skipped with its row and partner
+  counts - a silent skip is the read-but-not-used flag class,
+  and it cost two round trips to the data machine. Eight seeds
+  on the co-measured fixture: -0.202..-0.303 against source
+  -0.341, sign 8/8, zero inversions, the tightest arm yet.
+  PREDICTION v3, on record: INVERTED 1 clears; the narration
+  must show "reorder ran for mean_arterial_pressure_invasive"
+  with its row count; close moves at most a point or two from
+  this fix alone.
 
 - **THE PARTNER CAP CUT EXACTLY THE PAIR THE GATE MEASURES,
   AND THE CONVENTIONS FILE HAD ALREADY SAID IT WOULD

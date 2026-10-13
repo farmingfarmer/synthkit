@@ -1443,20 +1443,36 @@ class LatentGen:
             if not ps:
                 continue
             vc = pd.to_numeric(frame[child], errors="coerce")
+            # LIVE IS THE CHILD'S PRESENT ROWS, NOT THE
+            # INTERSECTION. The first cut required every partner
+            # present on the same row - and a sparse column's
+            # strongest partners are its sparse SIBLINGS, so on
+            # the real extract the intersection was empty and
+            # the tier silently skipped: two runs, different
+            # code, the same diagnostic to seventeen digits.
+            # A partner absent on a row contributes its mean
+            # (zero after standardizing) instead of vetoing the
+            # whole rearrangement.
             live = vc.notna()
-            for pa, _r in ps:
-                live &= pd.to_numeric(
-                    frame[pa], errors="coerce").notna()
             m = int(live.sum())
             if m < 8:
+                print("  reorder SKIPPED for {}: only {} "
+                      "present rows".format(child, m))
                 continue
             idx = frame.index[live]
-            P = np.column_stack([
-                pd.to_numeric(frame[pa], errors="coerce")[live]
-                .rank(method="average").to_numpy()
-                for pa, _r in ps])
-            P = (P - P.mean(0)) / np.where(
-                P.std(0) == 0, 1.0, P.std(0))
+            cols_z = []
+            for pa, _r in ps:
+                pv = pd.to_numeric(
+                    frame[pa], errors="coerce")[live]
+                pm = pv.notna()
+                z = np.zeros(m)
+                if int(pm.sum()) >= 2:
+                    rk = pv[pm].rank(
+                        method="average").to_numpy()
+                    rk = (rk - rk.mean()) / (rk.std() or 1.0)
+                    z[pm.to_numpy()] = rk
+                cols_z.append(z)
+            P = np.column_stack(cols_z)
             rho_v = np.array([r for _p, r in ps])
             # target score z = P b + residual noise, b solved so
             # corr(z, partner_j) lands each published rho at
@@ -1483,6 +1499,8 @@ class LatentGen:
             vc2 = vc.copy()
             vc2.loc[idx] = newv
             frame[child] = vc2.where(vc.notna(), frame[child])
+            print("  reorder ran for {}: {} rows, {} "
+                  "partner(s)".format(child, m, len(ps)))
         if pid is not None:
             # The identity column goes FIRST, and it is invented -
             # S000001 upward - never a real person's id.

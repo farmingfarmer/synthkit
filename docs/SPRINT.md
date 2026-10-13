@@ -112,6 +112,17 @@ REVISED prediction, on record: INVERTED 1 clears on the next
 real run; close 76 -> 77 at most from this fix alone; the
 rest of the gap belongs to the drift list.
 
+FAILED AGAIN 2026-10-13 (run_oct13), AND THE TELL WAS
+SEVENTEEN IDENTICAL DIGITS: the diagnostic byte-matched the
+previous run - the enforcement never executed. The
+all-partners-present mask emptied on co-measured sparse
+siblings; it anchors on the child's rows now, absent partners
+contribute their mean, and every reorder prints ran-or-
+skipped. Co-measured fixture: sign 8/8, zero inversions.
+PREDICTION v3: INVERTED clears AND the run narration shows
+"reorder ran for mean_arterial_pressure_invasive" - the
+second clause is the guard the first two predictions lacked.
+
 ## 4. Governance parity for the neural engine (week 2)
 
 The rules engine has a published auditable contract and dials;
