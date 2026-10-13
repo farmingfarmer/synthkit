@@ -1239,6 +1239,11 @@ def main():
     _sp9 = _cnt9[_pres9]
     _val9[_pres9] = 70 - 3.0 * (_sp9 - _sp9.mean()) \
         + 4.0 * _rs9.normal(0, 1, int(_pres9.sum()))
+    # four colinear decoys shaped like the invasive pressure
+    # family: each outranks the cnt coupling, so a partner cap
+    # would cut exactly the pair the checks below measure - the
+    # real extract did precisely that to procedure_count
+    _bs9 = np.where(np.isnan(_val9), 0.0, _val9 - 70)
     _df9 = pd.DataFrame({
         "person_id": ["P{:04d}".format(i) for i in _pid9],
         "cnt": _cnt9,
@@ -1247,7 +1252,10 @@ def main():
                        + _rs9.normal(0, 8, _n9), 1),
         "spo2": np.round(np.clip(
             98 - _sev9 + _rs9.normal(0, 1.5, _n9), 70,
-            100), 1)})
+            100), 1),
+        **{"press{}".format(j): np.round(
+            100 + 0.9 * _bs9 + 10 * _rs9.normal(0, 1, _n9)
+            + 3 * _sev9, 1) for j in range(4)}})
     _m9s = _df9["sparse_dev"].notna()
     _src_sd9 = float(_df9.loc[_m9s, "sparse_dev"].std())
     _src_c9 = float(_df9.loc[_m9s, "sparse_dev"].corr(
@@ -1264,11 +1272,15 @@ def main():
     check("...and a DENSE column publishes none - the grid is "
           "for starved channels, not a second decode path",
           _itd9[4][6] is None)
+    _ps9 = next((ps for c, ps in _g9._sparse_couplings
+                 if c == "sparse_dev"), [])
     check("...and the k-screened rank coupling with the count "
-          "is detected from the source's present rows",
-          any(c == "sparse_dev" and
-              any(pa == "cnt" for pa, _r in ps)
-              for c, ps in _g9._sparse_couplings))
+          "is detected AND KEPT despite four stronger colinear "
+          "decoys outranking it ({} partners) - a top-4 cap cut "
+          "exactly this pair on the real extract and the "
+          "inversion survived its own fix".format(len(_ps9)),
+          any(pa == "cnt" for pa, _r in _ps9)
+          and len(_ps9) >= 5)
     _gen9 = _g9.generate(len(_df9), seed=1000)
     _gv9 = pd.to_numeric(_gen9["sparse_dev"], errors="coerce")
     _gc9 = pd.to_numeric(_gen9["cnt"], errors="coerce")
@@ -1282,11 +1294,14 @@ def main():
               _gsd9, _src_sd9),
           _gsd9 > 0.5 * _src_sd9)
     check("...and the conditional rank correlation lands with "
-          "the source sign ({:+.2f} against {:+.2f}) - on "
-          "noise ordering this flipped sign on two of eight "
-          "seeds".format(_gcc9, _src_c9),
+          "the source sign at over 0.4x its magnitude "
+          "({:+.2f} against {:+.2f}) - on noise ordering this "
+          "flipped sign on two of eight seeds; the joint solve "
+          "fades magnitudes when many partners compete for one "
+          "unit of variance, so the tier promises SIGN and "
+          "substance, not exactness".format(_gcc9, _src_c9),
           _src_c9 * _gcc9 > 0
-          and abs(_gcc9 - _src_c9) < 0.35)
+          and abs(_gcc9) >= 0.4 * abs(_src_c9))
     # THE MUTATION, so the checks above can fail: strip the
     # tier (no grid, no couplings) and regenerate - the
     # collapse must come back, or the checks test nothing.

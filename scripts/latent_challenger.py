@@ -812,7 +812,19 @@ class LatentGen:
                     continue
                 cands.append((abs(rho), pa, rho))
             cands.sort(reverse=True)
-            cands = cands[:4]
+            # NO CAP. The first cut kept the top four by |rho|,
+            # and on the real extract the invasive-pressure
+            # family filled all four slots at +0.4..+0.6 while
+            # the -0.31 coupling with procedure_count - THE pair
+            # the gate measures, the one this tier was built
+            # for - ranked fifth and was cut: the inversion
+            # survived its own fix. The conventions file
+            # recorded this exact failure for token-quota
+            # conditioners ("a cap could exclude exactly the
+            # partners the gate measures") and the cap was
+            # removed there; same lesson, same remedy. The
+            # joint solve bounds total variance at one unit by
+            # construction, so breadth costs nothing.
             if cands:
                 self._sparse_couplings.append(
                     (child, [(pa, rho)
@@ -1453,8 +1465,11 @@ class LatentGen:
             # scaled back if the solve asks for more than one
             # unit of variance.
             R = np.atleast_2d(np.corrcoef(P, rowvar=False))
+            # the invasive family is near-colinear; a heavier
+            # ridge keeps the uncapped solve from chasing noise
+            # in R's small eigenvalues
             bvec = np.linalg.solve(
-                R + 1e-6 * np.eye(len(ps)), rho_v)
+                R + 1e-3 * np.eye(len(ps)), rho_v)
             v2 = float(bvec @ R @ bvec)
             if v2 > 1.0:
                 bvec /= np.sqrt(v2)

@@ -103,6 +103,15 @@ close pairs on dense columns are NOT claimed. If INVERTED
 clears and close still misses the bar, the next mechanism is
 named by the fresh drift list, not by this fix.
 
+PREDICTION FAILED 2026-10-12 (run_oct125), AND THE RUN SAID
+WHY: the tier's four partner slots filled with the colinear
+pressure family and the procedure_count coupling ranked fifth
+- the token-quota cap lesson, re-made. Cap removed, decoy
+fixture reproduces the shape (sign 7/8, zero inversions).
+REVISED prediction, on record: INVERTED 1 clears on the next
+real run; close 76 -> 77 at most from this fix alone; the
+rest of the gap belongs to the drift list.
+
 ## 4. Governance parity for the neural engine (week 2)
 
 The rules engine has a published auditable contract and dials;

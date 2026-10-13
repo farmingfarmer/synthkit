@@ -999,6 +999,34 @@ the direction that stops work happening.
   narrow-token forcing improves the coherence Oral's own
   signal rides on.
 
+- **THE PARTNER CAP CUT EXACTLY THE PAIR THE GATE MEASURES,
+  AND THE CONVENTIONS FILE HAD ALREADY SAID IT WOULD
+  (2026-10-12 night, run_oct125).** The sparse tier's first
+  real run left the gate IDENTICAL - close 76/94, INVERTED 1,
+  the same pair at gen +0.240 - and the run's own narration
+  said why: mean_arterial_pressure_invasive's four partner
+  slots filled with its colinear pressure siblings at
+  +0.4..+0.6, and the -0.31 coupling with procedure_count -
+  the pair this tier was BUILT for - ranked fifth and was cut.
+  The token-quota entry above records this exact failure
+  ("a cap could exclude exactly the partners the gate
+  measures") and the cap was removed there; the same mistake
+  was re-made in a new tier the same month. The cap is GONE
+  (the joint solve bounds total variance at one unit, so
+  breadth costs nothing; ridge raised to 1e-3 for the
+  colinear family), and the fixture now carries four decoys
+  shaped like the pressure family so the measured pair ranks
+  fifth - eight seeds: sign kept 7/8, one flat, ZERO
+  inversions, marginal exact. The landing fades when many
+  partners share one unit of variance (-0.58 against a -0.94
+  source on the decoy fixture), so the tier's stated contract
+  is SIGN AND SUBSTANCE (>= 0.4x magnitude), not exactness -
+  written into the check text itself. REVISED prediction for
+  the next real run: INVERTED 1 clears via the now-kept
+  procedure_count coupling; close moves at most a point or
+  two; the ~17-pair close gap is a separate mechanism that
+  the still-unread Dashboard drift list names.
+
 - **THE SPARSE INVERSION IS FIXED ON THE BENCH, AND IT TOOK
   THREE MEASUREMENTS TO AIM (2026-10-12).** The fixture built
   from run_oct12's own diagnostic (0.2% presence, conditional
