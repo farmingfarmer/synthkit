@@ -4,7 +4,7 @@ Synthetic clinical data generator and model-evaluation instrument. Core rule: le
 
 ## Verify before claiming
 
-- Run `python scripts/run_all_smokes.py` before claiming anything works. Expect 69 suites, 2050 checks, ALL GREEN **on a checkout**. Off a zipball extract - which is what the data machine runs - it is 2041: nine checks in `smoke_buildid` need git to test the archive path and report SKIPPED without it. Both numbers were measured. Do not quote the checkout number to the data machine; that is how a correct run gets read as a failure.
+- Run `python scripts/run_all_smokes.py` before claiming anything works. Expect 69 suites, 2056 checks, ALL GREEN **on a checkout**. Off a zipball extract - which is what the data machine runs - it is 2047: nine checks in `smoke_buildid` need git to test the archive path and report SKIPPED without it. Both numbers were measured. Do not quote the checkout number to the data machine; that is how a correct run gets read as a failure.
 - **THE DEVELOPMENT MACHINE WAS BEHIND THE DATA MACHINE, and that is
   how a green suite here failed there.** Dev was on Python 3.10 with
   pandas 2.3; the data machine installs fresh and got pandas 3.0.5,
@@ -998,6 +998,37 @@ the direction that stops work happening.
   STRONGER than before the tier (-0.13/-0.16), because the
   narrow-token forcing improves the coherence Oral's own
   signal rides on.
+
+- **THE SPARSE INVERSION IS FIXED ON THE BENCH, AND IT TOOK
+  THREE MEASUREMENTS TO AIM (2026-10-12).** The fixture built
+  from run_oct12's own diagnostic (0.2% presence, conditional
+  corr -0.31, copied-set-size child, coupling +0.11) reproduced
+  the inversion two seeds of eight - the fifth construction,
+  and the first with those exact coordinates. The instrument
+  then named the true fault in one column: GENERATED VALUE SD
+  0.1-0.3 AGAINST A SOURCE 10.5 - a 94-training-row channel
+  decodes to its mean, and a conditional correlation computed
+  on near-constant noise flips sign by seed. Rank-of-noise,
+  the recorded set-size class, in a numeric. Two layers fixed
+  it. (1) Sparse numerics (presence under 5%) publish a
+  K-BANDED GRID - sorted present values walked into bands of
+  at least k DISTINCT PATIENTS, each point a band MEAN, never
+  an individual's value - and generation rank-maps the decoded
+  channel through it WITHIN the rows that survived the missing
+  cut: the first cut ranked all rows then masked, and the
+  present subset sampled a biased slice (mean 90.7 against
+  73.3, sd overshot 2x). (2) The k-screened conditional rank
+  couplings are enforced by REARRANGEMENT - and one partner
+  under-covers (the token-quota lesson, again): the best
+  coupling alone left the second-best to noise, and the
+  second-best was the inverting pair. Up to four partners,
+  jointly, b = R^-1 rho through the partners' own rank
+  correlations. Eight seeds after: cond corr -0.22 to -0.36
+  against source -0.34, ZERO inversions, marginal exact. And
+  the edit itself hit the assert-then-write-at-the-end trap
+  AGAIN - the probe "re-measured" an unchanged file; write
+  after each edit, then verify the text is IN the file before
+  believing any measurement of it.
 
 - **THE RUNS OF RECORD CAME BACK (2026-10-12, build 2b16b18):
   THE ATTACK IS CERTIFIED ON THE REAL EXTRACT, THE GATE

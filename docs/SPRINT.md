@@ -87,6 +87,22 @@ parent with a copied-set-size child - the next fixture is that
 exact shape. Still wanted from the run: the Dashboard's
 gate-issues drifted list, which names the other 18 pairs.
 
+PROGRESS 2026-10-12 (later): the fixture REPRODUCED the
+inversion (two seeds of eight) and the instrument found the
+real fault - the 94-row channel decodes to its mean (sd 0.2
+against 10.5), so the conditional corr was rank-of-noise.
+Fixed with the k-banded sparse grid plus jointly-enforced
+k-screened rank couplings (one partner under-covers - the
+token-quota lesson). Eight seeds: -0.22..-0.36 against source
+-0.34, zero inversions, marginal exact. PREDICTION for the
+next real run, on record: the INVERTED 1
+(procedure_count <- MAP_invasive) clears, the invasive-family
+sparse columns regain their spread, and any close pairs whose
+columns are sub-5%-presence numerics move toward source;
+close pairs on dense columns are NOT claimed. If INVERTED
+clears and close still misses the bar, the next mechanism is
+named by the fresh drift list, not by this fix.
+
 ## 4. Governance parity for the neural engine (week 2)
 
 The rules engine has a published auditable contract and dials;

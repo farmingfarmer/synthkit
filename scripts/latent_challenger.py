@@ -47,6 +47,11 @@ import numpy as np
 import pandas as pd
 
 ROOT = Path(__file__).resolve().parent.parent
+
+# below this presence share a numeric column's decoded channel is
+# starved (measured: sd ratio 0.01 at 0.002 presence) and its
+# marginal rides a k-banded published grid instead
+SPARSE_PRESENCE = 0.05
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
@@ -407,9 +412,44 @@ class LatentGen:
                         dd = (ss_.str.split(".").str[1]
                               .fillna("").str.len())
                         dec = int(min(int(dd.max()), 8))
+                # A COLUMN PRESENT ON A SLIVER OF ROWS GIVES
+                # THE DECODER ALMOST NOTHING TO LEARN, and its
+                # decoded channel collapses to the mean -
+                # measured: a 0.2%-present column generated at
+                # sd 0.09 against a source 10.9, and the
+                # conditional correlation computed on that
+                # near-constant channel is RANK-OF-NOISE, which
+                # is where the surviving real-extract inversion
+                # lives. For sparse numerics the marginal is
+                # published as a K-BANDED grid - sorted present
+                # values walked into bands until each holds at
+                # least k DISTINCT PATIENTS (k counts patients,
+                # never rows), each grid point the band MEAN, so
+                # no published number is an individual's value -
+                # and generation rank-maps the decoded channel
+                # through it, keeping whatever ordering the
+                # network learned.
+                qgrid = None
+                pres_share = float(v.notna().mean())
+                if 0 < pres_share < SPARSE_PRESENCE:
+                    pv = pd.DataFrame({
+                        "v": x[v.notna()],
+                        "g": gid[v.notna()]}).sort_values("v")
+                    bands, cur, seen = [], [], set()
+                    for vv, gg in zip(pv["v"], pv["g"]):
+                        cur.append(vv)
+                        seen.add(gg)
+                        if len(seen) >= self.k:
+                            bands.append(float(np.mean(cur)))
+                            cur, seen = [], set()
+                    if cur and bands:
+                        bands[-1] = float(np.mean(
+                            [bands[-1]] + cur))
+                    if len(bands) >= 2:
+                        qgrid = bands
                 self.plan.append(("num", c, mu, sd,
                                   (lo, hi, float(miss.mean()),
-                                   integral, dec, dspec)))
+                                   integral, dec, dspec, qgrid)))
                 mats.append(np.column_stack(
                     [filled.to_numpy(), miss.to_numpy()]))
             else:
@@ -732,6 +772,58 @@ class LatentGen:
                       "is computed from its sibling plus "
                       "matched noise, not decoded alone"
                       .format(child, w2[0], pa, w2[1], rs))
+        # THE SPARSE-CONDITIONAL COUPLINGS: for each column whose
+        # marginal rides the k-banded grid, the strongest rank
+        # correlation measurable among its PRESENT rows - at
+        # least 30 both-present rows AND at least k distinct
+        # patients behind them, so the published number is an
+        # aggregate k people stand behind. Enforced at
+        # generation by rearrangement; detected here so a table
+        # without the structure publishes nothing and the tier
+        # stays inert.
+        self._sparse_couplings = []
+        _sparse_cols = [it[1] for it in self.plan
+                        if it[0] == "num"
+                        and it[4][6] is not None]
+        _owned = set(_claimed) | _near_children
+        for child in _sparse_cols:
+            if child in _owned:
+                continue
+            cv = _num_by[child]
+            # ALL qualifying partners, strongest first, capped -
+            # one conditioner under-covers (the token-quota
+            # lesson): enforcing only the single best rank
+            # coupling left the second-best to noise, and the
+            # second-best was the pair the real extract
+            # inverts on.
+            cands = []
+            for pa in _order:
+                if pa == child:
+                    continue
+                pv = _num_by[pa]
+                both = cv.notna() & pv.notna()
+                if int(both.sum()) < 30:
+                    continue
+                if len(set(gid[both.to_numpy()])) < self.k:
+                    continue
+                rho = float(cv[both].corr(pv[both],
+                                          method="spearman"))
+                if not np.isfinite(rho) or abs(rho) < 0.25:
+                    continue
+                cands.append((abs(rho), pa, rho))
+            cands.sort(reverse=True)
+            cands = cands[:4]
+            if cands:
+                self._sparse_couplings.append(
+                    (child, [(pa, rho)
+                             for _a, pa, rho in cands]))
+                print("  {} present on a sliver of rows: rank "
+                      "corr {} measured among present rows "
+                      "(k-screened), enforced jointly by "
+                      "rearrangement at generation".format(
+                          child, ", ".join(
+                              "{:+.2f} with {}".format(rho, pa)
+                              for _a, pa, rho in cands)))
         # float32, not float64: the encoded frame is the biggest
         # array here and half of it is one-hot zeros.
         X = np.hstack(mats).astype(np.float32, copy=False)
@@ -940,7 +1032,8 @@ class LatentGen:
             kind, c = item[0], item[1]
             if kind == "num":
                 (_, _, mu, sd,
-                 (lo, hi, miss_p, integral, dec, dspec)) = item
+                 (lo, hi, miss_p, integral, dec, dspec,
+                  qgrid)) = item
                 # The decoder is unbounded; the PUBLISHED bound is
                 # not. Clipping costs nothing the network ever
                 # legitimately learned - it never saw past the
@@ -969,6 +1062,27 @@ class LatentGen:
                     miss = ind >= cut
                 v = pd.Series(vals)
                 v[miss] = np.nan
+                if qgrid is not None and (~miss).sum() >= 2:
+                    # rank-map the starved channel through the
+                    # k-banded published grid - WITHIN the rows
+                    # that survived the missing cut. The first
+                    # cut ranked ALL rows and then masked, so
+                    # the present subset sampled a biased slice
+                    # of the grid: means drifted to 90.7 and
+                    # 64.7 against a source 73.3 and the sd
+                    # overshot 2x. Ranked among the living, the
+                    # present-row marginal IS the grid.
+                    live = np.where(~miss)[0]
+                    ch = X[live, i]
+                    r = ch.argsort().argsort().astype(float)
+                    r = (r + 0.5) / len(live)
+                    qq = (np.arange(len(qgrid)) + 0.5) / len(qgrid)
+                    gv = np.clip(np.interp(r, qq, qgrid), lo, hi)
+                    if integral:
+                        gv = np.round(gv)
+                    elif dec:
+                        gv = np.round(gv, dec)
+                    v.iloc[live] = gv
                 if dspec:
                     # Back to text, in the DAY format - the same
                     # inverse the rules engine uses, so a date
@@ -1255,7 +1369,7 @@ class LatentGen:
             newv = w[0] * va + w[1] * vb + w[2]
             if it:
                 _, _, _, _, (lo_, hi_, _m, integ, dec_,
-                             _d) = it
+                             _d, _qg) = it
                 newv = newv.clip(lo_, hi_)
                 if integ:
                     newv = newv.round()
@@ -1287,7 +1401,7 @@ class LatentGen:
                 index=frame.index)
             if it and it[0] == "num":
                 _, _, _, _, (lo_, hi_, _m, integ, dec_,
-                             _d) = it
+                             _d, _qg) = it
                 newv = newv.clip(lo_, hi_)
                 if integ:
                     newv = newv.round()
@@ -1295,6 +1409,65 @@ class LatentGen:
                     newv = newv.round(dec_)
             frame[child] = newv.where(
                 vc.notna() & vp.notna(), vc)
+        # THE SPARSE-CONDITIONAL REORDER. A column present on a
+        # sliver of rows decodes through a starved channel, so
+        # even with its marginal restored by the k-banded grid
+        # its ORDERING among present rows is rank-of-noise - and
+        # a conditional correlation computed on noise flips sign
+        # by seed (measured: src -0.34, eight seeds reading
+        # -0.36 to +0.53, two inverted). The coupling is
+        # measured on the SOURCE among present rows, k-screened,
+        # and enforced here by REARRANGEMENT: the generated
+        # present values are reassigned against the partner's
+        # ranks to land the published rank correlation. A
+        # rearrangement cannot move the marginal - the same
+        # property that makes the cyclic sweeps safe.
+        for child, partners in getattr(
+                self, "_sparse_couplings", []):
+            if child not in frame.columns:
+                continue
+            ps = [(pa, rho) for pa, rho in partners
+                  if pa in frame.columns]
+            if not ps:
+                continue
+            vc = pd.to_numeric(frame[child], errors="coerce")
+            live = vc.notna()
+            for pa, _r in ps:
+                live &= pd.to_numeric(
+                    frame[pa], errors="coerce").notna()
+            m = int(live.sum())
+            if m < 8:
+                continue
+            idx = frame.index[live]
+            P = np.column_stack([
+                pd.to_numeric(frame[pa], errors="coerce")[live]
+                .rank(method="average").to_numpy()
+                for pa, _r in ps])
+            P = (P - P.mean(0)) / np.where(
+                P.std(0) == 0, 1.0, P.std(0))
+            rho_v = np.array([r for _p, r in ps])
+            # target score z = P b + residual noise, b solved so
+            # corr(z, partner_j) lands each published rho at
+            # once: b = R^-1 rho over the partners\' own rank
+            # correlations, ridged for near-colinear partners,
+            # scaled back if the solve asks for more than one
+            # unit of variance.
+            R = np.atleast_2d(np.corrcoef(P, rowvar=False))
+            bvec = np.linalg.solve(
+                R + 1e-6 * np.eye(len(ps)), rho_v)
+            v2 = float(bvec @ R @ bvec)
+            if v2 > 1.0:
+                bvec /= np.sqrt(v2)
+                v2 = 1.0
+            z = (P @ bvec
+                 + np.sqrt(max(1.0 - v2, 0.0))
+                 * rng.normal(0, 1, m))
+            srt = np.sort(vc[live].to_numpy())
+            newv = np.empty(m)
+            newv[z.argsort()] = srt
+            vc2 = vc.copy()
+            vc2.loc[idx] = newv
+            frame[child] = vc2.where(vc.notna(), frame[child])
         if pid is not None:
             # The identity column goes FIRST, and it is invented -
             # S000001 upward - never a real person's id.

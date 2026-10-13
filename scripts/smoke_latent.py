@@ -1206,6 +1206,106 @@ def main():
           abs(_gm - float(_vc["mean_set_size"])) < 0.12
           and _vc["mean_set_size_source"] > _vc["mean_set_size"])
 
+    # THE SPARSE-CONDITIONAL TIER. A column present on a sliver
+    # of rows decodes through a starved channel: its marginal
+    # collapsed to the mean (sd ratio 0.01 at 0.2% presence)
+    # and any conditional correlation computed on that channel
+    # was RANK-OF-NOISE - the real extract's surviving
+    # inversion, procedure_count <- MAP_invasive, reproduced on
+    # a fixture built from the run's own diagnostic (two of
+    # eight seeds inverted). The marginal rides a k-banded
+    # published grid now, and the k-screened rank couplings are
+    # enforced jointly by rearrangement.
+    _rs9 = np.random.RandomState(7)
+    _npat, _mv = 300, 20
+    _cn9 = _rs9.poisson(_mv, _npat) + 1
+    _pid9 = np.repeat(np.arange(_npat), _cn9)
+    _n9 = len(_pid9)
+    _sev9 = _rs9.normal(0, 1, _npat)[_pid9] \
+        + _rs9.normal(0, 0.5, _n9)
+    _cnt9 = np.clip(_rs9.poisson(
+        np.exp(0.7 + 0.5 * _sev9)), 0, 25).astype(float)
+    _u9 = _rs9.rand(_n9)
+    _lo9, _hi9 = -25.0, 0.0
+    for _ in range(50):
+        _a9 = (_lo9 + _hi9) / 2
+        if (_u9 < 1 / (1 + np.exp(
+                -(_a9 + 0.5 * _cnt9)))).mean() > 0.015:
+            _hi9 = _a9
+        else:
+            _lo9 = _a9
+    _pres9 = _u9 < 1 / (1 + np.exp(-(_a9 + 0.5 * _cnt9)))
+    _val9 = np.full(_n9, np.nan)
+    _sp9 = _cnt9[_pres9]
+    _val9[_pres9] = 70 - 3.0 * (_sp9 - _sp9.mean()) \
+        + 4.0 * _rs9.normal(0, 1, int(_pres9.sum()))
+    _df9 = pd.DataFrame({
+        "person_id": ["P{:04d}".format(i) for i in _pid9],
+        "cnt": _cnt9,
+        "sparse_dev": np.round(_val9, 1),
+        "hr": np.round(80 + 5 * _sev9
+                       + _rs9.normal(0, 8, _n9), 1),
+        "spo2": np.round(np.clip(
+            98 - _sev9 + _rs9.normal(0, 1.5, _n9), 70,
+            100), 1)})
+    _m9s = _df9["sparse_dev"].notna()
+    _src_sd9 = float(_df9.loc[_m9s, "sparse_dev"].std())
+    _src_c9 = float(_df9.loc[_m9s, "sparse_dev"].corr(
+        _df9.loc[_m9s, "cnt"], method="spearman"))
+    _g9 = LatentGen(seed=0).fit(_df9, "person_id")
+    _it9 = next(it for it in _g9.plan
+                if it[0] == "num" and it[1] == "sparse_dev")
+    check("a numeric column present on ~1.5% of rows publishes "
+          "the k-banded grid - band means over at least k "
+          "patients each, never an individual's value",
+          _it9[4][6] is not None and len(_it9[4][6]) >= 2)
+    _itd9 = next(it for it in _g9.plan
+                 if it[0] == "num" and it[1] == "hr")
+    check("...and a DENSE column publishes none - the grid is "
+          "for starved channels, not a second decode path",
+          _itd9[4][6] is None)
+    check("...and the k-screened rank coupling with the count "
+          "is detected from the source's present rows",
+          any(c == "sparse_dev" and
+              any(pa == "cnt" for pa, _r in ps)
+              for c, ps in _g9._sparse_couplings))
+    _gen9 = _g9.generate(len(_df9), seed=1000)
+    _gv9 = pd.to_numeric(_gen9["sparse_dev"], errors="coerce")
+    _gc9 = pd.to_numeric(_gen9["cnt"], errors="coerce")
+    _l9 = _gv9.notna()
+    _gsd9 = float(_gv9[_l9].std())
+    _gcc9 = float(_gv9[_l9].corr(_gc9[_l9],
+                                 method="spearman"))
+    check("generated present rows keep the SPREAD (sd {:.1f} "
+          "against source {:.1f}) - the starved channel used "
+          "to collapse to the mean at ratio 0.01".format(
+              _gsd9, _src_sd9),
+          _gsd9 > 0.5 * _src_sd9)
+    check("...and the conditional rank correlation lands with "
+          "the source sign ({:+.2f} against {:+.2f}) - on "
+          "noise ordering this flipped sign on two of eight "
+          "seeds".format(_gcc9, _src_c9),
+          _src_c9 * _gcc9 > 0
+          and abs(_gcc9 - _src_c9) < 0.35)
+    # THE MUTATION, so the checks above can fail: strip the
+    # tier (no grid, no couplings) and regenerate - the
+    # collapse must come back, or the checks test nothing.
+    _g9._sparse_couplings = []
+    _g9.plan = [
+        (it[0], it[1], it[2], it[3],
+         (it[4][0], it[4][1], it[4][2], it[4][3],
+          it[4][4], it[4][5], None))
+        if it[0] == "num" and it[1] == "sparse_dev" else it
+        for it in _g9.plan]
+    _gen9b = _g9.generate(len(_df9), seed=1000)
+    _gv9b = pd.to_numeric(_gen9b["sparse_dev"],
+                          errors="coerce")
+    _gsd9b = float(_gv9b[_gv9b.notna()].std())
+    check("...and with the tier STRIPPED the collapse returns "
+          "(sd {:.2f}) - watched red, not assumed".format(
+              _gsd9b),
+          _gsd9b < 0.3 * _src_sd9)
+
     if FAIL:
         print("{} of {} checks failed.".format(FAIL, PASS + FAIL))
         sys.exit(1)
