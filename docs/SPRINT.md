@@ -126,10 +126,24 @@ second clause is the guard the first two predictions lacked.
 HELD 2026-10-13 (run_oct135): all three clauses. INVERTED
 1 -> 0 PASS absolute, the narration line present on every
 seed, close 76 -> 77/94 (81.9%), direction 98.9%. The
-inversion chapter is CLOSED on the real extract. Remaining
-for this item: close is 6 pairs from the bar - next
-coordinates come from the Dashboard's gate-issues drift
-list, still unphotographed.
+inversion chapter is CLOSED on the real extract.
+
+THE DRIFT LIST IS READ, AND IT IS ONE FAMILY: zero of 17
+pairs are k-rule-explained - all chaseable - and 12+ are
+drug<->route cross-set token pairs, six sharing
+drug_routes__has__IV Push (ondansetron 0.77->0.24 at the
+head). The known residual is the suspect: quota conditioners
+come from EARLIER file columns only, and active_drugs
+precedes drug_routes, so drug-side tokens cannot adopt route
+conditioners - the exact direction 12 pairs point. The bar
+needs +6; the IV-Push cluster alone is 6-7. Fix shape: a
+second-direction pass over the earlier column once the later
+exists (the Jacobi-final-pass pattern), books rebalanced,
+Oral sign guard held. Smaller second cluster: two
+heart_rate_monitored pairs, temperature_oral <-
+condition_count, span_days <- procedure_quantity. Check-it
+list: conditions token D89.40 drawn at 2.6%/0.0% beside a
+PASS token-shares chip.
 
 ## 4. Governance parity for the neural engine (week 2)
 
