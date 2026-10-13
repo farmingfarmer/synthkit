@@ -123,6 +123,14 @@ PREDICTION v3: INVERTED clears AND the run narration shows
 "reorder ran for mean_arterial_pressure_invasive" - the
 second clause is the guard the first two predictions lacked.
 
+HELD 2026-10-13 (run_oct135): all three clauses. INVERTED
+1 -> 0 PASS absolute, the narration line present on every
+seed, close 76 -> 77/94 (81.9%), direction 98.9%. The
+inversion chapter is CLOSED on the real extract. Remaining
+for this item: close is 6 pairs from the bar - next
+coordinates come from the Dashboard's gate-issues drift
+list, still unphotographed.
+
 ## 4. Governance parity for the neural engine (week 2)
 
 The rules engine has a published auditable contract and dials;

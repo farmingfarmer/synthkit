@@ -999,6 +999,30 @@ the direction that stops work happening.
   narrow-token forcing improves the coherence Oral's own
   signal rides on.
 
+- **PREDICTION v3 HELD ON ALL THREE CLAUSES, AND THE INVERSION
+  CHAPTER IS CLOSED ON THE REAL EXTRACT (2026-10-13,
+  run_oct135, build fcc6941).** The narration shows "reorder
+  ran for mean_arterial_pressure_invasive: 114 rows, 12
+  partner(s)" - the guard clause that the first two predictions
+  lacked, and the reason this one could be believed. The gate:
+  INVERTED 1 -> 0 PASS ABSOLUTE, direction 92 -> 93/94 (98.9%),
+  close 76 -> 77/94 (81.9%) - the predicted at-most-one. The
+  challenger's own uniform inversions nearly halved on every
+  seed (31/20/26 -> 17/12/14): the tier reaches pairs beyond
+  the gate's list. The pair that survived two fixes and three
+  real runs - the sparse-conditional rank-of-noise class - is
+  fixed by: a k-banded published grid for the marginal, ALL
+  qualifying partners enforced jointly by rearrangement, the
+  live mask anchored on the child's own rows, and the
+  enforcement SAYING whether it ran. Three failed deployments
+  taught three lessons already on file: fixtures must carry the
+  real shape (dense decoys, then independent-sparse decoys,
+  then co-measured siblings), caps exclude what the gate
+  measures, and a fix that cannot prove it executed has not
+  been deployed. M0 now fails on close (6 pairs), shapes (7/8)
+  and surfaces (0/5, ring-parked) only - the drift list is the
+  next coordinate source.
+
 - **THE SECOND FIX ALSO NEVER RAN, AND SEVENTEEN IDENTICAL
   DIGITS WERE THE PROOF (2026-10-13, run_oct13).** The uncapped
   tier's real run came back with the INVERTED diagnostic at
