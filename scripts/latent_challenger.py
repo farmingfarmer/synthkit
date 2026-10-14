@@ -1290,34 +1290,62 @@ class LatentGen:
                     pick_b[:, jb] = False
                     any_trig = np.zeros(nrow_b, dtype=bool)
                     budget = cj
-                    # strongest conditioner first; each gets its
-                    # own q on ITS trigger rows, overlaps counted
-                    # once via the running pick state
+                    # PRO-RATA OVER PASSES, NOT GREEDY BY GAIN.
+                    # The greedy order with a hard budget zeroed
+                    # whichever conditioners ran last - and the
+                    # wipe above had already deleted the decoder
+                    # picks their rows used to hold, so a faded
+                    # pair became a MANUFACTURED NEGATIVE
+                    # (diphenhydrAMINE src +0.36, gen -0.14 on
+                    # the fixture; the extract's -0.50 drift at
+                    # the head of the close list). When the
+                    # budget cannot satisfy every quota, all
+                    # needs scale by the same factor; overlap
+                    # credit still accrues through the running
+                    # pick state across passes.
+                    trigs = []
                     for ca, a_, q in conds:
-                        if budget <= 0:
-                            break
                         sa = _set_state[ca]
                         if a_ not in sa["toks"]:
                             continue
                         ja = sa["toks"].index(a_)
                         trig = sa["pick"][:, ja] & live
                         any_trig |= trig
-                        n_t = int(trig.sum())
-                        have = int((pick_b[:, jb]
-                                    & trig).sum())
-                        need = int(min(round(q * n_t) - have,
-                                       budget))
-                        if need <= 0:
-                            continue
-                        free = trig & ~pick_b[:, jb]
-                        fi = np.nonzero(free)[0]
-                        if not len(fi):
-                            continue
-                        order = fi[np.argsort(
-                            -score_b[fi, jb])]
-                        take = order[:need]
-                        pick_b[take, jb] = True
-                        budget -= len(take)
+                        trigs.append((trig, float(q)))
+                    for _pass in range(3):
+                        if budget <= 0:
+                            break
+                        needs = []
+                        for trig, q in trigs:
+                            n_t = int(trig.sum())
+                            have = int((pick_b[:, jb]
+                                        & trig).sum())
+                            needs.append(max(
+                                0, int(round(q * n_t)) - have))
+                        total = sum(needs)
+                        if total <= 0:
+                            break
+                        scale = min(1.0, budget / float(total))
+                        placed = 0
+                        for (trig, q), need in zip(trigs,
+                                                   needs):
+                            want = int(round(need * scale))
+                            if want <= 0:
+                                continue
+                            free = trig & ~pick_b[:, jb]
+                            fi = np.nonzero(free)[0]
+                            if not len(fi):
+                                continue
+                            order = fi[np.argsort(
+                                -score_b[fi, jb])]
+                            take = order[:min(want, budget)]
+                            pick_b[take, jb] = True
+                            budget -= len(take)
+                            placed += len(take)
+                            if budget <= 0:
+                                break
+                        if placed == 0:
+                            break
                     rest = live & ~any_trig
                     want_r = int(min(budget, int(rest.sum())))
                     if want_r > 0:

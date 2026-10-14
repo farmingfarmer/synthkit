@@ -145,6 +145,26 @@ condition_count, span_days <- procedure_quantity. Check-it
 list: conditions token D89.40 drawn at 2.6%/0.0% beside a
 PASS token-shares chip.
 
+THE MECHANISM HAS ITS TRUE NAME (2026-10-13 night): the
+IV-Push fixture reproduced the drift at full magnitude on
+the first try, and the instrument chain found three layers.
+(1) The greedy-by-gain allocator with a hard budget ZEROED
+whichever conditioners ran last, and the wipe had deleted
+the decoder picks their rows held - a faded pair became a
+manufactured negative (diphenhydrAMINE src +0.36 gen -0.14).
+Replaced with pro-rata over passes; kept, because it removes
+the INVERTED-risk class. (2) Pro-rata then exposed the
+shortage as STRUCTURAL: total quota demand exceeds the
+token's budget because the generated triggers under-overlap.
+(3) Measured root: WITHIN-COLUMN token co-occurrence is lost
+- the acute drug cluster reads src +0.10..+0.47, gen +0.35
+down to -0.10. The cross-column fades are the symptom. NEXT
+BUILD: within-column pair quotas - same detection, the
+conditioner being the same column's already-final picks,
+enforced by reallocating the implied token's rows, count
+exact, Oral sign guard held. The fixture is in hand;
+prediction v4 waits until it lands there.
+
 ## 4. Governance parity for the neural engine (week 2)
 
 The rules engine has a published auditable contract and dials;
