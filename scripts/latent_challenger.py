@@ -1356,8 +1356,26 @@ class LatentGen:
                             break
                         scale = min(1.0, budget / float(total))
                         placed = 0
-                        for (trig, q), need in zip(trigs,
-                                                   needs):
+                        for trig, q in trigs:
+                            # FRESH need at placement time, not
+                            # the pass-start figure: overlapping
+                            # triggers (a comorbid stratum)
+                            # otherwise double-fill the overlap
+                            # - the first placement lands picks
+                            # the second was never credited for,
+                            # and P(b|a) OVERSHOOTS its target
+                            # (measured: chained ICD pairs src
+                            # +0.18..+0.24 generating +0.37..
+                            # +0.65; the extract's +0.23 ->
+                            # +0.52). The scale stays from pass
+                            # start for budget fairness - the
+                            # starvation fix - while the credit
+                            # is sequential - the overshoot fix.
+                            n_t = int(trig.sum())
+                            have = int((pick_b[:, jb]
+                                        & trig).sum())
+                            need = max(0, int(round(q * n_t))
+                                       - have)
                             want = int(round(need * scale))
                             if want <= 0:
                                 continue

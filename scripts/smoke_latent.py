@@ -1397,6 +1397,73 @@ def main():
           "not assumed".format(_gen_ab2),
           _gen_ab2 < 0.6 * _gen_ab)
 
+    # CHAINED CONDITIONERS MUST NOT OVERSHOOT. On a dense
+    # many-token column the comorbid stratum makes every pair's
+    # trigger overlap, and computing all needs from pass-start
+    # state double-filled the overlap: chained ICD pairs at src
+    # +0.18..+0.24 generated at +0.37..+0.65 on the real
+    # extract (quota_landing 13 of 40 off). Need is computed
+    # fresh at placement time now; the mutation inflates the
+    # published conditionals and watches the overshoot return.
+    # 500x25 with 16 fillers, measured deliberately: smaller
+    # frames cluster in the BASE draw (quotas inert, the check
+    # would measure the wrong mechanism) and some larger ones
+    # do too - at this shape the base is clean (+0.03) and the
+    # quota tier is the acting mechanism (+0.11 with the fix).
+    _ro = np.random.RandomState(13)
+    _nop, _mvo = 500, 25
+    _cno = _ro.poisson(_mvo, _nop) + 1
+    _pido = np.repeat(np.arange(_nop), _cno)
+    _no = len(_pido)
+    _strat = _ro.rand(_no) < 0.05
+    _ctoks = {}
+    for _i9, (_qi, _bg) in enumerate(
+            [(0.45, 0.015), (0.55, 0.030), (0.42, 0.015),
+             (0.38, 0.014)]):
+        _ctoks["c%d" % _i9] = (_strat & (_ro.rand(_no) < _qi)) \
+            | (_ro.rand(_no) < _bg)
+    _ctoks.update({"g%02d" % i: _ro.rand(_no)
+                   < _ro.uniform(0.02, 0.08)
+                   for i in range(16)})
+    _dfo = pd.DataFrame({
+        "person_id": ["P{:04d}".format(i) for i in _pido],
+        "codes": [";".join(sorted(t for t, m in _ctoks.items()
+                                  if m[i])) for i in range(_no)],
+        "hr": np.round(80 + _ro.normal(0, 8, _no), 1)})
+    def _tko(df, t):
+        return df["codes"].fillna("").str.split(";").apply(
+            lambda x, tt=t: tt in x)
+    _pairs_o = [("c0", "c1"), ("c0", "c2"), ("c1", "c2"),
+                ("c1", "c3"), ("c2", "c3")]
+    _go = LatentGen(seed=0).fit(_dfo, "person_id")
+    _geno = _go.generate(len(_dfo), seed=1000)
+    def _odrift(gen):
+        out = []
+        for a, b in _pairs_o:
+            sv = float(np.corrcoef(_tko(_dfo, a),
+                                   _tko(_dfo, b))[0, 1])
+            gv = float(np.corrcoef(_tko(gen, a),
+                                   _tko(gen, b))[0, 1])
+            out.append(gv - sv)
+        return out
+    _d_o = _odrift(_geno)
+    check("chained cluster pairs do NOT overshoot (max drift "
+          "{:+.2f}) - overlapping triggers double-filled the "
+          "overlap until need was computed fresh at placement "
+          "time, and manufactured structure is the worse "
+          "class".format(max(_d_o)),
+          max(_d_o) < 0.15)
+    _go._token_implications = [
+        (cb, b_, [(ca, a_, min(0.95, q * 1.6))
+                  for ca, a_, q in conds])
+        for cb, b_, conds in _go._token_implications]
+    _geno2 = _go.generate(len(_dfo), seed=1000)
+    _d_o2 = _odrift(_geno2)
+    check("...and with the published conditionals INFLATED the "
+          "overshoot returns (max drift {:+.2f}) - the detector "
+          "can fire".format(max(_d_o2)),
+          max(_d_o2) > max(_d_o) + 0.08)
+
     if FAIL:
         print("{} of {} checks failed.".format(FAIL, PASS + FAIL))
         sys.exit(1)

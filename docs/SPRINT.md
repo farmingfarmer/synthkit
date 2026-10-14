@@ -222,6 +222,34 @@ against the target, or break chains at adoption).
 PREDICTION v5 guard: the quota_landing off-count returns
 toward 1 while close holds its absolute gains.
 
+FIXED 2026-10-14 (same day): the ICD fixture reproduced the
+overshoot first try (src +0.18..+0.24 generating +0.37..
++0.65, 6-10 pairs per seed), and the mechanism is precise -
+within a pro-rata pass every need was computed from
+pass-start state, so overlapping triggers (the comorbid
+stratum) double-filled the overlap and P(b|a) landed above
+target. Need is computed FRESH at placement time now, scale
+kept from pass start: the sequential credit (overshoot fix)
+and the pro-rata scale (starvation fix) at once. Chain
+drift 0.16-0.21 -> 0.04; overshot pairs 6-10 -> 0-1; the
+IV-Push neighbor holds with its two small overshoots gone
+and mild honest fade on the hard seed - the correct trade,
+since manufactured structure is the worse class. The smoke
+check's first fixture measured the WRONG mechanism (small
+frames overshoot in the BASE draw with quotas inert -
+measured, quotas on == off to the digit) and was
+recalibrated to the shape where quotas act, with the
+shape-selection measurements in the check's comment.
+
+PREDICTION v5, full statement: (guard) quota_landing "N off
+by more than 0.15" returns to <= 3 from 13. Claimed: set
+token shares returns to PASS; close holds >= 92 absolute
+and 86.0% - any gain is from the healed conditions pairs;
+INVERTED stays 0. NOT claimed: the bar itself, shapes,
+surfaces. If the guard fails, the landing instrument -
+which measures top conditioners only - is the next suspect,
+not the enforcement.
+
 ## 4. Governance parity for the neural engine (week 2)
 
 The rules engine has a published auditable contract and dials;
