@@ -165,6 +165,16 @@ enforced by reallocating the implied token's rows, count
 exact, Oral sign guard held. The fixture is in hand;
 prediction v4 waits until it lands there.
 
+RE-BASELINE 2026-10-14 (run_oct14, build a174681): pro-rata
+alone moved close 77 -> 79/94 (84.0%) on the real extract -
+plus two pairs - with INVERTED 0 held absolute and direction
+98.9%. The fixture's seed-0 worry (strong pairs regressing)
+did not transfer; on the real frame the triggers overlap
+more than the fixture's, so spreading the budget helped.
+Attribution is clean for the next build: the bar is now FOUR
+pairs away (79 -> 83 of 94), and the within-column
+co-occurrence pass is the named mechanism for them.
+
 ## 4. Governance parity for the neural engine (week 2)
 
 The rules engine has a published auditable contract and dials;
