@@ -684,7 +684,16 @@ class LatentGen:
             # measured: the single-conditioner cut landed only
             # the pairs whose token happened to pick THEM.
             cands = {}
-            for ca in _setcols[:bi]:
+            # the SAME column is a conditioner source too: the
+            # extract's acute cluster (ondansetron,
+            # acetaminophen, metoclopramide... on the same
+            # visits) dissolves under the independent per-token
+            # draw - measured src +0.10..+0.47 against gen
+            # +0.35 down to -0.10 - and with it the
+            # cross-column route quotas become JOINTLY
+            # UNSATISFIABLE: the budget shortage was never the
+            # allocator, it was the triggers coming apart.
+            for ca in _setcols[:bi + 1]:
                 toks_a, ind_a = self._set_inds[ca]
                 na = ind_a.sum(axis=0)
                 co = ind_a.T @ ind_b        # count(a & b)
@@ -692,6 +701,8 @@ class LatentGen:
                     if pb_all[j] > 0.5:
                         continue
                     for i2 in range(len(toks_a)):
+                        if ca == cb and toks_a[i2] == b_:
+                            continue
                         if na[i2] < 3 * self.k:
                             continue
                         q = co[i2, j] / max(na[i2], 1.0)
@@ -1272,6 +1283,15 @@ class LatentGen:
                 if cb in _set_state and conds:
                     by_b.setdefault(cb, []).append(
                         (b_, conds))
+            # ONE PASS, in insertion order - which already
+            # sequences the within-column cluster before the
+            # cross-column routes, so route triggers read the
+            # restored cluster. A second pass was measured and
+            # REVERTED: symmetric pairs double-dip and the
+            # cluster OVERSHOOTS (acetaminophen~pantoprazole
+            # src +0.20 to gen +0.45) - manufactured structure
+            # with the other sign, the same class as the
+            # allocator's manufactured negatives.
             for cb, rules in by_b.items():
                 st = _set_state[cb]
                 toks_b = st["toks"]
@@ -1281,6 +1301,13 @@ class LatentGen:
                 nrow_b = len(pick_b)
                 avail_b = int(live.sum())
                 pre_nonempty = pick_b.any(axis=1)
+                # same-column triggers read this per-iteration
+                # SNAPSHOT, never the live state mid-wipe:
+                # symmetric pairs (the acute cluster is full of
+                # them) must not read each other's in-flight
+                # reallocations - the Gauss-Seidel
+                # last-writer-wins fault
+                snap_b = pick_b.copy()
                 for b_, conds in rules:
                     if b_ not in toks_b:
                         continue
@@ -1309,7 +1336,9 @@ class LatentGen:
                         if a_ not in sa["toks"]:
                             continue
                         ja = sa["toks"].index(a_)
-                        trig = sa["pick"][:, ja] & live
+                        src_pick = snap_b if ca == cb \
+                            else sa["pick"]
+                        trig = src_pick[:, ja] & live
                         any_trig |= trig
                         trigs.append((trig, float(q)))
                     for _pass in range(3):

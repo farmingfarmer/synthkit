@@ -175,6 +175,33 @@ Attribution is clean for the next build: the bar is now FOUR
 pairs away (79 -> 83 of 94), and the within-column
 co-occurrence pass is the named mechanism for them.
 
+BUILT 2026-10-14: same-column conditioners ride the existing
+quota machinery - detection allows the column itself as a
+conditioner source (Oral broad-token cap retained), and
+same-column triggers read a per-iteration SNAPSHOT so
+symmetric cluster pairs cannot read each other's in-flight
+reallocations (the Gauss-Seidel fault, pre-empted). A second
+enforcement pass was measured and REVERTED: symmetric pairs
+double-dip and the cluster OVERSHOOTS (+0.20 source becoming
++0.45 generated) - manufactured structure with the other
+sign. On the IV-Push fixture, one pass: seed 1 lands five of
+six route pairs within 0.10 and seed 0 lands three, with the
+cluster partially restored - full joint cluster placement is
+the next mechanism IF the real run comes back short. Checks:
+same-column detection, sign-and-substance on the generated
+cluster, and the stripped-rules mutation watched red.
+
+PREDICTION v4, on record before the run: (guard clause) the
+conditional-quota count in the run narration JUMPS - the
+same-column adoptions should take it from ~73 well past 100
+- and the drift list's IV-Push pairs move toward source.
+Claimed: close reaches 82-85 of 94; INVERTED stays 0;
+coverage/tokens/EMPTY stay PASS. NOT claimed: the bar
+(83/94 = 87.9% needs close to land at the top of that
+band); shapes 7/8 and surfaces 0/5 (untouched mechanisms).
+If the quota count does NOT jump, the build did not deploy
+and nothing else in the run is evidence.
+
 ## 4. Governance parity for the neural engine (week 2)
 
 The rules engine has a published auditable contract and dials;

@@ -1340,6 +1340,63 @@ def main():
               _gsd9b),
           _gsd9b < 0.3 * _src_sd9)
 
+    # THE WITHIN-COLUMN CLUSTER. The extract's acute drug
+    # cluster dissolves under the independent per-token draw,
+    # and with it the cross-column route conditionals become
+    # jointly unsatisfiable - the budget shortage was the
+    # triggers coming apart, not the allocator. Same-column
+    # conditioners restore it; the mutation strips them and
+    # watches the cluster dissolve again.
+    _rc = np.random.RandomState(11)
+    _ncp, _mvc = 300, 20
+    _cnc = _rc.poisson(_mvc, _ncp) + 1
+    _pidc = np.repeat(np.arange(_ncp), _cnc)
+    _nc = len(_pidc)
+    _acute = _rc.rand(_nc) < 0.10
+    _tokA = (_acute & (_rc.rand(_nc) < 0.75)) | (_rc.rand(_nc) < 0.02)
+    _tokB = (_acute & (_rc.rand(_nc) < 0.65)) | (_rc.rand(_nc) < 0.03)
+    _tokC = (_acute & (_rc.rand(_nc) < 0.45)) | (_rc.rand(_nc) < 0.02)
+    _fill = {"f%02d" % i: _rc.rand(_nc) < _rc.uniform(0.05, 0.2)
+             for i in range(6)}
+    _all = {"drugA": _tokA, "drugB": _tokB, "drugC": _tokC}
+    _all.update(_fill)
+    _dfc = pd.DataFrame({
+        "person_id": ["P{:04d}".format(i) for i in _pidc],
+        "meds": [";".join(sorted(t for t, m in _all.items()
+                                 if m[i])) for i in range(_nc)],
+        "hr": np.round(80 + _rc.normal(0, 8, _nc), 1)})
+    def _tk(df, t):
+        return df["meds"].fillna("").str.split(";").apply(
+            lambda x, tt=t: tt in x)
+    _src_ab = float(np.corrcoef(_tk(_dfc, "drugA"),
+                                _tk(_dfc, "drugB"))[0, 1])
+    _gc2 = LatentGen(seed=0).fit(_dfc, "person_id")
+    _same = [r for r in _gc2._token_implications
+             if any(ca == r[0] for ca, _a, _q in r[2])]
+    check("same-column conditioners are DETECTED for a "
+          "co-occurring cluster ({} adopted tokens carry one) "
+          "- the acute family's mutual structure is published, "
+          "k-screened, like any other aggregate".format(
+              len(_same)),
+          len(_same) >= 2)
+    _genc = _gc2.generate(len(_dfc), seed=1000)
+    _gen_ab = float(np.corrcoef(_tk(_genc, "drugA"),
+                                _tk(_genc, "drugB"))[0, 1])
+    check("...and the generated cluster keeps the "
+          "co-occurrence at sign and substance ({:+.2f} "
+          "against source {:+.2f})".format(_gen_ab, _src_ab),
+          _gen_ab > 0 and _gen_ab >= 0.4 * _src_ab)
+    _gc2._token_implications = [
+        r for r in _gc2._token_implications
+        if not any(ca == r[0] for ca, _a, _q in r[2])]
+    _genc2 = _gc2.generate(len(_dfc), seed=1000)
+    _gen_ab2 = float(np.corrcoef(_tk(_genc2, "drugA"),
+                                 _tk(_genc2, "drugB"))[0, 1])
+    check("...and with the same-column rules STRIPPED the "
+          "cluster dissolves again ({:+.2f}) - watched red, "
+          "not assumed".format(_gen_ab2),
+          _gen_ab2 < 0.6 * _gen_ab)
+
     if FAIL:
         print("{} of {} checks failed.".format(FAIL, PASS + FAIL))
         sys.exit(1)
