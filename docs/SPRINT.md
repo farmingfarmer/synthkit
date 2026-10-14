@@ -202,6 +202,26 @@ band); shapes 7/8 and surfaces 0/5 (untouched mechanisms).
 If the quota count does NOT jump, the build did not deploy
 and nothing else in the run is evidence.
 
+VERDICT 2026-10-14 (run_oct145): MIXED, and the run named the
+next mechanism itself. Guard HELD (quotas 73 -> 139-144 per
+seed). The denominator moved BY THE BUILD'S OWN SUCCESS -
+restored token structure made 13 more pairs measurable (94 ->
+107 related, scaffolding 67 -> 80) - so the claimed band was
+non-evaluable as written; the honest read: close 79/94
+(84.0%) -> 92/107 (86.0%), +13 absolute, ~3 pairs from the
+bar. INVERTED 0 held; seed-level inversions lowest ever (7).
+BROKEN CLAIM: set token shares 42/42 PASS -> 58/59 FAIL, and
+quota_landing 1 off -> 13 of 40 OFF with OVERSHOOTS
+(ICD10 I25.10~E11.22 +0.23 -> +0.52, N18.9 +0.53 -> +0.74) -
+all conditions-column ICD pairs: on a dense many-token
+column the CHAINED same-column conditioners compound, the
+two-pass overshoot class re-emerging through chains in one
+pass. NEXT: fixture reproducing the chained overshoot;
+overshoot-aware enforcement (credit existing co-occurrence
+against the target, or break chains at adoption).
+PREDICTION v5 guard: the quota_landing off-count returns
+toward 1 while close holds its absolute gains.
+
 ## 4. Governance parity for the neural engine (week 2)
 
 The rules engine has a published auditable contract and dials;
