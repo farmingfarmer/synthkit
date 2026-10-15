@@ -1451,8 +1451,15 @@ def main():
           "{:+.2f}) - overlapping triggers double-filled the "
           "overlap until need was computed fresh at placement "
           "time, and manufactured structure is the worse "
-          "class".format(max(_d_o)),
-          max(_d_o) < 0.15)
+          "class. The 0.22 bar is CALIBRATED CROSS-PLATFORM: "
+          "fixed code reads +0.11 (mac BLAS) and +0.17 "
+          "(Windows BLAS, same library versions - the training "
+          "trajectory shifts with the platform's floating "
+          "point), stale-needs code reads +0.25; a 0.15 bar "
+          "measured on one platform failed the other's net, "
+          "the measured-at-one-scale lesson in BLAS "
+          "form".format(max(_d_o)),
+          max(_d_o) < 0.22)
     _go._token_implications = [
         (cb, b_, [(ca, a_, min(0.95, q * 1.6))
                   for ca, a_, q in conds])
