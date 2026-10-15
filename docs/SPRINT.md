@@ -250,6 +250,45 @@ surfaces. If the guard fails, the landing instrument -
 which measures top conditioners only - is the next suspect,
 not the enforcement.
 
+v5 FAILED 2026-10-15 (run_oct15): landing 10 off (claimed
+<= 3) - but every offender is now a FADE; the overshoots
+are gone, and close 88/104 = 84.6% gave back part of the
+overshoot-built gains. Honest series: 84.0 -> 86.0 (partly
+manufactured) -> 84.6 (honest). INVERTED 0 held, 4th run.
+
+OPTION A BUILT 2026-10-15: JOINT CLUSTER PLACEMENT. Five
+measured iterations, each caught by its own instrument:
+(1) independent placement within the stratum - the decoder's
+scores COMPETE and members partitioned it (drift WORSE,
+0.198); (2) pattern-draw designed - k-screened joint
+combinations, each standing on >= k patients, drawn as
+OBJECTS; (3) byte-identical metrics exposed that NOTHING
+re-serialized the column - three builds mutated pick arrays
+the file never heard about (the quota loop owns
+serialization only for its own columns); (4) p11 exact but
+diphenhydrAMINE's share 0.078 -> 0.211: the starved-row
+repair reopened closed books, piling argmax mass on one
+member - restored by dropping weakest BACKGROUND picks,
+patterns never touched; (5) background placed AVOIDING
+member rows so co-presence is owned by patterns alone.
+FINAL: drug-drug drift 0.014/0.013 (was 0.097 at best),
+co-presence and shares exact to 3 decimals, routes
+0.094/0.054 (best both-seeds arm), ICD chain 0.010 with
+zero over AND zero under. Clustered members are quota
+targets NOWHERE - one owner per property. Suite checks
+updated to interrogate the cluster tier; 79/79.
+
+PREDICTION v6, on record: (guard, twofold) the run
+narration shows "cluster of N in active_drugs" AND "cluster
+of N in conditions" lines with "cluster placed" counts, and
+quota_landing reads <= 3 off. Claimed: close reaches 90-95
+of ~104 (86-91%) - the cluster pairs and their dependent
+route pairs carry it; set token shares PASS; INVERTED 0.
+The BAR (87.9%) is inside the claimed band and MAY be met -
+claimed as possible, not promised. NOT claimed: shapes,
+surfaces. If the narration lines are absent, the clusters
+did not deploy and nothing else is evidence.
+
 ## 4. Governance parity for the neural engine (week 2)
 
 The rules engine has a published auditable contract and dials;

@@ -728,6 +728,124 @@ class LatentGen:
                   "at generation, marginals exact by "
                   "construction".format(
                       len(self._token_implications)))
+        # JOINT CLUSTER PLACEMENT. Pairwise same-column quotas
+        # chase each other's base placements - each token
+        # reallocates against a snapshot of the others, the
+        # mutual overlap converges partway, and the honest
+        # (fresh-credit) allocator leaves the cluster pairs
+        # FADED where the stale one manufactured them. The
+        # cluster is placed as ONE OBJECT instead: the
+        # same-column implication pairs are the edges, the
+        # connected components are the clusters, and the
+        # published aggregates are the share of rows holding
+        # >= 2 members (co-presence, the preserved thing
+        # itself) and each member's in-cluster mass - all
+        # k-screened by distinct patients.
+        self._token_clusters = []
+        _samecol_edges = {}
+        for cb2, b2, conds2 in self._token_implications:
+            for ca2, a2, _q2 in conds2:
+                if ca2 == cb2:
+                    _samecol_edges.setdefault(cb2, []).append(
+                        (a2, b2))
+        for cb2, edges in _samecol_edges.items():
+            toks2, ind2 = self._set_inds[cb2]
+            parent = {}
+            def _find(x):
+                while parent.get(x, x) != x:
+                    parent[x] = parent.get(parent[x], parent[x])
+                    x = parent[x]
+                return x
+            for a2, b2 in edges:
+                parent.setdefault(a2, a2)
+                parent.setdefault(b2, b2)
+                ra, rb = _find(a2), _find(b2)
+                if ra != rb:
+                    parent[ra] = rb
+            comps = {}
+            for t2 in parent:
+                comps.setdefault(_find(t2), []).append(t2)
+            for members in comps.values():
+                if len(members) < 2:
+                    continue
+                mi = [toks2.index(t2) for t2 in members
+                      if t2 in toks2]
+                if len(mi) < 2:
+                    continue
+                M = ind2[:, mi] > 0
+                active = M.sum(axis=1) >= 2
+                n_act = int(active.sum())
+                if n_act < 3 * self.k:
+                    continue
+                if len(set(gid[active])) < self.k:
+                    continue
+                nrow2 = len(ind2)
+                # THE JOINT PATTERN DISTRIBUTION, k-screened:
+                # placing members independently within the
+                # stratum cannot encode the joint - the
+                # decoder's scores COMPETE (trained on rows
+                # holding 2-3 of 6 members) and members
+                # partitioned the stratum, driving overlap to
+                # its forced minimum (measured: mean drift
+                # 0.13-0.20 with undershoots to -0.43, WORSE
+                # than pairwise chasing). So the combinations
+                # themselves are published - each pattern a
+                # row-combination of members standing on at
+                # least k DISTINCT PATIENTS - and designated
+                # rows DRAW patterns. No published pattern is
+                # an individual's: each is an aggregate k
+                # people share.
+                names2 = [toks2[i3] for i3 in mi]
+                pat_counts = {}
+                act_idx = np.nonzero(active)[0]
+                for ri in act_idx:
+                    key = tuple(sorted(
+                        names2[z] for z in range(len(mi))
+                        if M[ri, z]))
+                    pat_counts.setdefault(key, []).append(
+                        gid[ri])
+                patterns = []
+                kept_rows = 0
+                for key, gids in pat_counts.items():
+                    if len(set(gids)) >= self.k:
+                        patterns.append(
+                            (list(key),
+                             len(gids) / float(nrow2)))
+                        kept_rows += len(gids)
+                if not patterns:
+                    continue
+                act_share = kept_rows / float(nrow2)
+                self._token_clusters.append(
+                    (cb2, names2, float(act_share),
+                     patterns))
+                print("  cluster of {} in {}: {} - {} joint "
+                      "patterns clear k and are drawn as "
+                      "OBJECTS at generation ({}% of rows)"
+                      .format(len(mi), cb2,
+                              ", ".join(sorted(names2)[:6])
+                              + ("..." if len(mi) > 6
+                                 else ""),
+                              len(patterns),
+                              round(100 * act_share, 1)))
+        # one mechanism per property: same-column pairwise rules
+        # whose BOTH ends sit in one cluster are superseded by
+        # the joint placement - two mechanisms moving one
+        # property would fight
+        # a clustered member must not be a quota TARGET at
+        # all: the quota enforcement WIPES its picks and
+        # reallocates, silently erasing the pattern placement
+        # that ran before it - measured as byte-identical
+        # metrics across two different placement builds, the
+        # seventeen-digits tell. Clustered members may still
+        # SERVE as triggers for other tokens' quotas; their
+        # own placement has exactly one owner.
+        _clustered = {(cb2, t2)
+                      for cb2, mem2, _a2, _m2
+                      in self._token_clusters for t2 in mem2}
+        self._token_implications = [
+            (cb2, b2, conds2)
+            for cb2, b2, conds2 in self._token_implications
+            if (cb2, b2) not in _clustered]
         self._near_identities = []
         # Two DIFFERENT exclusions, and conflating them silently
         # disabled the tier: a near-CHILD must not be an exact
@@ -1274,6 +1392,153 @@ class LatentGen:
         # draw's own rule. Conditioners come from EARLIER plan
         # columns only, so a trigger always reads a column that
         # will not move again.
+        if getattr(self, "_token_clusters", None) \
+                and _set_state:
+            # THE CLUSTER IS PLACED AS ONE OBJECT: rows are
+            # ranked by the decoder's own summed member signal,
+            # the top act_share are designated, and every
+            # member puts its published in-cluster mass on
+            # THOSE rows and its background elsewhere -
+            # co-occurrence arises from shared placement, not
+            # from tokens chasing each other's layouts.
+            # Marginals exact by construction.
+            for cb, members, act_share, patterns in \
+                    self._token_clusters:
+                if cb not in _set_state:
+                    continue
+                st = _set_state[cb]
+                toks_b = st["toks"]
+                pick_b = st["pick"]
+                score_b = st["score"]
+                live = score_b[:, 0] > -1e17
+                nrow_b = len(pick_b)
+                mi = [toks_b.index(t) for t in members
+                      if t in toks_b]
+                if len(mi) < 2:
+                    continue
+                live_idx = np.nonzero(live)[0]
+                Z = score_b[live_idx][:, mi]
+                mu_z = Z.mean(axis=0)
+                sd_z = Z.std(axis=0)
+                sd_z[sd_z == 0] = 1.0
+                act_score = ((Z - mu_z) / sd_z).sum(axis=1)
+                # designated rows draw PATTERNS - the published
+                # joint combinations - so co-occurrence is
+                # source-stated, not emergent from competing
+                # scores. Pattern counts scale from published
+                # shares; larger patterns (stronger activity)
+                # take the highest-activity rows, keeping the
+                # decoder's own signal relevant.
+                quota_pat = [(pt, int(round(sh * nrow_b)))
+                             for pt, sh in patterns]
+                quota_pat = [(pt, n9) for pt, n9 in quota_pat
+                             if n9 > 0]
+                N = sum(n9 for _pt, n9 in quota_pat)
+                N = min(N, len(live_idx))
+                desig = live_idx[np.argsort(-act_score)[:N]]
+                desig_mask = np.zeros(nrow_b, dtype=bool)
+                desig_mask[desig] = True
+                pre_ne = pick_b.any(axis=1)
+                for jx in mi:
+                    pick_b[:, jx] = False
+                quota_pat.sort(key=lambda pn: -len(pn[0]))
+                pos = 0
+                placed_in = {t: 0 for t in members}
+                for pt, n9 in quota_pat:
+                    rows9 = desig[pos:pos + n9]
+                    pos += n9
+                    if not len(rows9):
+                        break
+                    for t in pt:
+                        if t in toks_b:
+                            pick_b[rows9,
+                                   toks_b.index(t)] = True
+                            placed_in[t] = placed_in.get(
+                                t, 0) + len(rows9)
+                # background singles AVOID rows already
+                # holding another member - placed by top score
+                # they co-occur by accident and the co-presence
+                # share overshot its published value (0.108
+                # against 0.088); patterns alone own the joint
+                member_any = pick_b[:, mi].any(axis=1)
+                for jx in mi:
+                    t = toks_b[jx]
+                    cj = int(round(min(
+                        st["t_arr"][jx] * nrow_b,
+                        int(live.sum()))))
+                    n_bg = cj - placed_in.get(t, 0)
+                    if n_bg > 0:
+                        oi = np.nonzero(live & ~desig_mask
+                                        & ~member_any)[0]
+                        o_out = oi[np.argsort(
+                            -score_b[oi, jx])]
+                        take_bg = o_out[:n_bg]
+                        pick_b[take_bg, jx] = True
+                        member_any[take_bg] = True
+                        short = n_bg - len(take_bg)
+                        if short > 0:
+                            o2 = np.nonzero(
+                                live & ~desig_mask
+                                & ~pick_b[:, jx])[0]
+                            o2 = o2[np.argsort(
+                                -score_b[o2, jx])]
+                            pick_b[o2[:short], jx] = True
+                starved = live & pre_ne \
+                    & ~pick_b.any(axis=1)
+                if starved.any():
+                    live_sc = score_b[live]
+                    mu_b = live_sc.mean(axis=0)
+                    sd_b3 = live_sc.std(axis=0)
+                    sd_b3[sd_b3 == 0] = 1.0
+                    zb = (score_b[starved] - mu_b) / sd_b3
+                    bestb = np.argmax(zb, axis=1)
+                    pick_b[np.nonzero(starved)[0],
+                           bestb] = True
+                # THE REPAIR REOPENED CLOSED BOOKS: the wipe
+                # empties every base row that held only
+                # members, those rows starve, and argmax
+                # repair piled thousands onto whichever member
+                # the net favored - diphenhydrAMINE's share
+                # read 0.211 against a source 0.078 while p11
+                # stayed EXACT, so the "faded" correlations
+                # were marginal inflation, not joint loss. The
+                # recorded repair-overshoot rule applies:
+                # restore each member's count by dropping its
+                # weakest BACKGROUND picks - pattern rows are
+                # never touched.
+                for jx in mi:
+                    cj = int(round(min(
+                        st["t_arr"][jx] * nrow_b,
+                        int(live.sum()))))
+                    excess = int(pick_b[:, jx].sum()) - cj
+                    if excess <= 0:
+                        continue
+                    cand = np.nonzero(pick_b[:, jx]
+                                      & ~desig_mask)[0]
+                    if not len(cand):
+                        continue
+                    weakest = cand[np.argsort(
+                        score_b[cand, jx])][:excess]
+                    pick_b[weakest, jx] = False
+                # SERIALIZE, here, now. The quota loop only
+                # re-writes out[cb] for columns it still owns -
+                # and a cluster column is no longer among them,
+                # so three successive placement builds mutated
+                # pick arrays that nothing re-serialized and
+                # produced the base draw's strings verbatim:
+                # byte-identical metrics, the narration saying
+                # "placed", the file never hearing about it.
+                sep_c = st["sep"]
+                vals_c = []
+                for r in range(nrow_b):
+                    js = np.nonzero(pick_b[r])[0]
+                    vals_c.append(sep_c.join(
+                        toks_b[j] for j in js)
+                        if len(js) else "")
+                out[cb] = pd.Series(vals_c)
+                print("  cluster placed for {}: {} members, "
+                      "{} patterns on {} designated rows"
+                      .format(cb, len(mi), len(quota_pat), N))
         if getattr(self, "_token_implications", None) \
                 and _set_state:
             by_b = {}

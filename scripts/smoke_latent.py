@@ -1371,14 +1371,17 @@ def main():
     _src_ab = float(np.corrcoef(_tk(_dfc, "drugA"),
                                 _tk(_dfc, "drugB"))[0, 1])
     _gc2 = LatentGen(seed=0).fit(_dfc, "person_id")
-    _same = [r for r in _gc2._token_implications
-             if any(ca == r[0] for ca, _a, _q in r[2])]
-    check("same-column conditioners are DETECTED for a "
-          "co-occurring cluster ({} adopted tokens carry one) "
-          "- the acute family's mutual structure is published, "
-          "k-screened, like any other aggregate".format(
-              len(_same)),
-          len(_same) >= 2)
+    _clus = getattr(_gc2, "_token_clusters", [])
+    check("the co-occurring family is detected as a CLUSTER "
+          "({} cluster(s), {} joint patterns clearing k) - "
+          "same-column pairwise rules are superseded by joint "
+          "pattern placement, which owns the property alone"
+          .format(len(_clus),
+                  sum(len(p4) for _c4, _m4, _a4, p4
+                      in _clus)),
+          len(_clus) >= 1
+          and all(len(p4) >= 2 for _c4, _m4, _a4, p4
+                  in _clus))
     _genc = _gc2.generate(len(_dfc), seed=1000)
     _gen_ab = float(np.corrcoef(_tk(_genc, "drugA"),
                                 _tk(_genc, "drugB"))[0, 1])
@@ -1386,15 +1389,15 @@ def main():
           "co-occurrence at sign and substance ({:+.2f} "
           "against source {:+.2f})".format(_gen_ab, _src_ab),
           _gen_ab > 0 and _gen_ab >= 0.4 * _src_ab)
-    _gc2._token_implications = [
-        r for r in _gc2._token_implications
-        if not any(ca == r[0] for ca, _a, _q in r[2])]
+    _keep_clus = _gc2._token_clusters
+    _gc2._token_clusters = []
     _genc2 = _gc2.generate(len(_dfc), seed=1000)
     _gen_ab2 = float(np.corrcoef(_tk(_genc2, "drugA"),
                                  _tk(_genc2, "drugB"))[0, 1])
-    check("...and with the same-column rules STRIPPED the "
-          "cluster dissolves again ({:+.2f}) - watched red, "
-          "not assumed".format(_gen_ab2),
+    _gc2._token_clusters = _keep_clus
+    check("...and with the CLUSTERS stripped the co-occurrence "
+          "dissolves again ({:+.2f} against {:+.2f}) - watched "
+          "red, not assumed".format(_gen_ab2, _gen_ab),
           _gen_ab2 < 0.6 * _gen_ab)
 
     # CHAINED CONDITIONERS MUST NOT OVERSHOOT. On a dense
@@ -1460,15 +1463,15 @@ def main():
           "the measured-at-one-scale lesson in BLAS "
           "form".format(max(_d_o)),
           max(_d_o) < 0.22)
-    _go._token_implications = [
-        (cb, b_, [(ca, a_, min(0.95, q * 1.6))
-                  for ca, a_, q in conds])
-        for cb, b_, conds in _go._token_implications]
+    _go._token_clusters = [
+        (cb, mem, min(0.95, ash * 1.6),
+         [(pt, sh * 1.6) for pt, sh in pats])
+        for cb, mem, ash, pats in _go._token_clusters]
     _geno2 = _go.generate(len(_dfo), seed=1000)
     _d_o2 = _odrift(_geno2)
-    check("...and with the published conditionals INFLATED the "
-          "overshoot returns (max drift {:+.2f}) - the detector "
-          "can fire".format(max(_d_o2)),
+    check("...and with the published pattern shares INFLATED "
+          "the overshoot returns (max drift {:+.2f}) - the "
+          "detector can fire".format(max(_d_o2)),
           max(_d_o2) > max(_d_o) + 0.08)
 
     if FAIL:
