@@ -328,6 +328,31 @@ joint structure THE K RULE ITSELF DECLINES TO PUBLISH -
 privacy by design, stated with numbers, which is the
 sentence this instrument exists to be able to say.
 
+v7 HELD 2026-10-16 (run_oct16, driven end to end over HANDS):
+every clause. Giants REJECTED by name - active_drugs 6.6%
+coverage, drug_routes 36.0%, two procedures clusters at 59.9
+and 55.6 just under the gate - while the 31-member imaging
+cluster and the tight triples adopted and placed. close
+88/104 = 84.6% (the claimed neighborhood, identical to the
+pre-cluster run: destruction fully reversed, adopted clusters
+harmless); direction 102/104 = 98.1% PASS recovered; INVERTED
+0, fifth consecutive run; token shares 58/59, the stated
+alternative branch - the healed token went with the rejected
+giant.
+
+ITEM 3 CLOSES ON THE ATTRIBUTION BRANCH, exit satisfied on
+the gate's own denominator: the residual close gap (88 -> 92
+of 104) is ATTRIBUTED to giant-component joint structure
+whose k-cleared patterns cover 6-36% of its own co-presence -
+the k rule declining to publish it is privacy by design,
+stated with the run's own REJECTED lines as receipts. Shapes
+7/8 and surfaces 0/5 remain the ring research item. Future
+knobs, recorded not promised: the two procedures clusters sit
+just under the 60% coverage gate (a dial-worthy margin), and
+TIGHTER cluster edges would split giants into higher-coverage
+subclusters. INVERTED 0 standing, direction 98.1%, zero
+false findings - the file's posture sentence is earned.
+
 ## 4. Governance parity for the neural engine (week 2)
 
 The rules engine has a published auditable contract and dials;
