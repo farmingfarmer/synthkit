@@ -814,6 +814,30 @@ class LatentGen:
                         kept_rows += len(gids)
                 if not patterns:
                     continue
+                # THE COVERAGE GATE, learned on the real
+                # extract the hard way: union-find chained the
+                # implication edges into GIANT components - 56
+                # members in active_drugs whose k-cleared
+                # patterns covered 1.6% of rows against a
+                # column averaging 3.7 tokens - and the tier
+                # wiped every member and rebuilt only that
+                # sliver, with background explicitly AVOIDING
+                # co-occurrence: close crashed 84.6 -> 64.9 and
+                # direction failed for the first time in the
+                # campaign. A cluster whose joint the k rule
+                # cannot mostly publish is not a cluster this
+                # tier may own; it is REJECTED by name with its
+                # numbers, and the pairwise quotas stand.
+                cov = kept_rows / float(max(n_act, 1))
+                if cov < 0.6:
+                    print("  cluster of {} in {} REJECTED: "
+                          "{} patterns cover {}% of its "
+                          "co-presence - the k rule cannot "
+                          "publish this cluster's joint; "
+                          "pairwise quotas stand".format(
+                              len(mi), cb2, len(patterns),
+                              round(100 * cov, 1)))
+                    continue
                 act_share = kept_rows / float(nrow2)
                 self._token_clusters.append(
                     (cb2, names2, float(act_share),

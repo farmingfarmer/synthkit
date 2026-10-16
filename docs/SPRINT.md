@@ -289,6 +289,45 @@ claimed as possible, not promised. NOT claimed: shapes,
 surfaces. If the narration lines are absent, the clusters
 did not deploy and nothing else is evidence.
 
+v6 FAILED 2026-10-15 (run_oct155): the guard HELD - every
+cluster narration present, token shares healed to 66/66
+PASS, INVERTED 0 - and close CRASHED to 74/114 (64.9%),
+direction failing (93.0%) for the first time in the
+campaign. The narration explained it: union-find chained
+the extract's implication edges into GIANT components
+("cluster of 56 in active_drugs - 15 patterns clear k -
+1.6% of rows" against a column averaging 3.7 tokens), the
+k rule published a sliver of their joint, and the tier
+wiped every member and rebuilt only that sliver with
+background AVOIDING co-occurrence - destroying the
+structure it existed to preserve. The fixture's blind
+spot: its 6-member cluster's patterns covered ~100% of its
+co-presence; coverage share was never a variable until the
+extract made it one.
+
+THE COVERAGE GATE (same day): a cluster is adopted only if
+its k-cleared patterns cover >= 60% of the source's own
+co-presence mass; otherwise REJECTED BY NAME with its
+numbers, and the pairwise quotas stand. Measured: the tight
+fixture still adopted and landing (dd 0.014); a 20-member
+giant fixture rejected ("77 patterns cover 5.7%") with
+pairwise behavior intact, no flips; the suite's own weak
+route column rejected at 15.2% without harming a check.
+80/80.
+
+PREDICTION v7, deliberately modest, on record: (guard) the
+run narration shows REJECTED lines for the giant components
+(active_drugs, conditions, drug_routes at minimum) while
+small tight clusters may adopt. Claimed: close returns to
+the 84-86% neighborhood; token shares hold their 66/66
+PASS if the small clusters keep it, else return to ~58/59;
+direction returns to PASS; INVERTED 0. NOT claimed: the
+bar. If v7 holds, the residual gap's attribution is
+written: the remaining close drift lives in giant-component
+joint structure THE K RULE ITSELF DECLINES TO PUBLISH -
+privacy by design, stated with numbers, which is the
+sentence this instrument exists to be able to say.
+
 ## 4. Governance parity for the neural engine (week 2)
 
 The rules engine has a published auditable contract and dials;

@@ -1389,6 +1389,36 @@ def main():
           "co-occurrence at sign and substance ({:+.2f} "
           "against source {:+.2f})".format(_gen_ab, _src_ab),
           _gen_ab > 0 and _gen_ab >= 0.4 * _src_ab)
+    # A GIANT WEAK COMPONENT MUST BE REJECTED. On the real
+    # extract the implication edges chained into a 56-member
+    # cluster whose k-cleared patterns covered 1.6% of rows -
+    # and the tier wiped every member and rebuilt only that
+    # sliver: close crashed 84.6 -> 64.9 and direction failed
+    # for the first time. The coverage gate refuses by name.
+    _rg = np.random.RandomState(5)
+    _ng9 = len(_pidc)
+    _wstrat = _rg.rand(_ng9) < 0.30
+    _gt = {}
+    for _i8 in range(14):
+        _gt["w%02d" % _i8] = (_wstrat & (_rg.rand(_ng9)
+                              < _rg.uniform(0.25, 0.5))) \
+            | (_rg.rand(_ng9) < 0.02)
+    _gt.update({"h%02d" % i: _rg.rand(_ng9)
+                < _rg.uniform(0.02, 0.06) for i in range(6)})
+    _dfg = pd.DataFrame({
+        "person_id": _dfc["person_id"],
+        "codes": [";".join(sorted(t for t, m in _gt.items()
+                                  if m[i]))
+                  for i in range(_ng9)],
+        "hr": _dfc["hr"]})
+    _gg = LatentGen(seed=0).fit(_dfg, "person_id")
+    check("a giant weak component is REJECTED by the coverage "
+          "gate ({} clusters adopted) - k-cleared patterns "
+          "covering a sliver of a wide cluster's co-presence "
+          "must not own it; on the real extract that wiped the "
+          "joint structure it existed to preserve",
+          len(getattr(_gg, "_token_clusters", [])) == 0)
+
     _keep_clus = _gc2._token_clusters
     _gc2._token_clusters = []
     _genc2 = _gc2.generate(len(_dfc), seed=1000)
