@@ -270,7 +270,8 @@ def main():
     with tempfile.TemporaryDirectory() as _ad:
         _adir = Path(_ad) / "run"
         _fid = write_run_artifacts(tr, gen5, "person_id", _adir,
-                                   source_name="fixture.csv")
+                                   source_name="fixture.csv",
+                                   gen_engine=g5)
         _want = ("blueprint.json", "fidelity.json",
                  "generated.csv", "catalogue.json",
                  "provenance.json")
@@ -290,6 +291,49 @@ def main():
               and "rows_read" in _prov["source"]
               and "patients" in _prov["source"]
               and isinstance(_prov.get("build"), dict))
+        # THE GOVERNANCE CONTRACT: what the run did, as a
+        # RECORD. Every field is read off the fitted engine, so
+        # the contract cannot claim a tier the run did not
+        # enforce - and the tier counts must MATCH the engine's
+        # own state, or the record is decoration.
+        _ct = _prov.get("contract")
+        check("provenance carries the governance contract - k, "
+              "blur, denoising, split, and every tier's count "
+              "read off the fitted engine itself",
+              isinstance(_ct, dict)
+              and _ct.get("k") == 10
+              and isinstance(_ct.get("tiers"), dict)
+              and _ct["tiers"]["near_identities"]
+              == len(getattr(g5, "_near_identities", []))
+              and _ct["tiers"]["conditional_quotas"]
+              == len(getattr(g5, "_token_implications", []))
+              and _ct["tiers"]["clusters_adopted"]
+              == [{"column": c_, "members": len(m_),
+                   "patterns": len(p_)}
+                  for c_, m_, _a_, p_ in getattr(
+                      g5, "_token_clusters", [])]
+              and _ct.get("posture"))
+        # the sign-off page renders it, and a neural run WITHOUT
+        # one is a loud finding, not a blank - both branches
+        # exercised through the real renderer
+        from signoff import build_signoff as _bs
+        _page = _bs(str(_adir))[0]
+        check("the sign-off page renders the contract - the "
+              "signed what-this-run-did section with the "
+              "posture sentence verbatim",
+              "What this run did, signed" in _page
+              and _ct["posture"] in _page)
+        _pv2 = dict(_prov)
+        _pv2.pop("contract")
+        (_adir / "provenance.json").write_text(
+            json.dumps(_pv2), encoding="utf-8")
+        _page2 = _bs(str(_adir))[0]
+        check("...and with the contract STRIPPED the page says "
+              "so out loud - a neural run that will not state "
+              "its rules is a finding, never a silent blank",
+              "No governance contract" in _page2)
+        (_adir / "provenance.json").write_text(
+            json.dumps(_prov), encoding="utf-8")
         # THE OVERFITTING NUMBER IS DRAWN, NOT ONLY PRINTED.
         # The operator asked why nothing SHOWED how
         # reconstruction error compares between training and

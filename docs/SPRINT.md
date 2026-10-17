@@ -366,6 +366,25 @@ EXIT: a neural run's artifacts carry the contract statement,
 the sign-off page renders it, and one check asserts it cannot
 be silently absent.
 
+SHIPPED 2026-10-16: the contract block in provenance.json -
+k, blur, denoising sd, split, token cap, and EVERY tier's
+count read off the fitted engine itself (size/arithmetic/
+near/sparse/quotas, plus cluster adoptions AND rejections
+with their coverage numbers), the posture sentence from one
+source of truth. The sign-off page renders it as "What this
+run did, signed"; a neural run without one reads as a LOUD
+finding. Four checks, both branches through the real
+renderer, the stripped-contract mutation watched red. The
+cluster rejections quoting coverage make the privacy story
+concrete: the page now SHOWS the k rule declining to publish
+a joint, by name. PREDICTION v8 (the contract's run of
+record, on record): guard - provenance carries the contract
+with rejections matching the narration; claimed - signoff
+renders it and the gate holds within seed noise (close
+84-86%, direction PASS, INVERTED 0); NOT claimed - any
+fidelity movement: a record that moves numbers is not a
+record.
+
 ## 5. Goal 8 - a challenger worth the name (carried, week 2)
 
 Unmoved last sprint. Build the gradient-boosted challenger

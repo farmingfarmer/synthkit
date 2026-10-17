@@ -134,6 +134,78 @@ def build_signoff(run_dir):
                 "three cannot disagree.</p>".format(
                     contradictions, disobedience))
 
+    # THE GOVERNANCE CONTRACT - what the run did, signed. Read
+    # from provenance, never recomputed; every field was written
+    # off the fitted engine itself. For a neural run this block
+    # CANNOT be silently absent: a run that will not state its
+    # rules is a finding on this page, not a blank.
+    gen_name = str(prov.get("generator", ""))
+    contract = prov.get("contract")
+    if contract:
+        t = contract.get("tiers", {})
+        body.append("<h2>What this run did, signed</h2>")
+        rows_c = []
+        rows_c.append("privacy floor k = {}; k-aware blur {}; "
+                      "denoising sd {}".format(
+                          contract.get("k"),
+                          "on" if contract.get("k_blur")
+                          else "off",
+                          contract.get("denoise_sd")))
+        rows_c.append("training split {}/{} (held-out patients "
+                      "feed the memorization tripwire); token "
+                      "cap {} per set column".format(
+                          contract.get("split", {}).get(
+                              "train_share"),
+                          contract.get("split", {}).get(
+                              "holdout_share"),
+                          contract.get("token_cap")))
+        rows_c.append("tiers enforced from the source: {} size "
+                      "identit(ies), {} arithmetic, {} "
+                      "near-twin(s), {} sparse coupling(s), {} "
+                      "conditional quota(s)".format(
+                          t.get("size_identities", 0),
+                          t.get("linear_identities", 0),
+                          t.get("near_identities", 0),
+                          t.get("sparse_couplings", 0),
+                          t.get("conditional_quotas", 0)))
+        ca = t.get("clusters_adopted", [])
+        cr = t.get("clusters_rejected", [])
+        if ca or cr:
+            rows_c.append("joint clusters: {} adopted as "
+                          "published pattern objects{}; {} "
+                          "REJECTED because their k-cleared "
+                          "patterns cover too little of their "
+                          "own co-presence ({}) - the k rule "
+                          "declining to publish a joint is "
+                          "privacy by design".format(
+                              len(ca),
+                              " (" + ", ".join(
+                                  "{} m{} p{}".format(
+                                      esc(c["column"]),
+                                      c["members"],
+                                      c["patterns"])
+                                  for c in ca[:4]) + ")"
+                              if ca else "",
+                              len(cr),
+                              ", ".join(
+                                  "{} {:.0%}".format(
+                                      esc(c["column"]),
+                                      c["coverage"])
+                                  for c in cr[:4])))
+        for rc in rows_c:
+            body.append('<p class="note">' + rc + "</p>")
+        body.append('<p class="note"><b>'
+                    + esc(contract.get("posture", ""))
+                    + "</b></p>")
+    elif "neural" in gen_name:
+        body.append("<h2>What this run did, signed</h2>")
+        body.append('<p class="note"><b>No governance contract '
+                    "found in this neural run's provenance.</b> "
+                    "A run that does not state its rules "
+                    "predates the contract or lost it - that is "
+                    "a finding, and this page will not pretend "
+                    "otherwise.</p>")
+
     # privacy posture - the non-overclaiming words, with counts
     body.append("<h2>Privacy posture</h2>")
     parts = []

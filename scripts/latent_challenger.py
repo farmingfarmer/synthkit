@@ -48,6 +48,12 @@ import pandas as pd
 
 ROOT = Path(__file__).resolve().parent.parent
 
+# ONE source of truth for the posture sentence - the run prints
+# it, and the governance contract carries it verbatim, because
+# two wordings of a privacy posture is how pages disagree.
+POSTURE = ("Row-level: no within-patient dynamics. Trains on "
+           "records: a MEASUREMENT, not a release.")
+
 # below this presence share a numeric column's decoded channel is
 # starved (measured: sd ratio 0.01 at 0.002 presence) and its
 # marginal rides a k-banded published grid instead
@@ -742,6 +748,7 @@ class LatentGen:
         # itself) and each member's in-cluster mass - all
         # k-screened by distinct patients.
         self._token_clusters = []
+        self._rejected_clusters = []
         _samecol_edges = {}
         for cb2, b2, conds2 in self._token_implications:
             for ca2, a2, _q2 in conds2:
@@ -830,6 +837,10 @@ class LatentGen:
                 # numbers, and the pairwise quotas stand.
                 cov = kept_rows / float(max(n_act, 1))
                 if cov < 0.6:
+                    self._rejected_clusters.append(
+                        {"column": cb2, "members": len(mi),
+                         "patterns": len(patterns),
+                         "coverage": round(float(cov), 3)})
                     print("  cluster of {} in {} REJECTED: "
                           "{} patterns cover {}% of its "
                           "co-presence - the k rule cannot "
@@ -2516,6 +2527,45 @@ def write_run_artifacts(src, gen, group_by, outdir,
         },
         "settings": {"group_by": group_by,
                      "engine": "neural"},
+        # THE GOVERNANCE CONTRACT: what this run learned and
+        # under what rules, as a RECORD rather than scrollback.
+        # Every field is read off the fitted engine itself, so
+        # the contract cannot say something the run did not do.
+        "contract": (None if gen_engine is None else {
+            "k": int(k),
+            "k_blur": bool(getattr(gen_engine, "k_blur",
+                                   False)),
+            "denoise_sd": float(getattr(gen_engine, "denoise",
+                                        0.0)),
+            "token_cap": 60,
+            "split": {"train_share": 0.85,
+                      "holdout_share": 0.15},
+            "tiers": {
+                "size_identities": len(getattr(
+                    gen_engine, "_size_identities", []) or []),
+                "linear_identities": len(getattr(
+                    gen_engine, "_linear_identities", [])
+                    or []),
+                "near_identities": len(getattr(
+                    gen_engine, "_near_identities", []) or []),
+                "sparse_couplings": len(getattr(
+                    gen_engine, "_sparse_couplings", [])
+                    or []),
+                "conditional_quotas": len(getattr(
+                    gen_engine, "_token_implications", [])
+                    or []),
+                "clusters_adopted": [
+                    {"column": cb_, "members": len(mem_),
+                     "patterns": len(pats_)}
+                    for cb_, mem_, _a_, pats_ in getattr(
+                        gen_engine, "_token_clusters", [])
+                    or []],
+                "clusters_rejected": list(getattr(
+                    gen_engine, "_rejected_clusters", [])
+                    or []),
+            },
+            "posture": POSTURE,
+        }),
     }, indent=1), encoding="utf-8")
     return fid
 
@@ -2677,8 +2727,7 @@ def run_csv(argv):
                           "artifacts: {} - the review page still "
                           "works, the other stations will "
                           "refuse".format(e))
-    print("Row-level: no within-patient dynamics. Trains on "
-          "records: a MEASUREMENT, not a release.")
+    print(POSTURE)
 
 
 def between_share(df, col, group_by):
