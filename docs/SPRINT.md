@@ -385,6 +385,25 @@ renders it and the gate holds within seed noise (close
 fidelity movement: a record that moves numbers is not a
 record.
 
+v8 HELD 2026-10-19 (run_oct19, driven over HANDS): every
+clause. The contract rides provenance with four cluster
+rejections matching the narration in count and coverage;
+the sign-off page built from the run carries "What this
+run did, signed", the rejections by name, and the posture
+verbatim; and the gate is IDENTICAL to run_oct16 to the
+digit - direction 102/104, close 88/104, INVERTED 0 for
+the SIXTH consecutive run. The record moved nothing, which
+was the point. ITEM 4 COMPLETE with its run of record.
+
+SPRINT CLOSE-OUT, three days early: all four committed
+items done - the width attack certified, the close bar
+closed on the attribution branch with receipts, the kit
+loop live (first tester through, first finding logged:
+the Describe station must say the LLM is optional for
+everything else), and the governance contract shipped and
+verified on the real extract. Goals 7/8 carry to next
+sprint as planned pulls.
+
 ## 5. Goal 8 - a challenger worth the name (carried, week 2)
 
 Unmoved last sprint. Build the gradient-boosted challenger
