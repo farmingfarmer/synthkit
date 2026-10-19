@@ -27,21 +27,28 @@ folder. No real patient data is involved anywhere; the answer key
 in `answer_key.txt` lists the nine patterns that were planted, so
 you can judge every claim the tool makes against known truth.
 
-Prerequisite: synthkit installed - from the repository root,
-`pip install -e .` (Python 3.10+). Optional: `pip install shap`
-for the driver-attribution section of the dashboard.
+Prerequisite: synthkit installed. IF YOU USED
+START_SYNTHKIT.bat (the double-click in the bundle this kit
+arrived in), you are ALREADY installed - open a terminal in
+this kit folder and write `..\\.venv\\Scripts\\python` wherever
+a command below says `python`, so the commands use the same
+private environment the launcher built. Installed some other
+way (`pip install -e .` from the repository root, Python
+3.10+), plain `python` is fine. Optional either way:
+`pip install shap` for the driver-attribution section of the
+dashboard.
 
-Commands are shown Unix-style with forward slashes; on Windows
-use backslashes and the same words.
+Commands are shown Windows-style with backslashes; on
+Mac/Linux use forward slashes and the same words.
 
 ## 1. The two-second look (always first)
 
-    python -m synthkit.cli types --src clinic/demo_clinic.csv --group-by person_id
+    python -m synthkit.cli types --src clinic\\demo_clinic.csv --group-by person_id
 
 Every column, how it was read, and whether anonymization would
 destroy it - before anything expensive runs. Then the PHI check:
 
-    python -m synthkit.cli scrub clinic/demo_clinic.csv --group-by person_id
+    python -m synthkit.cli scrub clinic\\demo_clinic.csv --group-by person_id
 
 The clinic data should come back CLEAR - it was invented without
 PHI on purpose - and a long-text column would be reported OUT OF
@@ -50,7 +57,7 @@ and says so rather than pretending otherwise.
 
 ## 2. Fit and generate (a few minutes - watch it narrate)
 
-    python -m synthkit.cli fit --src clinic/demo_clinic.csv --out run1 --group-by person_id --generate
+    python -m synthkit.cli fit --src clinic\\demo_clinic.csv --out run1 --group-by person_id --generate
 
 Watch the narration: search with a live countdown, the contract,
 generation, self-grading. Then read the verdict:
@@ -64,7 +71,7 @@ explanation to see how you would check it yourself.
 
     python -m synthkit.cli gui
 
-Point 01 Source / VIEW Dashboard at `clinic/demo_clinic.csv` and
+Point 01 Source / VIEW Dashboard at `clinic\\demo_clinic.csv` and
 `run1` (full literal paths - browser fields do not expand
 environment variables). In the Dashboard: press and hold any
 histogram; hold a correlation heatmap; find the planted threshold
@@ -111,7 +118,7 @@ walked you down generated with the engine we measure AGAINST.
 
 Click **02 Generate** in the left rail, then fill five boxes:
 
-    source CSV path          clinic/demo_clinic.csv   (full path)
+    source CSV path          clinic\\demo_clinic.csv   (full path)
     output directory         neural1                  (full path)
     patient / entity column  person_id
     seed                     0
@@ -285,7 +292,7 @@ def main():
     (out / "TRY_TO_BREAK.md").write_text(TRY_TO_BREAK,
                                          encoding="utf-8")
     print("test kit -> {}".format(out))
-    print("  clinic/demo_clinic.csv  (invented data)")
+    print("  clinic\\demo_clinic.csv  (invented data)")
     print("  answer_key.txt          (the nine planted patterns)")
     print("  START_HERE.md           (every command, in order)")
     print("  TRY_TO_BREAK.md         (the challenge list)")
