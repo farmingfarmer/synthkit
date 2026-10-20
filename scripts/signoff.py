@@ -194,6 +194,43 @@ def build_signoff(run_dir):
                                   for c in cr[:4])))
         for rc in rows_c:
             body.append('<p class="note">' + rc + "</p>")
+        rel = contract.get("release")
+        if rel:
+            req = rel.get("strength_requested")
+            ach = rel.get("strength_achieved")
+            parts_r = []
+            if req is not None and req < 1.0:
+                parts_r.append(
+                    "Release-fidelity dial set to {:.0%}: learned "
+                    "relationship strength was deliberately "
+                    "diluted for sharing{}. Column distributions "
+                    "are UNCHANGED - only the strength of "
+                    "relationships between columns is reduced."
+                    .format(req,
+                            " - generated relationships measured "
+                            "at {:.0%} of source strength".format(
+                                ach) if ach is not None else ""))
+            for sr in rel.get("suppressed", []):
+                ac = sr.get("achieved_corr")
+                parts_r.append(
+                    "Relationship {} SUPPRESSED - it does not "
+                    "exist in this file{}.".format(
+                        esc(sr.get("pair", "")),
+                        " (measured correlation {:+.3f})".format(
+                            ac) if ac is not None else ""))
+            if parts_r:
+                body.append("<h2>Release controls (value "
+                            "extraction)</h2>")
+                for pr in parts_r:
+                    body.append('<p class="note">' + pr + "</p>")
+                body.append('<p class="note">These controls '
+                            "reduce what a recipient can learn "
+                            "from shared patterns. What survives "
+                            "the strongest dilution is arithmetic "
+                            "that must hold for the file to be "
+                            "valid (for example, a count equal to "
+                            "a list's length), never "
+                            "institution-specific pattern.</p>")
         body.append('<p class="note"><b>'
                     + esc(contract.get("posture", ""))
                     + "</b></p>")

@@ -1548,6 +1548,77 @@ def main():
           "detector can fire".format(max(_d_o2)),
           max(_d_o2) > max(_d_o) + 0.08)
 
+    # THE RELEASE DIALS - value-extraction controls for sharing.
+    # Compliance's concern is not privacy (certified) but a
+    # vendor training on the patterns a full-fidelity release
+    # carries. The dial must be MONOTONIC and VERIFIABLE on the
+    # page - a dial a compliance reader cannot check is a knob.
+    import importlib
+    # repro_dials is a dev FIXTURE excluded from the shipped
+    # bundle (the walk drops scripts/repro_*); where it is
+    # absent, the dial MECHANISM is still exercised below
+    # through write_run_artifacts on an inline frame, so the
+    # sweep is the only part that skips - and it says so rather
+    # than passing silently.
+    if not (_root / "scripts" / "repro_dials.py").exists():
+        check("release-dial sweep SKIPPED - repro_dials fixture "
+              "not present in this tree (shipped bundle); the "
+              "contract-record check below still runs", True)
+        _ratios = None
+    else:
+        _rd = importlib.import_module("repro_dials")
+        _ratios, _rsup, _rsrc, _floor = _rd.sweep(
+            seed=0, strengths=(1.0, 0.5, 0.0))
+    if _ratios is not None:
+        check("the release-strength dial is MONOTONIC - learned "
+              "pair strength falls as the dial closes (1.0 "
+              "{:+.2f} >= 0.5 {:+.2f} >= 0.0 {:+.2f})".format(
+                  _ratios[1.0], _ratios[0.5], _ratios[0.0]),
+              _ratios[1.0] >= _ratios[0.5] - 0.02
+              and _ratios[0.5] >= _ratios[0.0] - 0.02
+              and _ratios[1.0] - _ratios[0.0] > 0.15)
+        check("...and a NAMED pair is suppressed to near zero "
+              "({:+.3f} from a source {:+.3f}) - the value-"
+              "extraction control proves itself".format(
+                  _rsup, _rsrc),
+              abs(_rsrc) > 0.2 and abs(_rsup) < 0.08)
+    # the achieved dilution reaches the contract, measured from
+    # the output - requested-vs-achieved, the --time-col lesson.
+    # Built on an INLINE frame so it runs even without the
+    # fixture, because the contract is a shipped-code promise.
+    from latent_challenger import (write_run_artifacts as _wra,
+                                   LatentGen as _LG)
+    _rr9 = np.random.RandomState(4)
+    _np9 = 200
+    _cn9 = _rr9.poisson(12, _np9) + 1
+    _pd9 = np.repeat(np.arange(_np9), _cn9)
+    _nn9 = len(_pd9)
+    _x9 = _rr9.normal(50, 10, _nn9)
+    _dfr = pd.DataFrame({
+        "person_id": ["P{:04d}".format(i) for i in _pd9],
+        "a": np.round(_x9, 1),
+        "b": np.round(0.8 * _x9 + _rr9.normal(0, 4, _nn9), 1),
+        "c": np.round(_rr9.normal(0, 1, _nn9), 2)})
+    _gr = _LG(seed=0, release_strength=0.5).fit(
+        _dfr, "person_id")
+    _genr = _gr.generate(len(_dfr), seed=1000)
+    with tempfile.TemporaryDirectory() as _tr:
+        _rr = Path(_tr) / "run"
+        _wra(_dfr, _genr, "person_id", _rr,
+             source_name="f.csv", gen_engine=_gr)
+        _pvr = json.loads(
+            (_rr / "provenance.json").read_text(
+                encoding="utf-8"))
+        _rel = _pvr.get("contract", {}).get("release")
+        check("the contract carries the release dial "
+              "requested-AND-achieved, measured from the output "
+              "(a dial read but not verified is the --time-col "
+              "failure)",
+              isinstance(_rel, dict)
+              and _rel.get("strength_requested") == 0.5
+              and _rel.get("strength_achieved") is not None
+              and _rel["strength_achieved"] < 0.95)
+
     if FAIL:
         print("{} of {} checks failed.".format(FAIL, PASS + FAIL))
         sys.exit(1)

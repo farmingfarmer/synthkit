@@ -195,13 +195,28 @@ class LatentGen:
                  support_neighbors: int = 40,
                  denoise: float = 0.3,
                  hierarchical: bool = True,
-                 dev_scale: float = 1.0):
+                 dev_scale: float = 1.0,
+                 release_strength: float = 1.0,
+                 suppress_pairs: list = None):
         # Capacity scales with the frame, decided at fit time. An
         # 8-dim bottleneck tuned on 6-column fixtures LOST a named
         # driver triple entirely at 77 columns (shares read 0/0,
         # close fell to 61%) - a ruler too short for the thing it
         # measures reads as a finding about the thing.
         self.k, self.b, self.h, self.seed = k, bottleneck, hidden, seed
+        # THE RELEASE DIALS. Compliance's concern is not privacy
+        # (certified) but VALUE EXTRACTION - a vendor training on
+        # the patterns a full-fidelity release carries. strength
+        # scales every learned relationship toward independence
+        # while marginals stay byte-exact (a calibrated fraction
+        # of each column is PERMUTED - rearrangement only, the
+        # sweeps' own safety property); suppress_pairs names
+        # relationships that must not exist at all. Arithmetic
+        # identities are recomputed after and therefore EXEMPT -
+        # a file where count != len(list) reads as broken, not
+        # private - and the contract says so.
+        self.release_strength = float(release_strength)
+        self.suppress_pairs = list(suppress_pairs or [])
         # K-AWARE RECONSTRUCTION. Faithful where many patients
         # stand behind the pattern; deliberately BLURRED where
         # fewer than k do. Screening the INPUTS (sub-k levels
@@ -1721,6 +1736,87 @@ class LatentGen:
                         if len(js) else "")
                 out[cb] = pd.Series(vals_b)
         frame = pd.DataFrame(out)
+        # THE RELEASE PASS runs before the identity tiers (which
+        # recompute their children afterwards, keeping the file
+        # internally consistent). Permuting a fraction f of a
+        # column scales its pair correlations by (1-f); with both
+        # columns diluted the pair carries (1-f)^2, so
+        # f = 1 - sqrt(strength) lands pair strength at
+        # approximately strength x source. Marginals are EXACT by
+        # construction - a permutation moves values, never the
+        # multiset. Suppression shuffles the named child FULLY:
+        # deleting one edge surgically while keeping its
+        # neighbors would leak the edge back through them, so the
+        # collateral is taken and STATED rather than hidden.
+        rs_rel = np.random.RandomState(
+            (seed if seed is not None else self.seed) + 777)
+        s_rel = min(1.0, max(0.0, self.release_strength))
+        if s_rel < 1.0:
+            f_rel = 1.0 - s_rel ** 0.5
+            n_rel = len(frame)
+            set_cols_rel = {it[1]: it[3][0] for it in self.plan
+                            if it[0] == "set"}
+            for c_rel in frame.columns:
+                m_rel = max(1, int(round(f_rel * n_rel)))
+                idx_rel = rs_rel.choice(n_rel, m_rel,
+                                        replace=False)
+                vals_rel = frame[c_rel].to_numpy(
+                    copy=True)
+                if c_rel in set_cols_rel:
+                    # PERMUTING WHOLE CELLS CANNOT DILUTE A SET
+                    # COLUMN: has_a and has_b live in the SAME
+                    # cell, so cell shuffling carries their
+                    # co-occurrence along intact - measured, the
+                    # zero-strength dial left within-column
+                    # pairs at 0.9x source while cross-column
+                    # pairs died. Tokens are RE-DEALT instead:
+                    # the selected rows' tokens pool, shuffle,
+                    # and refill by each row's own size - every
+                    # token count and every row size exact,
+                    # co-occurrence broken.
+                    sep_rel = set_cols_rel[c_rel]
+                    pool = []
+                    sizes = []
+                    for v9 in vals_rel[idx_rel]:
+                        ts9 = [t for t in str(v9 or "").split(
+                            sep_rel) if t]
+                        pool.extend(ts9)
+                        sizes.append(len(ts9))
+                    rs_rel.shuffle(pool)
+                    pos9 = 0
+                    newcells = []
+                    for sz9 in sizes:
+                        row_t = pool[pos9:pos9 + sz9]
+                        pos9 += sz9
+                        newcells.append(sep_rel.join(
+                            sorted(set(row_t))))
+                    vals_rel[idx_rel] = np.array(
+                        newcells, dtype=object)
+                else:
+                    sub = vals_rel[idx_rel].copy()
+                    rs_rel.shuffle(sub)
+                    vals_rel[idx_rel] = sub
+                frame[c_rel] = vals_rel
+            print("  release strength {}: {}% of every column "
+                  "permuted - marginals exact, relationships "
+                  "diluted toward {}x source".format(
+                      s_rel, round(100 * f_rel, 1), s_rel))
+        for pa_s, pb_s in self.suppress_pairs:
+            child_s = pb_s if pb_s in frame.columns else (
+                pa_s if pa_s in frame.columns else None)
+            if child_s is None:
+                print("  suppress SKIPPED: neither {} nor {} "
+                      "is a column".format(pa_s, pb_s))
+                continue
+            vals_s = frame[child_s].to_numpy().copy()
+            rs_rel.shuffle(vals_s)
+            frame[child_s] = vals_s
+            print("  suppressed {}~{}: {} fully shuffled - its "
+                  "distribution is intact and ALL its "
+                  "relationships are gone, stated because a "
+                  "single edge cannot be deleted without "
+                  "leaking back through its neighbors".format(
+                      pa_s, pb_s, child_s))
         # AFTER EVERY COLUMN EXISTS, never during the draw: the
         # set may be decoded before or after its partner and the
         # identity has to hold either way.
@@ -2514,6 +2610,14 @@ def write_run_artifacts(src, gen, group_by, outdir,
         _b = _bi()
     except Exception:
         _b = {"id": "unknown"}
+    _release_record = (None if gen_engine is None
+                       or float(getattr(gen_engine,
+                                        "release_strength", 1.0))
+                       >= 1.0
+                       and not getattr(gen_engine,
+                                       "suppress_pairs", None)
+                       else _measure_release(
+                           src, gen, gen_engine, group_by))
     (outdir / "provenance.json").write_text(json.dumps({
         "generator": "neural (autoencoder)",
         "build": _b,
@@ -2564,10 +2668,71 @@ def write_run_artifacts(src, gen, group_by, outdir,
                     gen_engine, "_rejected_clusters", [])
                     or []),
             },
+            # THE RELEASE DIALS, requested AND achieved -
+            # measured from this very output, never assumed. A
+            # dial a compliance reader cannot verify on the
+            # page is a knob, not a control (the --time-col
+            # lesson). strength_floor is the combinatorial zero:
+            # the correlation ANY file of these shapes carries,
+            # below which only arithmetic that MUST hold
+            # survives.
+            "release": _release_record,
             "posture": POSTURE,
         }),
     }, indent=1), encoding="utf-8")
     return fid
+
+
+def _measure_release(src, gen, gen_engine, group_by):
+    """Achieved dilution and suppression, measured from the
+    output. Mean |rank-corr ratio| over pairs strong in source,
+    and each suppressed pair's achieved correlation."""
+    import numpy as _np
+    req = float(getattr(gen_engine, "release_strength", 1.0))
+    supp = list(getattr(gen_engine, "suppress_pairs", []) or [])
+    cols = [c for c in src.columns
+            if c != group_by and c in gen.columns]
+    num = [c for c in cols
+           if pd.to_numeric(src[c], errors="coerce").notna().mean()
+           > 0.5]
+    ratios = []
+    for i in range(len(num)):
+        for j in range(i + 1, len(num)):
+            a = pd.to_numeric(src[num[i]], errors="coerce")
+            b = pd.to_numeric(src[num[j]], errors="coerce")
+            ga = pd.to_numeric(gen[num[i]], errors="coerce")
+            gb = pd.to_numeric(gen[num[j]], errors="coerce")
+            m = a.notna() & b.notna()
+            gm = ga.notna() & gb.notna()
+            if m.sum() < 30 or gm.sum() < 30:
+                continue
+            rs = float(a[m].corr(b[m], method="spearman"))
+            if abs(rs) < 0.2:
+                continue
+            rg = float(ga[gm].corr(gb[gm], method="spearman"))
+            if _np.isfinite(rs) and _np.isfinite(rg) and rs:
+                ratios.append(rg / rs)
+    achieved = (float(_np.mean(ratios)) if ratios else None)
+    sup_rec = []
+    for pa, pb in supp:
+        if pa in gen.columns and pb in gen.columns:
+            ga = pd.to_numeric(gen[pa], errors="coerce")
+            gb = pd.to_numeric(gen[pb], errors="coerce")
+            m = ga.notna() & gb.notna()
+            r = (float(ga[m].corr(gb[m])) if m.sum() > 2
+                 else None)
+            sup_rec.append({"pair": "{}~{}".format(pa, pb),
+                            "achieved_corr": r})
+    return {"strength_requested": req,
+            "strength_achieved": achieved,
+            "suppressed": sup_rec,
+            "note": ("strength_achieved is the mean of generated "
+                     "vs source pair-correlation ratios over "
+                     "pairs the source holds strongly; marginals "
+                     "are exact regardless of the dial. What "
+                     "survives at strength 0 is arithmetic that "
+                     "must hold for the file to be valid, not "
+                     "institutional pattern.")}
 
 
 def run_csv(argv):
@@ -2602,7 +2767,37 @@ def run_csv(argv):
                     help="train as a DENOISING autoencoder with "
                          "this input-noise sd - the defense on "
                          "the weights surface")
+    ap.add_argument("--release-strength", type=float,
+                    default=1.0,
+                    help="0..1 release dial: how much LEARNED "
+                         "relationship strength survives into a "
+                         "shared file. 1.0 is full fidelity; "
+                         "lower dilutes patterns toward "
+                         "independence while marginals stay "
+                         "EXACT. For value-extraction control "
+                         "when sharing - the achieved dilution "
+                         "is measured and recorded, not assumed")
+    ap.add_argument("--suppress", action="append", default=[],
+                    help="A~B: a relationship that must NOT "
+                         "exist in the output - the named child "
+                         "is fully re-dealt, breaking ALL its "
+                         "relationships (collateral stated, "
+                         "because one edge cannot be removed "
+                         "without leaking back through its "
+                         "neighbors). Repeatable")
     a = ap.parse_args(argv)
+    _supp = []
+    for _sp in a.suppress:
+        if "~" not in _sp:
+            print("STOP: --suppress wants A~B, got {}".format(
+                _sp), file=sys.stderr)
+            return 2
+        _a, _b = _sp.split("~", 1)
+        _supp.append((_a.strip(), _b.strip()))
+    if not (0.0 <= a.release_strength <= 1.0):
+        print("STOP: --release-strength must be in 0..1",
+              file=sys.stderr)
+        return 2
     # THE FLOOR IS A FLOOR. The team asked for a user-settable k
     # with clarity on what can and cannot move: HIGHER is a
     # policy choice the operator may make; LOWER is not offered,
@@ -2630,7 +2825,9 @@ def run_csv(argv):
         tr, ho = _split_patients(df, a.group_by, seed)
         g = LatentGen(seed=seed, k=a.k,
                       k_blur=not a.no_k_blur,
-                      denoise=a.denoise).fit(tr, a.group_by)
+                      denoise=a.denoise,
+                      release_strength=a.release_strength,
+                      suppress_pairs=_supp).fit(tr, a.group_by)
         # THE DELIVERABLE IS THE SIZE OF THE SOURCE, NOT OF THE
         # TRAINING SPLIT. Holding 15% of patients back is right -
         # the nearest-neighbor tripwire needs real people the
