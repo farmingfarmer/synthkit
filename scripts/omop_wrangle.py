@@ -156,7 +156,8 @@ def main() -> None:
     orphan_c = 0
     for r in read(src / "condition_occurrence.csv"):
         vid = norm_key(r.get("visit_occurrence_id", ""))
-        name = clean(r.get("concept_name", "")) or \
+        name = clean(r.get("standard_concept_name", "")) or \
+            clean(r.get("concept_name", "")) or \
             clean(r.get("condition_source_value", ""))
         if not vid or vid not in visits:
             orphan_c += 1
@@ -190,20 +191,38 @@ def main() -> None:
     # exposure spans are era-like; a drug counts for a visit when
     # the visit date falls inside [start, end] for that patient.
     by_person = defaultdict(list)
-    for r in read(src / "drug_exposure.csv"):
-        pid = norm_key(r.get("person_id", ""))
-        s = parse_date(r.get("drug_exposure_start_date", ""))
-        e = parse_date(r.get("drug_exposure_end_date", "")) or s
-        name = clean(r.get("concept_name", "")) or \
-            clean(r.get("drug_source_value", ""))
-        if not pid or not s or not name:
-            continue
-        if name.lower() == "no matching concept":
-            continue
-        by_person[pid].append((s, e, name,
-                               clean(r.get("route_source_value", ""))))
+    # DRUGS JOIN BY KEY WHEN THE EXPORT CARRIES ONE, dates only
+    # as the fallback. The original export's drug table had no
+    # visit_occurrence_id, so this join was date-windowed - and
+    # an export whose dates were STRIPPED for anonymization then
+    # attached zero drugs to 23,000 visits while conditions
+    # (key-joined) attached to 78% of them. The asymmetry was
+    # the tell. Name resolution prefers standard_concept_name,
+    # then concept_name, then the source value - the same
+    # ladder the condition join climbs.
     drugs = defaultdict(list)
     routes = defaultdict(set)
+    n_direct = 0
+    for r in read(src / "drug_exposure.csv"):
+        pid = norm_key(r.get("person_id", ""))
+        name = clean(r.get("standard_concept_name", "")) or \
+            clean(r.get("concept_name", "")) or \
+            clean(r.get("drug_source_value", ""))
+        if not name or name.lower() == "no matching concept":
+            continue
+        route = clean(r.get("route_source_value", ""))
+        vid = norm_key(r.get("visit_occurrence_id", ""))
+        if vid and vid in visits:
+            drugs[vid].append(name)
+            if route:
+                routes[vid].add(route)
+            n_direct += 1
+            continue
+        s = parse_date(r.get("drug_exposure_start_date", ""))
+        e = parse_date(r.get("drug_exposure_end_date", "")) or s
+        if not pid or not s:
+            continue
+        by_person[pid].append((s, e, name, route))
     for vid, v in visits.items():
         d = v["visit_start_date"]
         if not d:
@@ -213,8 +232,9 @@ def main() -> None:
                 drugs[vid].append(name)
                 if route:
                     routes[vid].add(route)
-    note("drug_exposure.csv: {} patients with exposures; {} visits "
-         "have >=1 active drug".format(len(by_person), len(drugs)))
+    note("drug_exposure.csv: {} rows joined by visit id, {} "
+         "patients via date windows; {} visits have >=1 active "
+         "drug".format(n_direct, len(by_person), len(drugs)))
 
     # ---------- measurements: EAV -> wide ----------
     counts = defaultdict(int)

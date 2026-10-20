@@ -81,6 +81,39 @@ def main():
         check("measurement panel pivoted WIDE (labs as columns)",
               "glucose" in rows[0] or "systolic_blood_pressure"
               in rows[0])
+        # A DATE-STRIPPED EXPORT MUST STILL ATTACH ITS DRUGS.
+        # The first real external request arrived anonymized -
+        # every date column emptied - and the date-windowed drug
+        # join attached ZERO drugs to 23,000 visits while the
+        # key-joined conditions attached to 78%: the asymmetry
+        # was the tell. Drugs join by visit_occurrence_id first
+        # now, dates only as the fallback for exports without
+        # the key.
+        src2 = Path(td) / "omop_nodates"
+        out2 = Path(td) / "tidy_nodates.csv"
+        import shutil as _sh
+        _sh.copytree(src, src2)
+        _de = src2 / "drug_exposure.csv"
+        _rows2 = list(csv.DictReader(
+            _de.open(encoding="utf-8")))
+        for _r2 in _rows2:
+            _r2["drug_exposure_start_date"] = ""
+            _r2["drug_exposure_end_date"] = ""
+        with _de.open("w", newline="", encoding="utf-8") as _f2:
+            _w2 = csv.DictWriter(_f2, fieldnames=list(_rows2[0]))
+            _w2.writeheader()
+            _w2.writerows(_rows2)
+        r2 = run("scripts/omop_wrangle.py", "--src", str(src2),
+                 "-o", str(out2), "--report")
+        rows2 = list(csv.DictReader(out2.open(encoding="utf-8")))
+        _with = sum(1 for r_ in rows2 if r_["active_drugs"])
+        _base = sum(1 for r_ in rows if r_["active_drugs"])
+        check("drugs still attach when every drug DATE is "
+              "stripped ({} visits with drugs vs {} in the "
+              "dated run) - the key join carries what the date "
+              "window cannot".format(_with, _base),
+              r2.returncode == 0 and _with >= 0.8 * _base
+              and _with > 0)
         check("per-visit drug list and count agree",
               all((r_["active_drug_count"] == "0") ==
                   (r_["active_drugs"] == "") for r_ in rows))
