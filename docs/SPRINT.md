@@ -464,3 +464,57 @@ is the genuine research unknown, the other is a governance
 gate. The multi-table intake (goal 1) drops OFF the stretch
 list this sprint rather than pretending a third time; it comes
 back when an item above frees a week.
+
+
+# Sprint plan: 2026-10-20 to 2026-11-04 (task-force sprint)
+
+Set by the 2026-10-20 compliance meeting: the concern is not
+privacy (handled, certified) but VALUE EXTRACTION - a vendor
+training on the patterns a high-fidelity release carries. The
+ask: versions of the 100-case cohort at different fidelity
+settings, guidance compliance can read, and the kit through
+the AI task force on Nov 4.
+
+## 1. Release dials for the neural path (week 1)
+
+(a) global pattern-strength dial 0..1 - how much learned
+relationship structure survives a SHARED file; (b) named-
+pattern suppression - "this relationship must not exist",
+actively randomized, not merely weakened; (c) poison hooks
+built dark (plant with adversarial intent - machinery
+exists), shipped only if compliance asks. EVERY dial lands
+in the governance contract as requested-vs-achieved - the
+--time-col lesson applied from day one, because a dial a
+compliance officer cannot verify on the sign-off page is a
+knob, not a control.
+
+EXIT: on a fixture, close/direction degrade MONOTONICALLY
+with the dial and a named pair measures |r| < 0.05 when
+suppressed, both printed requested-vs-achieved; the contract
+carries settings; checks fail-first.
+
+## 2. The versions deliverable (week 1-2)
+
+The Yesha cohort generated at full / damped / suppressed,
+each with dashboard + signed contract, side by side - the
+compliance conversation's exhibit and the task-force demo.
+Dates planted by declaration once the range arrives.
+
+EXIT: three run directories + one page comparing them in
+compliance-readable words.
+
+## 3. Task force packet (by Nov 4)
+
+Intake doc (Michelle), AI-components disclosure (configurable
+to zero AI; measure route uses none), testing-framework story
+(the answer-key methodology: clinic kit + the 100-case
+cohort), the transparency tour (sign-off, contract, gate,
+dashboard). Echo's approach as the template (Patrick/Hari).
+
+EXIT: packet submitted before Nov 4; dry-run of the demo done
+on the bench.
+
+## Explicitly out of scope, said in the meeting
+
+Structured free-text generation - named as the next step
+AFTER task force, not presented as current capability.
