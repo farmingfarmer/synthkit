@@ -404,6 +404,20 @@ everything else), and the governance contract shipped and
 verified on the real extract. Goals 7/8 carry to next
 sprint as planned pulls.
 
+BUNDLE AUDIT 2026-10-19, before the second tester: static
+read of every teammate-facing file plus a LIVE first-teammate
+rehearsal of the actual zip on the data machine, twice. Two
+findings, both fixed and verified in-artifact: the launcher
+only knew `python` (machines carrying only the `py` launcher
+were told Python was missing - fallback added, refusal names
+both), and START_HERE predated the launcher (told an
+already-installed double-click user to pip install again,
+with Unix-style paths in a Windows-only bundle - launcher-
+aware preamble, Windows-first commands). Final artifact:
+scan CLEAN, new launcher verified inside the zip by grep,
+both ABI wheel sets, and a cold-folder double-click reaching
+a live bench in 150 seconds on the hospital's own laptop.
+
 ## 5. Goal 8 - a challenger worth the name (carried, week 2)
 
 Unmoved last sprint. Build the gradient-boosted challenger
