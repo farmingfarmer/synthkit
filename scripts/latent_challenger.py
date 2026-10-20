@@ -502,18 +502,35 @@ class LatentGen:
                     # one value for every row.
                     vc = s.value_counts()
                     n_distinct = int(len(vc))
-                    prof = (vc.head(MAX_LEVELS) / float(len(s))
-                            ).tolist()
-                    keep = ["{}_{:04d}".format(c[:12], i)
-                            for i in range(min(n_distinct,
-                                               MAX_LEVELS))]
-                    shape_only = {"distinct": n_distinct,
-                                  "profile": prof}
-                    lv = pd.Series(
-                        np.random.RandomState(self.seed).choice(
-                            keep, len(s),
-                            p=np.array(prof) / sum(prof)),
-                        index=s.index)
+                    if n_distinct == 0:
+                        # A COLUMN WITH NO VALUES AT ALL - every
+                        # cell blank, which a de-identified OMOP
+                        # export produces when a field was
+                        # stripped. There is no shape to publish
+                        # and nothing to draw from; emit the
+                        # empty string for every row rather than
+                        # crashing on choice([]). Found on the
+                        # first REAL external cohort, the
+                        # shape-sweep class in the wild.
+                        keep = [""]
+                        shape_only = {"distinct": 0,
+                                      "profile": []}
+                        lv = pd.Series([""] * len(s),
+                                       index=s.index)
+                    else:
+                        prof = (vc.head(MAX_LEVELS) / float(len(s))
+                                ).tolist()
+                        keep = ["{}_{:04d}".format(c[:12], i)
+                                for i in range(min(
+                                    n_distinct, MAX_LEVELS))]
+                        shape_only = {"distinct": n_distinct,
+                                      "profile": prof}
+                        lv = pd.Series(
+                            np.random.RandomState(
+                                self.seed).choice(
+                                keep, len(s),
+                                p=np.array(prof) / sum(prof)),
+                            index=s.index)
                 else:
                     lv = s.where(s.isin(keep), "__other__")
                 levels = sorted(lv.unique())

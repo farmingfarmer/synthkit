@@ -1619,6 +1619,28 @@ def main():
               and _rel.get("strength_achieved") is not None
               and _rel["strength_achieved"] < 0.95)
 
+    # AN ALL-EMPTY CATEGORICAL COLUMN must not crash the draw.
+    # A de-identified OMOP export emits columns that are blank in
+    # every row (a stripped field), and the shape-publish path
+    # built keep=[] then called choice([]) - ValueError on the
+    # FIRST real external cohort. The shape sweep has an
+    # all-empty fixture but only for the rules engine; this is
+    # the neural path.
+    _rse = np.random.RandomState(2)
+    _dfe = pd.DataFrame({
+        "person_id": ["P{:03d}".format(i // 3)
+                      for i in range(150)],
+        "val": np.round(_rse.normal(0, 1, 150), 2),
+        "blankcol": [""] * 150})
+    _ge = LatentGen(seed=0).fit(_dfe, "person_id")
+    _gene = _ge.generate(len(_dfe), seed=1)
+    check("an all-empty categorical column survives the draw - "
+          "no values to publish, the empty string for every "
+          "row, never a crash on choice([]) (the first real "
+          "external cohort hit this)",
+          "blankcol" in _gene.columns
+          and (_gene["blankcol"].fillna("") == "").all())
+
     if FAIL:
         print("{} of {} checks failed.".format(FAIL, PASS + FAIL))
         sys.exit(1)
