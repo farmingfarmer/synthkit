@@ -197,7 +197,9 @@ class LatentGen:
                  hierarchical: bool = True,
                  dev_scale: float = 1.0,
                  release_strength: float = 1.0,
-                 suppress_pairs: list = None):
+                 suppress_pairs: list = None,
+                 suppress_top: int = 0,
+                 poison_pairs: list = None):
         # Capacity scales with the frame, decided at fit time. An
         # 8-dim bottleneck tuned on 6-column fixtures LOST a named
         # driver triple entirely at 77 columns (shares read 0/0,
@@ -217,6 +219,28 @@ class LatentGen:
         # private - and the contract says so.
         self.release_strength = float(release_strength)
         self.suppress_pairs = list(suppress_pairs or [])
+        # AUTO-SUPPRESS THE TOP-K STRONGEST RELATIONSHIPS: the
+        # "minimum shareable" control. The global dial (release_
+        # strength) weakens the textbook relationships every
+        # clinical dataset has exactly as much as the distinctive
+        # ones compliance fears a vendor extracting; this instead
+        # finds the K strongest institution-specific pairs and
+        # removes exactly those, keeping everything else faithful.
+        # Compliance cannot name patterns it has never seen, so
+        # the tool names them - by strength - and says which it
+        # removed.
+        self.suppress_top = int(suppress_top or 0)
+        self._auto_suppressed = []
+        # POISON: force a NAMED relationship to a user-chosen
+        # (possibly FALSE) strength. Suppression removes a
+        # pattern; poison replaces it with a deliberate lie the
+        # user picks - invert a correlation, or plant one that is
+        # not real - so a vendor training on the file learns the
+        # wrong thing. It stays a valid TEST because we record
+        # the true pattern AND the planted one: we hold the
+        # answer key, they take a rigged exam only we can grade.
+        self.poison_pairs = list(poison_pairs or [])
+        self._poison_record = []
         # K-AWARE RECONSTRUCTION. Faithful where many patients
         # stand behind the pattern; deliberately BLURRED where
         # fewer than k do. Screening the INPUTS (sub-k levels
@@ -1153,6 +1177,56 @@ class LatentGen:
             self._visit_counts = np.clip(counts, lo_c, hi_c)
             self._mean_visits = float(
                 self._visit_counts.mean()) or 1.0
+        if self.suppress_top > 0:
+            # rank the source's numeric pairs by |spearman|, take
+            # the strongest, and suppress one child per pair (the
+            # SPARSER column, so the fuller one keeps its own
+            # relationships) - a pair is removed by shuffling the
+            # child, which breaks ALL of the child's edges, so the
+            # collateral is counted and stated.
+            num = [c for c in df.columns
+                   if c != group_by and
+                   pd.to_numeric(df[c], errors="coerce"
+                                 ).notna().mean() > 0.5]
+            ranked = []
+            for i in range(len(num)):
+                for j in range(i + 1, len(num)):
+                    a = pd.to_numeric(df[num[i]],
+                                      errors="coerce")
+                    b = pd.to_numeric(df[num[j]],
+                                      errors="coerce")
+                    m = a.notna() & b.notna()
+                    if int(m.sum()) < 30:
+                        continue
+                    r = a[m].corr(b[m], method="spearman")
+                    if r is None or not np.isfinite(r):
+                        continue
+                    ranked.append((abs(float(r)), num[i],
+                                   num[j], float(r)))
+            ranked.sort(reverse=True)
+            chosen, seen = [], set()
+            for _ar, ca, cb, rr in ranked:
+                # one child per removed pair; the sparser column
+                # is the child, so the denser keeps its edges
+                child = (cb if df[cb].notna().mean()
+                         <= df[ca].notna().mean() else ca)
+                if child in seen:
+                    continue
+                seen.add(child)
+                chosen.append((ca, cb, child, round(rr, 3)))
+                if len(chosen) >= self.suppress_top:
+                    break
+            self._auto_suppressed = chosen
+            for ca, cb, child, rr in chosen:
+                self.suppress_pairs.append((ca, cb))
+            if chosen:
+                print("  auto-suppress top {}: removing the "
+                      "strongest relationship(s) - {}".format(
+                          self.suppress_top,
+                          ", ".join("{}~{} (r={})".format(
+                              ca, cb, rr)
+                              for ca, cb, child, rr
+                              in chosen)))
         return self
 
     def support_of_rows(self, Xrows):
@@ -1818,22 +1892,6 @@ class LatentGen:
                   "permuted - marginals exact, relationships "
                   "diluted toward {}x source".format(
                       s_rel, round(100 * f_rel, 1), s_rel))
-        for pa_s, pb_s in self.suppress_pairs:
-            child_s = pb_s if pb_s in frame.columns else (
-                pa_s if pa_s in frame.columns else None)
-            if child_s is None:
-                print("  suppress SKIPPED: neither {} nor {} "
-                      "is a column".format(pa_s, pb_s))
-                continue
-            vals_s = frame[child_s].to_numpy().copy()
-            rs_rel.shuffle(vals_s)
-            frame[child_s] = vals_s
-            print("  suppressed {}~{}: {} fully shuffled - its "
-                  "distribution is intact and ALL its "
-                  "relationships are gone, stated because a "
-                  "single edge cannot be deleted without "
-                  "leaking back through its neighbors".format(
-                      pa_s, pb_s, child_s))
         # AFTER EVERY COLUMN EXISTS, never during the draw: the
         # set may be decoded before or after its partner and the
         # identity has to hold either way.
@@ -1989,6 +2047,72 @@ class LatentGen:
             frame[child] = vc2.where(vc.notna(), frame[child])
             print("  reorder ran for {}: {} rows, {} "
                   "partner(s)".format(child, m, len(ps)))
+        # POISON RUNS LAST too, before suppression: reorder a
+        # named child against its parent to hit a user-chosen
+        # rank correlation (which may be negative or entirely
+        # invented). Same rearrangement the sparse-coupling tier
+        # uses - the child's own marginal is preserved exactly,
+        # only its ordering against the parent changes - so the
+        # column looks real and the relationship is a lie.
+        for pa_p, pb_p, rho_p in self.poison_pairs:
+            if pa_p not in frame.columns or pb_p not in \
+                    frame.columns:
+                print("  poison SKIPPED: {}~{} not both "
+                      "columns".format(pa_p, pb_p))
+                continue
+            parent = pd.to_numeric(frame[pa_p], errors="coerce")
+            child = pd.to_numeric(frame[pb_p], errors="coerce")
+            live = parent.notna() & child.notna()
+            m = int(live.sum())
+            if m < 8:
+                continue
+            idx = frame.index[live]
+            pr = parent[live].rank(method="average").to_numpy()
+            pr = (pr - pr.mean()) / (pr.std() or 1.0)
+            z = rho_p * pr + np.sqrt(max(1 - rho_p * rho_p, 0.0)) \
+                * rs_rel.normal(0, 1, m)
+            srt = np.sort(child[live].to_numpy())
+            newv = np.empty(m)
+            newv[z.argsort()] = srt
+            cc = child.copy()
+            cc.loc[idx] = newv
+            frame[pb_p] = cc.where(child.notna(), frame[pb_p])
+            ach = float(pd.to_numeric(frame[pb_p],
+                                      errors="coerce")[live].corr(
+                parent[live], method="spearman"))
+            self._poison_record.append(
+                {"pair": "{}~{}".format(pa_p, pb_p),
+                 "requested": rho_p, "achieved": round(ach, 3)})
+            print("  POISONED {}~{}: forced to {:+.2f} "
+                  "(achieved {:+.2f}) - the column's own "
+                  "distribution is intact; the relationship is a "
+                  "deliberate lie we recorded".format(
+                      pa_p, pb_p, rho_p, ach))
+        # SUPPRESSION RUNS LAST - after every identity tier.
+        # A suppressed pair is often a near-identity (crown_b =
+        # crown_a + noise is exactly the kind of strong
+        # relationship worth removing), and the near-identity
+        # tier recomputes the child from its sibling: run before
+        # it and the tier puts the pattern straight back. Dilution
+        # runs BEFORE the tiers (they keep the file consistent and
+        # the residual is honest arithmetic); suppression must
+        # WIN over them, so it is the final word.
+        for pa_s, pb_s in self.suppress_pairs:
+            child_s = pb_s if pb_s in frame.columns else (
+                pa_s if pa_s in frame.columns else None)
+            if child_s is None:
+                print("  suppress SKIPPED: neither {} nor {} "
+                      "is a column".format(pa_s, pb_s))
+                continue
+            vals_s = frame[child_s].to_numpy().copy()
+            rs_rel.shuffle(vals_s)
+            frame[child_s] = vals_s
+            print("  suppressed {}~{}: {} fully shuffled - its "
+                  "distribution is intact and ALL its "
+                  "relationships are gone, stated because a "
+                  "single edge cannot be deleted without "
+                  "leaking back through its neighbors".format(
+                      pa_s, pb_s, child_s))
         if pid is not None:
             # The identity column goes FIRST, and it is invented -
             # S000001 upward - never a real person's id.
@@ -2628,11 +2752,15 @@ def write_run_artifacts(src, gen, group_by, outdir,
     except Exception:
         _b = {"id": "unknown"}
     _release_record = (None if gen_engine is None
-                       or float(getattr(gen_engine,
-                                        "release_strength", 1.0))
-                       >= 1.0
-                       and not getattr(gen_engine,
-                                       "suppress_pairs", None)
+                       or (float(getattr(gen_engine,
+                                         "release_strength",
+                                         1.0)) >= 1.0
+                           and not getattr(gen_engine,
+                                           "suppress_pairs",
+                                           None)
+                           and not getattr(gen_engine,
+                                           "poison_pairs",
+                                           None))
                        else _measure_release(
                            src, gen, gen_engine, group_by))
     (outdir / "provenance.json").write_text(json.dumps({
@@ -2740,9 +2868,17 @@ def _measure_release(src, gen, gen_engine, group_by):
                  else None)
             sup_rec.append({"pair": "{}~{}".format(pa, pb),
                             "achieved_corr": r})
+    auto = list(getattr(gen_engine, "_auto_suppressed", [])
+                or [])
     return {"strength_requested": req,
             "strength_achieved": achieved,
             "suppressed": sup_rec,
+            "auto_suppressed_top": [
+                {"pair": "{}~{}".format(ca, cb),
+                 "source_corr": rr}
+                for ca, cb, child, rr in auto],
+            "poisoned": list(getattr(
+                gen_engine, "_poison_record", []) or []),
             "note": ("strength_achieved is the mean of generated "
                      "vs source pair-correlation ratios over "
                      "pairs the source holds strongly; marginals "
@@ -2802,6 +2938,26 @@ def run_csv(argv):
                          "because one edge cannot be removed "
                          "without leaking back through its "
                          "neighbors). Repeatable")
+    ap.add_argument("--poison", action="append", default=[],
+                    help="A~B=RHO: force the A-B relationship to "
+                         "a chosen, possibly FALSE strength "
+                         "(e.g. invert +0.4 to -0.8, or plant "
+                         "one that is not real). A vendor "
+                         "training on it learns the lie; it "
+                         "stays a valid test because the true "
+                         "and planted values are both recorded - "
+                         "we hold the answer key. Repeatable")
+    ap.add_argument("--suppress-top", type=int, default=0,
+                    help="the MINIMUM-SHAREABLE control: auto-"
+                         "detect the K strongest relationships "
+                         "and remove exactly those, keeping "
+                         "everything else faithful. For a vendor "
+                         "release where the most extractable "
+                         "patterns must go but the clinically "
+                         "ordinary ones may stay - compliance "
+                         "need not name a pattern it has never "
+                         "seen; the tool names them by strength "
+                         "and records which it removed")
     a = ap.parse_args(argv)
     _supp = []
     for _sp in a.suppress:
@@ -2815,6 +2971,25 @@ def run_csv(argv):
         print("STOP: --release-strength must be in 0..1",
               file=sys.stderr)
         return 2
+    _poison = []
+    for _pz in a.poison:
+        if "~" not in _pz or "=" not in _pz:
+            print("STOP: --poison wants A~B=RHO, got {}".format(
+                _pz), file=sys.stderr)
+            return 2
+        _ab, _rho = _pz.rsplit("=", 1)
+        _pa, _pb = _ab.split("~", 1)
+        try:
+            _r = float(_rho)
+        except ValueError:
+            print("STOP: --poison RHO not a number: {}".format(
+                _rho), file=sys.stderr)
+            return 2
+        if not (-1.0 <= _r <= 1.0):
+            print("STOP: --poison RHO must be in -1..1",
+                  file=sys.stderr)
+            return 2
+        _poison.append((_pa.strip(), _pb.strip(), _r))
     # THE FLOOR IS A FLOOR. The team asked for a user-settable k
     # with clarity on what can and cannot move: HIGHER is a
     # policy choice the operator may make; LOWER is not offered,
@@ -2844,7 +3019,10 @@ def run_csv(argv):
                       k_blur=not a.no_k_blur,
                       denoise=a.denoise,
                       release_strength=a.release_strength,
-                      suppress_pairs=_supp).fit(tr, a.group_by)
+                      suppress_pairs=_supp,
+                      suppress_top=a.suppress_top,
+                      poison_pairs=_poison).fit(
+                          tr, a.group_by)
         # THE DELIVERABLE IS THE SIZE OF THE SOURCE, NOT OF THE
         # TRAINING SPLIT. Holding 15% of patients back is right -
         # the nearest-neighbor tripwire needs real people the

@@ -564,3 +564,38 @@ page, not a disclaimer; Yesha's cohort gets a trajectory-
 fidelity score; and this is the measurement that MUST exist
 before dynamics can be built INTO the neural path - the next
 real capability, now with a ruler waiting for it.
+
+
+## The release-dial family is COMPLETE (2026-10-21)
+
+Four value-control dials, each requested-vs-achieved on the
+sign-off page, built for the compliance conversation about
+vendor value extraction. v1/v2 were two points on ONE axis;
+these are four distinct axes covering the possibility space.
+
+- STRENGTH (--release-strength 0..1): weaken ALL learned
+  relationships uniformly; marginals exact. v2 = 0.5, measured
+  0.712x on Yesha's data.
+- SUPPRESS (--suppress A~B): remove a NAMED relationship
+  entirely (-> 0). For compliance's specific asks.
+- SUPPRESS-TOP (--suppress-top K): the MINIMUM-SHAREABLE
+  control - auto-detect the K strongest pairs and remove
+  exactly those, keeping the clinically-ordinary ones.
+  Compliance need not name a pattern it has never seen; the
+  tool names them by strength. Measured: a crown jewel (0.978)
+  removed to -0.008 while a textbook pair (0.748) survived.
+- POISON (--poison A~B=RHO): force a relationship to a chosen,
+  possibly FALSE value - invert +0.7 to -0.8, or plant one
+  that is not real. A vendor trains on the lie; it stays a
+  gradeable TEST because the true and planted values are both
+  recorded (we hold the answer key). Measured: a true +0.82
+  forced to -0.81, the column's own distribution intact.
+
+ALL run LAST, after the identity tiers (which would otherwise
+re-impose a near-identical suppressed/poisoned pair - the same
+"tiers re-impose" property the global dial handles by stating
+its residual as honest arithmetic). Fail-first across the
+family, 92/92 smoke_latent. The three-version menu for
+compliance (v1 max value / v2 blurred / v3 minimum-shareable)
+plus poison-on-demand is the full control surface, every
+setting proving itself on the page.

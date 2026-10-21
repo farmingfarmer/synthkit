@@ -1641,6 +1641,88 @@ def main():
           "blankcol" in _gene.columns
           and (_gene["blankcol"].fillna("") == "").all())
 
+    # THE FULL RELEASE-DIAL FAMILY: strength (above), plus the
+    # three targeted controls compliance asked for. A shared
+    # fixture with a planted CROWN JEWEL (a strong pair) and a
+    # weaker TEXTBOOK pair, so each control's selectivity is
+    # visible.
+    import importlib as _il
+    _LGx = _il.import_module("latent_challenger").LatentGen
+    _rr9 = np.random.RandomState(3)
+    _npat9 = 300
+    _pid9 = np.repeat(np.arange(_npat9), 6)
+    _n9 = len(_pid9)
+    _b9 = _rr9.normal(0, 1, _npat9)[_pid9] \
+        + _rr9.normal(0, 0.3, _n9)
+    _s9 = _rr9.normal(0, 1, _npat9)[_pid9] \
+        + _rr9.normal(0, 0.3, _n9)
+    _dfx = pd.DataFrame({
+        "person_id": ["P{:04d}".format(i) for i in _pid9],
+        "crown_a": np.round(_b9 + _rr9.normal(0, 0.15, _n9), 2),
+        "crown_b": np.round(_b9 + _rr9.normal(0, 0.15, _n9), 2),
+        "sev": np.round(_s9, 2),
+        "sev_echo": np.round(0.7 * _s9
+                             + _rr9.normal(0, 0.5, _n9), 2)})
+    def _cx(fr, a, b):
+        return float(pd.to_numeric(fr[a], errors="coerce").corr(
+            pd.to_numeric(fr[b], errors="coerce"),
+            method="spearman"))
+    _src_crown = _cx(_dfx, "crown_a", "crown_b")
+    _src_txt = _cx(_dfx, "sev", "sev_echo")
+    # SUPPRESS-TOP: the strongest pair removed, the weaker kept
+    _gst = _LGx(seed=0, suppress_top=1).fit(_dfx, "person_id")
+    check("suppress-top auto-detects the STRONGEST relationship "
+          "(crown {:+.2f} over textbook {:+.2f}) and names it".format(
+              _src_crown, _src_txt),
+          _gst._auto_suppressed
+          and {_gst._auto_suppressed[0][0],
+               _gst._auto_suppressed[0][1]}
+          == {"crown_a", "crown_b"})
+    _gen_st = _gst.generate(len(_dfx), seed=1)
+    _crown_after = _cx(_gen_st, "crown_a", "crown_b")
+    _txt_after = _cx(_gen_st, "sev", "sev_echo")
+    check("...and generation REMOVES the crown jewel ({:+.2f} "
+          "-> {:+.2f}) while KEEPING the textbook pair ({:+.2f} "
+          "-> {:+.2f}) - surgical, not a global blur".format(
+              _src_crown, _crown_after, _src_txt, _txt_after),
+          abs(_crown_after) < 0.2 and abs(_txt_after) > 0.3)
+    # POISON: a true relationship forced to a FALSE value
+    _gpz = _LGx(seed=0,
+                poison_pairs=[("sev", "sev_echo", -0.8)]).fit(
+                    _dfx, "person_id")
+    _gen_pz = _gpz.generate(len(_dfx), seed=1)
+    _pz_after = _cx(_gen_pz, "sev", "sev_echo")
+    check("poison forces a TRUE +0.7 relationship to a FALSE "
+          "value ({:+.2f} achieved against -0.8 requested) - a "
+          "vendor trains on the lie, and both values are "
+          "recorded".format(_pz_after),
+          _pz_after < -0.4 and _gpz._poison_record)
+    # the poisoned child's own distribution is untouched - the
+    # column looks real, only the relationship is a lie
+    _pm_s = _dfx["sev_echo"]
+    _pm_g_plain = _LGx(seed=0).fit(_dfx, "person_id").generate(
+        len(_dfx), seed=1)["sev_echo"]
+    check("...and the poisoned column's OWN distribution is "
+          "intact (poison reorders, never redraws) - the lie "
+          "hides in a column that looks real",
+          abs(pd.to_numeric(_gen_pz["sev_echo"]).std()
+              - pd.to_numeric(_pm_g_plain).std()) < 0.05)
+    # all three land in the contract, measured
+    from latent_challenger import write_run_artifacts as _wra2
+    with tempfile.TemporaryDirectory() as _td3:
+        _rd3 = Path(_td3) / "r"
+        _wra2(_dfx, _gen_pz, "person_id", _rd3,
+              source_name="f.csv", gen_engine=_gpz)
+        _c3 = json.loads(
+            (_rd3 / "provenance.json").read_text(
+                encoding="utf-8")).get("contract", {}).get(
+                    "release", {})
+        check("the contract records the poison requested AND "
+              "achieved - we hold the answer key, which is what "
+              "keeps a rigged file a gradeable test",
+              _c3.get("poisoned")
+              and _c3["poisoned"][0].get("achieved") is not None)
+
     if FAIL:
         print("{} of {} checks failed.".format(FAIL, PASS + FAIL))
         sys.exit(1)

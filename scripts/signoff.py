@@ -218,6 +218,30 @@ def build_signoff(run_dir):
                         esc(sr.get("pair", "")),
                         " (measured correlation {:+.3f})".format(
                             ac) if ac is not None else ""))
+            for pz in rel.get("poisoned", []):
+                parts_r.append(
+                    "Relationship {} POISONED - deliberately set "
+                    "to {:+.2f} (its true value is different). A "
+                    "model trained on this file learns the "
+                    "planted value, not the real one; the true "
+                    "and planted values are both on record, so "
+                    "this remains a gradeable test.".format(
+                        esc(pz.get("pair", "")),
+                        pz.get("achieved",
+                               pz.get("requested", 0.0))))
+            auto = rel.get("auto_suppressed_top", [])
+            if auto:
+                parts_r.append(
+                    "MINIMUM-SHAREABLE release: the {} strongest "
+                    "relationship(s) in the source were "
+                    "auto-detected and removed - {}. The most "
+                    "extractable patterns are gone; the "
+                    "clinically ordinary ones remain.".format(
+                        len(auto),
+                        ", ".join("{} (source {:+.2f})".format(
+                            esc(a.get("pair", "")),
+                            a.get("source_corr", 0.0))
+                            for a in auto)))
             if parts_r:
                 body.append("<h2>Release controls (value "
                             "extraction)</h2>")
