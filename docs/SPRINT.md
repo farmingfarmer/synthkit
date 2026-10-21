@@ -503,6 +503,20 @@ Dates planted by declaration once the range arrives.
 EXIT: three run directories + one page comparing them in
 compliance-readable words.
 
+DELIVERED 2026-10-20 (v1, v2 on the REAL Yesha cohort over
+HANDS): yesha_v1_full (strength 1.0, full fidelity, gate
+close 72.3% - a 100-patient cohort, 12 columns too sparse to
+clear k, which IS the measured 'how much data' answer) and
+yesha_v2_damped (strength 0.5 requested, measured 0.712x
+achieved - relationships diluted ~29%, marginals exact,
+recorded in v2's own signed contract). The dial PROVED
+itself on real data, requested-and-achieved on the page. v3
+suppression waits on compliance naming the pattern. Two real
+intake defects found and fixed en route (the date-stripped
+drug join; an all-blank categorical column crashing the
+draw) - the first external cohort exercising paths no
+fixture reached.
+
 ## 3. Task force packet (by Nov 4)
 
 Intake doc (Michelle), AI-components disclosure (configurable
