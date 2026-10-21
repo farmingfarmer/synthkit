@@ -148,6 +148,22 @@ def assess(fid: Dict[str, Any],
             "{}/{} two-variable surfaces within 0.35 sd - "
             "higher-order structure is not published, so nothing "
             "above two-way is measured".format(su_n, su_d))
+    # DYNAMICS - a patient's course over TIME, conditional on the
+    # data having repeat visits and a measurable order. Per-row
+    # fidelity is blind to it: a file can match every marginal
+    # and every pair and still have each patient's visits in the
+    # wrong sequence, or no sequence at all. This criterion sees
+    # whether within-patient structure (lag-1 persistence,
+    # categorical stickiness) survived - the question every other
+    # criterion cannot ask. A run on cross-sectional data
+    # measures none and does not fail on absence.
+    dy_n, dy_d = s.get("dynamics_ok"), s.get("dynamics_compared")
+    if dy_d:
+        add("dynamics tracked", dy_n == dy_d,
+            "{}/{} within-patient properties within 0.15 - "
+            "whether a patient's course over time survived, "
+            "which per-row fidelity is blind to".format(
+                dy_n, dy_d))
 
     return {"criteria": crit,
             "met": all(c["ok"] for c in crit),
@@ -255,6 +271,20 @@ EXPLAIN: Dict[str, Dict[str, str]] = {
         "inspect": "The gate-issues section of [[dashboard]] names "
                    "any departing surface with its column pair and "
                    "gap."},
+    "dynamics tracked": {
+        "explain": "Each column's WITHIN-PATIENT behavior - how a "
+                   "value persists from one of a patient's visits "
+                   "to the next, and how a category sticks - "
+                   "re-measured on both tables. Per-row fidelity "
+                   "is blind to it: a file can match every "
+                   "marginal and pair and still put a patient's "
+                   "visits in the wrong order, or no order. This "
+                   "is the only criterion that sees a patient's "
+                   "course over time.",
+        "inspect": "In [[dashboard]], the patient-question section "
+                   "reads each column's course original beside "
+                   "synthetic; a column whose persistence "
+                   "flattened is a course that did not survive."},
     "set EMPTY rate": {
         "explain": "Visits holding an EMPTY list in the source "
                    "should be empty at the same rate in the "
@@ -376,6 +406,26 @@ NEXT_STEPS: Dict[str, Dict[str, Any]] = {
             "treating the gap as real - an interaction fix was "
             "once shipped on seed 0 and failed completely on "
             "seed 3."]},
+    "dynamics tracked": {
+        "means": "A patient's COURSE OVER TIME drifted - values "
+                 "that should persist from visit to visit, or "
+                 "categories that should stick, came out with the "
+                 "wrong within-patient structure (or none).",
+        "steps": [
+            "This is the neural engine's known limit: it generates "
+            "row by row with invented patient identity but does "
+            "NOT model a patient's sequence. A low score here is "
+            "expected from it and honest - the rules engine "
+            "publishes dynamics and scores where it does not.",
+            "If the neural engine wrote this file and the use is "
+            "longitudinal (anything computed ALONG one patient's "
+            "timeline), say so in the sign-off: the output is "
+            "faithful per row and per population, not per "
+            "trajectory.",
+            "For a longitudinal need, generate with the rules "
+            "engine, which measures and applies within-patient "
+            "persistence - or wait for dynamics in the neural "
+            "path."]},
     "set token shares": {
         "means": "Published list tokens (conditions, medications) "
                  "generate at the wrong frequencies.",

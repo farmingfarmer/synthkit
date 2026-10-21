@@ -532,3 +532,35 @@ on the bench.
 
 Structured free-text generation - named as the next step
 AFTER task force, not presented as current capability.
+
+
+## Beyond-sprint: dynamics is a MEASURED gate line now (2026-10-20)
+
+The single largest disclaimer in the project - "a patient's
+course over time is not modeled" - was prose on the sign-off
+page and never a number. The MEASUREMENT already existed
+(synthkit.dynamics: within-patient lag-1 and stickiness,
+time-ordered, with the recorded uncentered-estimator fix) and
+the RULES engine applied it; nothing had ever COMPARED source
+vs generated, so the loss was ungraded.
+
+BUILT: a `dynamics tracked` gate criterion. compare() now
+grades within-patient structure source-vs-generated, counted
+only on columns where the source HAS a course to lose and only
+when there are repeat visits; it feeds the gate conditionally
+(silent on cross-sectional data, never a fail on absence), with
+guidance in both EXPLAIN and NEXT_STEPS. Fail-first on a
+planted-persistence fixture: the criterion FIRES (2 compared),
+a faithful generation TRACKS (1/2), a within-patient SHUFFLE
+(marginals identical, order destroyed) scores LOWER (0/2) -
+seeing exactly what per-row fidelity is blind to - and
+cross-sectional data stays silent. 50/50 dynamics, 107/107
+fidelity, 167/167 gui.
+
+WHAT THIS UNLOCKS: the two engines are comparable on dynamics
+for the first time (the duel was blind to it); the neural
+engine's dynamics loss is now a number on its own sign-off
+page, not a disclaimer; Yesha's cohort gets a trajectory-
+fidelity score; and this is the measurement that MUST exist
+before dynamics can be built INTO the neural path - the next
+real capability, now with a ruler waiting for it.

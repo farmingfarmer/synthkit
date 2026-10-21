@@ -1815,6 +1815,39 @@ def compare(df, g, bp, group_by, time_col, ordinals=None,
     ds = measure(df, Xs, group_by, time_col)
     dg = measure(g, Xg, group_by, gt)
 
+    # DYNAMICS FIDELITY, source against generated. ds/dg already
+    # hold each column's within-patient structure; nothing had
+    # ever COMPARED them, so "a patient's course over time" was
+    # prose on the sign-off page and never a number. Graded only
+    # on columns where the SOURCE has structure to lose
+    # (within-patient lag-1 or categorical stickiness above a
+    # floor) - a flat column any output trivially matches is not
+    # evidence - and only when the source has repeat visits at
+    # all. The within-patient AR coefficient and stickiness are
+    # the two the dynamics module already derives unbiased; a
+    # 0.15 tolerance, the steadiness band this file uses
+    # elsewhere.
+    dyn_cmp, dyn_ok = 0, 0
+    _DYN_FLOOR, _DYN_TOL = 0.10, 0.15
+    for c in ds:
+        if c not in dg:
+            continue
+        sd, gd = ds[c], dg[c]
+        sv = gv = None
+        if "within_lag1" in sd and sd.get("lag1_total") is not None:
+            sv = sd.get("within_lag1")
+            gv = gd.get("within_lag1")
+        elif "stickiness" in sd:
+            sv = sd.get("stickiness")
+            gv = gd.get("stickiness")
+        if sv is None or gv is None:
+            continue
+        if abs(sv) < _DYN_FLOOR:
+            continue
+        dyn_cmp += 1
+        if abs(sv - gv) <= _DYN_TOL:
+            dyn_ok += 1
+
     cols, n_ok = [], dict(cov=0, ctr=0, spr=0, lag=0, clu=0, num=0, dyn=0,
                           part=0)
     # A SHORTFALL THE SAMPLER CANNOT FIX IS NOT A SAMPLER FAULT, and
@@ -2081,6 +2114,13 @@ def compare(df, g, bp, group_by, time_col, ordinals=None,
             "set_tokens_ok": sum(1 for x in tokens
                                  if abs(x["delta"]) <= 0.05),
             "numeric_dynamic": n_ok["dyn"],
+            # source-vs-generated within-patient fidelity: 0
+            # when the data has no repeat-visit structure to
+            # grade, so the gate criterion stays silent on
+            # cross-sectional data rather than failing on
+            # absence.
+            "dynamics_compared": dyn_cmp,
+            "dynamics_ok": dyn_ok,
             "partly_covered": n_ok["part"],
             "constraints_checked": len(cons),
             "constraints_held": sum(1 for c in cons

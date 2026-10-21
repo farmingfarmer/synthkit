@@ -586,6 +586,90 @@ def main():
           "inferred from behavior",
           _rep_m.get("masked_after_relationships") == 1)
 
+    # THE GATE NOW GRADES DYNAMICS, and a run that KEEPS a
+    # patient's course scores where a run that SHUFFLES it does
+    # not. Before this, "no within-patient dynamics" was prose on
+    # the sign-off page; per-row fidelity cannot see a file whose
+    # every marginal matches but whose visits are in the wrong
+    # order. A planted-persistence source, graded through the
+    # pipeline's own compare(): the faithful copy tracks, the
+    # within-patient shuffle (same marginals, order destroyed)
+    # does NOT - and the criterion stays SILENT on cross-
+    # sectional data, which has no course to lose.
+    from synthkit import pipeline as _P
+    # reuse the suite's PROVEN planted-persistence source (it
+    # already asserts within_lag1 > 0.3 above); a hand-rolled AR
+    # fixture read within_lag1 0.0 because the pooled lag and the
+    # patient level had not been separated - which is the exact
+    # thing this module exists to get right.
+    _dfd = source()
+    _catd = discover(_dfd, group_by="person_id", seed=6)
+    _bpd = B.build(_dfd, _catd, group_by="person_id",
+                   time_col="visit_no")
+    # faithful: generate preserves within-patient structure
+    _gen_ok = generate(_bpd, len(_dfd), seed=1)
+    _fid_ok = _P.compare(_dfd, _gen_ok, _bpd, "person_id",
+                         "visit_no")
+    _so = _fid_ok["summary"]
+    check("the dynamics criterion FIRES on repeat-visit data - "
+          "the source has a course to grade ({} properties "
+          "compared)".format(_so.get("dynamics_compared")),
+          _so.get("dynamics_compared", 0) >= 1)
+    check("...and a faithful generation TRACKS the within-"
+          "patient course ({}/{} within tolerance)".format(
+              _so.get("dynamics_ok"),
+              _so.get("dynamics_compared")),
+          _so.get("dynamics_ok", 0) >= 1)
+    # the mutation: shuffle each column WITHIN the file (marginals
+    # identical, within-patient order destroyed) - dynamics must
+    # drop while per-row fidelity is untouched
+    _shuf = _gen_ok.copy()
+    _vv = _shuf["vital"].to_numpy(copy=True)
+    np.random.RandomState(9).shuffle(_vv)
+    _shuf["vital"] = _vv
+    _fid_bad = _P.compare(_dfd, _shuf, _bpd, "person_id",
+                          "visit_no")
+    _sb = _fid_bad["summary"]
+    check("...while a within-patient SHUFFLE (same marginals, "
+          "course destroyed) scores LOWER on dynamics ({}/{} "
+          "vs {}/{}) - the criterion sees what per-row fidelity "
+          "is blind to".format(
+              _sb.get("dynamics_ok"), _sb.get("dynamics_compared"),
+              _so.get("dynamics_ok"), _so.get("dynamics_compared")),
+          _sb.get("dynamics_ok", 99) < _so.get("dynamics_ok", 0))
+    # cross-sectional: one visit per patient, no course - the
+    # criterion must STAY SILENT, not fail on absence
+    _dfx = _dfd.groupby("person_id").first().reset_index()
+    _catx = discover(_dfx, group_by="person_id", seed=5)
+    _bpx = B.build(_dfx, _catx, group_by="person_id")
+    _genx = generate(_bpx, len(_dfx), seed=1)
+    _fidx = _P.compare(_dfx, _genx, _bpx, "person_id", None)
+    check("...and on CROSS-SECTIONAL data (one visit each) the "
+          "criterion stays silent ({} compared) - no course to "
+          "lose is not a failure".format(
+              _fidx["summary"].get("dynamics_compared")),
+          _fidx["summary"].get("dynamics_compared", 0) == 0)
+    # the gate turns the measured counts into a criterion - fed
+    # a summary that carries dynamics_compared, the line appears;
+    # fed one without, it stays absent (conditional, like shapes)
+    from synthkit import gate as _G
+    _base_sum = {"pairs": 2, "pairs_sign_ok": 2,
+                 "pairs_close": 2, "pairs_inverted": 0}
+    _mins = {"summary": dict(_base_sum,
+                             dynamics_compared=_so.get(
+                                 "dynamics_compared"),
+                             dynamics_ok=_so.get("dynamics_ok"))}
+    _names = [c["name"] for c in _G.assess(_mins)["criteria"]]
+    check("...and the gate RENDERS the dynamics line when the "
+          "run measured it - a patient's course is a verdict "
+          "now, not a disclaimer",
+          "dynamics tracked" in _names)
+    _mins2 = {"summary": dict(_base_sum)}
+    check("...and stays ABSENT when no dynamics were measured - "
+          "conditional, never a fail on cross-sectional data",
+          "dynamics tracked" not in
+          [c["name"] for c in _G.assess(_mins2)["criteria"]])
+
     print()
     if FAIL:
         print("{} FAILED".format(FAIL))

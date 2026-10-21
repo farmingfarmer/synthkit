@@ -1473,7 +1473,8 @@ def main():
                   "direction kept", "close", "inverted",
                   "coverage", "set token shares",
                   "set EMPTY rate", "shapes tracked",
-                  "interaction surfaces")]}
+                  "interaction surfaces",
+                  "dynamics tracked")]}
           and all("[[dashboard]]" in v["inspect"]
                   for v in _g2.EXPLAIN.values()))
 
