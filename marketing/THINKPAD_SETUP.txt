@@ -1,0 +1,36 @@
+THINKPAD SETUP — paste these ONE LINE AT A TIME into a Command Prompt.
+Takes about 60 seconds. Nothing existing is deleted; this pulls into a
+NEW folder called synthkit_demo.
+
+cd %USERPROFILE%\dev
+
+curl -sL -o sk_demo.zip https://api.github.com/repos/farmingfarmer/synthkit/zipball/main
+
+dir sk_demo.zip
+
+   ^^ STOP AND READ: should be ~26,000,000 bytes. If it says about 106
+      bytes, the repo went private again - make it public and re-run.
+
+tar -xf sk_demo.zip
+
+for /d %i in (farmingfarmer-synthkit-*) do ren "%i" synthkit_demo
+
+cd %USERPROFILE%\dev\synthkit_demo
+
+pip install -e .
+
+python -m synthkit.cli gui
+
+   ^^ The browser opens on the bench HOME page with the glowing logo.
+      Leave this window open for the whole demo - closing it stops the bench.
+
+THE MARKETING ASSETS are now at:
+   %USERPROFILE%\dev\synthkit_demo\marketing
+
+   Double-click SynthKit_pullapart_loop.gif       -> the opening hook
+   Double-click SynthKit_showcase_slide.html      -> the proof page
+   DEMO_SCRIPT_YESHA.md                           -> what to say
+
+IF ANYTHING GOES WRONG: the demo works entirely from
+   marketing\SynthKit_showcase_slide.html
+which is a single self-contained file that needs no install at all.
