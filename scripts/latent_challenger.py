@@ -79,6 +79,16 @@ def _read_source(path):
     is this project's alarm. The predicate is `sets.looks_like_
     set`, the same gate `vocabulary` applies, so the reader and
     the model cannot class a column differently."""
+    _p = Path(path)
+    if _p.is_dir():
+        # a FOLDER, not a file: a terminal user hits the same
+        # [Errno 13] the bench user hit - name the CSVs inside
+        _csvs = sorted(f.name for f in _p.glob("*.csv"))[:6]
+        _hint = (" - this folder holds: " + ", ".join(_csvs)
+                 + ". For example: " + str(_p / _csvs[0])
+                 if _csvs else " and it holds no .csv files")
+        sys.exit("{} is a FOLDER, not a file{}".format(
+            path, _hint))
     raw = pd.read_csv(path, dtype=str, keep_default_na=False)
     setcols = [c for c in raw.columns
                if sets.looks_like_set(raw[c].replace("", np.nan))]

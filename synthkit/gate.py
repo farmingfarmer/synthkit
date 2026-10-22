@@ -181,6 +181,8 @@ def assess(fid: Dict[str, Any],
 STATIONS: Dict[str, Dict[str, str]] = {
     "dashboard": {"num": "VIEW", "label": "Dashboard",
                   "route": "map"},
+    "latent": {"num": "VIEW", "label": "Latent Space",
+               "route": "map"},
     "fitsrc": {"num": "01", "label": "Source", "route": "measure"},
     # The measure route's step 02 is the AUTOENCODER. The rules
     # engine kept the slot for as long as it was the only thing

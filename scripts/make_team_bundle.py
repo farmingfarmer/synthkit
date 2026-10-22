@@ -193,7 +193,7 @@ def build_source(dst: Path):
             encoding="utf-8")
 
 
-LAUNCH_BAT = '@echo off\r\nsetlocal\r\ncd /d %~dp0\r\necho ================================================\r\necho  synthkit - one-time setup, then the bench opens\r\necho ================================================\r\nset \"PYEXE=python\"\r\nwhere python >nul 2>nul\r\nif errorlevel 1 (\r\n  where py >nul 2>nul\r\n  if errorlevel 1 goto :nopython\r\n  set \"PYEXE=py -3\"\r\n)\r\nif not exist .venv (\r\n  echo [1/3] creating a private Python environment...\r\n  %PYEXE% -m venv .venv\r\n  if errorlevel 1 goto :fail\r\n)\r\nif not exist .venv\\ok.marker (\r\n  echo [2/3] installing synthkit from the offline wheels, no network needed...\r\n  .venv\\Scripts\\python -m pip install --no-index --find-links wheels -e synthkit_src\r\n  if errorlevel 1 goto :fail\r\n  echo ok> .venv\\ok.marker\r\n)\r\necho [3/3] starting the bench - your browser opens on the HOME page...\r\n.venv\\Scripts\\python -m synthkit.cli gui\r\npause\r\nexit /b 0\r\n:nopython\r\necho Python was not found on this machine - neither the\r\necho python command nor the py launcher.\r\necho Install Python 3.12 or newer, then run this file again.\r\npause\r\nexit /b 1\r\n:fail\r\necho.\r\necho A step failed - read the message above; a photo of this\r\necho window is enough for whoever supports the kit.\r\npause\r\nexit /b 1\r\n'
+LAUNCH_BAT = '@echo off\r\nsetlocal\r\ncd /d %~dp0\r\necho ================================================\r\necho  synthkit - one-time setup, then the bench opens\r\necho ================================================\r\nset \"PYEXE=python\"\r\nwhere python >nul 2>nul\r\nif errorlevel 1 (\r\n  where py >nul 2>nul\r\n  if errorlevel 1 goto :nopython\r\n  set \"PYEXE=py -3\"\r\n)\r\nif not exist .venv (\r\n  echo [1/3] creating a private Python environment...\r\n  %PYEXE% -m venv .venv\r\n  if errorlevel 1 goto :fail\r\n)\r\nif not exist .venv\\ok.marker (\r\n  echo [2/3] installing synthkit from the offline wheels, no network needed...\r\n  .venv\\Scripts\\python -m pip install --no-index --find-links wheels -e synthkit_src\r\n  if errorlevel 1 goto :fail\r\n  echo ok> .venv\\ok.marker\r\n)\r\necho [3/3] starting the bench - your browser opens on the HOME page...\r\n.venv\\Scripts\\python -m synthkit.cli gui\r\npause\r\nexit /b 0\r\n:nopython\r\necho Python was not found on this machine - neither the\r\necho python command nor the py launcher.\r\necho.\r\necho Install it from  https://www.python.org/downloads/\r\necho On the first installer screen, TICK \"Add python.exe to PATH\".\r\necho Without admin rights, choose \"Install for me only\".\r\necho Do NOT use the Microsoft Store shortcut - it is not on PATH.\r\necho Then run this file again.\r\npause\r\nexit /b 1\r\n:fail\r\necho.\r\necho A step failed - read the message above; a photo of this\r\necho window is enough for whoever supports the kit.\r\npause\r\nexit /b 1\r\n'
 CHECKS_BAT = '@echo off\r\nsetlocal\r\ncd /d %~dp0\r\nif not exist .venv\\ok.marker (\r\n  echo Run START_SYNTHKIT.bat first - it installs everything.\r\n  pause\r\n  exit /b 1\r\n)\r\ncd synthkit_src\r\n..\\.venv\\Scripts\\python -u scripts\\run_all_smokes.py\r\necho.\r\necho The words ALL GREEN are the verdict.\r\npause\r\n'
 
 INSTALL_MD = """# Install, offline, one command per line (Windows)
@@ -206,7 +206,11 @@ expect the words ALL GREEN. Everything below is the same thing
 done by hand, for anyone who prefers a terminal.
 
 You need Python 3.10 or newer (`python --version` or
-`py --version` to check - the launcher finds either).
+`py --version` to check - the launcher finds either). If it is
+missing, install it from  https://www.python.org/downloads/  -
+on the first installer screen TICK "Add python.exe to PATH", and
+without admin rights choose "Install for me only". Do NOT use the
+Microsoft Store shortcut; it does not land on PATH.
 The OFFLINE wheels in this folder cover Python 3.12 and 3.14 on
 Windows; any other version needs network access for the four
 numeric packages. Everything else is in this folder. From a terminal opened HERE:

@@ -1723,6 +1723,45 @@ def main():
               _c3.get("poisoned")
               and _c3["poisoned"][0].get("achieved") is not None)
 
+    # THE LATENT-SPACE VIEW is a shipped capability: the
+    # autoencoder's condensed feature space in 3D, original beside
+    # synthetic, built by ONE function the CLI and the bench both
+    # call. It computes four metrics per point and emits a
+    # self-contained WebGL page with switchable axes and labelled
+    # arrows - gated here so the capability cannot rot untested.
+    import importlib as _ilv
+    _lv = _ilv.import_module("latent_viz")
+    _rv = np.random.RandomState(1)
+    _pv = np.repeat(np.arange(80), 6)
+    _nv = len(_pv)
+    _sv = _rv.normal(0, 1, 80)[_pv] + _rv.normal(0, 0.4, _nv)
+    _dfv = pd.DataFrame({
+        "person_id": ["P{:03d}".format(i) for i in _pv],
+        "a": np.round(50 + 10 * _sv + _rv.normal(0, 5, _nv), 1),
+        "b": np.round(0.6 * _sv + _rv.normal(0, 1, _nv), 2)})
+    _gv = LatentGen(seed=0).fit(_dfv, "person_id")
+    _genv = _gv.generate(len(_dfv), seed=1)
+    _pts, _metav = _lv.compute_points(_dfv, _genv, "person_id")
+    check("the latent view computes FOUR metrics per point - "
+          "centroid distance, neighbour distance, reconstruction "
+          "error, and distance to the nearest point of the OTHER "
+          "group (the privacy/fidelity lens)",
+          all(k in _pts[0] for k in ("c", "n", "r", "x", "g"))
+          and any(p["g"] == 0 for p in _pts)
+          and any(p["g"] == 1 for p in _pts))
+    _htmlv = _lv.build_html(_pts, _metav)
+    check("...and the page is self-contained with switchable "
+          "axes, labelled axis arrows, group toggles, and the "
+          "four metric names - no external script, so it survives "
+          "the artifact sandbox and an offline machine",
+          'id="ax"' in _htmlv and 'id="az"' in _htmlv
+          and 'class="axlab"' in _htmlv
+          and 'id="so"' in _htmlv and 'id="sg"' in _htmlv
+          and "centroid distance" in _htmlv
+          and "reconstruction error" in _htmlv
+          and "http://" not in _htmlv
+          and "cdn" not in _htmlv.lower())
+
     if FAIL:
         print("{} of {} checks failed.".format(FAIL, PASS + FAIL))
         sys.exit(1)

@@ -1213,6 +1213,27 @@ def _fit_cmd(payload: dict, types_only: bool):
     return cmd, src, out
 
 
+def _src_problem(src):
+    """A friendly reason the source path can't be read, or None.
+    A non-technical user points at a FOLDER and gets `[Errno 13]
+    Permission denied` - true, useless. Say it is a folder and
+    name the CSVs inside it."""
+    pth = Path(src)
+    if not pth.exists():
+        return "No file at {}.".format(src)
+    if pth.is_dir():
+        csvs = sorted(f.name for f in pth.glob("*.csv"))[:6]
+        if csvs:
+            return ("That is a FOLDER, not a file. Point at the "
+                    ".csv inside it - this folder holds: {}. For "
+                    "example: {}".format(
+                        ", ".join(csvs),
+                        str(pth / csvs[0])))
+        return ("That is a FOLDER, not a file, and it holds no "
+                ".csv files. Point at the CSV you want to read.")
+    return None
+
+
 def api_fit_types(payload: dict) -> dict:
     """How every column was read, and whether it can SURVIVE - in
     seconds, before anything expensive. The cheap check goes first."""
@@ -1222,8 +1243,9 @@ def api_fit_types(payload: dict) -> dict:
                          "directory. The output directory is YOURS "
                          "to choose - put it outside any repository."}
     cmd, src, out = _fit_cmd(payload, types_only=True)
-    if not Path(src).exists():
-        return {"error": "No file at {}.".format(src)}
+    _sp = _src_problem(src)
+    if _sp:
+        return {"error": _sp}
     cmd.append("--types-only")
     r = subprocess.run(cmd, capture_output=True, text=True,
                        timeout=600)
@@ -1240,8 +1262,9 @@ def _types_work(payload: dict) -> dict:
     readable makes this readable, one implementation."""
     import subprocess
     cmd, src, out = _fit_cmd(payload, types_only=True)
-    if not Path(src).exists():
-        return {"error": "No file at {}.".format(src)}
+    _sp = _src_problem(src)
+    if _sp:
+        return {"error": _sp}
     Path(out).mkdir(parents=True, exist_ok=True)
     log = Path(out) / "bench_types_log.txt"
     with log.open("w", encoding="utf-8") as fh:
@@ -1262,8 +1285,9 @@ def _fit_work(payload: dict) -> dict:
     person would read if they had run it by hand."""
     import subprocess
     cmd, src, out = _fit_cmd(payload, types_only=False)
-    if not Path(src).exists():
-        return {"error": "No file at {}.".format(src)}
+    _sp = _src_problem(src)
+    if _sp:
+        return {"error": _sp}
     Path(out).mkdir(parents=True, exist_ok=True)
     log = Path(out) / "bench_fit_log.txt"
     with log.open("w", encoding="utf-8") as fh:
@@ -1406,8 +1430,9 @@ def _latent_work(payload: dict) -> dict:
     if not src or not out:
         return {"error": "Give the source CSV and an output "
                          "directory for the latent draws."}
-    if not Path(src).exists():
-        return {"error": "No file at {}.".format(src)}
+    _sp = _src_problem(src)
+    if _sp:
+        return {"error": _sp}
     Path(out).mkdir(parents=True, exist_ok=True)
     script = (Path(__file__).resolve().parent.parent / "scripts"
               / "latent_challenger.py")
@@ -1525,8 +1550,9 @@ def api_deck(payload: dict) -> dict:
     if not src or not run:
         return {"error": "Give the same source CSV and output "
                          "directory the run used."}
-    if not Path(src).exists():
-        return {"error": "No file at {}.".format(src)}
+    _sp = _src_problem(src)
+    if _sp:
+        return {"error": _sp}
     if not (Path(run) / "fidelity.json").exists():
         return {"error": "No finished run in {} - fit and generate "
                          "first, or point at a directory that "
@@ -1546,6 +1572,54 @@ def api_deck(payload: dict) -> dict:
         return {"error": "the deck build failed: {}".format(e)}
     return {"html": doc, "columns": meta.get("columns"),
             "suppressed": meta.get("suppressed")}
+
+
+def api_latentviz(payload: dict) -> dict:
+    """The autoencoder's latent space, drawn in 3D - original and
+    synthetic rows placed together across four measured metrics.
+
+    The builder is `latent_viz.build_from_run`, the SAME function
+    the CLI writes its file with, so the bench view and a shared
+    file are one picture. Heavy: it fits an autoencoder and runs
+    k-means and nearest-neighbour over the frame, which is why it
+    is a polled JOB, not a synchronous call."""
+    import sys as _sys
+    sd = str(Path(__file__).resolve().parent.parent / "scripts")
+    if sd not in _sys.path:
+        _sys.path.insert(0, sd)
+    try:
+        from latent_viz import build_from_run
+    except Exception as e:
+        return {"error": "could not load the latent viewer: {}"
+                         .format(e)}
+    src = str(Path(payload.get("src") or "").expanduser())
+    run = str(Path(payload.get("out") or "").expanduser())
+    if not src or not run:
+        return {"error": "Give the source CSV and the run output "
+                         "directory (it holds generated.csv)."}
+    _sp = _src_problem(src)
+    if _sp:
+        return {"error": _sp}
+    gen_path = Path(run) / "generated.csv"
+    if not gen_path.exists():
+        return {"error": "No generated.csv in {} - generate "
+                         "first, or point at a finished run."
+                         .format(run)}
+    group = (payload.get("group_by") or "person_id").strip()
+    try:
+        import pandas as _pd
+        import numpy as _np
+        src_df = _pd.read_csv(src, dtype=str,
+                              keep_default_na=False).replace(
+                                  "", _np.nan)
+        gen_df = _pd.read_csv(str(gen_path), dtype=str,
+                              keep_default_na=False).replace(
+                                  "", _np.nan)
+        doc = build_from_run(src_df, gen_df, group)
+    except Exception as e:
+        return {"error": "the latent view build failed: {}"
+                         .format(e)}
+    return {"html": doc}
 
 
 _ROUTES = {
@@ -1596,6 +1670,9 @@ _ROUTES = {
                           budget_s=2 * 3600.0)},
     "/api/deck-async": lambda payload: {
         "job": _start_job(api_deck, payload, budget_s=1200.0)},
+    "/api/latentviz-async": lambda payload: {
+        "job": _start_job(api_latentviz, payload,
+                          budget_s=1800.0)},
     "/api/fit-bridge": api_fit_bridge,
     "/api/learn": api_learn,
     "/api/learn-async": lambda payload: {
@@ -2641,6 +2718,8 @@ textarea:focus,input:focus,select:focus{
   <div class="railsplit">see the fidelity</div>
   <button class="station" data-step="8" data-s="dashboard" data-route="map"><b>VIEW</b>
     Dashboard<small class="subt">original vs synthetic, drawn</small></button>
+  <button class="station" data-step="8" data-s="latent" data-route="map"><b>VIEW</b>
+    Latent Space<small class="subt">original vs synthetic in 3D</small></button>
   <div class="railsplit">the other engine, for comparison</div>
   <button class="station" data-step="8" data-s="fitrun" data-route="map"><b>ALT</b>
     Fit<small class="subt">rules engine &mdash; blueprint, then generate</small></button>
@@ -3282,7 +3361,32 @@ textarea:focus,input:focus,select:focus{
   <iframe id="deck-frame" title="fidelity dashboard" style="width:100%;
     height:78vh;border:1px solid var(--rule);border-radius:12px;
     margin-top:14px;display:none;background:#fff"></iframe>
-  <div class="nextup"><span class="lbl">next</span><b>Roadmap</b><span>This is where the engine stands on your data; the Roadmap says where the eight goals are going.</span></div>
+  <div class="nextup"><span class="lbl">next</span><b>Latent Space</b><span>The dashboard reads the columns and relationships; the Latent Space view shows the whole cloud at once &mdash; whether the synthetic rows sit among the real ones or apart.</span></div>
+</section>
+
+<section id="s-latent" data-step="8" data-route="map">
+  <div class="stepbanner"><span class="stepchip">View</span><span>The autoencoder's latent space, in 3D</span></div>
+  <dl class="stepgoal"><dt>you need</dt><dd>A finished run &mdash; the source CSV and the output directory holding generated.csv &mdash; and the patient column.</dd><dt>you get</dt><dd>An interactive 3D view of the condensed feature space: every original and synthetic row placed together across four measured metrics (distance to the nearest cluster centre, distance to the nearest neighbour, reconstruction error, and distance to the nearest point of the OTHER group). Put any metric on any axis, colour by any metric, toggle original and synthetic, and click a point to read all four numbers. Whether the synthetic cloud sits among the real one or apart is visible at a glance.</dd></dl>
+  <div class="panel">
+    <h2>Point at a run</h2>
+    <label>source CSV path
+      <input id="lvsrc" placeholder="the CSV the run was measured from"></label>
+    <label>run output directory
+      <input id="lvout" placeholder="the directory that holds generated.csv"></label>
+    <label>patient / entity column
+      <input id="lvgroup" value="person_id"></label>
+    <button class="act" onclick="latentVizBuild()">Draw the latent space</button>
+    <div class="hint">Heavy: it fits the autoencoder and runs
+    clustering and nearest-neighbour over the frame, so it runs as
+    a job with a live loader. Built by the same code that writes
+    the shareable file &mdash; the bench view and a sent file are
+    one picture.</div>
+    <div class="out" id="lv-out">Nothing drawn yet.</div>
+  </div>
+  <iframe id="lv-frame" title="latent space" sandbox="allow-scripts" style="width:100%;
+    height:80vh;border:1px solid var(--rule);border-radius:12px;
+    margin-top:14px;display:none;background:#0a0e13"></iframe>
+  <div class="nextup"><span class="lbl">next</span><b>Roadmap</b><span>This is the whole cloud at a glance; the Roadmap says where the eight goals are going.</span></div>
 </section>
 
 <section id="s-neural" data-step="2" data-route="measure">
@@ -3421,6 +3525,7 @@ const titles={home:['Home','Start here','what this is, in one page'],
   fitrun:['Alt','Fit','the rules engine, blueprint then generate'],
   fitver:['Measure 3','Verdict','judge the run'],
   dashboard:['View','Dashboard','original vs synthetic, drawn'],
+  latent:['View','Latent Space','original vs synthetic in 3D'],
   neural:['Measure 2','Generate',
     'measure the patterns, then generate'],
   duel:['Duel','Duel','two engines, one source'],
@@ -4841,6 +4946,44 @@ async function duelPoll(){
   o.textContent='drawn in '+Math.round(j.elapsed)+'s. Gray is '+
     'the original, cardinal the blueprint, gold the latent '+
     'challenger; the gap heatmap says who drifts where.';}
+let lvJob='',lvTimer=null;
+async function latentVizBuild(){
+  const o=document.getElementById('lv-out');
+  const frame=document.getElementById('lv-frame');
+  const body={src:document.getElementById('lvsrc').value.trim(),
+    out:document.getElementById('lvout').value.trim(),
+    group_by:document.getElementById('lvgroup').value.trim()};
+  if(!body.src||!body.out){o.textContent='STOPPED: give the '+
+    'source CSV and the run output directory.';return;}
+  loaderSet('lv-out',null,'drawing the latent space');
+  const r=await api('/api/latentviz-async',body);
+  if(r.error){loaderDone('lv-out',false);
+    o.textContent='STOPPED: '+r.error;frame.style.display='none';
+    return;}
+  lvJob=r.job;
+  if(lvTimer)clearInterval(lvTimer);
+  lvTimer=setInterval(latentVizPoll,2000);}
+async function latentVizPoll(){
+  const o=document.getElementById('lv-out');
+  const frame=document.getElementById('lv-frame');
+  const j=await api('/api/job',{id:lvJob});
+  if(j.status==='running'){
+    loaderSet('lv-out',null,
+      'drawing the latent space - fitting and measuring',
+      j.elapsed);
+    o.textContent='building ('+Math.round(j.elapsed)+'s) - '+
+      'fitting the autoencoder and measuring the cloud.';return;}
+  clearInterval(lvTimer);lvTimer=null;
+  loaderDone('lv-out',j.status==='done');
+  if(j.status!=='done'||!j.result||j.result.error){
+    o.textContent='STOPPED: '+((j.result&&j.result.error)||
+      j.error||j.status);
+    frame.style.display='none';return;}
+  frame.srcdoc=j.result.html;
+  frame.style.display='block';
+  o.textContent='drawn in '+Math.round(j.elapsed)+'s. Blue is '+
+    'original, orange synthetic; drag to spin, pick the axes, '+
+    'click a point.';}
 async function deckBuild(){
   deckPrefill();
   const out=document.getElementById('deck-out');

@@ -1015,11 +1015,11 @@ def main():
               "what it PRODUCES - the old page said what a step was "
               "about and left you to press the button to find out "
               "the rest",
-              html.count('class="stepgoal"') == 14
-              and html.count("<dt>you need</dt>") == 14
-              and html.count("<dt>you get</dt>") == 14)
+              html.count('class="stepgoal"') == 15
+              and html.count("<dt>you need</dt>") == 15
+              and html.count("<dt>you get</dt>") == 15)
         check("...and every step ends by naming where to go next",
-              html.count('class="nextup"') == 14)
+              html.count('class="nextup"') == 15)
 
         # THE NEURAL ENGINE HAS ITS OWN STATION. The duel is how
         # we know which engine is better; it should not be the
@@ -1261,6 +1261,23 @@ def main():
               and 'id="deck-frame"' in html
               and "dashboard:[" in html
               and "frame.srcdoc=r.html" in html)
+        # THE LATENT SPACE IS A STATION TOO - the autoencoder's
+        # condensed feature space in 3D, original beside synthetic,
+        # built by the SAME latent_viz.build_from_run the CLI writes
+        # its file with, so the bench view and a shared file are one
+        # picture. A sandboxed iframe (it runs WebGL).
+        check("the bench has a Latent Space station with a "
+              "sandboxed WebGL iframe, a titles entry, and the "
+              "job-polled build",
+              'data-s="latent"' in html
+              and 'id="s-latent"' in html
+              and 'id="lv-frame"' in html
+              and 'sandbox="allow-scripts"' in
+              html[html.index('id="lv-frame"')-80:
+                   html.index('id="lv-frame"')+80]
+              and "latent:['View'" in html
+              and "latentVizBuild" in html
+              and "frame.srcdoc=j.result.html" in html)
         # THE VERDICT STATION ANSWERS "WHAT NOW" ON A FAIL. The
         # panel renders each failed criterion's meaning and numbered
         # options from gate.next_steps - the SAME module the CLI

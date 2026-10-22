@@ -599,3 +599,41 @@ family, 92/92 smoke_latent. The three-version menu for
 compliance (v1 max value / v2 blurred / v3 minimum-shareable)
 plus poison-on-demand is the full control surface, every
 setting proving itself on the page.
+
+
+## The latent space is a station in the bench (2026-10-21)
+
+The 3D view the operator asked for - every point a patient-row
+in the autoencoder's compressed feature space, original against
+synthetic - is now a bench station, not only a shareable
+artifact. One code path (`latent_viz.build_from_run`) emits a
+self-contained WebGL page; the CLI writes it to a file and the
+Latent Space station drops the identical HTML into a sandboxed
+iframe, so the interactive view and the artifact cannot drift -
+the same rule the deck has had since it became a station.
+
+- FOUR metrics per point, any assignable to x / y / z / color
+  from the page's own dropdowns: centroid distance (k-means),
+  nearest-neighbour distance, reconstruction error, and
+  original<->synthetic distance. Green-yellow-red on whichever
+  metric drives the color; three labelled axis arrows name what
+  each axis currently shows. Group toggles (original / synthetic)
+  and click-to-pick a point. No libraries, no CDN - hand-written
+  WebGL, which the artifact CSP requires and the bench inherits.
+- It reads the run's own `generated.csv` and the source CSV,
+  re-encodes both through the trained weights, and colours the
+  cloud by the chosen metric. It is a COMPARISON tool: the two
+  groups sitting in one space is the fidelity claim made visible.
+
+### Two kit-friction fixes Jason surfaced, folded in
+
+- A FOLDER given where a FILE was expected now names the CSVs it
+  found instead of a bare "No file at ...". `_src_problem` in the
+  bench and a dir guard in the neural CLI's `_read_source` - a
+  teammate who points the tool at their data folder gets told
+  which file to pick, not a stack trace.
+- Python-install wording in the bundle's launcher and INSTALL.md
+  points at python.org/downloads with "Add python.exe to PATH"
+  and the no-admin "Install for me only" choice, and says plainly
+  NOT to use the Microsoft Store shortcut - it does not land on
+  PATH, which is exactly the hole Jason fell in.
