@@ -49,54 +49,106 @@ DIM = "#6a7080"
 MAX_POINTS = 4200
 
 
+def _pick_axes(src, gen):
+    """Three real numeric features to be the axes - the least mutually
+    correlated ones, so the 3-D space spans real, DIFFERENT measurements
+    a viewer can read off the labels (abstract latent axes can't be
+    honestly labeled, so they are not used for position)."""
+    import pandas as pd
+
+    def numify(c):
+        return pd.to_numeric(src[c], errors="coerce")
+    num = []
+    for c in src.columns:
+        if c not in gen.columns or "id" in c.lower():
+            continue
+        v = numify(c)
+        if v.notna().mean() > 0.9 and v.nunique() > 6:
+            num.append(c)
+    # prefer clinically iconic, diverse features so the labels read well;
+    # then fill with whatever is left (keeping the axes un-redundant)
+    PRIORITY = ["age", "systolic", "glucose", "bmi", "a1c", "creatinine",
+                "weight", "heart_rate", "spo2", "diastolic"]
+    low = {c.lower(): c for c in num}
+    picked = []
+    for key in PRIORITY:
+        if len(picked) >= 3:
+            break
+        if key in low and low[key] not in picked:
+            picked.append(low[key])
+    for c in num:
+        if len(picked) >= 3:
+            break
+        if c in picked:
+            continue
+        a = numify(c).fillna(numify(c).median()).to_numpy(float)
+        ok = True
+        for p in picked:
+            b = numify(p).fillna(numify(p).median()).to_numpy(float)
+            if abs(np.corrcoef(a, b)[0, 1]) > 0.9:
+                ok = False
+                break
+        if ok:
+            picked.append(c)
+    for c in num:  # last-resort fill
+        if len(picked) >= 3:
+            break
+        if c not in picked:
+            picked.append(c)
+    return picked[:3]
+
+
 def _cloud(src, gen, group_by, seed=0):
-    """PCA-whitened 3-D coordinates for real and synthetic rows, plus a
-    group label and a dense-core-to-sparse-edge fidelity value. The same
-    recipe the marketing GIF used: whiten so the cloud fills the cube,
-    clip the few extreme patients so they do not flatten it."""
-    from latent_challenger import LatentGen
-    from sklearn.decomposition import PCA
-    g = LatentGen(seed=seed).fit(src, group_by)
-    Xs, Xg = g._re_encode_frame(src), g._re_encode_frame(gen)
-    Zs, Zg = g._encode(Xs), g._encode(Xg)
-    Z = np.concatenate([Zs, Zg], 0)
-    nc = min(3, Z.shape[1])
-    P = PCA(n_components=nc, whiten=True, random_state=seed).fit(Z)
-    Cs, Cg = P.transform(Zs), P.transform(Zg)
-    if nc < 3:  # thin latent space - pad to 3-D so the cloud renders
-        Cs = np.pad(Cs, ((0, 0), (0, 3 - nc)))
-        Cg = np.pad(Cg, ((0, 0), (0, 3 - nc)))
-    A = np.concatenate([Cs, Cg], 0)
-    lim = float(np.percentile(np.abs(A), 97)) or 1.0
-    A = np.clip(A / lim, -1.0, 1.0)
-    grp = np.array([0] * len(Cs) + [1] * len(Cg))
-    rad = np.linalg.norm(A - np.median(A, 0), axis=1)
-    lo, hi = np.percentile(rad, 8), np.percentile(rad, 96)
-    fidv = np.clip((rad - lo) / (hi - lo + 1e-9), 0.0, 1.0)
+    """3-D coordinates for real and synthetic rows on three REAL labeled
+    axes, a group label, and a fidelity value (distance to the nearest
+    point of the other cloud - far = a region the other did not cover)."""
+    import pandas as pd
+    from sklearn.neighbors import NearestNeighbors
+    cols = _pick_axes(src, gen)
+    human = {"systolic": "Blood pressure", "diastolic": "Diastolic BP",
+             "heart_rate": "Heart rate", "a1c": "HbA1c", "bmi": "BMI",
+             "spo2": "SpO2"}
+    labels = [human.get(c.lower(), c.replace("_", " ").title()) for c in cols]
+    Rs = np.column_stack([pd.to_numeric(src[c], errors="coerce").to_numpy(float)
+                          for c in cols])
+    Rg = np.column_stack([pd.to_numeric(gen[c], errors="coerce").to_numpy(float)
+                          for c in cols])
+    both = np.vstack([Rs, Rg])
+    for j in range(len(cols)):
+        lo = np.nanpercentile(both[:, j], 2); hi = np.nanpercentile(both[:, j], 98)
+        d = (hi - lo) or 1.0
+        Rs[:, j] = np.clip((Rs[:, j] - lo) / d * 2 - 1, -1, 1)
+        Rg[:, j] = np.clip((Rg[:, j] - lo) / d * 2 - 1, -1, 1)
+    Rs = np.nan_to_num(Rs); Rg = np.nan_to_num(Rg)
+    grp = np.array([0] * len(Rs) + [1] * len(Rg))
+    ds = NearestNeighbors(n_neighbors=1).fit(Rg).kneighbors(Rs)[0][:, 0]
+    dg = NearestNeighbors(n_neighbors=1).fit(Rs).kneighbors(Rg)[0][:, 0]
+    dd = np.concatenate([ds, dg])
+    lo, hi = np.percentile(dd, 8), np.percentile(dd, 96)
+    fidv = np.clip((dd - lo) / (hi - lo + 1e-9), 0.0, 1.0)
+    A = np.concatenate([Rs, Rg], 0)
     idx = np.arange(len(A))
     if len(idx) > MAX_POINTS:
         rng = np.random.RandomState(seed)
         keep0 = rng.choice(np.where(grp == 0)[0],
-                           min(int((grp == 0).sum()), MAX_POINTS // 2),
-                           replace=False)
+                           min(int((grp == 0).sum()), MAX_POINTS // 2), replace=False)
         keep1 = rng.choice(np.where(grp == 1)[0],
-                           min(int((grp == 1).sum()), MAX_POINTS // 2),
-                           replace=False)
+                           min(int((grp == 1).sum()), MAX_POINTS // 2), replace=False)
         idx = np.sort(np.concatenate([keep0, keep1]))
     A, grp, fidv = A[idx], grp[idx], fidv[idx]
-    return (A.round(4).tolist(), grp.tolist(),
-            fidv.round(3).tolist(),
-            {"n_real": int((grp == 0).sum()),
-             "n_syn": int((grp == 1).sum())})
+    return (A.round(4).tolist(), grp.tolist(), fidv.round(3).tolist(),
+            {"n_real": int((grp == 0).sum()), "n_syn": int((grp == 1).sum()),
+             "labels": labels})
 
 
-def _webgl(pos, grp, fidv):
+def _webgl(pos, grp, fidv, labels):
     """Self-contained WebGL point cloud, auto-spinning, drag to spin,
     one button to switch real-vs-synthetic <-> fidelity color."""
     data = ("var POS=" + json.dumps([round(x, 4) for row in pos
                                      for x in row])
             + ";var GRP=" + json.dumps(grp)
-            + ";var FID=" + json.dumps(fidv) + ";")
+            + ";var FID=" + json.dumps(fidv)
+            + ";var AXL=" + json.dumps(labels) + ";")
     return _WEBGL_HTML.replace("/*__DATA__*/", data)
 
 
@@ -188,7 +240,7 @@ def build_showcase(run_dir, src_path, group_by="person_id", seed=0):
     except (TypeError, ValueError):
         k = 10
     pos, grp, fidv, meta = _cloud(src, gen, group_by, seed)
-    webgl = _webgl(pos, grp, fidv)
+    webgl = _webgl(pos, grp, fidv, meta.get("labels", ["1", "2", "3"]))
     assessment, verdict, chips = (_chips(fid) if fid
                                   else (None, None, ""))
     plots = _plots(src, gen, run, k=k)
@@ -218,7 +270,12 @@ _WEBGL_HTML = """
     <div class="vz-hint">drag to spin &middot; it spins on its own</div>
   </div>
   <div class="vz-legend" id="lg"></div>
+  <span class="ax-lab" id="axl0"></span>
+  <span class="ax-lab" id="axl1"></span>
+  <span class="ax-lab" id="axl2"></span>
 </div>
+<p class="vz-caption">Each dot is a patient, placed by three real measurements &mdash;
+  real and synthetic land in the same place. Drag to turn it.</p>
 <script>
 (function(){
 /*__DATA__*/
@@ -252,6 +309,20 @@ var uM=gl.getUniformLocation(pr,'m'), uUm=gl.getUniformLocation(pr,'um'),
     uPs=gl.getUniformLocation(pr,'ps'), uAl=gl.getUniformLocation(pr,'al');
 gl.enable(gl.BLEND);gl.blendFunc(gl.SRC_ALPHA,gl.ONE_MINUS_SRC_ALPHA);
 gl.clearColor(0.039,0.039,0.059,1.0);
+// a rotating three-pronged axis gizmo - a reference frame so a viewer
+// sees this is a 3-D space, pinned to the corner, turning with the cloud
+var lvs=sh(gl.VERTEX_SHADER,'attribute vec3 p;uniform mat4 m;void main(){gl_Position=m*vec4(p,1.0);}');
+var lfs=sh(gl.FRAGMENT_SHADER,'precision mediump float;uniform vec3 c;void main(){gl_FragColor=vec4(c,0.9);}');
+var lp=gl.createProgram();gl.attachShader(lp,lvs);gl.attachShader(lp,lfs);gl.linkProgram(lp);
+var O=-1.1, TP=1.1;
+var baxx=buf(new Float32Array([O,O,O, TP,O,O]));
+var baxy=buf(new Float32Array([O,O,O, O,TP,O]));
+var baxz=buf(new Float32Array([O,O,O, O,O,TP]));
+var TIPS=[[TP,O,O],[O,TP,O],[O,O,TP]];
+var LABS=[document.getElementById('axl0'),document.getElementById('axl1'),document.getElementById('axl2')];
+for(var li=0;li<3;li++){if(LABS[li])LABS[li].textContent=AXL[li]||'';}
+var ulM=gl.getUniformLocation(lp,'m'), ulC=gl.getUniformLocation(lp,'c');
+function axis(b,col){gl.bindBuffer(gl.ARRAY_BUFFER,b);var l=gl.getAttribLocation(lp,'p');gl.enableVertexAttribArray(l);gl.vertexAttribPointer(l,3,gl.FLOAT,false,0,0);gl.uniform3fv(ulC,col);gl.drawArrays(gl.LINES,0,2);}
 function mul(a,b){var o=new Float32Array(16);for(var r=0;r<4;r++)for(var c=0;c<4;c++){var s=0;for(var k=0;k<4;k++)s+=a[k*4+r]*b[c*4+k];o[c*4+r]=s;}return o;}
 function persp(f,asp,n,fa){var t=1/Math.tan(f/2);return new Float32Array([t/asp,0,0,0, 0,t,0,0, 0,0,(fa+n)/(n-fa),-1, 0,0,2*fa*n/(n-fa),0]);}
 function rotY(a){var c=Math.cos(a),s=Math.sin(a);return new Float32Array([c,0,s,0, 0,1,0,0, -s,0,c,0, 0,0,0,1]);}
@@ -281,6 +352,15 @@ function frame(){
   attr(bp,'p',3);attr(ba,'ca',3);attr(bb,'cb',3);
   gl.uniform1f(uPs,20.0*dpr);gl.uniform1f(uAl,0.09);gl.drawArrays(gl.POINTS,0,N); // glow pass
   gl.uniform1f(uPs,6.2*dpr);gl.uniform1f(uAl,0.95);gl.drawArrays(gl.POINTS,0,N);  // core pass
+  gl.useProgram(lp);gl.uniformMatrix4fv(ulM,false,m);
+  axis(baxx,[0.66,0.70,0.78]);axis(baxy,[0.66,0.70,0.78]);axis(baxz,[0.66,0.70,0.78]);
+  gl.useProgram(pr);
+  for(var li=0;li<3;li++){if(!LABS[li])continue;var q=TIPS[li];
+    var cx=m[0]*q[0]+m[4]*q[1]+m[8]*q[2]+m[12];
+    var cy=m[1]*q[0]+m[5]*q[1]+m[9]*q[2]+m[13];
+    var cw=m[3]*q[0]+m[7]*q[1]+m[11]*q[2]+m[15];
+    LABS[li].style.left=((cx/cw*0.5+0.5)*cv.clientWidth)+'px';
+    LABS[li].style.top=((1-(cy/cw*0.5+0.5))*cv.clientHeight)+'px';}
   requestAnimationFrame(frame);
 }
 frame();
@@ -320,6 +400,10 @@ h1 .accent{background:linear-gradient(100deg,var(--red),var(--gold));
  padding:8px 15px;cursor:pointer;backdrop-filter:blur(6px);}
 .vz-btn:hover{border-color:var(--steel);}
 .vz-hint{font-size:11.5px;color:var(--dim);padding-left:4px;}
+.ax-lab{position:absolute;font-size:11.5px;font-weight:700;color:#eef0f4;
+ text-shadow:0 0 4px #000,0 0 6px #000;pointer-events:none;
+ transform:translate(-50%,-50%);white-space:nowrap;z-index:3;}
+.vz-caption{margin:14px 2px 0;color:var(--muted);font-size:13.5px;max-width:66ch;}
 .vz-legend{position:absolute;bottom:16px;left:18px;font-size:12.5px;color:var(--muted);
  display:flex;align-items:center;}
 .lg-dot{display:inline-block;width:9px;height:9px;border-radius:50%;margin-right:7px;}
@@ -366,7 +450,8 @@ h2{font-size:clamp(20px,3vw,26px);font-weight:800;letter-spacing:-.01em;margin:c
  <h1>Real data in.<br>Synthetic data out.<br><span class="accent">Indistinguishable.</span></h1>
  <p class="lede">SynthKit learns the statistical patterns of a medical dataset and generates
   brand-new synthetic patients that reproduce them &mdash; without copying a single real record.
-  Below is that model's own compressed view of the data. Drag it. It spins on its own.</p>
+  Below, every patient is plotted by three real measurements &mdash; real and synthetic land
+  together. Drag it. It spins on its own.</p>
 
  /*__WEBGL__*/
  <div class="statline"><span><b>__NREAL__</b> real patient-visits</span>
