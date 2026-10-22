@@ -50,3 +50,6 @@ synthkit = "synthkit.cli:main"
 
 [tool.setuptools]
 packages = ["synthkit"]
+
+[tool.setuptools.package-data]
+synthkit = ["assets/*.webm"]

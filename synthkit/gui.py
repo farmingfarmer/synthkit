@@ -1711,6 +1711,13 @@ class _Handler(BaseHTTPRequestHandler):
         self.end_headers()
         self.wfile.write(body)
 
+    def _send_bin(self, code: int, body: bytes, ctype: str) -> None:
+        self.send_response(code)
+        self.send_header("Content-Type", ctype)
+        self.send_header("Content-Length", str(len(body)))
+        self.end_headers()
+        self.wfile.write(body)
+
     def do_GET(self):
         if self.path in ("/", "/index.html"):
             self._send(200, PAGE.encode("utf-8"), "text/html")
@@ -1720,6 +1727,9 @@ class _Handler(BaseHTTPRequestHandler):
         elif self.path == "/api/version":
             self._send(200, json.dumps(
                 build_info()).encode("utf-8"))
+        elif (self.path == "/assets/synthkit_logo.webm"
+              and _LOGO_WEBM_BYTES):
+            self._send_bin(200, _LOGO_WEBM_BYTES, "video/webm")
         else:
             self._send(404, b'{"error": "not found"}')
 
@@ -1784,7 +1794,28 @@ nav{border-right:1px solid var(--rule);padding:20px 0}
 .wordmark{font-family:var(--mono);font-weight:600;
   letter-spacing:.14em;padding:0 20px 18px;font-size:15px}
 .wordmark small{display:block;color:var(--dim);font-weight:400;
-  letter-spacing:.08em;font-size:10px;margin-top:2px}
+  letter-spacing:.08em;font-size:10px;margin-top:8px}
+/* the glowing SynthKit logo - a small neon badge; the dark chip gives
+   the glow a backdrop on the light bench. CSS only, no binary, and it
+   holds still with prefers-reduced-motion. */
+.wordmark .neon{display:inline-block;background:#0b0b10;color:#ffe27a;
+  padding:6px 13px 7px;border-radius:9px;border:1px solid #20141a;
+  font-size:18px;font-weight:700;letter-spacing:.12em;
+  box-shadow:0 2px 10px rgba(0,0,0,.35),0 0 0 1px rgba(255,120,30,.08) inset;
+  text-shadow:0 0 4px #ffcf4d,0 0 10px #ff7a1a,0 0 20px #ff3b2f,0 0 32px #b81e12;
+  animation:neonpulse 3.4s ease-in-out infinite, neonflick 8s steps(1) infinite}
+@keyframes neonpulse{
+  0%,100%{text-shadow:0 0 3px #ffcf4d,0 0 8px #ff7a1a,0 0 15px #ff3b2f,0 0 24px #b81e12}
+  50%{text-shadow:0 0 6px #ffe08a,0 0 15px #ff8a2a,0 0 28px #ff4b3f,0 0 46px #c82e22}}
+@keyframes neonflick{
+  0%,94%,100%{opacity:1}95%{opacity:.72}96%{opacity:1}98%{opacity:.85}99%{opacity:1}}
+@media(prefers-reduced-motion:reduce){.wordmark .neon{animation:none}}
+/* the actual glowing logo: the transparent webm on a dark chip so its
+   glow reads against the light bench. */
+.wordmark .logo{display:inline-block;background:#0b0b10;border-radius:9px;
+  border:1px solid #20141a;padding:5px 9px;line-height:0;
+  box-shadow:0 2px 10px rgba(0,0,0,.35)}
+.wordmark .logovid{display:block;width:176px;height:auto;border-radius:3px}
 .station{display:flex;gap:12px;align-items:baseline;width:100%;
   padding:11px 20px;border:0;background:none;text-align:left;
   font-family:var(--sans);font-size:14px;color:var(--dim);
@@ -2690,7 +2721,7 @@ textarea:focus,input:focus,select:focus{
 </style></head><body>
 <div class="frame">
 <nav>
-  <div class="wordmark">SYNTHKIT<small>calibration bench<br>
+  <div class="wordmark">__LOGO__<small>calibration bench<br>
     <span id="fp" title="version &middot; built &middot; build
     fingerprint; compare with `synthkit version`">loading
     build...</span></small></div>
@@ -5024,3 +5055,27 @@ async function deckBuild(){
 </div>
 </body></html>
 """
+
+
+# --- the glowing logo: serve the transparent webm as a header badge,
+# and fall back to the CSS neon wordmark if the asset is not shipped ---
+_LOGO_WEBM_BYTES = b""
+try:
+    _logo_path = (Path(__file__).resolve().parent / "assets"
+                  / "synthkit_logo.webm")
+    if _logo_path.exists():
+        _LOGO_WEBM_BYTES = _logo_path.read_bytes()
+except OSError:
+    _LOGO_WEBM_BYTES = b""
+if _LOGO_WEBM_BYTES:
+    _LOGO_HTML = (
+        '<span class="logo"><video class="logovid" autoplay loop muted '
+        'playsinline><source src="/assets/synthkit_logo.webm" '
+        'type="video/webm"><span class="neon">SYNTHKIT</span></video></span>'
+        '<script>(function(){var v=document.querySelector(".logovid");'
+        'if(v&&window.matchMedia&&matchMedia("(prefers-reduced-motion: '
+        'reduce)").matches){v.removeAttribute("autoplay");'
+        'v.addEventListener("loadeddata",function(){v.pause();});}})();</script>')
+else:
+    _LOGO_HTML = '<span class="neon">SYNTHKIT</span>'
+PAGE = PAGE.replace("__LOGO__", _LOGO_HTML)

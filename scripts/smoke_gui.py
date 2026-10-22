@@ -71,6 +71,25 @@ def main():
               and "calibration bench" in html
               and "speccard" in html
               and "same fingerprint, same data" in html)
+        check("the glowing logo is wired - the webm video, the neon "
+              "wordmark as fallback, and reduced-motion handled",
+              'class="logovid"' in html
+              and '/assets/synthkit_logo.webm' in html
+              and 'class="neon">SYNTHKIT</span>' in html
+              and "@keyframes neonpulse" in html
+              and "prefers-reduced-motion: reduce" in html      # the JS
+              and "prefers-reduced-motion:reduce){.wordmark .neon"  # the CSS
+                  in html)
+        import urllib.request as _ulib
+        try:
+            with _ulib.urlopen(base + "/assets/synthkit_logo.webm",
+                               timeout=30) as _r:
+                _ct = _r.headers.get("Content-Type", "")
+                _blen = len(_r.read())
+        except Exception:
+            _ct, _blen = "", 0
+        check("the logo webm is served as video/webm, non-empty",
+              _ct == "video/webm" and _blen > 50000)
         stations = ["<b>0{}</b>".format(i) for i in range(1, 6)]
         idx = [html.index(s) for s in stations]
         check("all five stations present in order",
