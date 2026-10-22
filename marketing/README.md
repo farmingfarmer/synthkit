@@ -44,10 +44,22 @@ cannot be honestly named, so they are not used for position.
   supports transparent PNG, but NOT alpha video).
 - `SynthKit_bench_logo_header.png` — the logo in the bench header.
 
+### For PowerPoint
+
+PowerPoint supports transparent PNG but NOT transparent video, and it
+cannot read WebM at all. So:
+
+- `SynthKit_logo_forPPT.mp4` - the logo on a BLACK background. Put it
+  on a black or near-black slide and the background disappears. Insert
+  > Video > This Device, then Playback > Start Automatically + Loop.
+- `SynthKit_logo_forPPT.gif` - same thing as an animated GIF, which
+  PowerPoint plays with no video settings to configure.
+- `SynthKit_logo_still_alpha.png` - the only one with TRUE
+  transparency, for a light slide. Static.
+
 A ProRes 4444 `.mov` of the logo exists for video editors but is NOT
 in the repo: at 178 MB it exceeds GitHub's 100 MB file limit. Re-render
-it from the source with the recipe in the lab notebook, or ask for it
-directly.
+it from the source, or ask for it directly.
 
 ## The slide
 

@@ -126,7 +126,8 @@ def main():
     MIN_FLOORS = {"numpy": (3, 8),          # numpy 1.24
                   "pandas": (3, 8),         # pandas 2.0
                   "scikit-learn": (3, 9),   # scikit-learn 1.4
-                  "scipy": (3, 8)}          # scipy 1.10
+                  "scipy": (3, 8),         # scipy 1.10
+                  "openpyxl": (3, 8)}       # openpyxl 3.1
     missing_tbl = sorted(set(declared) - set(MIN_FLOORS))
     check("every declared dependency has a recorded floor for the "
           "MINIMUM version we allow, or this check silently skips "

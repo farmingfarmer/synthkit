@@ -35,6 +35,10 @@ dependencies = [
     "pandas>=2.0",
     "scikit-learn>=1.4",
     "scipy>=1.10",
+    # Excel export. Pure python and small - core rather than optional,
+    # because a download button that is sometimes missing is worse
+    # than no button, and the operator asked for .xlsx by name.
+    "openpyxl>=3.1",
 ]
 
 # OPTIONAL, not required: shap drives the dashboard's driver

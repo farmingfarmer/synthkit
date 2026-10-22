@@ -1,10 +1,12 @@
-THINKPAD SETUP — paste these ONE LINE AT A TIME into a Command Prompt.
+DATA MACHINE SETUP   (OWNER/REPO are placeholders - substitute
+                      your own handle, which is banned from
+                      tracked files) — paste these ONE LINE AT A TIME into a Command Prompt.
 Takes about 60 seconds. Nothing existing is deleted; this pulls into a
 NEW folder called synthkit_demo.
 
 cd %USERPROFILE%\dev
 
-curl -sL -o sk_demo.zip https://api.github.com/repos/farmingfarmer/synthkit/zipball/main
+curl -sL -o sk_demo.zip https://api.github.com/repos/OWNER/REPO/zipball/main
 
 dir sk_demo.zip
 
@@ -13,7 +15,7 @@ dir sk_demo.zip
 
 tar -xf sk_demo.zip
 
-for /d %i in (farmingfarmer-synthkit-*) do ren "%i" synthkit_demo
+for /d %i in (OWNER-REPO-*) do ren "%i" synthkit_demo
 
 cd %USERPROFILE%\dev\synthkit_demo
 

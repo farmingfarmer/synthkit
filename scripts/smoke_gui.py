@@ -90,6 +90,56 @@ def main():
             _ct, _blen = "", 0
         check("the logo webm is served as video/webm, non-empty",
               _ct == "video/webm" and _blen > 50000)
+        # THE FREE-TEXT CAP IS A SERVER RULE. maxlength in the page is a
+        # courtesy to a typist; anything can POST here, and the text goes
+        # into a model prompt, so the refusal has to hold on this side.
+        check("the describe box declares a character cap and counts up "
+              "to it",
+              'maxlength="4000"' in html and 'id="engcount"' in html)
+        # The refusal must land BEFORE any model backend is touched -
+        # asserted here by the fact that this returns a clean, named
+        # refusal with no backend configured at all.
+        _big = post("/api/compile", {"kind": "table", "backend": "none",
+                                     "description": "x" * 4001})
+        check("an over-length description is REFUSED by the server, by "
+              "name, before any model backend is reached",
+              _big.get("ok") is False
+              and "limit is" in (_big.get("problems") or "")
+              and "4,000" in (_big.get("problems") or ""))
+        # ONE BUTTON RUNS THE THREE CHECKS. Three separate required
+        # buttons made people guess which were needed; the answer was
+        # all of them, in order. The individual ones stay, folded away.
+        check("the recipe step leads with ONE check button that "
+              "sequences validate, plan and lint",
+              'onclick="checkRecipe()"' in html
+              and "async function checkRecipe()" in html
+              and "/api/validate" in html and "/api/plan" in html
+              and "/api/lint" in html)
+        check("...and the three individual checks are still reachable, "
+              "folded behind an experts disclosure",
+              '<details class="expert">' in html
+              and 'onclick="validateSpec()"' in html
+              and 'onclick="planSpec()"' in html
+              and 'onclick="lintSpec()"' in html)
+        # PLAIN WORDS FOR WHAT THE FILES ARE. "corruption ledger" could
+        # not be explained cold by the people who built it.
+        check("the planted-error file is named in plain words, and "
+              "'corruption ledger' is gone from what a reader sees",
+              "list of planted errors" in html
+              and "cells we broke on purpose" in html
+              and "corruption ledger" not in html
+              and "deliberate corruptions" not in html)
+        # THE DATA DOWNLOADS ARE THE FORMATS PEOPLE ASKED FOR. JSON is
+        # a poor shape for a table and was removed from the DATA (the
+        # recipe is still JSON - that one is meant to be read and edited).
+        check("data downloads offer CSV, Excel and TXT, and no longer "
+              "offer the data as JSON",
+              "synthetic data (CSV)" in html
+              and "synthetic data (Excel)" in html
+              and "synthetic data (TXT)" in html
+              and "synthetic data (JSON)" not in html
+              and "answer key (JSON)" not in html
+              and "Download spec.json" in html)
         stations = ["<b>0{}</b>".format(i) for i in range(1, 6)]
         idx = [html.index(s) for s in stations]
         check("all five stations present in order",
@@ -908,7 +958,7 @@ def main():
         # every step and cannot be mistaken for anything else.
         import collections as _co
         import re as _re
-        for sid, last in (("s-describe", "E"), ("s-spec", "E"),
+        for sid, last in (("s-describe", "E"), ("s-spec", "C"),
                           ("s-data", "C"), ("s-campaign", "I"),
                           ("s-learn", "F"), ("s-showdown", "C")):
             i = html.index('id="{}"'.format(sid))

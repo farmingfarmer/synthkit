@@ -66,6 +66,10 @@ _JOBS: Dict[str, dict] = {}
 
 
 JOB_BUDGET_S = 1800.0   # a campaign should not outlive this
+# The free-text description cap. Generous for a paragraph that
+# describes a dataset's SHAPE; small enough that nobody pastes a
+# patient record in and sends it to a model.
+DESCRIPTION_MAX = 4000
 
 
 def _start_job(fn, payload: dict, budget_s: float = None) -> str:
@@ -363,6 +367,18 @@ def api_validate(payload: dict) -> dict:
 
 def api_compile(payload: dict) -> dict:
     from .compiler import compile_spec, compile_table_spec
+    # THE CAP IS ENFORCED HERE, NOT ONLY IN THE BROWSER. `maxlength` on
+    # the textarea is a courtesy to a person typing; it is not a limit,
+    # because anything can POST to this endpoint. An unbounded
+    # description is pasted straight into a model prompt, so the ceiling
+    # has to hold on the side that cannot be edited by the caller.
+    desc = payload.get("description") or ""
+    if len(desc) > DESCRIPTION_MAX:
+        return {"ok": False, "raw_json": "",
+                "problems": "That description is {:,} characters; the "
+                            "limit is {:,}. Describe the dataset's "
+                            "shape rather than pasting the data "
+                            "itself.".format(len(desc), DESCRIPTION_MAX)}
     backend = _backend(payload.get("backend", "ollama"),
                        payload.get("model", ""))
     fn = compile_table_spec if payload["kind"] == "table" \
@@ -544,6 +560,43 @@ def api_export(payload: dict) -> dict:
         return {"filename": label + ".csv", "content": raw,
                 "mime": "text/csv"}
     rows = list(_csv.DictReader(io.StringIO(raw)))
+    if fmt == "txt":
+        # tab separated: what people mean by "a text file" for a table
+        buf = io.StringIO()
+        if rows:
+            w = _csv.DictWriter(buf, fieldnames=list(rows[0].keys()),
+                                delimiter="\t", lineterminator="\n")
+            w.writeheader()
+            w.writerows(rows)
+        return {"filename": label + ".txt", "content": buf.getvalue(),
+                "mime": "text/plain"}
+    if fmt == "xlsx":
+        # A REAL WORKBOOK, OR AN HONEST REFUSAL. Handing back a CSV
+        # named .xlsx would open in Excel and still be a lie about
+        # what the file is.
+        try:
+            import openpyxl  # noqa: F401
+        except ImportError:
+            return {"error": "Excel export needs the openpyxl package "
+                             "(pip install openpyxl). CSV opens in "
+                             "Excel directly in the meantime."}
+        import base64
+        from openpyxl import Workbook
+        wb = Workbook()
+        ws = wb.active
+        ws.title = label[:31] or "data"
+        if rows:
+            heads = list(rows[0].keys())
+            ws.append(heads)
+            for r in rows:
+                ws.append([r.get(h, "") for h in heads])
+        bio = io.BytesIO()
+        wb.save(bio)
+        return {"filename": label + ".xlsx",
+                "content_b64": base64.b64encode(
+                    bio.getvalue()).decode("ascii"),
+                "mime": ("application/vnd.openxmlformats-"
+                         "officedocument.spreadsheetml.sheet")}
     return {"filename": label + ".json",
             "content": json.dumps(rows, indent=1,
                                   ensure_ascii=False),
@@ -1816,6 +1869,14 @@ nav{border-right:1px solid var(--rule);padding:20px 0}
   border:1px solid #20141a;padding:5px 9px;line-height:0;
   box-shadow:0 2px 10px rgba(0,0,0,.35)}
 .wordmark .logovid{display:block;width:176px;height:auto;border-radius:3px}
+.engcount{font-family:var(--mono);font-size:11px;color:var(--dim);
+  text-align:right;margin-top:4px}
+.engcount.near{color:#b4530f}
+.expert{margin-top:14px;border-top:1px solid var(--line);padding-top:10px}
+.expert summary{cursor:pointer;font-family:var(--mono);font-size:11px;
+  letter-spacing:.06em;color:var(--dim);text-transform:uppercase}
+.expert summary:hover{color:var(--ink)}
+.expert .act{margin-top:8px;margin-right:8px}
 .station{display:flex;gap:12px;align-items:baseline;width:100%;
   padding:11px 20px;border:0;background:none;text-align:left;
   font-family:var(--sans);font-size:14px;color:var(--dim);
@@ -2821,8 +2882,10 @@ textarea:focus,input:focus,select:focus{
     should be predictable and how rare it is. What this box
     cannot do: fetch real data, and it only produces dataset
     descriptions &mdash; not code, not reports.</div>
-    <textarea id="english" rows="5"
+    <textarea id="english" rows="5" maxlength="4000"
+      oninput="engCount()"
       placeholder="a 300-row lab results extract: patient id, ordering department weighted toward internal medicine, ten percent missing results, occasional wrong-value dates..."></textarea>
+    <div class="engcount" id="engcount">0 / 4000 characters</div>
     <div class="row2">
       <div><label for="kind"><span class="stepno">C</span>
         what shape of data?</label>
@@ -2873,34 +2936,27 @@ textarea:focus,input:focus,select:focus{
     <textarea id="spec" rows="22" spellcheck="false"
       placeholder="No spec yet &mdash; describe one or load a preset."></textarea>
     <div class="eyebrow"><span class="stepno">B</span>
-    <span class="badge req">required</span> check the recipe is
-    complete and lawful</div>
-    <button class="act" onclick="validateSpec()">Validate</button>
-    <div class="hint">Green means every field is well-defined
-    and internally consistent. Problems are listed in plain
-    terms so they can be fixed before anything is created.</div>
+    <span class="badge req">required</span> check the recipe</div>
+    <button class="act" onclick="checkRecipe()">Check this recipe</button>
+    <div class="hint">One button, three checks, in order: is the
+    recipe complete and lawful, does it actually build, and does
+    the data keep the promises the description made. Each result
+    appears below as it finishes.</div>
     <div class="eyebrow"><span class="stepno">C</span>
-    <span class="badge opt">optional</span> quick trial run
-    (nothing saved)</div>
-    <button class="act ghost" onclick="planSpec()">Plan (dry run)</button>
-    <div class="hint">Builds the dataset in memory and reports
-    what it WOULD contain &mdash; row counts, corrupted cells &mdash;
-    without writing anything to disk.</div>
-    <div class="eyebrow"><span class="stepno">D</span>
-    <span class="badge rec">recommended</span> does the data
-    keep the recipe's promises?</div>
-    <button class="act ghost" onclick="lintSpec()">Semantic lint</button>
-    <div class="hint">Generates a sample and measures it against
-    what was declared &mdash; e.g. "readmission was promised at
-    5&ndash;12% and lands at 8%". This is how you know the dataset
-    means what the description said.</div>
-    <div class="eyebrow"><span class="stepno">E</span>
     <span class="badge opt">optional</span> save the recipe
     file</div>
     <button class="act ghost" onclick="downloadSpec()">Download spec.json</button>
     <div class="hint">Anyone with this one file can regenerate
     this exact dataset &mdash; that is the reproducibility guarantee,
     and what you would hand an auditor or a vendor.</div>
+    <details class="expert"><summary>run the three checks
+    separately (experts)</summary>
+    <button class="act ghost" onclick="validateSpec()">Validate only</button>
+    <button class="act ghost" onclick="planSpec()">Plan (dry run)</button>
+    <button class="act ghost" onclick="lintSpec()">Semantic lint</button>
+    <div class="hint">The same three steps the one button runs,
+    available individually when you are debugging a recipe.</div>
+    </details>
     <div class="outlabel">readout &mdash; results only, not editable</div>
     <pre class="out" id="spec-out"></pre>
   </div>
@@ -2910,12 +2966,15 @@ textarea:focus,input:focus,select:focus{
 <section id="s-data" data-step="3">
   <div class="stepbanner"><span class="stepchip">Step 3 of 5</span><span>Create the synthetic data</span></div>
   <dl class="stepgoal"><dt>you need</dt><dd>An approved recipe from Step 2.</dd><dt>you get</dt><dd>A table or a set of documents you can open, download, and hand to a vendor.</dd></dl>
-  <div class="explain">This turns the approved recipe into real
-  files: the messy dataset (what a model would actually face),
-  the clean answer key (the same records with every flaw
-  repaired and every truth known), and a ledger listing every
-  deliberate corruption. When it finishes, a preview and
-  download buttons appear below.</div>
+  <div class="explain">This writes the actual files. You get
+  three things. <b>The dataset</b> &mdash; realistic, and messy in
+  the ways real data is messy, which is what a vendor's tool
+  would actually face. <b>The answer key</b> &mdash; the same
+  records with every error repaired, so you know the right
+  answer for every row. And <b>the list of planted errors</b>
+  &mdash; exactly which cells we broke on purpose, so you can
+  score whether a tool found them. A preview and download
+  buttons appear below when it finishes.</div>
   <div class="panel">
     <div class="eyebrow"><span class="stepno">A</span>
     <span class="badge req">required</span> where to save</div>
@@ -3588,6 +3647,10 @@ document.querySelectorAll('.station').forEach(btn=>{
        starts from its own true position. */
     if(typeof pxSchedule==='function')pxSchedule();
   };});
+function engCount(){var t=document.getElementById('english');
+  var c=document.getElementById('engcount');if(!t||!c)return;
+  var n=t.value.length;c.textContent=n+' / 4000 characters';
+  c.className='engcount'+(n>3600?' near':'');}
 async function api(path,body){
   const r=await fetch(path,{method:body?'POST':'GET',
     headers:{'Content-Type':'application/json'},
@@ -3651,6 +3714,44 @@ async function compileSpec(){
     'Compiled clean. Review the draft at station 02 before '+
     'rendering.':'Draft saved with problems — the human gate is '+
     'yours:\n\n'+d.problems,d.ok?'ok':'bad');}
+async function checkRecipe(){
+  /* ONE BUTTON, THREE CHECKS. The operator asked for a single
+     action with the work shown as it happens: three separate
+     buttons made people guess which ones were required, and the
+     answer was "all of them, in this order". The intermediate
+     calls are unchanged - this only sequences them and narrates. */
+  var spec=document.getElementById('spec').value;
+  var kind=guessKind(), log='';
+  function say(line,cls){log+=line+'\n';out('spec-out',log,cls);}
+  if(!spec.trim()){
+    out('spec-out','No recipe yet. Describe one in Step 1, or '+
+      'load a ready-made example.','bad');return;}
+  say('1 of 3   is the recipe complete and lawful?');
+  var v=await api('/api/validate',{kind:kind,spec:spec});
+  if(!v.ok){say('         PROBLEM\n');say(v.problems||'','bad');
+    say('\nFix the recipe above and check again. Nothing has '+
+      'been created.','bad');return;}
+  say('         PASS - every field is well defined');
+  say('');
+  say('2 of 3   does it actually build? (trial run, nothing saved)');
+  var pl=await api('/api/plan',{kind:kind,spec:spec});
+  if(pl.error){say('         PROBLEM\n');say(pl.error,'bad');return;}
+  var rows=(pl.rows!==undefined?pl.rows:(pl.n_rows!==undefined?pl.n_rows:'?'));
+  say('         PASS - builds '+rows+' rows in memory');
+  say('');
+  say('3 of 3   does the data keep the recipe\'s promises?');
+  var li=await api('/api/lint',{kind:kind,spec:spec,
+    description:document.getElementById('english').value});
+  if(li.error){say('         could not measure\n');say(li.error);}
+  else{say((li.ok?'         PASS':'         SEE BELOW')+'\n');
+    say(li.text||'');}
+  say('');
+  if(v.ok&&!pl.error&&(li.ok||li.error)){
+    tick('spec');
+    say('RECIPE APPROVED. The fingerprint above identifies it '+
+      'forever - same fingerprint, same data. Go to Step 3 to '+
+      'create the files.', li.error?'':'ok');}
+}
 async function validateSpec(){
   const d=await api('/api/validate',{
     kind:guessKind(),spec:document.getElementById('spec').value});
@@ -4283,8 +4384,7 @@ function dataSummary(d){
     '<div class="mcard"><div class="n">'+d.rows+
     '</div><div class="l">synthetic records</div></div>'+
     '<div class="mcard"><div class="n">'+d.mess_cells+
-    '</div><div class="l">deliberate corruptions '+
-    '(ledgered)</div></div>';
+    '</div><div class="l">cells we broke on purpose</div></div>';
   for(var i=0;i<(d.outcomes||[]).length;i++){
     var o=d.outcomes[i];var ok=true,sub='outcome rate';
     if(o.declared){
@@ -4296,17 +4396,24 @@ function dataSummary(d){
       '<div class="n">'+fmtPct(o.realized)+
       (ok?' \u2713':' \u26a0')+'</div>'+
       '<div class="l">'+sub+'</div></div>';}
-  h+='</div><div class="sumline">The messy dataset, the clean '+
-    'answer key, and the corruption ledger are downloadable '+
-    'below; the first rows are previewed at the bottom \u2014 '+
-    'click any cell to read it in full.</div>';
+  h+='</div><div class="sumline">Download the dataset, the '+
+    'answer key (the same rows with every error repaired), and '+
+    'the list of exactly which cells we broke on purpose. The '+
+    'first rows are previewed below \u2014 click any cell to read '+
+    'it in full.</div>';
   return h;}
 async function exportData(which,fmt){
   var d=await api('/api/export',{
     dir:document.getElementById('outdir').value,
     which:which,fmt:fmt});
   if(d.error){out('render-out',d.error,'bad');return;}
-  var blob=new Blob([d.content],{type:d.mime});
+  var blob;
+  if(d.content_b64){   /* a workbook is bytes, not text */
+    var bin=atob(d.content_b64);
+    var arr=new Uint8Array(bin.length);
+    for(var i=0;i<bin.length;i++)arr[i]=bin.charCodeAt(i);
+    blob=new Blob([arr],{type:d.mime});}
+  else blob=new Blob([d.content],{type:d.mime});
   var a=document.createElement('a');
   a.href=URL.createObjectURL(blob);
   a.download=d.filename;a.click();
@@ -4316,10 +4423,11 @@ function downloadBar(){
     'font-weight:700;text-transform:uppercase;'+
     'letter-spacing:.05em;color:#5a6a63">downloads</div>'+
     '<button class="dl" onclick="exportData(\'dirty\',\'csv\')">synthetic data (CSV)</button>'+
-    '<button class="dl" onclick="exportData(\'dirty\',\'json\')">synthetic data (JSON)</button>'+
+    '<button class="dl" onclick="exportData(\'dirty\',\'xlsx\')">synthetic data (Excel)</button>'+
+    '<button class="dl" onclick="exportData(\'dirty\',\'txt\')">synthetic data (TXT)</button>'+
     '<button class="dl" onclick="exportData(\'clean\',\'csv\')">answer key (CSV)</button>'+
-    '<button class="dl" onclick="exportData(\'clean\',\'json\')">answer key (JSON)</button>'+
-    '<button class="dl" onclick="exportData(\'ledger\',\'json\')">corruption ledger</button>';}
+    '<button class="dl" onclick="exportData(\'clean\',\'xlsx\')">answer key (Excel)</button>'+
+    '<button class="dl" onclick="exportData(\'ledger\',\'json\')">list of planted errors</button>';}
 function renderDone(d){
   if(d.error){out('render-out',d.error,'bad');return;}
   tick('data');
