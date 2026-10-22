@@ -6,6 +6,11 @@ freely.
 
 ## The 3D fidelity loops (drop straight into PowerPoint — they loop)
 
+All six are drawn on a WHITE ground for slide decks. The inks are
+chosen for paper, not for a dark screen: deep blue for real,
+cardinal for synthetic, and the fidelity ramp runs green to amber
+to red because a yellow mid-band disappears on white.
+
 - `SynthKit_pullapart_loop.gif` — real and synthetic fused, parting
   into two clouds that each keep the same shape, then merging back.
   Each cloud carries its own labeled axes. **The hero.**
