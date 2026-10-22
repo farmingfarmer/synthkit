@@ -58,24 +58,38 @@ def _pick_axes(src, gen):
 
     def numify(c):
         return pd.to_numeric(src[c], errors="coerce")
+
+    def numify_g(c):
+        return pd.to_numeric(gen[c], errors="coerce")
+    # A COLUMN MUST BE WELL POPULATED IN *BOTH* TABLES. Judging presence
+    # on the source alone let a sparse column through, and a missing
+    # value has no position - the old code sent it to 0.0, which is the
+    # CENTRE of the cube, so missingness piled up as a fake dense blob
+    # and made two honest clouds look like they had drifted apart.
     num = []
     for c in src.columns:
         if c not in gen.columns or "id" in c.lower():
             continue
-        v = numify(c)
-        if v.notna().mean() > 0.9 and v.nunique() > 6:
+        v, vg = numify(c), numify_g(c)
+        if (v.notna().mean() > 0.9 and vg.notna().mean() > 0.9
+                and v.nunique() > 6):
             num.append(c)
     # prefer clinically iconic, diverse features so the labels read well;
-    # then fill with whatever is left (keeping the axes un-redundant)
+    # matched by SUBSTRING, because a real extract names the column
+    # `age_at_visit`, not `age`, and an exact match found nothing.
     PRIORITY = ["age", "systolic", "glucose", "bmi", "a1c", "creatinine",
-                "weight", "heart_rate", "spo2", "diastolic"]
-    low = {c.lower(): c for c in num}
+                "weight", "heart_rate", "pulse", "spo2", "diastolic",
+                "sodium", "hemoglobin", "temperature"]
     picked = []
     for key in PRIORITY:
         if len(picked) >= 3:
             break
-        if key in low and low[key] not in picked:
-            picked.append(low[key])
+        for c in num:
+            if c in picked:
+                continue
+            if key in c.lower():
+                picked.append(c)
+                break
     for c in num:
         if len(picked) >= 3:
             break
@@ -113,13 +127,24 @@ def _cloud(src, gen, group_by, seed=0):
                           for c in cols])
     Rg = np.column_stack([pd.to_numeric(gen[c], errors="coerce").to_numpy(float)
                           for c in cols])
+    # A MISSING VALUE HAS NO POSITION. Drop rows that are not fully
+    # measured on all three axes rather than inventing a coordinate for
+    # them: nan_to_num sent every missing cell to 0.0 - dead centre of
+    # the cube - so on a sparse real extract both clouds grew a fake
+    # core and the picture read as "these do not overlap" when the
+    # measured ones do.
+    Rs = Rs[~np.isnan(Rs).any(axis=1)]
+    Rg = Rg[~np.isnan(Rg).any(axis=1)]
+    if not len(Rs) or not len(Rg):
+        raise ValueError(
+            "no rows are fully measured on {} - the showcase needs three "
+            "columns present together".format(", ".join(cols)))
     both = np.vstack([Rs, Rg])
     for j in range(len(cols)):
         lo = np.nanpercentile(both[:, j], 2); hi = np.nanpercentile(both[:, j], 98)
         d = (hi - lo) or 1.0
         Rs[:, j] = np.clip((Rs[:, j] - lo) / d * 2 - 1, -1, 1)
         Rg[:, j] = np.clip((Rg[:, j] - lo) / d * 2 - 1, -1, 1)
-    Rs = np.nan_to_num(Rs); Rg = np.nan_to_num(Rg)
     grp = np.array([0] * len(Rs) + [1] * len(Rg))
     ds = NearestNeighbors(n_neighbors=1).fit(Rg).kneighbors(Rs)[0][:, 0]
     dg = NearestNeighbors(n_neighbors=1).fit(Rs).kneighbors(Rg)[0][:, 0]
