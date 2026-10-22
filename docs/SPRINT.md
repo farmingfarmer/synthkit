@@ -637,3 +637,42 @@ the same rule the deck has had since it became a station.
   and the no-admin "Install for me only" choice, and says plainly
   NOT to use the Microsoft Store shortcut - it does not land on
   PATH, which is exactly the hole Jason fell in.
+
+
+## The showcase slide is a repo capability (2026-10-21)
+
+Yesha's call: the team is strong at building and weak at
+marketing; lead with something sexy, show input -> output ->
+impact, skip the details for the ten-second walk-around. The
+answer is a SLIDE that lives in the repo, not a one-off export.
+
+`scripts/showcase.py` builds one premium, self-contained page
+from a neural run directory - the same ONE-CODE-PATH rule the
+deck has: the CLI writes it, a bench iframe can serve the same
+string, so the slide and the report cannot disagree.
+
+- The hero spins the latent space - real and synthetic patients
+  in the autoencoder's own compressed view, which land on top of
+  each other because the synthetic data carries the same
+  structure. It is a hand-written WebGL point cloud with the
+  PCA-whitened coordinates BAKED in at build time: ~190 KB, a few
+  thousand points, no library, no CDN, no multi-megabyte GIF in
+  git. Auto-spins, drag to spin, one button toggles real-vs-
+  synthetic <-> fidelity (green dense core = reproduced, red
+  sparse edge = rare, protected).
+- Below the fold, the SAME performance plots the deck draws -
+  fidelity_deck's own hist_svg and heatmap_pair, recoloured for
+  the dark ground and rendered static - plus the gate scorecard
+  from synthkit.gate. The correlation heatmap keeps its `hm`
+  class so the deck's own CSS shows original-left / synthetic-
+  right with clean titles; stripping it garbled the two titles
+  into one frame, which a check now guards.
+- Self-contained is a CHECK, not a hope: the page must reach no
+  external host (the CSP an artifact runs under, and a bench
+  iframe, both forbid it). Fail-first: breaking the heatmap CSS
+  and injecting an external link each turn the right check red.
+  `smoke_showcase.py` builds the page from a tiny fast fixture
+  through the real LatentGen path and asserts the cloud bakes
+  3-D points, the plots render, the scorecard is conditional on
+  a fidelity.json, and the PCA dim guard renders a 3-coordinate
+  cloud even when the latent space is thinner than three.
