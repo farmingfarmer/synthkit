@@ -66,14 +66,30 @@ def _pick_axes(src, gen):
     # value has no position - the old code sent it to 0.0, which is the
     # CENTRE of the cube, so missingness piled up as a fake dense blob
     # and made two honest clouds look like they had drifted apart.
+    # CONTINUITY MATTERS AS MUCH AS PRESENCE. A count or a day-span is
+    # dense but DISCRETE: standardized into the cube it draws flat
+    # layers, and two honest clouds sitting one layer apart read as
+    # "these do not overlap". A real extract's continuous vitals are
+    # sparse, so demanding 90% presence threw them all away and left
+    # nothing but counts. Take a lower presence bar and plot only the
+    # rows where the chosen columns were actually measured together.
     num = []
     for c in src.columns:
         if c not in gen.columns or "id" in c.lower():
             continue
         v, vg = numify(c), numify_g(c)
-        if (v.notna().mean() > 0.9 and vg.notna().mean() > 0.9
-                and v.nunique() > 6):
+        pres = min(v.notna().mean(), vg.notna().mean())
+        if pres > 0.35 and v.nunique() > 25:
             num.append(c)
+    if not num:  # nothing continuous survived - fall back to anything numeric
+        for c in src.columns:
+            if c in gen.columns and "id" not in c.lower():
+                v, vg = numify(c), numify_g(c)
+                if (min(v.notna().mean(), vg.notna().mean()) > 0.35
+                        and v.nunique() > 6):
+                    num.append(c)
+    # richest first: continuous columns make a cloud, coarse ones make layers
+    num.sort(key=lambda c: -int(numify(c).nunique()))
     # prefer clinically iconic, diverse features so the labels read well;
     # matched by SUBSTRING, because a real extract names the column
     # `age_at_visit`, not `age`, and an exact match found nothing.
@@ -109,6 +125,35 @@ def _pick_axes(src, gen):
             break
         if c not in picked:
             picked.append(c)
+    picked = picked[:3]
+
+    # THE THREE MUST BE MEASURED TOGETHER. Sparse clinical columns can
+    # each clear the presence bar and still almost never co-occur on one
+    # row; dropping unmeasured rows would then leave a handful of points.
+    # Swap the thinnest axis for a denser column until enough rows carry
+    # all three.
+    def joint(cs):
+        if not cs:
+            return 0
+        m = numify(cs[0]).notna()
+        for c in cs[1:]:
+            m &= numify(c).notna()
+        return int(m.sum())
+
+    MIN_ROWS = 400
+    if len(picked) == 3 and joint(picked) < MIN_ROWS:
+        by_presence = sorted(
+            num, key=lambda c: -float(numify(c).notna().mean()))
+        for cand in by_presence:
+            if joint(picked) >= MIN_ROWS:
+                break
+            if cand in picked:
+                continue
+            thinnest = min(picked,
+                           key=lambda c: float(numify(c).notna().mean()))
+            trial = [c for c in picked if c is not thinnest] + [cand]
+            if joint(trial) > joint(picked):
+                picked = trial
     return picked[:3]
 
 
