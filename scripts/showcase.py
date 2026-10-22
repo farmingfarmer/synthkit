@@ -79,13 +79,13 @@ def _pick_axes(src, gen):
             continue
         v, vg = numify(c), numify_g(c)
         pres = min(v.notna().mean(), vg.notna().mean())
-        if pres > 0.35 and v.nunique() > 25:
+        if pres > 0.25 and v.nunique() > 25:
             num.append(c)
     if not num:  # nothing continuous survived - fall back to anything numeric
         for c in src.columns:
             if c in gen.columns and "id" not in c.lower():
                 v, vg = numify(c), numify_g(c)
-                if (min(v.notna().mean(), vg.notna().mean()) > 0.35
+                if (min(v.notna().mean(), vg.notna().mean()) > 0.25
                         and v.nunique() > 6):
                     num.append(c)
     # richest first: continuous columns make a cloud, coarse ones make layers
@@ -93,9 +93,10 @@ def _pick_axes(src, gen):
     # prefer clinically iconic, diverse features so the labels read well;
     # matched by SUBSTRING, because a real extract names the column
     # `age_at_visit`, not `age`, and an exact match found nothing.
-    PRIORITY = ["age", "systolic", "glucose", "bmi", "a1c", "creatinine",
-                "weight", "heart_rate", "pulse", "spo2", "diastolic",
-                "sodium", "hemoglobin", "temperature"]
+    PRIORITY = ["systolic", "glucose", "mass_index", "bmi", "a1c",
+                "creatinine", "weight", "heart_rate", "pulse",
+                "respiratory", "temperature", "spo2", "diastolic",
+                "sodium", "hemoglobin", "age"]
     picked = []
     for key in PRIORITY:
         if len(picked) >= 3:
