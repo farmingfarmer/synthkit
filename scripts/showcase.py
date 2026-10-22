@@ -14,7 +14,7 @@ ONE CODE PATH. The spinning cloud is a hand-written WebGL point cloud
 (no libraries, no CDN, nothing to install) with the 3-D coordinates
 BAKED in at build time - a few thousand points, kilobytes, not a
 multi-megabyte GIF checked into git. The performance plots are the
-exact fidelity_deck SVG functions, recoloured for the dark ground, so
+exact fidelity_deck SVG functions, recolored for the dark ground, so
 the slide and the deck cannot disagree about the same run.
 
 Build from a neural run directory (the one latent_challenger.py writes,
@@ -92,7 +92,7 @@ def _cloud(src, gen, group_by, seed=0):
 
 def _webgl(pos, grp, fidv):
     """Self-contained WebGL point cloud, auto-spinning, drag to spin,
-    one button to switch real-vs-synthetic <-> fidelity colour."""
+    one button to switch real-vs-synthetic <-> fidelity color."""
     data = ("var POS=" + json.dumps([round(x, 4) for row in pos
                                      for x in row])
             + ";var GRP=" + json.dumps(grp)
@@ -117,7 +117,7 @@ def _chips(fid):
 
 
 def _plots(src, gen, run, k=10, max_hist=3):
-    """Curated performance plots, recoloured for the dark ground: a few
+    """Curated performance plots, recolored for the dark ground: a few
     overlaid distributions and a correlation heatmap. Reuses the deck's
     own SVG so the two pictures are one computation."""
     # retint the deck's module-level fills for the dark theme
@@ -214,7 +214,7 @@ _WEBGL_HTML = """
 <div class="stage">
   <canvas id="gl"></canvas>
   <div class="vz-ui">
-    <button id="mode" class="vz-btn">colour: real vs synthetic</button>
+    <button id="mode" class="vz-btn">color: real vs synthetic</button>
     <div class="vz-hint">drag to spin &middot; it spins on its own</div>
   </div>
   <div class="vz-legend" id="lg"></div>
@@ -227,7 +227,7 @@ var gl=cv.getContext('webgl',{antialias:true,alpha:false,premultipliedAlpha:fals
 var legend=document.getElementById('lg');
 if(!gl){cv.style.display='none';return;}
 var N=GRP.length;
-// colours
+// colors
 var STEEL=[0.37,0.66,0.85], CARD=[0.886,0.231,0.306];
 function grad(t){ // green -> yellow -> red
   var stops=[[0.18,0.76,0.45],[0.6,0.82,0.18],[1.0,0.82,0.25],[1.0,0.48,0.24],[0.886,0.231,0.306]];
@@ -263,7 +263,7 @@ window.addEventListener('mouseup',function(){drag=false;});
 window.addEventListener('mousemove',function(e){if(!drag)return;ay+=(e.clientX-px)*0.01;ax+=(e.clientY-py)*0.01;px=e.clientX;py=e.clientY;});
 cv.addEventListener('touchstart',function(e){auto=false;if(e.touches.length){px=e.touches[0].clientX;py=e.touches[0].clientY;}});
 cv.addEventListener('touchmove',function(e){if(e.touches.length){ay+=(e.touches[0].clientX-px)*0.01;ax+=(e.touches[0].clientY-py)*0.01;px=e.touches[0].clientX;py=e.touches[0].clientY;e.preventDefault();}},{passive:false});
-document.getElementById('mode').addEventListener('click',function(){mode=mode?0:1;this.textContent=mode?'colour: fidelity (green = reproduced)':'colour: real vs synthetic';setLegend();});
+document.getElementById('mode').addEventListener('click',function(){mode=mode?0:1;this.textContent=mode?'color: fidelity (green = reproduced)':'color: real vs synthetic';setLegend();});
 function setLegend(){legend.innerHTML = mode
   ? '<span class="lg-dot" style="background:#2ec27a"></span>common, reproduced<span class="lg-dot" style="background:#e23b4e;margin-left:16px"></span>rare, protected'
   : '<span class="lg-dot" style="background:#5fa8d8"></span>real<span class="lg-dot" style="background:#e23b4e;margin-left:16px"></span>synthetic';}

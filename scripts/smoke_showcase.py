@@ -101,7 +101,7 @@ def main():
         check("the WebGL canvas and draw loop are present",
               'id="gl"' in html and "drawArrays" in html
               and "requestAnimationFrame" in html)
-        check("the colour-mode toggle (real-vs-synthetic / fidelity) "
+        check("the color-mode toggle (real-vs-synthetic / fidelity) "
               "is wired",
               'id="mode"' in html and "GRP" in html and "FID" in html)
 
