@@ -3196,3 +3196,65 @@ exist.
 ## Tone
 
 - Direct and concise. No emojis. No over-explanation.
+
+- **THE TOKEN CAP IS A MEMORY BUDGET, NOT A PRIVACY RULE - AND IT
+  WAS COSTING FIDELITY (2026-10-23).** On an 800-patient tidy
+  fixture, `conditions` held 5,191 tokens, **4,710 cleared the k
+  floor, and SIXTY were modeled** - while the encoded frame sat at
+  437 dimensions against the 4,326 that once died allocating
+  1.5 GiB. Ten times the headroom, and 4,650 already-publishable
+  tokens discarded. Paired on three seeds at a flat cap of 400,
+  `close` moved **+3.1 / +6.2 / +3.1** with INVERTED still 0 and
+  direction 32/32, and the output vocabulary went 60 tokens -> 400
+  with set sizes closing on the source (active_drugs 1.40 -> 1.61
+  per row against 2.25 held). `--max-tokens` / `--max-levels` are
+  the lever, and the run PRINTS the budget it used.
+- **AND THE SINGLE SEED SAID THE OPPOSITE.** The first reading of
+  that change was close 87.5% -> 81.2%, a 6.3-point LOSS, on one
+  seed. The paired sweep says +4.2 mean, all three positive. A
+  single-seed measurement of a generation change is worth nothing -
+  this file has said so about row counts, recall and effects, and
+  it now says it about the cap, having nearly rejected a real
+  improvement on one run.
+- **THE SOLVED WIDTH BUDGET WAS BUILT, MEASURED AND WITHDRAWN.** A
+  flat 400 is unsafe on a wider frame, so the cap was made a budget:
+  take the largest cap whose total width fits 2,400 dimensions. It
+  chose 280 and measured NOTHING - +0.0 / +3.1 / -3.1, mean 0.0,
+  signs MIXED, against the flat 400's all-positive. The cause is a
+  MODELLING error, not a tuning one: predicting width from
+  k-screened levels on the FULL frame overestimates what the encoder
+  builds by about 2.5x at every cap (973 against a measured 437 at
+  cap 60; 3,222 against 1,308 at cap 400), because the fit sees an
+  85% patient split and several counted columns never become one-hot
+  at all. Tuning the constant until it happened to pick 400 on this
+  one fixture would be the measured-at-one-scale fault wearing a
+  budget. The DEFAULT is unchanged; the fix when it is picked up is
+  to take true per-column width from the PLAN the encoder already
+  builds rather than predicting it.
+
+- **THE GATE CAN BE READ BACKWARDS, AND THE THIN COHORT WINS
+  (2026-10-23).** The same engine on an 800- and a 100-patient cut
+  of the same generator: the SMALLER cohort scored HIGHER on close,
+  **91.4% against 87.5%**, while publishing **64% of its data
+  against 87%** and carrying **12 distinct condition codes against
+  60**. Fidelity is scored only on the pairs that cleared the
+  privacy screen, so a thinner source grades a smaller and stronger
+  surviving set - it is faithful about LESS. A comparison that
+  prints fidelity without coverage beside it argues for the worse
+  dataset. `compare_sources.py` puts coverage ABOVE fidelity and
+  states the trap in words where a reader will meet it, and a check
+  asserts that ordering.
+- **PUBLISHABLE MASS IS THE SIGNAL; COLUMN COUNT HID IT.** Columns
+  keeping anything moved 74 -> 71 between those two cuts - three -
+  while the share of data landing on a publishable value fell 87% ->
+  64%. A column keeps its name on one surviving level out of two
+  hundred, so the count flatters.
+- **AND A SET COLUMN IS NOT A CATEGORY OF ITS COMBINATION STRINGS.**
+  The first census judged sets that way: `t03;t09;t14` and `t03;t14`
+  share no "level", every combination is near-unique, and the column
+  read 0% publishable however ordinary its TOKENS were - two sources
+  that differ completely both came out at exactly 0.000, which is
+  how the fault was caught. Sets are screened by TOKEN through
+  `sets.vocabulary`, the same module the engine uses, so the census
+  and the generator cannot disagree about what is publishable. The
+  real pair then separated further: 87% against 64%.

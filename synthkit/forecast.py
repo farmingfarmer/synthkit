@@ -53,6 +53,14 @@ def _numify(s):
     return pd.to_numeric(s, errors="coerce")
 
 
+def _is_set(s) -> bool:
+    from synthkit import sets as _sets
+    try:
+        return bool(_sets.looks_like_set(s))
+    except Exception:
+        return False
+
+
 def _looks_numeric(s) -> bool:
     v = _numify(s)
     return bool(v.notna().mean() > 0.9 and v.nunique() > 12)
@@ -88,22 +96,73 @@ def census(df, group_by: str, k: int = 10) -> Dict[str, Any]:
                 # most extreme patients, so it needs k of them
                 "publishable": present_pat >= k,
                 "why": "{} patients carry a value".format(present_pat)})
+        elif _is_set(s):
+            # A SET COLUMN IS NOT A CATEGORY OF ITS COMBINATION
+            # STRINGS. Judged that way, `t03;t09;t14` and `t03;t14`
+            # share nothing, every combination is near-unique, and the
+            # column reads 0% publishable however ordinary its TOKENS
+            # are - two sources that differ completely both came out
+            # at exactly 0.000. The engine has always screened sets by
+            # token through `sets.vocabulary`; the census asks the
+            # same module, so the two cannot disagree about what is
+            # publishable.
+            from synthkit import sets as _sets
+            vocab = _sets.vocabulary(s, df[group_by].to_numpy(),
+                                     k=k, cap=0)
+            toks = [t["value"] for t in vocab["tokens"]] if vocab else []
+            sep = vocab["separator"] if vocab else ";"
+            keep = set(toks)
+            tot = kept_n = 0
+            for v in s.fillna(""):
+                for t in str(v).split(sep):
+                    t = t.strip()
+                    if not t:
+                        continue
+                    tot += 1
+                    kept_n += (t in keep)
+            n_all = len(set(
+                t.strip() for v in s.fillna("")
+                for t in str(v).split(sep) if t.strip()))
+            cols.append({
+                "column": c, "kind": "set",
+                "distinct": n_all, "levels_clearing_k": len(toks),
+                "rows_total": tot, "rows_kept": kept_n,
+                "mass": round(kept_n / tot, 3) if tot else 0.0,
+                "publishable": bool(toks),
+                "why": "{} of {} tokens held by {}+ patients, "
+                       "{:.0%} of token uses survive".format(
+                           len(toks), n_all, k,
+                           (kept_n / tot) if tot else 0.0)})
         else:
             per = df.groupby(c)[group_by].nunique()
             n_levels = int(per.shape[0])
             clear = int((per >= k).sum())
+            # HOW MUCH OF THE COLUMN SURVIVES, not merely whether any
+            # of it does. Counting columns said 74 of 84 publish at 800
+            # patients and 71 of 84 at 100 - a three-column difference
+            # that hid a fourteen-POINT collapse in how much data sits
+            # on a publishable value (75.3% -> 61.2%). A column keeps
+            # its name on one surviving level out of two hundred, so
+            # the count flatters and the MASS is what an operator feels.
+            counts = df[c].value_counts()
+            keep = per[per >= k].index
+            tot = float(counts.sum()) or 1.0
+            kept = float(counts.reindex(keep).fillna(0).sum())
             cols.append({
                 "column": c, "kind": "categorical",
                 "distinct": n_levels,
                 "levels_clearing_k": clear,
+                "rows_total": int(tot), "rows_kept": int(kept),
+                "mass": round(kept / tot, 3),
                 "mean_patients_per_level":
                     round(float(per.mean()), 1) if n_levels else 0.0,
                 # a categorical survives if ANY level clears the floor;
                 # if none do, every value folds to the sentinel and the
                 # column comes out a constant - destroyed, not thinned
                 "publishable": clear > 0,
-                "why": "{} of {} levels held by {}+ patients".format(
-                    clear, n_levels, k)})
+                "why": "{} of {} levels held by {}+ patients, "
+                       "{:.0%} of rows land on one".format(
+                           clear, n_levels, k, kept / tot)})
     pub = [c for c in cols if c["publishable"]]
     dead = [c for c in cols if not c["publishable"]]
     share = (len(pub) / len(cols)) if cols else 0.0
@@ -117,11 +176,20 @@ def census(df, group_by: str, k: int = 10) -> Dict[str, Any]:
     # rows from the same people cannot help, only more people can.
     rpp = (rows / patients) if patients else 0.0
     starved = bool(dead) and patients < 25 * k and rpp >= 5
+    # PUBLISHABLE MASS IS THE VERDICT, because it is what an operator
+    # feels. Share-of-columns moved three points between an 800- and a
+    # 100-patient cut of the SAME generator while the mass fell
+    # fourteen - the count keeps a column alive on one surviving level
+    # out of two hundred.
+    cat = [c for c in cols if c["kind"] in ("categorical", "set")]
+    tot = sum(c["rows_total"] for c in cat)
+    kept = sum(c["rows_kept"] for c in cat)
+    mass = (kept / tot) if tot else 1.0
     if patients < k:
         verdict = SPARSE
-    elif starved or share < 0.5:
+    elif mass < 0.5 or share < 0.5 or starved:
         verdict = SPARSE
-    elif share >= 0.85:
+    elif mass >= 0.75 and share >= 0.85:
         verdict = RICH
     else:
         verdict = WORKABLE
@@ -131,6 +199,7 @@ def census(df, group_by: str, k: int = 10) -> Dict[str, Any]:
             "k": k, "columns": cols,
             "n_publishable": len(pub), "n_columns": len(cols),
             "publishable_share": round(share, 3),
+            "publishable_mass": round(mass, 3),
             "destroyed": [c["column"] for c in dead],
             "verdict": verdict}
 
@@ -229,8 +298,11 @@ def plain(cen: Dict[str, Any],
     L.append("  privacy floor: every published pattern needs {} "
              "distinct patients".format(cen["k"]))
     L.append("")
-    L.append("  VERDICT: {}  -  {} of {} columns publish".format(
-        cen["verdict"], cen["n_publishable"], cen["n_columns"]))
+    L.append("  VERDICT: {}".format(cen["verdict"]))
+    L.append("    {:.0%} of the data lands on a value that can be "
+             "published".format(cen.get("publishable_mass", 1.0)))
+    L.append("    {} of {} columns keep at least something".format(
+        cen["n_publishable"], cen["n_columns"]))
     L.append("")
     for line in advice(cen):
         L.append("  " + line)

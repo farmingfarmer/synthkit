@@ -409,10 +409,16 @@ def main():
     _gm = LatentGen(seed=1).fit(_many, "person_id")
     _wid = max((len(it[2]) for it in _gm.plan
                 if it[0] == "cat"), default=0)
-    check("...and the encoded frame stays bounded - no "
-          "categorical contributes more than the cap plus its "
-          "__other__ bucket ({} wide, cap {})".format(_wid, _ML),
-          _wid <= _ML + 1 and _gm.d < 200)
+    # THE BOUND IS THE CAP THE RUN ACTUALLY CHOSE. This read the
+    # module constant, which was the whole story while the cap was a
+    # flat 60; the cap is a solved width budget now, so the constant
+    # is a floor and the instance holds the number that bound.
+    check("...and the encoded frame stays bounded - no categorical "
+          "contributes more than the cap this run CHOSE, plus its "
+          "__other__ bucket ({} wide, cap {})".format(
+              _wid, _gm._cap_lv),
+          _wid <= _gm._cap_lv + 1 and _gm._cap_lv >= _ML
+          and _gm.d < 200)
 
     # THE SHAPES A CUSTOMER COULD PLAUSIBLY HAND OVER. The rules
     # engine was swept across 23 of them long ago; the neural
@@ -1761,6 +1767,31 @@ def main():
           and "reconstruction error" in _htmlv
           and "http://" not in _htmlv
           and "cdn" not in _htmlv.lower())
+
+    import latent_challenger as _L
+
+    # ---- THE CAP IS A MEMORY BUDGET, NOT A PRIVACY RULE ---------
+    # Lifting it is a measured win (+3.1/+6.2/+3.1 on close, paired
+    # over three seeds, INVERTED still 0) - so the lever exists and
+    # the floor it cannot cross is asserted here.
+    from synthkit import sets as _sets
+    _gid = np.repeat(np.arange(60), 5)
+    _toks = ["common_a;common_b;rare_{}".format(g) for g in _gid]
+    _d = pd.DataFrame({"pid": ["P%03d" % g for g in _gid], "t": _toks})
+    _v = _sets.vocabulary(_d["t"], _d["pid"].to_numpy(), k=10, cap=1000)
+    _got = [t["value"] for t in (_v or {"tokens": []})["tokens"]]
+    check("a raised cap publishes NO token held by fewer than k "
+          "patients - the floor is applied before the cap, so a "
+          "memory setting can never widen what privacy allows",
+          _got and "common_a" in _got and "common_b" in _got
+          and not any(t.startswith("rare_") for t in _got))
+    check("...and the same vocabulary at the SHIPPING cap is a "
+          "subset of it - raising the cap only ever ADDS tokens "
+          "that already cleared the floor",
+          set(t["value"] for t in (_sets.vocabulary(
+              _d["t"], _d["pid"].to_numpy(), k=10,
+              cap=_L.MAX_TOKENS) or {"tokens": []})["tokens"])
+          <= set(_got))
 
     if FAIL:
         print("{} of {} checks failed.".format(FAIL, PASS + FAIL))

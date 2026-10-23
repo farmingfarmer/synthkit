@@ -210,6 +210,9 @@ class LatentGen:
                  suppress_pairs: list = None,
                  suppress_top: int = 0,
                  poison_pairs: list = None):
+        # defaults so the caps exist before fit() chooses them
+        self._cap_tok = MAX_TOKENS
+        self._cap_lv = MAX_LEVELS
         # Capacity scales with the frame, decided at fit time. An
         # 8-dim bottleneck tuned on 6-column fixtures LOST a named
         # driver triple entirely at 77 columns (shares read 0/0,
@@ -315,6 +318,34 @@ class LatentGen:
         gid = df[group_by].astype(str).to_numpy()
         self._group_name = group_by
         cols = [c for c in df.columns if c != group_by]
+        # THE WIDTH BUDGET WAS BUILT, MEASURED, AND NOT SHIPPED.
+        # The cap being a memory budget rather than a privacy rule is
+        # right, and lifting it is a measured WIN: paired on three
+        # seeds at a flat 400, `close` moved +3.1 / +6.2 / +3.1 with
+        # INVERTED still 0, direction 32/32, and the output vocabulary
+        # went 60 tokens -> 400 with set sizes closing on the source
+        # (active_drugs 1.40 -> 1.61 per row against 2.25 held).
+        #
+        # A SOLVED budget was then tried so a wider frame could not
+        # recreate the 4,326-dimension allocation that once died. It
+        # chose 280 and measured NOTHING: +0.0 / +3.1 / -3.1, mean
+        # 0.0, signs mixed, against the flat 400's all-positive. The
+        # reason is a modelling error, not a tuning one - predicting
+        # width from k-screened levels on the FULL frame overestimates
+        # what the encoder actually builds by about 2.5x at every cap
+        # (973 against a measured 437 at cap 60; 3,222 against 1,308
+        # at cap 400), because the fit sees an 85% patient split and
+        # several counted columns never become one-hot at all. A
+        # budget spent in the wrong units buys the wrong cap.
+        #
+        # So the DEFAULT is unchanged and the lever is explicit:
+        # --max-tokens is measured good at 400 on an extract-shaped
+        # frame. Shipping the solver would be shipping a default whose
+        # own measurement says it does nothing. The fix, when this is
+        # picked up: take true per-column width from the PLAN the
+        # encoder already builds rather than predicting it, then solve
+        # and trim - exact, in the units that bind.
+        self._cap_tok, self._cap_lv = MAX_TOKENS, MAX_LEVELS
         self.plan = []
         mats = []
         for c in cols:
@@ -372,7 +403,7 @@ class LatentGen:
             # disagree about which tokens clear the floor.
             if not is_num:
                 vocab = sets.vocabulary(df[c], gid, k=self.k,
-                                        cap=MAX_TOKENS)
+                                        cap=self._cap_tok)
                 if vocab:
                     sep = vocab["separator"]
                     toks = [t["value"] for t in vocab["tokens"]]
@@ -528,7 +559,7 @@ class LatentGen:
                 # the common ones, and the tail is honest rather
                 # than enormous.
                 keep = list(s[s.isin(ok)].value_counts()
-                            .index[:MAX_LEVELS])
+                            .index[:self._cap_lv])
                 shape_only = None
                 if not keep:
                     # Nothing clears the floor: publish the shape
@@ -552,11 +583,11 @@ class LatentGen:
                         lv = pd.Series([""] * len(s),
                                        index=s.index)
                     else:
-                        prof = (vc.head(MAX_LEVELS) / float(len(s))
+                        prof = (vc.head(self._cap_lv) / float(len(s))
                                 ).tolist()
                         keep = ["{}_{:04d}".format(c[:12], i)
                                 for i in range(min(
-                                    n_distinct, MAX_LEVELS))]
+                                    n_distinct, self._cap_lv))]
                         shape_only = {"distinct": n_distinct,
                                       "profile": prof}
                         lv = pd.Series(
@@ -2901,6 +2932,7 @@ def _measure_release(src, gen, gen_engine, group_by):
 def run_csv(argv):
     """The real-extract read, for the data machine. Echoes every
     setting it received - a missing flag must be visible."""
+    global MAX_TOKENS, MAX_LEVELS
     import argparse
     ap = argparse.ArgumentParser(prog="latent_challenger.py csv")
     ap.add_argument("csv")
@@ -2926,6 +2958,20 @@ def run_csv(argv):
                          "fidelity for a stronger guarantee, "
                          "and the trade is reported, not "
                          "silent".format(K))
+    # THE CAPS ARE A MEMORY BUDGET, NOT A PRIVACY RULE, so they are
+    # reachable. Measured on an 800-patient tidy fixture: 4,710
+    # condition tokens cleared the k floor and SIXTY were modeled,
+    # while the encoded frame sat at 437 dimensions against the 4,326
+    # that once died allocating 1.5 GiB. A cap that throws away
+    # publishable signal with that much headroom is worth sweeping.
+    ap.add_argument("--max-tokens", type=int, default=MAX_TOKENS,
+                    help="set-token dimensions per column (default "
+                         "{}): a MEMORY budget, not a privacy rule - "
+                         "the k floor still decides what may be "
+                         "published at all".format(MAX_TOKENS))
+    ap.add_argument("--max-levels", type=int, default=MAX_LEVELS,
+                    help="categorical level dimensions per column "
+                         "(default {})".format(MAX_LEVELS))
     ap.add_argument("--denoise", type=float, default=0.3,
                     help="train as a DENOISING autoencoder with "
                          "this input-noise sd - the defense on "
@@ -2969,6 +3015,15 @@ def run_csv(argv):
                          "seen; the tool names them by strength "
                          "and records which it removed")
     a = ap.parse_args(argv)
+    # The caps are module-level because the encoder reads them while
+    # building the frame; a sweep sets them once, here, and the run
+    # PRINTS what it used so a reading can never be attributed to the
+    # wrong budget.
+    if a.max_tokens != MAX_TOKENS or a.max_levels != MAX_LEVELS:
+        print("caps: set tokens {} -> {}, levels {} -> {} "
+              "(memory budget, not a privacy rule)".format(
+                  MAX_TOKENS, a.max_tokens, MAX_LEVELS, a.max_levels))
+    MAX_TOKENS, MAX_LEVELS = a.max_tokens, a.max_levels
     _supp = []
     for _sp in a.suppress:
         if "~" not in _sp:

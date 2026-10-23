@@ -106,6 +106,27 @@ def main():
           "rows did not - the asymmetry the advice promises",
           cen3["n_publishable"] > bad["n_publishable"])
 
+    # MASS, NOT COLUMN COUNT, IS THE SIGNAL. Measured on an 800- and a
+    # 100-patient cut of the SAME fixture generator: columns publishing
+    # moved 74 -> 71 (three) while the row-mass landing on a publishable
+    # value fell 75.3% -> 61.2% (fourteen points). A verdict driven by
+    # the count would have called the thinner cut healthy.
+    check("the census reports publishable MASS, and it is lower for "
+          "the patient-poor cohort than for the healthy one",
+          0.0 <= bad["publishable_mass"] <= 1.0
+          and good["publishable_mass"] > bad["publishable_mass"])
+    check("...and every categorical carries the mass that decided it, "
+          "so a column kept alive by one surviving level cannot pass "
+          "for intact",
+          all("mass" in c and "of rows land on one" in c["why"]
+              for c in good["columns"] if c["kind"] == "categorical"))
+    # same people, same patterns, FEWER of them - mass must fall
+    thin = F.census(healthy(patients=60, per=8), "person_id", k=10)
+    wide = F.census(healthy(patients=800, per=8), "person_id", k=10)
+    check("cutting the PATIENT count of the same generator lowers "
+          "publishable mass - the thing a column count hid",
+          thin["publishable_mass"] <= wide["publishable_mass"])
+
     rows_bad = F.sizes(bad, [1, 5, 10])
     check("a sparse source REFUSES every output size rather than "
           "quietly offering one that cannot be honoured",
