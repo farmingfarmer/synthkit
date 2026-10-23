@@ -3346,3 +3346,42 @@ exist.
   `sets.vocabulary`, the same module the engine uses, so the census
   and the generator cannot disagree about what is publishable. The
   real pair then separated further: 87% against 64%.
+
+- **THE TOKEN CAP WAS A CEILING ON WHAT A PATIENT COULD HOLD, AND
+  LIFTING IT EXPOSED ONE MECHANISM UNDER THREE SEPARATE MISSES
+  (2026-10-23).** On a 100-patient cohort whose patients each hold
+  about 82 distinct drugs and up to 170, a run at the old cap of 60
+  emitted a high bound of EXACTLY 60.00 with the spread collapsed to
+  a third of source - a hard ceiling, not a model failure: the
+  column had 202 drug tokens clearing k and published 60, so no
+  generated patient could hold a 61st. At cap 400 the ceiling is
+  gone, 60.00 -> 155.20 against a source 170.30, and the spread
+  recovers from 34% of source to 83%.
+- **THE PREDICTION WAS WRITTEN FIRST AND SCORED 2 OF 4.** The
+  ceiling clause held exactly. The low-end clause held - it was
+  predicted NOT to improve, and it worsened. The clause saying
+  encounters per patient would barely move FAILED: mean -20%,
+  median -33%, high -26%, so the encoded WIDTH couples into the
+  visit-count draw through the latent, which was not expected and
+  is the finding that failed clause bought. And the column was
+  MISNAMED in the first reading - the ceiling was on
+  `distinct active_drugs per patient`, read off a block whose
+  header had not been checked. Read the header, never the line
+  offset.
+- **AND THE RESIDUAL IS ONE SHAPE, NOT THREE FAULTS: EVERY
+  PER-PATIENT DISTRIBUTION COMES OUT TOO NARROW.** Measured on the
+  same run across three independent quantities, source -> generated:
+      conditions/patient    spread 90.4 -> 52.8    low 13.2 -> 58.7    high 322.0 -> 235.7
+      active_drugs/patient  spread 47.5 -> 39.2    low 10.2 -> 29.1    high 170.3 -> 155.2
+      encounters/patient    spread 204.8 -> 139.4  low 17.2 -> 31.9    high 707.2 -> 490.6
+  Every spread is short, every low bound too HIGH and every high
+  bound too LOW - the light patients are not light enough and the
+  heavy ones not heavy enough. Three misses with one signature are
+  ONE mechanism, and reporting them as three fidelity gaps would
+  send somebody chasing each in turn. The suspect is the mixture
+  over PATIENT CENTRES under-dispersing in latent space, which
+  would compress every per-patient quantity at once; the test is to
+  compare the spread of generated patient centres against the
+  training centres DIRECTLY rather than inferring it from the
+  decoded columns. NOT the recorded dev_scale sweep, which moved the
+  between-patient SHARE and is about within-patient deviation.
