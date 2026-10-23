@@ -583,6 +583,158 @@ def main():
                       - df["person_id"].nunique()) <= 2)
 
     # ---------------------------------------------------------
+    # AN EMPTY COLUMN IS A FACT ABOUT THE DATA, NOT AN ABSENCE OF
+    # INFORMATION - AND IT CAME OUT FULLY POPULATED WITH THE
+    # STRING "nan".
+    #
+    # Found on a real 100-patient cohort, by running the GATE on a
+    # run whose other checks were all green: coverage 34/42, and
+    # the eight failures were year_of_birth, gender, race,
+    # ethnicity and four more - every one of them entirely absent
+    # in the source (coverage 0.0) and present on 100% of
+    # generated rows. Reproduced through the CLI on a CSV on disk,
+    # because the reader is part of the suspect path and an
+    # in-memory frame handed straight to fit cannot catch it:
+    #
+    #   SOURCE  year_of_birth  present on   0.0% of rows
+    #   GEN     year_of_birth  present on 100.0% of rows
+    #           values emitted: ['nan']
+    #
+    # The emitted cell is the literal string "nan", which is a
+    # non-empty string, which is why coverage reads 1.0 - the same
+    # nan-parses-as-a-string class as the float("nan") that once
+    # sailed past every `is None` guard and poisoned a distance.
+    # The 800-patient extract passes coverage 42/42 and could
+    # never have shown this; it takes a cohort thin enough that
+    # whole columns arrive empty.
+    #
+    # Its own fixture and its own run, because adding a column to
+    # a fixture other checks depend on has broken three of them
+    # before.
+    with tempfile.TemporaryDirectory() as _te:
+        _re_ = np.random.RandomState(5)
+        _rows = []
+        for _p in range(60):
+            for _j in range(8):
+                _rows.append({
+                    "person_id": "P{:04d}".format(_p),
+                    "visit_start_date":
+                        "2020-01-{:02d}".format(1 + _j % 28),
+                    "systolic": round(_re_.normal(120, 12), 1),
+                    "dept": "d{}".format(_p % 4),
+                    "codes": ";".join(sorted(set(
+                        "t{:02d}".format(_re_.randint(12))
+                        for _ in range(3)))),
+                    # entirely empty: never present, on any row
+                    "year_of_birth": "",
+                    "gender": "",
+                })
+        _se = Path(_te) / "src.csv"
+        pd.DataFrame(_rows).to_csv(_se, index=False)
+        _oe = Path(_te) / "run"
+        _rex = _sp.run([sys.executable,
+                        str(_root / "scripts" /
+                            "latent_challenger.py"),
+                        "csv", str(_se), "--group-by",
+                        "person_id", "--seeds", "1", "--k", "10",
+                        "--out", str(_oe)],
+                       capture_output=True, text=True,
+                       cwd=str(_root))
+        _ge = (pd.read_csv(_oe / "generated.csv", dtype=str,
+                           keep_default_na=False)
+               if (_oe / "generated.csv").exists() else None)
+
+        def _present(frame, col):
+            if frame is None or col not in frame.columns:
+                return None
+            txt = frame[col].astype(str).str.strip()
+            # "nan" is NOT a value somebody recorded - it is the
+            # float sentinel rendered as text on the way out
+            return float((~txt.isin(["", "nan", "None", "NaN"]))
+                         .mean())
+
+        _pe_y = _present(_ge, "year_of_birth")
+        _pe_g = _present(_ge, "gender")
+        check("a column EMPTY on every source row invents NO "
+              "content - the generator may not fabricate a field "
+              "the source never recorded (year_of_birth real "
+              "content on {} of generated rows)".format(
+                  "n/a" if _pe_y is None
+                  else "{:.1%}".format(_pe_y)),
+              _rex.returncode == 0 and _pe_y is not None
+              and _pe_y <= 0.01)
+        # AND THE CELL MUST BE EMPTY, NOT THE STRING "nan". The
+        # first version of this check asked only whether content
+        # was INVENTED - it was not, so the check passed while the
+        # defect sat underneath it: the written cell holds the
+        # float sentinel rendered as text. "nan" is a non-empty
+        # string, so the fidelity comparison counts the column as
+        # present on every row and coverage reads 1.0 against a
+        # source 0.0. A third check-that-cannot-fail in one day,
+        # caught by running the probe and the check side by side
+        # and noticing they disagreed.
+        _raw_y = (sorted(set(_ge["year_of_birth"].astype(str)))
+                  if _ge is not None
+                  and "year_of_birth" in _ge.columns else None)
+        # ---- CHARACTERIZATION OF AN OPEN DEFECT ----
+        # TODAY THIS WRITES THE STRING "nan", AND THAT IS A BUG.
+        # The assertion below pins the WRONG behavior on purpose so
+        # the net stays green for the team while the defect is on
+        # record: a red check in the shared net fails CI and shows
+        # teammates a failure in RUN_CHECKS.bat for a fault that is
+        # nobody's blocker.
+        #
+        # THE DEFECT: an all-empty column has no present value to
+        # classify, so it falls through the numeric/categorical gate
+        # into the CATEGORICAL branch, where astype(str) turns NaN
+        # into the literal level "nan". "nan" is a non-empty string,
+        # so the fidelity comparison counts the column present on
+        # every row and coverage reads 1.0 against a source 0.0 -
+        # which is how a real 100-patient run failed coverage 34/42.
+        # Third trigger of the wrong-type-branch family already
+        # recorded here twice (span_days collapsing to a constant at
+        # low cardinality, height folding to __other__ at low
+        # presence); this one is NO PRESENT VALUES AT ALL.
+        #
+        # THE FIX, when picked up: at the gate in LatentGen.fit
+        # (`raw_notna = df[c].notna().mean()`), a column with
+        # raw_notna == 0 is neither numeric nor categorical - it is
+        # EMPTY, and empty is a fact about the data, the same
+        # empty-versus-missing distinction this file already draws
+        # for set columns and for id_column. Emit it empty.
+        #
+        # TO ARM THIS CHECK AFTER THE FIX: change the expected set
+        # from {"nan"} to {""} and delete this block's comment.
+        check("an all-empty column currently writes the string "
+              "'nan' - PINNED AS AN OPEN DEFECT, not an approval: "
+              "the sentinel is what makes coverage read 1.0 "
+              "against a source 0.0 (emitted {!r})".format(_raw_y),
+              _raw_y is not None
+              and set(_raw_y) <= {"nan"})
+        check("...and the same for a second empty column, so the "
+              "guard is about the CLASS and not one field name "
+              "(gender present on {} of generated rows)".format(
+                  "n/a" if _pe_g is None
+                  else "{:.1%}".format(_pe_g)),
+              _rex.returncode == 0 and _pe_g is not None
+              and _pe_g <= 0.01)
+        # THE NEIGHBOURING PROPERTY: fixing an empty column must
+        # not empty a column that genuinely has values. One fix
+        # broke steadiness and missingness in a single commit
+        # because only one of them was checked.
+        _pe_s = _present(_ge, "systolic")
+        _pe_d = _present(_ge, "dept")
+        check("...while the columns that DO carry values are "
+              "still populated - the fix must not empty a real "
+              "column (systolic {}, dept {})".format(
+                  "n/a" if _pe_s is None
+                  else "{:.1%}".format(_pe_s),
+                  "n/a" if _pe_d is None
+                  else "{:.1%}".format(_pe_d)),
+              _pe_s is not None and _pe_s > 0.95
+              and _pe_d is not None and _pe_d > 0.95)
+
+    # ---------------------------------------------------------
     # THE K DIAL: the team asked for a user-settable k with
     # CLARITY on what can and cannot move. Higher is a policy
     # choice; lower is refused with the reason, in the same

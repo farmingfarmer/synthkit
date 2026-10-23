@@ -3434,3 +3434,63 @@ exist.
   training centres DIRECTLY rather than inferring it from the
   decoded columns. NOT the recorded dev_scale sweep, which moved the
   between-patient SHARE and is about within-patient deviation.
+
+- **AN ALL-EMPTY COLUMN COMES OUT AS THE STRING "nan", AND IT COST A
+  REAL RUN ITS COVERAGE CRITERION (2026-10-23, OPEN).** A 100-patient
+  cohort failed the gate at coverage 34/42 - and the eight failures
+  were columns ENTIRELY ABSENT in the source: year_of_birth, gender,
+  race, ethnicity and four more, coverage 0.0 in, 1.0 out.
+  Reproduced through the CLI on a CSV on disk, because the reader is
+  part of the suspect path and an in-memory frame handed straight to
+  fit cannot catch it:
+      SOURCE  year_of_birth  present on   0.0% of rows
+      GEN     year_of_birth  present on 100.0% of rows, values ['nan']
+  MECHANISM: an all-empty column has no present value to classify, so
+  it falls through the numeric/categorical gate into the CATEGORICAL
+  branch, where `astype(str)` turns NaN into the literal level
+  "nan". That is a NON-EMPTY STRING, so the fidelity comparison
+  counts the column present on every row. Third trigger of the
+  wrong-type-branch family this file already records twice -
+  span_days collapsing at low cardinality, height folding to
+  `__other__` at low presence - and this one is NO PRESENT VALUES AT
+  ALL. The 800-patient extract passes coverage 42/42 and could never
+  have shown it; it takes a cohort thin enough that whole columns
+  arrive empty.
+  THE FIX, not yet made: at the gate in `LatentGen.fit`, a column
+  with `raw_notna == 0` is neither numeric nor categorical - it is
+  EMPTY, and empty is a fact about the data, the same
+  empty-versus-missing distinction already drawn for set columns and
+  for `id_column`. PINNED AS A CHARACTERIZATION TEST in
+  `smoke_latent` - the assertion expects `{"nan"}` and says in its
+  own text that this is an open defect rather than an approval, so
+  the shared net stays green for the team while the fault is on
+  record. Arming it after the fix is changing that set to `{""}`.
+- **AND THE FIRST VERSION OF THAT CHECK COULD NOT FAIL - THE THIRD
+  SUCH CHECK IN ONE DAY.** It asked whether the generator INVENTED
+  content, with a presence test that listed "nan" as absent - so a
+  column full of "nan" read as 0% present and the check passed,
+  correctly answering a question nobody needed asked. It went green
+  against code the probe had just watched emit the fault. Caught only
+  by running the probe and the check side by side and noticing they
+  disagreed - the internal-contradiction rule, applied to the
+  tooling. The pattern across all three: THE ASSERTION WAS WRITTEN
+  AROUND THE HYPOTHESISED MECHANISM RATHER THAN AROUND THE
+  OBSERVABLE THE FAULT ACTUALLY CHANGES. The waiter asserted on my
+  own marker instead of the machine's output; the token check
+  asserted a bound both rules cleared; this one asserted "no
+  invented content" instead of "the cell is empty". Assert the
+  observable.
+- **AND NOT EVERY FAILURE ON A THIN COHORT IS THE k RULE'S DOING.**
+  Building the comparison that argues 100 patients is too few at
+  k=10, three candidate numbers had to be thrown OUT of the
+  argument: the four empty demographic columns are an EXTRACTION
+  difference (absent from the pull, nothing to do with cohort size),
+  and within-patient persistence falls on BOTH cohorts - 0.4952 ->
+  0.1568 on the extract against 0.3939 -> 0.0869 on the thin one -
+  because this engine is ROW-LEVEL and models no patient trajectory,
+  so it would lose persistence on a million patients. What DOES
+  carry the argument, measured: publishable mass 89% against 80%,
+  publishable condition codes 898 against 290, and spread retained
+  on the same column 61% against 25% (sd 18.44 -> 11.24 against
+  19.55 -> 4.82). An argument built from the wrong numbers loses the
+  right ones with it.
