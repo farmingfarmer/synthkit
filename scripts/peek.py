@@ -9,6 +9,7 @@
     python scripts/peek.py RUNDIR empty
     python scripts/peek.py RUNDIR centre
     python scripts/peek.py RUNDIR surfaces
+    python scripts/peek.py RUNDIR flat
 
 WHY THIS EXISTS. Seven diagnoses in a row were fetched with pasted
 python -c one-liners a hundred characters wide, on a terminal that
@@ -412,6 +413,116 @@ def surfaces_view(run):
               n_pub - len(gaps) - n_tok))
 
 
+
+def flat_view(run):
+    """COLUMNS THE CONTRACT SAYS VARY AND THE FILE EMITS CONSTANT.
+
+    Found because a real run printed scipy's ConstantInputWarning
+    twice from inside spearmanr: an input array was constant, so the
+    pair's rank correlation is undefined and the pair is SKIPPED. A
+    skipped pair leaves the gate's denominator, so a column flattened
+    to one value can cost fidelity and raise the percentage at the
+    same time - which is the denominator trap wearing a defect.
+
+    The duel page already names flattened columns, but only when BOTH
+    engines ran; a single run had nothing that could say it. This
+    reads the run directory alone, as every other view here does: the
+    blueprint says what the column should hold, the written file says
+    what it holds.
+
+    A column the blueprint itself publishes as constant is NOT a
+    defect and is counted separately, and so is a blueprint column
+    absent from the file - set-token scaffolding is built for the
+    search and dropped before the write. published == flat + varying
+    + expected-constant + not-written, printed as an identity,
+    because an omitted category is invisible in any other way."""
+    import csv
+    bp = _load(run, "blueprint.json")
+    gp = Path(run) / "generated.csv"
+    if not gp.exists():
+        sys.exit("no generated.csv in {}".format(run))
+    cols = bp.get("columns") or {}
+
+    # DOES THE CONTRACT SAY THIS COLUMN VARIES? Read per marginal
+    # kind rather than guessing from a single key - a `quantiles`
+    # column carries no `levels` and a `list` carries neither.
+    def declared_variety(spec):
+        m = (spec or {}).get("marginal") or {}
+        t = m.get("type")
+        if t == "levels":
+            return len(m.get("levels") or []), "levels"
+        if t == "quantiles":
+            v = m.get("v") or []
+            return (2 if v and min(v) < max(v) else 1), "quantiles"
+        if t == "list":
+            return len(m.get("tokens") or []), "tokens"
+        return None, t or "none"
+
+    # one pass, and the per-column set STOPS GROWING at two: the
+    # question is only whether the column varies, and a 47,000-row
+    # file with high-cardinality columns would otherwise be held in
+    # memory for no reason.
+    with gp.open("r", encoding="utf-8", newline="") as fh:
+        rd = csv.reader(fh)
+        try:
+            header = next(rd)
+        except StopIteration:
+            sys.exit("generated.csv in {} is empty".format(run))
+        seen = [set() for _ in header]
+        rows = 0
+        for row in rd:
+            rows += 1
+            for i, v in enumerate(row[:len(header)]):
+                if len(seen[i]) < 2:
+                    seen[i].add(v)
+    present = {c: seen[i] for i, c in enumerate(header)}
+
+    flat, varying, expected, missing = [], [], [], []
+    for c, spec in sorted(cols.items()):
+        n, kind = declared_variety(spec)
+        if c not in present:
+            missing.append(c)
+        elif len(present[c]) <= 1:
+            if n is not None and n <= 1:
+                expected.append(c)
+            else:
+                flat.append((c, n, kind,
+                             sorted(present[c])[0] if present[c]
+                             else ""))
+        else:
+            varying.append(c)
+
+    print("generated.csv: {} rows, {} columns written"
+          .format(rows, len(header)))
+    print("blueprint publishes {} column(s)".format(len(cols)))
+    print("")
+    if flat:
+        print("FLATTENED - the contract says these vary and the "
+              "file holds ONE value. A pair on one of these is "
+              "SKIPPED by the gate, not failed:")
+        print("  {:<40} {:>9}  {:<10} {}"
+              .format("column", "published", "kind", "the one value"))
+        for c, n, kind, v in flat:
+            print("  {:<40} {:>9}  {:<10} {!r}"
+                  .format(str(c)[-40:], n, kind, str(v)[:24]))
+    else:
+        print("FLATTENED: none - every column the contract says "
+              "varies does vary in the written file")
+    print("")
+    print("varying as published          {}".format(len(varying)))
+    print("published AS constant         {}  (not a defect)"
+          .format(len(expected)))
+    print("not written to the file       {}  (set-token "
+          "scaffolding is dropped before the write)"
+          .format(len(missing)))
+    print("FLATTENED                     {}".format(len(flat)))
+    total = len(varying) + len(expected) + len(missing) + len(flat)
+    print("                              ---")
+    print("accounted for                 {} of {} published{}"
+          .format(total, len(cols),
+                  "" if total == len(cols) else "  <-- MISMATCH"))
+
+
 def main():
     if len(sys.argv) < 3:
         print(__doc__)
@@ -438,6 +549,8 @@ def main():
         centre_view(run)
     elif what == "surfaces":
         surfaces_view(run)
+    elif what == "flat":
+        flat_view(run)
     else:
         print(__doc__)
         return 2

@@ -1211,6 +1211,63 @@ def main():
           and "SURFACE PAIR MEMBER LOST: q" in _rv.stdout
           and "gap 1.2 sd, tracks False" in _rv.stdout)
 
+    # peek flat - THE COLUMN THE CONTRACT SAYS VARIES AND THE FILE
+    # EMITS CONSTANT. Found because a real run printed scipy's
+    # ConstantInputWarning twice from inside spearmanr: a constant
+    # input means the pair's rank correlation is UNDEFINED, so the
+    # pair is skipped rather than failed and leaves the gate's
+    # denominator - a defect that can raise the percentage while
+    # costing fidelity. The duel page already named flattened
+    # columns, but only when both engines ran; one run had nothing
+    # that could say it. The fixture CONTAINS the fault, plus one
+    # of every neighbouring category, because a totals line is the
+    # only way an omitted category is visible.
+    with tempfile.TemporaryDirectory() as _tf:
+        _fr = Path(_tf)
+        (_fr / "blueprint.json").write_text(json.dumps({
+            "columns": {
+                "bp_num": {"marginal": {"type": "quantiles",
+                                        "v": [1.0, 5.0, 9.0]}},
+                "bp_cat": {"marginal": {
+                    "type": "levels",
+                    "levels": [{"value": "a", "p": 0.5},
+                               {"value": "b", "p": 0.5}]}},
+                "bp_const": {"marginal": {
+                    "type": "levels",
+                    "levels": [{"value": "only", "p": 1.0}]}},
+                "scaffold__has__t1": {"marginal": {
+                    "type": "levels",
+                    "levels": [{"value": "0", "p": 0.5},
+                               {"value": "1", "p": 0.5}]}}}}),
+            encoding="utf-8")
+        _lines = ["bp_num,bp_cat,bp_const"]
+        for _i in range(50):
+            _lines.append("7,{},only".format("a" if _i % 2 else "b"))
+        (_fr / "generated.csv").write_text("\n".join(_lines) + "\n",
+                                           encoding="utf-8")
+        _fv = subprocess.run(
+            [sys.executable, "scripts/peek.py", str(_fr), "flat"],
+            capture_output=True, text=True, cwd=str(ROOT))
+    check("peek.py flat names the flattened column WITH the one "
+          "value it holds - a numeric the contract publishes from "
+          "1 to 9 that came out as a single 7",
+          _fv.returncode == 0
+          and "bp_num" in _fv.stdout and "'7'" in _fv.stdout)
+    check("...and does NOT flag a column the blueprint itself "
+          "publishes as constant - that is the source, not a "
+          "defect",
+          "published AS constant         1" in _fv.stdout
+          and "FLATTENED                     1" in _fv.stdout)
+    check("...and accounts for a published column that was never "
+          "WRITTEN, because set-token scaffolding is dropped "
+          "before the write and would otherwise read as flattened",
+          "not written to the file       1" in _fv.stdout)
+    check("...and prints the totals identity, so a category with "
+          "no bucket cannot hide",
+          "accounted for                 4 of 4 published"
+          in _fv.stdout
+          and "MISMATCH" not in _fv.stdout)
+
     # THE SIGN-OFF PAGE - goal 6's last piece. One roll-up from
     # the run's own artifacts: the gate with the same criteria the
     # Verdict station shows, the privacy posture in the

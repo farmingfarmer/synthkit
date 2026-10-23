@@ -3113,6 +3113,60 @@ what follows is what came out wrong anyway.
 
 ## Talking to the data machine
 
+- **A STUCK CONSOLE RETURNS THE LAST SCREEN AND CALLS IT A RESULT,
+  WHILE EVERY HEALTH SIGNAL READS GREEN (2026-10-23).** A console
+  window left in selection/mark mode freezes its output AND swallows
+  typed input, so `hands run` typed nothing, raised nothing, and
+  returned whatever was already rendered - every command "succeeded"
+  and every number read back was stale. `status` reported
+  `reachable=True keyboard_online=True busy=False awake=True`
+  throughout, and `key enter` returned `ok` while producing no new
+  prompt line, which is impossible at a live prompt and was the first
+  real evidence. The screen at that moment held ANOTHER PROJECT's
+  model-comparison output, so the next read would have reported that
+  project's AUCs as this run's fidelity.
+  Two diagnoses were wrong before the right one: `enabled=False` from
+  `status` is a RED HERRING (the flag is per-process and in-memory,
+  and `status` never sets it), and the feed was not frozen either -
+  hashing the screen before and after opening a new window proved it
+  repaints. Recovery is `key esc` then `term new`; esc alone did not
+  clear it.
+  THE RULE: before trusting any read from that bridge, echo a unique
+  marker in a SEPARATE call and require it back in the output. A
+  marker inside the command under test is not enough - the bridge
+  prints the command above the output, so the echo matches its own
+  text, which is the same mistake as the poll loop below. And a
+  screen hash across a known-repainting action is the test for
+  liveness, because the health fields cannot see a frozen window.
+  Same class as the read-but-not-used flag and the silent `getattr`
+  no-op: a capability that fails by returning something plausible is
+  worse than one that crashes.
+- **A WAITER THAT GREPS FOR ITS OWN MARKER MATCHES THE COMMAND, NOT
+  THE OUTPUT.** A poll loop built as `hands run 'if exist X (echo
+  RUNDONE-END)'` piped into `grep -q RUNDONE-END` exited on its
+  FIRST iteration and reported a multi-hour run complete while it
+  was still training - because the bridge ECHOES the command it ran
+  above the output, so the marker was present in the echo whatever
+  the machine's state. A check that cannot fail, in the tooling
+  again, and it cost a false "complete" that was then acted on. Two
+  rules: slice to the output section before matching anything, and
+  pick a marker that CANNOT appear in the command - `tasklist`'s
+  "No tasks are running" is produced only by the machine, where any
+  `echo MARKER` is produced by me. The run's own artifacts are then
+  verified separately, because a crashed process also exits.
+- **ONE DRIVER AT A TIME, AND A BACKGROUND POLLER IS A SECOND
+  DRIVER.** A poll loop left running in the background while reads
+  were issued in the foreground interleaved keystrokes into one
+  console and returned nonsense (`python. exe € r+ =o: \ a`). The
+  machine is also shared: another session was working in a different
+  repository, my commands executed from ITS shell and inherited an
+  environment variable it had set, and the window-management keys
+  used to work around the garbled output (`win+m` minimizes
+  everything) would have disrupted that work. Drive from one place,
+  never use a global window key, and echo the settings a command
+  actually received - an inherited variable is the unannounced
+  setting this file already has a rule about.
+
 - **THE SCREEN IS NOT A NUMERIC CHANNEL, AND EVERY NUMBER READ OFF
   IT SO FAR WAS UNVERIFIED (2026-10-23).** The data machine is read
   by screen OCR, and DIGITS DO NOT SURVIVE IT. Tested directly
