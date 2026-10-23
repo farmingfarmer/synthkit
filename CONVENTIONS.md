@@ -3113,8 +3113,57 @@ what follows is what came out wrong anyway.
 
 ## Talking to the data machine
 
-- **A STUCK CONSOLE RETURNS THE LAST SCREEN AND CALLS IT A RESULT,
-  WHILE EVERY HEALTH SIGNAL READS GREEN (2026-10-23).** A console
+- **A RAW GITHUB FETCH SERVED THE PRE-PUSH FILE AND REPORTED
+  SUCCESS (2026-10-23).** `curl` of
+  `raw.githubusercontent.com/OWNER/REPO/main/scripts/x.py` seconds
+  after a push returned the file as it was BEFORE the commit -
+  byte-for-byte the previous version - while curl exited 0 and the
+  file's timestamp updated. Caught only by comparing the fetched
+  size against the local file: 169,434 against 170,825, and 169,434
+  was exactly the pre-edit copy. The consequence would have been
+  precise and invisible: the attack battery had just been given a
+  `--max-tokens` lever so it would stop certifying a different
+  configuration from the one that ships, and running it against the
+  cached file would have re-run the very bug the lever was built to
+  fix, then reported the clean number as clearance.
+  FETCH BY COMMIT SHA, never by branch - `/<sha>/path` cannot be
+  served stale - and verify the byte size against the local file
+  before running anything that reads it. A branch URL is a cache
+  with a promise attached.
+
+- **THE BRIDGE SAID "REFUSED" AND MY OWN FILTER THREW THE LINE
+  AWAY (2026-10-23).** Every read that looked like a stale screen
+  today was an EXPLICIT refusal - `HANDS refused: focus guard
+  refused: cmd prompt not the foreground window (wrong window or
+  selection mode)` - and the read pipeline was
+  `... | sed -n '/--- output ---/,$p'`, which drops everything ABOVE
+  that marker. The refusal prints above it. So the bridge reported
+  the fault clearly, in words, every single time, and the pipeline
+  discarded exactly the line that mattered while keeping the
+  previously-rendered screen underneath it. Hours went into
+  diagnosing a bridge that was never broken: first blamed on
+  `enabled=False` from `status` (a red herring - the flag is
+  per-process and in-memory and `status` never sets it), then on a
+  frozen video feed (disproved by hashing the screen across a known
+  repaint). THE RULE: grep for `HANDS refused` FIRST, and only then
+  slice to the output section. And snapshots LAG - two probes came
+  back together on a third read, so a single read that lacks its
+  marker is not yet evidence of anything; settle, then re-probe.
+  The guard itself is the good news: with a browser and Teams in the
+  foreground it refused rather than typing shell commands into a
+  colleague's chat window.
+- **THE PRECAUTION THAT SURVIVED THE MISDIAGNOSIS.** Echoing a
+  unique marker in a SEPARATE call and requiring it back is still
+  the only trustworthy proof a read is live, because the failure
+  mode - previously rendered content returned as a result - is the
+  same whatever causes it, and at one point that content was ANOTHER
+  PROJECT's model-comparison output, which a log read would have
+  reported as this run's fidelity. A marker inside the command under
+  test is not enough: the bridge prints the command above the
+  output, so the echo matches its own text.
+- **(SUPERSEDED, KEPT FOR THE SHAPE OF THE ERROR) A STUCK CONSOLE
+  RETURNS THE LAST SCREEN AND CALLS IT A RESULT, WHILE EVERY HEALTH
+  SIGNAL READS GREEN.** A console
   window left in selection/mark mode freezes its output AND swallows
   typed input, so `hands run` typed nothing, raised nothing, and
   returned whatever was already rendered - every command "succeeded"
