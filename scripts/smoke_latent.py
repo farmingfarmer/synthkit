@@ -1793,6 +1793,36 @@ def main():
               cap=_L.MAX_TOKENS) or {"tokens": []})["tokens"])
           <= set(_got))
 
+    # ---- THE ATTACK MUST RUN THE CONFIGURATION THAT SHIPS ----
+    # The battery had no cap lever, so it fitted at the DEFAULT
+    # while the deliverable was generated at 400 - certifying a
+    # different object from the one released. Width is precisely
+    # where an autoencoder's memorization risk lives, so it is the
+    # one parameter a membership result cannot be carried across:
+    # the recorded pass was taken near 150-440 encoded dimensions
+    # and a 400-cap extract frame is 1,123.
+    import subprocess as _spa
+    _ah = _spa.run([sys.executable, "scripts/latent_challenger.py",
+                    "attack", "--help"],
+                   capture_output=True, text=True, cwd=str(_root))
+    check("the attack subcommand exposes the cap lever, so the "
+          "battery can be run at the width that ships",
+          _ah.returncode == 0
+          and "--max-tokens" in _ah.stdout
+          and "--max-levels" in _ah.stdout)
+    # AND IT MUST REACH THE FIT. A flag parsed and never applied is
+    # the --time-col failure recorded in CONVENTIONS, so assert the
+    # override ANNOUNCES itself rather than trusting the parser.
+    _ae = _spa.run([sys.executable, "scripts/latent_challenger.py",
+                    "attack", "--max-tokens", "400",
+                    "--max-levels", "400",
+                    "--csv", "/nonexistent_on_purpose.csv"],
+                   capture_output=True, text=True, cwd=str(_root))
+    check("...and the override echoes the caps it actually "
+          "received, because a silent flag is indistinguishable "
+          "from a broken one on the machine that holds the data",
+          "set tokens 60 -> 400" in (_ae.stdout + _ae.stderr))
+
     if FAIL:
         print("{} of {} checks failed.".format(FAIL, PASS + FAIL))
         sys.exit(1)

@@ -3451,7 +3451,29 @@ if __name__ == "__main__":
         ap.add_argument("--group-by", default="person_id")
         ap.add_argument("--no-k-blur", action="store_true")
         ap.add_argument("--denoise", type=float, default=0.3)
+        # THE ATTACK MUST RUN THE CONFIGURATION THAT SHIPS. Without
+        # these the battery fitted at the DEFAULT cap while the
+        # deliverable was generated at 400, so the certified
+        # configuration and the released one were different objects -
+        # and width is exactly where an autoencoder's memorization
+        # risk lives, so it is the one parameter a membership result
+        # cannot be transferred across. The recorded pass was taken
+        # at ~150-440 encoded dimensions; a 400-cap extract frame is
+        # 1,123.
+        ap.add_argument("--max-tokens", type=int, default=MAX_TOKENS)
+        ap.add_argument("--max-levels", type=int, default=MAX_LEVELS)
         aa = ap.parse_args(sys.argv[2:])
+        # no `global` here: this block is module level, so the
+        # assignment below rebinds the module name directly - and a
+        # `global` statement after MAX_TOKENS has already been read
+        # by add_argument is a SyntaxError, the same ordering trap
+        # this file hit once before with a displaced docstring.
+        if aa.max_tokens != MAX_TOKENS or aa.max_levels != MAX_LEVELS:
+            print("caps: set tokens {} -> {}, levels {} -> {} "
+                  "(the attack runs the shipped configuration)"
+                  .format(MAX_TOKENS, aa.max_tokens,
+                          MAX_LEVELS, aa.max_levels))
+        MAX_TOKENS, MAX_LEVELS = aa.max_tokens, aa.max_levels
         run_attack(aa.seeds or [0, 1, 2], csv=aa.csv,
                    group_by=aa.group_by,
                    k_blur=not aa.no_k_blur,
