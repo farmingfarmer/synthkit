@@ -3113,6 +3113,40 @@ what follows is what came out wrong anyway.
 
 ## Talking to the data machine
 
+- **THE SCREEN IS NOT A NUMERIC CHANNEL, AND EVERY NUMBER READ OFF
+  IT SO FAR WAS UNVERIFIED (2026-10-23).** The data machine is read
+  by screen OCR, and DIGITS DO NOT SURVIVE IT. Tested directly
+  rather than assumed: `0123456789` came back as `9123456789` - the
+  leading zero became a nine - while in the SAME read all ten
+  spelled words (zero one two ... nine) came back perfectly.
+  Elsewhere in the same session `0.37` read as `@.37`, `0.30` as
+  `0.3@`, and the column name `4544_3` as `4544 3`. A number quoted
+  off an OCR pass is therefore an ARTIFACT, not a measurement, and
+  this file's own rule is never to state a number as measured unless
+  it was. Re-reading does not help: the same pixels give the same
+  wrong answer, so two agreeing reads are one read - the recorded
+  two-arms-that-agree rule, in a new place. `scripts/sayn.py` pipes
+  any output through and repeats every numeric literal in words
+  (`close 77/94` -> `[77 = seven seven | 94 = nine four]`). THE
+  WORDS ARE THE CHANNEL; the digits beside them are a convenience
+  that may arrive corrupted, and when the two disagree the words are
+  right. Identifiers are left alone on purpose - spelling `4544_3`
+  would bury the numbers that matter in noise. Anything whose
+  numbers decide something crosses in words.
+- **A WAITER THAT GREPS FOR ITS OWN MARKER MATCHES THE COMMAND, NOT
+  THE OUTPUT.** A poll loop built as `hands run 'if exist X (echo
+  RUNDONE-END)'` piped into `grep -q RUNDONE-END` exited on its
+  FIRST iteration and reported a multi-hour run complete while it
+  was still training - because the bridge ECHOES the command it ran
+  above the output, so the marker was present in the echo whatever
+  the machine's state. A check that cannot fail, in the tooling
+  again, and it cost a false "complete" that was then acted on. Two
+  rules: slice to the output section before matching anything, and
+  pick a marker that CANNOT appear in the command - `tasklist`'s
+  "No tasks are running" is produced only by the machine, where any
+  `echo MARKER` is produced by me. The run's own artifacts are then
+  verified separately, because a crashed process also exits.
+
 - **A SHELL VARIABLE IS ONE MORE THING THAT CAN ARRIVE EMPTY, AND
   ON THAT TERMINAL IT DOES (2026-09-28).** WINDOWS.md built the
   zipball URL out of `set SYNTHKIT_REPO=...` plus
