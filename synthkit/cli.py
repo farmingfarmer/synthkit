@@ -214,6 +214,26 @@ def cmd_fit(args) -> int:
     return pipeline_main(args=args) or 0
 
 
+def cmd_forecast(args) -> int:
+    """What can this dataset support? - asked BEFORE generating.
+
+    The operator's question was "tell me what I can and cannot do in
+    terms of levers". The answer is structural and cheap: how much of
+    this source clears the privacy floor, which is what decides
+    fidelity. Output SIZE is reported as what it is - measured to 5x,
+    unmeasured above it - because a forecast that invents a percentage
+    is worse than one that admits the gap."""
+    import pandas as pd
+    from .forecast import census, plain, sizes
+    df = pd.read_csv(args.src, dtype=str, keep_default_na=False)
+    df = df.replace("", None)
+    cen = census(df, args.group_by, k=args.k)
+    mult = [float(x) for x in args.multipliers.split(",")] \
+        if args.multipliers else None
+    print(plain(cen, sizes(cen, mult)))
+    return 0
+
+
 def cmd_types(args) -> int:
     """The cheap look, promoted to its own verb.
 
@@ -984,6 +1004,22 @@ def main(argv=None) -> int:
         help="learn a blueprint from a real extract, and optionally "
              "generate from it")
     p.set_defaults(fn=cmd_fit)
+
+    p = sub.add_parser(
+        "forecast",
+        help="what this dataset can support before you generate: what "
+             "clears the privacy floor, and which output sizes are "
+             "honest")
+    p.add_argument("src", help="the source CSV")
+    p.add_argument("--group-by", default="person_id",
+                   help="the patient/entity id column - the floor "
+                        "counts PATIENTS, never rows")
+    p.add_argument("--k", type=int, default=10,
+                   help="privacy floor: distinct patients behind every "
+                        "published pattern (default 10)")
+    p.add_argument("--multipliers", default=None,
+                   help="output sizes to report, e.g. 1,5,10,20")
+    p.set_defaults(fn=cmd_forecast)
 
     p = sub.add_parser(
         "types", parents=[_fit_parser(add_help=False)],
