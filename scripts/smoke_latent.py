@@ -1876,6 +1876,7 @@ def main():
     # arrows - gated here so the capability cannot rot untested.
     import importlib as _ilv
     _lv = _ilv.import_module("latent_viz")
+    from synthkit import sets as _SLV
     _rv = np.random.RandomState(1)
     _pv = np.repeat(np.arange(80), 6)
     _nv = len(_pv)
@@ -1886,6 +1887,40 @@ def main():
         "b": np.round(0.6 * _sv + _rv.normal(0, 1, _nv), 2)})
     _gv = LatentGen(seed=0).fit(_dfv, "person_id")
     _genv = _gv.generate(len(_dfv), seed=1)
+    # ITS READER MUST NOT FOLD AN EMPTY SET INTO MISSING. A blanket
+    # ""->NaN destroys the fact that a visit held nothing, and here
+    # it would distort the very frame the latent space is computed
+    # from - which is what this picture is about. Same recorded
+    # reader fault, same shared predicate.
+    with tempfile.TemporaryDirectory() as _tlv:
+        _plv = Path(_tlv) / "c.csv"
+        # ENOUGH ROWS FOR looks_like_set TO FIRE. sets.MIN_ROWS is
+        # 50: below it the predicate will not call a column a set at
+        # all, so a three-row fixture tested nothing and failed on
+        # its own smallness. The identical mistake was made in
+        # smoke_cohortcharts the same hour and fixed there first -
+        # learning the constant in one place and not returning to
+        # the other is how one lesson produces two defects.
+        _nlv = max(60, _SLV.MIN_ROWS + 10)
+        pd.DataFrame({
+            "person_id": ["P{:03d}".format(i) for i in range(_nlv)],
+            # a set column whose FIRST cell is genuinely EMPTY
+            "codes": ["" if i == 0 else "t1;t2;t3"
+                      for i in range(_nlv)],
+            # an ordinary column with one MISSING cell
+            "note": ["" if i == 0 else "x"
+                     for i in range(_nlv)]}).to_csv(_plv,
+                                                    index=False)
+        _rdv = _lv._read_cohort(str(_plv))
+        check("the latent view's reader keeps a set column's EMPTY "
+              "cell as a value - an empty set is a fact about the "
+              "visit, and folding it to missing distorts the frame "
+              "the latent space is computed from",
+              _rdv["codes"].notna().all())
+        check("...while an ordinary column's blank still folds to "
+              "MISSING, so the two cases stay distinguishable",
+              bool(_rdv["note"].isna().any()))
+
     _pts, _metav = _lv.compute_points(_dfv, _genv, "person_id")
     check("the latent view computes FOUR metrics per point - "
           "centroid distance, neighbour distance, reconstruction "

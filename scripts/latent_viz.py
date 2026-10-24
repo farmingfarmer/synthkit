@@ -252,6 +252,34 @@ cv.addEventListener('click',function(e){if(moved>5)return;var M=mat();var rect=c
 </script>"""
 
 
+
+def _read_cohort(path):
+    """FOLD "" TO NaN FOR EVERY COLUMN EXCEPT SETS.
+
+    A blanket `.replace("", np.nan)` folds an EMPTY SET into missing,
+    and an empty set is a FACT about the visit - it held nothing. That
+    is the recorded reader fault which once made the engine learn
+    token shares from a source where medication-free visits did not
+    exist, every share inflated by 1/(1-empty). Here it would distort
+    the very frame the latent space is computed from, which is what
+    this picture is ABOUT: a reader is being shown where synthetic
+    points sit relative to real ones, so the frame had better be the
+    real one. `sets.looks_like_set` is the same predicate the engine
+    applies, so the two cannot class a column differently. Per column
+    rather than frame-wide, which also avoids the pandas downcast
+    warning that is a TypeError on pandas 3 - the version the data
+    machine installs.
+    """
+    from synthkit import sets
+    df = pd.read_csv(path, dtype=str, keep_default_na=False)
+    for c in df.columns:
+        if sets.looks_like_set(df[c]):
+            continue
+        df[c] = df[c].astype(object).where(
+            df[c].astype(str).str.strip() != "", np.nan)
+    return df
+
+
 def main():
     import argparse
     ap = argparse.ArgumentParser(prog="latent_viz.py")
@@ -261,11 +289,9 @@ def main():
     ap.add_argument("-o", "--out", required=True)
     ap.add_argument("--seed", type=int, default=0)
     a = ap.parse_args()
-    src = pd.read_csv(a.src, dtype=str, keep_default_na=False
-                      ).replace("", np.nan)
+    src = _read_cohort(a.src)
     if a.gen:
-        gen = pd.read_csv(a.gen, dtype=str, keep_default_na=False
-                          ).replace("", np.nan)
+        gen = _read_cohort(a.gen)
     else:
         from latent_challenger import LatentGen
         gen = LatentGen(seed=a.seed).fit(src, a.group_by).generate(
