@@ -1921,6 +1921,28 @@ def main():
               "MISSING, so the two cases stay distinguishable",
               bool(_rdv["note"].isna().any()))
 
+    # ---- THE VIEW MUST FIT THE CONFIGURATION THAT SHIPPED ----
+    # It fitted at the DEFAULT token cap while the deliverable runs
+    # used 400, so its encoded frame came out 338 dimensions against
+    # the real run's 986: a latent space belonging to a model that
+    # produced none of the artifacts, drawn as though it were the
+    # same object. An honest picture of the wrong model is worse
+    # than no picture, because it looks like evidence. Identical
+    # mismatch to the one fixed in the attack battery the same day -
+    # fixed there, and not swept for here.
+    import latent_challenger as _lcv
+    _was = (_lcv.MAX_TOKENS, _lcv.MAX_LEVELS)
+    _ptsc, _ = _lv.compute_points(_dfv, _genv, "person_id",
+                                  max_tokens=7, max_levels=7)
+    check("the latent view takes a cap override, so the picture can "
+          "be of the model that actually shipped rather than of a "
+          "default nobody ran",
+          bool(_ptsc))
+    check("...and RESTORES the module globals afterwards - the "
+          "bench serves this function in-process, so a global left "
+          "changed would silently alter the next caller",
+          (_lcv.MAX_TOKENS, _lcv.MAX_LEVELS) == _was)
+
     _pts, _metav = _lv.compute_points(_dfv, _genv, "person_id")
     check("the latent view computes FOUR metrics per point - "
           "centroid distance, neighbour distance, reconstruction "

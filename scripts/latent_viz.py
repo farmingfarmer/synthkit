@@ -66,10 +66,36 @@ def _cross_dist(Za, Zb):
     return d[:, 0]
 
 
-def compute_points(src, gen, group_by, seed=0, max_pts=5000):
-    """All four latent metrics for source and generated rows."""
+def compute_points(src, gen, group_by, seed=0, max_pts=5000,
+                   max_tokens=None, max_levels=None):
+    """All four latent metrics for source and generated rows.
+
+    THE PICTURE MUST BE OF THE MODEL THAT SHIPPED. This fitted at the
+    DEFAULT token cap while the deliverable runs used 400, so the
+    encoded frame here came out 338 dimensions against the real run's
+    986 - a latent space belonging to a model that produced none of
+    the artifacts, drawn as though it were the same object. An
+    honest picture of the wrong model is worse than no picture,
+    because it looks like evidence.
+
+    Identical mismatch to the one fixed in the attack battery
+    earlier the same day, where the lever was added so the attack
+    tests what ships. Fixed there, documented, and not swept for
+    elsewhere - so the second consumer kept the gap."""
+    import latent_challenger as _lc
     from latent_challenger import LatentGen
-    g = LatentGen(seed=seed).fit(src, group_by)
+    _keep = (_lc.MAX_TOKENS, _lc.MAX_LEVELS)
+    if max_tokens is not None:
+        _lc.MAX_TOKENS = int(max_tokens)
+    if max_levels is not None:
+        _lc.MAX_LEVELS = int(max_levels)
+    try:
+        g = LatentGen(seed=seed).fit(src, group_by)
+    finally:
+        # restored even on failure, because a module global left
+        # changed would silently alter the NEXT caller in the same
+        # process - the bench serves this function in-process
+        _lc.MAX_TOKENS, _lc.MAX_LEVELS = _keep
     Xs, Xg = g._re_encode_frame(src), g._re_encode_frame(gen)
     Zs, Zg = g._encode(Xs), g._encode(Xg)
     Z = np.concatenate([Zs, Zg], axis=0)
@@ -106,8 +132,11 @@ def build_html(pts, meta):
             .replace("/*METRICS*/", json.dumps(METRICS)))
 
 
-def build_from_run(src, gen, group_by, seed=0):
-    pts, meta = compute_points(src, gen, group_by, seed)
+def build_from_run(src, gen, group_by, seed=0,
+                   max_tokens=None, max_levels=None):
+    pts, meta = compute_points(src, gen, group_by, seed,
+                               max_tokens=max_tokens,
+                               max_levels=max_levels)
     return build_html(pts, meta)
 
 
@@ -288,16 +317,43 @@ def main():
     ap.add_argument("--gen", default=None)
     ap.add_argument("-o", "--out", required=True)
     ap.add_argument("--seed", type=int, default=0)
+    # THE LEVER, so the picture is of the model that shipped
+    ap.add_argument("--max-tokens", type=int, default=None)
+    ap.add_argument("--max-levels", type=int, default=None)
     a = ap.parse_args()
+    if a.max_tokens or a.max_levels:
+        print("caps: tokens {} levels {} (the view fits the "
+              "shipped configuration)".format(a.max_tokens,
+                                              a.max_levels))
     src = _read_cohort(a.src)
     if a.gen:
         gen = _read_cohort(a.gen)
     else:
+        # THE FALLBACK MUST USE THE SAME CAPS AS THE VIEW. Found by
+        # grepping every LatentGen( construction after fixing
+        # compute_points: this branch generated at the DEFAULT cap
+        # while the view fitted at the requested one, so a single
+        # invocation would have drawn two different models against
+        # each other. Caught by sweeping for the pattern instead of
+        # fixing the one instance - which is how the same gap had
+        # already survived in two consumers.
+        import latent_challenger as _lcg
         from latent_challenger import LatentGen
-        gen = LatentGen(seed=a.seed).fit(src, a.group_by).generate(
-            len(src), seed=a.seed + 1)
-    Path(a.out).write_text(build_from_run(src, gen, a.group_by, a.seed),
-                           encoding="utf-8")
+        _kg = (_lcg.MAX_TOKENS, _lcg.MAX_LEVELS)
+        if a.max_tokens is not None:
+            _lcg.MAX_TOKENS = int(a.max_tokens)
+        if a.max_levels is not None:
+            _lcg.MAX_LEVELS = int(a.max_levels)
+        try:
+            gen = LatentGen(seed=a.seed).fit(
+                src, a.group_by).generate(len(src), seed=a.seed + 1)
+        finally:
+            _lcg.MAX_TOKENS, _lcg.MAX_LEVELS = _kg
+    Path(a.out).write_text(
+        build_from_run(src, gen, a.group_by, a.seed,
+                       max_tokens=a.max_tokens,
+                       max_levels=a.max_levels),
+        encoding="utf-8")
     print("wrote {}".format(a.out))
 
 
