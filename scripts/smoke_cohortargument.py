@@ -159,6 +159,39 @@ def main():
               "More PEOPLE, not more rows" in txt
               and "still one person" in txt)
 
+        # ---- A WINDOWS PATH MUST SURVIVE ARGUMENT PARSING ----
+        # The first cut took NAME=SRC:RUN and split on the FIRST
+        # colon, so a path beginning "C:" parsed the drive letter as
+        # the whole source. Every check passed anyway, because every
+        # fixture used POSIX temp paths with no drive letter - the
+        # tool exists to run on the machine that holds the data, and
+        # that machine is Windows. Cohorts are named with their own
+        # flags now and nothing is parsed out of a path; this asserts
+        # a drive-lettered path reaches the file check INTACT, by
+        # requiring the refusal to name the whole path back.
+        import io as _io
+        import contextlib as _cl
+        _buf = _io.StringIO()
+        with _cl.redirect_stdout(_buf):
+            _rc = C.main(["--name", "BIG",
+                          "--src", r"C:\Users\x\dev\big.csv",
+                          "--run", r"C:\Users\x\dev\bigrun",
+                          "--name", "THIN",
+                          "--src", r"C:\Users\x\dev\thin.csv",
+                          "--run", r"C:\Users\x\dev\thinrun"])
+        _said = _buf.getvalue()
+        check("a drive-lettered Windows path reaches the file check "
+              "WHOLE - the refusal names the full path back, where "
+              "the old colon-spec would have reported just 'C'",
+              _rc == 2
+              and r"C:\Users\x\dev\big.csv" in _said
+              and "no source file for BIG" in _said)
+        check("...and an unknown argument is refused by NAME rather "
+              "than silently ignored, which is how a flag that "
+              "never reaches the program looks identical to a "
+              "broken one",
+              C.main(["--nope", "1"]) == 2)
+
         longest = max(len(line) for line in txt.splitlines())
         check("no row overflows the table it is printed in "
               "({} chars)".format(longest), longest <= 120)

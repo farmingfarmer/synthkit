@@ -33,8 +33,18 @@ evidence and are not:
 Each is reported in a NOT-EVIDENCE section instead, because an
 argument built from the wrong numbers loses the right ones with it.
 
+A COLON-JOINED SPEC CANNOT CARRY A WINDOWS PATH. The first cut took
+`NAME=SRC:RUN` and split on the first colon, so a path beginning
+`C:` parsed
+`C` as the source - and every check passed, because every fixture used
+POSIX temp paths with no drive letter. The tool exists to run on the
+machine that holds the data, and that machine is Windows. Each cohort
+is therefore named with its own flags, and nothing is parsed out of a
+path:
+
   python scripts/cohort_argument.py \
-      BIG=src.csv:RUNDIR THIN=src.csv:RUNDIR \
+      --name "800-patient" --src big.csv  --run BIGRUN \
+      --name "100-patient" --src thin.csv --run THINRUN \
       [--group-by person_id] [--k 10] [--column systolic] \
       [-o argument.md]
 """
@@ -326,30 +336,46 @@ def _wrap(text, width):
 
 def main(argv=None):
     argv = list(sys.argv[1:] if argv is None else argv)
-    group_by, k, column, out, rest = "person_id", 10, "", "", []
+    group_by, k, column, out = "person_id", 10, "", ""
+    names, srcs, runs = [], [], []
     i = 0
     while i < len(argv):
-        if argv[i] == "--group-by":
+        a = argv[i]
+        if a == "--group-by":
             group_by = argv[i + 1]; i += 2
-        elif argv[i] == "--k":
+        elif a == "--k":
             k = int(argv[i + 1]); i += 2
-        elif argv[i] == "--column":
+        elif a == "--column":
             column = argv[i + 1]; i += 2
-        elif argv[i] in ("-o", "--out"):
+        elif a in ("-o", "--out"):
             out = argv[i + 1]; i += 2
+        elif a == "--name":
+            names.append(argv[i + 1]); i += 2
+        elif a == "--src":
+            srcs.append(argv[i + 1]); i += 2
+        elif a == "--run":
+            runs.append(argv[i + 1]); i += 2
         else:
-            rest.append(argv[i]); i += 1
-    specs = []
-    for spec in rest:
-        name, _, tail = spec.partition("=")
-        src, _, run = tail.partition(":")
-        if not (name and src and run):
-            print("want NAME=SRC.csv:RUNDIR, got {!r}".format(spec))
+            print("unknown argument {!r} - see --help".format(a))
             return 2
-        specs.append((name, src, run))
-    if len(specs) != 2:
+    if not (len(names) == len(srcs) == len(runs) == 2):
+        print("want TWO cohorts, each with --name --src --run; got "
+              "{} name(s), {} source(s), {} run(s)".format(
+                  len(names), len(srcs), len(runs)))
         print(__doc__)
         return 2
+    specs = list(zip(names, srcs, runs))
+    # EVERY PATH IS CHECKED BY NAME BEFORE ANY WORK. A missing file
+    # three minutes into a read is a round trip on the machine that
+    # holds the data.
+    for nm, sp, rp in specs:
+        if not Path(sp).exists():
+            print("no source file for {}: {}".format(nm, sp))
+            return 2
+        if not (Path(rp) / "generated.csv").exists():
+            print("no generated.csv in the run for {}: {}"
+                  .format(nm, rp))
+            return 2
     print("cohort_argument: --group-by {} --k {} --column {}"
           .format(group_by, k, column or "(auto)"))
     profs = [profile(n, s, r, group_by, k) for n, s, r in specs]
