@@ -676,41 +676,28 @@ def main():
         _raw_y = (sorted(set(_ge["year_of_birth"].astype(str)))
                   if _ge is not None
                   and "year_of_birth" in _ge.columns else None)
-        # ---- CHARACTERIZATION OF AN OPEN DEFECT ----
-        # TODAY THIS WRITES THE STRING "nan", AND THAT IS A BUG.
-        # The assertion below pins the WRONG behavior on purpose so
-        # the net stays green for the team while the defect is on
-        # record: a red check in the shared net fails CI and shows
-        # teammates a failure in RUN_CHECKS.bat for a fault that is
-        # nobody's blocker.
+        # ---- ARMED, AND THE DEFECT IS FIXED ----
+        # This was pinned as a characterization test expecting the
+        # WRONG value, "nan", so the shared net stayed green for the
+        # team while the fault was on record. The fix landed: at the
+        # gate in LatentGen.fit a column with raw_notna == 0 is
+        # neither numeric nor categorical, so it is kept out of the
+        # plan entirely - no encoded dimension, no decoded channel,
+        # no draw - and written back EMPTY at assembly.
         #
-        # THE DEFECT: an all-empty column has no present value to
-        # classify, so it falls through the numeric/categorical gate
-        # into the CATEGORICAL branch, where astype(str) turns NaN
-        # into the literal level "nan". "nan" is a non-empty string,
-        # so the fidelity comparison counts the column present on
-        # every row and coverage reads 1.0 against a source 0.0 -
-        # which is how a real 100-patient run failed coverage 34/42.
-        # Third trigger of the wrong-type-branch family already
-        # recorded here twice (span_days collapsing to a constant at
-        # low cardinality, height folding to __other__ at low
-        # presence); this one is NO PRESENT VALUES AT ALL.
-        #
-        # THE FIX, when picked up: at the gate in LatentGen.fit
-        # (`raw_notna = df[c].notna().mean()`), a column with
-        # raw_notna == 0 is neither numeric nor categorical - it is
-        # EMPTY, and empty is a fact about the data, the same
-        # empty-versus-missing distinction this file already draws
-        # for set columns and for id_column. Emit it empty.
-        #
-        # TO ARM THIS CHECK AFTER THE FIX: change the expected set
-        # from {"nan"} to {""} and delete this block's comment.
-        check("an all-empty column currently writes the string "
-              "'nan' - PINNED AS AN OPEN DEFECT, not an approval: "
-              "the sentinel is what makes coverage read 1.0 "
-              "against a source 0.0 (emitted {!r})".format(_raw_y),
+        # What the defect was: with no present value to classify the
+        # column fell through to the CATEGORICAL branch, where
+        # astype(str) turned NaN into the literal level "nan". That
+        # is a non-empty string, so the fidelity comparison counted
+        # the column present on every row - a real 100-patient
+        # cohort failed coverage 34/42 on eight such columns,
+        # including its entire date spine.
+        check("a column EMPTY on every source row is written back "
+              "EMPTY, never as the string 'nan' - a rendered "
+              "sentinel is a non-empty string and reads as present "
+              "on every row (emitted {!r})".format(_raw_y),
               _raw_y is not None
-              and set(_raw_y) <= {"nan"})
+              and set(_raw_y) <= {""})
         check("...and the same for a second empty column, so the "
               "guard is about the CLASS and not one field name "
               "(gender present on {} of generated rows)".format(

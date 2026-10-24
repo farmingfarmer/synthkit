@@ -3460,11 +3460,23 @@ exist.
   with `raw_notna == 0` is neither numeric nor categorical - it is
   EMPTY, and empty is a fact about the data, the same
   empty-versus-missing distinction already drawn for set columns and
-  for `id_column`. PINNED AS A CHARACTERIZATION TEST in
-  `smoke_latent` - the assertion expects `{"nan"}` and says in its
-  own text that this is an open defect rather than an approval, so
-  the shared net stays green for the team while the fault is on
-  record. Arming it after the fix is changing that set to `{""}`.
+  for `id_column`.
+  FIXED the same day. A column with `raw_notna == 0` is kept OUT of
+  the plan entirely - no encoded dimension, no decoded channel, no
+  draw, because there is nothing to learn from a column nobody
+  recorded - and written back EMPTY at assembly, as "" rather than
+  NaN, which is what the reader folds to missing and what a person
+  opening the file expects in a field nobody filled. Measured
+  through the CLI on a CSV on disk: year_of_birth 100% present with
+  value 'nan' -> 0.0% present, with the column COUNT unchanged, so
+  nothing was dropped from the file. The check was pinned as a
+  characterization test expecting `{"nan"}` while the fault was open
+  - so the shared net stayed green for the team rather than failing
+  CI and RUN_CHECKS.bat for a fault that blocked nobody - and arming
+  it was the promised one-line flip to `{""}`. Watched RED against
+  the removed branch, which matters more than usual here: three
+  checks written the same day could not fail, so green-after-the-fix
+  proves nothing on its own.
 - **AND THE FIRST VERSION OF THAT CHECK COULD NOT FAIL - THE THIRD
   SUCH CHECK IN ONE DAY.** It asked whether the generator INVENTED
   content, with a presence test that listed "nan" as absent - so a

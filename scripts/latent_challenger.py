@@ -347,6 +347,9 @@ class LatentGen:
         # and trim - exact, in the units that bind.
         self._cap_tok, self._cap_lv = MAX_TOKENS, MAX_LEVELS
         self.plan = []
+        # columns present on NO source row - carried so the written
+        # file can say what the source said
+        self.empty_cols = []
         mats = []
         for c in cols:
             v = pd.to_numeric(df[c], errors="coerce")
@@ -370,6 +373,33 @@ class LatentGen:
             # and came out 100% EMPTY. Sparsity is a fact about
             # a column, not a reason to change its type.
             raw_notna = df[c].notna().mean()
+            # A COLUMN PRESENT ON NO ROW IS EMPTY, WHICH IS A FACT
+            # ABOUT THE DATA - NOT A TYPE TO GUESS AT.
+            #
+            # With no present value there is nothing to classify, so
+            # the column fell through to the CATEGORICAL branch where
+            # astype(str) turned NaN into the literal level "nan".
+            # "nan" is a non-empty string, so the fidelity comparison
+            # counted the column present on every row: a real
+            # 100-patient cohort failed coverage 34/42 on eight
+            # columns that were absent in its source, among them its
+            # entire date spine (visit_start_date, visit_end_date,
+            # span_days, age_at_visit) and four demographics. Third
+            # trigger of the wrong-type-branch family this file
+            # records - span_days collapsing at low cardinality,
+            # height folding to __other__ at low presence - and this
+            # one is NO PRESENT VALUES AT ALL.
+            #
+            # Kept OUT of the plan rather than given a kind: it
+            # contributes no encoded dimension, no decoded channel
+            # and no draw, because there is nothing to learn. The
+            # column is written back EMPTY at assembly, so the
+            # output says what the source said. Same
+            # empty-versus-missing distinction this file already
+            # draws for set columns and for id_column.
+            if raw_notna == 0.0:
+                self.empty_cols.append(c)
+                continue
             is_num = (raw_notna > 0 and v.notna().mean()
                       >= 0.9 * raw_notna and v.nunique() >= 3)
             # A DATE IS A NUMBER WRITTEN AS TEXT, and reading it
@@ -1867,6 +1897,12 @@ class LatentGen:
                         toks_b[j] for j in js)
                         if len(js) else "")
                 out[cb] = pd.Series(vals_b)
+        # COLUMNS EMPTY IN THE SOURCE COME BACK EMPTY. Written as
+        # "" rather than NaN, because that is what the reader folds
+        # back to missing and what a person opening the file expects
+        # to see in a field nobody recorded.
+        for _ec in getattr(self, "empty_cols", []):
+            out[_ec] = pd.Series([""] * n)
         frame = pd.DataFrame(out)
         # THE RELEASE PASS runs before the identity tiers (which
         # recompute their children afterwards, keeping the file
