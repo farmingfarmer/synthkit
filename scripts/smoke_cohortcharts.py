@@ -133,11 +133,25 @@ def main():
         check("the survival section states the mechanism in "
               "patients and percentages, not as an assertion",
               "10% prevalence" in html and "1.25%" in html)
-        check("retention counts how many columns are WORSE on the "
-              "smaller cohort, and says what it means when they "
-              "are close",
-              "retain LESS spread on the smaller" in html
-              and "the floor is not what separates them" in html)
+        # A MISS IN EITHER DIRECTION. This asserted the old
+        # one-directional wording ("retain LESS spread"), which
+        # scored a too-WIDE column as an improvement - the same
+        # defect found in the handover report and fixed in
+        # synthkit/spread.py for all three consumers at once.
+        check("the count is of columns off TARGET by more than the "
+              "band, in either direction - too wide is as wrong as "
+              "too narrow",
+              "off target by more than" in html
+              and "EITHER direction" in html
+              and "too wide is as wrong as too narrow" in html)
+        check("...and the chart draws a labelled TARGET line, so an "
+              "over-spread column reads as past the line rather "
+              "than as a full bar",
+              ">target</text>" in html
+              and "100% is the TARGET" in html)
+        check("...with each bar carrying its verdict in words, so "
+              "the percentage does not have to be interpreted",
+              "too narrow" in html or "about right" in html)
 
         # ---- WHAT IT MUST REFUSE ----
         ne = html[html.index("Not evidence about cohort size"):]

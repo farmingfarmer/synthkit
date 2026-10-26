@@ -156,7 +156,10 @@ RELATIONSHIP_WORDS = {
         "same rate."),
 }
 
-SPREAD_BAND = 0.10   # within 10% of the real variation, either way
+# the band lives in synthkit/spread.py so three tools cannot
+# disagree about what "about right" means
+from synthkit import spread as _spread_mod   # noqa: E402
+SPREAD_BAND = _spread_mod.BAND
 
 
 def _read(path):
@@ -214,7 +217,10 @@ def profile(name, src_path, run, omop, group_by, k):
             nm, s, g = (col.get("column"), col.get("sd_source"),
                         col.get("sd_generated"))
             if nm and s:
-                out["numeric"][nm] = float(g or 0.0) / float(s)
+                from synthkit import spread as _sp
+                r = _sp.ratio(s, g)
+                if r is not None:
+                    out["numeric"][nm] = r
     if omop:
         od = Path(omop)
         for f in sorted(od.glob("*.csv")):
@@ -500,13 +506,16 @@ def render(big, thin, k):
     #
     # So: 100% is the TARGET, not the ceiling. A miss is a miss in
     # either direction, and the count says so.
+    # ONE DEFINITION, SHARED. These were local helpers until the
+    # same defect was found in two other tools that had each
+    # written their own - see synthkit/spread.py.
+    from synthkit import spread as _SP
+
     def _band(v):
-        return abs(v - 1.0) <= SPREAD_BAND
+        return not _SP.is_miss(v)
 
     def _word(v):
-        if _band(v):
-            return "about right"
-        return "too narrow" if v < 1.0 else "too wide"
+        return _SP.verdict(v)
 
     if shared:
         miss_big = [c for c in shared if not _band(big["numeric"][c])]

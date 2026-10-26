@@ -101,8 +101,9 @@ def retention(run):
         nm, s, g = (col.get("column"), col.get("sd_source"),
                     col.get("sd_generated"))
         if nm and s:
+            from synthkit import spread as _sp
             out[nm] = {"src": float(s), "gen": float(g or 0.0),
-                       "kept": float(g or 0.0) / float(s),
+                       "kept": _sp.ratio(s, g),
                        "cov_src": col.get("coverage_source"),
                        "lag_src": col.get("lag1_source"),
                        "lag_gen": col.get("lag1_generated")}
@@ -176,47 +177,70 @@ def _curve_svg(floors, series, title):
 
 
 def _retain_svg(rows, names):
-    """Paired bars, one pair per column, retention as a share of
-    source spread. Sorted by the GAP so the columns that separate
-    the cohorts are read first - and columns that retain equally
-    are visible at the other end rather than cropped away."""
+    """Paired bars, one pair per column, variation as a RATIO against
+    a target of 1.0 - with a target line drawn and the axis running
+    PAST it.
+
+    The first version clamped each bar at the target value and
+    captioned the chart "share of the source spread kept" - wording
+    that cannot exceed the target. A real column came back
+    at 1.03 - wider than reality - and rendered as a FULL bar,
+    visually identical to a perfect match while its own label said
+    103%. The same three faults existed in two other tools; the band,
+    the words and the bar geometry now all come from
+    synthkit/spread.py so a fourth consumer cannot diverge.
+
+    Sorted by the thin cohort's distance FROM the target rather than
+    by raw value, so the worst miss leads whichever direction it
+    misses in."""
+    from synthkit import spread as SP
     if not rows:
-        return "<p>no shared numeric column carries a spread in both runs</p>"
-    rowh, W, L = 26, 660, 230
-    H = 44 + rowh * len(rows)
+        return ("<p>no shared measurement carries a variation "
+                "figure in both runs</p>")
+    rowh, W, L = 30, 660, 230
+    H = 54 + rowh * len(rows)
+    bw = W - L - 90
+    tx = L + bw * SP.target_fraction()
     p = ['<svg viewBox="0 0 {} {}" width="100%" role="img" '
-         'aria-label="spread retained per column">'.format(W, H)]
+         'aria-label="variation kept per column">'.format(W, H)]
     p.append('<rect x="0" y="0" width="{}" height="{}" '
              'fill="#fff"/>'.format(W, H))
-    bw = W - L - 70
-    for frac in (0.25, 0.5, 0.75, 1.0):
-        x = L + bw * frac
-        p.append('<line x1="{:.1f}" y1="28" x2="{:.1f}" y2="{}" '
+    # the TARGET line, labelled - the thing the old chart had no way
+    # of showing, which is why over-shoot was invisible
+    p.append('<line x1="{:.1f}" y1="34" x2="{:.1f}" y2="{}" '
+             'stroke="{}" stroke-width="1.5"/>'.format(
+                 tx, tx, H - 12, INK))
+    p.append('<text x="{:.1f}" y="28" font-size="10" fill="{}" '
+             'text-anchor="middle">target</text>'.format(tx, INK))
+    for frac in (0.5, 1.5):
+        x = L + bw * (frac / 1.5)
+        p.append('<line x1="{:.1f}" y1="34" x2="{:.1f}" y2="{}" '
                  'stroke="{}" stroke-width="1"/>'.format(
-                     x, x, H - 10, RULE))
-        p.append('<text x="{:.1f}" y="22" font-size="10" fill="{}" '
-                 'text-anchor="middle">{:.0%}</text>'.format(
-                     x, GRAY, frac))
+                     x, x, H - 12, RULE))
+        p.append('<text x="{:.1f}" y="28" font-size="9.5" '
+                 'fill="{}" text-anchor="middle">{:.0%}</text>'
+                 .format(x, GRAY, frac))
     for j, (col, a, b) in enumerate(rows):
-        y = 34 + rowh * j
+        y = 40 + rowh * j
         p.append('<text x="0" y="{}" font-size="11" fill="{}">{}</text>'
-                 .format(y + 11, INK, col[:34]))
+                 .format(y + 12, INK, col[:34]))
         for idx, (val, color) in enumerate(((a, GRAY), (b, RED))):
             if val is None:
                 continue
-            yy = y + idx * 9
-            p.append('<rect x="{}" y="{}" width="{:.1f}" height="7" '
-                     'fill="{}"/>'.format(L, yy, bw * min(val, 1.0),
-                                          color))
+            yy = y + idx * 10
+            p.append('<rect x="{}" y="{}" width="{:.1f}" height="8" '
+                     'fill="{}"/>'.format(
+                         L, yy, bw * SP.bar_fraction(val), color))
             p.append('<text x="{:.1f}" y="{}" font-size="9.5" '
-                     'fill="{}">{:.0%}</text>'.format(
-                         L + bw * min(val, 1.0) + 5, yy + 7,
-                         color, val))
-    p.append('<text x="0" y="14" font-size="11" fill="{}">'
+                     'fill="{}">{:.0%} {}</text>'.format(
+                         L + bw * SP.bar_fraction(val) + 5, yy + 8,
+                         color, val, SP.verdict(val)))
+    p.append('<text x="0" y="16" font-size="11" fill="{}">'
              '<tspan fill="{}">{}</tspan> vs '
-             '<tspan fill="{}">{}</tspan> - share of the source '
-             'spread kept</text>'.format(INK, GRAY, names[0],
-                                         RED, names[1]))
+             '<tspan fill="{}">{}</tspan> - how much of the real '
+             'variation each keeps. 100% is the TARGET; past it '
+             'means more spread than reality.</text>'.format(
+                 INK, GRAY, names[0], RED, names[1]))
     p.append("</svg>")
     return "".join(p)
 
@@ -288,17 +312,24 @@ def build(pa, pb, floors):
     shared = sorted(set(pa["retention"]) & set(pb["retention"]))
     rows = [(c, pa["retention"][c]["kept"], pb["retention"][c]["kept"])
             for c in shared]
-    rows.sort(key=lambda r: -(abs((r[1] or 0) - (r[2] or 0))))
+    # worst miss first, in EITHER direction
+    rows.sort(key=lambda r: -abs((r[2] if r[2] is not None else 1.0)
+                                 - 1.0))
     H.append('<div class="card">')
     H.append(_retain_svg(rows, (pa["name"], pb["name"])))
     H.append("</div>")
     if rows:
-        worse = sum(1 for _, a, b in rows if b < a)
-        H.append('<div class="note">{} of {} shared numeric '
-                 'column(s) retain LESS spread on the smaller '
-                 'cohort. Where the two are close, the floor is '
-                 'not what separates them.</div>'
-                 .format(worse, len(rows)))
+        from synthkit import spread as _SPC
+        miss_b = sum(1 for _, a, b in rows if _SPC.is_miss(b))
+        miss_a = sum(1 for _, a, b in rows if _SPC.is_miss(a))
+        H.append('<div class="note">{} of {} measurement(s) are off '
+                 'target by more than {:.0%} on the smaller cohort, '
+                 'against {} on the larger. A miss counts in EITHER '
+                 'direction - too wide is as wrong as too narrow, '
+                 'and the label on each bar says which. Where both '
+                 'sit near the target, the privacy floor is not '
+                 'what separates them.</div>'
+                 .format(miss_b, len(rows), _SPC.BAND, miss_a))
 
     H.append("<h2>Not evidence about cohort size</h2>")
     H.append('<div class="note">')

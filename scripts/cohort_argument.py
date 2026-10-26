@@ -165,12 +165,16 @@ def _crit(p, name):
 
 
 def _retained(d):
-    """Share of the source's spread the output keeps. The number the
-    whole argument turns on, so it is computed in one place."""
-    s, g = d.get("sd_src"), d.get("sd_gen")
-    if not s or not g:
-        return None
-    return float(g) / float(s)
+    """The variation RATIO, against a target of 1.0 - from the one
+    shared definition.
+
+    Was a local divide framed as a "share kept", which cannot exceed
+    1.0 by its own wording; a real column came back at 1.03 and the
+    honesty line below then computed `1.0 - ratio` and printed
+    "loses -3%". Both the ratio and the words now come from
+    synthkit/spread.py."""
+    from synthkit import spread as _sp
+    return _sp.ratio(d.get("sd_src"), d.get("sd_gen"))
 
 
 def render(big, thin, column, k):
@@ -249,7 +253,17 @@ def render(big, thin, column, k):
         L.append("")
         for _l in _wrap("Presence is reproduced in both, so this is not a missingness problem - the MAGNITUDE is what differs.", 80):
             L.append(_l)
-        if rb is not None and rt is not None and rb > rt:
+        from synthkit import spread as _spa
+        for _l in _wrap(
+                "VERDICT: {} on the larger cohort, {} on the "
+                "smaller. 100% is the target - past it means MORE "
+                "spread than reality, which is as wrong as "
+                "less.".format(_spa.verdict(rb), _spa.verdict(rt)),
+                80):
+            L.append(_l)
+        L.append("")
+        if (rb is not None and rt is not None and rb > rt
+                and rb <= 1.0):
             L.append("")
             for _l in _wrap(
                     "STATED HONESTLY: the larger cohort is BETTER "
