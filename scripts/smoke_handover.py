@@ -100,7 +100,7 @@ def main():
               "opposite conclusion",
               doc.index("Read this table before any percentage")
               < doc.index("How much numeric detail survives")
-              and "higher* percentage while publishing far less"
+              and "<em>higher</em> percentage while publishing far less"
               in doc)
 
         # ---- THE ORIGINAL TABLE LAYOUT AND ITS FOUR GAPS ----
@@ -141,8 +141,9 @@ def main():
         check("every visualization gets WHAT IT SHOWS and HOW TO "
               "READ IT - a plot handed over without the second is "
               "a plot that gets misread",
-              doc.count("**What it shows.**") == len(H.PLOTS)
-              and doc.count("**How to read it.**") == len(H.PLOTS))
+              doc.count("<dt>What it shows</dt>") == len(H.PLOTS)
+              and doc.count("<dt>How to read it</dt>")
+              == len(H.PLOTS))
         check("...and the one comparison the 3D views cannot "
               "support is stated beside them, because two rotating "
               "clouds invite exactly that comparison",
@@ -159,8 +160,9 @@ def main():
         check("...and the smaller cohort's attack numbers are "
               "flagged as NOISIER with the reason, so a gap "
               "between cohorts is not read as a real difference",
-              "NOISIER" in doc
-              and "not evidence of a real difference" in doc)
+              "several times the uncertainty" in doc
+              and "not evidence of a real difference" in doc
+              and "should not be compared directly" in doc)
 
         # ---- LIMITS, PLACED WHERE THEY ARE MET ----
         check("a column empty in the SOURCE is named as such, with "
@@ -190,14 +192,53 @@ def main():
         check("the document ends with the one thing that would "
               "actually change the numbers - more PEOPLE - and "
               "says that row count is nearly free",
-              "More **people**" in doc
+              "More <strong>people</strong>" in doc
               and "still one person" in doc
-              and "Output VOLUME is nearly free" in doc)
+              and "Output volume is nearly free" in doc)
+
+        # ---- IT IS A DOCUMENT SOMEONE CAN OPEN ----
+        # A .md handed to a stakeholder renders as plain text in
+        # most places; asking them to install a viewer is asking
+        # them not to read it.
+        check("the output is HTML with a style block, not markdown",
+              doc.lstrip().startswith("<!--")
+              and "<style>" in doc and "</style>" in doc)
+        check("it is SELF-CONTAINED - no external font, script or "
+              "stylesheet - so it opens on a locked-down machine "
+              "with no network and survives being emailed",
+              "<script" not in doc
+              and "http://" not in doc and "https://" not in doc
+              and "@import" not in doc
+              and "fonts.googleapis" not in doc)
+        check("it carries print rules, because a report for a "
+              "stakeholder gets printed and a layout that collapses "
+              "on paper is a layout that failed",
+              "@media print" in doc)
+        check("...and narrow-screen rules, so it is readable if "
+              "opened on a phone",
+              "@media (max-width" in doc)
+        check("figures line up in columns - tabular numerals and "
+              "right-aligned numeric cells, so two percentages can "
+              "be compared by eye",
+              "tabular-nums" in doc and 'class="n"' in doc)
+        check("there is a contents list, because a six-section "
+              "document handed over cold needs a way in",
+              'class="contents"' in doc
+              and doc.count("<li>") >= 6)
+        check("column names are HTML-ESCAPED - a source column "
+              "containing an angle bracket would otherwise break "
+              "the page or inject markup",
+              "&lt;" in H._esc("a<b>c") and "&gt;" in H._esc("a<b>c")
+              and "&amp;" in H._esc("a&b"))
+        check("the caveat blocks are marked as such, so the limits "
+              "are visually distinct from the findings rather than "
+              "buried in body text",
+              doc.count('class="note caution"') >= 2)
 
         # ---- REFUSALS ----
         check("one cohort is refused rather than half-reported",
               H.main(["--name", "A", "--src", bs, "--run", br,
-                      "-o", "/tmp/x.md"]) == 2)
+                      "-o", "/tmp/x.html"]) == 2)
         check("an unknown flag is refused by name", 
               H.main(["--nope", "1"]) == 2)
 
