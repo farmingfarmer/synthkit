@@ -99,7 +99,7 @@ def main():
               "reason a reader needs in order to not draw the "
               "opposite conclusion",
               doc.index("Read this table before any percentage")
-              < doc.index("How much numeric detail survives")
+              < doc.index("How much of the variation survives")
               and "<em>higher</em> percentage while publishing far less"
               in doc)
 
@@ -134,8 +134,8 @@ def main():
         check("the count of numeric columns that are WORSE on the "
               "smaller cohort is stated, and what it means when "
               "they are close",
-              "keep less spread on the smaller cohort" in doc
-              and "privacy floor is not what separates them" in doc)
+              "are off by more than" in doc
+              and "the synthetic version is flatter than reality" in doc)
 
         # ---- EVERY PLOT GETS BOTH SENTENCES ----
         check("every visualization gets WHAT IT SHOWS and HOW TO "
@@ -195,6 +195,87 @@ def main():
               "More <strong>people</strong>" in doc
               and "still one person" in doc
               and "Output volume is nearly free" in doc)
+
+        # ---- 100% IS THE TARGET, NOT THE CEILING ----
+        # The spread figure was first captioned as the "share of
+        # the real spread the synthetic KEEPS", which cannot pass
+        # 100% by its own wording - and a real column came out at
+        # 103%, meaning the synthetic was WIDER than reality. That
+        # is a different error being labelled as near-perfect
+        # success. The bar was also drawn at min(value, 1.0), so
+        # 103% rendered FULL - visually identical to a perfect
+        # match and contradicting its own label.
+        check("the variation figure is framed as a TARGET of 100% "
+              "rather than a ceiling, so a column that is too WIDE "
+              "is not mistaken for one that is nearly perfect",
+              "100% is the target" in doc
+              and "above means it is more spread out" in doc
+              and "both are wrong" in doc)
+        check("...and a miss is counted in EITHER direction, "
+              "rather than counting only columns that lost spread",
+              "are off by more than" in doc)
+        check("...and each row says in words whether it is too "
+              "narrow, too wide, or about right, so the number "
+              "does not have to be interpreted",
+              "too narrow" in doc or "about right" in doc)
+        # over-dispersion must be surfaced, not averaged away
+        over = dict(pb["numeric"]); over["gcs"] = 1.21
+        pb2 = dict(pb); pb2["numeric"] = over
+        pt2 = dict(pt); pt2["numeric"] = dict(pt["numeric"],
+                                              gcs=1.18)
+        doc2 = H.render(pb2, pt2, 10)
+        check("a column that comes out MORE spread than reality is "
+              "named in its own block - an over-spread column is "
+              "as wrong as a flat one, and a table of shortfalls "
+              "would read as though flatness were the only risk",
+              "MORE spread than reality" in doc2
+              and "gcs" in doc2)
+
+        # ---- THE RELATIONSHIPS SECTION ----
+        # Everything else in the report is columns ONE AT A TIME. A
+        # table of perfect marginals with no relationships between
+        # them is the classic way a synthetic generator looks right
+        # and is useless, and that failure is invisible in every
+        # other number on the page.
+        check("the report asks whether the RELATIONSHIPS survived, "
+              "which no per-column number can answer",
+              "Did the relationships survive?" in doc
+              and "whether the data still hangs together" in doc)
+        check("...with every gate criterion rendered as a question "
+              "in plain words rather than by its internal name",
+              "Do things still move together?" in doc
+              and "Does anything come out backwards?" in doc
+              and "Do the bends survive?" in doc
+              and "Do combinations survive?" in doc)
+        check("...and each question is explained, so a reader who "
+              "does not know what a correlation is still gets an "
+              "answer they can use",
+              "rise and fall together" in doc
+              and "U-shaped" in doc)
+        check("the backwards-relationship row is called out as the "
+              "one to read first, with WHY - it does not look like "
+              "a gap, it looks like a finding",
+              "read first" in doc
+              and "looks like a finding" in doc)
+        check("...and the ceiling on what is measured at all is "
+              "stated: nothing above two variables at a time",
+              "two things at a time" in doc
+              and "nothing on this page would" in doc)
+
+        # ---- PLAIN LANGUAGE ----
+        # The reader is the person who asked for the data, not the
+        # people who built it. Internal vocabulary that survived
+        # into the first draft is listed here by name so it cannot
+        # creep back.
+        for jargon in ("publishable mass", "marginal", "rank "
+                       "correlation", "autoencoder", "EAV",
+                       "k-anonymity", "latent space"):
+            check("the phrase {!r} does not appear - it is "
+                  "internal vocabulary".format(jargon),
+                  jargon not in doc)
+        check("the privacy rule is stated in people, not in "
+              "notation",
+              "different patients have it" in doc)
 
         # ---- IT IS A DOCUMENT SOMEONE CAN OPEN ----
         # A .md handed to a stakeholder renders as plain text in
