@@ -3506,3 +3506,60 @@ exist.
   on the same column 61% against 25% (sd 18.44 -> 11.24 against
   19.55 -> 4.82). An argument built from the wrong numbers loses the
   right ones with it.
+
+- **A FIXTURE THAT SHARES THE RENDERER'S WRONG KEYS IS NOT A
+  TEST, AND FORTY CHECKS SAW NOTHING (2026-10-26).** Section 2 of
+  the relationships page - "are the same things doing the
+  driving?" - rendered TWELVE ROWS OF EM-DASHES on the real
+  extract. The renderer read `r2_real` / `r2_synth` /
+  `drivers_match`; `jointcheck.predictability` emits `skill_real`
+  / `skill_syn` / `driver_agreement`. Every cell came back None,
+  and a document about to go to a stakeholder looked finished and
+  carried no values at all. THE CHECKS PASSED BECAUSE THE FIXTURE
+  HELD THE SAME WRONG KEYS: the two halves agreed with each other
+  and both disagreed with the only thing that matters, the
+  function actually being called. This file already says
+  consistent wrongness is invisible from inside - said there
+  about a reader that folded empty into missing, and the folded
+  gate that passed on its own folded numbers. Same fault, new
+  module. The key names are asserted against a LIVE
+  `predictability` call now, so a rename in jointcheck breaks the
+  suite rather than somebody's report. Measured after: 15 columns
+  scored, and `span_days` reads 40% driver agreement against a
+  0.80 band - the SHAP attribution drift this file records,
+  visible for the first time as a number on a page.
+- **AND THE SCORE GATE NEEDED A CEILING AS WELL AS A FLOOR.** The
+  page refused to score a target nobody could predict - a real
+  0.04 against a synthetic 0.03 is "75% kept" and means nothing.
+  It happily scored targets ANYBODY can: `year_of_birth` and
+  `age_at_visit` read 1.000 -> 0.999, "100%, holds", sitting at
+  the top as the most reassuring rows on the page. `age_at_visit`
+  IS the visit year minus `year_of_birth` - arithmetic the
+  generator COPIES by design, which will read 100% on every run
+  forever. It is evidence about the identity tier, not about
+  relationships. Reported apart, with the ORDERING asserted so it
+  cannot drift back above the real results. On the real extract
+  both fired and were flagged; the 100-patient cohort has none,
+  so the section is conditional and correctly absent there.
+- **TSTR IS THE ONE FIDELITY NUMBER THE THIN-COHORT TRAP CANNOT
+  REVERSE.** This file records that a 100-patient cut scored
+  HIGHER on `close` than the 800 while publishing 64% of its data
+  against 87% - fidelity is scored only on the pairs that cleared
+  the privacy screen, so a thinner source grades a smaller and
+  stronger surviving set. Train-on-synthetic-test-on-real scores
+  both arms on the SAME held-out real rows, so it cannot be
+  flattered that way. Measured on both cohorts, same engine, same
+  build: `condition_count` 14% against 1%, `active_drug_count`
+  70% against 53%, and `procedure_count` is not predictable in
+  the thin cohort AT ALL (below the 0.10 floor) where the extract
+  predicts it at 0.639. Six scored targets against four. The one
+  reversal, `visit_id` 25% against 55%, is an identifier whose
+  real-data skill is 0.22 - quote it with the skill beside it or
+  it reads as a win.
+- **EVERY DEGRADED TARGET WAS A COUNT COLUMN.**
+  `condition_count`, `procedure_count`, `active_drug_count` - all
+  set-size partners, copied from set lengths. The multivariate
+  loss sits exactly where the k rule bites hardest: 365
+  publishable condition codes against 1,050. Not a sampler
+  defect; the privacy screen, surfacing in the one place no
+  per-column number looks.
