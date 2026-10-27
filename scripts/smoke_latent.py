@@ -313,6 +313,34 @@ def main():
                   for c_, m_, _a_, p_ in getattr(
                       g5, "_token_clusters", [])]
               and _ct.get("posture"))
+        # THE CAP WAS A HARDCODED 60 three lines under a comment
+        # promising every field was read off the engine. Both real
+        # runs executed at 400 - their own narration says "set
+        # tokens 60 -> 400" - and both provenance files claimed 60,
+        # which signoff.py then printed as the accepted
+        # configuration. The check around it asserted k, the tiers
+        # and the posture: everything EXCEPT the literal.
+        # Asserting against the engine's own value is not enough on
+        # its own, because a fixture at the default cap agrees with
+        # the bug - so the engine is moved OFF the default first.
+        _capdir = Path(_ad) / "caps"
+        _oldtok, _oldlv = g5._cap_tok, g5._cap_lv
+        g5._cap_tok, g5._cap_lv = 137, 193
+        try:
+            write_run_artifacts(tr, gen5, "person_id", _capdir,
+                                source_name="fixture.csv",
+                                gen_engine=g5)
+            _pc = json.loads((_capdir / "provenance.json")
+                             .read_text(encoding="utf-8"))
+        finally:
+            g5._cap_tok, g5._cap_lv = _oldtok, _oldlv
+        _cc = (_pc.get("contract") or {})
+        check("provenance records the EFFECTIVE token and level "
+              "caps, not the module default - a run configured at "
+              "one cap and recorded at another makes the sign-off "
+              "page state a configuration that never shipped",
+              _cc.get("token_cap") == 137
+              and _cc.get("level_cap") == 193)
         # the sign-off page renders it, and a neural run WITHOUT
         # one is a loud finding, not a blank - both branches
         # exercised through the real renderer
