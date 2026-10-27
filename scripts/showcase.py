@@ -440,7 +440,10 @@ frame();
 """
 
 # ---------------------------------------------------------------------
-_PAGE = """<title>SynthKit &mdash; the latent space, spinning</title>
+_PAGE = """<!doctype html>
+<html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>SynthKit &mdash; the latent space, spinning</title>
 <style>
 :root{--ink:#0a0a0f;--panel:#13131c;--card:#191922;--line:#2a2a37;
   --red:#e23b4e;--gold:#ffcc33;--steel:#5fa8d8;--green:#2ec27a;
@@ -550,6 +553,7 @@ h2{font-size:clamp(20px,3vw,26px);font-weight:800;letter-spacing:-.01em;margin:c
   <div class="brand">Synth<span class="usc">Kit</span></div>
  </div>
 </div>
+</body></html>
 """
 
 

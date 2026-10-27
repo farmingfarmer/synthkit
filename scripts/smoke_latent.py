@@ -1952,6 +1952,15 @@ def main():
           and any(p["g"] == 0 for p in _pts)
           and any(p["g"] == 1 for p in _pts))
     _htmlv = _lv.build_html(_pts, _metav)
+    # A COMPLETE DOCUMENT, NOT A FRAGMENT. Self-contained and
+    # well-formed are different properties: this page shipped with
+    # no doctype, no charset and no title while passing every
+    # self-containment check beside it.
+    check("the latent page is a complete HTML document - doctype, "
+          "charset, title - and closes the tags it opens",
+          _htmlv.lstrip().lower().startswith("<!doctype html>")
+          and "charset=" in _htmlv and "<title>" in _htmlv
+          and _htmlv.rstrip().endswith("</html>"))
     check("...and the page is self-contained with switchable "
           "axes, labelled axis arrows, group toggles, and the "
           "four metric names - no external script, so it survives "

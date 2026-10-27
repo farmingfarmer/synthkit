@@ -140,7 +140,11 @@ def build_from_run(src, gen, group_by, seed=0,
     return build_html(pts, meta)
 
 
-_TEMPLATE = r"""<style>
+_TEMPLATE = r"""<!doctype html>
+<html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>SynthKit &mdash; the latent space</title>
+<style>
 html,body{margin:0;height:100%;background:#0a0e13;color:#e2e8f0;
 font-family:-apple-system,Segoe UI,Helvetica,Arial,sans-serif;overflow:hidden}
 #c{display:block;width:100vw;height:100vh;cursor:grab}#c:active{cursor:grabbing}
@@ -278,7 +282,8 @@ cv.addEventListener('click',function(e){if(moved>5)return;var M=mat();var rect=c
   '<span class="k">reconstruction error</span> <span class="v">'+p.r+'</span><br>'+
   '<span class="k">orig&harr;synth distance</span> <span class="v">'+p.x+'</span><br>'+
   '<span class="k">colour percentile</span> <span class="v">'+(_pct(p[AX.col])*100).toFixed(0)+'%</span>'});
-</script>"""
+</script>
+</body></html>"""
 
 
 

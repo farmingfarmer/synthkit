@@ -90,6 +90,16 @@ def main():
             json.dumps(fid), encoding="utf-8")
         html = showcase.build_showcase(run, src, "person_id", seed=5)
 
+        # A COMPLETE DOCUMENT, NOT A FRAGMENT. This page had a
+        # <title> floating with no <head> to hold it, no doctype and
+        # no charset - it is emailed and opened by hand, so the tab
+        # should carry its name and a literal non-ASCII character
+        # should not render at the browser's guess.
+        check("the showcase is a complete HTML document - doctype, "
+              "charset, title - and closes the tags it opens",
+              html.lstrip().lower().startswith("<!doctype html>")
+              and 'charset=' in html and "<title>" in html
+              and html.rstrip().endswith("</html>"))
         check("the gate scorecard renders when fidelity.json is present",
               'class="crit' in html and "direction kept" in html
               and ("MET" in html or "REVIEW" in html))
