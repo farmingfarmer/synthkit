@@ -281,9 +281,15 @@ def main():
         # A .md handed to a stakeholder renders as plain text in
         # most places; asking them to install a viewer is asking
         # them not to read it.
-        check("the output is HTML with a style block, not markdown",
-              doc.lstrip().startswith("<!--")
+        check("the output is a COMPLETE HTML document, not markdown "
+              "and not a fragment - doctype, charset, title, and a "
+              "style block, because this is the page the reader "
+              "opens first and the tab should not say a filename",
+              doc.lstrip().startswith("<!doctype html>")
+              and 'charset="utf-8"' in doc and "<title>" in doc
               and "<style>" in doc and "</style>" in doc)
+        check("...and it closes the tags it opens",
+              doc.rstrip().endswith("</body></html>"))
         check("it is SELF-CONTAINED - no external font, script or "
               "stylesheet - so it opens on a locked-down machine "
               "with no network and survives being emailed",

@@ -125,6 +125,23 @@ def main():
 
         html = C.build(pa, pb, floors)
 
+        # ---- A COMPLETE DOCUMENT, NOT A FRAGMENT ----
+        # This page is emailed and opened by hand, so it needs a
+        # doctype, a charset and a title - without them the tab
+        # shows a filename and a literal non-ASCII character
+        # renders at whatever the browser guesses.
+        check("the chart page is a complete HTML document - "
+              "doctype, charset and title - not a fragment",
+              html.lstrip().startswith("<!doctype html>")
+              and 'charset="utf-8"' in html
+              and "<title>" in html)
+        check("...and it closes the tags it opens",
+              html.rstrip().endswith("</body></html>"))
+        check("...and it is still self-contained - the style ships "
+              "inside it, with no external font or stylesheet",
+              "<style>" in html and "http://" not in html
+              and "https://" not in html)
+
         # ---- WHAT THE PAGE MUST SAY ----
         check("coverage is argued before fidelity, with the reason "
               "stated where a reader meets it",
