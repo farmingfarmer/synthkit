@@ -1,0 +1,223 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Synthetic cohort for the UM tool evaluation — options and what each buys</title>
+<style>
+:root{--ink:#18181b;--gray:#6a6a72;--rule:#e5e5e9;--wash:#f6f7f9;
+--accent:#8c1515;--good:#1c6b4a;--warn:#8a5a00}
+*{box-sizing:border-box}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,
+Arial,sans-serif;color:var(--ink);background:#fff;margin:0;
+font-size:15.5px;line-height:1.6}
+.wrap{max-width:820px;margin:0 auto;padding:44px 32px 90px}
+h1{font-size:25px;letter-spacing:-.02em;margin:0 0 6px}
+.stand{color:var(--gray);font-size:14px;margin:0 0 26px}
+h2{font-size:17px;margin:34px 0 8px;letter-spacing:-.01em}
+h2 .n{display:inline-block;width:1.6em;color:var(--accent);
+font-weight:700}
+h3{font-size:14.5px;margin:20px 0 4px}
+p{margin:0 0 12px}
+.lede{font-size:16.5px;line-height:1.55}
+table{border-collapse:collapse;width:100%;margin:14px 0;font-size:14px}
+th,td{text-align:left;padding:8px 10px;border-bottom:1px solid var(--rule);
+vertical-align:top}
+th{font-size:12px;text-transform:uppercase;letter-spacing:.06em;
+color:var(--gray);font-weight:600}
+td.n{text-align:right;font-variant-numeric:tabular-nums;
+white-space:nowrap}
+.yes{color:var(--good);font-weight:600}
+.no{color:var(--accent);font-weight:600}
+.mar{color:var(--warn);font-weight:600}
+.box{background:var(--wash);border-radius:12px;padding:16px 20px;
+margin:16px 0}
+.box.key{border-left:3px solid var(--accent)}
+.box h3{margin-top:0}
+.note{font-size:13.5px;color:var(--gray);margin:10px 0}
+code{font:13px ui-monospace,Menlo,monospace;background:var(--wash);
+padding:1px 5px;border-radius:4px}
+.foot{margin-top:40px;padding-top:16px;border-top:1px solid var(--rule);
+font-size:13px;color:var(--gray)}
+@media print{.wrap{max-width:none}h2{page-break-after:avoid}}
+</style></head><body><div class="wrap">
+
+<h1>Synthetic cohort for the UM tool evaluation</h1>
+<p class="stand">What the smallest useful cohort actually is, which of
+his rule types it can exercise, and the three pieces of work that
+would add more without needing more real patients.</p>
+
+<p class="lede">The request was the smallest synthetic cohort that
+still contains the patterns that matter. <strong>The honest answer is
+that the trade runs the other way: 800 patients is already below what
+his most important rules need, so there is no smaller cohort that
+preserves them.</strong> What follows is why, and what we can do about
+it at the patient count we have.</p>
+
+<h2><span class="n">1</span>Why a smaller cohort buys nothing</h2>
+<p>It is reasonable to assume a smaller release is a safer release.
+Here it is not, because of <em>when</em> the protection is applied.</p>
+<p>Our privacy rule operates while the model <strong>learns from the
+real data</strong> &mdash; no pattern is carried forward unless at
+least ten different patients share it. By the time any synthetic file
+is written, that screening has already happened. Writing fewer
+synthetic patients removes none of the real patients from the learning
+step, so it gives away nothing less.</p>
+<p>It does cost evidence. Several of his trigger types need the full
+800 patients' worth of support, and one sits exactly on that line with
+no margin.</p>
+<div class="box key">
+<h3>Measured, not assumed</h3>
+<p>Two attackers were run against the output, including a
+<strong>positive control</strong> &mdash; the same attack pointed at a
+deliberately leaky generator that simply republishes real records.
+The control is caught every time at a perfect score; the real output
+reads at close to chance. A test that cannot fail proves nothing,
+which is why the control is run alongside.</p>
+</div>
+
+<h2><span class="n">2</span>What 800 patients can and cannot exercise</h2>
+<p>His rules fall into kinds, and the kinds differ enormously in how
+much evidence they need. Figures below come from a controlled
+benchmark where each pattern was planted at known strength and we
+measured how many patients were needed before it came through
+reliably.</p>
+<table>
+<thead><tr><th>Rule kind</th><th>Example</th>
+<th class="n">Patients needed</th><th>At 800</th></tr></thead>
+<tbody>
+<tr><td>Monotone</td><td>risk rises with age</td>
+<td class="n">200</td><td class="yes">YES</td></tr>
+<tr><td>Threshold</td><td>value crosses a cut-point &mdash;
+<em>his commonest type</em></td>
+<td class="n">400</td><td class="yes">YES</td></tr>
+<tr><td>Two-sided</td><td>both high <em>and</em> low sodium trigger</td>
+<td class="n">800</td><td class="mar">MARGINAL</td></tr>
+<tr><td>Two-factor</td><td>drug matters only with renal impairment</td>
+<td class="n">~3,200</td><td class="no">NO</td></tr>
+<tr><td>Three-factor</td><td>drug + elderly + renal impairment</td>
+<td class="n">~3,200</td><td class="no">NO</td></tr>
+<tr><td>Within-stay trend</td><td>haemoglobin falls 2 points in 24h</td>
+<td class="n">not modelled</td><td class="no">NO</td></tr>
+</tbody></table>
+<p class="note">Two caveats on the patient counts. They are the
+largest size we swept, so they are a floor rather than a proven
+sufficiency. And the benchmark averaged four visits per patient where
+this cohort averages around sixty-five &mdash; more records per patient
+should help, but we have not measured that, so treat the figures as
+bounds we have no evidence are too low.</p>
+<p><strong>What this means in one line:</strong> the cohort is a good
+<em>functional</em> test of his tool &mdash; does it ingest our data,
+parse the fields, fire the right rules, handle the edge cases &mdash;
+and a weak test of his <em>multi-factor clinical logic</em>. Saying so
+up front is better than a clean result implying we validated something
+we did not.</p>
+
+<h2><span class="n">3</span>Why the combination rules fail, precisely</h2>
+<p>This is worth understanding because it is not simply "not enough
+data", and the distinction decides which work is worth doing.</p>
+<p>Across all 800 patients we <strong>can</strong> detect a faint trace
+of these combinations. Reproducing them is a different bar. The
+patients who sit in all three groups at once &mdash; elderly, renally
+impaired, on that drug &mdash; are a small handful, and our rule only
+reproduces a pattern when ten patients share it. So the specific group
+carrying the combination falls below the floor even though the faint
+signal across the whole cohort is visible. <em>We can see the shadow;
+we are not permitted to publish what casts it.</em></p>
+<p>On top of that, the protection itself works by disregarding
+patterns that only a few records support &mdash; that is exactly what
+makes the output survive the attack testing above. The mechanism that
+keeps the data safe is the same one that removes thin combinations. A
+genuine trade, not something to tune away.</p>
+<p>And in our own controlled testing, two-factor combinations come
+through reliably while three-factor ones mostly do not, <em>even with
+ample data</em>. So more patients is a necessary first step and not a
+guaranteed fix. We would not want to promise otherwise.</p>
+
+<h2><span class="n">4</span>Three pieces of work that add patterns at
+the same 800 patients</h2>
+<p>These are the constructive options. None needs a wider extract.</p>
+
+<div class="box">
+<h3>A. Publish more of the vocabulary we are already allowed to
+publish &mdash; smallest, already underway</h3>
+<p>Our generator caps how many distinct codes it models, for memory
+reasons rather than privacy ones. On an 800-patient sample, one
+condition column held about 4,700 codes that <em>already cleared the
+privacy floor</em>, and only sixty were being modelled. The cap has
+since been raised, and a sweep now running tests raising it further.
+The first result shows every measured pattern family improving; it is
+a single run so far and two more are in progress before we would
+report it as settled.</p>
+<p>This is the cheapest work available, because the discarded codes
+were already cleared for release &mdash; nothing about the privacy
+position changes.</p>
+</div>
+
+<div class="box">
+<h3>B. A transition model for within-stay trends &mdash; the missing
+rule family</h3>
+<p>His trend rules currently cannot be tested at all. The approach
+that would address it: fit a model on the real patients' courses that
+learns <em>what tends to happen next given a patient's current
+state</em>, then use it to extend each synthetic patient forward.</p>
+<p>The reason this is more promising than it first appears: learning
+<em>transitions</em> pools evidence across the whole cohort, where
+learning whole <em>trajectories</em> would need ten patients sharing a
+near-identical course. "Haemoglobin tends to fall after this
+diagnosis" can be fitted from every patient who had it.</p>
+<p>Two things decide whether it works, and both are cheap to test
+before committing to a build. First, the model must reproduce the
+<em>variability</em> of change and not just the average, or every
+synthetic patient's labs glide smoothly and nobody ever drops two
+points in a day &mdash; the very rule we are trying to support.
+Second, a patient's course is far more identifying than a single
+visit, so the attack battery has to be re-run against it. Our
+recommendation is a short feasibility spike that answers both with
+numbers rather than a full build.</p>
+<p class="note">A prior question to settle first, and it is quick: our
+extract holds one row per visit. If serial measurements within a single
+stay were collapsed at extraction, the trend is not in our source data
+at all, and no model can synthesise what the source does not contain.</p>
+</div>
+
+<div class="box">
+<h3>C. Publish the combination patterns as screened summaries</h3>
+<p>A route to the two-factor family that keeps the current privacy
+position: identify the combinations that matter, then publish them as
+aggregate summaries screened by the same ten-patient rule, which the
+generator samples from. This imports the pattern without releasing
+anything record-level. It is the most speculative of the three and the
+one we would scope last.</p>
+</div>
+
+<h2><span class="n">5</span>What only a wider extract fixes</h2>
+<p>More <strong>patients</strong> &mdash; in the region of three
+thousand or more &mdash; would lift the small groups above the privacy
+floor and bring the two- and three-factor rules into range. More
+<em>rows from the same patients</em> does nothing, because the floor
+counts people. Nor does generating a larger synthetic file: that
+reproduces what the model already learned from the 800, and more rows
+would imply more evidence than exists.</p>
+
+<h2><span class="n">6</span>Recommendation</h2>
+<p><strong>Hand over the full 800-patient cohort for the functional
+evaluation now</strong>, with the rule-kind table above stated plainly
+so his team knows which of their logic is being exercised and which is
+not.</p>
+<p>Then, in order of cost: finish the vocabulary work already running
+(A), run the feasibility spike on within-stay trends (B), and treat the
+combination summaries (C) as a later decision informed by B's result.
+Separately, if a wider pull is possible, that is the single change that
+moves the most.</p>
+
+<div class="foot">
+<p>One measurement note for completeness. While preparing these
+figures we found a defect in our own measurement code: patient and
+visit identifiers were being counted as if they were clinical factors,
+which inflated one of the combination figures. That measurement is
+being re-run. We expect it to confirm the position above rather than
+change it, and will say so either way before anything is handed over.</p>
+<p>Every figure here comes from a run that can be repeated, and the
+measurements that do not flatter us are included deliberately.</p>
+</div>
+
+</div></body></html>
