@@ -9,6 +9,7 @@ retained. Scored naively, the weakest targets produce the most
 reassuring numbers.
 """
 import json
+import subprocess
 import sys
 import tempfile
 from pathlib import Path
@@ -50,13 +51,25 @@ def main():
               "retained": 0.292, "predictable": True},
              # NOT predictable in real data - the trap
              {"target": "noise", "trtr": 0.04, "tstr": 0.03,
-              "retained": 0.75, "predictable": False}],
-         "three_way": {"found": []}, "distinguish": {"auc": 0.61},
+              "retained": 0.75, "predictable": False},
+             # PURE ARITHMETIC - the trap at the other end
+             {"target": "age_at_visit", "trtr": 1.0, "tstr": 0.999,
+              "retained": 0.999, "predictable": True,
+              "identity": True}],
+         "three_way": {"trios": [
+             {"child": "bp", "trio": ["age", "wt", "hr"],
+              "source": 0.21, "synthetic": 0.19},
+             {"child": "los", "trio": ["age", "wt", "dx"],
+              "source": 0.18, "synthetic": 0.02}]},
+         "distinguish": {"auc": 0.61, "verdict": "distinguishable",
+                         "columns_indistinguishable": 9,
+                         "columns_measured": 14,
+                         "tells": [("spo2", 0.41), ("hr", 0.22)]},
          "predict": {"columns": [
-             {"column": "bp", "r2_real": 0.62, "r2_synth": 0.55,
-              "drivers_match": True},
-             {"column": "los", "r2_real": 0.48, "r2_synth": 0.44,
-              "drivers_match": False}]}}
+             {"column": "bp", "skill_real": 0.62,
+              "skill_syn": 0.55, "driver_agreement": 0.93},
+             {"column": "los", "skill_real": 0.48,
+              "skill_syn": 0.44, "driver_agreement": 0.31}]}}
     doc = R.render(m, "test")
 
     # ASSERT THE EXCLUSION, NOT AN ADJACENT FACT. The first
@@ -189,12 +202,135 @@ def main():
           "angle bracket cannot break the page",
           "&lt;" in R._esc("a<b"))
 
+    # ---- THE KEYS COME FROM JOINTCHECK, NOT FROM MEMORY ----
+    # This is the check that was missing. The renderer read
+    # r2_real / r2_synth / drivers_match; predictability emits
+    # skill_real / skill_syn / driver_agreement. Every cell came
+    # back None, the section rendered as rows of em-dashes, and it
+    # went out that way because nothing compared the two sides.
+    # Asserting the names against a LIVE call means a rename in
+    # jointcheck breaks this suite rather than a stakeholder's page.
+    from synthkit import jointcheck as JC
+    rng = np.random.default_rng(7)
+    _n = 400
+    _a = rng.normal(0, 1, _n)
+    _b = rng.normal(0, 1, _n)
+    _mk = lambda k: pd.DataFrame({
+        "person_id": np.repeat(np.arange(_n // 4), 4),
+        "a": _a, "b": _b,
+        "child": 2.0 * _a + 1.0 * _b + rng.normal(0, .3, _n) * k})
+    _pred = JC.predictability(_mk(1.0), _mk(1.0), "person_id", seed=0)
+    _cols = _pred.get("columns") or []
+    check("the driver table's key names are the ones jointcheck "
+          "actually emits - asserted against a live call, so a "
+          "rename cannot blank the section silently",
+          bool(_cols) and all(k in _cols[0] for k in
+                              (R.K_REAL, R.K_SYN, R.K_AGREE)))
+    check("...and driver agreement is a NUMBER, not a yes/no - "
+          "rendering a cosine as a boolean reads every value as true",
+          bool(_cols)
+          and isinstance(_cols[0].get(R.K_AGREE), (int, float)))
+
+    # ---- THE SECTION CARRIES VALUES, NOT EM-DASHES ----
+    check("the driver section renders real numbers for a field, so "
+          "a key mismatch shows up here instead of on the page",
+          "0.620" in doc and "0.930" in doc)
+    check("...and a field whose drivers disagree is NAMED as "
+          "different rather than left blank",
+          "different drivers" in doc and "same drivers" in doc)
+
+    # ---- THE ARITHMETIC CEILING ----
+    check("a target the real data predicts perfectly is reported "
+          "APART from the rest - it is a sum the generator copies, "
+          "so a near-100% score says nothing about relationships",
+          "pure arithmetic" in doc and "age_at_visit" in doc)
+    check("...and it is NOT in the retention table, where it would "
+          "sit at the top as the most reassuring row on the page",
+          doc.index("age_at_visit") > doc.index("pure arithmetic"))
+
+    # ---- READABLE, NOT A JSON DUMP ----
+    check("no measure is dumped as raw JSON - this page is read by "
+          "people who asked for plain language",
+          "json" not in doc.lower().replace("jsonld", ""))
+    check("the three-field section renders its combinations as a "
+          "table, and says which were kept and which were lost",
+          "Three fields together" in doc and "lost" in doc)
+    check("the tell section states the classifier score and names "
+          "the fields it leaned on",
+          "0.610" in doc and "spo2" in doc)
+
+    # ---- A FULL DOCUMENT, NOT A FRAGMENT ----
+    check("the output is a complete HTML document - doctype, "
+          "charset and title - because it is opened by a person, "
+          "not embedded by a program",
+          doc.startswith("<!doctype html>")
+          and 'charset="utf-8"' in doc and "<title>" in doc)
+    check("...and it closes the tags it opened",
+          doc.rstrip().endswith("</body></html>"))
+
+    # ---- THE NUMBERS ARE RE-READABLE BY A PROGRAM ----
+    # The page was the only output, and the machine that holds the
+    # real data is driven through screen capture, where a digit is
+    # not a reliable channel (0 reads as @, 8 and 6). A sidecar
+    # means the measurement can be read back exactly.
+    with tempfile.TemporaryDirectory() as _td:
+        _d = Path(_td)
+        _f = _mk(1.0)
+        _f.to_csv(_d / "src.csv", index=False)
+        (_d / "run").mkdir()
+        _mk(1.4).to_csv(_d / "run" / "generated.csv", index=False)
+        _rc = R.main(["--src", str(_d / "src.csv"),
+                      "--run", str(_d / "run"),
+                      "--name", "sidecar fixture",
+                      "-o", str(_d / "rel.html")])
+        _side = _d / "rel.json"
+        check("a real run exits 0 and writes BOTH the page and a "
+              "JSON sidecar beside it",
+              _rc == 0 and (_d / "rel.html").exists()
+              and _side.exists())
+        _j = json.loads(_side.read_text(encoding="utf-8"))
+        check("...and the sidecar parses and carries the measured "
+              "targets, so a number can be read back exactly "
+              "rather than off a screenshot",
+              isinstance(_j, dict)
+              and isinstance(_j.get("measured", {}).get("targets"),
+                             list)
+              and _j.get("label") == "sidecar fixture")
+        check("...and the page written to disk is the full "
+              "document, not a fragment",
+              (_d / "rel.html").read_text(
+                  encoding="utf-8").startswith("<!doctype html>"))
+
     # ---- REFUSALS ----
     check("a missing source file is refused by name",
           R.main(["--src", "/nope.csv", "--run", "/nope",
                   "-o", "/tmp/x.html"]) == 2)
     check("an unknown flag is refused by name",
           R.main(["--nope", "1"]) == 2)
+
+    # ---- HELP RENDERS, THROUGH THE PROCESS BOUNDARY ----
+    # A help string that crashes is latent until something asks for
+    # it: the 3.14 argparse defect took down eight gate checks and had
+    # been reachable on every Python since the flags shipped. So this
+    # does not call main(["-h"]) in-process - it RENDERS the script the
+    # way an operator would, and reads what came back.
+    _script = str(_root / "scripts" / "relationship_report.py")
+    _h = subprocess.run([sys.executable, _script, "-h"],
+                        capture_output=True, text=True)
+    check("-h renders through a real process and exits 0, so an "
+          "operator asking for help gets help rather than a traceback",
+          _h.returncode == 0 and "--src" in _h.stdout
+          and "--run" in _h.stdout)
+    _hh = subprocess.run([sys.executable, _script, "--help"],
+                         capture_output=True, text=True)
+    check("...and --help renders the same text as -h, because two "
+          "spellings of one flag that disagree is a defect in waiting",
+          _hh.returncode == 0 and _hh.stdout == _h.stdout)
+    _bad = subprocess.run([sys.executable, _script, "--nope"],
+                          capture_output=True, text=True)
+    check("...and adding help did NOT swallow the refusal path - an "
+          "unknown flag still exits 2 through the same boundary",
+          _bad.returncode == 2 and "unknown argument" in _bad.stdout)
 
     print("\n{} checks, {} failed".format(PASS + FAIL, FAIL))
     if FAIL:
