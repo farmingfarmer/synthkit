@@ -301,6 +301,70 @@ def main():
               (_d / "rel.html").read_text(
                   encoding="utf-8").startswith("<!doctype html>"))
 
+    # ---- AN IDENTIFIER IS NOT A TARGET ----
+    # The candidate ranking is presence x cardinality, which is
+    # EXACTLY what a key maximises - so on the real extract visit_id
+    # ranked near the top, was scored as a prediction target, and
+    # reported 25-28% "retained". That number is leakage, not
+    # fidelity: a model handed an identifier memorises the row. The
+    # fixture plants one that would WIN the old ranking, so this
+    # check fails if the exclusion is removed.
+    _idn = 600
+    _idf = pd.DataFrame({
+        "person_id": np.repeat(np.arange(_idn // 3), 3),
+        "visit_id": np.arange(_idn),            # key: unique, 100% present
+        "sbp": rng.normal(120, 15, _idn),
+        "dbp": rng.normal(78, 9, _idn)})
+    _picked = R.pick_targets(_idf, "person_id", 4)
+    check("an identifier is NOT scored as a prediction target - the "
+          "ranking favours presence x cardinality, which is what a "
+          "key maximises, so visit_id outranked real columns and "
+          "reported retention that was pure leakage",
+          "visit_id" not in _picked and "person_id" not in _picked)
+    check("...while ordinary numeric columns in the same frame ARE "
+          "still picked, so the exclusion is not just rejecting "
+          "everything",
+          "sbp" in _picked or "dbp" in _picked)
+    check("...and the exclusion comes from discover._is_identifier, "
+          "the one predicate that already decides this, rather than "
+          "a second rule that can disagree with it",
+          R._is_identifier(_idf["visit_id"], _idn)
+          and not R._is_identifier(_idf["sbp"], _idn))
+
+    # ---- AND NOT A THREE-WAY FACTOR EITHER ----
+    # On the real extract three_way returned
+    # `age_at_visit + person_id + visit_id` as the STRONGEST effect
+    # on the page - gain 0.3019, synthetic side nan - two keys and an
+    # arithmetic identity, outranking the genuine trios tenfold.
+    _n3 = 900
+    _p = rng.normal(0, 1, _n3)
+    _q = rng.normal(0, 1, _n3)
+    _r = rng.normal(0, 1, _n3)
+    _t3f = pd.DataFrame({
+        "person_id": np.repeat(np.arange(_n3 // 3), 3),
+        "visit_id": np.arange(_n3),
+        "p": _p, "q": _q, "r": _r,
+        "drift": np.arange(_n3) / float(_n3),
+        "child": 3.0 * _p * _q * _r + rng.normal(0, .25, _n3),
+        "child2": 4.0 * (np.arange(_n3) / float(_n3)) * _p * _q
+                  + rng.normal(0, .2, _n3)})
+    _t3 = JC.three_way(_t3f, _t3f, seed=0, group_by="person_id")
+    _trios = _t3.get("trios") or []
+    _mem = set()
+    for _tr in _trios:
+        _mem.update(_tr.get("trio") or [])
+        _mem.add(_tr.get("child"))
+    check("a genuine three-way IS found, so the exclusion check "
+          "below cannot pass on an empty list - the first version of "
+          "it did exactly that",
+          len(_trios) >= 1)
+    check("no three-way trio is built from an identifier - on the "
+          "real extract a trio of two keys plus an arithmetic "
+          "identity scored 0.3019 and outranked the genuine trios "
+          "tenfold, reading as the headline finding",
+          bool(_trios) and "visit_id" not in _mem
+          and "person_id" not in _mem)
+
     # ---- REFUSALS ----
     check("a missing source file is refused by name",
           R.main(["--src", "/nope.csv", "--run", "/nope",

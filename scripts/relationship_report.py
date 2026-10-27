@@ -42,6 +42,8 @@ import json
 import sys
 from pathlib import Path
 
+from synthkit.discover import _is_identifier
+
 import numpy as np
 import pandas as pd
 
@@ -107,8 +109,11 @@ def pick_targets(real, group_by, n=6):
     whether the choice was right is the predictability gate below,
     which throws out anything the real data cannot predict anyway."""
     cand = []
+    n_rows = len(real)
     for c in real.columns:
         if c == group_by:
+            continue
+        if _is_identifier(real[c], n_rows):
             continue
         v = pd.to_numeric(real[c], errors="coerce")
         pres = float(v.notna().mean())
@@ -147,7 +152,8 @@ def measure(src_path, run, group_by, n_targets, seed=0):
             "identity": (trtr is not None
                          and trtr >= IDENTITY_CEILING)})
     for key, fn in (("three_way",
-                     lambda: JC.three_way(real, synth, seed=seed)),
+                     lambda: JC.three_way(real, synth, seed=seed,
+                                          group_by=group_by)),
                     ("distinguish",
                      lambda: JC.distinguishability(real, synth,
                                                    group_by, seed)),

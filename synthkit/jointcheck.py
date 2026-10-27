@@ -465,7 +465,8 @@ def utility(real, synth, target, group_by=None, seed=0):
                     "synthetic data instead."}
 
 
-def three_way(real, synth, max_children=12, top_n=6, seed=0):
+def three_way(real, synth, max_children=12, top_n=6, seed=0,
+               group_by=None):
     """THE GAP THE OTHER MEASURES STATE THEY CANNOT REACH. Every
     interaction measured elsewhere is two-way; this asks whether
     a THREE-column product explains anything beyond all three
@@ -479,8 +480,12 @@ def three_way(real, synth, max_children=12, top_n=6, seed=0):
     from sklearn.ensemble import HistGradientBoostingRegressor
     from sklearn.inspection import permutation_importance
     from sklearn.linear_model import LinearRegression
+    from synthkit.discover import _is_identifier
+    _nrows = len(real)
     num = {}
     for c in real.columns:
+        if c == group_by or _is_identifier(real[c], _nrows):
+            continue
         v = pd.to_numeric(real[c], errors="coerce")
         if v.notna().mean() >= 0.5 and v.nunique() >= 8 \
                 and c in synth.columns:
@@ -589,6 +594,7 @@ def run_all(real, synth, group_by=None, target=None, seed=0
              lambda: predictability(real, synth, group_by,
                                     seed=seed)),
             ("three_way", lambda: three_way(real, synth,
+                                            group_by=group_by,
                                             seed=seed)),
             ("manifold", lambda: manifold(real, synth, group_by,
                                           seed))):
