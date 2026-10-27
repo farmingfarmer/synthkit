@@ -3559,7 +3559,15 @@ exist.
 - **EVERY DEGRADED TARGET WAS A COUNT COLUMN.**
   `condition_count`, `procedure_count`, `active_drug_count` - all
   set-size partners, copied from set lengths. The multivariate
-  loss sits exactly where the k rule bites hardest: 365
-  publishable condition codes against 1,050. Not a sampler
-  defect; the privacy screen, surfacing in the one place no
-  per-column number looks.
+  loss sits exactly where the k rule bites hardest - the
+  measured cohort pair is 898 publishable condition codes
+  against 290. Not a sampler defect; the privacy screen,
+  surfacing in the one place no per-column number looks.
+  (CORRECTED: this entry first read "365 against 1,050", which
+  paired the extract's own token count with a number belonging
+  to a FIXTURE - 50 of 365 clear k, nothing to do with either
+  cohort. Caught while writing a script somebody was going to
+  read out loud. "Never state a number as measured unless you
+  actually ran it" is the oldest rule in this file and it was
+  broken IN this file, in an entry written the same day; a
+  number that is merely nearby is not a measurement.)
