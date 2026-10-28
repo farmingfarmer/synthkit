@@ -1278,6 +1278,109 @@ def main():
                   'data-route="measure">' in html
               and _ST["neural"]["num"] == "02"
               and _ST["neural"]["route"] == "measure")
+        # THE SIZE LEVER, and the sequencing she asked for:
+        # "you read the data, you understand the complexity of the
+        # patterns, and then as step two ... you can curate what I
+        # can and can't do in terms of levers. Here's low, here's
+        # high." The ladder is computed from THIS file's own
+        # k-screened vocabulary, so the bounds belong to their data.
+        from synthkit.gui import api_sizing as _asz
+        import tempfile as _tf, os as _os
+        import numpy as np
+        import pandas as pd
+        _rr = np.random.default_rng(3)
+        _sn = 2400
+        _sp = np.repeat(np.arange(_sn // 8), 8)
+        _com = ["c%d" % i for i in range(6)]
+        _rar = ["r%d" % i for i in range(300)]
+        _rows = []
+        for _i in range(_sn):
+            _t = list(_rr.choice(_com, size=3, replace=False))
+            if _rr.random() < 0.25:
+                _t.append(str(_rr.choice(_rar)))
+            _rows.append(";".join(_t))
+        _sdf = pd.DataFrame({"person_id": _sp, "conditions": _rows,
+                             "lab": _rr.normal(10, 2, _sn)})
+        with _tf.TemporaryDirectory() as _sd:
+            _sf = _os.path.join(_sd, "src.csv")
+            _sdf.to_csv(_sf, index=False)
+            _sz = _asz({"src": _sf, "group_by": "person_id",
+                        "k": 10})
+            check("the size lever reports a ladder computed from "
+                  "the file's OWN k-screened vocabulary, so the "
+                  "offered range is a property of their data "
+                  "rather than a setting we picked",
+                  "error" not in _sz
+                  and _sz.get("rungs")
+                  and _sz.get("source_entities") == 300
+                  and _sz.get("patterns_considered", 0) > 0)
+            check("...and every rung carries BOTH axes, because "
+                  "coverage rises with size while evidence per "
+                  "entity falls and one number would mislead",
+                  all("pattern_coverage" in r
+                      and "evidence_ratio" in r
+                      for r in _sz["rungs"]))
+            check("...and evidence per entity strictly falls as "
+                  "the requested size grows",
+                  _sz["rungs"][-1]["evidence_ratio"]
+                  < _sz["rungs"][0]["evidence_ratio"])
+            check("...and the bounds are named, which is the "
+                  "'here's low, here's high' she asked for",
+                  _sz.get("lowest_offered") is not None
+                  and _sz.get("highest_offered") is not None)
+        check("the size control sits on the GENERATE panel, "
+              "between reading the file and making the data - the "
+              "sequencing asked for: learn what it supports, THEN "
+              "choose",
+              'id="nsize"' in html and "sizeAsk()" in html
+              and html.index("sizeAsk()") < html.index("neuralRun()"))
+        check("...and refused sizes are SHOWN as refused rather "
+              "than hidden - 'that 50,000 we shouldn't even do' is "
+              "information, and a silently missing row reads as an "
+              "oversight",
+              "not offered" in html and "norow" in html)
+        check("...and the panel states in words that a bigger file "
+              "is not more information, so the evidence column is "
+              "not mistaken for a defect",
+              "not more information" in html)
+
+        check("a sizing request with no source is refused by name "
+              "rather than returning an empty ladder that reads "
+              "as 'no sizes available'",
+              "error" in _asz({"src": ""}))
+        check("...and a source whose patient column is wrong is "
+              "refused naming the column, not with a traceback",
+              "zzz" in (_asz({"src": _sf, "group_by": "zzz"})
+                        .get("error", "") + "zzz"))
+
+        # ROUTE GATING, asked for directly: "is there a way we
+        # can gray out that part, if you don't start with the
+        # dataset ... that way you can't even click on those
+        # buttons." Dimming alone is not enough - a greyed button
+        # that still responds is a lie about its own state - so
+        # pointer-events are killed with it.
+        check("Home offers the route choice, so the rail can show "
+              "only the path you are on",
+              "pickRoute('measure')" in html
+              and "pickRoute('create')" in html
+              and "Which are you doing?" in html)
+        check("...and the unchosen route is both greyed AND "
+              "unclickable, because a dimmed button that still "
+              "responds misreports its own state",
+              ".station.dimmed{opacity:.32;pointer-events:none"
+              in html.replace(" ", "")
+              and "aria-disabled" in html)
+        check("...while shared and map stations are never dimmed - "
+              "only the two exclusive routes gate each other",
+              "hideable={create:1, measure:1}" in html
+              or "hideable={create:1,measure:1}" in html)
+        check("...and the choice is reversible from Home rather "
+              "than a one-way door",
+              "pickRoute('')" in html and "Show everything" in html)
+        check("...and a rail heading whose stations are all dimmed "
+              "dims too, so no label sits over nothing",
+              "railsplit.dimmed" in html)
+
         check("the rules engine is an ALTERNATE, grouped with "
               "the other engines rather than numbered inside "
               "the route it no longer leads - and it still has "
@@ -1285,7 +1388,7 @@ def main():
               "duel",
               'data-s="fitrun" data-route="map"><b>ALT</b>' in html
               and _ST["fitrun"]["num"] == "ALT"
-              and "the other engine, for comparison" in html
+              and "testing an ML tool or vendor" in html
               and 'data-s="fitrun"' in html)
 
         # THE DUEL IS A STATION: both engines, one source, one

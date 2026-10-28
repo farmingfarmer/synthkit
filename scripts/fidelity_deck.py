@@ -48,7 +48,9 @@ try:
 except Exception:
     pass
 
-INK = "#1d1d1f"          # near-black
+INK = "#2f3a44"          # deep slate, NOT black - asked
+                         # for directly: "take the black
+                         # out of those damn plots"
 GRAY = "#6e6e73"         # the ORIGINAL series
 RED = "#8c1515"          # cardinal - the SYNTHETIC series
 RULE = "#d2d2d7"

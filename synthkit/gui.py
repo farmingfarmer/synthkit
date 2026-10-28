@@ -247,6 +247,57 @@ _CALIBRATED_ENCOUNTER = """{
 }"""
 
 
+def api_sizing(payload: dict) -> dict:
+    """What output sizes THIS dataset can honestly support.
+
+    Computed from the source's own k-screened vocabulary, so the
+    offered range is a property of their data rather than a setting
+    we chose. Returns both axes - coverage rises with size, evidence
+    per entity falls - because one number would mislead whichever it
+    tracked."""
+    from pathlib import Path as _P
+    from synthkit import sizing as _sz
+    src = (payload.get("src") or "").strip()
+    group_by = (payload.get("group_by") or "person_id").strip()
+    k = int(payload.get("k") or 10)
+    if not src:
+        return {"error": "point this at the source CSV first"}
+    if not _P(src).exists():
+        return {"error": "no such file: {}".format(src)}
+    try:
+        import pandas as pd
+        from synthkit import sets as _sets
+        df = pd.read_csv(src, keep_default_na=False, low_memory=False)
+        if group_by not in df.columns:
+            return {"error": "no column named {!r} - set the "
+                             "patient column first".format(group_by)}
+        n_ent = int(df[group_by].nunique())
+        rows_per = len(df) / float(max(n_ent, 1))
+        probs = []
+        for c in df.columns:
+            if c == group_by:
+                continue
+            try:
+                if not _sets.looks_like_set(df[c]):
+                    continue
+                v = _sets.vocabulary(df[c], df[group_by], k=k, cap=0)
+            except Exception:
+                continue
+            if v and v.get("tokens"):
+                probs.extend(t["p"] for t in v["tokens"])
+        if not probs:
+            return {"error": "no k-screened vocabulary found in "
+                             "this file, so there is nothing to "
+                             "size against yet"}
+        out = _sz.ladder(probs, n_ent, rows_per)
+        out["source_entities"] = n_ent
+        out["rows_per_entity"] = round(rows_per, 2)
+        out["patterns_considered"] = len(probs)
+        return out
+    except Exception as e:
+        return {"error": "{}: {}".format(type(e).__name__, e)[:200]}
+
+
 def api_presets() -> dict:
     from .examples import reference_spec, reference_table
     import json as _json
@@ -1677,6 +1728,7 @@ def api_latentviz(payload: dict) -> dict:
 
 _ROUTES = {
     "/api/presets": lambda payload: api_presets(),
+    "/api/sizing": api_sizing,
     "/api/validate": api_validate,
     "/api/compile": api_compile,
     "/api/lint": api_lint,
@@ -2291,6 +2343,20 @@ nav{padding:18px 12px}
 /* Learn is not step 6 of the flow - it is another way to
    START, and putting it in the same numbered run implied
    you arrive there last. */
+.sizetab{border-collapse:collapse;width:100%;margin:8px 0;
+  font-size:12.5px}
+.sizetab th,.sizetab td{padding:5px 8px;text-align:right;
+  border-bottom:1px solid var(--rule)}
+.sizetab th:first-child,.sizetab td:first-child,
+.sizetab th:last-child,.sizetab td:last-child{text-align:left}
+.sizetab tr.norow{opacity:.55}
+.sizetab tr.norow b{color:var(--cardinal)}
+.routepick{display:flex;gap:8px;flex-wrap:wrap;margin:10px 0 4px}
+.routepick .act{flex:1 1 170px;text-align:left;line-height:1.3}
+.routepick .act small{display:block;font-weight:400;opacity:.72;
+  font-size:11px;margin-top:2px}
+.station.dimmed{opacity:.32;pointer-events:none;filter:grayscale(1)}
+.railsplit.dimmed{opacity:.32}
 .railsplit{font-family:var(--mono);font-size:9.5px;
   letter-spacing:.14em;text-transform:uppercase;
   color:var(--dim);margin:16px 8px 8px;
@@ -2812,14 +2878,14 @@ textarea:focus,input:focus,select:focus{
     Dashboard<small class="subt">original vs synthetic, drawn</small></button>
   <button class="station" data-step="8" data-s="latent" data-route="map"><b>VIEW</b>
     Latent Space<small class="subt">original vs synthetic in 3D</small></button>
-  <div class="railsplit">the other engine, for comparison</div>
+  <div class="railsplit">testing an ML tool or vendor</div>
   <button class="station" data-step="8" data-s="fitrun" data-route="map"><b>ALT</b>
     Fit<small class="subt">rules engine &mdash; blueprint, then generate</small></button>
   <button class="station" data-step="8" data-s="learn" data-route="map"><b>ALT</b>
     Learn<small class="subt">first engine &mdash; quick look</small></button>
   <button class="station" data-step="8" data-s="duel" data-route="map"><b>DUEL</b>
-    Duel<small class="subt">two engines, one source</small></button>
-  <div class="railsplit">the map</div>
+    Duel<small class="subt">score a vendor's model against ours</small></button>
+  <div class="railsplit">internal</div>
   <button class="station" data-step="8" data-s="roadmap" data-route="map"><b>MAP</b>
     Roadmap<small class="subt">eight goals: built and planned</small></button>
 </nav>
@@ -2836,6 +2902,20 @@ textarea:focus,input:focus,select:focus{
     <div class="explain">Words with a dotted underline and a small <b>?</b> are doors &mdash; click one and it explains itself in plain language, and the explanation&rsquo;s own terms are doors too, as deep as you want to go. Every station states what it <i>needs</i> and what it <i>produces</i> before you press anything, and ends by naming where to go next. If you are holding a test kit: START_HERE.md in the kit walks every box in order, and the standing rule is that anything you break becomes a permanent check.</div>
     <div class="hint">The privacy posture in one sentence: k-anonymous publication over patients (never rows) plus an attack battery with planted cheats as controls &mdash; a floor, not a certificate, and not differential privacy; the pages say so wherever it matters.</div>
   </div>
+    <h2>Which are you doing?</h2>
+    <div class="explain">Pick one and the other route&rsquo;s steps
+    are greyed out, so the rail only shows the path you are on. You
+    can switch back here at any time.</div>
+    <div class="routepick">
+      <button class="act" onclick="pickRoute('measure')"
+        id="pick-measure">I have a real dataset
+        <small>measure it, then generate from it</small></button>
+      <button class="act ghost" onclick="pickRoute('create')"
+        id="pick-create">I am describing one in English
+        <small>invent it from a description</small></button>
+      <button class="act ghost" onclick="pickRoute('')"
+        id="pick-both">Show everything</button>
+    </div>
   <div class="nextup"><span class="lbl">next</span><b>Measure 1 &mdash; Source</b><span>Have a CSV? Start there. Want to invent data from English instead? Step 1 &mdash; Describe.</span></div>
 </section>
 <header class="bar">
@@ -3493,6 +3573,21 @@ textarea:focus,input:focus,select:focus{
       <input id="ngroup" value="person_id"></label>
     <input type="hidden" id="nseed" value="0">
     <input type="hidden" id="nk" value="10">
+    <h2>How much to make</h2>
+    <div class="explain">Read the file first and this tells you what
+    sizes it can honestly support &mdash; the range is a property of
+    your data, not a setting we chose. Two numbers move in opposite
+    directions: how many of the publishable patterns have room to
+    appear (rises with size) and how much independent real evidence
+    stands behind each synthetic patient (falls with size). A bigger
+    file is not more information.</div>
+    <button class="act ghost" onclick="sizeAsk()">What sizes can
+    this file support?</button>
+    <div class="out" id="size-out">Point at the source above, then
+    ask.</div>
+    <label>make this many patients <span class="hint">(leave blank
+    for the same number as the source)</span>
+      <input id="nsize" placeholder="e.g. 1600"></label>
     <button class="act" onclick="neuralRun()">Generate</button>
     <button class="act ghost" onclick="neuralReview()">Review the output</button>
     <div class="out" id="neural-out">Nothing yet.</div>
@@ -3619,6 +3714,83 @@ const titles={home:['Home','Start here','what this is, in one page'],
   duel:['Duel','Duel','two engines, one source'],
   roadmap:['Map','Roadmap','the eight goals \u2014 built and planned']};
 let campaignDir='';
+// THE LADDER, drawn where the choice is made. Refused rungs are
+// shown rather than hidden: "that 50,000 we shouldn't even do" is
+// information the user needs, and a size silently missing from a
+// list reads as an oversight rather than a refusal.
+async function sizeAsk(){
+  const o=document.getElementById('size-out');
+  o.textContent='Reading the file...';
+  try{
+    const r=await post('/api/sizing',{
+      src:document.getElementById('nsrc').value.trim(),
+      group_by:document.getElementById('ngroup').value.trim()
+        ||'person_id',
+      k:document.getElementById('nk').value.trim()||'10'});
+    if(r.error){o.textContent=r.error;return;}
+    let h='<table class="sizetab"><tr><th></th><th>patients</th>'
+      +'<th>patterns with room<br>to appear</th>'
+      +'<th>real evidence<br>per patient</th><th></th></tr>';
+    for(const g of r.rungs){
+      h+='<tr class="'+(g.offered?'okrow':'norow')+'">'
+        +'<td>'+g.multiple+'x</td>'
+        +'<td>'+g.requested_entities.toLocaleString()+'</td>'
+        +'<td>'+Math.round(100*g.pattern_coverage)+'%</td>'
+        +'<td>'+Math.round(100*g.evidence_ratio)+'%</td>'
+        +'<td>'+(g.offered?'available'
+          :'<b>not offered</b>')+'</td></tr>';
+    }
+    h+='</table><p class="hint">'+r.note+'</p>';
+    if(r.any_offered){
+      h+='<p>Offered range for this file: <b>'
+        +r.lowest_offered.toLocaleString()+'</b> to <b>'
+        +r.highest_offered.toLocaleString()
+        +'</b> patients.</p>';
+    } else {
+      h+='<p><b>No size clears the floor for this file.</b> Its '
+        +'publishable patterns are too thin to fill a file that '
+        +'claims to contain them.</p>';
+    }
+    o.innerHTML=h;
+  }catch(e){o.textContent='could not read that file: '+e;}
+}
+// ROUTE GATING. "is there a way we can gray out that part, if you
+// don't start with the dataset ... that way you can't even click on
+// those buttons." Dimmed AND pointer-events:none, because a greyed
+// button you can still click is a lie about its own state. The
+// choice persists across reloads and is always reversible from
+// Home - a one-way door would be worse than no door.
+function pickRoute(r){
+  try{localStorage.setItem('skRoute', r);}catch(e){}
+  applyRoute(r);
+}
+function applyRoute(r){
+  var hideable={create:1, measure:1};
+  document.querySelectorAll('.station').forEach(function(b){
+    var br=b.getAttribute('data-route');
+    var off=!!(r && hideable[br] && br!==r);
+    b.classList.toggle('dimmed', off);
+    if(off){b.setAttribute('aria-disabled','true');}
+    else{b.removeAttribute('aria-disabled');}
+  });
+  // a heading whose every station is dimmed is dimmed too, so the
+  // rail does not carry a label over nothing
+  document.querySelectorAll('nav .railsplit').forEach(function(h){
+    var n=h.nextElementSibling, live=0, any=0;
+    while(n && n.classList && n.classList.contains('station')){
+      any++; if(!n.classList.contains('dimmed')) live++;
+      n=n.nextElementSibling;
+    }
+    h.classList.toggle('dimmed', any>0 && live===0);
+  });
+  ['measure','create','both'].forEach(function(k){
+    var el=document.getElementById('pick-'+k);
+    if(!el) return;
+    var on=(k==='both') ? !r : (k===r);
+    el.classList.toggle('ghost', !on);
+  });
+}
+try{applyRoute(localStorage.getItem('skRoute')||'');}catch(e){}
 document.querySelectorAll('.station').forEach(btn=>{
   btn.onclick=()=>{
     document.querySelectorAll('.station').forEach(
@@ -4192,7 +4364,7 @@ var BAR_WORDS={
   gap_max:'messy-data score may trail the clean answer key '+
     'by at most VAL',
   fix_rate:'must repair at least PCT of corrupted cells',
-  detect_rate:'must flag at least PCT of corruptions',
+  detect_rate:'must flag at least PCT of the planted imperfections',
   recall:'must find at least PCT of planted facts',
   trap_max:'may fall for at most PCT of planted traps',
   rmse_max:'average numeric error at most VAL'};
@@ -4644,10 +4816,11 @@ function renderReport(rep){
     'legitimately beat the ceiling shown in each '+
     'row.</p>';
   if(rep.mess_kinds&&rep.mess_kinds.length){
-    h+='<p>The data was deliberately imperfect: '+
+    h+='<p>Real-world imperfections were included on purpose, '+
+      'so a tool can be tested against them: '+
       rep.mess_kinds.join(', ')+
-      ' &mdash; every corruption recorded in the '+
-      'ledger from Step 3.</p>';}
+      ' &mdash; each one is listed, with the exact rows '+
+      'affected, in the record from Step 3.</p>';}
   if(rep.traps&&rep.traps.length){
     h+='<h3>Hidden traps and buried signal</h3><ul>';
     for(var i=0;i<rep.traps.length;i++){
