@@ -127,13 +127,53 @@ def pick_targets(real, group_by, n=6):
     return [c for c, _ in cand[:n]]
 
 
+def expand_tokens(real, synth, group_by, k=10, cap=None):
+    """Set columns -> token indicators, on both tables identically.
+
+    Returns (real2, synth2, report). The report is not decoration:
+    only an expanded token can carry a relationship here, so a reader
+    who is not told how many were expanded cannot tell an absent
+    finding from an unexamined one."""
+    from synthkit import sets as S
+    cap = S.EXPAND_CAP if cap is None else cap
+    r2, s2 = real.copy(), synth.copy()
+    rep = []
+    for c in list(real.columns):
+        if c == group_by or c not in synth.columns:
+            continue
+        try:
+            if not S.looks_like_set(real[c]):
+                continue
+            vocab = S.vocabulary(real[c], real[group_by], k=k,
+                                 cap=cap)
+        except Exception:
+            continue
+        if not vocab or not vocab.get("tokens"):
+            continue
+        sep = vocab["separator"]
+        toks = [t["value"] for t in vocab["tokens"]]
+        for tok in toks:
+            nm = S.indicator_name(c, tok)
+            r2[nm] = S.has_token(real[c], sep, tok)
+            s2[nm] = S.has_token(synth[c], sep, tok)
+        zn = S.size_name(c)
+        r2[zn] = S.sizes_of(real[c], sep)
+        s2[zn] = S.sizes_of(synth[c], sep)
+        rep.append({"column": c,
+                    "tokens_found": vocab.get("tokens_found"),
+                    "tokens_above_k": vocab.get("tokens_above_k"),
+                    "expanded": len(toks), "cap": cap})
+    return r2, s2, rep
+
+
 def measure(src_path, run, group_by, n_targets, seed=0):
     from synthkit import jointcheck as JC
     real = _read(src_path)
     synth = _read(Path(run) / "generated.csv")
     targets = pick_targets(real, group_by, n_targets)
     out = {"targets": [], "three_way": None, "distinguish": None,
-            "predict": None, "n_real": int(len(real)),
+            "predict": None, "token_expansion": [],
+            "n_real": int(len(real)),
             "n_synth": int(len(synth))}
     for t in targets:
         try:
@@ -151,8 +191,10 @@ def measure(src_path, run, group_by, n_targets, seed=0):
                             and trtr >= PREDICTABLE_FLOOR),
             "identity": (trtr is not None
                          and trtr >= IDENTITY_CEILING)})
+    xr, xs, out["token_expansion"] = expand_tokens(
+        real, synth, group_by)
     for key, fn in (("three_way",
-                     lambda: JC.three_way(real, synth, seed=seed,
+                     lambda: JC.three_way(xr, xs, seed=seed,
                                           group_by=group_by)),
                     ("distinguish",
                      lambda: JC.distinguishability(real, synth,
@@ -373,6 +415,21 @@ def render(m, label):
         A('<div class="note"><p>This measure did not run: '
           "<code>{}</code>.</p></div>".format(_esc(tw["error"])))
     else:
+        _tx = m.get("token_expansion") or []
+        if _tx:
+            A("<p>List-type fields were expanded into one column per "
+              "value first, so a combination spanning them can be "
+              "seen at all: {}. Only an expanded value can carry a "
+              "relationship here &mdash; a value not in that count "
+              "was not examined, which is different from being "
+              "absent.</p>".format(
+                  "; ".join(
+                      "<code>{}</code> {} of {} value(s) "
+                      "examined".format(
+                          _esc(str(x.get("column"))),
+                          x.get("expanded"),
+                          x.get("tokens_above_k"))
+                      for x in _tx[:6])))
         A("<p>Sometimes three fields only matter together &mdash; "
           "no pair of them explains the effect. This asks whether "
           "a three-way combination adds anything beyond all three "

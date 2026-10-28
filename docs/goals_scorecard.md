@@ -352,3 +352,90 @@ number understates the risk profile: what remains is mostly
 breadth (multi-table, receipts, verification) plus two genuine
 unknowns — the `close` gap and the cycle ceiling — and unknowns,
 not assembly, are what move dates.
+
+## Research tail, added 2026-10-27
+
+Two items from the UM-tool sizing question, which asked for the
+smallest cohort carrying the patterns that matter and got the
+answer that the trade runs the other way.
+
+### Temporal predictive modelling — within-stay trends   **TODO**
+
+The delivered engine is row-level: a synthetic patient is a genuine
+person-shaped bundle of visits, but a patient's course over TIME is
+not modelled. Measured consequence: within-patient persistence
+falls 0.4952 -> 0.1568 on the extract, and it falls on a thin
+cohort too (0.3939 -> 0.0869), so it is structural rather than a
+sizing problem. Any rule depending on a trend inside one admission
+-- "haemoglobin falls 2 g/dL in 24h" -- cannot be exercised at any
+patient count.
+
+**The approach, as proposed by the operator and worth recording
+because it sidesteps the obvious objection.** Fit a model on the
+REAL patients' courses that learns what happens next given a
+patient's current state, then use it to extend each synthetic
+patient forward from their first visit. The reason this beats
+modelling whole trajectories: learning TRANSITIONS pools evidence
+across the entire cohort, where a trajectory SHAPE would need k
+patients sharing a near-identical course. "Haemoglobin tends to
+fall after this diagnosis" is fittable from every patient who had
+it, so the thin-cell arithmetic that kills three-way combinations
+does not bind the same way.
+
+Three gates, cheapest first, and the first can kill it outright:
+
+1. **Is the signal in the extract at all?** The tidy file is one row
+   per visit. If serial measurements inside a stay were collapsed at
+   extraction, no model can synthesise what the source does not
+   contain. One query answers it.
+2. **Sample, do not predict.** A point prediction gives the
+   conditional MEAN and every synthetic patient's labs then glide
+   smoothly - nobody ever drops two points in a day, which is the
+   rule the work exists to support. It needs the conditional SPREAD
+   too, heteroscedastic, which is the residual-profile machinery
+   this file already records (source grew 1.85x where generation was
+   flat at 1.02x until it was published).
+3. **A course is more identifying than a visit.** The weights-leak
+   adversary already reads 0.776 FAIL at width on the row-level
+   engine; a sequence model trained on 800 trajectories has few
+   examples to interpolate between, so its nearest plausible path
+   may be a specific real person's. Run the nn-ratio tripwire and
+   the membership battery against generated trajectories BEFORE
+   building, not after.
+
+Recommended shape: a two-week spike that answers all three with
+numbers, not a build. The rules engine's lag machinery is a crude
+version that already works (persistence within 0.15 on 28/34
+columns on the real extract) and carries two known defects - a lag
+parent can be dropped silently by cyclic refinement, and the
+within-patient lag-1 estimate was attenuated 0.453 against a true
+0.700. Those are the starting points if the spike says go.
+
+### Complex combination patterns   **IN PROGRESS**
+
+Three-way structure reads 0.000 into the synthetic data, and the
+three causes need separating because they imply different work:
+thin cells below the k floor (more patients fixes it), the
+denoising regularizer discarding thin structure BY DESIGN (the same
+change that took the membership adversary 0.776 -> 0.569), and the
+engine losing three-way even on ample fixture data (two-way XOR
+survives every seed; the 3-way mostly dies). Only the first two are
+data-quantity problems.
+
+**Done 2026-10-27: the measure can now SEE the clinical shape.**
+The combinations a UM tool asks about - "infection diagnosis AND
+high WBC AND intravenous antibiotic" - are two set tokens and a
+lab. Set columns reach the report as semicolon-joined strings, so
+`pd.to_numeric` made them NaN; and even expanded, `three_way`'s
+`nunique >= 8` floor rejected the 0/1 indicators. The pattern class
+the page is most asked about was outside the page TWICE OVER.
+Tokens now expand through `sets.vocabulary` - the same screener the
+generator uses, so the report and the engine cannot disagree about
+what is publishable - and genuine binary indicators are admitted
+(a CONSTANT column is not). A planted three-way spanning two set
+tokens and a lab is found, with both mutations watched red.
+
+NOT yet known: whether any such combination exists in the real
+extract. The next real run answers it, and the expansion count is
+printed so an unexamined token is distinguishable from an absent
+pattern.

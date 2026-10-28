@@ -487,7 +487,11 @@ def three_way(real, synth, max_children=12, top_n=6, seed=0,
         if c == group_by or _is_identifier(real[c], _nrows):
             continue
         v = pd.to_numeric(real[c], errors="coerce")
-        if v.notna().mean() >= 0.5 and v.nunique() >= 8 \
+        _vals = set(v.dropna().unique())
+        _binary = (v.nunique() == 2
+                   and _vals.issubset({0.0, 1.0}))
+        if v.notna().mean() >= 0.5 \
+                and (v.nunique() >= 8 or _binary) \
                 and c in synth.columns:
             num[c] = v
     found = []

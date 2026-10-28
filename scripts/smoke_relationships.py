@@ -365,6 +365,62 @@ def main():
           bool(_trios) and "visit_id" not in _mem
           and "person_id" not in _mem)
 
+    # ---- THE COMBINATION CLASS A UM TOOL ACTUALLY ASKS ABOUT ----
+    # "infection diagnosis AND high WBC AND intravenous antibiotic"
+    # is two SET TOKENS and a lab. Those columns arrive as
+    # semicolon-joined strings, pd.to_numeric made them NaN, and
+    # three_way's cardinality floor then rejected the 0/1 indicators
+    # even once expanded - so the pattern class the page is most
+    # asked about sat outside the page twice over. This plants
+    # exactly that shape and asserts it is FOUND.
+    _cn = 900
+    _pid = np.repeat(np.arange(_cn // 3), 3)
+    _hasA = (rng.random(_cn) < 0.45)
+    _hasB = (rng.random(_cn) < 0.40)
+    _lab = rng.normal(10, 2, _cn)
+    _fill = rng.integers(0, 6, _cn)
+    _conds = [";".join(
+        (["dxA"] if a_ else []) + (["dxB"] if b_ else [])
+        + ["f{}".format(f_)]) for a_, b_, f_ in
+        zip(_hasA, _hasB, _fill)]
+    # the three-way: child moves only when BOTH tokens are present,
+    # and then in proportion to the lab
+    _ch = (6.0 * _hasA.astype(float) * _hasB.astype(float)
+           * (_lab - 10.0) + rng.normal(0, .4, _cn))
+    _setf = pd.DataFrame({"person_id": _pid, "conditions": _conds,
+                          "wbc": _lab, "child": _ch})
+    _xr, _xs, _xrep = R.expand_tokens(_setf, _setf, "person_id")
+    check("set columns expand to token indicators on BOTH tables, "
+          "using sets.vocabulary - the same screener the generator "
+          "uses, so the report cannot disagree with it about which "
+          "tokens are publishable",
+          any(c.startswith("conditions__has__") for c in _xr.columns)
+          and list(_xr.columns) == list(_xs.columns)
+          and bool(_xrep) and _xrep[0]["expanded"] >= 2)
+    _ct3 = JC.three_way(_xr, _xs, seed=0, group_by="person_id")
+    _hit = [t for t in (_ct3.get("trios") or [])
+            if sum(1 for m in (t.get("trio") or [])
+                   if "__has__" in m) >= 2]
+    check("a three-way spanning TWO SET TOKENS and a lab is FOUND - "
+          "the clinical combination shape, which was outside this "
+          "measure by construction until tokens were expanded and "
+          "binary indicators admitted",
+          bool(_hit))
+    check("...and the expansion count is reported, because only an "
+          "expanded token can carry a relationship and a reader "
+          "cannot otherwise tell an absent finding from an "
+          "unexamined one",
+          _xrep[0].get("tokens_found") is not None
+          and _xrep[0].get("cap") is not None)
+
+    check("the page STATES how many list values were examined, so "
+          "an unexamined combination is distinguishable from an "
+          "absent one",
+          "value(s) examined" in R.render(
+              dict(m, token_expansion=[
+                  {"column": "conditions", "expanded": 24,
+                   "tokens_above_k": 1050, "cap": 24}]), "t"))
+
     # ---- REFUSALS ----
     check("a missing source file is refused by name",
           R.main(["--src", "/nope.csv", "--run", "/nope",
