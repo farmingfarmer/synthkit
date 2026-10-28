@@ -3612,3 +3612,29 @@ exist.
   identifier exclusion shipped. An identifier has no relationships
   to lose and its 26 -> 27 is leakage. Dropping the row is right;
   averaging it in would have let a key vote on a fidelity question.
+
+- **THE NET WAS PAYING FOR THREADS IT COULD NOT USE, AND IT COST
+  MORE THAN EVERY OPTIMISATION EVER MADE TO IT (2026-10-27).**
+  `three_way` on a 540-row, 7-column fixture: **31.5s with default
+  OpenMP threading, 1.3s pinned to one thread.**
+  `smoke_relationships` 248s -> 7s. The whole net 1102s -> 633s.
+  HistGradientBoosting's per-fit thread setup costs more than the
+  arithmetic when the frame is small, and EVERY SUITE HERE RUNS ON
+  SMALL FRAMES BY CONSTRUCTION - that is what a fixture is.
+- **PINNED FOR THE CHILD SUITES ONLY, AND A CHECK ASSERTS IT NEVER
+  REACHES THE LIBRARY.** The real extract is 55,428 rows, where the
+  threads genuinely pay; a well-meaning later edit moving the
+  setting into `jointcheck` would silently slow every real run
+  instead of every test run. So it is set on the SUBPROCESS
+  environment in `run_all_smokes`, by `setdefault` so an outside
+  value still wins, and a check asserts `OMP_NUM_THREADS` is ABSENT
+  from the module. Guard the direction a fix can be wrongly
+  generalised, not just the fix.
+- **AND I GUESSED TWICE BEFORE MEASURING ONCE.** Convinced the cost
+  was my own recent work, I trimmed fixtures 900 -> 540 and cut a
+  check's target count 6 -> 2. **Both changed nothing** - 248s then
+  241s then 248s. A two-minute profile found a 35x win in a place
+  neither guess was near. This file already requires a number
+  before a claim; a performance claim is a claim. Measure the cost
+  before optimising it, and be suspicious when the suspect happens
+  to be whatever you edited last.

@@ -2807,7 +2807,7 @@ textarea:focus,input:focus,select:focus{
     Campaign<small class="subt">configure the evaluation</small></button>
   <button class="station" data-step="5" data-s="showdown" data-route="shared"><b>05</b>
     Showdown<small class="subt">compare results</small></button>
-  <div class="railsplit">see the fidelity</div>
+  <div class="railsplit">view the performance</div>
   <button class="station" data-step="8" data-s="dashboard" data-route="map"><b>VIEW</b>
     Dashboard<small class="subt">original vs synthetic, drawn</small></button>
   <button class="station" data-step="8" data-s="latent" data-route="map"><b>VIEW</b>
@@ -2831,7 +2831,7 @@ textarea:focus,input:focus,select:focus{
     <h2>What this is</h2>
     <div class="explain">Synthkit learns the statistical patterns of a real dataset and manufactures a brand-new one that behaves like it &mdash; <b>learn the patterns, never copy the records</b>. Every published pattern must rest on at least <b>k</b> distinct patients (10 by default, raisable, never lowerable), and every claim of fidelity is measured by an eight-criterion gate that will refuse, by name and with numbers, to clear a file that misses. The refusal is the product: this tool&rsquo;s answer is never &ldquo;trust us&rdquo; &mdash; it is a number, beside the way to check the number.</div>
     <h2>Two ways in</h2>
-    <div class="explain"><b>Measure real data</b> (the main route): point step <b>01 Source</b> at any tidy CSV &mdash; one row per event &mdash; check the types, then <b>02 Generate</b> trains the autoencoder and writes a synthetic file, and <b>03 Verdict</b> grades it against the original. <b>Create from a description</b> (the other route): describe a dataset in plain English in <b>01 Describe</b> &mdash; three TEMPLATE presets are fill-in-the-blanks skeletons &mdash; review the compiled recipe, and generate from nothing; useful for rare shapes the privacy rule will never let the measure route copy.</div>
+    <div class="explain"><b>Measure real data</b> (the main route): point step <b>01 Source</b> at any tidy CSV &mdash; one row per event &mdash; read the columns, then <b>02 Generate</b> trains the autoencoder and writes a synthetic file, and <b>03 Verdict</b> grades it against the original. <b>Create from a description</b> (the other route): describe a dataset in plain English in <b>01 Describe</b> &mdash; three TEMPLATE presets are fill-in-the-blanks skeletons &mdash; review the compiled recipe, and generate from nothing; useful for rare shapes the privacy rule will never let the measure route copy.</div>
     <h2>How to read anything here</h2>
     <div class="explain">Words with a dotted underline and a small <b>?</b> are doors &mdash; click one and it explains itself in plain language, and the explanation&rsquo;s own terms are doors too, as deep as you want to go. Every station states what it <i>needs</i> and what it <i>produces</i> before you press anything, and ends by naming where to go next. If you are holding a test kit: START_HERE.md in the kit walks every box in order, and the standing rule is that anything you break becomes a permanent check.</div>
     <div class="hint">The privacy posture in one sentence: k-anonymous publication over patients (never rows) plus an attack battery with planted cheats as controls &mdash; a floor, not a certificate, and not differential privacy; the pages say so wherever it matters.</div>
@@ -3365,10 +3365,10 @@ textarea:focus,input:focus,select:focus{
       <input id="fout" placeholder="full path for this run's artifacts"></label>
     <label>patient / entity column
       <input id="fgroup" value="person_id"></label>
-    <label><input type="checkbox" id="flags" checked> include lag features (slower, needed for temporal patterns)</label>
+    <label><input type="checkbox" id="flags" checked> include lag features <span class="hint">(the time column and the look-back are found automatically &mdash; you do not choose them; slower, and needed for patterns that depend on what came before)</span></label>
     <label>exclude columns (comma-separated; optional)
       <input id="fexclude" placeholder="e.g. conditions,procedures,drug_routes - set-token expansion owns the search budget, so excluding heavy set columns is how a LIVE fit stays live"></label>
-    <button class="act" onclick="fitTypes()">Check the types
+    <button class="act" onclick="fitTypes()">Read the columns
     (seconds)</button>
     <div class="hint">Types first, always: every silent fault this
     tool has had was a column read as the wrong type, and this pass
@@ -3491,10 +3491,8 @@ textarea:focus,input:focus,select:focus{
       <input id="nout" placeholder="a directory outside any repo"></label>
     <label>patient / entity column
       <input id="ngroup" value="person_id"></label>
-    <label>seed
-      <input id="nseed" value="0"></label>
-    <label>privacy floor k <span class="hint">(minimum 10 &mdash; every published pattern must rest on at least k distinct patients; RAISING k strengthens the guarantee and costs fidelity, and the trade is reported, never silent. It cannot be lowered: below 10, a pattern starts describing individuals.)</span>
-      <input id="nk" value="10"></label>
+    <input type="hidden" id="nseed" value="0">
+    <input type="hidden" id="nk" value="10">
     <button class="act" onclick="neuralRun()">Generate</button>
     <button class="act ghost" onclick="neuralReview()">Review the output</button>
     <div class="out" id="neural-out">Nothing yet.</div>

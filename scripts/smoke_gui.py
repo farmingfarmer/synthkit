@@ -1227,17 +1227,23 @@ def main():
         from synthkit.gui import _latent_work as _lw
         import inspect as _ins
         _lws = _ins.getsource(_lw)
-        check("the Generate panel has a privacy-floor k field "
-              "whose hint states both halves of the contract - "
-              "raising is a stated trade, lowering is refused "
-              "with the reason - and the bench passes it to the "
-              "SAME CLI flag a terminal would use",
+        check("the privacy floor is NOT a user dial in the bench - "
+              "the walkthrough asked for it to be a house standard "
+              "rather than a control ('we would want to have our "
+              "own standard'), reversing the earlier team-demo ask",
               'id="nk"' in html
-              and "minimum 10" in html
-              and "RAISING k" in html
-              and "describing individuals" in html.replace(
-                  "describe individuals", "describing individuals")
-              and '"--k", str(k)' in _lws)
+              and 'type="hidden" id="nk"' in html
+              and "RAISING k" not in html)
+        check("...while the CAPABILITY survives - the bench still "
+              "passes k to the SAME CLI flag a terminal would use, "
+              "so hiding the control did not remove the lever",
+              '"--k", str(k)' in _lws)
+        check("...and the seed is hidden for the same stated reason "
+              "('they don't need it, keep it on the back') while "
+              "still reaching the run, so a result we need to "
+              "reproduce internally still can be",
+              'type="hidden" id="nseed"' in html
+              and "getElementById('nseed')" in html)
         from synthkit.gui import api_presets as _ap
         _ps = _ap()["presets"]
         _tpl = [q for q in _ps
