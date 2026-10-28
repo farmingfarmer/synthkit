@@ -1,0 +1,230 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>SynthKit tracker — goals, open questions, and what is owed</title>
+<style>
+:root{--ink:#18181b;--gray:#6a6a72;--rule:#e5e5e9;--wash:#f7f7f9;
+--accent:#8c1515;--go:#1c6b4a;--hold:#8a5a00;--open:#4a4a86}
+*{box-sizing:border-box}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,
+Arial,sans-serif;color:var(--ink);background:#fff;margin:0;
+font-size:15px;line-height:1.58}
+.wrap{max-width:900px;margin:0 auto;padding:40px 30px 90px}
+h1{font-size:24px;letter-spacing:-.02em;margin:0 0 4px}
+.stand{color:var(--gray);font-size:13.5px;margin:0 0 24px}
+h2{font-size:16px;margin:32px 0 6px;letter-spacing:-.01em;
+border-bottom:2px solid var(--rule);padding-bottom:5px}
+table{border-collapse:collapse;width:100%;margin:10px 0 18px;
+font-size:13.5px}
+th,td{text-align:left;padding:7px 9px;border-bottom:1px solid var(--rule);
+vertical-align:top}
+th{font-size:11.5px;text-transform:uppercase;letter-spacing:.05em;
+color:var(--gray);font-weight:600}
+td.n{text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap}
+.tag{display:inline-block;font-size:11px;font-weight:700;
+padding:1px 7px;border-radius:9px;white-space:nowrap}
+.t-run{background:#e8f3ee;color:var(--go)}
+.t-open{background:#ececf6;color:var(--open)}
+.t-hold{background:#fdf3e0;color:var(--hold)}
+.t-done{background:#f0f0f2;color:var(--gray)}
+.t-red{background:#fbeaea;color:var(--accent)}
+.note{background:var(--wash);border-radius:10px;padding:12px 16px;
+margin:12px 0;font-size:13.5px}
+.note b{color:var(--accent)}
+code{font:12.5px ui-monospace,Menlo,monospace;background:var(--wash);
+padding:1px 4px;border-radius:3px}
+.foot{margin-top:36px;padding-top:14px;border-top:1px solid var(--rule);
+font-size:12.5px;color:var(--gray)}
+@media print{.wrap{max-width:none}h2{page-break-after:avoid}}
+</style></head><body><div class="wrap">
+
+<h1>SynthKit tracker</h1>
+<p class="stand">Live board: the eight product goals, the research
+questions that are genuinely open, the active workstreams, and what
+is owed. Updated 2026-10-27. Percentages for goals 1&ndash;8 live in
+<code>docs/goals_scorecard.md</code>; this page is the layer above
+them.</p>
+
+<div class="note"><b>Reading rule.</b> A number here is either
+MEASURED or it says it is not. Where something is believed but
+unmeasured, the row says so &mdash; this project's recurring failure
+is a claim resting on the property adjacent to the one that matters.</div>
+
+<h2>A. State of the build</h2>
+<table>
+<thead><tr><th>Thing</th><th>Status</th><th>Evidence</th></tr></thead>
+<tbody>
+<tr><td>Test net</td><td><span class="tag t-done">GREEN</span></td>
+<td>80 suites, 2,337 checks</td></tr>
+<tr><td>Deliverables for the 800 / 100 cohorts</td>
+<td><span class="tag t-done">SHIPPED</span></td>
+<td>10 HTML artifacts, one build, all complete documents</td></tr>
+<tr><td>Cap sweep (400 / 800 / 1600 &times; 3 seeds)</td>
+<td><span class="tag t-run">RUNNING</span></td>
+<td>5 of 9 cells, ~57 min/cell measured</td></tr>
+<tr><td>Combination patterns visible to the measure</td>
+<td><span class="tag t-done">DONE, UNRUN</span></td>
+<td>planted set-token three-way found; never pointed at real data</td></tr>
+</tbody></table>
+
+<h2>B. The eight product goals</h2>
+<table>
+<thead><tr><th>Goal</th><th class="n">%</th><th>Note</th></tr></thead>
+<tbody>
+<tr><td>1 &mdash; Universal upload, auto schema mapping</td>
+<td class="n">55</td><td>breadth work</td></tr>
+<tr><td>2 &mdash; Automatic de-identification</td>
+<td class="n">65</td><td>gated on the free-text decision</td></tr>
+<tr><td>3 &mdash; Pattern analysis with receipts</td>
+<td class="n">80</td><td></td></tr>
+<tr><td>4 &mdash; Dials over every pattern</td>
+<td class="n">80</td><td></td></tr>
+<tr><td>5 &mdash; High-fidelity generation</td>
+<td class="n">85</td><td>the <code>close</code> gap sits here</td></tr>
+<tr><td>6 &mdash; Self-assessment for sign-off</td>
+<td class="n">100</td><td></td></tr>
+<tr><td>7 &mdash; Vendor evaluation vs planted truth</td>
+<td class="n">90</td><td>needs a real vendor in the seat</td></tr>
+<tr><td>8 &mdash; AutoML competitor and report card</td>
+<td class="n">65</td><td></td></tr>
+</tbody></table>
+
+<h2>C. Open research &mdash; the genuine unknowns</h2>
+<p>These move dates. None is assembly work.</p>
+<table>
+<thead><tr><th>Question</th><th>Status</th><th>What is known</th></tr></thead>
+<tbody>
+<tr><td>The <code>close</code> gap</td>
+<td><span class="tag t-open">OPEN</span></td>
+<td>81.9% against an 87.9% bar on the real extract. Drift
+concentrated on cross-set-column token pairs.</td></tr>
+<tr><td>Ring-adjacency ceiling</td>
+<td><span class="tag t-open">PARKED</span></td>
+<td>near-identical variant columns (the pressure family);
+published surfaces 0/5. Affects both engines.</td></tr>
+<tr><td>Attribution drift</td>
+<td><span class="tag t-open">OPEN</span></td>
+<td><code>span_days</code> driver agreement 40% against a 0.80 band.
+Characterized on the rules engine; the neural engine has no trim
+machinery, so that mechanism does not explain it here.</td></tr>
+<tr><td>Three-way structure lost even with ample data</td>
+<td><span class="tag t-red">OPEN</span></td>
+<td>on a fixture, two-way XOR survives every seed while the 3-way
+mostly dies. <b>Not a sample-size problem</b> &mdash; so more
+patients may not fix combination rules.</td></tr>
+<tr><td>Per-patient distributions too narrow</td>
+<td><span class="tag t-open">OPEN</span></td>
+<td>three quantities, one signature: every spread short, every low
+bound too high, every high bound too low. Suspect the mixture over
+patient centres under-dispersing. Test: compare generated centre
+spread against training centres directly.</td></tr>
+<tr><td>An output-surface attack that survives width</td>
+<td><span class="tag t-open">OPEN</span></td>
+<td>the nearest-neighbour adversary reads 0.500 even on a verbatim
+republish at 77 columns &mdash; a control that cannot catch a copy.
+The reconstruction adversary carries the real signal.</td></tr>
+</tbody></table>
+
+<h2>D. Active workstreams</h2>
+<table>
+<thead><tr><th>Workstream</th><th>Status</th><th>Next move</th></tr></thead>
+<tbody>
+<tr><td><b>Token vocabulary</b> &mdash; publish more of what the k
+rule already cleared</td>
+<td><span class="tag t-done">MEASURED &mdash; NEGATIVE</span></td>
+<td>Nine cells, paired across three seeds. <b>Raising the cap past
+400 buys nothing:</b> no target up on all three seeds, two have a
+DOWN seed, mean movement 1&ndash;3 points. Seed 0 alone said every
+target rose &mdash; it was noise, exactly as flagged. Width
+saturates (1,114 &rarr; 1,601 &rarr; 1,703), so the ceiling is the
+k rule rather than the cap. <b>Closes the vocabulary hypothesis for
+multivariate loss.</b></td></tr>
+<tr><td><b>Combination patterns</b> &mdash; make the clinical shape
+measurable</td>
+<td><span class="tag t-hold">DONE, UNRUN</span></td>
+<td>run the relationship report on the extract with expansion on.
+First time anyone can ask whether dx&times;lab&times;drug-route
+combinations exist in this data.</td></tr>
+<tr><td><b>Temporal predictive modelling</b> &mdash; within-stay
+trends</td>
+<td><span class="tag t-open">TODO</span></td>
+<td>two-week spike, three gates: is the signal in the extract at
+all; sample rather than predict (a point prediction glides and
+nothing ever drops 2 g/dL in a day); run the membership battery
+BEFORE building, because a course is far more identifying than a
+visit.</td></tr>
+<tr><td><b>Latent-informed surfaces</b></td>
+<td><span class="tag t-open">DECIDED, UNBUILT</span></td>
+<td>mine interactions the challenger's way, publish as k-screened
+surfaces the blueprint samples from &mdash; imports the fidelity
+while keeping the posture that passed its attacks.</td></tr>
+<tr><td><b>UM tool cohort sizing</b></td>
+<td><span class="tag t-done">DELIVERED</span></td>
+<td>answered: the trade runs the other way, 800 is already below
+what the important rules need. Document with the stakeholder.</td></tr>
+</tbody></table>
+
+<h2>E. Owed &mdash; known and unfinished</h2>
+<table>
+<thead><tr><th>Item</th><th>Severity</th><th>Detail</th></tr></thead>
+<tbody>
+<tr><td>Identifiers still reach two measures</td>
+<td><span class="tag t-red">REAL</span></td>
+<td><code>predictability</code> and <code>distinguishability</code>
+draw targets from the shared Encoder plan, which has no identifier
+exclusion. <code>three_way</code> and target selection are fixed;
+these are not. A classifier would find an invented
+<code>visit_id</code> a perfect tell by construction.</td></tr>
+<tr><td>Three-way never run on real data with expansion</td>
+<td><span class="tag t-hold">OWED</span></td>
+<td>the capability shipped today; the measurement has not been
+taken.</td></tr>
+<tr><td><code>smoke_relationships</code> runtime</td>
+<td><span class="tag t-hold">MINOR</span></td>
+<td>~4 min; fixtures sit at 900 rows against a 400-row floor.
+Trimming roughly halves it. The net gates every push.</td></tr>
+<tr><td>Staging repo visibility</td>
+<td><span class="tag t-open">UNRESOLVED</span></td>
+<td>zipballs fetch at an exact SHA with no token, four times.
+A private repo 404s unauthenticated. <code>WINDOWS.md</code> says
+both repos are private. Needs confirming by someone with the
+settings.</td></tr>
+<tr><td>Both machines held awake</td>
+<td><span class="tag t-hold">HOUSEKEEPING</span></td>
+<td>caffeinate here, ScrollLock daemon there. Release when the
+sweep ends.</td></tr>
+</tbody></table>
+
+<h2>F. What the measures can and cannot see</h2>
+<p>Worth keeping visible, because a limitation that is not written
+down gets read as a result.</p>
+<table>
+<thead><tr><th>Measure</th><th>Blind to</th></tr></thead>
+<tbody>
+<tr><td>Interaction surfaces (<code>0/N</code> in the gate)</td>
+<td>Not applicable to the neural engine, which publishes no
+surfaces. <code>0/N</code> looks identical to total failure.</td></tr>
+<tr><td><code>three_way</code></td>
+<td>Was numeric-only and rejected binary indicators &mdash; fixed
+today. Still bounded at three columns; nothing above that is
+measured anywhere.</td></tr>
+<tr><td>Rank correlation</td>
+<td>A U-shape reads near zero on both tables. Curve tracking covers
+it.</td></tr>
+<tr><td>Per-column checks</td>
+<td>Cannot see a broken relationship. A table with no structure
+between its columns passes all of them.</td></tr>
+<tr><td>Joint AUC</td>
+<td>Saturates at width; the k rule guarantees separability on its
+own. Per-column AUC is the actionable number.</td></tr>
+</tbody></table>
+
+<div class="foot">
+<p>Percentages in section B are from
+<code>docs/goals_scorecard.md</code> and are not re-derived here.
+Sections C&ndash;F are maintained on this page. Anything stated as
+measured corresponds to a run that can be repeated; anything
+believed is marked as believed.</p>
+</div>
+
+</div></body></html>

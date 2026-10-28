@@ -223,6 +223,30 @@ def main():
           "every convention and doc treats as proof",
           'a.shards == 1' in runner and '"ALL GREEN"' in runner)
 
+    # THREAD SPIN-UP DOMINATES ON FIXTURE-SIZED DATA. Measured:
+    # three_way on a 540-row frame takes 31.5s with default OpenMP
+    # threading and 1.3s pinned to one thread, and smoke_relationships
+    # went 248s -> 7s. Every suite here runs on small frames, so the
+    # whole net was paying thread setup instead of doing arithmetic.
+    # Pinned for the CHILD SUITES ONLY - the real extract is 55,428
+    # rows where threading genuinely pays, so this must never reach
+    # the library.
+    check("the net pins BLAS/OpenMP threads for the suites it "
+          "spawns - fixture-sized frames spend more time starting "
+          "threads than computing, and the net gates every push",
+          'OMP_NUM_THREADS' in runner
+          and 'env.setdefault' in runner
+          and 'env=env' in runner)
+    check("...by setdefault, so an outside value still wins and the "
+          "pinning can be overridden rather than imposed",
+          'setdefault' in runner)
+    check("...and it is set on the SUBPROCESS environment, not in "
+          "any module the generation path imports, because the real "
+          "extract wants the threads",
+          'OMP_NUM_THREADS' not in
+          (ROOT / "synthkit" / "jointcheck.py").read_text(
+              encoding="utf-8"))
+
     print()
     if FAIL:
         print("{} FAILED".format(FAIL))

@@ -76,8 +76,10 @@ class Encoder:
         import pandas as pd
         self.group_by = group_by
         self.plan: List[Any] = []
+        from synthkit.discover import _is_identifier
+        _nrows = len(real)
         for c in real.columns:
-            if c == group_by:
+            if c == group_by or _is_identifier(real[c], _nrows):
                 continue
             v = pd.to_numeric(real[c], errors="coerce")
             raw_ok = real[c].notna().mean()

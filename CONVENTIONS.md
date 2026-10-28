@@ -3571,3 +3571,44 @@ exist.
   actually ran it" is the oldest rule in this file and it was
   broken IN this file, in an entry written the same day; a
   number that is merely nearby is not a measurement.)
+
+- **RAISING THE TOKEN CAP PAST 400 BUYS NOTHING, MEASURED PAIRED
+  ACROSS THREE SEEDS (2026-10-27).** Nine cells on the real
+  800-patient extract, caps 400/800/1600 x seeds 0/1/2, 57 min per
+  cell, TSTR retention as the metric. Per-seed verdicts for
+  400 -> 800:
+      procedure_count     UP / EQ / EQ    mean  6 -> 8
+      active_drug_count   UP / DN / EQ    mean 62 -> 63
+      condition_count     UP / DN / UP    mean 13 -> 16
+  **No target rises on all three seeds and two have a DOWN seed.**
+  Mean movements are one to three points, which is inside the noise
+  this file already documents for generation changes.
+- **AND SEED ZERO SAID THE OPPOSITE, WHICH IS THE WHOLE POINT.**
+  The first cell of each cap read every target UP and was reported
+  as a direction needing confirmation rather than a result. It was
+  noise. This file records the same shape twice already - one seed
+  reading -6.3 on this exact lever against a paired +4.2, and a
+  centre_ok of 84% that runs 90-100% across twelve seeds. A single
+  seed on a generation change is worth nothing, including when it
+  agrees with the hypothesis.
+- **THE WIDTH DATA SAYS WHY, AND IT IS STRUCTURAL.** Encoded
+  dimensions went 1,114 at cap 400, 1,601 at 800, 1,703 at 1600.
+  The step from 800 to 1600 admits ONE HUNDRED AND TWO dimensions
+  because nearly every token clearing the k floor is already in by
+  800 - you cannot publish vocabulary the privacy screen rejects.
+  So the ceiling is the k rule, not the cap, and the earlier
+  60 -> 400 gain (close +3.1/+6.2/+3.1, paired) was recovering
+  genuinely excluded vocabulary where 400 -> 800 has almost none
+  left to recover.
+- **WHAT THIS CLOSES: the vocabulary hypothesis for multivariate
+  loss.** The count columns are the weakest TSTR targets and they
+  are set-size partners, so more published tokens was the obvious
+  candidate. It is now measured and refuted. The remaining
+  multivariate loss is NOT in what the k rule excluded; look at the
+  draw and at the three-way machinery instead, where a fixture
+  already shows two-way surviving every seed while the 3-way dies.
+- **ONE ROW OF THAT SWEEP IS DISCARDED, NOT AVERAGED.** `visit_id`
+  appears as a target because the sweep launched BEFORE the
+  identifier exclusion shipped. An identifier has no relationships
+  to lose and its 26 -> 27 is leakage. Dropping the row is right;
+  averaging it in would have let a key vote on a fidelity question.

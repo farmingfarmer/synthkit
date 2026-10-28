@@ -282,6 +282,7 @@ def main():
         _rc = R.main(["--src", str(_d / "src.csv"),
                       "--run", str(_d / "run"),
                       "--name", "sidecar fixture",
+                      "--targets", "2",
                       "-o", str(_d / "rel.html")])
         _side = _d / "rel.json"
         check("a real run exits 0 and writes BOTH the page and a "
@@ -336,7 +337,7 @@ def main():
     # `age_at_visit + person_id + visit_id` as the STRONGEST effect
     # on the page - gain 0.3019, synthetic side nan - two keys and an
     # arithmetic identity, outranking the genuine trios tenfold.
-    _n3 = 900
+    _n3 = 540
     _p = rng.normal(0, 1, _n3)
     _q = rng.normal(0, 1, _n3)
     _r = rng.normal(0, 1, _n3)
@@ -373,7 +374,7 @@ def main():
     # even once expanded - so the pattern class the page is most
     # asked about sat outside the page twice over. This plants
     # exactly that shape and asserts it is FOUND.
-    _cn = 900
+    _cn = 540
     _pid = np.repeat(np.arange(_cn // 3), 3)
     _hasA = (rng.random(_cn) < 0.45)
     _hasB = (rng.random(_cn) < 0.40)
@@ -420,6 +421,32 @@ def main():
               dict(m, token_expansion=[
                   {"column": "conditions", "expanded": 24,
                    "tokens_above_k": 1050, "cap": 24}]), "t"))
+
+    # ---- THE SHARED PLAN EXCLUDES IDENTIFIERS TOO ----
+    # three_way and target selection were fixed first; predictability
+    # and distinguishability draw from the Encoder plan underneath
+    # both, which had no exclusion. A classifier handed an INVENTED
+    # identifier finds a perfect tell by construction - synthetic ids
+    # differ from real ones by design - so it would win on the one
+    # column carrying no information about the data at all.
+    _enc = JC.Encoder(_idf, "person_id")
+    check("the shared Encoder plan drops identifiers, so every "
+          "measure built on it inherits the exclusion rather than "
+          "each one re-deciding",
+          "visit_id" not in _enc.names
+          and "person_id" not in _enc.names
+          and ("sbp" in _enc.names or "dbp" in _enc.names))
+    _pr2 = JC.predictability(_idf, _idf, "person_id", seed=0)
+    check("...so predictability no longer scores an identifier as a "
+          "column whose learnability is worth comparing",
+          all(r.get("column") not in ("visit_id", "person_id")
+              for r in (_pr2.get("columns") or [])))
+    _dg2 = JC.distinguishability(_idf, _idf, "person_id", 0)
+    _tells = [t[0] if isinstance(t, (list, tuple)) else t
+              for t in (_dg2.get("tells") or [])]
+    check("...and an identifier cannot be named as the tell that "
+          "gives the synthetic data away",
+          "visit_id" not in _tells and "person_id" not in _tells)
 
     # ---- REFUSALS ----
     check("a missing source file is refused by name",

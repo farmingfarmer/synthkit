@@ -27,6 +27,7 @@ from __future__ import annotations
 
 import argparse
 import re
+import os
 import subprocess
 import sys
 import time
@@ -79,10 +80,14 @@ def main() -> int:
     t0 = time.time()
     for suite in suites:
         print("....  {:<32} running".format(suite.name), flush=True)
+        env = dict(os.environ)
+        for _v in ("OMP_NUM_THREADS", "OPENBLAS_NUM_THREADS",
+                   "MKL_NUM_THREADS", "NUMEXPR_NUM_THREADS"):
+            env.setdefault(_v, "1")
         r = subprocess.run(
             [sys.executable, str(suite)],
             capture_output=True, encoding="utf-8",
-            errors="replace",
+            errors="replace", env=env,
             cwd=str(SCRIPTS.parent))
         tail = (r.stdout or "").strip().splitlines()
         last = tail[-1] if tail else "(no output)"
