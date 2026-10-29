@@ -314,6 +314,19 @@ class TableBlueprint:
         default_factory=dict)
     true_probs: Dict[str, List[float]] = field(
         default_factory=dict)
+    # "column|op" -> how many cells that op's own DRAW selected,
+    # counted inside the priority chain that decides them. The
+    # ledger holds what LANDED; a cell whose draw fired can still
+    # land nothing, two ways - an earlier op in the chain claimed
+    # it, or the op ran and left the value unchanged (a case drift
+    # on digits, a typo on a one-character string). Requested
+    # against achieved is the readout a person asked for instead
+    # of a count of "corruptions", and it is only honest if the
+    # shortfall can name its own cause, so the count is taken
+    # where the decision is made rather than re-derived from the
+    # seeds afterwards - a second copy of this chain is how the
+    # two numbers would come to disagree.
+    mess_fired: Dict[str, int] = field(default_factory=dict)
     # dirty row index -> source clean row index (for appended dups)
 
     def ledger_index(self) -> Dict[Tuple[int, str], CellMess]:
@@ -511,6 +524,7 @@ def plan_table(spec: TableSpec) -> TableBlueprint:
 
     dirty_rows: List[Dict[str, str]] = []
     ledger: List[CellMess] = []
+    _fired: Dict[str, int] = {}
     for r in range(spec.rows):
         row_out: Dict[str, str] = {
             name: clean_rows[r][name] for name in outcome_names}
@@ -536,6 +550,8 @@ def plan_table(spec: TableSpec) -> TableBlueprint:
                 if cand != cstr:
                     dirty = cand
                     op_applied = "wrong"
+                _fired[col.name + "|wrong"] = _fired.get(
+                    col.name + "|wrong", 0) + 1
             elif m.missing_rate > 0 and _cell_rng(
                     spec.master_seed, r, col.name,
                     "missing").random() < m.missing_rate:
@@ -543,6 +559,8 @@ def plan_table(spec: TableSpec) -> TableBlueprint:
                                 "missing_tok")
                 dirty = rng.choice(m.missing_tokens)
                 op_applied = "missing"
+                _fired[col.name + "|missing"] = _fired.get(
+                    col.name + "|missing", 0) + 1
             elif m.outlier_rate > 0 and _cell_rng(
                     spec.master_seed, r, col.name,
                     "outlier").random() < m.outlier_rate:
@@ -554,6 +572,8 @@ def plan_table(spec: TableSpec) -> TableBlueprint:
                     and not isinstance(cval, bool)
                     else round(float(scaled), 4))
                 op_applied = "outlier"
+                _fired[col.name + "|outlier"] = _fired.get(
+                    col.name + "|outlier", 0) + 1
             elif m.format_rate > 0 and _cell_rng(
                     spec.master_seed, r, col.name,
                     "format").random() < m.format_rate:
@@ -561,18 +581,24 @@ def plan_table(spec: TableSpec) -> TableBlueprint:
                     col, cval, _cell_rng(spec.master_seed, r,
                                          col.name, "format_pick"))
                 op_applied = "format"
+                _fired[col.name + "|format"] = _fired.get(
+                    col.name + "|format", 0) + 1
             elif m.typo_rate > 0 and _cell_rng(
                     spec.master_seed, r, col.name,
                     "typo").random() < m.typo_rate:
                 dirty = _typo(cstr, _cell_rng(
                     spec.master_seed, r, col.name, "typo_pick"))
                 op_applied = "typo"
+                _fired[col.name + "|typo"] = _fired.get(
+                    col.name + "|typo", 0) + 1
             elif m.case_rate > 0 and _cell_rng(
                     spec.master_seed, r, col.name,
                     "case").random() < m.case_rate:
                 dirty = _case_drift(cstr, _cell_rng(
                     spec.master_seed, r, col.name, "case_pick"))
                 op_applied = "case"
+                _fired[col.name + "|case"] = _fired.get(
+                    col.name + "|case", 0) + 1
             elif m.space_rate > 0 and _cell_rng(
                     spec.master_seed, r, col.name,
                     "space").random() < m.space_rate:
@@ -581,6 +607,8 @@ def plan_table(spec: TableSpec) -> TableBlueprint:
                 dirty = " " * rng.randint(1, 3) + cstr + \
                     " " * rng.randint(0, 2)
                 op_applied = "space"
+                _fired[col.name + "|space"] = _fired.get(
+                    col.name + "|space", 0) + 1
             if op_applied and dirty != cstr or op_applied == \
                     "missing":
                 ledger.append(CellMess(r, col.name, op_applied,
@@ -610,9 +638,77 @@ def plan_table(spec: TableSpec) -> TableBlueprint:
         clean_rows=clean_rows,
         dirty_rows=dirty_rows,
         ledger=ledger,
+        mess_fired=_fired,
         duplicate_of=duplicate_of,
         true_probs=true_probs,
     )
+
+
+# ===================================================================
+# Requested against achieved
+# ===================================================================
+
+# OP priority order, as the chain in `plan_table` applies it. An
+# earlier op claims the cell, so a later one's draw can fire and
+# land nothing.
+MESS_OPS = ("wrong", "missing", "outlier", "format", "typo",
+            "case", "space")
+
+_RATE_OF = {op: op + "_rate" for op in MESS_OPS}
+
+
+def requested_vs_achieved(spec, bp):
+    """Per column and op: how many cells were asked for, how many
+    landed, and - when they differ - which of the two causes is
+    responsible.
+
+    A person reading this does not want a count of "corruptions";
+    they want to know how much of what they asked for they got.
+    The shortfall has exactly two causes and they are different
+    news: `blocked` means a higher-priority imperfection claimed
+    the cell, which is the spec asking for more mess on one column
+    than a cell can carry; `unchanged` means the op ran and the
+    value came out the same (a case drift on digits, a typo on a
+    one-character string), which means the op does not apply to
+    that column at all. Reporting one total would hide both.
+    """
+    landed = {}
+    for m in bp.ledger:
+        if m.op == "duplicate":
+            continue
+        landed[m.column + "|" + m.op] = \
+            landed.get(m.column + "|" + m.op, 0) + 1
+    rows = []
+    for col in spec.columns:
+        for op in MESS_OPS:
+            rate = float(getattr(col.mess, _RATE_OF[op], 0.0) or 0.0)
+            if rate <= 0:
+                continue
+            key = col.name + "|" + op
+            want = int(round(rate * spec.rows))
+            fired = int(bp.mess_fired.get(key, 0))
+            got = int(landed.get(key, 0))
+            # fired is a binomial draw around `want`, so the draw
+            # itself explains a small gap; what is worth naming is
+            # the part of `fired` that produced nothing.
+            rows.append({
+                "column": col.name, "op": op, "rate": rate,
+                "requested": want, "fired": fired, "achieved": got,
+                "blocked": max(0, want - fired),
+                "unchanged": max(0, fired - got),
+                "share": (got / float(want)) if want else 1.0,
+            })
+    tot_w = sum(r["requested"] for r in rows)
+    tot_a = sum(r["achieved"] for r in rows)
+    return {
+        "rows": rows,
+        "requested": tot_w,
+        "achieved": tot_a,
+        # the one number she asked for in place of the word
+        # "corruption": the share of what was requested that the
+        # data actually carries.
+        "confidence": (tot_a / float(tot_w)) if tot_w else 1.0,
+    }
 
 
 # ===================================================================

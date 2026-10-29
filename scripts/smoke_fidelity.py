@@ -1518,7 +1518,7 @@ def main():
     check("station tokens exist in the guidance and plain() names "
           "the station for terminals",
           "[[dashboard]]" in _g2.NEXT_STEPS["close"]["steps"][0]
-          and "the VIEW Dashboard station" in _g2.plain(
+          and "the VIEW Visualize station" in _g2.plain(
               _g2.NEXT_STEPS["close"]["steps"][0])
           and all("[[" not in _g2.plain(st)
                   for v in _g2.NEXT_STEPS.values()
@@ -1542,27 +1542,90 @@ def main():
     # rendered NOTHING - the exact silent absence the omission
     # note exists to prevent, shipped in the branch beside it.
     import pandas as _pd8
-    _srcE = _pd8.DataFrame({"a": ["1", "2", "3"] * 40,
-                            "b": ["2", "3", "4"] * 40,
-                            "y": ["5", "6", "7"] * 40,
-                            "d": ["2024-01-01"] * 120})
+    _srcE = _pd8.DataFrame({"a": ["1", "2", "3"] * 100,
+                            "b": ["2", "3", "4"] * 100,
+                            "y": ["5", "6", "7"] * 100,
+                            "d": ["2024-01-01"] * 300})
     _genE = _srcE.copy()
+    # THE SURFACES CRITERION GRADES A CONTRACT ONE ENGINE DOES
+    # NOT READ, and saying so is the difference between "this
+    # engine ignores published curves" and "no multivariate
+    # structure survived" - opposite conclusions from one chip.
+    from synthkit import gate as _gt
+    _su = _gt.CRITERIA_EXPLAIN["interaction surfaces"] \
+        if hasattr(_gt, "CRITERIA_EXPLAIN") else None
+    _suh = io.open("synthkit/gate.py", encoding="utf-8").read()
+    check("the interaction-surfaces criterion NAMES whose "
+          "contract it grades and points at the mined table - a "
+          "FAIL on an engine that never reads the surfaces is "
+          "not evidence that two-way structure is absent",
+          "never consults them" in _suh
+          and "construction, and a FAIL here is NOT evidence"
+          in _suh
+          and "mined-interaction table" in _suh)
+    check("...and its guidance does not send a neural-run reader "
+          "hunting trim machinery that engine does not have",
+          "RULES ENGINE ONLY" in _suh
+          and "no trim machinery" in _suh)
+
     check("shap candidates come from EVERY claim - a numeric "
           "two-driver child qualifies, a token child and a "
           "date-thinned parent list do not",
           _fd.shap_candidates(
               [{"child": "y", "skill": .8, "predictors": [
                   {"column": "a"}, {"column": "b"}]}],
-              _srcE, _genE) == [(0.8, "y", ["a", "b"])]
+              _srcE, _genE)[0] == [(0.8, "y", ["a", "b"])]
           and _fd.shap_candidates(
               [{"child": "meds__has__x", "skill": .9,
                 "predictors": [{"column": "a"},
                                {"column": "b"}]}],
-              _srcE, _genE) == []
+              _srcE, _genE)[0] == []
           and _fd.shap_candidates(
               [{"child": "y", "skill": .8, "predictors": [
                   {"column": "a"}, {"column": "d"}]}],
-              _srcE, _genE) == [])
+              _srcE, _genE)[0] == [])
+    # A SPARSE NUMERIC COLUMN IS STILL NUMERIC. The old screen
+    # required presence on half the rows, which on a clinical
+    # extract rejects the sparse columns that are the interesting
+    # drivers - and the section then rendered "nothing to
+    # attribute" on data that had plenty. Present on a fifth of
+    # the rows, comfortably past the row floor:
+    _spN = 1500
+    _srcS = _pd8.DataFrame({
+        "a": (["1", None, None, None, None] * (_spN // 5)),
+        "b": (["2", None, None, None, None] * (_spN // 5)),
+        "y": (["5", None, None, None, None] * (_spN // 5))})
+    _genS = _srcS.copy()
+    check("a SPARSE numeric child and its sparse numeric drivers "
+          "still qualify - a column whose present values are "
+          "numbers is numeric however often it is present, and "
+          "the old presence-share gate dropped exactly the "
+          "columns worth attributing",
+          _srcS["y"].notna().mean() < 0.5
+          and _fd.shap_candidates(
+              [{"child": "y", "skill": .8, "predictors": [
+                  {"column": "a"}, {"column": "b"}]}],
+              _srcS, _genS)[0] == [(0.8, "y", ["a", "b"])])
+    check("...and an EMPTY result reports the census it counted "
+          "rather than asserting a cause - 'the strongest "
+          "patterns live on token indicators' was a guess that "
+          "sends a reader hunting the wrong thing",
+          _fd.shap_candidates(
+              [{"child": "meds__has__x", "skill": .9,
+                "predictors": [{"column": "a"},
+                               {"column": "b"}]}],
+              _srcE, _genE)[1]
+          == {"child is search-only scaffolding": 1}
+          and _fd.shap_candidates(
+              [{"child": "y", "skill": .8, "predictors": [
+                  {"column": "a"}, {"column": "d"}]}],
+              _srcE, _genE)[1]
+          == {"fewer than 2 eligible numeric drivers": 1}
+          and _fd.shap_candidates(
+              [{"child": "ghost", "skill": .5, "predictors": [
+                  {"column": "a"}, {"column": "b"}]}],
+              _srcE, _genE)[1]
+          == {"child not in the written files": 1})
     check("...and when nothing qualifies the section STATES the "
           "limit rather than vanishing",
           "nothing to attribute" in io.open(

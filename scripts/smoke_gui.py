@@ -1084,11 +1084,15 @@ def main():
               "what it PRODUCES - the old page said what a step was "
               "about and left you to press the button to find out "
               "the rest",
-              html.count('class="stepgoal"') == 15
-              and html.count("<dt>you need</dt>") == 15
-              and html.count("<dt>you get</dt>") == 15)
+              html.count('class="stepgoal"')
+              == html.count('<section id="s-')
+              and html.count("<dt>you need</dt>")
+              == html.count('<section id="s-')
+              and html.count("<dt>you get</dt>")
+              == html.count('<section id="s-'))
         check("...and every step ends by naming where to go next",
-              html.count('class="nextup"') == 15)
+              html.count('class="nextup"')
+              == html.count('<section id="s-'))
 
         # THE NEURAL ENGINE HAS ITS OWN STATION. The duel is how
         # we know which engine is better; it should not be the
@@ -1097,12 +1101,12 @@ def main():
         # jobs, since both steps are minutes of real work -
         # and its review page carries the same honesty footer.
         from synthkit.gui import _ROUTES as _routes
-        check("the Neural station runs the engine on its own - "
-              "tile, title, its own fields, both steps as polled "
-              "jobs, and a sandboxed review frame",
-              'data-s="neural"' in html
-              and "neural:['Measure 2'" in html
-              and 'id="nsrc"' in html and 'id="nout"' in html
+        check("the engine still runs with all its machinery - "
+              "fields, both polled jobs and a sandboxed review "
+              "frame - after being merged onto the Source station, "
+              "because the merge was about the rail slot, not the "
+              "capability",
+              'id="nsrc"' in html and 'id="nout"' in html
               and 'id="nseed"' in html
               and "/api/neural-async" in _routes
               and "function neuralRun" in html
@@ -1110,6 +1114,18 @@ def main():
               and "function nPoll" in html
               and 'id="neural-frame" sandbox="allow-scripts"'
               in html)
+        check("...and the measure route is TWO steps now, not "
+              "three - 'you could just have source and generate "
+              "essentially the same station'",
+              'data-s="neural"' not in html
+              and 'data-s="fitver" data-route="measure"><b>02</b>'
+              in html
+              and "step 1 of 2" in html)
+        check("...with both actions on the one station, reading "
+              "first and generating second, kept apart because one "
+              "is seconds and the other is many minutes",
+              html.index("fitTypes()") < html.index("neuralRun()")
+              and "Then make the data" in html)
 
         # THE DOORS ARE LISTED, NOT ONLY AUTO-LINKED. The
         # auto-linker marks the first occurrence of a phrase per
@@ -1267,23 +1283,64 @@ def main():
         # and a rail that numbers it differently is the two-
         # halves-disagree fault wearing navigation.
         from synthkit.gate import STATIONS as _ST
-        check("the autoencoder holds step 02 of the measure "
-              "route - on the rail, in its section, and in the "
-              "station table the gate's guidance is rendered "
-              "from",
-              ('<button class="station" data-step="2" '
-               'data-s="neural" data-route="measure">'
-               '<b>02</b>') in html
-              and '<section id="s-neural" data-step="2" '
-                  'data-route="measure">' in html
-              and _ST["neural"]["num"] == "02"
-              and _ST["neural"]["route"] == "measure")
+        check("the rail and the station table agree about the "
+              "measure route - it is Source then Verdict, and "
+              "guidance that said 'go to step 02' over a rail "
+              "numbering it differently is the two-halves-disagree "
+              "fault wearing navigation",
+              ('<button class="station" data-step="1" '
+               'data-s="fitsrc" data-route="measure">') in html
+              and _ST["fitsrc"]["num"] == "01"
+              and _ST["fitver"]["num"] == "02"
+              and "neural" not in _ST)
+        check("...and the autoencoder is what step 01 runs, so the "
+              "route still leads with the engine the Duel exists "
+              "to compare against",
+              "neuralRun()" in html
+              and 'id="s-fitsrc"' in html
+              and html.index('id="s-fitsrc"') < html.index("neuralRun()"))
         # THE SIZE LEVER, and the sequencing she asked for:
         # "you read the data, you understand the complexity of the
         # patterns, and then as step two ... you can curate what I
         # can and can't do in terms of levers. Here's low, here's
         # high." The ladder is computed from THIS file's own
         # k-screened vocabulary, so the bounds belong to their data.
+        # "I don't know what deliberate corruption means and is
+        # this something the user needs to know?" - she asked for a
+        # CONFIDENCE / percentage of what was requested instead.
+        # The endpoint has to carry it or the page cannot show it,
+        # and this goes through api_plan rather than a hand-built
+        # dict so a renamed key fails here.
+        from synthkit.gui import api_plan as _apl
+        import json as _js
+        _pspec = _js.dumps({
+            "title": "rva", "rows": 800, "master_seed": 3,
+            "columns": [
+                {"name": "mrn", "ctype": "int",
+                 "distribution": {"kind": "uniform",
+                                  "min": 100000, "max": 999999},
+                 "mess": {"case_rate": 0.5}}]})
+        _pl = _apl({"kind": "table", "spec": _pspec})
+        check("the plan endpoint carries requested-against-"
+              "achieved, so the page can state a confidence "
+              "instead of a count of corruptions",
+              "error" not in _pl
+              and isinstance(_pl.get("fidelity"), dict)
+              and _pl["fidelity"]["requested"] == 400
+              and _pl["fidelity"]["achieved"] == 0
+              and _pl["fidelity"]["confidence"] == 0.0)
+        check("...and the page names the IMPOSSIBLE case rather "
+              "than only a percentage - an op that cannot apply "
+              "to its column is the one a reader must act on",
+              "cannot apply to this " in html
+              and "landed on " in html
+              and "the cell first" in html
+              and "came out unchanged" in html)
+        check("...and the word `corruption` is gone from what a "
+              "reader sees, while the on-disk contract keeps its "
+              "names",
+              "corrupted cells" not in html
+              and "corruption_ledger" not in html)
         from synthkit.gui import api_sizing as _asz
         import tempfile as _tf, os as _os
         import numpy as np
@@ -1345,10 +1402,26 @@ def main():
               "so inheriting is not a trap",
               'id="nfields"' in html
               and "Change the source" in html)
-        check("...and the carry runs when the Generate station is "
-              "opened, not only on load",
-              "btn.dataset.s==='neural'" in html
+        check("...and the carry runs when the MERGED station is "
+              "opened - keyed on the station that no longer "
+              "exists it was dead code that never ran",
+              "btn.dataset.s==='fitsrc'" in html
               and "carryForward()" in html)
+        check("...and correctness does not rest on the carry: the "
+              "generate payload FALLS BACK to the station's own "
+              "field, so a blank override cannot make Generate "
+              "refuse on a station already showing the path",
+              "function nField(" in html
+              and "nField('nsrc','fsrc')" in html
+              and "nField('nout','fout')" in html
+              and "nField('ngroup','fgroup')" in html
+              and "getElementById('nsrc').value.trim()" not in html)
+        check("...and generating marks the merged step done, "
+              "because tick() returns SILENTLY on a station that "
+              "is gone - the merge removed the lamp and the "
+              "completion strip without any error",
+              "tick('fitsrc')" in html
+              and "tick('neural')" not in html)
 
         check("the size control sits on the GENERATE panel, "
               "between reading the file and making the data - the "
@@ -1493,18 +1566,35 @@ def main():
         # built by the SAME latent_viz.build_from_run the CLI writes
         # its file with, so the bench view and a shared file are one
         # picture. A sandboxed iframe (it runs WebGL).
-        check("the bench has a Latent Space station with a "
-              "sandboxed WebGL iframe, a titles entry, and the "
-              "job-polled build",
-              'data-s="latent"' in html
-              and 'id="s-latent"' in html
-              and 'id="lv-frame"' in html
+        check("the 3D latent view is FOLDED INTO the Visualize "
+              "station - one run, one set of inputs, both "
+              "pictures - with its sandboxed WebGL iframe and "
+              "job-polled build intact",
+              'id="lv-frame"' in html
               and 'sandbox="allow-scripts"' in
               html[html.index('id="lv-frame"')-80:
                    html.index('id="lv-frame"')+80]
-              and "latent:['View'" in html
               and "latentVizBuild" in html
-              and "frame.srcdoc=j.result.html" in html)
+              and "frame.srcdoc=j.result.html" in html
+              and html.index('id="s-dashboard"')
+              < html.index('id="lv-frame"')
+              and 'id="s-latent"' not in html
+              and 'data-s="latent"' not in html
+              and "latent:['View'" not in html)
+        check("...and the folded view reads the station's OWN "
+              "fields rather than inputs that no longer exist - "
+              "the merge fault that left Generate refusing on a "
+              "station already showing the path",
+              "nField('lvsrc','dsrc')" in html
+              and "nField('lvout','dout')" in html
+              and "getElementById('lvsrc').value.trim()"
+              not in html)
+        check("...and one button starts BOTH views, so each "
+              "picture lands when its own work finishes instead "
+              "of the fast one waiting on the slow one",
+              "function drawAll()" in html
+              and "drawAll()" in html
+              and "latentVizBuild(); }catch(e){}" in html)
         # THE VERDICT STATION ANSWERS "WHAT NOW" ON A FAIL. The
         # panel renders each failed criterion's meaning and numbered
         # options from gate.next_steps - the SAME module the CLI
@@ -1731,7 +1821,8 @@ def main():
               "error" not in _resp2
               and set(_resp2["explain"]) >= {"close", "inverted"}
               and _resp2["stations"]["dashboard"]["label"]
-              == "Dashboard")
+              == "Visualize"
+              and "latent" not in _resp2["stations"])
 
         # THE LOG, ONE CLEAN ROW AT A TIME. The raw stream was a
         # wall of text nobody would read: rows now, stages as
@@ -1798,25 +1889,32 @@ def main():
         # other was not. Source/Fit/Verdict now carry the SAME step
         # numbers and hues as their parallels (Describe/Spec/Data),
         # and Campaign/Showdown are shared by both routes.
-        check("the measure route is three numbered stations with "
-              "heading entries - a station missing from `titles` is "
-              "the exact TypeError the learn station shipped",
+        import re as _rx
+        _rail = set(_rx.findall(r'data-s="([a-z0-9_]+)"', html))
+        _tb = html[html.find("const titles={"):]
+        _tb = _tb[:_tb.find("};") + 1]
+        _titled = set(_rx.findall(r"([a-z0-9_]+):\['", _tb))
+        check("the measure route is TWO numbered stations after "
+              "the merge, Source then Verdict",
               'data-s="fitsrc"' in html
-              and 'data-s="neural"' in html
               and 'data-s="fitver"' in html
               and "fitsrc:['Measure 1'" in html
-              and "neural:['Measure 2'" in html
-              and "fitver:['Measure 3'" in html
-              and "fitrun:['Alt'" in html
-              and "roadmap:['Map'" in html)
+              and "fitver:['Measure 2'" in html)
+        check("...and EVERY station in the rail has a heading "
+              "entry - a station missing from `titles` is the exact "
+              "TypeError the learn station shipped, and asserting "
+              "the whole set means it cannot rot when the rail "
+              "changes shape again",
+              _rail and not (_rail - _titled))
         check("...and each measure station reuses its PARALLEL "
               "station's hue - Source wears Describe's step 1, "
-              "Generate wears Spec's step 2, Verdict wears "
-              "Data's step 3 - "
+              "Verdict wears Spec's step 2 - "
               "so the two routes read as the same journey",
-              'data-step="1" data-s="fitsrc"' in html
-              and 'data-step="2" data-s="neural"' in html
-              and 'data-step="3" data-s="fitver"' in html)
+              'data-step="1" data-s="describe"' in html
+              and 'data-step="1" data-s="fitsrc"' in html
+              and 'data-step="2" data-s="spec"' in html
+              and 'data-step="2" data-s="fitver"' in html
+              and 'data-s="neural"' not in html)
         check("...and the rails are labeled so two buttons named 01 "
               "read as parallel routes, not a duplicate",
               "create from a description" in html

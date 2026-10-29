@@ -4,7 +4,7 @@ Synthetic clinical data generator and model-evaluation instrument. Core rule: le
 
 ## Verify before claiming
 
-- Run `python scripts/run_all_smokes.py` before claiming anything works. Expect 69 suites, 2082 checks, ALL GREEN **on a checkout**. Off a zipball extract - which is what the data machine runs - it is 2073: nine checks in `smoke_buildid` need git to test the archive path and report SKIPPED without it. Both numbers were measured. Do not quote the checkout number to the data machine; that is how a correct run gets read as a failure.
+- Run `python scripts/run_all_smokes.py` before claiming anything works. Expect **81 suites, 2414 checks**, ALL GREEN **on a checkout** (measured 2026-10-29). Off a zipball extract - which is what the data machine runs - nine checks in `smoke_buildid` need git to test the archive path and report SKIPPED without it, so the expected total there is NINE LOWER; that delta was measured when it was found, the current zipball total has not been re-run, and a total nobody ran is not a number to quote. Do not quote the checkout number to the data machine; that is how a correct run gets read as a failure.
 - **THE DEVELOPMENT MACHINE WAS BEHIND THE DATA MACHINE, and that is
   how a green suite here failed there.** Dev was on Python 3.10 with
   pandas 2.3; the data machine installs fresh and got pandas 3.0.5,
@@ -3110,6 +3110,158 @@ what follows is what came out wrong anyway.
   kit carries no code of its own, so it cannot go stale against
   the install, and its checks couple every command it teaches to
   the CLI's own --help.
+
+- **"DELIBERATE CORRUPTIONS" TOLD A READER NOTHING THEY COULD ACT
+  ON, AND REPLACING IT WITH REQUESTED-AGAINST-ACHIEVED EXPOSED A
+  CLASS THE OLD COUNT WAS STRUCTURALLY BLIND TO (2026-10-29).**
+  The walkthrough asked for "a confidence / percentage of what was
+  requested" instead of a count of corruptions. The count was not
+  merely unfriendly - it could not see its own worst case. A
+  `case_rate` of 0.5 on an INTEGER column fires on every drawn cell
+  and changes nothing (a case drift on digits is a no-op), the
+  chain's `dirty != cstr` guard writes NO LEDGER ROW, so a count of
+  what happened reports the column as untouched - indistinguishable
+  from a rate nobody asked for. Measured on a 2,000-row fixture:
+  1,000 cells requested, 1,016 draws fired, **0 landed**, and the
+  old readout showed nothing at all.
+- **THE SHORTFALL HAS EXACTLY TWO CAUSES AND THEY ARE DIFFERENT
+  NEWS, so one total would hide both.** `blocked` means a
+  higher-priority op claimed the cell - the spec asking for more
+  mess on one column than a cell can carry, which is a dial to
+  turn down. `unchanged` means the op does not apply to that column
+  at all, which is a spec to fix. On the same fixture
+  `site` (missing 0.4 + case 0.4) came up short by COMPETITION
+  (318 blocked against 153 unchanged, share 0.41) while `mrn`
+  came up short entirely by NO-OP (0 blocked, 1,016 unchanged,
+  share 0.00). A single "achieved vs requested" number would read
+  0.41 and 0.00 as the same kind of miss.
+- **AND THE COUNT IS TAKEN WHERE THE DECISION IS MADE, NOT
+  RE-DERIVED FROM THE SEEDS.** The ops are an `elif` chain with
+  per-op seeded draws, so which op fired is knowable by replaying
+  the same RNGs - and that would be a second copy of the priority
+  logic, which this file already records as how two numbers come to
+  disagree. The chain increments its own counter instead. Note the
+  one branch that needed care: `wrong` sets `op_applied` inside an
+  inner `if cand != cstr`, so counting beside the assignment would
+  have measured fired-AND-CHANGED and hidden the very cause the
+  readout exists to name.
+- **A CHECK ON A PHRASE TWO STRING LITERALS SPLIT CANNOT PASS,
+  however the page reads.** Asserting `"claimed the "` against a
+  source that holds `'...claimed '+ 'the cell first'` failed while
+  the rendered text was correct - the wrapped-heading trap this
+  file already records, hit again in the same hour. Assert a phrase
+  that lives inside ONE literal.
+- **AND THE FIRST MUTATION THAT "PROVED" THE READOUT PROVED
+  NOTHING.** Setting the reported `"fired"` key to the achieved
+  count broke no check, because `blocked` and `unchanged` are
+  computed from the local variable rather than the dict - the key
+  was reported and almost nothing consumed it. The check asserting
+  `achieved <= fired` held trivially at 0 <= 0. Strengthened to pin
+  the decision-site count directly (`mrn|case` fired > 900), which
+  the same mutation then fails. A mutation that changes a reported
+  field no assertion depends on is not a fail-first.
+
+- **"WE ARE FAILING ALL MULTIVARIATE INTERACTIONS" WAS THE
+  CRITERION'S SCOPE, NOT THE DATA'S CONTENT (2026-10-29).** The
+  operator read `interaction surfaces 0/N FAIL` on a neural run and
+  reasonably asked whether the engine synthesizes multi-variable
+  structure at all. `measure_surfaces` iterates
+  `bp["relationships"]` and scores only those carrying
+  `evidence.interaction.pair` - surfaces PUBLISHED by discovery on
+  the real data. The rules engine applies them at generation; the
+  neural engine samples a latent space and **never consults them**,
+  so it fails that criterion BY CONSTRUCTION. The engine-neutral
+  measure is the mined-interaction table, and it says the opposite:
+  on the real head-to-head the rules engine read **0.000 on every
+  one of the source's top eight** two-way interactions - absent,
+  not weakened - while the neural engine held the strong ones at
+  source magnitude. One chip and one table pointing opposite ways,
+  and the chip was the one on screen.
+- **AND THE GUIDANCE SENT A NEURAL-RUN READER HUNTING MACHINERY
+  THAT ENGINE DOES NOT HAVE.** `NEXT_STEPS` told them to check the
+  trimmed-parents report for a parent cut to break a cycle - the
+  neural engine trims nothing, a fact this file already records.
+  Both texts now name whose contract the criterion grades, put the
+  mined table FIRST, and mark the trim step rules-engine-only. The
+  texts live in `synthkit.gate` once, so the bench panel and
+  `m0_gate` cannot disagree about it.
+- **WHAT IS GENUINELY MISSING IS THREE-WAY, AND IT IS A SAMPLE-SIZE
+  LIMIT BEFORE IT IS AN ENGINE LIMIT.** Two-way survives (XOR holds
+  on every seed); the 3-way mostly dies; `three_way` found ZERO
+  qualifying three-column combinations across six candidates on the
+  real cohort even with token expansion live. The power curve puts
+  3-way structure at ~3,200 PATIENTS and this extract has 800 - and
+  generating more rows cannot fix it, because synthetic patients
+  drawn from an 800-patient model are not independent evidence. Say
+  all three parts whenever the interaction question comes up: the
+  criterion's scope, the mined result, and the 3,200.
+
+- **THE SHAP SECTION RENDERED "NOTHING TO ATTRIBUTE" ON DATA FULL
+  OF DRIVERS, AND THE GATE WAS A PRESENCE SHARE (2026-10-29).**
+  `shap_candidates` required `notna().mean() >= 0.5` on the child
+  and on every driver - so on a clinical extract it rejected
+  exactly the sparse columns worth attributing. **A column whose
+  present values are numbers is numeric however often it is
+  present**: this file records that lesson three times already
+  (span_days at low cardinality, height at 46.6%, an all-empty
+  column) and this was a FOURTH instance, in the attribution
+  screen. A model needs ROWS, not a share: the gate is now
+  `SHAP_MIN_ROWS = 200` present rows. Fixture at 20% presence with
+  300 present rows qualifies, and the old gate fails it - watched
+  red.
+- **AND THE EMPTY-CASE NOTE ASSERTED A CAUSE IT HAD NOT
+  MEASURED.** It told the reader "the strongest patterns in this
+  run live on list-token indicators", which was true of one run and
+  became a standing explanation - a guess that sends somebody
+  hunting the wrong thing. The screen now COUNTS its rejections by
+  reason and the note prints the census. Same rule as the
+  totals-a-reader-can-check-against and the surfaces skip-by-reason
+  identity: when a section is empty, say what you examined.
+
+- **A MERGE THAT MOVES PANELS MUST RE-POINT EVERY READER OF THE
+  MOVED FIELDS, AND tick() FAILS SILENTLY (2026-10-29).** Folding
+  Generate into Source left FOUR dead paths behind, none of which
+  raised: `nPayload`, `sizeAsk` and `neuralReview` each read the
+  moved station's own `nsrc`/`nout` boxes - blank by default - so
+  Generate, the SIZE LEVER and Review all refused with "give the
+  source CSV" on a station displaying that path two inches above;
+  and `tick('neural')` hit `if(!b)return`, so generating no longer
+  lit the lamp or wrote the completion strip. A station key is a
+  STRING in four files and nothing type-checks it. The fix is a
+  fallback, not a copy step: `nField(override, base)` reads the
+  override when filled and the station's own field otherwise,
+  because a value that must be COPIED into a second input before
+  anything can read it fails silently whenever the copy does not
+  run - which is exactly what `carryForward` did once its one call
+  site was keyed on a removed station.
+- **AND THE CHECK THAT CAUGHT THE OTHER THREE WAS A NEGATIVE
+  ASSERTION.** `"getElementById('nsrc').value.trim()" not in html`
+  found two further call sites I had not looked at. Asserting the
+  OLD pattern is GONE catches every straggler; asserting the new
+  one is present only proves one site was fixed.
+
+- **THE DASHBOARD AND LATENT STATIONS ASKED THE SAME THREE
+  QUESTIONS TWICE.** Both wanted source CSV, run directory and
+  patient column for ONE run, and each kept its own frame, so
+  seeing both pictures meant filling six boxes and navigating
+  between tabs. Folded into one Visualize station: one panel, one
+  button that starts both, and each picture appears when its own
+  work finishes - the deck returns from a single request, the
+  latent space is a polled job of minutes, so making the fast one
+  wait on the slow one would be a choice rather than a constraint.
+- **AND THE PLOTS CARRIED A HARD PIXEL WIDTH INTO A NARROWER
+  FRAME.** Every deck SVG sets `width="620"` and a viewBox; the
+  bench serves the deck into an iframe narrower than the page it
+  was sized for, because the rail takes its share - so a histogram
+  needed horizontal scrolling to read. With the viewBox already
+  set, responsiveness is one CSS rule (`width:100%`, `height:auto`)
+  and the plots now also GROW on a wide pane. The width attribute
+  was a natural size, never a commitment.
+- **AND A LITERAL PERCENT IN THE DECK'S CSS IS A FORMAT STRING
+  BUG.** That block is `%`-formatted (`%(ink)s`), so `width:100%`
+  raised `TypeError: not enough arguments for format string` - the
+  same trap as the argparse help text this file already records,
+  one module over. Double it.
 
 ## Talking to the data machine
 

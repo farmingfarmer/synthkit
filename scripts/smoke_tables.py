@@ -28,6 +28,7 @@ from synthkit.tableeval import (
 from synthkit.tableplan import (
     TableIntegrityError,
     load_table,
+    requested_vs_achieved,
     plan_table,
     write_table,
 )
@@ -403,6 +404,92 @@ def main():
           not result.ok
           and result.spec is not None
           and "rows must be >= 1" in result.problems)
+
+    # ---------------------------------------------------------------
+    # requested against achieved
+    # ---------------------------------------------------------------
+    # The readout exists because "deliberate corruptions" told a
+    # reader nothing they could act on. What they can act on is how
+    # much of what they ASKED for the data carries - and the
+    # shortfall has two causes that are different news, so the
+    # fixture has to contain BOTH or the separation is untested.
+    import json as _json
+    from synthkit.tablespec import TableSpec as _TS
+    rva_spec = _TS.from_json(_json.dumps({
+        "title": "rva", "rows": 2000, "master_seed": 7,
+        "columns": [
+            # two rates on ONE column: a cell takes one op, so the
+            # lower-priority one must come up short by COMPETITION
+            {"name": "site", "ctype": "category",
+             "distribution": {"kind": "categorical",
+                              "choices": ["alpha", "beta", "gamma"],
+                              "weights": [0.5, 0.3, 0.2]},
+             "mess": {"missing_rate": 0.4, "case_rate": 0.4}},
+            # a case drift on DIGITS is a no-op: every draw fires
+            # and nothing changes, so it comes up short the OTHER
+            # way - and writes no ledger row at all, which is
+            # exactly what the old count could not show
+            {"name": "mrn", "ctype": "int",
+             "distribution": {"kind": "uniform",
+                              "min": 100000, "max": 999999},
+             "mess": {"case_rate": 0.5}},
+            # a single rate on a column that can carry it: the only
+            # gap should be the binomial draw
+            {"name": "dose", "ctype": "float",
+             "distribution": {"kind": "uniform",
+                              "min": 1.0, "max": 9.0},
+             "mess": {"missing_rate": 0.2}}]}))
+    rva_bp = plan_table(rva_spec)
+    rva = requested_vs_achieved(rva_spec, rva_bp)
+    _by = {r["column"] + "|" + r["op"]: r for r in rva["rows"]}
+
+    check("requested-vs-achieved reports every declared rate, and "
+          "only the declared ones - a rate left at zero is not a "
+          "row",
+          set(_by) == {"site|missing", "site|case", "mrn|case",
+                       "dose|missing"})
+    check("a rate the column CAN carry lands what it asked for, so "
+          "the readout does not cry wolf on an ordinary spec",
+          _by["dose|missing"]["share"] >= 0.9
+          and _by["site|missing"]["share"] >= 0.9)
+    check("an op that cannot apply to its column lands NOTHING and "
+          "is reported as asked-for - it writes no ledger row, so "
+          "counting what happened showed it as absent instead",
+          _by["mrn|case"]["achieved"] == 0
+          and _by["mrn|case"]["requested"] == 1000
+          and _by["mrn|case"]["unchanged"] > 900
+          and _by["mrn|case"]["blocked"] == 0)
+    check("...and the ledger agrees it is absent, which is the "
+          "whole reason the count could not see it",
+          not [m for m in rva_bp.ledger
+               if m.column == "mrn" and m.op == "case"])
+    check("a lower-priority op on a doubly-messed column comes up "
+          "short by COMPETITION, and the shortfall names that "
+          "cause rather than the other one",
+          _by["site|case"]["share"] < 0.6
+          and _by["site|case"]["blocked"]
+          > _by["site|case"]["unchanged"])
+    check("the two causes are reported APART - one total would "
+          "hide that mrn is impossible while site is merely "
+          "crowded",
+          _by["mrn|case"]["blocked"] == 0
+          and _by["site|case"]["unchanged"] > 0)
+    check("confidence is achieved over requested across every "
+          "declared rate, so the headline cannot disagree with the "
+          "rows beneath it",
+          abs(rva["confidence"]
+              - (rva["achieved"] / float(rva["requested"]))) < 1e-9
+          and rva["achieved"] == sum(r["achieved"]
+                                     for r in rva["rows"])
+          and rva["requested"] == sum(r["requested"]
+                                      for r in rva["rows"]))
+    check("the fired count is taken inside the priority chain, so "
+          "every landed cell was a cell whose draw fired - a "
+          "re-derivation from the seeds is a second copy that can "
+          "drift",
+          all(r["achieved"] <= r["fired"] for r in rva["rows"])
+          and _by["mrn|case"]["fired"] > 900
+          and rva_bp.mess_fired)
 
     shutil.rmtree(tmp)
     print("\nAll {} checks passed.".format(PASS))

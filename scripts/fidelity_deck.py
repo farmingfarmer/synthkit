@@ -66,6 +66,12 @@ MINED_TOP_N = 24
 # token indicators that exist only inside the search - but a
 # cap nobody can see reads as the whole story.
 SHAP_TOP_N = 8
+# A model needs rows, not a presence SHARE. The old screen asked
+# for a column present on half the rows, which on a clinical
+# extract rejects precisely the sparse columns worth attributing -
+# the wrong-type-by-sparsity fault, a fourth time. 200 present
+# rows is enough to fit the compact tree used here.
+SHAP_MIN_ROWS = 200
 # HOW MANY CHILDREN THE MINING VISITS. Each one trains a model and
 # runs permutation importance, so this is the cost dial, and
 # `/api/deck` is a SYNCHRONOUS await - the Dashboard is the one
@@ -96,7 +102,7 @@ CSS = """
 body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',
   Helvetica,Arial,sans-serif;color:%(ink)s;background:#fff;
   margin:0;font-size:14px;line-height:1.5}
-.wrap,main{max-width:1060px;margin:0 auto;
+.wrap,main{max-width:1400px;margin:0 auto;
   padding:48px 44px}
 h1{font-size:28px;font-weight:700;letter-spacing:-.02em;margin:0}
 h2{font-size:19px;font-weight:700;margin:40px 0 6px;
@@ -133,6 +139,14 @@ svg text{font-family:inherit}
    overlap, which IS the fidelity claim, performed. One long
    ease-out everywhere: nothing snaps, nothing bounces twice. */
 svg.live{cursor:grab;touch-action:pan-y}
+/* RESPONSIVE PLOTS: the width attribute on each svg is a
+   natural size, not a commitment. With viewBox set, these
+   two lines make every plot scale to its container instead
+   of forcing the page to scroll horizontally. */
+svg.live,svg.hm,svg.hm-gap{width:100%%;height:auto;max-width:100%%;display:block}
+/* a narrow pane should spend its pixels on the plot, not on
+   margins - 44px each side is a quarter of a 700px frame */
+@media (max-width:820px){.wrap,main{padding:28px 16px}}
 svg.live:active{cursor:grabbing}
 .ser{transition:transform .85s cubic-bezier(.22,1,.36,1),
   opacity .85s cubic-bezier(.22,1,.36,1)}
@@ -477,6 +491,12 @@ def heatmap_pair(names, ms, mg):
             + "</svg>")
 
 
+def _n_num(col):
+    """How many rows carry a NUMBER - a count, so sparsity cannot
+    be mistaken for the wrong type."""
+    return int(numeric(col).notna().sum())
+
+
 def shap_candidates(claims, src, gen):
     """Which claims can carry SHAP attribution: a non-scaffolding
     child present in both written files, with at least TWO drivers
@@ -490,16 +510,22 @@ def shap_candidates(claims, src, gen):
     EVERY claim by skill instead, and the caller states the empty
     case out loud."""
     from synthkit import sets as _sets
+    from collections import Counter
     out, seen = [], set()
+    _why = Counter()
     for cl in sorted(claims or [],
                      key=lambda c: -(c.get("skill") or 0)):
         child = cl.get("child")
-        if (not child or child in seen
-                or _sets.is_scaffolding(child)
-                or child not in src.columns
-                or child not in gen.columns):
+        if not child or child in seen:
             continue
-        if numeric(src[child]).notna().mean() < 0.5:
+        if _sets.is_scaffolding(child):
+            _why["child is search-only scaffolding"] += 1
+            continue
+        if child not in src.columns or child not in gen.columns:
+            _why["child not in the written files"] += 1
+            continue
+        if _n_num(src[child]) < SHAP_MIN_ROWS:
+            _why["child too few present rows"] += 1
             continue
         parents = []
         for pr in (cl.get("predictors") or []):
@@ -509,14 +535,16 @@ def shap_candidates(claims, src, gen):
                     or c not in src.columns
                     or c not in gen.columns):
                 continue
-            if numeric(src[c]).notna().mean() < 0.5:
+            if _n_num(src[c]) < SHAP_MIN_ROWS:
                 continue
             parents.append(c)
         if len(parents) >= 2:
             seen.add(child)
             out.append((float(cl.get("skill") or 0), child,
                         parents[:6]))
-    return out
+        else:
+            _why["fewer than 2 eligible numeric drivers"] += 1
+    return out, dict(_why)
 
 
 def gate_issues_html(fid, verdict, bp=None):
@@ -1963,20 +1991,26 @@ def build_deck(src_path, run_dir, group_by="person_id",
             'depends on it.</p>')
     else:
         from sklearn.ensemble import HistGradientBoostingRegressor
-        _seen_children = [(c, ps) for _sk, c, ps in
-                          shap_candidates(cat.get("claims"),
-                                          src, gen)]
+        _cands, _why = shap_candidates(cat.get("claims"),
+                                        src, gen)
+        _seen_children = [(c, ps) for _sk, c, ps in _cands]
         if not _seen_children:
+            _tot = sum(_why.values())
+            _lines = ''.join(
+                '<li>{}: <b>{}</b></li>'.format(_k, _v)
+                for _k, _v in sorted(_why.items(),
+                                     key=lambda kv: -kv[1]))
             body.append(
                 '<h2>The drivers, attributed</h2>'
-                '<p class="note">No pattern here has two or more '
-                'numeric drivers present in the written files, so '
-                'there is nothing to attribute - the strongest '
-                'patterns in this run live on list-token '
-                'indicators, which exist only inside the search, '
-                'or on single or date drivers. This is a stated '
-                'limit of the attribution, not an empty '
-                'result.</p>')
+                '<p class="note">No pattern in this run has two or '
+                'more numeric drivers present in the written '
+                'files, so there is nothing to attribute. '
+                '{} claim(s) were examined and rejected for these '
+                'reasons:</p><ul class="note">{}</ul>'
+                '<p class="note">This is a stated limit with its '
+                'own count beside it, not an empty result - and '
+                'not a guess at the cause.</p>'.format(
+                    _tot, _lines or '<li>no claims at all</li>'))
         if _seen_children:
             body.append('<h2>The drivers, attributed &mdash; '
                         'SHAP, on both tables</h2>')

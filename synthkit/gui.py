@@ -457,7 +457,7 @@ def api_lint(payload: dict) -> dict:
 def api_plan(payload: dict) -> dict:
     spec = _load_spec(payload["kind"], payload["spec"])
     if payload["kind"] == "table":
-        from .tableplan import plan_table
+        from .tableplan import plan_table, requested_vs_achieved
         bp = plan_table(spec)
         ops: Dict[str, int] = {}
         for m in bp.ledger:
@@ -466,6 +466,15 @@ def api_plan(payload: dict) -> dict:
                 "dirty_rows": len(bp.dirty_rows),
                 "columns": bp.columns,
                 "mess_by_op": ops,
+                # requested against achieved, which is what a
+                # reader wanted instead of a count of
+                # "corruptions" - and it is not cosmetic: a rate
+                # asking for something a column cannot carry
+                # (a case drift on digits) lands NOTHING and
+                # writes no ledger row, so the old count showed
+                # it as absent rather than as asked-for-and-
+                # impossible.
+                "fidelity": requested_vs_achieved(spec, bp),
                 "outcomes": sorted(bp.true_probs)}
     from .planner import plan_corpus
     spec.validate()
@@ -600,7 +609,7 @@ def api_export(payload: dict) -> dict:
     fmt = payload.get("fmt", "csv")
     if which == "ledger":
         raw = (run / "ledger.json").read_text(encoding="utf-8")
-        return {"filename": "corruption_ledger.json",
+        return {"filename": "imperfection_ledger.json",
                 "content": raw, "mime": "application/json"}
     path = run / ("dirty.csv" if which == "dirty"
                   else "clean.csv")
@@ -2876,9 +2885,7 @@ textarea:focus,input:focus,select:focus{
   <div class="railsplit">or measure real data</div>
   <button class="station" data-step="1" data-s="fitsrc" data-route="measure"><b>01</b>
     Source<small class="subt">point at a real CSV</small></button>
-  <button class="station" data-step="2" data-s="neural" data-route="measure"><b>02</b>
-    Generate<small class="subt">measure the patterns, then generate</small></button>
-  <button class="station" data-step="3" data-s="fitver" data-route="measure"><b>03</b>
+  <button class="station" data-step="2" data-s="fitver" data-route="measure"><b>02</b>
     Verdict<small class="subt">judge the run</small></button>
   <div class="railsplit">then, for either route</div>
   <button class="station" data-step="4" data-s="campaign" data-route="shared"><b>04</b>
@@ -2887,9 +2894,7 @@ textarea:focus,input:focus,select:focus{
     Showdown<small class="subt">compare results</small></button>
   <div class="railsplit">view the performance</div>
   <button class="station" data-step="8" data-s="dashboard" data-route="map"><b>VIEW</b>
-    Dashboard<small class="subt">original vs synthetic, drawn</small></button>
-  <button class="station" data-step="8" data-s="latent" data-route="map"><b>VIEW</b>
-    Latent Space<small class="subt">original vs synthetic in 3D</small></button>
+    Visualize<small class="subt">original vs synthetic &mdash; drawn, and in 3D</small></button>
   <details class="railfold"><summary>testing an ML tool or vendor</summary>
   <button class="station" data-step="8" data-s="fitrun" data-route="map"><b>ALT</b>
     Fit<small class="subt">rules engine &mdash; blueprint, then generate</small></button>
@@ -3449,7 +3454,7 @@ textarea:focus,input:focus,select:focus{
   <div class="nextup"><span class="lbl">next</span><b>Done</b><span>This is the end of the run. Change anything in Steps 1 to 4 and the fingerprint changes with it, so a result always names the data it came from.</span></div>
 </section>
 <section id="s-fitsrc" data-step="1">
-  <div class="stepbanner"><span class="stepchip">Measure &middot; step 1 of 3</span><span>Point at a real CSV</span></div>
+  <div class="stepbanner"><span class="stepchip">Measure &middot; step 1 of 2</span><span>Point at a real CSV, read it, then generate from it</span></div>
   <dl class="stepgoal"><dt>you need</dt><dd>A tidy CSV on THIS machine (one row per visit), and an output directory of your choosing &mdash; outside any repository. Nothing leaves this machine.</dd><dt>you get</dt><dd>Every column typed, in seconds &mdash; and whether each can SURVIVE anonymization, before anything expensive runs.</dd></dl>
   <div class="panel">
     <h2>Point at the data</h2>
@@ -3470,11 +3475,47 @@ textarea:focus,input:focus,select:focus{
     column that cannot survive is caught here, not after an hour.</div>
     <div class="out" id="fit-out">Nothing yet.</div>
   </div>
-  <div class="nextup"><span class="lbl">next</span><b>Step 2 &mdash; Generate</b><span>Once the types read correctly, Step 2 measures what the data contains &mdash; every column, every relationship, the interactions &mdash; and the autoencoder generates to it.</span></div>
+  <h2>Then make the data</h2>
+<div class="exbar"><span class="exlbl">how this works</span><button onclick="exOpen('how-it-learns')"><b>?</b>how it learns</button><button onclick="exOpen('the-bottleneck')"><b>?</b>the bottleneck</button><button onclick="exOpen('how-it-generates')"><b>?</b>how new records are made</button><button onclick="exOpen('k-before-training')"><b>?</b>how k is kept</button><button onclick="exOpen('reconstruction-gap')"><b>?</b>overfitting &amp; memorization</button><button onclick="exOpen('set-column')"><b>?</b>set columns</button><button onclick="exOpen('patient-structure')"><b>?</b>patients, not rows of visits</button></div>
+  <div class="explain">Same source, same output directory &mdash; nothing to re-enter. Reading the columns above is seconds; generating is many minutes, which is why they are one station with two buttons rather than one button that quietly does both.</div>
+<div class="panel">
+    <div id="ncarried" class="carried"></div>
+    <details id="nfields" class="expert"><summary>Change the source
+    or output for this step</summary>
+    <label>source CSV path
+      <input id="nsrc" placeholder="full path to the real CSV"></label>
+    <label>output directory <span class="hint">(yours to choose; the generated file lands here)</span>
+      <input id="nout" placeholder="a directory outside any repo"></label>
+    <label>patient / entity column
+      <input id="ngroup" value="person_id"></label>
+    </details>
+    <input type="hidden" id="nseed" value="0">
+    <input type="hidden" id="nk" value="10">
+    <h2>How much to make</h2>
+    <div class="explain">Read the file first and this tells you what
+    sizes it can honestly support &mdash; the range is a property of
+    your data, not a setting we chose. Two numbers move in opposite
+    directions: how many of the publishable patterns have room to
+    appear (rises with size) and how much independent real evidence
+    stands behind each synthetic patient (falls with size). A bigger
+    file is not more information.</div>
+    <button class="act ghost" onclick="sizeAsk()">What sizes can
+    this file support?</button>
+    <div class="out" id="size-out">Point at the source above, then
+    ask.</div>
+    <label>make this many patients <span class="hint">(leave blank
+    for the same number as the source)</span>
+      <input id="nsize" placeholder="e.g. 1600"></label>
+    <button class="act" onclick="neuralRun()">Generate</button>
+    <button class="act ghost" onclick="neuralReview()">Review the output</button>
+    <div class="out" id="neural-out">Nothing yet.</div>
+  </div>
+  <iframe id="neural-frame" sandbox="allow-scripts" style="width:100%;height:900px;border:1px solid var(--rule);border-radius:12px;margin-top:14px;display:none;background:#fff"></iframe>
+    <div class="nextup"><span class="lbl">next</span><b>Measure 2 &mdash; Verdict</b><span>Once the file is written, the Verdict station grades it against the original on eight criteria and names anything that missed.</span></div>
 </section>
 
 <section id="s-fitrun" data-step="8" data-route="map">
-  <div class="stepbanner"><span class="stepchip">Measure &middot; step 2 of 3</span><span>Measure the blueprint, then generate</span></div>
+  <div class="stepbanner"><span class="stepchip">Alt &middot; the other engine</span><span>Rules engine &mdash; measure the blueprint, then generate</span></div>
   <dl class="stepgoal"><dt>you need</dt><dd>A source and output directory from Step 1, with the types read correctly.</dd><dt>you get</dt><dd>A k-anonymous blueprint measured from the data, generated rows drawn to it, and the full findings file &mdash; the same artifacts a terminal run writes, because this button RUNS the command line.</dd></dl>
   <div class="panel">
     <h2>Fit and generate</h2>
@@ -3488,7 +3529,7 @@ textarea:focus,input:focus,select:focus{
   <div class="nextup"><span class="lbl">next</span><b>Duel</b><span>This is the OTHER engine, kept for comparison: it publishes a k-screened contract and never touches a record at generation. Its output grades on the same Verdict gate; the Duel puts the two side by side on one source.</span></div>
 </section>
 
-<section id="s-fitver" data-step="3">
+<section id="s-fitver" data-step="2">
   <div class="stepbanner"><span class="stepchip">Measure &middot; step 3 of 3</span><span>Judge the run</span></div>
   <div class="exbar"><span class="exlbl">how this works</span><button onclick="exOpen('the-gate')"><b>?</b>what the gate is</button><button onclick="exOpen('direction-kept')"><b>?</b>direction kept</button><button onclick="exOpen('close')"><b>?</b>close</button><button onclick="exOpen('backwards')"><b>?</b>backwards</button><button onclick="exOpen('interaction-surface')"><b>?</b>interaction surfaces</button><button onclick="exOpen('reconstruction-gap')"><b>?</b>overfitting &amp; memorization</button><button onclick="exOpen('membership-attack')"><b>?</b>the privacy attacks</button><button onclick="exOpen('privacy-not-a-fault')"><b>?</b>when a miss is the k rule</button></div>
   <dl class="stepgoal"><dt>you need</dt><dd>A finished run in the output directory from Step 1 &mdash; from Step 2, or from any terminal run this machine holds.</dd><dt>you get</dt><dd>The verdict: six gate criteria PASS/FAIL, contradiction and obedience counts, and the build the run is tied to &mdash; plus a bridge that sends the measured recipe into the exam, stating what crossed and what could not. The criteria come from one shared module, so this panel and <code>scripts/m0_gate.py</code> cannot disagree.</dd></dl>
@@ -3534,7 +3575,8 @@ textarea:focus,input:focus,select:focus{
       <label>label for it
         <input id="dcmplabel" value="5x"></label>
     </div>
-    <button class="act" onclick="deckBuild()">Draw the dashboard</button>
+    <button class="act" onclick="drawAll()">Draw both views</button>
+    <button class="act ghost" onclick="deckBuild()">Draw the dashboard only</button>
     <div class="hint">Built live by the same code that writes the
     shareable report, so the interactive view and the file the team
     receives are one picture. Source histogram bins backed by fewer
@@ -3545,72 +3587,24 @@ textarea:focus,input:focus,select:focus{
   <iframe id="deck-frame" title="fidelity dashboard" style="width:100%;
     height:78vh;border:1px solid var(--rule);border-radius:12px;
     margin-top:14px;display:none;background:#fff"></iframe>
-  <div class="nextup"><span class="lbl">next</span><b>Latent Space</b><span>The dashboard reads the columns and relationships; the Latent Space view shows the whole cloud at once &mdash; whether the synthetic rows sit among the real ones or apart.</span></div>
-</section>
-
-<section id="s-latent" data-step="8" data-route="map">
-  <div class="stepbanner"><span class="stepchip">View</span><span>The autoencoder's latent space, in 3D</span></div>
-  <dl class="stepgoal"><dt>you need</dt><dd>A finished run &mdash; the source CSV and the output directory holding generated.csv &mdash; and the patient column.</dd><dt>you get</dt><dd>An interactive 3D view of the condensed feature space: every original and synthetic row placed together across four measured metrics (distance to the nearest cluster centre, distance to the nearest neighbour, reconstruction error, and distance to the nearest point of the OTHER group). Put any metric on any axis, colour by any metric, toggle original and synthetic, and click a point to read all four numbers. Whether the synthetic cloud sits among the real one or apart is visible at a glance.</dd></dl>
+  <h2>The latent space, in 3D</h2>
+  <div class="explain">The dashboard above reads the columns and
+  the relationships one at a time; this shows the whole cloud at
+  once &mdash; whether the synthetic rows sit among the real ones
+  or apart. Same run, same three fields above: nothing to
+  re-enter. It is heavier (it fits the autoencoder and runs
+  clustering and nearest-neighbour over the frame), so it runs as
+  a job and appears here when it is ready &mdash; the dashboard
+  does not wait for it.</div>
   <div class="panel">
-    <h2>Point at a run</h2>
-    <label>source CSV path
-      <input id="lvsrc" placeholder="the CSV the run was measured from"></label>
-    <label>run output directory
-      <input id="lvout" placeholder="the directory that holds generated.csv"></label>
-    <label>patient / entity column
-      <input id="lvgroup" value="person_id"></label>
-    <button class="act" onclick="latentVizBuild()">Draw the latent space</button>
-    <div class="hint">Heavy: it fits the autoencoder and runs
-    clustering and nearest-neighbour over the frame, so it runs as
-    a job with a live loader. Built by the same code that writes
-    the shareable file &mdash; the bench view and a sent file are
-    one picture.</div>
+    <button class="act" onclick="latentVizBuild()">Draw the latent
+    space (3D)</button>
     <div class="out" id="lv-out">Nothing drawn yet.</div>
   </div>
   <iframe id="lv-frame" title="latent space" sandbox="allow-scripts" style="width:100%;
     height:80vh;border:1px solid var(--rule);border-radius:12px;
     margin-top:14px;display:none;background:#0a0e13"></iframe>
-  <div class="nextup"><span class="lbl">next</span><b>Roadmap</b><span>This is the whole cloud at a glance; the Roadmap says where the eight goals are going.</span></div>
-</section>
-
-<section id="s-neural" data-step="2" data-route="measure">
-  <div class="stepbanner"><span class="stepchip">02</span><span>Measure the patterns, then generate &mdash; the autoencoder, on your real data</span></div>
-  <div class="exbar"><span class="exlbl">how this works</span><button onclick="exOpen('how-it-learns')"><b>?</b>how it learns</button><button onclick="exOpen('the-bottleneck')"><b>?</b>the bottleneck</button><button onclick="exOpen('how-it-generates')"><b>?</b>how new records are made</button><button onclick="exOpen('k-before-training')"><b>?</b>how k is kept</button><button onclick="exOpen('reconstruction-gap')"><b>?</b>overfitting &amp; memorization</button><button onclick="exOpen('set-column')"><b>?</b>set columns</button><button onclick="exOpen('patient-structure')"><b>?</b>patients, not rows of visits</button></div>
-  <dl class="stepgoal"><dt>you need</dt><dd>A real CSV on THIS machine and an output directory of your choosing. Nothing else &mdash; no prior run, no second engine.</dd><dt>you get</dt><dd>Synthetic records from the autoencoder, written to your directory, and a review page measuring them against the real data: relationships kept, whether a patient still looks like a person, the combination effects, and every column drawn twice. What it does NOT measure &mdash; safety &mdash; is stated on the page.</dd></dl>
-  <div class="panel">
-    <div id="ncarried" class="carried"></div>
-    <details id="nfields" class="expert"><summary>Change the source
-    or output for this step</summary>
-    <label>source CSV path
-      <input id="nsrc" placeholder="full path to the real CSV"></label>
-    <label>output directory <span class="hint">(yours to choose; the generated file lands here)</span>
-      <input id="nout" placeholder="a directory outside any repo"></label>
-    <label>patient / entity column
-      <input id="ngroup" value="person_id"></label>
-    </details>
-    <input type="hidden" id="nseed" value="0">
-    <input type="hidden" id="nk" value="10">
-    <h2>How much to make</h2>
-    <div class="explain">Read the file first and this tells you what
-    sizes it can honestly support &mdash; the range is a property of
-    your data, not a setting we chose. Two numbers move in opposite
-    directions: how many of the publishable patterns have room to
-    appear (rises with size) and how much independent real evidence
-    stands behind each synthetic patient (falls with size). A bigger
-    file is not more information.</div>
-    <button class="act ghost" onclick="sizeAsk()">What sizes can
-    this file support?</button>
-    <div class="out" id="size-out">Point at the source above, then
-    ask.</div>
-    <label>make this many patients <span class="hint">(leave blank
-    for the same number as the source)</span>
-      <input id="nsize" placeholder="e.g. 1600"></label>
-    <button class="act" onclick="neuralRun()">Generate</button>
-    <button class="act ghost" onclick="neuralReview()">Review the output</button>
-    <div class="out" id="neural-out">Nothing yet.</div>
-  </div>
-  <iframe id="neural-frame" sandbox="allow-scripts" style="width:100%;height:900px;border:1px solid var(--rule);border-radius:12px;margin-top:14px;display:none;background:#fff"></iframe>
-  <div class="nextup"><span class="lbl">next</span><b>Step 3 &mdash; Verdict</b><span>The run writes a full set of artifacts, so Step 3 grades it on the same gate as any other run &mdash; and the Dashboard draws it. The Duel measures this engine against the rules engine, which is how we know what it is worth.</span></div>
+  <div class="nextup"><span class="lbl">next</span><b>Roadmap</b><span>Both pictures of this run are above. The Roadmap says where the eight goals are going.</span></div>
 </section>
 
 <section id="s-duel" data-step="8" data-route="map">
@@ -3721,13 +3715,10 @@ const titles={home:['Home','Start here','what this is, in one page'],
   campaign:['Step 4','Campaign','set the exam'],
   showdown:['Step 5','Showdown','ceiling / baseline / vendor'],
   learn:['Alt','Learn','start from data you already have'],
-  fitsrc:['Measure 1','Source','point at a real CSV'],
+  fitsrc:['Measure 1','Source','read a real CSV, then generate from it'],
   fitrun:['Alt','Fit','the rules engine, blueprint then generate'],
-  fitver:['Measure 3','Verdict','judge the run'],
-  dashboard:['View','Dashboard','original vs synthetic, drawn'],
-  latent:['View','Latent Space','original vs synthetic in 3D'],
-  neural:['Measure 2','Generate',
-    'measure the patterns, then generate'],
+  fitver:['Measure 2','Verdict','judge the run'],
+  dashboard:['View','Visualize','original vs synthetic - drawn, and in 3D'],
   duel:['Duel','Duel','two engines, one source'],
   roadmap:['Map','Roadmap','the eight goals \u2014 built and planned']};
 let campaignDir='';
@@ -3769,9 +3760,8 @@ async function sizeAsk(){
   o.textContent='Reading the file...';
   try{
     const r=await post('/api/sizing',{
-      src:document.getElementById('nsrc').value.trim(),
-      group_by:document.getElementById('ngroup').value.trim()
-        ||'person_id',
+      src:nField('nsrc','fsrc'),
+      group_by:nField('ngroup','fgroup')||'person_id',
       k:document.getElementById('nk').value.trim()||'10'});
     if(r.error){o.textContent=r.error;return;}
     let h='<table class="sizetab"><tr><th></th><th>patients</th>'
@@ -3846,7 +3836,7 @@ document.querySelectorAll('.station').forEach(btn=>{
     btn.classList.add('active');
     document.getElementById('s-'+btn.dataset.s)
       .classList.add('active');
-    if(btn.dataset.s==='neural'){ try{ carryForward(); }catch(e){} }
+    if(btn.dataset.s==='fitsrc'){ try{ carryForward(); }catch(e){} }
     /* The heading sits OUTSIDE every section, so it cannot
        inherit the step's hue from the section it describes.
        Stamping the step on <main> puts the whole bench, heading
@@ -3955,6 +3945,28 @@ async function checkRecipe(){
   if(pl.error){say('         PROBLEM\n');say(pl.error,'bad');return;}
   var rows=(pl.rows!==undefined?pl.rows:(pl.n_rows!==undefined?pl.n_rows:'?'));
   say('         PASS - builds '+rows+' rows in memory');
+  if(pl.fidelity&&pl.fidelity.requested>0){
+    var F=pl.fidelity, pc=Math.round(F.confidence*1000)/10;
+    say('         of the imperfections you asked for, '+pc+'% '+
+      'landed ('+F.achieved+' cells against the '+F.requested+' '+
+      'your rates expect)', pc>=90?'ok':'');
+    // a row that landed NOTHING is the one worth naming: it wrote
+    // no ledger entry at all, so a count of what happened showed
+    // it as absent rather than as asked-for-and-impossible.
+    var imp=F.rows.filter(function(r){return r.achieved===0;});
+    var par=F.rows.filter(function(r){
+      return r.achieved>0&&r.share<0.9;});
+    imp.forEach(function(r){
+      say('         - '+r.column+': '+r.op+' cannot apply to this '+
+        'column, so none of the '+r.requested+' cells changed',
+        'bad');});
+    par.forEach(function(r){
+      say('         - '+r.column+': '+r.op+' landed on '+
+        Math.round(r.share*100)+'% of what you asked for'+
+        (r.blocked>r.unchanged
+          ? ' - another imperfection on the same column claimed '+
+            'the cell first'
+          : ' - the rest came out unchanged'));});}
   say('');
   say('3 of 3   does the data keep the recipe\'s promises?');
   var li=await api('/api/lint',{kind:kind,spec:spec,
@@ -4410,7 +4422,7 @@ var BAR_WORDS={
     'coin flip)',
   gap_max:'messy-data score may trail the clean answer key '+
     'by at most VAL',
-  fix_rate:'must repair at least PCT of corrupted cells',
+  fix_rate:'must repair at least PCT of the planted imperfections',
   detect_rate:'must flag at least PCT of the planted imperfections',
   recall:'must find at least PCT of planted facts',
   trap_max:'may fall for at most PCT of planted traps',
@@ -5157,14 +5169,24 @@ async function deckPrefill(){
   if(o&&o.value&&!document.getElementById('dout').value)
     document.getElementById('dout').value=o.value;}
 let nJob='',nTimer=null,nMode='';
+function nField(over,base){
+  /* the override wins when it is filled, otherwise the station's
+     own field answers - "why are we re-pointing the source and
+     the output?" There is ONE source of truth per value and the
+     expert box is an override on top of it, never a second
+     question. */
+  var o=document.getElementById(over), f=document.getElementById(base);
+  var ov=o?(o.value||'').trim():'';
+  if(ov)return ov;
+  return f?(f.value||'').trim():'';}
 function nPayload(){
-  return {src:document.getElementById('nsrc').value.trim(),
-    out:document.getElementById('nout').value.trim(),
-    group_by:document.getElementById('ngroup').value.trim(),
+  return {src:nField('nsrc','fsrc'),
+    out:nField('nout','fout'),
+    group_by:nField('ngroup','fgroup'),
     seed:document.getElementById('nseed').value.trim()||'0',
     k:document.getElementById('nk').value.trim()||'10'};}
 function nLatentPath(){
-  const d=document.getElementById('nout').value.trim();
+  const d=nField('nout','fout');
   const sd=document.getElementById('nseed').value.trim()||'0';
   return d?d.replace(/[\\\/]+$/,'')+
     '/latent_gen_seed'+sd+'.csv':'';}
@@ -5192,12 +5214,12 @@ async function neuralRun(){
 async function neuralReview(){
   const o=document.getElementById('neural-out');
   const lat=nLatentPath();
-  const src=document.getElementById('nsrc').value.trim();
+  const src=nField('nsrc','fsrc');
   if(!src||!lat){o.textContent='STOPPED: give the source CSV '+
     'and the output directory.';return;}
   loaderSet('neural-out',null,'measuring the output');
   const r=await api('/api/neural-async',{src:src,latent:lat,
-    group_by:document.getElementById('ngroup').value.trim()});
+    group_by:nField('ngroup','fgroup')});
   if(r.error){loaderDone('neural-out',false);
     o.textContent='STOPPED: '+r.error;return;}
   nJob=r.job;nMode='review';
@@ -5224,7 +5246,7 @@ async function nPoll(){
   if(nMode==='gen'){
     o.textContent='written in '+Math.round(j.elapsed)+
       's. Now press Review the output.';
-    tick('neural');}
+    tick('fitsrc');}
   else{frame.srcdoc=j.result.html;frame.style.display='block';
     o.textContent='measured in '+Math.round(j.elapsed)+
       's. Gray is the real data, gold is the engine.';}}
@@ -5307,9 +5329,9 @@ let lvJob='',lvTimer=null;
 async function latentVizBuild(){
   const o=document.getElementById('lv-out');
   const frame=document.getElementById('lv-frame');
-  const body={src:document.getElementById('lvsrc').value.trim(),
-    out:document.getElementById('lvout').value.trim(),
-    group_by:document.getElementById('lvgroup').value.trim()};
+  const body={src:nField('lvsrc','dsrc'),
+    out:nField('lvout','dout'),
+    group_by:nField('lvgroup','dgroup')};
   if(!body.src||!body.out){o.textContent='STOPPED: give the '+
     'source CSV and the run output directory.';return;}
   loaderSet('lv-out',null,'drawing the latent space');
@@ -5341,7 +5363,15 @@ async function latentVizPoll(){
   o.textContent='drawn in '+Math.round(j.elapsed)+'s. Blue is '+
     'original, orange synthetic; drag to spin, pick the axes, '+
     'click a point.';}
-async function deckBuild(){
+async function drawAll(){
+  /* the two views are independent work: the dashboard returns
+     from one request, the latent space is a polled job that takes
+     minutes. Starting both means each picture appears the moment
+     it is ready instead of the quicker one waiting for the
+     slower. */
+  try{ latentVizBuild(); }catch(e){}
+  return deckBuild();}
+function deckBuild(){
   deckPrefill();
   const out=document.getElementById('deck-out');
   const frame=document.getElementById('deck-frame');

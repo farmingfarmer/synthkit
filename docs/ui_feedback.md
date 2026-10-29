@@ -1,5 +1,48 @@
 # UI feedback from the walkthrough — verbatim-sourced work list
 
+## STATUS as of 2026-10-29 — what is done, what is left
+
+DONE, with checks that were watched red first:
+
+- P1 output-size lever — `synthkit/sizing.py`, the Generate panel's
+  ladder, refusal rows shown with their reason. Sequencing as she
+  asked: read the data, then offer bounds that belong to that file.
+- P2 "deliberate corruptions" — replaced by requested-against-
+  achieved with a confidence percentage, and it found a class the
+  old count could not see (an op asked for that cannot apply to its
+  column lands nothing and wrote no ledger row). Spec step 2 states
+  the percentage and names which of the two causes is responsible.
+- P2 "view the performance", "Read the columns", lag stated automatic.
+- P3 gray out the route not taken — chosen at Home, `pickRoute`.
+- P3 do not re-ask source/output on Generate — `carryForward()`.
+- P3 merge Source and Generate — one station, measure route is now
+  two numbered steps (Source 01, Verdict 02).
+- P3 remove the seed control — hidden.
+- P3 Dashboard density — the deck opens on a summary with
+  "Show everything (N more sections)", inline so it travels into the
+  station iframe and the shared file alike.
+- P4 Fit / Learn / Duel folded under "testing an ML tool or vendor";
+  Roadmap folded under "internal".
+- P5 black out of the plots — `INK = "#2f3a44"`.
+
+NOT DONE, and deliberately not decided here:
+
+- **P3 privacy floor: the conflict is still open.** She said the
+  floor is internal, "not something you're going to want to give to
+  users ... we would want to have our own standard". The team demo
+  asked for the opposite and it SHIPPED - a user-settable k with a
+  refusal below 10. Both are reasonable and they contradict; picking
+  one silently would bury a stakeholder disagreement inside a code
+  change. Needs a decision, not an implementation.
+
+NOT UI, still owed:
+
+- The screenshot user guide (she gated it on the build settling;
+  the build has just moved again).
+- The 100-patient cohort drawn from the 5,000-patient set.
+
+
+
 Extracted from the screen-share walkthrough transcript. Quotes are
 hers. Nothing here is inferred; where a line is ambiguous it says so.
 

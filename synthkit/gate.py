@@ -179,18 +179,12 @@ def assess(fid: Dict[str, Any],
 # the CLI prints the station's name. One text, two renderings -
 # the same reason this module exists at all.
 STATIONS: Dict[str, Dict[str, str]] = {
-    "dashboard": {"num": "VIEW", "label": "Dashboard",
+    "dashboard": {"num": "VIEW", "label": "Visualize",
                   "route": "map"},
-    "latent": {"num": "VIEW", "label": "Latent Space",
-               "route": "map"},
     "fitsrc": {"num": "01", "label": "Source", "route": "measure"},
-    # The measure route's step 02 is the AUTOENCODER. The rules
-    # engine kept the slot for as long as it was the only thing
-    # that could fill it; it is an alternate now and wears ALT.
-    "neural": {"num": "02", "label": "Generate",
-               "route": "measure"},
+
     "fitrun": {"num": "ALT", "label": "Fit", "route": "map"},
-    "fitver": {"num": "03", "label": "Verdict",
+    "fitver": {"num": "02", "label": "Verdict",
                "route": "measure"},
 }
 
@@ -265,14 +259,27 @@ EXPLAIN: Dict[str, Dict[str, str]] = {
     "interaction surfaces": {
         "explain": "Each published two-variable interaction "
                    "surface re-measured as a coarse grid on both "
-                   "tables. Nothing above two-way is published by "
-                   "the engine, so nothing above two-way is "
-                   "measured - a metric for what the generator "
-                   "cannot produce would only restate a known "
-                   "limitation.",
+                   "tables. READ WHOSE CONTRACT THIS GRADES: the "
+                   "surfaces are published by discovery on the "
+                   "REAL data, and the rules engine applies them "
+                   "at generation while the neural engine samples "
+                   "a latent space and never consults them - so "
+                   "the neural engine fails this criterion by "
+                   "construction, and a FAIL here is NOT evidence "
+                   "that two-variable structure is absent from "
+                   "the file. The engine-neutral measure is the "
+                   "mined-interaction table, which asks what "
+                   "joint effects the data holds rather than "
+                   "whether a published curve survived. Nothing "
+                   "above two-way is published, so nothing above "
+                   "two-way is measured here.",
         "inspect": "The gate-issues section of [[dashboard]] names "
-                   "any departing surface with its column pair and "
-                   "gap."},
+                   "any departing surface with its column pair "
+                   "and gap - and the mined-interaction table on "
+                   "the same page ranks the joint effects "
+                   "actually present, with a published? column, "
+                   "which is the number to read for this "
+                   "question."},
     "dynamics tracked": {
         "explain": "Each column's WITHIN-PATIENT behavior - how a "
                    "value persists from one of a patient's visits "
@@ -393,16 +400,32 @@ NEXT_STEPS: Dict[str, Dict[str, Any]] = {
             "shape gaps move, and one measurement is worth "
             "nothing here."]},
     "interaction surfaces": {
-        "means": "A two-variable interaction did not survive - "
-                 "the child responds to the PAIR differently in "
-                 "the synthetic file.",
+        "means": "A published two-variable surface did not "
+                 "survive. FIRST establish which engine wrote the "
+                 "file: the neural engine never reads these "
+                 "surfaces, so it fails this by construction and "
+                 "the finding is about the criterion's scope, not "
+                 "the data. For the rules engine, which does "
+                 "apply them, the child responds to the PAIR "
+                 "differently in the synthetic file.",
         "steps": [
+            "Read the MINED-interaction table in [[dashboard]] "
+            "before anything else: it ranks the joint effects the "
+            "source actually holds and says whether each has a "
+            "published surface. On the real head-to-head the "
+            "rules engine read 0.000 on every one of the top "
+            "eight while the neural engine held the strong ones "
+            "at source magnitude - so this criterion and that "
+            "table can disagree, and the table is the one that "
+            "answers 'are interactions being synthesized'.",
             "Read the surface's pair and gap in the gate-issues "
             "section of [[dashboard]] - the pair names the two "
             "columns whose joint effect drifted.",
-            "Check the trimmed-parents report in findings.txt: a "
-            "surface whose parent was cut to break a cycle "
-            "cannot fire at generation.",
+            "RULES ENGINE ONLY - check the trimmed-parents "
+            "report in findings.txt: a surface whose parent was "
+            "cut to break a cycle cannot fire at generation. The "
+            "neural engine has no trim machinery, so this step "
+            "does not apply to it.",
             "Re-run a second seed (`--seed 11` into a NEW --out "
             "directory, all other flags identical) before "
             "treating the gap as real - an interaction fix was "
