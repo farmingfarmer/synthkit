@@ -281,6 +281,32 @@ def main():
         # A .md handed to a stakeholder renders as plain text in
         # most places; asking them to install a viewer is asking
         # them not to read it.
+        # THE SHIPPED FILE IS THE BEST OF MANY DRAWS. Fifteen
+        # candidates were generated from one source with one
+        # configuration and their headline retention ranged 8% to
+        # 36%; handing over the 36 without the band would present
+        # the top of a noisy distribution as typical, and a reader
+        # repeating the work would reasonably expect to land near
+        # it. Selection is legitimate; silent selection is not.
+        _sel = H.render(pb, pt, 10, selected_of=15,
+                        sel_lo=8, sel_hi=36)
+        check("when the delivered file was SELECTED from several "
+              "candidates, the page says so - selection is "
+              "legitimate, silent selection is a claim about "
+              "typical behaviour that is not true",
+              "15" in _sel and "chosen" in _sel.lower())
+        check("...and it states the RANGE across those candidates, "
+              "so the reader knows a fresh run lands in a band "
+              "rather than at the top of it",
+              "8%" in _sel and "36%" in _sel
+              and "not reliably at the top" in _sel)
+        _plain = H.render(pb, pt, 10)
+        check("...while a file that was NOT selected carries no "
+              "such disclosure, so the note never appears as "
+              "boilerplate on a single-run deliverable",
+              "chosen" not in _plain.lower()
+              or "independent versions" not in _plain)
+
         check("the output is a COMPLETE HTML document, not markdown "
               "and not a fragment - doctype, charset, title, and a "
               "style block, because this is the page the reader "

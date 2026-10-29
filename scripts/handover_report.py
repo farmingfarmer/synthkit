@@ -345,7 +345,8 @@ tbody tr:last-child td{border-bottom:1.5px solid var(--ink)}
 """
 
 
-def render(big, thin, k):
+def render(big, thin, k, selected_of=None,
+           sel_lo=None, sel_hi=None):
     """One self-contained HTML page. No external font, script or
     stylesheet - it has to open on a locked-down machine with no
     network, and print without the layout collapsing."""
@@ -587,6 +588,26 @@ def render(big, thin, k):
     # is the classic way a synthetic generator looks right and is
     # useless, and that failure is invisible in every number
     # printed so far.
+    if selected_of and sel_lo is not None and sel_hi is not None:
+        A('<div class="note caution">')
+        A('<p class="lead">How this particular file was '
+          "chosen.</p>")
+        A("<p>We generated <strong>{}</strong> independent "
+          "versions of this dataset from the same source and the "
+          "same settings, measured each one, and are handing over "
+          "the one that measured best. That is deliberate &mdash; "
+          "but it means the figures below sit at the top of a "
+          "range rather than in the middle of one.</p>".format(
+              selected_of))
+        A("<p>Across those {} versions, the headline measure "
+          "&mdash; how well a model trained on the synthetic data "
+          "performs on real patients &mdash; ranged from "
+          "<strong>{}%</strong> to <strong>{}%</strong>. This file "
+          "is the {}%. A fresh run would land somewhere in that "
+          "band, not reliably at the top of it, and anyone "
+          "repeating this work should expect that.</p>".format(
+              selected_of, sel_lo, sel_hi, sel_hi))
+        A("</div>")
     A('<h2><span class="num">3</span>Did the relationships '
       "survive?</h2>")
     A('<p class="lede">Everything above looks at one field at a '
@@ -764,6 +785,7 @@ def render(big, thin, k):
 def main(argv=None):
     argv = list(sys.argv[1:] if argv is None else argv)
     group_by, k, out = "person_id", 10, ""
+    selected_of = sel_lo = sel_hi = None
     names, srcs, runs, omops = [], [], [], []
     i = 0
     while i < len(argv):
@@ -782,6 +804,11 @@ def main(argv=None):
             runs.append(argv[i + 1]); i += 2
         elif a == "--omop":
             omops.append(argv[i + 1]); i += 2
+        elif a == "--selected-of":
+            selected_of = int(argv[i + 1]); i += 2
+        elif a == "--selection-range":
+            sel_lo, sel_hi = [
+                int(x) for x in argv[i + 1].split(",")]; i += 2
         else:
             print("unknown argument {!r}".format(a))
             return 2
@@ -806,7 +833,9 @@ def main(argv=None):
     profs = [profile(n, s, r, o, group_by, k)
              for n, s, r, o in zip(names, srcs, runs, omops)]
     big, thin = sorted(profs, key=lambda p: -p["patients"])
-    Path(out).write_text(render(big, thin, k) + "\n",
+    Path(out).write_text(
+        render(big, thin, k, selected_of, sel_lo, sel_hi)
+        + "\n",
                          encoding="utf-8")
     print("wrote {}".format(out))
     return 0
