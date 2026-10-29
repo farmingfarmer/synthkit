@@ -1375,6 +1375,33 @@ def main():
               "zzz" in (_asz({"src": _sf, "group_by": "zzz"})
                         .get("error", "") + "zzz"))
 
+        # FOUND BY OPERATING THE BENCH, NOT BY READING IT. Fifteen
+        # stations in a nav with no max-height and no overflow rule
+        # ran off the bottom of a 1080-high screen: Dashboard and
+        # Latent Space were UNREACHABLE. Nothing in the markup is
+        # wrong, which is why no check caught it - the defect only
+        # exists at a real viewport height.
+        check("the station rail can always reach its last station - "
+              "fifteen stations overflowed the viewport and the "
+              "lower half could not be clicked at all",
+              "max-height:100vh" in html.replace(" ", "")
+              and "overflow-y:auto" in html.replace(" ", ""))
+        check("...and it stays put while the panel scrolls, so the "
+              "rail does not slide away from the content it drives",
+              "position:sticky" in html.replace(" ", ""))
+        check("the two groups the walkthrough called non-primary "
+              "fold away by default - four stations leave the "
+              "default view, which is a real reduction rather than "
+              "a rename",
+              html.count('class="railfold"') >= 2
+              and "<summary>testing an ML tool" in html
+              and "<summary>internal</summary>" in html)
+        check("...and they are FOLDED, not deleted - the stations "
+              "are still in the page and one click away, because "
+              "the Duel needs something to duel",
+              'data-s="duel"' in html and 'data-s="roadmap"' in html
+              and 'data-s="fitrun"' in html)
+
         # ROUTE GATING, asked for directly: "is there a way we
         # can gray out that part, if you don't start with the
         # dataset ... that way you can't even click on those

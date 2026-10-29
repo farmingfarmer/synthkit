@@ -1895,7 +1895,8 @@ body{background:var(--bench);color:var(--ink);
 .frame{display:grid;grid-template-columns:216px 1fr;
   min-height:100vh}
 /* ---- station rail ---- */
-nav{border-right:1px solid var(--rule);padding:20px 0}
+nav{border-right:1px solid var(--rule);padding:20px 0;
+  max-height:100vh;overflow-y:auto;position:sticky;top:0}
 .wordmark{font-family:var(--mono);font-weight:600;
   letter-spacing:.14em;padding:0 20px 18px;font-size:15px}
 .wordmark small{display:block;color:var(--dim);font-weight:400;
@@ -2354,6 +2355,14 @@ nav{padding:18px 12px}
 .sizetab th:last-child,.sizetab td:last-child{text-align:left}
 .sizetab tr.norow{opacity:.55}
 .sizetab tr.norow b{color:var(--cardinal)}
+.railfold{margin:10px 0 2px}
+.railfold>summary{font-family:var(--mono);font-size:9.5px;
+  letter-spacing:.12em;text-transform:uppercase;color:var(--dim);
+  padding:6px 13px;cursor:pointer;list-style:none}
+.railfold>summary::-webkit-details-marker{display:none}
+.railfold>summary::before{content:"\25B8 ";font-size:8px}
+.railfold[open]>summary::before{content:"\25BE ";font-size:8px}
+.railfold>summary:hover{color:var(--ink)}
 .routepick{display:flex;gap:8px;flex-wrap:wrap;margin:10px 0 4px}
 .routepick .act{flex:1 1 170px;text-align:left;line-height:1.3}
 .routepick .act small{display:block;font-weight:400;opacity:.72;
@@ -2881,16 +2890,18 @@ textarea:focus,input:focus,select:focus{
     Dashboard<small class="subt">original vs synthetic, drawn</small></button>
   <button class="station" data-step="8" data-s="latent" data-route="map"><b>VIEW</b>
     Latent Space<small class="subt">original vs synthetic in 3D</small></button>
-  <div class="railsplit">testing an ML tool or vendor</div>
+  <details class="railfold"><summary>testing an ML tool or vendor</summary>
   <button class="station" data-step="8" data-s="fitrun" data-route="map"><b>ALT</b>
     Fit<small class="subt">rules engine &mdash; blueprint, then generate</small></button>
   <button class="station" data-step="8" data-s="learn" data-route="map"><b>ALT</b>
     Learn<small class="subt">first engine &mdash; quick look</small></button>
   <button class="station" data-step="8" data-s="duel" data-route="map"><b>DUEL</b>
     Duel<small class="subt">score a vendor's model against ours</small></button>
-  <div class="railsplit">internal</div>
+  </details>
+  <details class="railfold"><summary>internal</summary>
   <button class="station" data-step="8" data-s="roadmap" data-route="map"><b>MAP</b>
     Roadmap<small class="subt">eight goals: built and planned</small></button>
+  </details>
 </nav>
 <main data-step="8" data-route="map">
 <section id="s-home" class="active" data-step="8" data-route="map">
