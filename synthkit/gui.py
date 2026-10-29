@@ -2343,6 +2343,9 @@ nav{padding:18px 12px}
 /* Learn is not step 6 of the flow - it is another way to
    START, and putting it in the same numbered run implied
    you arrive there last. */
+.carried{background:var(--wash,#F6F7F9);border-radius:8px;
+  padding:9px 13px;margin:2px 0 10px;font-size:13px}
+.carried code{font-size:12px;word-break:break-all}
 .sizetab{border-collapse:collapse;width:100%;margin:8px 0;
   font-size:12.5px}
 .sizetab th,.sizetab td{padding:5px 8px;text-align:right;
@@ -3564,13 +3567,16 @@ textarea:focus,input:focus,select:focus{
   <div class="exbar"><span class="exlbl">how this works</span><button onclick="exOpen('how-it-learns')"><b>?</b>how it learns</button><button onclick="exOpen('the-bottleneck')"><b>?</b>the bottleneck</button><button onclick="exOpen('how-it-generates')"><b>?</b>how new records are made</button><button onclick="exOpen('k-before-training')"><b>?</b>how k is kept</button><button onclick="exOpen('reconstruction-gap')"><b>?</b>overfitting &amp; memorization</button><button onclick="exOpen('set-column')"><b>?</b>set columns</button><button onclick="exOpen('patient-structure')"><b>?</b>patients, not rows of visits</button></div>
   <dl class="stepgoal"><dt>you need</dt><dd>A real CSV on THIS machine and an output directory of your choosing. Nothing else &mdash; no prior run, no second engine.</dd><dt>you get</dt><dd>Synthetic records from the autoencoder, written to your directory, and a review page measuring them against the real data: relationships kept, whether a patient still looks like a person, the combination effects, and every column drawn twice. What it does NOT measure &mdash; safety &mdash; is stated on the page.</dd></dl>
   <div class="panel">
-    <h2>Point at the data</h2>
+    <div id="ncarried" class="carried"></div>
+    <details id="nfields" class="expert"><summary>Change the source
+    or output for this step</summary>
     <label>source CSV path
       <input id="nsrc" placeholder="full path to the real CSV"></label>
     <label>output directory <span class="hint">(yours to choose; the generated file lands here)</span>
       <input id="nout" placeholder="a directory outside any repo"></label>
     <label>patient / entity column
       <input id="ngroup" value="person_id"></label>
+    </details>
     <input type="hidden" id="nseed" value="0">
     <input type="hidden" id="nk" value="10">
     <h2>How much to make</h2>
@@ -3714,6 +3720,35 @@ const titles={home:['Home','Start here','what this is, in one page'],
   duel:['Duel','Duel','two engines, one source'],
   roadmap:['Map','Roadmap','the eight goals \u2014 built and planned']};
 let campaignDir='';
+// CARRY THE SOURCE FORWARD. "why are we re-pointing the source and
+// the output?" - Step 1 already has them, so Generate reads them
+// rather than asking again, and SAYS what it inherited instead of
+// silently using values the user cannot see. The fields stay
+// available behind a disclosure, because inheriting silently and
+// being unable to override would be a different complaint.
+function carryForward(){
+  const map=[['fsrc','nsrc'],['fout','nout'],['fgroup','ngroup']];
+  let got=null;
+  for(const [from,to] of map){
+    const a=document.getElementById(from), b=document.getElementById(to);
+    if(!a||!b) continue;
+    const v=(a.value||'').trim();
+    if(v && !(b.value||'').trim()){ b.value=v; }
+    if(from==='fsrc' && v) got=v;
+  }
+  const note=document.getElementById('ncarried');
+  if(!note) return;
+  const src=(document.getElementById('nsrc')||{}).value||'';
+  const out=(document.getElementById('nout')||{}).value||'';
+  if(src||out){
+    note.innerHTML='Using what you set in <b>step 1</b>: '
+      +'<code>'+(src||'(no source yet)')+'</code>'
+      +(out?' &rarr; <code>'+out+'</code>':'');
+  } else {
+    note.textContent='Set the source in step 1 first, or open the '
+      +'box below to point at it here.';
+  }
+}
 // THE LADDER, drawn where the choice is made. Refused rungs are
 // shown rather than hidden: "that 50,000 we shouldn't even do" is
 // information the user needs, and a size silently missing from a
@@ -3800,6 +3835,7 @@ document.querySelectorAll('.station').forEach(btn=>{
     btn.classList.add('active');
     document.getElementById('s-'+btn.dataset.s)
       .classList.add('active');
+    if(btn.dataset.s==='neural'){ try{ carryForward(); }catch(e){} }
     /* The heading sits OUTSIDE every section, so it cannot
        inherit the step's hue from the section it describes.
        Stamping the step on <main> puts the whole bench, heading

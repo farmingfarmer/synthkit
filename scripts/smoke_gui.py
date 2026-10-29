@@ -1328,6 +1328,28 @@ def main():
                   "'here's low, here's high' she asked for",
                   _sz.get("lowest_offered") is not None
                   and _sz.get("highest_offered") is not None)
+        # "why are we re-pointing the source and the output?"
+        # Generate inherits what step 1 holds and SAYS what it
+        # inherited - inheriting silently would trade one complaint
+        # for a worse one - with the fields still reachable behind
+        # a disclosure so the inheritance can be overridden.
+        check("Generate carries the source forward from step 1 "
+              "instead of asking for it twice",
+              "function carryForward()" in html
+              and "['fsrc','nsrc']" in html.replace(" ", ""))
+        check("...and it STATES what it inherited rather than "
+              "silently using values the user cannot see",
+              'id="ncarried"' in html
+              and "Using what you set in" in html)
+        check("...while the fields remain reachable to override, "
+              "so inheriting is not a trap",
+              'id="nfields"' in html
+              and "Change the source" in html)
+        check("...and the carry runs when the Generate station is "
+              "opened, not only on load",
+              "btn.dataset.s==='neural'" in html
+              and "carryForward()" in html)
+
         check("the size control sits on the GENERATE panel, "
               "between reading the file and making the data - the "
               "sequencing asked for: learn what it supports, THEN "

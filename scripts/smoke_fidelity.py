@@ -1624,6 +1624,32 @@ def main():
     # had not been generated yet - and the 1x deck they had ALREADY
     # written was fine, which the refusal now says. (_r3 was captured
     # above, inside the temp block, so _rundir still existed.)
+    # "there's a lot here ... get this to a filtered version."
+    # The filter lives in the DECK, not the bench, because the bench
+    # serves these same bytes into an iframe and the shareable file
+    # is the same file - a filter built in the bench would exist on
+    # screen and be missing from what somebody is emailed.
+    _dk = io.open(str(ROOT / "scripts" / "fidelity_deck.py"),
+                  encoding="utf-8").read()
+    check("the dashboard ships a summary view, because the "
+          "complaint was density on first sight",
+          "viewtoggle" in _dk and "apply(false)" in _dk)
+    check("...and the toggle SAYS how many sections it is hiding, "
+          "so the short view is never mistaken for the whole page",
+          "more section" in _dk)
+    check("...and the filter is in the deck itself, so the file "
+          "that gets emailed has it too rather than only the "
+          "bench's iframe",
+          "viewtoggle" not in io.open(
+              str(ROOT / "synthkit" / "gui.py"),
+              encoding="utf-8").read())
+    check("...and the gate and the limitations are never in the "
+          "hidden group - a filtered view that hides the verdict "
+          "or the caveats would be a different product",
+          "'gate'" not in _dk.split("var DETAIL=")[1][:400]
+          and "does not say" not in
+              _dk.split("var DETAIL=")[1][:400])
+
     check("a --compare pointing at a run that does not exist gets a "
           "plain refusal naming the fix, not a traceback",
           _r3.returncode != 0

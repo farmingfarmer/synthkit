@@ -87,6 +87,12 @@ GOLD = "#B3995D"         # the LATENT challenger series (duel view)
 NEG = "#44546a"          # heatmap negative pole
 
 CSS = """
+.viewbar{display:flex;justify-content:flex-end;margin:6px 0 2px}
+.viewtoggle{font:inherit;font-size:12.5px;cursor:pointer;
+  border:1px solid #d2d2d7;background:#fff;color:#2f3a44;
+  border-radius:999px;padding:5px 14px}
+.viewtoggle:hover{background:#f6f7f9}
+
 body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',
   Helvetica,Arial,sans-serif;color:%(ink)s;background:#fff;
   margin:0;font-size:14px;line-height:1.5}
@@ -203,6 +209,46 @@ lives.forEach(function(sv){
   sv.addEventListener('pointerup',release);
   sv.addEventListener('pointercancel',release);
   sv.addEventListener('pointerleave',release);});
+})();
+(function(){
+  var sheet=document.querySelector('.sheet')||document.body;
+  var heads=[].slice.call(sheet.querySelectorAll('h2'));
+  if(heads.length<4) return;
+  /* the sections a first-time reader does not need in order to
+     know whether the data is usable */
+  var DETAIL=['every column','whole table','combination effects',
+              'drivers, attributed','patterns, drawn',
+              'each engine goes wrong','drawn three ways',
+              'memorizing'];
+  var groups=[];
+  heads.forEach(function(h){
+    var txt=(h.textContent||'').toLowerCase();
+    var det=DETAIL.some(function(k){return txt.indexOf(k)>=0;});
+    var nodes=[h], n=h.nextElementSibling;
+    while(n && n.tagName!=='H2'){nodes.push(n); n=n.nextElementSibling;}
+    groups.push({detail:det, nodes:nodes});
+  });
+  var nDetail=groups.filter(function(g){return g.detail;}).length;
+  if(!nDetail) return;
+  function apply(full){
+    groups.forEach(function(g){
+      g.nodes.forEach(function(n){
+        if(n.style) n.style.display=(g.detail&&!full)?'none':'';});});
+    btn.textContent=full
+      ? 'Show the summary only'
+      : 'Show everything ('+nDetail+' more section'
+        +(nDetail===1?'':'s')+')';
+  }
+  var bar=document.createElement('div');
+  bar.className='viewbar';
+  var btn=document.createElement('button');
+  btn.type='button'; btn.className='viewtoggle';
+  var full=false;
+  btn.onclick=function(){full=!full; apply(full);};
+  bar.appendChild(btn);
+  var first=heads[0];
+  first.parentNode.insertBefore(bar, first);
+  apply(false);
 })();
 </script>"""
 
