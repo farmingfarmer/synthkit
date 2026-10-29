@@ -1341,6 +1341,77 @@ def main():
               "names",
               "corrupted cells" not in html
               and "corruption_ledger" not in html)
+        # THE PAGE'S SCRIPT MUST PARSE, and 211 content checks
+        # could not tell that it did not. An edit anchored on
+        # `function deckBuild(){` matched the substring AFTER
+        # `async `, so the insertion split `async` from its own
+        # declaration, `deckBuild` kept its `await` without being
+        # async, the whole inline script failed to parse, EVERY
+        # button went dead and the wordmark sat at "loading
+        # build..." forever. Every string assertion still passed,
+        # because each asserted text that was present in a file
+        # the browser could not run.
+        import re as _jrx
+        import subprocess as _jsp
+        import shutil as _jsh
+        import tempfile as _jtf
+        import os as _jos
+        _blocks = _jrx.findall(r"<script[^>]*>(.*?)</script>",
+                               html, _jrx.S)
+        check("the page has its inline script blocks to check",
+              len(_blocks) >= 1
+              and max(len(b) for b in _blocks) > 10000)
+
+        # ALWAYS-ON, no toolchain needed: this page declares its
+        # functions at column 0, so each body runs to the next
+        # declaration. A body using `await` must be declared
+        # `async` - the exact fault above, caught without node.
+        _decl = _jrx.compile(r"^(async\s+)?function\s+(\w+)\s*\(",
+                             _jrx.M)
+        _bad = []
+        for _b in _blocks:
+            _hits = list(_decl.finditer(_b))
+            for _i, _m in enumerate(_hits):
+                _end = (_hits[_i + 1].start()
+                        if _i + 1 < len(_hits) else len(_b))
+                _body = _b[_m.end():_end]
+                if _jrx.search(r"\bawait\s", _body) and not _m.group(1):
+                    _bad.append(_m.group(2))
+        check("every page function that uses `await` is declared "
+              "`async` - a split declaration is a SyntaxError that "
+              "kills the whole script and every button with it, "
+              "and no content check can see it",
+              not _bad)
+        if _bad:
+            print("      offenders: " + ", ".join(_bad))
+
+        # AND THE FULL PARSE when a JS engine is present. Absence
+        # is STATED rather than silently passing, the same way
+        # smoke_buildid reports SKIPPED without git.
+        _node = _jsh.which("node")
+        if _node:
+            _errs = []
+            for _i, _b in enumerate(_blocks):
+                _fd, _pth = _jtf.mkstemp(suffix=".js")
+                with _jos.fdopen(_fd, "w", encoding="utf-8") as _fh:
+                    _fh.write(_b)
+                _r = _jsp.run([_node, "--check", _pth],
+                              capture_output=True, text=True)
+                _jos.unlink(_pth)
+                if _r.returncode != 0:
+                    _errs.append("block %d: %s" % (
+                        _i, (_r.stderr or "").strip()[:300]))
+            for _e in _errs:
+                print("      " + _e)
+            check("every inline script block PARSES - the check "
+                  "that would have caught a dead bench in the "
+                  "second it was created",
+                  not _errs)
+        else:
+            print("      NOTE: node not found - the full JS parse "
+                  "was skipped; the await/async guard above still "
+                  "ran")
+
         from synthkit.gui import api_sizing as _asz
         import tempfile as _tf, os as _os
         import numpy as np

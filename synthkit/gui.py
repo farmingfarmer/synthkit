@@ -5371,7 +5371,7 @@ async function drawAll(){
      slower. */
   try{ latentVizBuild(); }catch(e){}
   return deckBuild();}
-function deckBuild(){
+async function deckBuild(){
   deckPrefill();
   const out=document.getElementById('deck-out');
   const frame=document.getElementById('deck-frame');
