@@ -3301,6 +3301,42 @@ what follows is what came out wrong anyway.
   fault actually changes; this file already said that about three
   checks that could not fail, and it applies to the browser too.
 
+- **A CHECK THAT CAN HANG IS WORSE THAN A CHECK THAT CANNOT FAIL,
+  BECAUSE IT TAKES THE WHOLE SUITE WITH IT (2026-10-29).** The
+  new in-browser check launched headless Chrome with a 180s
+  timeout. On the data machine Chrome wants its own profile
+  directory, so it never returned, and `smoke_gui` died with
+  `subprocess.TimeoutExpired` - the same class as
+  `smoke_packaging` asking about the MACHINE instead of the
+  package, and it would have broken `RUN_CHECKS.bat` for the whole
+  team. It is strictly BEST-EFFORT now: its own
+  `--user-data-dir`, `--headless=new`, a 45s timeout, and ANY
+  launch problem becomes a printed note. It asserts only when a
+  DOM actually came back. Verified both ways - Chrome present: 216
+  checks and the assertion holds; Chrome pointed at a path that
+  does not exist: the note prints and 214 pass, no crash.
+- **AND A CRASHED SUITE EMITS NO `FAIL:` LINE, SO "NO FAILURES"
+  IS NOT "PASSED".** Grepping the data machine's log for `^FAIL`
+  returned nothing and that read as clean. The suite had not
+  passed - it had raised, after `ok 170`-odd, and `check()` never
+  got the chance to print anything. This file already records the
+  shape (`_root` vs `ROOT` crashed rather than failed; a crashed
+  process also exits). The verdict must come from the SUCCESS
+  marker - the final `All N checks passed.` line - never from the
+  absence of a failure marker.
+- **AND AN OCR-MANGLED REGEX SILENTLY CHANGES WHAT A DIAGNOSTIC
+  MATCHES.** Two independent signals said the suite had failed and
+  BOTH were artifacts: `len(FAIL lines)` came back as `177 6`
+  where the real value was `177 0` (the recorded zero-reads-as-six
+  problem), and a PowerShell `-Pattern "^FAIL"` arrived as
+  `*FAIL`, which then matched the words "failures" and "fails"
+  inside PASSING lines and produced a confident `VERDICT-FAILED`.
+  A regex typed through that bridge is as untrustworthy as a digit
+  read back from it. Prefer a predicate the MACHINE evaluates with
+  a literal (`x[:4] == "FAIL"`), print a word, and cross-check
+  against the success marker - the mismatch between the two is
+  what exposed it.
+
 ## Talking to the data machine
 
 - **A RAW GITHUB FETCH SERVED THE PRE-PUSH FILE AND REPORTED

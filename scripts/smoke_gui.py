@@ -1432,13 +1432,29 @@ def main():
             if _jos.path.exists(_c):
                 _chrome = _c
                 break
+        _dom = None
         if _chrome:
-            _dom = _jsp.run(
-                [_chrome, "--headless", "--disable-gpu",
-                 "--no-sandbox", "--virtual-time-budget=8000",
-                 "--dump-dom",
-                 "http://127.0.0.1:{}/".format(port)],
-                capture_output=True, text=True, timeout=180).stdout
+            _prof = _jtf.mkdtemp(prefix="synthkit_chrome_")
+            try:
+                _dom = _jsp.run(
+                    [_chrome, "--headless=new", "--disable-gpu",
+                     "--no-sandbox", "--no-first-run",
+                     "--disable-extensions",
+                     "--user-data-dir=" + _prof,
+                     "--virtual-time-budget=8000",
+                     "--dump-dom",
+                     "http://127.0.0.1:{}/".format(port)],
+                    capture_output=True, text=True,
+                    timeout=45).stdout
+            except Exception as _ce:
+                print("      NOTE: the in-browser run check could "
+                      "not use Chrome here ({}: {}); the JS parse "
+                      "guards above still ran. A check that can "
+                      "hang must never take the suite with "
+                      "it.".format(type(_ce).__name__,
+                                   str(_ce)[:80]))
+                _dom = None
+        if _dom:
             _fp = _jrx.search(r'<span id="fp"[^>]*>(.*?)</span>',
                               _dom or "", _jrx.S)
             _fpv = (_fp.group(1).strip() if _fp else "")
@@ -1453,7 +1469,7 @@ def main():
                   len(_jrx.findall(
                       r'<section id="s-[a-z0-9_]+"[^>]*'
                       r'class="[^"]*active', _dom or "")) == 1)
-        else:
+        elif not _chrome:
             print("      NOTE: Chrome not found - the in-browser "
                   "run check was skipped; the JS parse guards "
                   "above still ran")
