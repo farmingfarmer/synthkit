@@ -4,7 +4,7 @@ Synthetic clinical data generator and model-evaluation instrument. Core rule: le
 
 ## Verify before claiming
 
-- Run `python scripts/run_all_smokes.py` before claiming anything works. Expect **81 suites, 2414 checks**, ALL GREEN **on a checkout** (measured 2026-10-29). Off a zipball extract - which is what the data machine runs - nine checks in `smoke_buildid` need git to test the archive path and report SKIPPED without it, so the expected total there is NINE LOWER; that delta was measured when it was found, the current zipball total has not been re-run, and a total nobody ran is not a number to quote. Do not quote the checkout number to the data machine; that is how a correct run gets read as a failure.
+- Run `python scripts/run_all_smokes.py` before claiming anything works. Expect **81 suites, 2419 checks**, ALL GREEN **on a checkout** (measured 2026-10-29). Off a zipball extract - which is what the data machine runs - nine checks in `smoke_buildid` need git to test the archive path and report SKIPPED without it, so the expected total there is NINE LOWER; that delta was measured when it was found, the current zipball total has not been re-run, and a total nobody ran is not a number to quote. Do not quote the checkout number to the data machine; that is how a correct run gets read as a failure.
 - **THE DEVELOPMENT MACHINE WAS BEHIND THE DATA MACHINE, and that is
   how a green suite here failed there.** Dev was on Python 3.10 with
   pandas 2.3; the data machine installs fresh and got pandas 3.0.5,
@@ -3262,6 +3262,44 @@ what follows is what came out wrong anyway.
   raised `TypeError: not enough arguments for format string` - the
   same trap as the argparse help text this file already records,
   one module over. Double it.
+
+- **AN ANCHOR THAT IS A PREFIX OF THE REAL TEXT DOES NOT FAIL, IT
+  RELOCATES THE EDIT - AND IT KILLED THE WHOLE BENCH (2026-10-29).**
+  An edit anchored on `function deckBuild(){` matched the substring
+  AFTER `async `, so the insertion landed between `async` and its
+  own declaration. `deckBuild` kept its `await` without being
+  async, the inline script became a **SyntaxError**, no handler
+  bound, EVERY BUTTON WENT DEAD, and the wordmark sat at "loading
+  build..." forever - which an operator reads as a page still
+  loading rather than a page that cannot run. Three times in one
+  day: `return o` matched `return out` and truncated a return
+  statement; a 16-space `op_applied = "..."` matched the tail of a
+  20-space line. An exact-count assertion does NOT protect against
+  this, because the count is 1 and the match is real - it is just
+  in the wrong place. Anchor on a span that INCLUDES the preceding
+  token, or assert the result, not the edit.
+- **AND 211 CONTENT CHECKS PASSED ON A PAGE THE BROWSER COULD NOT
+  RUN.** Every assertion was true: each looked for text that was
+  genuinely present in a file that never executed. A page is not
+  its HTML - **a content check cannot see a dead script**, and
+  this suite had 211 of them and no parse. Three layers now, each
+  watched red against the broken page: (1) every page function
+  using `await` must be declared `async` - pure Python, always
+  runs, names the offender; (2) `node --check` on every inline
+  script block, which catches any syntax error rather than this
+  one; (3) the page loaded in HEADLESS CHROME, asserting that the
+  build stamp script fills has replaced "loading build..." - the
+  only one of the three that can catch a RUNTIME error on load.
+  With layer 1 disabled, layer 2 still fails. node's and Chrome's
+  absence is PRINTED as a note, never silently passed, the way
+  `smoke_buildid` reports SKIPPED without git.
+- **THE OPERATOR-VISIBLE TELL IS THE RIGHT THING TO ASSERT.** The
+  question asked was "it says loading build... is that what is
+  preventing anything from working?" - the symptom and the cause
+  were one fault, and the check that reproduces the complaint is
+  the check that the stamp gets filled. Assert the observable the
+  fault actually changes; this file already said that about three
+  checks that could not fail, and it applies to the browser too.
 
 ## Talking to the data machine
 

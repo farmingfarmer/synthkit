@@ -1412,6 +1412,52 @@ def main():
                   "was skipped; the await/async guard above still "
                   "ran")
 
+        # AND THE PAGE MUST ACTUALLY RUN IN A BROWSER, not
+        # merely parse. `#fp` says "loading build..." in the
+        # served HTML and is filled by script at load, so a dead
+        # script leaves that text sitting there - which is exactly
+        # what the operator saw and reported as "is that what is
+        # preventing anything from working?". A syntax guard
+        # cannot catch a RUNTIME error on load; this can.
+        # Chrome's absence is STATED, never silently passed.
+        _chrome = None
+        for _c in ("/Applications/Google Chrome.app/Contents/"
+                   "MacOS/Google Chrome",
+                   "/usr/bin/google-chrome",
+                   "/usr/bin/chromium",
+                   r"C:\Program Files\Google\Chrome\Application"
+                   r"\chrome.exe",
+                   r"C:\Program Files (x86)\Google\Chrome"
+                   r"\Application\chrome.exe"):
+            if _jos.path.exists(_c):
+                _chrome = _c
+                break
+        if _chrome:
+            _dom = _jsp.run(
+                [_chrome, "--headless", "--disable-gpu",
+                 "--no-sandbox", "--virtual-time-budget=8000",
+                 "--dump-dom",
+                 "http://127.0.0.1:{}/".format(port)],
+                capture_output=True, text=True, timeout=180).stdout
+            _fp = _jrx.search(r'<span id="fp"[^>]*>(.*?)</span>',
+                              _dom or "", _jrx.S)
+            _fpv = (_fp.group(1).strip() if _fp else "")
+            check("the page RUNS in a real browser - the build "
+                  "stamp that script fills replaces 'loading "
+                  "build...', which is the operator-visible tell "
+                  "that the script died and every button with it",
+                  bool(_fpv) and "loading" not in _fpv.lower())
+            check("...and exactly ONE section starts active, "
+                  "measured on the RENDERED dom - two active "
+                  "sections render stacked",
+                  len(_jrx.findall(
+                      r'<section id="s-[a-z0-9_]+"[^>]*'
+                      r'class="[^"]*active', _dom or "")) == 1)
+        else:
+            print("      NOTE: Chrome not found - the in-browser "
+                  "run check was skipped; the JS parse guards "
+                  "above still ran")
+
         from synthkit.gui import api_sizing as _asz
         import tempfile as _tf, os as _os
         import numpy as np
