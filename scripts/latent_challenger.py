@@ -3009,6 +3009,15 @@ def run_csv(argv):
     ap.add_argument("--max-levels", type=int, default=MAX_LEVELS,
                     help="categorical level dimensions per column "
                          "(default {})".format(MAX_LEVELS))
+    ap.add_argument("--patients", type=int, default=None,
+                    help="how many SYNTHETIC patients to write "
+                         "(default: the same number the source "
+                         "holds). More does not add information - "
+                         "it draws more entities from the same "
+                         "learned distribution - but it does give "
+                         "rare published patterns room to appear. "
+                         "synthkit.sizing computes the range this "
+                         "dataset can honestly support")
     ap.add_argument("--denoise", type=float, default=0.3,
                     help="train as a DENOISING autoencoder with "
                          "this input-noise sd - the defense on "
@@ -3137,9 +3146,16 @@ def run_csv(argv):
         # unfair: the rules engine wrote a full-size file and
         # this one wrote 85% of it, and they were scored against
         # each other.
+        _src_pat = int(df[a.group_by].nunique())
+        _want_pat = int(a.patients or _src_pat)
+        _rows = int(round(len(df) * (_want_pat / float(
+            max(_src_pat, 1)))))
+        if _want_pat != _src_pat:
+            print("output size: {} patients ({} in source), "
+                  "{} rows".format(_want_pat, _src_pat, _rows))
         gen = g.generate(
-            len(df), seed=seed + 1000,
-            n_patients=int(df[a.group_by].nunique()))
+            _rows, seed=seed + 1000,
+            n_patients=_want_pat)
         cols = [c for c in df.columns if c != a.group_by]
         sign, close, inv, n = _pair_score(
             _pairs(tr, cols), _pairs(gen, cols))

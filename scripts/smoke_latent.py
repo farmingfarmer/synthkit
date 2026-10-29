@@ -4,6 +4,7 @@ positive control. Fidelity numbers are measured by running the
 script on the fixtures, not asserted here: a generator's quality
 is seed-swept, never pinned.
 """
+import io
 import json
 import sys
 import tempfile
@@ -1979,6 +1980,35 @@ def main():
           all(k in _pts[0] for k in ("c", "n", "r", "x", "g"))
           and any(p["g"] == 0 for p in _pts)
           and any(p["g"] == 1 for p in _pts))
+    # THE SIZE LEVER NEEDED A FLAG BEHIND IT. generate() has taken
+    # n_patients since it was written and the CLI pinned it to the
+    # source's own count, so "how much to make" was unreachable
+    # from a terminal or the bench - a capability wired to nothing.
+    import subprocess as _sp
+    _h = _sp.run([sys.executable,
+                  str(_root / "scripts" / "latent_challenger.py"),
+                  "csv", "--help"], capture_output=True, text=True)
+    check("the csv route exposes --patients, so the output size "
+          "the bench offers has a flag behind it rather than being "
+          "a control wired to nothing",
+          _h.returncode == 0 and "--patients" in _h.stdout)
+    check("...and its help says more entities is not more "
+          "information, because that is the one way the lever "
+          "gets misread",
+          "does not add information" in
+          " ".join(_h.stdout.split()))
+    _src = io.open(str(_root / "scripts" / "latent_challenger.py"),
+                   encoding="utf-8").read()
+    check("...and the ROW count scales with the requested patient "
+          "count, so the file keeps the source's visits-per-patient "
+          "shape instead of cramming a different number of patients "
+          "into the source's row total",
+          "_rows = int(round(len(df) * (_want_pat" in _src)
+    check("...and a non-default size is PRINTED, because a setting "
+          "that changes the deliverable silently is how the output "
+          "became the training split's size once already",
+          'print("output size: {} patients' in _src)
+
     _htmlv = _lv.build_html(_pts, _metav)
     # A COMPLETE DOCUMENT, NOT A FRAGMENT. Self-contained and
     # well-formed are different properties: this page shipped with
