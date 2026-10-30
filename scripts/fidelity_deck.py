@@ -1735,6 +1735,64 @@ def joint_section_html(src, gen, group_by, seed=0):
                  else '{:.0f}%'.format(100 * kept)),
                 _num_deck(ag)))
     out.append('</table>')
+    # TRAIN ON SYNTHETIC, TEST ON REAL - the question a customer
+    # actually asks, and the ONE fidelity number the thin-cohort
+    # trap cannot reverse. `close` is scored only on the pairs
+    # that cleared the privacy screen, so a thinner source grades
+    # a smaller and stronger surviving set and posts a HIGHER
+    # percentage while publishing less. TSTR scores both arms on
+    # the SAME held-out real rows, so it cannot be flattered that
+    # way. Targets come from the standalone page's own chooser,
+    # so the two cannot disagree about what is worth asking.
+    try:
+        sys.path.insert(
+            0, str(Path(__file__).resolve().parent))
+        from relationship_report import pick_targets as _pt
+        _targets = _pt(src, group_by, n=4)
+    except Exception:
+        _targets = []
+    _ut = []
+    for _t in _targets:
+        try:
+            _u = _jc.utility(src, gen, _t, group_by=group_by,
+                             seed=seed)
+        except Exception:
+            continue
+        if _u and _u.get("train_real_test_real") is not None:
+            _ut.append((_t, _u))
+    if _ut:
+        out.append('<h3>Train on synthetic, test on real</h3>')
+        out.append(
+            '<p class="sub">A model trained on the SYNTHETIC rows, '
+            'scored on REAL rows it never saw, beside the same '
+            'model trained on real data. The gap is what using '
+            'synthetic data costs for that target. This is the one '
+            'fidelity number a thin cohort cannot flatter: both '
+            'arms are scored on the same held-out real rows, where '
+            '<i>close</i> is scored only on pairs that cleared the '
+            'privacy screen and so reads higher on a source that '
+            'publishes less.</p>')
+        out.append('<table class="jt"><tr><th>target</th>'
+                   '<th>trained on real</th>'
+                   '<th>trained on synthetic</th>'
+                   '<th>kept</th></tr>')
+        for _t, _u in _ut:
+            _rr = _u.get("train_real_test_real")
+            _sy = _u.get("train_synthetic_test_real")
+            _kp = (_u.get("retained")
+                   if (_rr is not None and _rr > 0.10) else None)
+            out.append(
+                '<tr><td>{}</td><td>{}</td><td>{}</td>'
+                '<td>{}</td></tr>'.format(
+                    esc(str(_t)), _num_deck(_rr), _num_deck(_sy),
+                    ('&mdash;' if _kp is None
+                     else '{:.0f}%'.format(100 * _kp))))
+        out.append('</table>')
+        out.append(
+            '<p class="note">A target the REAL data cannot predict '
+            'either (skill at or below 0.10) shows a dash rather '
+            'than a ratio: "75% kept" of nothing is not a '
+            'result.</p>')
     ma = pr.get("mean_driver_agreement")
     if ma is not None:
         out.append(

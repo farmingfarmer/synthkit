@@ -1601,6 +1601,26 @@ def main():
           set(["column", "skill_real", "skill_syn",
                "driver_agreement"]).issubset(set(_r0))
           and "mean_driver_agreement" in _prj)
+    check("the deck's TSTR block renders - the one fidelity "
+          "number a thin cohort cannot flatter, because both arms "
+          "are scored on the SAME held-out real rows",
+          "Train on synthetic, test on real" in _hj
+          and "trained on synthetic" in _hj)
+    # THE KEYS AGAIN, FROM A LIVE CALL. The first cut of this
+    # block guessed `real`/`synthetic` and rendered NOTHING - the
+    # blank-section fault, repeated in the same hour it was
+    # guarded against for predictability. Assert the contract.
+    _uj = _jcc.utility(_realj, _synj, "y", group_by="person_id")
+    check("...and it reads the keys `utility` actually emits, "
+          "asserted against a LIVE call rather than a fixture "
+          "that agrees with the renderer",
+          set(["train_real_test_real", "train_synthetic_test_real",
+               "retained"]).issubset(set(_uj)))
+    check("...and a target the REAL data cannot predict shows a "
+          "dash rather than a ratio - '75% kept' of nothing is "
+          "not a result",
+          any('<td>w</td>' in _l and "&mdash;" in _l
+              for _l in _hj.split("<tr")))
     check("the joint measures are OFF by default and their absence "
           "is STATED - they fit a model per column and a page that "
           "takes minutes is a hung browser",
