@@ -3547,6 +3547,51 @@ what follows is what came out wrong anyway.
   0.370, and the repaired column holding the SAME MULTISET as the
   generated one - a permutation cannot move a marginal.
 
+- **REPAIRING THE INVERSION IMPROVED THE WHOLE GATE, AND THE
+  MEASUREMENT HAS NO SEED TO ARGUE ABOUT (2026-10-30).** The
+  operator asked whether SynthKit could rearrange an inverted
+  pair back to the sign it should have and then re-measure to see
+  if overall fidelity rose or fell. On run_deliverable, whose
+  inversion IS in the operator's own data
+  (`body_mass_index_measured <- active_drug_count`, source
+  +0.105, generated -0.110, 15,112 both-present rows):
+
+      criterion        before             after              verdict
+      direction kept   134/137 = 97.8%    135/137 = 98.5%    improved
+      close            120/137 = 87.6% F  121/137 = 88.3% P  FIXED
+      inverted         1 FAIL             0 PASS             FIXED
+      coverage         42/42              42/42              same
+      set token shares 79/79              79/79              same
+      set EMPTY rate   4/4                4/4                same
+      shapes tracked   7/8                7/8                same
+      surfaces         0/5                0/5                same
+      dynamics         17/87              17/87              same
+
+  The pair landed at +0.108 against a source +0.105. **Two
+  criteria fixed, one improved, nothing degraded** - the
+  deliverable goes from four PASS to six of nine, matching
+  run_old0.
+- **AND THIS IS THE COMPARISON LAST NIGHT'S WORK COULD NOT MAKE.**
+  Every claim last night was cross-RUN - different seed, moving
+  denominator - which is why close looked fixed when the control
+  later showed it was never broken. This is a PAIRED before/after
+  on ONE file with ONE column reordered: same rows, same seed,
+  same denominator. There is no seed to argue about, which is
+  exactly why the operator's framing ("then measure fidelity
+  again to see if it got better or worse overall") was the right
+  one and should be the default shape for any fidelity change.
+- **A PERMUTATION CANNOT MOVE A MARGINAL, SO THE PRIVACY POSTURE
+  IS UNTOUCHED.** The repaired column holds the SAME MULTISET the
+  generator produced - mean, spread, point masses and the
+  k-anonymous bounds are all exactly what was published. Only the
+  ORDER changes. Nothing is written without `--apply`.
+- **THE DELIVERABLE IS NOT THE BEST ARTIFACT ON THAT MACHINE.**
+  Same code, same settings, different seed: run_old0 reads six of
+  nine with the absolute stop clear and close at 91.5%, where
+  run_deliverable needs the repair to reach the same place and
+  sits at 88.3% after it. Worth saying plainly before anyone
+  ships the one that happens to be named "deliverable".
+
 ## Talking to the data machine
 
 - **A RAW GITHUB FETCH SERVED THE PRE-PUSH FILE AND REPORTED
