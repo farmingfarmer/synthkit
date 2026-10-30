@@ -738,8 +738,36 @@ class LatentGen:
                                           method="spearman"))
                 if not np.isfinite(rho2) or abs(rho2) < 0.5:
                     continue
+                # THE CHILD'S OTHER PARTNERS COME WITH IT. A
+                # rearrangement that targets ONE coupling
+                # randomises every other relationship the column
+                # has, and a count column is a HUB. Measured on a
+                # fixture where the count also drives span and
+                # procedure: targeting the size alone landed it
+                # (0.869 -> 0.869) and dragged span 0.537 -> 0.361
+                # and proc 0.419 -> 0.301, while the control -
+                # no tier at all - held both. The gate saw the
+                # same shape on the real extract: close up,
+                # direction kept DOWN. Same lesson as the
+                # token-quota conditioners: one partner
+                # under-covers.
+                _others = []
+                for kt in self.plan:
+                    if kt[0] != "num" or kt[1] == jt[1]:
+                        continue
+                    ov = pd.to_numeric(df[kt[1]],
+                                       errors="coerce")
+                    ob = ov.notna() & cv2.notna()
+                    if int(ob.sum()) < 200:
+                        continue
+                    orho = float(cv2[ob].corr(ov[ob],
+                                              method="spearman"))
+                    if not np.isfinite(orho) or \
+                            abs(orho) < COUPLING_MIN:
+                        continue
+                    _others.append((kt[1], orho))
                 self._size_couplings.append(
-                    (jt[1], it[1], sep2, rho2))
+                    (jt[1], it[1], sep2, rho2, _others))
                 print("  {} tracks len({}) at rank {:+.2f} "
                       "without equalling it: enforced by "
                       "rearrangement at generation, marginal "
@@ -2060,7 +2088,7 @@ class LatentGen:
         # keep their exact multiset; only their order changes,
         # so the marginal this engine worked to get right cannot
         # drift.
-        for cnt_c, set_c, sep_, rho_t in getattr(
+        for cnt_c, set_c, sep_, rho_t, _oth in getattr(
                 self, "_size_couplings", []):
             if cnt_c not in frame.columns or \
                     set_c not in frame.columns:
@@ -2073,16 +2101,43 @@ class LatentGen:
                 print("  size reorder SKIPPED for {}: {} usable "
                       "rows".format(cnt_c, m3))
                 continue
-            rk3 = nz[live3].rank(method="average").to_numpy()
-            sd3 = rk3.std() or 1.0
-            z3 = (rk3 - rk3.mean()) / sd3
-            # same shape as the sparse tier: a target score that
-            # is the partner's ranks at strength |rho| plus
-            # independent noise, then the sorted values are
-            # dealt out along it.
-            a3 = float(np.clip(rho_t, -0.999, 0.999))
-            z3 = a3 * z3 + np.sqrt(max(1.0 - a3 * a3, 0.0)) \
-                * rng.normal(0, 1, m3)
+            # THE SAME JOINT SOLVE THE SPARSE TIER USES: the
+            # set size is one partner among the column's others,
+            # and b = R^-1 rho lands them together instead of
+            # trading one for the rest.
+            _pz = [((nz[live3].rank(method="average").to_numpy()))]
+            _pr = [float(rho_t)]
+            for _oc, _orh in (_oth or []):
+                if _oc not in frame.columns:
+                    continue
+                _ov = pd.to_numeric(frame[_oc],
+                                    errors="coerce")[live3]
+                _om = _ov.notna()
+                if int(_om.sum()) < 2:
+                    continue
+                _z = np.zeros(m3)
+                _rk = _ov[_om].rank(method="average").to_numpy()
+                _z[_om.to_numpy()] = (
+                    (_rk - _rk.mean()) / (_rk.std() or 1.0))
+                _pz.append(_z)
+                _pr.append(float(_orh))
+            _pz[0] = ((_pz[0] - _pz[0].mean())
+                      / (_pz[0].std() or 1.0))
+            P3 = np.column_stack(_pz)
+            R3 = np.atleast_2d(np.corrcoef(P3, rowvar=False))
+            try:
+                b3v = np.linalg.solve(
+                    R3 + 1e-3 * np.eye(len(_pr)), np.array(_pr))
+            except Exception:
+                b3v = np.zeros(len(_pr))
+                b3v[0] = float(rho_t)
+            v3 = float(b3v @ R3 @ b3v)
+            if v3 > 1.0:
+                b3v /= np.sqrt(v3)
+                v3 = 1.0
+            z3 = (P3 @ b3v
+                  + np.sqrt(max(1.0 - v3, 0.0))
+                  * rng.normal(0, 1, m3))
             srt3 = np.sort(vc3[live3].to_numpy())
             new3 = np.empty(m3)
             new3[z3.argsort()] = srt3
@@ -2090,7 +2145,9 @@ class LatentGen:
             vc4.loc[frame.index[live3]] = new3
             frame[cnt_c] = vc4.where(vc3.notna(), frame[cnt_c])
             print("  size reorder ran for {}: {} rows, target "
-                  "rank {:+.2f}".format(cnt_c, m3, rho_t))
+                  "rank {:+.2f} with {} other partner(s) held "
+                  "jointly".format(cnt_c, m3, rho_t,
+                                   len(_pr) - 1))
         # Linear identities, the same rule: computed, not
         # redrawn. The child's own precision and missingness are
         # kept - the arithmetic replaces the VALUE, never the

@@ -2129,9 +2129,9 @@ def main():
           _srho9 >= 0.8 and _seq9 < 0.6)
     _g9 = LatentGen(seed=0).fit(_df9, "person_id")
     check("...and the tier DETECTS it, naming the set it tracks",
-          any(c == "condition_count" and st == "conditions"
-              for c, st, _sp, _r in
-              getattr(_g9, "_size_couplings", []))
+          any(e[0] == "condition_count"
+              and e[1] == "conditions"
+              for e in getattr(_g9, "_size_couplings", []))
           and not any(c == "condition_count" for c, _s, _p in
                       getattr(_g9, "_size_identities", [])))
     _out9 = _g9.generate(len(_df9))
@@ -2162,8 +2162,78 @@ def main():
     check("...and the tier is INERT when the count does not track "
           "the size - a tier that fires on everything is as bad "
           "as one that never fires",
-          not any(c == "condition_count" for c, _s, _p, _r in
-                  getattr(_g8, "_size_couplings", [])))
+          not any(e[0] == "condition_count"
+                  for e in getattr(_g8, "_size_couplings", [])))
+
+    # A REARRANGEMENT THAT TARGETS ONE COUPLING RANDOMISES EVERY
+    # OTHER RELATIONSHIP THE COLUMN HAS, and a count column is a
+    # HUB. Measured on this fixture, where the count also drives
+    # span and procedure: targeting the size ALONE landed it
+    # (0.869 -> 0.869) and dragged span 0.537 -> 0.361 and proc
+    # 0.419 -> 0.301, while the control - no tier at all - held
+    # both at source. The real extract showed the same shape, as
+    # a gate trade: close UP, direction kept DOWN. The joint
+    # solve lands all of them together; this check is the
+    # neighbouring property, asserted in the same test that
+    # moves the target.
+    _rgh = _np9.random.default_rng(0)
+    _nph, _vsh = 200, 10
+    _nh = _nph * _vsh
+    _tkh = ["c{:02d}".format(i) for i in range(16)]
+    _ssh, _cch = [], []
+    for _ in range(_nh):
+        _kh = int(_rgh.integers(0, 6))
+        if _kh == 0:
+            _ssh.append("");  _cch.append(0);  continue
+        _ssh.append(";".join(
+            _rgh.choice(_tkh, size=_kh, replace=False)))
+        _cch.append(_kh if _rgh.random() < 0.37
+                    else _kh + int(_rgh.integers(1, 4)))
+    _cnt = _np9.array(_cch, dtype=float)
+    _cz = (_cnt - _cnt.mean()) / (_cnt.std() or 1)
+    _dfh = _pd9.DataFrame({
+        "person_id": _np9.repeat(
+            ["P{:04d}".format(i) for i in range(_nph)], _vsh),
+        "conditions": _ssh, "condition_count": _cnt,
+        "span_days": (4.0 + 3.0 * (0.55 * _cz + 0.835
+                      * _rgh.normal(0, 1, _nh))).round(2),
+        "procedure_count": (2.0 + 2.0 * (0.40 * _cz + 0.917
+                            * _rgh.normal(0, 1, _nh))).round(2),
+        "age": _rgh.normal(60, 11, _nh).round(1)})
+
+    def _rh(_d, _a, _b):
+        _m = _d[_a].notna() & _d[_b].notna()
+        return float(_d.loc[_m, _a].corr(_d.loc[_m, _b],
+                                         method="spearman"))
+
+    _gh = LatentGen(seed=0).fit(_dfh, "person_id")
+    check("the size tier records the child's OTHER partners, so "
+          "the rearrangement can hold them instead of trading "
+          "them for its target",
+          any(c == "condition_count" and len(e[-1]) >= 2
+              for e in getattr(_gh, "_size_couplings", [])
+              for c in [e[0]]))
+    _oh = _gh.generate(len(_dfh))
+    for _c in ("condition_count", "span_days", "procedure_count"):
+        _oh[_c] = _pd9.to_numeric(_oh[_c], errors="coerce")
+    _oh["_n"] = _pd9.Series(
+        [len([x for x in str(t).split(";") if x.strip()])
+         for t in _oh["conditions"]])
+    _dfh2 = _dfh.copy()
+    _dfh2["_n"] = _pd9.Series(
+        [len([x for x in t.split(";") if x.strip()])
+         for t in _dfh["conditions"]])
+    check("...and the target coupling still lands",
+          abs(_rh(_oh, "condition_count", "_n")
+              - _rh(_dfh2, "condition_count", "_n")) <= 0.08)
+    check("...while the column's OTHER relationships are held "
+          "rather than randomised - a fix that lands one pair "
+          "and drags two others is worse than no fix",
+          abs(_rh(_oh, "condition_count", "span_days")
+              - _rh(_dfh2, "condition_count", "span_days")) <= 0.10
+          and abs(_rh(_oh, "condition_count", "procedure_count")
+                  - _rh(_dfh2, "condition_count",
+                        "procedure_count")) <= 0.10)
 
     # ENFORCE WHAT YOU ARE GRADED ON. The gate counts a pair as
     # related when the SOURCE reaches 0.1 and calls a sign flip on
