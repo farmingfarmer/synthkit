@@ -4,7 +4,7 @@ Synthetic clinical data generator and model-evaluation instrument. Core rule: le
 
 ## Verify before claiming
 
-- Run `python scripts/run_all_smokes.py` before claiming anything works. Expect **81 suites, 2441 checks**, ALL GREEN **on a checkout** (measured 2026-10-29). Off a zipball extract - which is what the data machine runs - nine checks in `smoke_buildid` need git to test the archive path and report SKIPPED without it, so the expected total there is NINE LOWER; that delta was measured when it was found, the current zipball total has not been re-run, and a total nobody ran is not a number to quote. Do not quote the checkout number to the data machine; that is how a correct run gets read as a failure.
+- Run `python scripts/run_all_smokes.py` before claiming anything works. Expect **82 suites, 2472 checks**, ALL GREEN **on a checkout** (measured 2026-10-29). Off a zipball extract - which is what the data machine runs - nine checks in `smoke_buildid` need git to test the archive path and report SKIPPED without it, so the expected total there is NINE LOWER; that delta was measured when it was found, the current zipball total has not been re-run, and a total nobody ran is not a number to quote. Do not quote the checkout number to the data machine; that is how a correct run gets read as a failure.
 - **THE DEVELOPMENT MACHINE WAS BEHIND THE DATA MACHINE, and that is
   how a green suite here failed there.** Dev was on Python 3.10 with
   pandas 2.3; the data machine installs fresh and got pandas 3.0.5,
@@ -3836,6 +3836,88 @@ exist.
 ## Tone
 
 - Direct and concise. No emojis. No over-explanation.
+
+- **THE RUN THREW THE KEY AWAY, SO THE ARCHITECTURE WAS
+  IMPOSSIBLE RATHER THAN MERELY UNBUILT (2026-10-30).** The
+  release dials have existed for weeks and the run wrote ONLY
+  the perturbed file - the full-fidelity frame was discarded the
+  moment the dials were applied. You cannot read a vendor's
+  answer against a reference you did not keep, so the whole
+  key/released design had no first file. One run now writes
+  three things: `key.csv` (the full-fidelity k-anonymous
+  synthetic, kept, never shared), `generated.csv` (the released
+  file) and `cipher.json` (which key row each released row took
+  each perturbed value from).
+- **AND IT WORKS BECAUSE EVERY DIAL IS A PERMUTATION.**
+  Re-pointing sorts a column against an invented score;
+  suppression shuffles it outright. Both only MOVE values
+  between rows, so each perturbed column holds the identical
+  multiset in both files and the change is EXACTLY INVERTIBLE -
+  verified value-for-value through the disk, and watched red
+  against two mutations (an overwriting cipher instead of a
+  composing one, and suppression not recording its
+  arrangement). That is the sentence to say to a governance
+  board: the released file is a faithful rearrangement, not
+  damaged data. `dialback.py verify` asserts it rather than
+  describing it, and moving ONE value in the released file turns
+  it red naming the column.
+  Suppression now draws `permutation()` rather than `shuffle()`
+  - verified `v[perm] == shuffle(v)` on one RNG state first, so
+  the record exists at no cost in output bytes.
+- **DILUTION IS NOT IN THE CIPHER AND THE CIPHER SAYS SO.**
+  `--release-strength` blends values toward the mean instead of
+  moving them, so a diluted column has no permutation. A record
+  that silently covered three of four controls would be the
+  read-but-not-used fault in the one file a reviewer trusts.
+- **DIAL THE OUTCOME, NOT THE COVARIATES - MEASURED, AND IT IS
+  THE WHOLE DESIGN RULE.** On a fixture whose outcome genuinely
+  reads the dialed column, skill on our own truth over held-out
+  rows:
+      dial the OUTCOME     0.970 -> -1.657   denied 2.627
+                           recovery EXACT
+      dial a COVARIATE     0.970 ->  0.892   denied 0.078
+                           recovery 0.102 sd (0.482 ignored)
+  **34x the protection AND exact recovery.** A model routes
+  around one corrupted covariate through the others, so dialing
+  a covariate buys almost nothing; a corrupted LABEL leaves a
+  trainer nothing to learn. And because a vendor model that
+  merely SCORES our rows reads only the covariates - which stay
+  faithful - the number it returns about released row p is
+  already the number for key row p. Nothing needs undoing.
+- **AND THE CIPHER DOES NOT UN-DISTORT A ROW-LEVEL PREDICTION.
+  Said out loud, because the obvious reading of "we hold the
+  key" is wrong.** A vendor's score for released row p is
+  `f(X_p, C_s)` where `C_s` is some OTHER row's value of the
+  perturbed column. We want `f(X_p, C_p)`. No arrangement of the
+  INPUTS produces that number - only `f` can, because `f` was
+  never evaluated there. Three routes, and they are not equally
+  sound: (A) they return a model or let us call it, we run it on
+  `key.csv`, exact, and the cipher is not needed for it at all -
+  **this is the route to put in the contract**; (B) they return
+  only per-row scores, a surrogate is fitted to (released rows
+  -> scores) and read on the key rows, approximate, error
+  MEASURED; (C) they return an aggregate, and the cipher gives
+  the exact before/after of every statistic we moved.
+- **THE WEAK CASE IS MEASURED, NOT INFERRED FROM THE PLAN.** The
+  first cut branched on "no perturbed predictor" to report that
+  a setting protects nothing - but in a flat table every column
+  predicts every other, so that branch was near-unreachable dead
+  code, and the two smoke checks aimed at it both failed on a
+  fixture that could not reach it. The verdict now comes off the
+  two protection numbers, and a target nobody can predict is
+  REFUSED with its own skill quoted - a recovery ratio between
+  two noise numbers reads as a result.
+- **AND THE MUTATION THAT FOUND NOTHING NAMED THE REAL GAP.**
+  Deleting the `pair` field the bench's own run reports broke
+  ZERO checks: `smoke_gui` asserted the page READS
+  `result.pair`, and nothing asserted the server SENDS it. That
+  is this file's own non-fail-first - a mutation that changes a
+  reported field no assertion depends on. Pinned at the decision
+  site in `smoke_dialback`, which already does real runs, and
+  the same mutation now fails two checks. The wrapped-heading
+  trap also bit again in the same hour: `<b>Dial the OUTCOME,
+  not the\n    covariates.</b>` cannot be grepped as a phrase
+  however correctly the page renders.
 
 - **THE TOKEN CAP IS A MEMORY BUDGET, NOT A PRIVACY RULE - AND IT
   WAS COSTING FIDELITY (2026-10-23).** On an 800-patient tidy

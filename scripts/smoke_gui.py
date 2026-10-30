@@ -2171,6 +2171,57 @@ def main():
               and '<span class="glabel p">PLANNED</span>' in html
               and '<span class="glabel n">NEXT</span>' in html
               and "BUILT:" not in html)
+        # ---------- THE KEY/RELEASED PAIR ----------
+        # A dialed run produces TWO files and the arrangement
+        # between them, and for as long as the dials existed the
+        # full-fidelity frame was thrown away - which made the
+        # architecture impossible rather than merely unbuilt.
+        check("the release panel carries the MEASURED design "
+              "rule - dial the OUTCOME, not the covariates - "
+              "with both numbers beside it, because the choice "
+              "between them is a governance decision and should "
+              "be made against numbers",
+              "Dial the OUTCOME, not the covariates." in html
+              and "+2.63" in html and "+0.08" in html)
+        check("...and it says WHY, so a reader can repeat the "
+              "reasoning rather than trusting the table: a "
+              "model routes around one corrupted covariate "
+              "through the others",
+              "routes around one corrupted covariate" in html)
+        _m = html.split("</main>")[0]
+        check("the pair box is INSIDE <main> with its verify "
+              "button - a section appended after </main> renders "
+              "at the foot of the page under the tabs, which no "
+              "content check can see",
+              'id="pairbox"' in _m
+              and "pairVerify()" in _m
+              and 'id="pair-out"' in _m)
+        check("the pair box names all three files, so a key "
+              "nobody knows they have does not become a key "
+              "nobody keeps",
+              "key.csv" in _m and "generated.csv" in _m
+              and "cipher.json" in _m)
+        check("...and states the property the pair rests on: "
+              "every dial is a permutation, so each column's "
+              "own distribution is identical in both files and "
+              "the change is exactly invertible",
+              "exactly invertible" in _m)
+        check("the run's result is READ for the pair and the "
+              "box is shown from it - a panel wired to nothing "
+              "is this repo's named silent-failure class",
+              "pairBox(!!(j.result&&j.result.pair))" in html
+              and "function pairBox(" in html)
+        r = post("/api/pair-verify", {"out": ""})
+        check("/api/pair-verify is routed and refuses an empty "
+              "run directory BY NAME",
+              "error" in r and "run directory" in r["error"])
+        r = post("/api/pair-verify", {"out": str(tmp)})
+        check("...and a directory with no pair comes back NOT "
+              "ok, naming the missing file rather than "
+              "crashing or reporting a vacuous pass",
+              "error" not in r and r.get("ok") is False
+              and "no key.csv" in (r.get("report") or ""))
+
     finally:
         gui.BACKEND_FACTORY = None
         server.shutdown()

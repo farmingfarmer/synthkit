@@ -1609,8 +1609,45 @@ def _latent_work(payload: dict) -> dict:
         _rel = None
     return {"out": out,
             "release": _rel,
+            # THE PAIR, not just the released file. A dialed run
+            # writes key.csv and cipher.json beside
+            # generated.csv, and for as long as the dials
+            # existed the full-fidelity frame was thrown away -
+            # which made the architecture impossible rather
+            # than merely unbuilt. The bench reports whether the
+            # pair is on disk, because a key nobody knows they
+            # have is a key nobody keeps.
+            "pair": bool((Path(out) / "key.csv").exists()
+                         and (Path(out) / "cipher.json").exists()),
             "csv": str(Path(out) / "latent_gen_seed{}.csv".format(
                 payload.get("seed") or 0))}
+
+
+def api_pair_verify(payload: dict) -> dict:
+    """Prove the released file is an exact rearrangement of the
+    key - the one claim that makes a dialed file a legitimate
+    test article rather than damaged data.
+
+    Runs the SAME script a terminal would, so the bench and the
+    command line cannot disagree about whether a pair verifies.
+    """
+    import subprocess
+    import sys as _sys
+    out = (payload.get("out") or "").strip()
+    if not out:
+        return {"error": "give the run directory the generated "
+                         "file was written to."}
+    script = (Path(__file__).resolve().parent.parent / "scripts"
+              / "dialback.py")
+    if not script.exists():
+        return {"error": "scripts/dialback.py is not beside "
+                         "this install - run from the "
+                         "repository checkout."}
+    r = subprocess.run(
+        [_sys.executable, "-u", str(script), "verify", out],
+        capture_output=True, text=True, timeout=900)
+    return {"ok": r.returncode == 0,
+            "report": (r.stdout or "") + (r.stderr or "")}
 
 
 def api_neural(payload: dict) -> dict:
@@ -1800,6 +1837,7 @@ _ROUTES = {
     "/api/explain": lambda payload: __import__(
         "synthkit.explain", fromlist=["x"]).as_json(),
     "/api/duel": api_duel,
+    "/api/pair-verify": api_pair_verify,
     "/api/neural-async": lambda payload: {
         "job": _start_job(api_neural, payload,
                           budget_s=2 * 3600.0)},
@@ -3560,6 +3598,26 @@ textarea:focus,input:focus,select:focus{
     re-dealt, which breaks ITS other relationships too &mdash;
     the run states that collateral rather than hiding it)</span>
       <textarea id="nsuppress" rows="2" placeholder="crown_b~crown_a"></textarea></label>
+    <div class="explain">
+    <b>Dial the OUTCOME, not the covariates.</b> Measured on a fixture whose outcome
+    genuinely reads the dialed column &mdash; skill on our own
+    truth, over rows no model trained on:
+    <table class="jt"><tr><th>what you dial</th><th>skill
+    denied to a vendor who trains on it</th><th>your own
+    recovery error</th></tr>
+    <tr><td>the <b>outcome</b></td><td>+2.63 &nbsp;(0.97 &rarr;
+    &minus;1.66)</td><td><b>exact</b></td></tr>
+    <tr><td>a <b>covariate</b></td><td>+0.08 &nbsp;(0.97 &rarr;
+    0.89)</td><td>0.10 sd</td></tr></table>
+    A model routes around one corrupted covariate through the
+    others, so dialing a covariate buys almost nothing and still
+    costs you accuracy on the way back. Dialing the outcome
+    leaves a vendor nothing to learn, and because their model
+    reads only the covariates &mdash; which stay faithful
+    &mdash; whatever they return about a released row is already
+    the answer for that key row. Nothing needs undoing. Use
+    <code>dialback.py rehearse</code> to measure both numbers on
+    your own data before you choose.</div>
     <label>remove the N strongest relationships automatically
     <span class="hint">(the minimum-shareable control: the most
     extractable patterns go, everything else stays faithful.
@@ -3570,6 +3628,19 @@ textarea:focus,input:focus,select:focus{
     <button class="act ghost" onclick="neuralReview()">Review the output</button>
     <div class="out" id="neural-out">Nothing yet.</div>
     <div class="explain" id="relkey" style="display:none"></div>
+    <div class="explain" id="pairbox" style="display:none">
+    <b>This run wrote a key/released pair.</b>
+    <div class="hint"><code>key.csv</code> is the full-fidelity
+    file you KEEP &mdash; it never leaves.
+    <code>generated.csv</code> is the released one.
+    <code>cipher.json</code> is the arrangement between them.
+    Every dial is a permutation of one column's values across
+    rows, so each column's own distribution is identical in both
+    files and the change is exactly invertible.</div>
+    <button class="act ghost" onclick="pairVerify()">Verify the
+    pair</button>
+    <div class="out" id="pair-out" style="display:none">Nothing
+    yet.</div></div>
   </div>
   <iframe id="neural-frame" sandbox="allow-scripts" style="width:100%;height:900px;border:1px solid var(--rule);border-radius:12px;margin-top:14px;display:none;background:#fff"></iframe>
     <div class="nextup"><span class="lbl">next</span><b>Measure 2 &mdash; Verdict</b><span>Once the file is written, the Verdict station grades it against the original on eight criteria and names anything that missed.</span></div>
@@ -5326,6 +5397,25 @@ function relKey(rel){
     h+='<div class="hint">overall strength retained vs source: '+
       Number(rel.strength_achieved).toFixed(2)+'</div>';
   el.style.display='block';el.innerHTML=h;}
+function pairBox(on){
+  /* A KEY NOBODY KNOWS THEY HAVE IS A KEY NOBODY KEEPS. The
+     pair is the whole architecture - the released file is only
+     half of what the run produced - so its existence is said on
+     the page rather than left to be noticed in a directory. */
+  var el=document.getElementById('pairbox');
+  if(el)el.style.display=on?'block':'none';}
+async function pairVerify(){
+  var o=document.getElementById('pair-out');
+  if(!o)return;
+  o.style.display='block';o.textContent='verifying ...';
+  try{
+    const r=await fetch('/api/pair-verify',{method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({out:nField('nout','fout')})});
+    const j=await r.json();
+    if(j.error){o.textContent='refused: '+j.error;return;}
+    o.textContent=j.report||'(no report)';
+  }catch(e){o.textContent='refused: '+e;}}
 async function nPoll(){
   const o=document.getElementById('neural-out');
   const frame=document.getElementById('neural-frame');
@@ -5346,6 +5436,7 @@ async function nPoll(){
       j.error||j.status);return;}
   if(nMode==='gen'){
     relKey(j.result&&j.result.release);
+    pairBox(!!(j.result&&j.result.pair));
     o.textContent='written in '+Math.round(j.elapsed)+
       's. Now press Review the output.';
     tick('fitsrc');}

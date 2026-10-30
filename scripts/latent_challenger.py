@@ -254,6 +254,12 @@ class LatentGen:
         # answer key, they take a rigged exam only we can grade.
         self.poison_pairs = list(poison_pairs or [])
         self._poison_record = []
+        # the key/released pair - filled by generate() only when
+        # a re-pointing or suppression dial is actually set,
+        # because an ordinary full-fidelity run has no second
+        # file to keep and should not pay for a frame copy
+        self._key_frame = None
+        self._cipher = {}
         # K-AWARE RECONSTRUCTION. Faithful where many patients
         # stand behind the pattern; deliberately BLURRED where
         # fewer than k do. Screening the INPUTS (sub-k levels
@@ -2124,6 +2130,44 @@ class LatentGen:
             frame[child] = vc2.where(vc.notna(), frame[child])
             print("  reorder ran for {}: {} rows, {} "
                   "partner(s)".format(child, m, len(ps)))
+        # THE KEY AND THE CIPHER. Every release control from here
+        # down is a PERMUTATION of one column's values across
+        # rows - re-pointing sorts the column against an invented
+        # score, suppression shuffles it outright - so the
+        # column's own distribution is untouched and the change
+        # is EXACTLY INVERTIBLE given the permutation. That is
+        # the whole basis of the key/released pair: we snapshot
+        # the full-fidelity frame here, record which key row each
+        # released row took its value from, and write both. The
+        # released file is what leaves; the key is what we keep
+        # to read a vendor's answer against.
+        #
+        # DILUTION IS NOT IN HERE AND IS NOT INVERTIBLE - it
+        # blends values rather than moving them, so a diluted
+        # column has no permutation and the cipher cannot and
+        # does not claim one. Said out loud because a cipher
+        # that silently covered three of four controls would be
+        # the read-but-not-used fault in a governance record.
+        _dials_on = bool(self.poison_pairs or self.suppress_pairs)
+        if _dials_on:
+            self._key_frame = frame.copy()
+            self._cipher = {}
+
+        def _record_cipher(col, taken_from):
+            """Compose this permutation onto the column's cipher.
+
+            taken_from[p] = the KEY row whose value released row
+            p now carries. Composed, because a column can be
+            re-pointed and then suppressed and the record has to
+            describe the round trip rather than the last step.
+            """
+            if not _dials_on:
+                return
+            prev = self._cipher.get(col)
+            tf = np.asarray(taken_from, dtype=np.int64)
+            self._cipher[col] = (tf if prev is None
+                                 else np.asarray(prev)[tf])
+
         # POISON RUNS LAST too, before suppression: reorder a
         # named child against its parent to hit a user-chosen
         # rank correlation (which may be negative or entirely
@@ -2150,7 +2194,18 @@ class LatentGen:
                 * rs_rel.normal(0, 1, m)
             srt = np.sort(child[live].to_numpy())
             newv = np.empty(m)
-            newv[z.argsort()] = srt
+            _o = z.argsort()
+            newv[_o] = srt
+            # which key row each released row took its value
+            # from: _o[r] is the live row RECEIVING the r-th
+            # smallest value, _ord[r] is the live row that HELD
+            # it. Unperturbed rows map to themselves.
+            _pos = np.flatnonzero(live.to_numpy())
+            _ord = np.argsort(child[live].to_numpy(),
+                              kind="stable")
+            _tf = np.arange(len(frame))
+            _tf[_pos[_o]] = _pos[_ord]
+            _record_cipher(pb_p, _tf)
             cc = child.copy()
             cc.loc[idx] = newv
             frame[pb_p] = cc.where(child.notna(), frame[pb_p])
@@ -2182,8 +2237,13 @@ class LatentGen:
                       "is a column".format(pa_s, pb_s))
                 continue
             vals_s = frame[child_s].to_numpy().copy()
-            rs_rel.shuffle(vals_s)
-            frame[child_s] = vals_s
+            # permutation() consumes the same draws as shuffle()
+            # and names the arrangement, so the cipher exists at
+            # no cost in output: verified v[perm] == shuffle(v)
+            # on one RNG state before this was written.
+            _perm = rs_rel.permutation(len(vals_s))
+            frame[child_s] = vals_s[_perm]
+            _record_cipher(child_s, _perm)
             print("  suppressed {}~{}: {} fully shuffled - its "
                   "distribution is intact and ALL its "
                   "relationships are gone, stated because a "
@@ -2194,6 +2254,13 @@ class LatentGen:
             # The identity column goes FIRST, and it is invented -
             # S000001 upward - never a real person's id.
             frame.insert(0, self._group_name, pid)
+            if self._key_frame is not None:
+                # the key carries the SAME invented identities,
+                # so a row in one file is the same synthetic
+                # person as that row in the other. Without this
+                # the pair is two unrelated files and no cipher
+                # can relate them.
+                self._key_frame.insert(0, self._group_name, pid)
         return frame
 
     def reconstruction_gap(self, holdout: pd.DataFrame):
@@ -2639,6 +2706,73 @@ def run_support(argv):
           "POSITIVE and the second near zero.".format(
               d_ratio, (on[1] - off[1]) / (off[1] or 1e-9)))
     return 0
+
+
+def write_key_pair(gen_engine, outdir):
+    """Write the KEY file and the CIPHER beside the released one.
+
+    THE RELEASED FILE IS NOT THE ONLY THING THE RUN PRODUCED.
+    Every release control is a permutation of one column's values
+    across rows, so the full-fidelity frame still exists at the
+    moment the dials are applied - and for as long as the dials
+    existed it was thrown away. That made the architecture
+    impossible rather than merely unbuilt: you cannot read a
+    vendor's answer back against a reference you did not keep.
+
+    Three files now:
+      key.csv        the full-fidelity k-anonymous synthetic -
+                     what we keep, never shared
+      generated.csv  the released file - row-aligned to the key,
+                     same invented identities, same marginals
+      cipher.json    which key row each released row took each
+                     perturbed value from
+
+    Returns the cipher dict, or None when no dial was set - a run
+    with nothing re-pointed has no second file and says so rather
+    than writing an empty record that reads as a lost one.
+    """
+    kf = getattr(gen_engine, "_key_frame", None)
+    if kf is None:
+        return None
+    ciph = {c: np.asarray(v) for c, v in
+            (getattr(gen_engine, "_cipher", {}) or {}).items()}
+    outdir = Path(outdir)
+    kf.to_csv(outdir / "key.csv", index=False)
+    rec = {
+        "what_this_is":
+            "the exact arrangement that turns key.csv into "
+            "generated.csv. taken_from[p] = the key row whose "
+            "value released row p carries, for that column. "
+            "Every entry is a PERMUTATION, so each column's own "
+            "distribution is identical in both files and the "
+            "change is exactly invertible.",
+        "rows": int(len(kf)),
+        "key_file": "key.csv",
+        "released_file": "generated.csv",
+        "columns": {c: [int(x) for x in v]
+                    for c, v in ciph.items()},
+        "repointed": list(getattr(
+            gen_engine, "_poison_record", []) or []),
+        "suppressed": ["{}~{}".format(x, y) for x, y in
+                       (getattr(gen_engine, "suppress_pairs", [])
+                        or [])],
+        "not_covered":
+            "DILUTION (--release-strength) is NOT in this "
+            "cipher and is not invertible: it blends values "
+            "toward the column mean rather than moving them "
+            "between rows, so a diluted column has no "
+            "permutation. A run that dilutes AND re-points can "
+            "only have the re-pointing reversed.",
+    }
+    import json
+    (outdir / "cipher.json").write_text(
+        json.dumps(rec, indent=2), encoding="utf-8")
+    print("  wrote key.csv and cipher.json - the key is the "
+          "full-fidelity file we KEEP, generated.csv is the "
+          "released one, and the cipher is the arrangement "
+          "between them ({} column(s) recorded)".format(
+              len(ciph)))
+    return rec
 
 
 def write_run_artifacts(src, gen, group_by, outdir,
@@ -3232,6 +3366,7 @@ def run_csv(argv):
                           "and generated.csv - the Verdict "
                           "station and the Dashboard can read "
                           "this directory now")
+                    write_key_pair(g, outd)
                 except Exception as e:
                     print("  could NOT write the bench "
                           "artifacts: {} - the review page still "
