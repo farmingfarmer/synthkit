@@ -10,6 +10,7 @@
     python scripts/peek.py RUNDIR centre
     python scripts/peek.py RUNDIR surfaces
     python scripts/peek.py RUNDIR flat
+    python scripts/peek.py RUNDIR sizes SRC.csv
 
 WHY THIS EXISTS. Seven diagnoses in a row were fetched with pasted
 python -c one-liners a hundred characters wide, on a terminal that
@@ -414,6 +415,112 @@ def surfaces_view(run):
 
 
 
+def sizes_view(run, src):
+    """Which numeric columns TRACK a set's size, and whether the
+    engine holds them to it.
+
+    The real extract's worst drift row reads
+    `procedure_count <- procedures__n` at source 1.00, generated
+    0.38 - a pair whose source correlation is PERFECT. The engine
+    copies a count from its set when the two are EQUAL on >=99% of
+    rows, so a column that tracks the size perfectly WITHOUT
+    equalling it (a quantity rather than a token count, or a count
+    taken before de-duplication) is never detected and is drawn a
+    second time. Two independent draws of one quantity agree only
+    by chance.
+
+    Correlation and equality are not the same question, and the
+    drift table asks one while the enforcement asks the other -
+    which is exactly the kind of gap this file exists to close.
+    The verdict per pair says which of the two mechanisms applies,
+    so the next fix is chosen from a measurement rather than from
+    a guess.
+
+    Needs the SOURCE as well as the run: the question is whether
+    something true of the source survived generation."""
+    import pandas as pd
+    sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+    from synthkit import sets as _sets
+
+    gen_p = Path(run) / "generated.csv"
+    if not gen_p.exists():
+        sys.exit("no generated.csv in {}".format(run))
+    if not src or not Path(src).exists():
+        sys.exit("sizes needs the source csv: peek.py RUN sizes SRC.csv")
+    # keep_default_na=False is how the pipeline reads a csv; the
+    # default turns a present-and-empty set into NaN, which is a
+    # different dataset.
+    sdf = pd.read_csv(src, keep_default_na=False, low_memory=False)
+    gdf = pd.read_csv(str(gen_p), keep_default_na=False,
+                      low_memory=False)
+
+    setcols = [c for c in sdf.columns
+               if c in gdf.columns and _sets.looks_like_set(sdf[c])]
+    print("set columns: {}".format(len(setcols)))
+    if not setcols:
+        print("  none - nothing to check")
+        return
+    rows = []
+    for sc in setcols:
+        sn = _sets.sizes_of(sdf[sc], ";")
+        gn = _sets.sizes_of(gdf[sc], ";")
+        for c in sdf.columns:
+            if c == sc or c not in gdf.columns:
+                continue
+            sv = pd.to_numeric(sdf[c], errors="coerce")
+            gv = pd.to_numeric(gdf[c], errors="coerce")
+            sm = sn.notna() & sv.notna()
+            if int(sm.sum()) < 100:
+                continue
+            try:
+                sr = float(sv[sm].corr(sn[sm]))
+            except Exception:
+                continue
+            if sr != sr or abs(sr) < 0.9:
+                continue
+            seq = float((sv[sm] == sn[sm]).mean())
+            gm = gn.notna() & gv.notna()
+            gr = (float(gv[gm].corr(gn[gm]))
+                  if int(gm.sum()) >= 10 else float("nan"))
+            geq = (float((gv[gm] == gn[gm]).mean())
+                   if int(gm.sum()) >= 10 else 0.0)
+            if seq >= 0.99 and geq >= 0.99:
+                verdict = "IDENTITY KEPT"
+            elif seq >= 0.99:
+                verdict = "IDENTITY LOST"
+            else:
+                verdict = "TRACKS, NOT EQUAL"
+            rows.append((verdict, c, sc, seq, sr, geq, gr))
+    if not rows:
+        print("  no numeric column tracks a set size at |r| >= 0.9")
+        return
+    order = {"IDENTITY LOST": 0, "TRACKS, NOT EQUAL": 1,
+             "IDENTITY KEPT": 2}
+    rows.sort(key=lambda r: (order.get(r[0], 3), -abs(r[4])))
+    print("")
+    print("  {:<18} {:<26} {:<14} {:>7} {:>7} {:>7} {:>7}".format(
+        "verdict", "numeric column", "set", "src=", "src r",
+        "gen=", "gen r"))
+    for v, c, sc, seq, sr, geq, gr in rows:
+        print("  {:<18} {:<26} {:<14} {:>6.0f}% {:>7.2f} "
+              "{:>6.0f}% {:>7.2f}".format(
+                  v, c[:26], sc[:14], seq * 100, sr, geq * 100, gr))
+    print("")
+    nlost = sum(1 for r in rows if r[0] == "IDENTITY LOST")
+    ntrack = sum(1 for r in rows if r[0] == "TRACKS, NOT EQUAL")
+    print("  {} identity LOST, {} track-but-not-equal, {} kept"
+          .format(nlost, ntrack,
+                  sum(1 for r in rows if r[0] == "IDENTITY KEPT")))
+    if nlost:
+        print("  IDENTITY LOST means the engine DETECTED an equality "
+              "and did not hold it - an enforcement fault.")
+    if ntrack:
+        print("  TRACKS-BUT-NOT-EQUAL means the pair is perfectly "
+              "related and NOT an equality, so the copy rule never "
+              "fires: it is drawn twice. That is a DETECTION gap, "
+              "and the fix is an affine rule, not a stricter one.")
+
+
 def flat_view(run):
     """COLUMNS THE CONTRACT SAYS VARY AND THE FILE EMITS CONSTANT.
 
@@ -551,6 +658,8 @@ def main():
         surfaces_view(run)
     elif what == "flat":
         flat_view(run)
+    elif what == "sizes":
+        sizes_view(run, arg)
     else:
         print(__doc__)
         return 2

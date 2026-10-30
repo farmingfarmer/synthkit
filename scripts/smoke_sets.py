@@ -1446,6 +1446,69 @@ def main():
             [sys.executable, "scripts/peek.py", str(_d18), "empty"],
             capture_output=True, text=True, cwd=str(ROOT))
         _o18 = _r18.stdout or ""
+    # `peek sizes` SEPARATES TWO MECHANISMS THAT LOOK IDENTICAL IN
+    # THE DRIFT TABLE. The real extract's worst row reads
+    # `procedure_count <- procedures__n` at source 1.00, generated
+    # 0.38 - a PERFECT source correlation. The engine copies a count
+    # from its set only when the two are EQUAL on >=99% of rows, so a
+    # column that tracks the size perfectly WITHOUT equalling it is
+    # never detected and gets drawn a second time. Correlation and
+    # equality are different questions and the drift table asks one
+    # while the enforcement asks the other. The fixture carries BOTH
+    # shapes so the view has to tell them apart rather than reporting
+    # one verdict for everything.
+    import subprocess as _sp2
+    import numpy as _np2
+    import pandas as _pd2
+    with tempfile.TemporaryDirectory() as _ts:
+        _ds = Path(_ts)
+        _rg = _np2.random.default_rng(3)
+        _n2 = 1200
+        _tk = ["t{:02d}".format(i) for i in range(12)]
+        _ss, _cc, _qq = [], [], []
+        for _ in range(_n2):
+            if _rg.random() < 0.45:
+                _ss.append("");  _cc.append(0);  _qq.append(0)
+            else:
+                _k2 = int(_rg.integers(1, 5))
+                _ss.append(";".join(
+                    _rg.choice(_tk, size=_k2, replace=False)))
+                _cc.append(_k2)        # EQUAL to the size
+                _qq.append(_k2 * 3)    # tracks perfectly, never equal
+        _src2 = _pd2.DataFrame({
+            "person_id": _np2.repeat(_np2.arange(_n2 // 6), 6),
+            "things": _ss, "thing_count": _cc,
+            "thing_quantity": _qq,
+            "age": _rg.normal(50, 9, _n2).round(1)})
+        _src2.to_csv(_ds / "src.csv", index=False)
+        # generated: the equality held, the quantity drawn again -
+        # exactly the shape the real extract shows
+        _g2 = _src2.copy()
+        _g2["thing_quantity"] = _rg.permutation(
+            _g2["thing_quantity"].values)
+        _g2.to_csv(_ds / "generated.csv", index=False)
+        _o2 = _sp2.run(
+            [sys.executable, "scripts/peek.py", str(_ds), "sizes",
+             str(_ds / "src.csv")],
+            capture_output=True, text=True).stdout
+    check("`peek sizes` separates an equality the engine HELD from "
+          "a pair that merely tracks the size - the drift table "
+          "cannot tell them apart and the fix differs",
+          "IDENTITY KEPT" in _o2
+          and "TRACKS, NOT EQUAL" in _o2
+          and "thing_count" in _o2
+          and "thing_quantity" in _o2)
+    check("...and it names the DETECTION gap for the tracking pair, "
+          "because a stricter equality rule would not catch it",
+          "drawn twice" in _o2 and "affine rule" in _o2)
+    check("...and the two verdicts land on the RIGHT columns - the "
+          "count is the equality, the quantity is the tracker",
+          any(l.strip().startswith("IDENTITY KEPT")
+              and "thing_count" in l for l in _o2.splitlines())
+          and any(l.strip().startswith("TRACKS, NOT EQUAL")
+                  and "thing_quantity" in l
+                  for l in _o2.splitlines()))
+
     check("`peek empty` reports the published empty share against the "
           "generated one",
           "published EMPTY in source 0.300" in _o18
