@@ -198,6 +198,26 @@ def _mixture(X, n_components, seed, sd_fallback):
                            random_state=seed).fit(X)
 
 
+# A column present on only part of its rows is carried by neither
+# tier: too dense for the k-banded sparse path (under 5%), too
+# sparse for the latent to hold a weak coupling through. The real
+# extract's only INVERTED pair sat at 29% presence. Couplings on
+# such columns are enforced by the same joint rearrangement the
+# sparse tier uses - it cannot move a marginal, so widening the
+# gate risks ordering, never distribution.
+PARTIAL_PRESENCE = 0.75
+# ENFORCE WHAT YOU ARE GRADED ON. The gate counts a pair as
+# related when the SOURCE reaches 0.1, and calls a sign flip on
+# such a pair INVERTED - its one absolute criterion. This tier
+# enforced only couplings at 0.25 and above, so a real but weak
+# relationship sat in the gap between the two numbers: the
+# extract's only inversion is a source +0.105 that generated
+# -0.110. At 16,322 both-present rows a correlation of 0.105 has
+# a standard error near 0.008, so it is a genuine effect and not
+# noise to be shrugged at. Matched to the gate's own cut.
+COUPLING_MIN = 0.10
+
+
 class LatentGen:
     def __init__(self, k: int = K, bottleneck: int = None,
                  hidden: int = None, seed: int = 0,
@@ -1119,9 +1139,17 @@ class LatentGen:
         # without the structure publishes nothing and the tier
         # stays inert.
         self._sparse_couplings = []
+        _presence = {}
+        for it in self.plan:
+            if it[0] == "num" and it[1] in df.columns:
+                _presence[it[1]] = float(
+                    pd.to_numeric(df[it[1]],
+                                  errors="coerce").notna().mean())
         _sparse_cols = [it[1] for it in self.plan
                         if it[0] == "num"
-                        and it[4][6] is not None]
+                        and (it[4][6] is not None
+                             or _presence.get(it[1], 1.0)
+                             < PARTIAL_PRESENCE)]
         _owned = set(_claimed) | _near_children
         for child in _sparse_cols:
             if child in _owned:
@@ -1145,7 +1173,8 @@ class LatentGen:
                     continue
                 rho = float(cv[both].corr(pv[both],
                                           method="spearman"))
-                if not np.isfinite(rho) or abs(rho) < 0.25:
+                if not np.isfinite(rho) or \
+                        abs(rho) < COUPLING_MIN:
                     continue
                 cands.append((abs(rho), pa, rho))
             cands.sort(reverse=True)

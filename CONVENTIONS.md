@@ -4,7 +4,7 @@ Synthetic clinical data generator and model-evaluation instrument. Core rule: le
 
 ## Verify before claiming
 
-- Run `python scripts/run_all_smokes.py` before claiming anything works. Expect **81 suites, 2419 checks**, ALL GREEN **on a checkout** (measured 2026-10-29). Off a zipball extract - which is what the data machine runs - nine checks in `smoke_buildid` need git to test the archive path and report SKIPPED without it, so the expected total there is NINE LOWER; that delta was measured when it was found, the current zipball total has not been re-run, and a total nobody ran is not a number to quote. Do not quote the checkout number to the data machine; that is how a correct run gets read as a failure.
+- Run `python scripts/run_all_smokes.py` before claiming anything works. Expect **81 suites, 2436 checks**, ALL GREEN **on a checkout** (measured 2026-10-29). Off a zipball extract - which is what the data machine runs - nine checks in `smoke_buildid` need git to test the archive path and report SKIPPED without it, so the expected total there is NINE LOWER; that delta was measured when it was found, the current zipball total has not been re-run, and a total nobody ran is not a number to quote. Do not quote the checkout number to the data machine; that is how a correct run gets read as a failure.
 - **THE DEVELOPMENT MACHINE WAS BEHIND THE DATA MACHINE, and that is
   how a green suite here failed there.** Dev was on Python 3.10 with
   pandas 2.3; the data machine installs fresh and got pandas 3.0.5,
@@ -3336,6 +3336,70 @@ what follows is what came out wrong anyway.
   a literal (`x[:4] == "FAIL"`), print a word, and cross-check
   against the success marker - the mismatch between the two is
   what exposed it.
+
+- **TWO FIDELITY TIERS, BOTH AIMED FROM A MEASUREMENT RATHER THAN
+  A GUESS (2026-10-29 night).** The deliverable's gate read close
+  120/137 = 87.6% against an 87.9% bar and INVERTED 1 - M0 NOT MET.
+  Both failures were given coordinates before anything was changed.
+- **A COUNT THAT TRACKS A SIZE WITHOUT EQUALLING IT IS DRAWN
+  TWICE.** `peek.py RUN sizes SRC.csv` on the real extract:
+  `condition_count` tracks `len(conditions)` at rank **0.95** while
+  EQUAL on only **37%** of rows - a count taken before
+  de-duplication - so the copy rule, which asks about EQUALITY,
+  never fires and the generated pair reads **0.36**. The drift
+  table asks about CORRELATION and the enforcement asks about
+  EQUALITY, and on this pair those disagree. A fixture at the
+  other shape (81% empty, count equal to the length) does NOT
+  reproduce it - detected and enforced exactly, corr 1.0000 - so
+  the mechanism works and the gap is DETECTION. Copying would be
+  wrong here (these columns genuinely differ from the size), so
+  the coupling is landed by REARRANGEMENT, which cannot move a
+  marginal because it is a permutation. Paired, three seeds:
+  src 0.867/0.873/0.872 -> off 0.813/0.814/0.817 -> on
+  0.864/0.867/0.873, marginals identical between arms.
+- **AND THE ENGINE WAS NOT ENFORCING WHAT THE GATE GRADES.** The
+  gate counts a pair as related when the SOURCE reaches 0.1 and
+  calls a sign flip on one INVERTED - its one absolute criterion.
+  The conditional-coupling tier enforced only |rho| >= 0.25 AND
+  only on columns whose marginal rides the k-banded grid
+  (presence under 5%). The extract's single inversion is
+  `body_mass_index_measured <- active_drug_count`: source
+  **+0.105**, generated **-0.110**, child present on **29%** of
+  rows - below the strength floor AND above the sparsity gate, in
+  the gap between both. At 16,322 both-present rows a correlation
+  of 0.105 has a standard error near 0.008, so it is a real
+  effect and not noise to shrug at. Reproduced from those
+  coordinates: the coupling decays toward zero (+0.118 -> +0.046,
+  +0.147 -> -0.010) and a weak coupling attenuated PAST zero
+  reads as an inversion - the rank-of-noise class, again.
+  Threshold matched to the gate's own cut and the tier widened to
+  partially-measured columns; the joint solve is untouched, so a
+  column with several partners still lands them together.
+  Measured by the GATE'S OWN RULE (only pairs the source relates
+  at >= 0.1 count), twelve seeds: **1 of 8 graded -> 0 of 8**.
+- **AND THE NEIGHBOURING RELATIONSHIPS ARE BIT-IDENTICAL.** A fix
+  that lands one weak pair and degrades three strong ones is
+  worse than no fix, so the same fixture carries couplings at
+  three strengths plus an unrelated column. strong +0.600 ->
+  +0.641 BOTH arms, medium +0.303 -> +0.320 BOTH arms, unrelated
+  +0.005 -> +0.023 BOTH arms; only `weak` moved, -0.025 -> +0.001.
+  The change acts only where its mechanism lives.
+- **PREDICTION FOR THE NEXT REAL RUN, ON RECORD BEFORE IT RUNS.**
+  (1) INVERTED 1 -> 0, and the narration must show `reorder ran
+  for body_mass_index_measured` with its row count - a tier that
+  cannot prove it executed has not been deployed, which cost two
+  round trips before. (2) The narration must show `condition_count
+  tracks len(conditions) at rank +0.95 ... enforced by
+  rearrangement`, and the `condition_count <- conditions__n` drift
+  row should close most of its 0.94 -> 0.45 gap. (3) close should
+  move UP; whether it clears 87.9% is NOT claimed - it needs
+  roughly one net pair and the drift list holds other mechanisms.
+  (4) NOT claimed at all: shapes tracked (7/8), interaction
+  surfaces (0/5, ring-parked and scope-limited for this engine),
+  dynamics tracked (17/87, structural - the engine is row-level
+  and models no patient trajectory). Nothing tonight touches
+  those, and a fix that cannot name what it does NOT address
+  invites the wrong conclusion from whatever comes back.
 
 ## Talking to the data machine
 

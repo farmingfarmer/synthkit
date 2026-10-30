@@ -32,8 +32,8 @@ def check(name, ok):
 
 
 def main():
-    from latent_challenger import (K, LatentGen, _k_clip,
-                                   _split_patients)
+    from latent_challenger import (K, COUPLING_MIN, LatentGen,
+                                   _k_clip, _split_patients)
 
     r = np.random.RandomState(3)
     n = 1200
@@ -2164,6 +2164,67 @@ def main():
           "as one that never fires",
           not any(c == "condition_count" for c, _s, _p, _r in
                   getattr(_g8, "_size_couplings", [])))
+
+    # ENFORCE WHAT YOU ARE GRADED ON. The gate counts a pair as
+    # related when the SOURCE reaches 0.1 and calls a sign flip on
+    # one INVERTED - its single absolute criterion. The coupling
+    # tier enforced only 0.25 and above, so a real but weak
+    # relationship sat in the gap between the two numbers: the
+    # real extract's ONLY inversion is
+    # `body_mass_index_measured <- active_drug_count` at source
+    # +0.105, generated -0.110, on a child present on 29% of rows.
+    # Reproduced from those coordinates, the coupling decays
+    # toward zero and a weak coupling attenuated PAST zero reads
+    # as an inversion.
+    from synthkit import pipeline as _pl9
+    import inspect as _insp9
+    _src9 = _insp9.getsource(_pl9)
+    check("the engine enforces couplings at least as weak as the "
+          "ones the GATE grades - a pair the gate can call "
+          "INVERTED must be one the engine tried to hold",
+          COUPLING_MIN <= 0.1 + 1e-9
+          and 'abs(r["source"]) >= 0.1' in _src9)
+    _rgp = _np9.random.default_rng(5)
+    _npat, _vis = 200, 10
+    _nn = _npat * _vis
+    _drug = _rgp.poisson(3.0, _nn) + 1
+    _dz = (_drug - _drug.mean()) / (_drug.std() or 1)
+
+    def _cpl(rho, scale, base, rg):
+        return base + scale * (rho * _dz
+                               + _np9.sqrt(1 - rho * rho)
+                               * rg.normal(0, 1, _nn))
+
+    _pres = _rgp.random(_nn) < 0.294
+    _dfp = _pd9.DataFrame({
+        "person_id": _np9.repeat(
+            ["P{:04d}".format(i) for i in range(_npat)], _vis),
+        "active_drug_count": _drug,
+        "strong": _cpl(0.60, 4.0, 30, _rgp).round(2),
+        "weak": _np9.where(_pres,
+                           _cpl(0.20, 4.0, 27, _rgp).round(2),
+                           _np9.nan),
+        "unrelated": _rgp.normal(50, 7, _nn).round(2)})
+    _mw = _dfp["weak"].notna()
+    _rw = float(_dfp.loc[_mw, "weak"].corr(
+        _dfp.loc[_mw, "active_drug_count"], method="spearman"))
+    check("the fixture carries the MEASURED shape - a weak but "
+          "real coupling on a PARTIALLY measured column, and the "
+          "coupling sits BETWEEN the old 0.25 floor and the new "
+          "one, or the check could not tell the two apart",
+          0.2 < float(_dfp["weak"].notna().mean()) < 0.45
+          and COUPLING_MIN < _rw < 0.25)
+    _gp = LatentGen(seed=5).fit(_dfp, "person_id")
+    _couples = [c for c, _ps in
+                getattr(_gp, "_sparse_couplings", [])]
+    check("...and the tier now REACHES that column, where a "
+          "0.25 floor left it in the gap between what the gate "
+          "grades and what the engine enforces",
+          "weak" in _couples)
+    check("...and it stays away from a column with no coupling "
+          "to find - a tier that fires on everything is as bad "
+          "as one that never fires",
+          "unrelated" not in _couples)
 
     if FAIL:
         print("{} of {} checks failed.".format(FAIL, PASS + FAIL))
