@@ -3401,6 +3401,65 @@ what follows is what came out wrong anyway.
   those, and a fix that cannot name what it does NOT address
   invites the wrong conclusion from whatever comes back.
 
+- **THE PREDICTION SCORED 1 OF 3, AND THE REAL RUN CAUGHT MY OWN
+  FIX (2026-10-29 night, runs run_night and run_night2 on the
+  800-patient extract).** All three arms below are the same
+  source, same settings (k 10, token_cap 800, person_id); only
+  the code differs. Both new arms are SEED 0; the deliverable's
+  seed is unknown, which is the limit on every comparison here.
+
+      criterion        deliverable      single-partner   joint
+      direction kept   134/137 97.8% P  122/130 93.8% F  122/130 93.8% F
+      close            120/137 87.6% F  117/130 90.0% P  115/130 88.5% P
+      inverted         1 FAIL           1 FAIL           1 FAIL
+      coverage         42/42 P          42/42 P          42/42 P
+
+- **WHAT IS PROVEN: the size-coupling MECHANISM, on real data.**
+  `peek sizes` on the new output reads `condition_count <-
+  conditions` gen r **0.36 -> 0.73** against a source 0.95, and
+  the run's own narration names FIVE couplings the engine had
+  been drawing twice - including `procedure_count tracks
+  len(procedures) at rank +1.00`, which is the dashboard's WORST
+  drift row (1.00 -> 0.38). The tier fires, and it is measured by
+  OUTCOME rather than by a log line.
+- **WHAT IS NOT PROVEN: that the gate is net better.** close went
+  FAIL -> PASS on both new arms and direction kept went PASS ->
+  FAIL on both. One criterion traded for another is not an
+  improvement, and the denominator moved 137 -> 130 in both arms,
+  so the percentages are not directly comparable - in ABSOLUTE
+  terms close fell 120 -> 117 -> 115 while the denominator fell
+  seven. **M0 is NOT MET in any of the three.**
+- **AND THE REAL RUN FOUND A DEFECT IN MY OWN TIER THAT THE
+  FIXTURE HAD HIDDEN.** A rearrangement that targets ONE coupling
+  randomises every other relationship the column has, and a count
+  column is a HUB. On a fixture where the count also drives span
+  and procedure: control (no tier) size 0.869 -> 0.858 with span
+  0.537 -> 0.566; single-partner size 0.869 -> 0.869 with span
+  0.537 -> **0.361**. The control is the damning column - there
+  the engine ALREADY lands the size coupling unaided, so the tier
+  bought nothing and dragged two relationships down. The first
+  probe showed a gain only because its fixture had no competing
+  partners: locally right, globally worse, the greedy-cut lesson
+  again. The joint solve (b = R^-1 rho, which the sparse tier has
+  used since it was written) restores span to 0.527 and proc to
+  0.420 while still landing the size coupling.
+- **BUT THE JOINT FIX DID NOT MOVE THE REAL GATE.** Paired at seed
+  0, joint against single-partner: direction kept IDENTICAL at
+  122/130, close 117 -> 115. The fixture damage was real and the
+  fix removed it; the real extract's direction drop is therefore
+  NOT that damage, and is still unattributed - it may be the
+  lowered COUPLING_MIN, the size tier, or the seed. **The missing
+  arm is the OLD code at seed 0**, which would separate code from
+  seed in one run and was not completed tonight.
+- **PREDICTION SCORING, honestly.** (1) INVERTED 1 -> 0: **FAILED**
+  - it is still 1 on both arms. (2) The narration must name the
+  couplings: **HELD** - five of them, by name, with their ranks.
+  (3) close moves up, clearing not claimed: **HELD** - it moved up
+  and did clear, but at the cost of direction, which the
+  prediction did not anticipate and should have. The thing a
+  prediction is FOR is catching this: a fix aimed at one
+  criterion must say what it might cost the others.
+
 ## Talking to the data machine
 
 - **A RAW GITHUB FETCH SERVED THE PRE-PUSH FILE AND REPORTED
