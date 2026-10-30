@@ -198,26 +198,6 @@ def _mixture(X, n_components, seed, sd_fallback):
                            random_state=seed).fit(X)
 
 
-# A column present on only part of its rows is carried by neither
-# tier: too dense for the k-banded sparse path (under 5%), too
-# sparse for the latent to hold a weak coupling through. The real
-# extract's only INVERTED pair sat at 29% presence. Couplings on
-# such columns are enforced by the same joint rearrangement the
-# sparse tier uses - it cannot move a marginal, so widening the
-# gate risks ordering, never distribution.
-PARTIAL_PRESENCE = 0.75
-# ENFORCE WHAT YOU ARE GRADED ON. The gate counts a pair as
-# related when the SOURCE reaches 0.1, and calls a sign flip on
-# such a pair INVERTED - its one absolute criterion. This tier
-# enforced only couplings at 0.25 and above, so a real but weak
-# relationship sat in the gap between the two numbers: the
-# extract's only inversion is a source +0.105 that generated
-# -0.110. At 16,322 both-present rows a correlation of 0.105 has
-# a standard error near 0.008, so it is a genuine effect and not
-# noise to be shrugged at. Matched to the gate's own cut.
-COUPLING_MIN = 0.10
-
-
 class LatentGen:
     def __init__(self, k: int = K, bottleneck: int = None,
                  hidden: int = None, seed: int = 0,
@@ -698,80 +678,6 @@ class LatentGen:
                           "generated column will be COPIED from "
                           "the set, not drawn again"
                           .format(jt[1], it[1]))
-        # A COUNT THAT TRACKS A SET'S SIZE WITHOUT EQUALLING IT
-        # IS DRAWN TWICE, AND NOTHING ABOVE CATCHES IT. The copy
-        # rule asks about EQUALITY; the gate's drift table asks
-        # about CORRELATION, and on the real extract those
-        # disagree: `condition_count` tracks `conditions` at
-        # rank 0.95 while being EQUAL on only 37% of rows - a
-        # count taken before de-duplication - so no identity is
-        # detected, the column is decoded independently, and the
-        # generated pair reads 0.36. Measured with
-        # `peek.py RUN sizes SRC.csv`, which separates this from
-        # the enforcement fault it looks identical to.
-        #
-        # Copying would be WRONG here: these columns genuinely
-        # differ from the size, and overwriting would destroy
-        # their own marginal. Rearrangement is the honest tool -
-        # the generated values keep their exact multiset and only
-        # their ARRANGEMENT changes, which is the same property
-        # that makes the cyclic sweeps and the sparse tier safe.
-        self._size_couplings = []
-        _already = set(c for c, _s, _p in self._size_identities)
-        for it in self.plan:
-            if it[0] != "set":
-                continue
-            sep2 = it[3][0]
-            tn = sets.sizes_of(df[it[1]], sep2)
-            for jt in self.plan:
-                if jt[0] != "num" or jt[1] in _already:
-                    continue
-                cv2 = pd.to_numeric(df[jt[1]], errors="coerce")
-                bo = tn.notna() & cv2.notna()
-                if int(bo.sum()) < 200:
-                    continue
-                # k-screened like every published number here:
-                # the coupling must stand on at least k patients
-                if len(set(gid[bo.to_numpy()])) < self.k:
-                    continue
-                rho2 = float(cv2[bo].corr(tn[bo],
-                                          method="spearman"))
-                if not np.isfinite(rho2) or abs(rho2) < 0.5:
-                    continue
-                # THE CHILD'S OTHER PARTNERS COME WITH IT. A
-                # rearrangement that targets ONE coupling
-                # randomises every other relationship the column
-                # has, and a count column is a HUB. Measured on a
-                # fixture where the count also drives span and
-                # procedure: targeting the size alone landed it
-                # (0.869 -> 0.869) and dragged span 0.537 -> 0.361
-                # and proc 0.419 -> 0.301, while the control -
-                # no tier at all - held both. The gate saw the
-                # same shape on the real extract: close up,
-                # direction kept DOWN. Same lesson as the
-                # token-quota conditioners: one partner
-                # under-covers.
-                _others = []
-                for kt in self.plan:
-                    if kt[0] != "num" or kt[1] == jt[1]:
-                        continue
-                    ov = pd.to_numeric(df[kt[1]],
-                                       errors="coerce")
-                    ob = ov.notna() & cv2.notna()
-                    if int(ob.sum()) < 200:
-                        continue
-                    orho = float(cv2[ob].corr(ov[ob],
-                                              method="spearman"))
-                    if not np.isfinite(orho) or \
-                            abs(orho) < COUPLING_MIN:
-                        continue
-                    _others.append((kt[1], orho))
-                self._size_couplings.append(
-                    (jt[1], it[1], sep2, rho2, _others))
-                print("  {} tracks len({}) at rank {:+.2f} "
-                      "without equalling it: enforced by "
-                      "rearrangement at generation, marginal "
-                      "untouched".format(jt[1], it[1], rho2))
         # A LINEAR IDENTITY IS THE SIZE IDENTITY ONE LEVEL UP.
         # mean_arterial_pressure IS (systolic + 2*diastolic)/3,
         # and age_at_visit IS the visit year minus year_of_birth
@@ -1167,17 +1073,9 @@ class LatentGen:
         # without the structure publishes nothing and the tier
         # stays inert.
         self._sparse_couplings = []
-        _presence = {}
-        for it in self.plan:
-            if it[0] == "num" and it[1] in df.columns:
-                _presence[it[1]] = float(
-                    pd.to_numeric(df[it[1]],
-                                  errors="coerce").notna().mean())
         _sparse_cols = [it[1] for it in self.plan
                         if it[0] == "num"
-                        and (it[4][6] is not None
-                             or _presence.get(it[1], 1.0)
-                             < PARTIAL_PRESENCE)]
+                        and it[4][6] is not None]
         _owned = set(_claimed) | _near_children
         for child in _sparse_cols:
             if child in _owned:
@@ -1201,8 +1099,7 @@ class LatentGen:
                     continue
                 rho = float(cv[both].corr(pv[both],
                                           method="spearman"))
-                if not np.isfinite(rho) or \
-                        abs(rho) < COUPLING_MIN:
+                if not np.isfinite(rho) or abs(rho) < 0.25:
                     continue
                 cands.append((abs(rho), pa, rho))
             cands.sort(reverse=True)
@@ -2080,74 +1977,6 @@ class LatentGen:
             if cnt_c in frame.columns and set_c in frame.columns:
                 frame[cnt_c] = sets.sizes_of(
                     frame[set_c], sep_).astype(float)
-        # A COUNT THAT TRACKS A SIZE WITHOUT EQUALLING IT: land
-        # the published rank correlation by REARRANGEMENT. Runs
-        # after the copies above so it can never undo one - a
-        # column that IS the size was already overwritten and is
-        # excluded from this list at fit. The generated values
-        # keep their exact multiset; only their order changes,
-        # so the marginal this engine worked to get right cannot
-        # drift.
-        for cnt_c, set_c, sep_, rho_t, _oth in getattr(
-                self, "_size_couplings", []):
-            if cnt_c not in frame.columns or \
-                    set_c not in frame.columns:
-                continue
-            vc3 = pd.to_numeric(frame[cnt_c], errors="coerce")
-            nz = sets.sizes_of(frame[set_c], sep_)
-            live3 = vc3.notna() & nz.notna()
-            m3 = int(live3.sum())
-            if m3 < 8:
-                print("  size reorder SKIPPED for {}: {} usable "
-                      "rows".format(cnt_c, m3))
-                continue
-            # THE SAME JOINT SOLVE THE SPARSE TIER USES: the
-            # set size is one partner among the column's others,
-            # and b = R^-1 rho lands them together instead of
-            # trading one for the rest.
-            _pz = [((nz[live3].rank(method="average").to_numpy()))]
-            _pr = [float(rho_t)]
-            for _oc, _orh in (_oth or []):
-                if _oc not in frame.columns:
-                    continue
-                _ov = pd.to_numeric(frame[_oc],
-                                    errors="coerce")[live3]
-                _om = _ov.notna()
-                if int(_om.sum()) < 2:
-                    continue
-                _z = np.zeros(m3)
-                _rk = _ov[_om].rank(method="average").to_numpy()
-                _z[_om.to_numpy()] = (
-                    (_rk - _rk.mean()) / (_rk.std() or 1.0))
-                _pz.append(_z)
-                _pr.append(float(_orh))
-            _pz[0] = ((_pz[0] - _pz[0].mean())
-                      / (_pz[0].std() or 1.0))
-            P3 = np.column_stack(_pz)
-            R3 = np.atleast_2d(np.corrcoef(P3, rowvar=False))
-            try:
-                b3v = np.linalg.solve(
-                    R3 + 1e-3 * np.eye(len(_pr)), np.array(_pr))
-            except Exception:
-                b3v = np.zeros(len(_pr))
-                b3v[0] = float(rho_t)
-            v3 = float(b3v @ R3 @ b3v)
-            if v3 > 1.0:
-                b3v /= np.sqrt(v3)
-                v3 = 1.0
-            z3 = (P3 @ b3v
-                  + np.sqrt(max(1.0 - v3, 0.0))
-                  * rng.normal(0, 1, m3))
-            srt3 = np.sort(vc3[live3].to_numpy())
-            new3 = np.empty(m3)
-            new3[z3.argsort()] = srt3
-            vc4 = vc3.copy()
-            vc4.loc[frame.index[live3]] = new3
-            frame[cnt_c] = vc4.where(vc3.notna(), frame[cnt_c])
-            print("  size reorder ran for {}: {} rows, target "
-                  "rank {:+.2f} with {} other partner(s) held "
-                  "jointly".format(cnt_c, m3, rho_t,
-                                   len(_pr) - 1))
         # Linear identities, the same rule: computed, not
         # redrawn. The child's own precision and missingness are
         # kept - the arithmetic replaces the VALUE, never the

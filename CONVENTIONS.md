@@ -4,7 +4,7 @@ Synthetic clinical data generator and model-evaluation instrument. Core rule: le
 
 ## Verify before claiming
 
-- Run `python scripts/run_all_smokes.py` before claiming anything works. Expect **81 suites, 2443 checks**, ALL GREEN **on a checkout** (measured 2026-10-29). Off a zipball extract - which is what the data machine runs - nine checks in `smoke_buildid` need git to test the archive path and report SKIPPED without it, so the expected total there is NINE LOWER; that delta was measured when it was found, the current zipball total has not been re-run, and a total nobody ran is not a number to quote. Do not quote the checkout number to the data machine; that is how a correct run gets read as a failure.
+- Run `python scripts/run_all_smokes.py` before claiming anything works. Expect **81 suites, 2431 checks**, ALL GREEN **on a checkout** (measured 2026-10-29). Off a zipball extract - which is what the data machine runs - nine checks in `smoke_buildid` need git to test the archive path and report SKIPPED without it, so the expected total there is NINE LOWER; that delta was measured when it was found, the current zipball total has not been re-run, and a total nobody ran is not a number to quote. Do not quote the checkout number to the data machine; that is how a correct run gets read as a failure.
 - **THE DEVELOPMENT MACHINE WAS BEHIND THE DATA MACHINE, and that is
   how a green suite here failed there.** Dev was on Python 3.10 with
   pandas 2.3; the data machine installs fresh and got pandas 3.0.5,
@@ -3459,6 +3459,51 @@ what follows is what came out wrong anyway.
   prediction did not anticipate and should have. The thing a
   prediction is FOR is catching this: a fix aimed at one
   criterion must say what it might cost the others.
+
+- **THE CONTROL ARM OVERTURNED THE WHOLE NIGHT, AND BOTH TIERS
+  ARE REVERTED (2026-10-30).** Everything above about close
+  improving was wrong, and only the OLD CODE AT THE SAME SEED
+  could show it. All three arms below are seed 0 on the
+  800-patient extract, same settings, same denominator of 130 -
+  a clean comparison, unlike the deliverable's 137:
+
+      criterion        OLD (control)     size tier        joint
+      direction kept   127/130 97.7% P   122/130 93.8% F  122/130 93.8% F
+      close            119/130 91.5% P   117/130 90.0% P  115/130 88.5% P
+      inverted         1 FAIL            1 FAIL           1 FAIL
+      dynamics         20/86             18/86            18/86
+
+  **The old code is better on every criterion.** close PASSES at
+  91.5% without any of my work, so the deliverable's close FAIL
+  (87.6% over 137 pairs) was a SEED AND DENOMINATOR effect that I
+  mistook for a defect my tier had fixed. The tiers cost direction
+  kept (127 -> 122, PASS -> FAIL) and cost close as well
+  (119 -> 117 -> 115). Reverted.
+- **THE MECHANISM WAS REAL AND THE FIX WAS STILL WRONG.** The
+  measurement that motivated it holds: `condition_count` tracks
+  `len(conditions)` at 0.95 while equal on 37% of rows, and
+  enforcing it moved the generated pair 0.36 -> 0.73 on real data.
+  Landing that one coupling simply costs more elsewhere than it
+  gains. Locally right, globally worse - the greedy-cut lesson,
+  now observed at REAL-DATA scale rather than on a fixture, and
+  the second time in one night (the single-partner version failed
+  the same way against its own control on a hub fixture).
+- **WITHOUT THE CONTROL ARM I WOULD HAVE SHIPPED A REGRESSION AS
+  AN IMPROVEMENT.** The first reading - "close FAIL -> PASS" -
+  was against the DELIVERABLE, a different seed and a different
+  denominator. Every rule needed to catch this was already in
+  this file: a single-seed comparison is worth nothing, a
+  percentage whose denominator moved is not a comparison, and a
+  change must be measured against the same-day baseline. The
+  control cost one unattended 40-minute run and was the only
+  thing that produced the truth. Run it FIRST next time, not last.
+- **WHAT SURVIVES: the diagnostic, not the fix.**
+  `peek.py RUN sizes SRC.csv` separates an enforcement fault
+  (IDENTITY LOST) from a detection gap (TRACKS, NOT EQUAL), which
+  is how the mechanism was found at all; and the deck's joint
+  measures (per-column predictability with driver agreement, and
+  TSTR) which touch no engine code. The engine is byte-identical
+  to the build that produced the deliverable.
 
 ## Talking to the data machine
 

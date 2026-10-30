@@ -32,8 +32,8 @@ def check(name, ok):
 
 
 def main():
-    from latent_challenger import (K, COUPLING_MIN, LatentGen,
-                                   _k_clip, _split_patients)
+    from latent_challenger import (K, LatentGen, _k_clip,
+                                   _split_patients)
 
     r = np.random.RandomState(3)
     n = 1200
@@ -2086,215 +2086,14 @@ def main():
           "from a broken one on the machine that holds the data",
           "set tokens 60 -> 400" in (_ae.stdout + _ae.stderr))
 
-    # A COUNT THAT TRACKS A SET'S SIZE WITHOUT EQUALLING IT.
-    # Measured on the real extract with `peek.py RUN sizes`:
-    # condition_count tracks len(conditions) at rank 0.95 while
-    # EQUAL on only 37% of rows, so the copy rule never fires,
-    # the column is decoded a second time, and the generated
-    # pair reads 0.36. Copying would be wrong - these columns
-    # genuinely differ from the size - so the coupling is landed
-    # by REARRANGEMENT, which cannot move the marginal.
-    import numpy as _np9
-    import pandas as _pd9
-    _rg9 = _np9.random.default_rng(0)
-    _NP9, _VP9 = 150, 8
-    _n9 = _NP9 * _VP9
-    _tk9 = ["c{:02d}".format(i) for i in range(16)]
-    _ss9, _cc9 = [], []
-    for _ in range(_n9):
-        _k9 = int(_rg9.integers(0, 6))
-        if _k9 == 0:
-            _ss9.append("");  _cc9.append(0);  continue
-        _ss9.append(";".join(
-            _rg9.choice(_tk9, size=_k9, replace=False)))
-        # a count taken BEFORE de-duplication: equal to the size
-        # only sometimes, which is the measured shape
-        _cc9.append(_k9 if _rg9.random() < 0.37
-                    else _k9 + int(_rg9.integers(1, 4)))
-    _df9 = _pd9.DataFrame({
-        "person_id": _np9.repeat(
-            ["P{:03d}".format(i) for i in range(_NP9)], _VP9),
-        "conditions": _ss9, "condition_count": _cc9,
-        "age": _rg9.normal(60, 11, _n9).round(1),
-        "los": _rg9.gamma(2.0, 2.0, _n9).round(2)})
-    _sz9 = _pd9.Series([len([x for x in t.split(";") if x.strip()])
-                        for t in _df9["conditions"]])
-    _srho9 = float(_df9["condition_count"].corr(
-        _sz9, method="spearman"))
-    _seq9 = float((_df9["condition_count"] == _sz9).mean())
-    check("the fixture carries the MEASURED shape - a count that "
-          "tracks a set size strongly while equalling it on a "
-          "minority of rows, which is what makes the copy rule "
-          "miss it",
-          _srho9 >= 0.8 and _seq9 < 0.6)
-    _g9 = LatentGen(seed=0).fit(_df9, "person_id")
-    check("...and the tier DETECTS it, naming the set it tracks",
-          any(e[0] == "condition_count"
-              and e[1] == "conditions"
-              for e in getattr(_g9, "_size_couplings", []))
-          and not any(c == "condition_count" for c, _s, _p in
-                      getattr(_g9, "_size_identities", [])))
-    _out9 = _g9.generate(len(_df9))
-    _gn9 = _pd9.Series([len([x for x in str(t).split(";")
-                             if x.strip()])
-                        for t in _out9["conditions"]])
-    _gc9 = _pd9.to_numeric(_out9["condition_count"],
-                           errors="coerce")
-    _grho9 = float(_gc9.corr(_gn9, method="spearman"))
-    check("...and the generated coupling lands on the source "
-          "value rather than decaying - measured OFF at 0.81 "
-          "against a source 0.87 on this fixture, and the real "
-          "extract falls from 0.95 to 0.36",
-          abs(_grho9 - _srho9) <= 0.05)
-    check("...and the MARGINAL is untouched, because a "
-          "rearrangement is a permutation - the neighbouring "
-          "property, asserted in the same check that moves the "
-          "coupling",
-          abs(float(_gc9.mean())
-              - float(_df9["condition_count"].mean())) < 0.5
-          and _gc9.min() >= 0)
-    # INERT WHERE THE STRUCTURE IS ABSENT. Every tier here has to
-    # do nothing on a table that does not carry its shape, or the
-    # 23-shape sweep stops being evidence of anything.
-    _df8 = _df9.copy()
-    _df8["condition_count"] = _rg9.integers(0, 9, _n9)
-    _g8 = LatentGen(seed=0).fit(_df8, "person_id")
-    check("...and the tier is INERT when the count does not track "
-          "the size - a tier that fires on everything is as bad "
-          "as one that never fires",
-          not any(e[0] == "condition_count"
-                  for e in getattr(_g8, "_size_couplings", [])))
-
-    # A REARRANGEMENT THAT TARGETS ONE COUPLING RANDOMISES EVERY
-    # OTHER RELATIONSHIP THE COLUMN HAS, and a count column is a
-    # HUB. Measured on this fixture, where the count also drives
-    # span and procedure: targeting the size ALONE landed it
-    # (0.869 -> 0.869) and dragged span 0.537 -> 0.361 and proc
-    # 0.419 -> 0.301, while the control - no tier at all - held
-    # both at source. The real extract showed the same shape, as
-    # a gate trade: close UP, direction kept DOWN. The joint
-    # solve lands all of them together; this check is the
-    # neighbouring property, asserted in the same test that
-    # moves the target.
-    _rgh = _np9.random.default_rng(0)
-    _nph, _vsh = 200, 10
-    _nh = _nph * _vsh
-    _tkh = ["c{:02d}".format(i) for i in range(16)]
-    _ssh, _cch = [], []
-    for _ in range(_nh):
-        _kh = int(_rgh.integers(0, 6))
-        if _kh == 0:
-            _ssh.append("");  _cch.append(0);  continue
-        _ssh.append(";".join(
-            _rgh.choice(_tkh, size=_kh, replace=False)))
-        _cch.append(_kh if _rgh.random() < 0.37
-                    else _kh + int(_rgh.integers(1, 4)))
-    _cnt = _np9.array(_cch, dtype=float)
-    _cz = (_cnt - _cnt.mean()) / (_cnt.std() or 1)
-    _dfh = _pd9.DataFrame({
-        "person_id": _np9.repeat(
-            ["P{:04d}".format(i) for i in range(_nph)], _vsh),
-        "conditions": _ssh, "condition_count": _cnt,
-        "span_days": (4.0 + 3.0 * (0.55 * _cz + 0.835
-                      * _rgh.normal(0, 1, _nh))).round(2),
-        "procedure_count": (2.0 + 2.0 * (0.40 * _cz + 0.917
-                            * _rgh.normal(0, 1, _nh))).round(2),
-        "age": _rgh.normal(60, 11, _nh).round(1)})
-
-    def _rh(_d, _a, _b):
-        _m = _d[_a].notna() & _d[_b].notna()
-        return float(_d.loc[_m, _a].corr(_d.loc[_m, _b],
-                                         method="spearman"))
-
-    _gh = LatentGen(seed=0).fit(_dfh, "person_id")
-    check("the size tier records the child's OTHER partners, so "
-          "the rearrangement can hold them instead of trading "
-          "them for its target",
-          any(c == "condition_count" and len(e[-1]) >= 2
-              for e in getattr(_gh, "_size_couplings", [])
-              for c in [e[0]]))
-    _oh = _gh.generate(len(_dfh))
-    for _c in ("condition_count", "span_days", "procedure_count"):
-        _oh[_c] = _pd9.to_numeric(_oh[_c], errors="coerce")
-    _oh["_n"] = _pd9.Series(
-        [len([x for x in str(t).split(";") if x.strip()])
-         for t in _oh["conditions"]])
-    _dfh2 = _dfh.copy()
-    _dfh2["_n"] = _pd9.Series(
-        [len([x for x in t.split(";") if x.strip()])
-         for t in _dfh["conditions"]])
-    check("...and the target coupling still lands",
-          abs(_rh(_oh, "condition_count", "_n")
-              - _rh(_dfh2, "condition_count", "_n")) <= 0.08)
-    check("...while the column's OTHER relationships are held "
-          "rather than randomised - a fix that lands one pair "
-          "and drags two others is worse than no fix",
-          abs(_rh(_oh, "condition_count", "span_days")
-              - _rh(_dfh2, "condition_count", "span_days")) <= 0.10
-          and abs(_rh(_oh, "condition_count", "procedure_count")
-                  - _rh(_dfh2, "condition_count",
-                        "procedure_count")) <= 0.10)
-
-    # ENFORCE WHAT YOU ARE GRADED ON. The gate counts a pair as
-    # related when the SOURCE reaches 0.1 and calls a sign flip on
-    # one INVERTED - its single absolute criterion. The coupling
-    # tier enforced only 0.25 and above, so a real but weak
-    # relationship sat in the gap between the two numbers: the
-    # real extract's ONLY inversion is
-    # `body_mass_index_measured <- active_drug_count` at source
-    # +0.105, generated -0.110, on a child present on 29% of rows.
-    # Reproduced from those coordinates, the coupling decays
-    # toward zero and a weak coupling attenuated PAST zero reads
-    # as an inversion.
-    from synthkit import pipeline as _pl9
-    import inspect as _insp9
-    _src9 = _insp9.getsource(_pl9)
-    check("the engine enforces couplings at least as weak as the "
-          "ones the GATE grades - a pair the gate can call "
-          "INVERTED must be one the engine tried to hold",
-          COUPLING_MIN <= 0.1 + 1e-9
-          and 'abs(r["source"]) >= 0.1' in _src9)
-    _rgp = _np9.random.default_rng(5)
-    _npat, _vis = 200, 10
-    _nn = _npat * _vis
-    _drug = _rgp.poisson(3.0, _nn) + 1
-    _dz = (_drug - _drug.mean()) / (_drug.std() or 1)
-
-    def _cpl(rho, scale, base, rg):
-        return base + scale * (rho * _dz
-                               + _np9.sqrt(1 - rho * rho)
-                               * rg.normal(0, 1, _nn))
-
-    _pres = _rgp.random(_nn) < 0.294
-    _dfp = _pd9.DataFrame({
-        "person_id": _np9.repeat(
-            ["P{:04d}".format(i) for i in range(_npat)], _vis),
-        "active_drug_count": _drug,
-        "strong": _cpl(0.60, 4.0, 30, _rgp).round(2),
-        "weak": _np9.where(_pres,
-                           _cpl(0.20, 4.0, 27, _rgp).round(2),
-                           _np9.nan),
-        "unrelated": _rgp.normal(50, 7, _nn).round(2)})
-    _mw = _dfp["weak"].notna()
-    _rw = float(_dfp.loc[_mw, "weak"].corr(
-        _dfp.loc[_mw, "active_drug_count"], method="spearman"))
-    check("the fixture carries the MEASURED shape - a weak but "
-          "real coupling on a PARTIALLY measured column, and the "
-          "coupling sits BETWEEN the old 0.25 floor and the new "
-          "one, or the check could not tell the two apart",
-          0.2 < float(_dfp["weak"].notna().mean()) < 0.45
-          and COUPLING_MIN < _rw < 0.25)
-    _gp = LatentGen(seed=5).fit(_dfp, "person_id")
-    _couples = [c for c, _ps in
-                getattr(_gp, "_sparse_couplings", [])]
-    check("...and the tier now REACHES that column, where a "
-          "0.25 floor left it in the gap between what the gate "
-          "grades and what the engine enforces",
-          "weak" in _couples)
-    check("...and it stays away from a column with no coupling "
-          "to find - a tier that fires on everything is as bad "
-          "as one that never fires",
-          "unrelated" not in _couples)
+    # THE SIZE-COUPLING AND WEAK-COUPLING TIERS WERE BUILT,
+    # MEASURED ON THE REAL EXTRACT, AND REVERTED. Their checks
+    # went with them rather than being left asserting behaviour
+    # the engine no longer has - a check that pins a reverted
+    # change is worse than no check, because it reads as a
+    # contract. The measurements that justified the revert are
+    # recorded in CONVENTIONS, and `peek.py RUN sizes SRC.csv`
+    # survives as the diagnostic that found the mechanism.
 
     if FAIL:
         print("{} of {} checks failed.".format(FAIL, PASS + FAIL))
