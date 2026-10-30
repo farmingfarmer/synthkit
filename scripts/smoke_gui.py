@@ -1474,6 +1474,48 @@ def main():
                   "run check was skipped; the JS parse guards "
                   "above still ran")
 
+        _gui_src = Path("synthkit/gui.py").read_text(
+            encoding="utf-8")
+        # THE RELEASE CONTROLS HAD NEVER BEEN REACHABLE FROM
+        # THE BENCH. --poison, --suppress and --suppress-top
+        # have existed on the CLI for weeks; the bench's only
+        # "dials" drive the OLD CondNet station, so the controls
+        # that decide how much real structure leaves the
+        # building could be used only by someone who already
+        # knew the flags. A governance control nobody can find
+        # is a control nobody has.
+        check("the bench exposes the release controls on the "
+              "station that generates - re-point, remove, and "
+              "remove-the-strongest",
+              'id="npoison"' in html
+              and 'id="nsuppress"' in html
+              and 'id="nsuptop"' in html)
+        check("...and they ride the SAME CLI flags a terminal "
+              "uses, so the bench and the command line cannot "
+              "mean different things by the same control",
+              '"--poison", _spec' in _gui_src
+              and '"--suppress", _spec' in _gui_src
+              and '"--suppress-top", str(_st)' in _gui_src)
+        check("...and the payload actually carries them, because "
+              "a control that is read and not used is this "
+              "repository's oldest named fault",
+              "poison:(document.getElementById('npoison')" in html
+              and "suppress_top:(document.getElementById"
+                  "('nsuptop')" in html)
+        check("the ANSWER KEY comes back and is rendered with "
+              "what was ASKED beside what LANDED - that record is "
+              "the only thing that makes a re-pointed file a "
+              "valid test rather than damaged data",
+              '"release": _rel' in _gui_src
+              and "function relKey(" in html
+              and "asked for" in html
+              and "landed at" in html)
+        check("...and a file with NO controls set says so "
+              "plainly, rather than leaving a blank panel that "
+              "reads as 'nothing was recorded'",
+              "Release controls: none set" in html
+              and "faithful to the source" in html)
+
         from synthkit.gui import api_sizing as _asz
         import tempfile as _tf, os as _os
         import numpy as np

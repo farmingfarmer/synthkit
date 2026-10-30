@@ -1532,6 +1532,18 @@ def api_fit_bridge(payload: dict) -> dict:
             "did_not_cross": carried.get("did_not_cross") or []}
 
 
+def _lines(v):
+    """One spec per line or comma, blanks dropped. The operator
+    types a list; the CLI takes repeated flags."""
+    if not v:
+        return []
+    if isinstance(v, list):
+        items = v
+    else:
+        items = str(v).replace(",", "\n").split("\n")
+    return [x.strip() for x in items if x and x.strip()]
+
+
 def _latent_work(payload: dict) -> dict:
     """The latent challenger's generation, as a bench job - the
     bench runs the SAME script CLI a terminal would, streamed to a
@@ -1565,6 +1577,16 @@ def _latent_work(payload: dict) -> dict:
            "--seeds", str(payload.get("seed") or 0),
            "--k", str(k),
            "--out", out]
+    for _spec in _lines(payload.get("poison")):
+        cmd += ["--poison", _spec]
+    for _spec in _lines(payload.get("suppress")):
+        cmd += ["--suppress", _spec]
+    try:
+        _st = int(payload.get("suppress_top") or 0)
+    except (TypeError, ValueError):
+        _st = 0
+    if _st > 0:
+        cmd += ["--suppress-top", str(_st)]
     log = Path(out) / "bench_latent_log.txt"
     with log.open("w", encoding="utf-8") as fh:
         r = subprocess.run(cmd, stdout=fh,
@@ -1576,7 +1598,17 @@ def _latent_work(payload: dict) -> dict:
         return {"error": "latent generation exited {} - the end "
                          "of its log:\n{}".format(r.returncode,
                                                    tail)}
+    _rel = None
+    try:
+        _prov = json.loads((Path(out) / "provenance.json")
+                           .read_text(encoding="utf-8"))
+        _rel = (_prov.get("contract") or {}).get("release")
+        if _rel is None:
+            _rel = _prov.get("release")
+    except Exception:
+        _rel = None
     return {"out": out,
+            "release": _rel,
             "csv": str(Path(out) / "latent_gen_seed{}.csv".format(
                 payload.get("seed") or 0))}
 
@@ -3506,9 +3538,38 @@ textarea:focus,input:focus,select:focus{
     <label>make this many patients <span class="hint">(leave blank
     for the same number as the source)</span>
       <input id="nsize" placeholder="e.g. 1600"></label>
+    <details id="relctl" class="expert"><summary>Release
+    controls &mdash; what this file is allowed to carry</summary>
+    <div class="explain">These decide how much of your real
+    structure leaves the building. They are OFF by default, so a
+    file with none of them set is a faithful one. Every setting
+    is recorded with what it ACHIEVED, not just what was asked,
+    and that record is written into the run &mdash; it is the
+    answer key you grade a vendor against, and the reason a
+    distorted file is still a valid test rather than a broken
+    one.</div>
+    <label>re-point a relationship <span class="hint">(one per
+    line, <code>COLUMN_A~COLUMN_B=STRENGTH</code> &mdash; e.g.
+    <code>age_at_visit~span_days=-0.6</code> to invert a real
+    positive, or a value for a pair that is not related at all.
+    Each column keeps its own distribution exactly; only the
+    relationship between them is re-pointed)</span>
+      <textarea id="npoison" rows="3" placeholder="age_at_visit~span_days=-0.6"></textarea></label>
+    <label>remove a relationship <span class="hint">(one per
+    line, <code>COLUMN_A~COLUMN_B</code>. The named child is
+    re-dealt, which breaks ITS other relationships too &mdash;
+    the run states that collateral rather than hiding it)</span>
+      <textarea id="nsuppress" rows="2" placeholder="crown_b~crown_a"></textarea></label>
+    <label>remove the N strongest relationships automatically
+    <span class="hint">(the minimum-shareable control: the most
+    extractable patterns go, everything else stays faithful.
+    0 = off)</span>
+      <input id="nsuptop" value="0"></label>
+    </details>
     <button class="act" onclick="neuralRun()">Generate</button>
     <button class="act ghost" onclick="neuralReview()">Review the output</button>
     <div class="out" id="neural-out">Nothing yet.</div>
+    <div class="explain" id="relkey" style="display:none"></div>
   </div>
   <iframe id="neural-frame" sandbox="allow-scripts" style="width:100%;height:900px;border:1px solid var(--rule);border-radius:12px;margin-top:14px;display:none;background:#fff"></iframe>
     <div class="nextup"><span class="lbl">next</span><b>Measure 2 &mdash; Verdict</b><span>Once the file is written, the Verdict station grades it against the original on eight criteria and names anything that missed.</span></div>
@@ -5183,6 +5244,9 @@ function nPayload(){
   return {src:nField('nsrc','fsrc'),
     out:nField('nout','fout'),
     group_by:nField('ngroup','fgroup'),
+    poison:(document.getElementById('npoison')||{}).value||'',
+    suppress:(document.getElementById('nsuppress')||{}).value||'',
+    suppress_top:(document.getElementById('nsuptop')||{}).value||'0',
     seed:document.getElementById('nseed').value.trim()||'0',
     k:document.getElementById('nk').value.trim()||'10'};}
 function nLatentPath(){
@@ -5225,6 +5289,43 @@ async function neuralReview(){
   nJob=r.job;nMode='review';
   if(nTimer)clearInterval(nTimer);
   nTimer=setInterval(nPoll,2000);}
+function relKey(rel){
+  /* THE ANSWER KEY, on screen. A re-pointed relationship is a
+     deliberate departure from the source, so the only thing that
+     makes the file a TEST rather than damaged data is holding
+     what was asked beside what actually landed. Requested AND
+     achieved, because a dial that is read but not used is this
+     repository's oldest named fault and a release control is the
+     worst place to repeat it. */
+  var el=document.getElementById('relkey');
+  if(!el)return;
+  if(!rel){el.style.display='none';el.innerHTML='';return;}
+  var P=rel.poisoned||[],S=rel.suppressed||[],
+      A=rel.auto_suppressed_top||[];
+  if(!P.length&&!S.length&&!A.length){
+    el.style.display='block';
+    el.innerHTML='<b>Release controls: none set.</b> This file '+
+      'is faithful to the source within the k rule - nothing was '+
+      're-pointed or removed.';return;}
+  var h='<b>The answer key for this file</b><div class="hint">'+
+    'Keep this. It is what you grade a vendor against, and it '+
+    'never leaves with the data.</div>';
+  if(P.length){
+    h+='<table class="jt"><tr><th>relationship</th>'+
+       '<th>asked for</th><th>landed at</th></tr>';
+    P.forEach(function(r){
+      h+='<tr><td>'+r.pair+'</td><td>'+
+        Number(r.requested).toFixed(2)+'</td><td>'+
+        Number(r.achieved).toFixed(2)+'</td></tr>';});
+    h+='</table>';}
+  if(S.length)h+='<div>removed on request: <b>'+S.length+
+    '</b> relationship(s)</div>';
+  if(A.length)h+='<div>strongest removed automatically: <b>'+
+    A.length+'</b></div>';
+  if(rel.strength_achieved!==undefined&&rel.strength_achieved!==null)
+    h+='<div class="hint">overall strength retained vs source: '+
+      Number(rel.strength_achieved).toFixed(2)+'</div>';
+  el.style.display='block';el.innerHTML=h;}
 async function nPoll(){
   const o=document.getElementById('neural-out');
   const frame=document.getElementById('neural-frame');
@@ -5244,6 +5345,7 @@ async function nPoll(){
     o.textContent='STOPPED: '+((j.result&&j.result.error)||
       j.error||j.status);return;}
   if(nMode==='gen'){
+    relKey(j.result&&j.result.release);
     o.textContent='written in '+Math.round(j.elapsed)+
       's. Now press Review the output.';
     tick('fitsrc');}
