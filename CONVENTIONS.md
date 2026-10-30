@@ -3592,6 +3592,28 @@ what follows is what came out wrong anyway.
   sits at 88.3% after it. Worth saying plainly before anyone
   ships the one that happens to be named "deliverable".
 
+- **THE REPAIR IS APPLIED, AND IT IS PROVABLY A PERMUTATION OF
+  ONE COLUMN (2026-10-30).** `--apply` wrote
+  `generated_repaired.csv` and `fidelity_repaired.json` beside
+  the originals, which are untouched. Checked on the machine
+  rather than asserted: **ROWS-SAME, MULTISET-SAME,
+  ORDER-CHANGED, OTHERCOLS-SAME** - the repaired column holds
+  every value the generator produced, only its ORDER differs, and
+  every other column is byte-identical. So the published bounds,
+  the point masses, the k-anonymous extremes and the whole
+  privacy posture are exactly what they were; nothing new is
+  disclosed by reordering values that were already released.
+- **AND THE RESULT IS A DROP-IN RUN DIRECTORY.** Writing the
+  repaired file beside the original is safe but useless to the
+  gate, the deck and the bench, which all read `generated.csv`
+  and `fidelity.json` from a run directory. `run_deliverable_
+  repaired` is a full sibling with those two files swapped, so
+  every existing tool consumes it with no flag and no special
+  case. Gated through the normal path: **six of nine PASS**,
+  direction 135/137 = 98.5%, close 121/137 = 88.3%, inverted 0.
+  A repair that only a bespoke command can read is a repair
+  nobody will use.
+
 ## Talking to the data machine
 
 - **A RAW GITHUB FETCH SERVED THE PRE-PUSH FILE AND REPORTED
