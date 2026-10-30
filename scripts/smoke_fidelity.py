@@ -1547,6 +1547,68 @@ def main():
                             "y": ["5", "6", "7"] * 100,
                             "d": ["2024-01-01"] * 300})
     _genE = _srcE.copy()
+    # THE JOINT MEASURES, IN THE DECK. Every other section on that
+    # page starts from something the contract PUBLISHED, so it can
+    # only show what somebody thought to look for. This one asks
+    # whether each column is as learnable and whether the SAME
+    # drivers drive it - a pair can survive as "faded" while who
+    # drives whom is reassigned, and no pairwise check sees that.
+    #
+    # The fixture plants exactly that: `y` is equally predictable
+    # from both tables while leaning on the OTHER driver. If the
+    # section cannot flag it, it is decoration.
+    import numpy as _njj
+    import pandas as _pjj
+    _rj = _njj.random.default_rng(0)
+    _nj = 900
+    _xj = _rj.normal(0, 1, _nj)
+    _zj = _rj.normal(0, 1, _nj)
+    _realj = _pjj.DataFrame({
+        "person_id": _njj.repeat(_njj.arange(_nj // 3), 3),
+        "x": _xj.round(3), "z": _zj.round(3),
+        "y": (2.0 * _xj + 0.7 * _zj
+              + _rj.normal(0, .3, _nj)).round(3),
+        "w": _rj.normal(5, 2, _nj).round(3)})
+    _synj = _realj.copy()
+    _synj["y"] = (0.7 * _synj["x"] + 2.0 * _synj["z"]
+                  + _rj.normal(0, .3, _nj)).round(3)
+    _hj = _fd.joint_section_html(_realj, _synj, "person_id")
+    check("the deck's joint section renders a row per column with "
+          "skill on each table and whether the same drivers drive "
+          "it",
+          "The same things doing the driving?" in _hj
+          and "skill on original" in _hj
+          and "drivers agree" in _hj
+          and ">y<" in _hj)
+    check("...and it FLAGS a column that is equally predictable "
+          "while leaning on DIFFERENT drivers - the case every "
+          "pairwise check on the page is blind to",
+          'class="warn"' in _hj
+          and any('class="warn"' in _l and ">y<" in _l
+                  for _l in _hj.split("<tr")))
+    check("...and an unpredictable column shows an em dash rather "
+          "than a ratio of two numbers that mean nothing",
+          "&mdash;" in _hj)
+    # THE KEYS COME FROM A LIVE CALL, never from a fixture that
+    # agrees with the renderer - a blank section once shipped
+    # because both halves held the same wrong key names and only
+    # the function being called disagreed.
+    from synthkit import jointcheck as _jcc
+    _prj = _jcc.predictability(_realj, _synj, group_by="person_id")
+    _r0 = (_prj.get("columns") or [{}])[0]
+    check("...and the renderer reads the keys `predictability` "
+          "actually emits, asserted against a LIVE call",
+          set(["column", "skill_real", "skill_syn",
+               "driver_agreement"]).issubset(set(_r0))
+          and "mean_driver_agreement" in _prj)
+    check("the joint measures are OFF by default and their absence "
+          "is STATED - they fit a model per column and a page that "
+          "takes minutes is a hung browser",
+          "--joint" in io.open("scripts/fidelity_deck.py",
+                               encoding="utf-8").read()
+          and "opt-in" in io.open("scripts/fidelity_deck.py",
+                                  encoding="utf-8").read())
+
     # THE SURFACES CRITERION GRADES A CONTRACT ONE ENGINE DOES
     # NOT READ, and saying so is the difference between "this
     # engine ignores published curves" and "no multivariate

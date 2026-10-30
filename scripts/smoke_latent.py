@@ -2086,6 +2086,85 @@ def main():
           "from a broken one on the machine that holds the data",
           "set tokens 60 -> 400" in (_ae.stdout + _ae.stderr))
 
+    # A COUNT THAT TRACKS A SET'S SIZE WITHOUT EQUALLING IT.
+    # Measured on the real extract with `peek.py RUN sizes`:
+    # condition_count tracks len(conditions) at rank 0.95 while
+    # EQUAL on only 37% of rows, so the copy rule never fires,
+    # the column is decoded a second time, and the generated
+    # pair reads 0.36. Copying would be wrong - these columns
+    # genuinely differ from the size - so the coupling is landed
+    # by REARRANGEMENT, which cannot move the marginal.
+    import numpy as _np9
+    import pandas as _pd9
+    _rg9 = _np9.random.default_rng(0)
+    _NP9, _VP9 = 150, 8
+    _n9 = _NP9 * _VP9
+    _tk9 = ["c{:02d}".format(i) for i in range(16)]
+    _ss9, _cc9 = [], []
+    for _ in range(_n9):
+        _k9 = int(_rg9.integers(0, 6))
+        if _k9 == 0:
+            _ss9.append("");  _cc9.append(0);  continue
+        _ss9.append(";".join(
+            _rg9.choice(_tk9, size=_k9, replace=False)))
+        # a count taken BEFORE de-duplication: equal to the size
+        # only sometimes, which is the measured shape
+        _cc9.append(_k9 if _rg9.random() < 0.37
+                    else _k9 + int(_rg9.integers(1, 4)))
+    _df9 = _pd9.DataFrame({
+        "person_id": _np9.repeat(
+            ["P{:03d}".format(i) for i in range(_NP9)], _VP9),
+        "conditions": _ss9, "condition_count": _cc9,
+        "age": _rg9.normal(60, 11, _n9).round(1),
+        "los": _rg9.gamma(2.0, 2.0, _n9).round(2)})
+    _sz9 = _pd9.Series([len([x for x in t.split(";") if x.strip()])
+                        for t in _df9["conditions"]])
+    _srho9 = float(_df9["condition_count"].corr(
+        _sz9, method="spearman"))
+    _seq9 = float((_df9["condition_count"] == _sz9).mean())
+    check("the fixture carries the MEASURED shape - a count that "
+          "tracks a set size strongly while equalling it on a "
+          "minority of rows, which is what makes the copy rule "
+          "miss it",
+          _srho9 >= 0.8 and _seq9 < 0.6)
+    _g9 = LatentGen(seed=0).fit(_df9, "person_id")
+    check("...and the tier DETECTS it, naming the set it tracks",
+          any(c == "condition_count" and st == "conditions"
+              for c, st, _sp, _r in
+              getattr(_g9, "_size_couplings", []))
+          and not any(c == "condition_count" for c, _s, _p in
+                      getattr(_g9, "_size_identities", [])))
+    _out9 = _g9.generate(len(_df9))
+    _gn9 = _pd9.Series([len([x for x in str(t).split(";")
+                             if x.strip()])
+                        for t in _out9["conditions"]])
+    _gc9 = _pd9.to_numeric(_out9["condition_count"],
+                           errors="coerce")
+    _grho9 = float(_gc9.corr(_gn9, method="spearman"))
+    check("...and the generated coupling lands on the source "
+          "value rather than decaying - measured OFF at 0.81 "
+          "against a source 0.87 on this fixture, and the real "
+          "extract falls from 0.95 to 0.36",
+          abs(_grho9 - _srho9) <= 0.05)
+    check("...and the MARGINAL is untouched, because a "
+          "rearrangement is a permutation - the neighbouring "
+          "property, asserted in the same check that moves the "
+          "coupling",
+          abs(float(_gc9.mean())
+              - float(_df9["condition_count"].mean())) < 0.5
+          and _gc9.min() >= 0)
+    # INERT WHERE THE STRUCTURE IS ABSENT. Every tier here has to
+    # do nothing on a table that does not carry its shape, or the
+    # 23-shape sweep stops being evidence of anything.
+    _df8 = _df9.copy()
+    _df8["condition_count"] = _rg9.integers(0, 9, _n9)
+    _g8 = LatentGen(seed=0).fit(_df8, "person_id")
+    check("...and the tier is INERT when the count does not track "
+          "the size - a tier that fires on everything is as bad "
+          "as one that never fires",
+          not any(c == "condition_count" for c, _s, _p, _r in
+                  getattr(_g8, "_size_couplings", [])))
+
     if FAIL:
         print("{} of {} checks failed.".format(FAIL, PASS + FAIL))
         sys.exit(1)

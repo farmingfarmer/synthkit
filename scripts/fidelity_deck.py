@@ -114,6 +114,9 @@ h3{font-size:15px;font-weight:700;margin:18px 0 4px}
 .sw{display:inline-block;width:10px;height:10px;border-radius:2px;
   vertical-align:-1px;margin-right:4px}
 table{border-collapse:collapse;font-size:12.5px;margin:8px 0}
+.jt td,.jt th{padding:3px 12px 3px 0;text-align:right;white-space:nowrap}
+.jt td:first-child,.jt th:first-child{text-align:left}
+.jt tr.warn td{background:#faf2f3;font-weight:600}
 th{font-weight:600;text-align:left;color:%(gray)s;
   border-bottom:1px solid %(rule)s;padding:4px 14px 4px 0}
 td{padding:3px 14px 3px 0;border-bottom:1px solid #f0f0f2;
@@ -1655,8 +1658,98 @@ def build_duel(src_path, run_dir, latent_csv,
     return html
 
 
+def _num_deck(v):
+    """Three decimals, or an em dash when the measure declined to
+    produce a number - a blank cell reads as a bug."""
+    try:
+        if v is None:
+            return "&mdash;"
+        f = float(v)
+        if f != f:
+            return "&mdash;"
+        return "{:.3f}".format(f)
+    except Exception:
+        return "&mdash;"
+
+
+def joint_section_html(src, gen, group_by, seed=0):
+    """THE MEASURES THAT NAME NO PATTERN FIRST, drawn into the
+    deck.
+
+    Every other section here starts from something the contract
+    PUBLISHED - a claim, a curve, a surface - so it can only show
+    what somebody thought to look for. These ask the reverse:
+    is each column as learnable from the synthetic data as from
+    the real, do the SAME drivers drive it, and does a model
+    trained on synthetic survive contact with real rows.
+
+    The measurement comes from `synthkit.jointcheck`, the same
+    functions the standalone relationship page calls, so the two
+    cannot report different numbers. The RENDERING differs
+    because the hosts differ - the same split the explanation
+    registry already uses: one measurement, two renderers.
+    """
+    from synthkit import jointcheck as _jc
+    out = []
+    try:
+        pr = _jc.predictability(src, gen, group_by=group_by,
+                                seed=seed)
+    except Exception as _e:
+        return ('<h2>The same things doing the driving?</h2>'
+                '<p class="note">The joint measures could not run '
+                'on this pair ({}). Nothing else on this page '
+                'depends on them.</p>'.format(esc(str(_e)[:120])))
+    rows = [r for r in (pr.get("columns") or [])]
+    if not rows:
+        return ('<h2>The same things doing the driving?</h2>'
+                '<p class="note">No column cleared the floor for a '
+                'predictability model, so there is nothing to '
+                'compare. A stated limit, not an empty result.</p>')
+    out.append('<h2>The same things doing the driving?</h2>')
+    out.append(
+        '<p class="sub">For each column in turn a model is trained '
+        'to predict it from all the others &mdash; once on the '
+        'original, once on the synthetic &mdash; and each is scored '
+        'on held-out rows of its OWN table. Two questions at once: '
+        'is the column as <b>learnable</b>, and do the <b>same '
+        'drivers</b> drive it, in the same proportions. This names '
+        'no pattern in advance, so it can see structure nobody '
+        'published.</p>')
+    out.append('<table class="jt"><tr><th>column</th>'
+               '<th>skill on original</th><th>skill on synthetic</th>'
+               '<th>kept</th><th>drivers agree</th></tr>')
+    for r in rows[:24]:
+        sr = r.get("skill_real")
+        sy = r.get("skill_syn")
+        ag = r.get("driver_agreement")
+        kept = (sy / sr) if (sr and sr > 0.05 and sy is not None) \
+            else None
+        flag = ' class="warn"' if (ag is not None and ag < 0.80) \
+            else ''
+        out.append(
+            '<tr{}><td>{}</td><td>{}</td><td>{}</td><td>{}</td>'
+            '<td>{}</td></tr>'.format(
+                flag, esc(str(r.get("column"))),
+                _num_deck(sr), _num_deck(sy),
+                ('&mdash;' if kept is None
+                 else '{:.0f}%'.format(100 * kept)),
+                _num_deck(ag)))
+    out.append('</table>')
+    ma = pr.get("mean_driver_agreement")
+    if ma is not None:
+        out.append(
+            '<p class="note">Mean driver agreement <b>{}</b> across '
+            '{} column(s). A column highlighted below 0.80 is one '
+            'the synthetic data predicts about as well while '
+            'leaning on DIFFERENT drivers &mdash; which every '
+            'pairwise check on this page is blind to, because a '
+            'pair can survive as "faded" while who drives whom is '
+            'reassigned.</p>'.format(_num_deck(ma), len(rows)))
+    return "".join(out)
+
+
 def build_deck(src_path, run_dir, group_by="person_id",
-               compares=None):
+               compares=None, joint=False):
     """Return the deck HTML as a string. The CLI writes it to a
     file; the bench serves it into an iframe - one code path, so the
     picture the roadshow ships and the picture the UI shows cannot
@@ -1975,6 +2068,23 @@ def build_deck(src_path, run_dir, group_by="person_id",
     # the same way the original does? Optional dependency, stated
     # when absent - a silently missing section reads as "nothing
     # to show".
+    # THE JOINT MEASURES, when asked for. They fit a model per
+    # column, so they are minutes rather than seconds on a real
+    # extract - the deck is served into the bench synchronously
+    # and a page that takes minutes is a hung browser, which this
+    # repository has already learned once. Off by default, and
+    # the flag is echoed in the run so a reader knows whether the
+    # section is absent or merely not requested.
+    if joint:
+        body.append(joint_section_html(src, gen, a.group_by))
+    else:
+        body.append(
+            '<h2>The same things doing the driving?</h2>'
+            '<p class="note">Not computed for this page: the joint '
+            'measures fit a model per column and take minutes on a '
+            'full extract, so they are opt-in '
+            '(<code>--joint</code>). They are the only measures '
+            'here that name no pattern in advance.</p>')
     try:
         import shap as _shap
         _HAS_SHAP = True
@@ -2352,6 +2462,13 @@ def main():
     ap.add_argument("--run", required=True)
     ap.add_argument("-o", "--out", required=True)
     ap.add_argument("--group-by", default="person_id")
+    ap.add_argument("--joint", action="store_true",
+                    help="also compute the joint measures - per "
+                         "column predictability and driver "
+                         "agreement. Fits a model per column, so "
+                         "minutes on a full extract; off by "
+                         "default because the bench serves this "
+                         "page synchronously.")
     ap.add_argument("--latent", default=None,
                     help="a latent_challenger output CSV - "
                          "builds the DUEL page (both engines "
@@ -2366,7 +2483,7 @@ def main():
             meta = {"columns": "duel", "suppressed": "in-page"}
         else:
             doc, meta = build_deck(a.src, a.run, a.group_by,
-                                   a.compare)
+                                   a.compare, joint=a.joint)
     except ValueError as e:
         sys.exit("STOPPED: {}".format(e))
     out = Path(a.out)

@@ -678,6 +678,52 @@ class LatentGen:
                           "generated column will be COPIED from "
                           "the set, not drawn again"
                           .format(jt[1], it[1]))
+        # A COUNT THAT TRACKS A SET'S SIZE WITHOUT EQUALLING IT
+        # IS DRAWN TWICE, AND NOTHING ABOVE CATCHES IT. The copy
+        # rule asks about EQUALITY; the gate's drift table asks
+        # about CORRELATION, and on the real extract those
+        # disagree: `condition_count` tracks `conditions` at
+        # rank 0.95 while being EQUAL on only 37% of rows - a
+        # count taken before de-duplication - so no identity is
+        # detected, the column is decoded independently, and the
+        # generated pair reads 0.36. Measured with
+        # `peek.py RUN sizes SRC.csv`, which separates this from
+        # the enforcement fault it looks identical to.
+        #
+        # Copying would be WRONG here: these columns genuinely
+        # differ from the size, and overwriting would destroy
+        # their own marginal. Rearrangement is the honest tool -
+        # the generated values keep their exact multiset and only
+        # their ARRANGEMENT changes, which is the same property
+        # that makes the cyclic sweeps and the sparse tier safe.
+        self._size_couplings = []
+        _already = set(c for c, _s, _p in self._size_identities)
+        for it in self.plan:
+            if it[0] != "set":
+                continue
+            sep2 = it[3][0]
+            tn = sets.sizes_of(df[it[1]], sep2)
+            for jt in self.plan:
+                if jt[0] != "num" or jt[1] in _already:
+                    continue
+                cv2 = pd.to_numeric(df[jt[1]], errors="coerce")
+                bo = tn.notna() & cv2.notna()
+                if int(bo.sum()) < 200:
+                    continue
+                # k-screened like every published number here:
+                # the coupling must stand on at least k patients
+                if len(set(gid[bo.to_numpy()])) < self.k:
+                    continue
+                rho2 = float(cv2[bo].corr(tn[bo],
+                                          method="spearman"))
+                if not np.isfinite(rho2) or abs(rho2) < 0.5:
+                    continue
+                self._size_couplings.append(
+                    (jt[1], it[1], sep2, rho2))
+                print("  {} tracks len({}) at rank {:+.2f} "
+                      "without equalling it: enforced by "
+                      "rearrangement at generation, marginal "
+                      "untouched".format(jt[1], it[1], rho2))
         # A LINEAR IDENTITY IS THE SIZE IDENTITY ONE LEVEL UP.
         # mean_arterial_pressure IS (systolic + 2*diastolic)/3,
         # and age_at_visit IS the visit year minus year_of_birth
@@ -1977,6 +2023,45 @@ class LatentGen:
             if cnt_c in frame.columns and set_c in frame.columns:
                 frame[cnt_c] = sets.sizes_of(
                     frame[set_c], sep_).astype(float)
+        # A COUNT THAT TRACKS A SIZE WITHOUT EQUALLING IT: land
+        # the published rank correlation by REARRANGEMENT. Runs
+        # after the copies above so it can never undo one - a
+        # column that IS the size was already overwritten and is
+        # excluded from this list at fit. The generated values
+        # keep their exact multiset; only their order changes,
+        # so the marginal this engine worked to get right cannot
+        # drift.
+        for cnt_c, set_c, sep_, rho_t in getattr(
+                self, "_size_couplings", []):
+            if cnt_c not in frame.columns or \
+                    set_c not in frame.columns:
+                continue
+            vc3 = pd.to_numeric(frame[cnt_c], errors="coerce")
+            nz = sets.sizes_of(frame[set_c], sep_)
+            live3 = vc3.notna() & nz.notna()
+            m3 = int(live3.sum())
+            if m3 < 8:
+                print("  size reorder SKIPPED for {}: {} usable "
+                      "rows".format(cnt_c, m3))
+                continue
+            rk3 = nz[live3].rank(method="average").to_numpy()
+            sd3 = rk3.std() or 1.0
+            z3 = (rk3 - rk3.mean()) / sd3
+            # same shape as the sparse tier: a target score that
+            # is the partner's ranks at strength |rho| plus
+            # independent noise, then the sorted values are
+            # dealt out along it.
+            a3 = float(np.clip(rho_t, -0.999, 0.999))
+            z3 = a3 * z3 + np.sqrt(max(1.0 - a3 * a3, 0.0)) \
+                * rng.normal(0, 1, m3)
+            srt3 = np.sort(vc3[live3].to_numpy())
+            new3 = np.empty(m3)
+            new3[z3.argsort()] = srt3
+            vc4 = vc3.copy()
+            vc4.loc[frame.index[live3]] = new3
+            frame[cnt_c] = vc4.where(vc3.notna(), frame[cnt_c])
+            print("  size reorder ran for {}: {} rows, target "
+                  "rank {:+.2f}".format(cnt_c, m3, rho_t))
         # Linear identities, the same rule: computed, not
         # redrawn. The child's own precision and missingness are
         # kept - the arithmetic replaces the VALUE, never the
