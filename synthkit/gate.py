@@ -116,9 +116,29 @@ def assess(fid: Dict[str, Any],
             if close_custom else
             "need {:.1%}, which is {}/{}".format(
                 close_bar, 116, SET_AT)))
-    add("inverted", inverted == 0,
-        "{} - absolute, and it stays absolute: an inverted "
-        "relationship reads as a finding".format(inverted))
+    _own_inv = s.get("pairs_own_inverted")
+    _inv_judged = inverted if _own_inv is None else int(_own_inv)
+    _inv_scaf = max(0, inverted - _inv_judged)
+    if _own_inv is None:
+        _inv_detail = ("{} - absolute, and it stays absolute: an "
+                       "inverted relationship reads as a finding "
+                       "(this run predates the own/scaffolding "
+                       "split, so every pair is counted)"
+                       .format(inverted))
+    elif _inv_scaf:
+        _inv_detail = ("{} in your own columns - absolute, and it "
+                       "stays absolute: an inverted relationship "
+                       "reads as a finding. {} further inversion(s) "
+                       "sit on set-token search scaffolding, which "
+                       "is dropped before the file is written - "
+                       "reported, not counted, because nobody can "
+                       "read a column that is not there"
+                       .format(_inv_judged, _inv_scaf))
+    else:
+        _inv_detail = ("{} - absolute, and it stays absolute: an "
+                       "inverted relationship reads as a finding"
+                       .format(_inv_judged))
+    add("inverted", _inv_judged == 0, _inv_detail)
 
     cov_n, cov_d = s.get("coverage_ok"), s.get("columns")
     if cov_d:

@@ -1646,6 +1646,51 @@ def main():
           and "opt-in" in io.open("scripts/fidelity_deck.py",
                                   encoding="utf-8").read())
 
+    # NOBODY CAN READ A COLUMN THAT IS NOT IN THE FILE. The
+    # `__has__` token indicators and `__n` set sizes are search
+    # machinery, dropped before generated.csv is written, and the
+    # one verdict that says STOP was counting them. Measured on
+    # the real extract: pairs_inverted ONE, pairs_own_inverted
+    # ZERO - the single inversion was `procedures__n`, a set-size
+    # column absent from the delivered data. This repo already
+    # records the identical fault for the constraints section.
+    from synthkit import gate as _gi
+
+    def _invfid(total, own=None):
+        _s = {"pairs_sign_ok": 0.99, "pairs_close": 0.95,
+              "pairs_inverted": total, "coverage_ok": 10,
+              "columns": 10, "pairs": 100}
+        if own is not None:
+            _s["pairs_own_inverted"] = own
+        return {"summary": _s}
+
+    def _invcrit(fid):
+        return [c for c in _gi.assess(fid)["criteria"]
+                if c["name"] == "inverted"][0]
+
+    check("an inversion that sits ONLY on search scaffolding does "
+          "not trip the absolute stop - the column is dropped "
+          "before the file is written, so it cannot read as a "
+          "finding to anyone",
+          _invcrit(_invfid(1, 0))["ok"] is True)
+    check("...and the scaffolding inversion is REPORTED rather "
+          "than silently dropped, because it can still mark a "
+          "modelling fault worth chasing",
+          "scaffolding" in _invcrit(_invfid(1, 0))["detail"]
+          and "own columns" in _invcrit(_invfid(1, 0))["detail"])
+    check("...while an inversion in the operator's OWN columns "
+          "still stops the release, which is the whole point of "
+          "the criterion",
+          _invcrit(_invfid(1, 1))["ok"] is False
+          and _invcrit(_invfid(3, 2))["ok"] is False)
+    check("...and a run that predates the split falls back to the "
+          "TOTAL - absent is not known-to-be-zero, the same "
+          "empty-versus-missing distinction drawn everywhere here",
+          _invcrit(_invfid(1))["ok"] is False
+          and "predates" in _invcrit(_invfid(1))["detail"])
+    check("...and a clean run still passes",
+          _invcrit(_invfid(0, 0))["ok"] is True)
+
     # THE SURFACES CRITERION GRADES A CONTRACT ONE ENGINE DOES
     # NOT READ, and saying so is the difference between "this
     # engine ignores published curves" and "no multivariate
