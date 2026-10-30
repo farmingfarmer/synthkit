@@ -4,7 +4,7 @@ Synthetic clinical data generator and model-evaluation instrument. Core rule: le
 
 ## Verify before claiming
 
-- Run `python scripts/run_all_smokes.py` before claiming anything works. Expect **81 suites, 2431 checks**, ALL GREEN **on a checkout** (measured 2026-10-29). Off a zipball extract - which is what the data machine runs - nine checks in `smoke_buildid` need git to test the archive path and report SKIPPED without it, so the expected total there is NINE LOWER; that delta was measured when it was found, the current zipball total has not been re-run, and a total nobody ran is not a number to quote. Do not quote the checkout number to the data machine; that is how a correct run gets read as a failure.
+- Run `python scripts/run_all_smokes.py` before claiming anything works. Expect **81 suites, 2436 checks**, ALL GREEN **on a checkout** (measured 2026-10-29). Off a zipball extract - which is what the data machine runs - nine checks in `smoke_buildid` need git to test the archive path and report SKIPPED without it, so the expected total there is NINE LOWER; that delta was measured when it was found, the current zipball total has not been re-run, and a total nobody ran is not a number to quote. Do not quote the checkout number to the data machine; that is how a correct run gets read as a failure.
 - **THE DEVELOPMENT MACHINE WAS BEHIND THE DATA MACHINE, and that is
   how a green suite here failed there.** Dev was on Python 3.10 with
   pandas 2.3; the data machine installs fresh and got pandas 3.0.5,
@@ -3504,6 +3504,48 @@ what follows is what came out wrong anyway.
   measures (per-column predictability with driver agreement, and
   TSTR) which touch no engine code. The engine is byte-identical
   to the build that produced the deliverable.
+
+- **THE ABSOLUTE STOP WAS JUDGING A COLUMN THAT IS NOT IN THE
+  FILE (2026-10-30).** Asked whether SynthKit could repair an
+  inversion and then re-measure to see if the whole gate improved,
+  the repair tool was built - and on the real extract it reported
+  `child absent` and had nothing to rearrange. The inverted pair
+  was `procedures__n <- mean_arterial_pressure_invasive`, and
+  `procedures__n` is a set-SIZE column: search machinery, dropped
+  before generated.csv is written. Read back in WORDS so no digit
+  could be misread: `pairs_inverted = one`,
+  `pairs_own_inverted = zero`. **Nobody can read a column that is
+  not there**, so the one verdict that says STOP was counting
+  scaffolding. The gate has computed `pairs_own_inverted` all
+  along and printed it in a note while the CRITERION judged the
+  scaffolding-inclusive total. Same fault this file already
+  records for the constraints section. The stop now judges the
+  operator's columns; a scaffolding inversion is REPORTED,
+  because it can still mark a modelling fault; and a run that
+  predates the split falls back to the total, because absent is
+  not known-to-be-zero.
+- **THIS IS A MEASUREMENT CORRECTION, NOT A FIDELITY GAIN, AND
+  THE DIFFERENCE MUST BE SAID OUT LOUD.** Not one value in the
+  generated file changed. On run_old0 the gate goes from four
+  PASS to **six of nine**, the absolute stop clearing, with the
+  residue being shapes tracked 7/8, interaction surfaces 0/5
+  (the criterion grades surfaces this engine never consults -
+  already recorded) and dynamics tracked 20/86 (structural: the
+  engine is row-level and models no trajectory). Reporting that
+  as "fidelity improved overnight" would be the same error as
+  last night's close reading.
+- **AND THE REPAIR TOOL STANDS, UNUSED BUT PROVEN.**
+  `repair_inversions.py RUN SRC.csv` rearranges an inverted
+  pair's child to recover the source rank correlations - jointly
+  across every partner above 0.10, because targeting one pair
+  randomises the rest - and then re-measures the WHOLE gate,
+  printing every criterion before and after. It writes nothing
+  without `--apply`: a repair aimed at one criterion can cost
+  others, which is not a hypothesis but what two tiers did last
+  night. Verified on a planted inversion: pair -0.119 -> +0.155
+  against a source +0.129, two neighbours unmoved at 0.515 and
+  0.370, and the repaired column holding the SAME MULTISET as the
+  generated one - a permutation cannot move a marginal.
 
 ## Talking to the data machine
 
