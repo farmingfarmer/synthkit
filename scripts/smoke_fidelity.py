@@ -1621,6 +1621,23 @@ def main():
           "not a result",
           any('<td>w</td>' in _l and "&mdash;" in _l
               for _l in _hj.split("<tr")))
+    # A FLAG THAT IS READ AND NOT USED IS WORSE THAN NO FLAG -
+    # `--time-col` was carried into a blueprint and then ignored,
+    # and passing it changed nothing while the message still
+    # claimed it had. Assert the flag REACHES the builder and
+    # that the two branches differ, not merely that the option
+    # parses.
+    import inspect as _ins9
+    _bs9 = _ins9.getsource(_fd.build_deck)
+    _fs9 = io.open("scripts/fidelity_deck.py",
+                   encoding="utf-8").read()
+    check("the --joint flag reaches build_deck and CHANGES what "
+          "it builds - a flag that parses and does nothing is "
+          "the --time-col failure wearing a new name",
+          "joint=a.joint" in _fs9
+          and "if joint:" in _bs9
+          and "joint_section_html(src, gen" in _bs9
+          and "opt-in" in _bs9)
     check("the joint measures are OFF by default and their absence "
           "is STATED - they fit a model per column and a page that "
           "takes minutes is a hung browser",
