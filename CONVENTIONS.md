@@ -3919,6 +3919,29 @@ exist.
   not the\n    covariates.</b>` cannot be grepped as a phrase
   however correctly the page renders.
 
+- **PREDICTION FOR THE FIRST REAL-EXTRACT DIALBACK RUN, ON
+  RECORD BEFORE IT RUNS (2026-10-30).** 800-patient
+  tidy_visits, k 10, one dial: `condition_count~span_days
+  =-0.60`, so `span_days` - the column a vendor would be asked
+  to model - is the OUTCOME and every predictor stays faithful.
+  (1) `verify` PASSES: inverse exact and identical multiset on
+  span_days, every other column byte-identical. This is
+  structural, so a FAIL would mean the engine moved values
+  rather than rearranging them, which is a real finding rather
+  than a tuning miss. (2) `rehearse --target span_days` reports
+  the target PERTURBED with no perturbed predictor, so recovery
+  reads EXACT and the protection number is MEASURED. (3)
+  `rehearse --target condition_count` takes the route-B branch,
+  because span_days is then a perturbed predictor.
+  **NOT CLAIMED: that the fixture's +2.63 denial transfers.**
+  That fixture had one dominant driver and clean noise; the
+  extract has 44 colinear columns where a model routes around a
+  single lost column far more easily, so the absolute denial
+  should be SMALLER and could be small enough to matter. NOT
+  CLAIMED either: that route B's 0.102 sd recovery transfers -
+  it was measured on a five-column frame. The three ROUTE
+  VERDICTS are the claim; the magnitudes are the measurement.
+
 - **THE TOKEN CAP IS A MEMORY BUDGET, NOT A PRIVACY RULE - AND IT
   WAS COSTING FIDELITY (2026-10-23).** On an 800-patient tidy
   fixture, `conditions` held 5,191 tokens, **4,710 cleared the k
