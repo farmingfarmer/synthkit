@@ -140,10 +140,25 @@ def verify(run):
         bad.append("columns changed with no cipher entry: "
                    + ", ".join(moved[:6]))
     for r in (c.get("repointed") or []):
+        _rch = r.get("reachable")
+        _ask = float(r.get("requested", 0))
+        _got = float(r.get("achieved", 0))
         print("    re-pointed {:<28} asked {:+.2f}  landed "
-              "{:+.2f}".format(r.get("pair", "?"),
-                               float(r.get("requested", 0)),
-                               float(r.get("achieved", 0))))
+              "{:+.2f}".format(r.get("pair", "?"), _ask, _got))
+        if _rch:
+            # A GAP BETWEEN ASKED AND LANDED IS NOT AUTOMATICALLY
+            # A MISS. Rank correlation is bounded by the tie
+            # structure, and a reader who sees -0.60 asked and
+            # -0.29 landed will hunt a sampler bug unless the
+            # ceiling is printed beside it.
+            _lo, _hi = float(_rch[0]), float(_rch[1])
+            _bound = (_ask < _lo - 1e-9) or (_ask > _hi + 1e-9)
+            print("      reachable band for this pair "
+                  "[{:+.3f}, {:+.3f}]{}".format(
+                      _lo, _hi,
+                      "  <- the ask was outside it; the dial "
+                      "went as far as the pair allows"
+                      if _bound else ""))
     for r in (c.get("suppressed") or []):
         print("    suppressed {}".format(r))
     print("")
@@ -330,7 +345,24 @@ def rehearse(run, target, group_by=None, seed=0):
           "exact by construction")
     print("    (in sds of the score; lower is better)")
     print("")
-    if rec < naive * 0.5:
+    if naive < 0.05:
+        # THE SAME OBSERVABLE, TWO OPPOSITE CONCLUSIONS AGAIN.
+        # On the real extract a dialed span_days left
+        # condition_count's returned score 0.007 sd from truth -
+        # the model barely reads the column we moved - and the
+        # tool said "ROUTE B DOES NOT WORK", which reads as the
+        # distortion being too strong when it was too weak to
+        # matter. Note the two numbers agree: a dial that denies
+        # nothing (above) is the same fact as a return that
+        # needs no recovery, and agreement between them is the
+        # signal, not a coincidence.
+        print("  NOTHING TO RECOVER HERE: the returned score is "
+              "already {:.3f} sd from truth, because this "
+              "target barely reads the column the dial moved. "
+              "Take the return as-is - and note this is the "
+              "SAME fact as the protection number above, which "
+              "is why they agree.".format(naive))
+    elif rec < naive * 0.5:
         print("  Route B recovers most of it here - {:.3f} sd "
               "closer to truth than the raw return.".format(
                   naive - rec))

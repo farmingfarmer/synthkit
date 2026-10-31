@@ -88,7 +88,13 @@ def fixture(path, npat=110, seed=5):
             risk = float(0.045 * span + 0.020 * (age - 60)
                          + 0.010 * (lab - 40)
                          + rng.normal(0, 0.25))
+            # A TIED COLUMN, because the real extract has one
+            # and no continuous fixture can reach the fault:
+            # span_days holds FIVE distinct values over 56,065
+            # rows there, which bounds the rank correlation to
+            # [-0.395, +0.395] however the values are arranged.
             rows.append(dict(person_id=pid, age_at_visit=age,
+                             tied=int(min(4, max(0, span // 12))),
                              span_days=round(span, 2),
                              lab=round(lab, 2),
                              other=round(float(
@@ -323,6 +329,34 @@ def main():
               "plain one did not",
               (td / "bw" / "cipher.json").exists()
               and not (td / "bp" / "cipher.json").exists())
+
+        # ---- A DIAL CANNOT EXCEED THE PAIR'S TIE CEILING,
+        #      AND MUST SAY SO. Found on the real extract: a
+        #      request of -0.60 landed at -0.29 and read as a
+        #      sampler miss, when -0.60 does not EXIST for a
+        #      5-distinct-value column.
+        rc, log = run_cli(src, td / "tied",
+                          "--poison", "risk~tied=-0.95")
+        check("a re-point whose request the pair cannot "
+              "represent NOTES the reachable band in the run, "
+              "naming the distinct-value count that bounds it",
+              rc == 0 and "OUTSIDE what this pair can represent"
+              in log and "distinct values" in log)
+        ct = json.loads((td / "tied" / "cipher.json").read_text(
+            encoding="utf-8"))
+        rp = (ct.get("repointed") or [{}])[0]
+        check("...and the band is RECORDED beside requested and "
+              "achieved, so the answer key shows the ask was "
+              "impossible rather than the dial weak",
+              "reachable" in rp and len(rp["reachable"]) == 2
+              and abs(rp["reachable"][0]) < 0.95)
+        rc, out = db("verify", td / "tied")
+        check("...and `verify` prints the band and marks the "
+              "ask as outside it - a reader seeing asked -0.95 "
+              "beside landed much less will hunt a sampler bug "
+              "without it",
+              rc == 0 and "reachable band" in out
+              and "as far as the pair allows" in out)
 
         # ---- recover refuses what it cannot relate
         bad = td / "bad.csv"

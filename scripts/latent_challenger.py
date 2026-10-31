@@ -2212,9 +2212,40 @@ class LatentGen:
             ach = float(pd.to_numeric(frame[pb_p],
                                       errors="coerce")[live].corr(
                 parent[live], method="spearman"))
+            # A DIAL CAN ASK FOR A CORRELATION THE PAIR CANNOT
+            # REPRESENT, and for as long as it existed nothing
+            # said so. Rank correlation is bounded by the TIE
+            # STRUCTURE: on the real extract span_days holds 5
+            # distinct values over 56,065 rows, so the most
+            # negative Spearman ANY rearrangement can reach
+            # against condition_count is -0.395 - and a request
+            # of -0.60 landed at -0.29 looking like a sampler
+            # miss rather than an impossible ask. The reachable
+            # band is the two extremal arrangements: both sorted
+            # the same way is the ceiling, opposed is the floor.
+            _pv = parent[live].to_numpy()
+            _cv = child[live].to_numpy()
+            _ps = pd.Series(np.sort(_pv))
+            _hi = float(_ps.corr(pd.Series(np.sort(_cv)),
+                                 method="spearman"))
+            _lo = float(_ps.corr(pd.Series(np.sort(_cv)[::-1]),
+                                 method="spearman"))
+            if rho_p > _hi + 1e-9 or rho_p < _lo - 1e-9:
+                print("  NOTE {}~{}: {:+.2f} is OUTSIDE what "
+                      "this pair can represent. {} holds {} "
+                      "distinct values over {} rows, which "
+                      "bounds the rank correlation to [{:+.3f}, "
+                      "{:+.3f}] however the values are "
+                      "arranged. The dial went as far as it "
+                      "could.".format(
+                          pa_p, pb_p, rho_p, pb_p,
+                          int(pd.Series(_cv).nunique()), m,
+                          _lo, _hi))
             self._poison_record.append(
                 {"pair": "{}~{}".format(pa_p, pb_p),
-                 "requested": rho_p, "achieved": round(ach, 3)})
+                 "requested": rho_p, "achieved": round(ach, 3),
+                 "reachable": [round(_lo, 3), round(_hi, 3)],
+                 "distinct_child": int(pd.Series(_cv).nunique())})
             print("  POISONED {}~{}: forced to {:+.2f} "
                   "(achieved {:+.2f}) - the column's own "
                   "distribution is intact; the relationship is a "

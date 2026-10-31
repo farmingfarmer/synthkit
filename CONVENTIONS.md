@@ -4,7 +4,7 @@ Synthetic clinical data generator and model-evaluation instrument. Core rule: le
 
 ## Verify before claiming
 
-- Run `python scripts/run_all_smokes.py` before claiming anything works. Expect **82 suites, 2472 checks**, ALL GREEN **on a checkout** (measured 2026-10-29). Off a zipball extract - which is what the data machine runs - nine checks in `smoke_buildid` need git to test the archive path and report SKIPPED without it, so the expected total there is NINE LOWER; that delta was measured when it was found, the current zipball total has not been re-run, and a total nobody ran is not a number to quote. Do not quote the checkout number to the data machine; that is how a correct run gets read as a failure.
+- Run `python scripts/run_all_smokes.py` before claiming anything works. Expect **82 suites, 2475 checks**, ALL GREEN **on a checkout** (measured 2026-10-29). Off a zipball extract - which is what the data machine runs - nine checks in `smoke_buildid` need git to test the archive path and report SKIPPED without it, so the expected total there is NINE LOWER; that delta was measured when it was found, the current zipball total has not been re-run, and a total nobody ran is not a number to quote. Do not quote the checkout number to the data machine; that is how a correct run gets read as a failure.
 - **THE DEVELOPMENT MACHINE WAS BEHIND THE DATA MACHINE, and that is
   how a green suite here failed there.** Dev was on Python 3.10 with
   pandas 2.3; the data machine installs fresh and got pandas 3.0.5,
@@ -3918,6 +3918,82 @@ exist.
   trap also bit again in the same hour: `<b>Dial the OUTCOME,
   not the\n    covariates.</b>` cannot be grepped as a phrase
   however correctly the page renders.
+
+- **THE REAL-EXTRACT DIALBACK RUN CAME BACK, THE THREE ROUTE
+  VERDICTS HELD, AND IT FOUND TWO REPORTING DEFECTS
+  (2026-10-30, run_dial1, 800 patients, 56,065 rows, k 10,
+  dial `condition_count~span_days=-0.60`).** The prediction
+  scored 3 of 3 on the verdicts and was RIGHT to refuse the
+  magnitudes.
+      verify            rows 56,065 both sides; span_days
+                        inverse EXACT, same multiset; 43
+                        untouched columns, 0 changed -> VERIFIED
+      dialed OUTCOME    key-trained  +0.433
+      (span_days)       released     -0.111
+                        DENIED       +0.544   recovery EXACT
+      dialed PREDICTOR  key-trained  +0.368
+      (condition_count) released     +0.392
+                        DENIED       -0.025   protects nothing
+  **A vendor who trains on the released file goes from +0.433
+  to NEGATIVE skill - worse than predicting the mean - while a
+  vendor who merely SCORES our rows returns the key answer
+  exactly, because every predictor it reads is untouched.** The
+  fixture's +2.63 did NOT transfer, exactly as the prediction
+  refused to claim: 44 colinear columns give a model far more
+  to route around. +0.544 is the real number and it is still
+  decisive. The three headline figures were re-read through a
+  SECOND channel, spelled by the machine - "PLUS zero POINT
+  four three three", "MINUS zero POINT one one one", "PLUS zero
+  POINT five four four" - because the digits channel off that
+  screen is not trustworthy and these go in the record.
+- **A DIAL CAN ASK FOR A CORRELATION THE PAIR CANNOT REPRESENT,
+  AND NOTHING SAID SO.** The run asked -0.60 and landed -0.29,
+  which reads as a sampler miss. It is not. `span_days` holds
+  **FIVE distinct values over 56,065 rows**, and against
+  `condition_count`'s 22 the most negative Spearman ANY
+  rearrangement can reach is **-0.395** - measured by sorting
+  one against the other, not assumed. The ask did not exist;
+  the dial reached 73% of the floor that does. The run now
+  prints the reachable band with the distinct-value count that
+  bounds it, the band is RECORDED beside requested and
+  achieved, and `verify` marks an ask that fell outside it.
+  Every fixture here had continuous columns, so none could
+  reach this - the cap-no-fixture-reaches lesson, in a new
+  module, found by the first real run rather than by a check.
+- **AND ROUTE B'S VERDICT CONFLATED "TOO DISTORTED TO RECOVER"
+  WITH "NOTHING TO RECOVER".** On the dialed-predictor target
+  the returned score sat **0.007 sd** from truth and the
+  surrogate read 0.110, so the tool printed ROUTE B DOES NOT
+  WORK and blamed a corrupted predictor - when the truth is the
+  model barely reads the column we moved. Same observable,
+  opposite conclusion, the third instance in this module.
+  Separated now, and the fix NAMES the agreement: a dial that
+  denies nothing (-0.025) and a return that needs no recovery
+  (0.007) are the SAME fact, and two numbers agreeing is this
+  file's signal rather than a coincidence.
+- **AND A ZERO FAIL COUNT MADE THE RUNNER REPORT A GREEN NET
+  AS FAILED.** The net printed `ALL GREEN: 82 suites, 2475
+  checks` and `exit=0`, and the harness still called the job
+  failed - because the command chain ENDED in `grep -c "^FAIL"`,
+  which exits 1 when the count is zero. This file already says
+  the verdict must come from the SUCCESS marker rather than the
+  absence of a failure marker; here the absence of failures was
+  itself the failure signal. End a chain on the thing you want
+  the status of, or read the marker.
+
+- **WHAT THE MACHINE COST, AND WHAT IS LEFT UNTIDY.** No git,
+  no `gh`, `SYNTHKIT_TOKEN` unset, so the documented zipball
+  fetch was closed and typing a secret is not done. The two
+  changed files went over as a gzip+base64 payload typed in 46
+  chunks and verified by md5 AND by the gzip CRC. That leaves
+  `dev\synthkit` a HYBRID - `abf66447` plus two files from
+  `fd66ece` - which is fine for this measurement and is NOT a
+  state to leave: a tree matching no commit is the stale-serve
+  fault waiting to happen. Re-fetch properly with the token.
+  Also: the read pipeline sliced to `--- output ---` and
+  `HANDS refused` prints ABOVE it, so several "empty" reads
+  were explicit refusals being discarded - this file already
+  says grep the refusal FIRST, and it still cost three probes.
 
 - **PREDICTION FOR THE FIRST REAL-EXTRACT DIALBACK RUN, ON
   RECORD BEFORE IT RUNS (2026-10-30).** 800-patient
