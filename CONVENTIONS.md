@@ -3988,6 +3988,25 @@ exist.
   NOT predicted and worth keeping: the band is ASYMMETRIC
   (+0.445 up, -0.395 down) - a tie structure does not bound
   both directions equally, and only the floor had been checked.
+- **ROUTE B RAN END TO END ON THE REAL RUN, AND ITS NUMBER IS A
+  BEST CASE RATHER THAN A TYPICAL ONE (2026-11-02).** `recover`
+  had only ever been exercised on its REFUSAL path - the whole
+  value-extraction half of the architecture was untested on
+  anything. Against run_dial2, with a stand-in vendor scoring
+  the released rows and the truth computed on the key rows:
+      route B, surrogate                0.041 sd
+      the return taken untouched        0.641 sd
+  Fifteen times better than ignoring the distortion, on 56,065
+  rows. **SAID PLAINLY: the stand-in is LINEAR** (0.4*count +
+  0.3*span + noise), which a gradient-boosting surrogate fits
+  almost exactly, so 0.041 is the ceiling of this route and not
+  what a real vendor model would give. What it does establish
+  is that the chain WORKS at extract scale and that route B is
+  worth running rather than taking a return as-is. The honest
+  order is still route A - get the model, run it on key.csv,
+  exact - and `rehearse` remains the thing that says which
+  route a given dial setting leaves you.
+
 - **AND A `cd && (...) || echo ABSENT` CHAIN IS NOT AN EXISTENCE
   TEST.** The first check of that run reported RUNDIR-ABSENT and
   I briefly believed the run had produced nothing - while its
