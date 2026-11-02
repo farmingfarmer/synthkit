@@ -87,6 +87,64 @@ def tracked():
 GRANDFATHERED_THROUGH = "a095f1fb072e7d3bd75ecde316acc7b1d2ddd202"
 
 
+# THE ONE MISTAKE THIS WHOLE SPLIT EXISTS TO PREVENT, AND NOTHING
+# WATCHED FOR IT.
+#
+# The architecture is two machines: real extracts live on the data
+# machine, fixtures live here, and code travels one way. Every rule in
+# CONVENTIONS.md about writing code without access to the data assumes
+# a real extract never reaches this repository - and until now the
+# only guard was that nobody had done it. The scans above look for a
+# HANDLE or a LAPTOP MODEL. A 55,428-row clinical extract committed
+# into `data/` contains none of those strings and would have sailed
+# through every one of them.
+#
+# That became materially worse the day the remote went public.
+#
+# Two guards, because they catch different mistakes. The INVENTORY
+# catches a new file appearing - `data/real_extract.csv` - and fails
+# until somebody adds it here deliberately, which is the moment to
+# ask what it is. The CEILING catches a fixture being OVERWRITTEN by
+# the real thing under its own name, which the inventory cannot see.
+#
+# The ceiling is measured, not guessed: the largest tracked fixture is
+# measurement.csv at 5,653 rows and the real extract is 55,428, so
+# 20,000 sits comfortably above every fixture and far below anything
+# that could be an extract. Neither guard can tell real data from fake
+# by reading it - that is not a thing a checker can do - and they do
+# not try. They make an unexpected file LOUD.
+DATA_ROW_CEILING = 20000
+TRACKED_DATA = frozenset((
+    "data/mimic_omop/condition_occurrence.csv",
+    "data/mimic_omop/drug_exposure.csv",
+    "data/mimic_omop/generated.csv",
+    "data/mimic_omop/measurement.csv",
+    "data/mimic_omop/person.csv",
+    "data/mimic_omop/procedure_occurrence.csv",
+    "data/mimic_omop/tidy_visits.csv",
+    "data/mimic_omop/tidy_visits_labeled.csv",
+    "data/mimic_omop/visit_occurrence.csv",
+    "docs/e2e/generated_patients.csv",
+))
+
+
+def data_files(files):
+    """Tracked files that carry records, repo-relative."""
+    out = []
+    for f in files:
+        if f.suffix.lower() in (".csv", ".parquet"):
+            out.append(str(f.relative_to(ROOT)).replace("\\", "/"))
+    return sorted(out)
+
+
+def row_count(rel):
+    n = 0
+    with (ROOT / rel).open("rb") as fh:
+        for _ in fh:
+            n += 1
+    return n
+
+
 def commit_messages():
     """Commit messages after the grandfathered baseline.
 
@@ -230,6 +288,32 @@ def main():
           .format("" if not junk
                   else " -- " + ", ".join(str(j) for j in junk)),
           not junk, repo)
+
+    # ---- the data inventory
+    present = data_files(files)
+    unexpected = [f for f in present if f not in TRACKED_DATA]
+    gated("no record-bearing file is tracked that the inventory "
+          "does not name - a real extract committed into data/ "
+          "carries no handle and no laptop model, so every scan "
+          "above would pass it{}"
+          .format("" if not unexpected
+                  else " -- " + ", ".join(unexpected)),
+          not unexpected, repo)
+    missing = [f for f in sorted(TRACKED_DATA) if f not in present]
+    gated("...and every file the inventory names is still tracked, "
+          "so the list cannot rot into one that matches nothing{}"
+          .format("" if not missing
+                  else " -- " + ", ".join(missing)),
+          not missing, repo)
+    fat = [(f, row_count(f)) for f in present
+           if row_count(f) > DATA_ROW_CEILING]
+    gated("...and none exceeds {} rows - the inventory cannot see a "
+          "fixture OVERWRITTEN by the real thing under its own "
+          "name, and a row count can{}"
+          .format(DATA_ROW_CEILING,
+                  "" if not fat else " -- " + ", ".join(
+                      "{} at {} rows".format(a, b) for a, b in fat)),
+          not fat, repo)
 
     check("the tracked conventions file exists and is the neutral "
           "one", (ROOT / "CONVENTIONS.md").exists())

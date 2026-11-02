@@ -4,7 +4,7 @@ Synthetic clinical data generator and model-evaluation instrument. Core rule: le
 
 ## Verify before claiming
 
-- Run `python scripts/run_all_smokes.py` before claiming anything works. Expect **82 suites, 2480 checks**, ALL GREEN **on a checkout** (measured 2026-10-29). Off a zipball extract - which is what the data machine runs - nine checks in `smoke_buildid` need git to test the archive path and report SKIPPED without it, so the expected total there is NINE LOWER; that delta was measured when it was found, the current zipball total has not been re-run, and a total nobody ran is not a number to quote. Do not quote the checkout number to the data machine; that is how a correct run gets read as a failure.
+- Run `python scripts/run_all_smokes.py` before claiming anything works. Expect **82 suites, 2483 checks**, ALL GREEN **on a checkout** (measured 2026-10-29). Off a zipball extract - which is what the data machine runs - nine checks in `smoke_buildid` need git to test the archive path and report SKIPPED without it, so the expected total there is NINE LOWER; that delta was measured when it was found, the current zipball total has not been re-run, and a total nobody ran is not a number to quote. Do not quote the checkout number to the data machine; that is how a correct run gets read as a failure.
 - **THE DEVELOPMENT MACHINE WAS BEHIND THE DATA MACHINE, and that is
   how a green suite here failed there.** Dev was on Python 3.10 with
   pandas 2.3; the data machine installs fresh and got pandas 3.0.5,
@@ -3971,6 +3971,45 @@ exist.
   denies nothing (-0.025) and a return that needs no recovery
   (0.007) are the SAME fact, and two numbers agreeing is this
   file's signal rather than a coincidence.
+- **THE ONE MISTAKE THE WHOLE SPLIT EXISTS TO PREVENT HAD NO
+  GUARD AT ALL (2026-11-02).** Two machines, real extracts on
+  one and fixtures on the other, and every rule in this file
+  about writing code without access to the data assumes a real
+  extract never reaches this repository. The only thing
+  enforcing that was nobody having done it. `smoke_no_personal`
+  scans tracked files for a HANDLE or a LAPTOP MODEL; a
+  55,428-row clinical extract committed into `data/` contains
+  neither and would have passed every scan in the suite. The
+  remote going public made that materially worse the same day.
+- **TWO GUARDS, BECAUSE THEY CATCH DIFFERENT MISTAKES.** The
+  INVENTORY pins every tracked record-bearing file by name, so
+  a new `data/real_extract.csv` fails until somebody adds it
+  deliberately - which is the moment to ask what it is. The
+  CEILING catches a fixture OVERWRITTEN by the real thing under
+  its OWN name, which the inventory cannot see. Measured, not
+  guessed: the largest tracked fixture is measurement.csv at
+  5,653 rows against a real extract's 55,428, so 20,000 sits
+  above every fixture and far below anything that could be an
+  extract. A third check asserts every name in the inventory is
+  still tracked, because a pinned list that matches nothing
+  passes trivially - this file's own worst-kind-of-clean.
+  Neither guard can tell real data from fake by reading it,
+  which is not a thing a checker can do, and neither pretends
+  to: they make an unexpected file LOUD. Both watched red - a
+  planted new file names itself, and 55,428 rows planted under
+  `person.csv` reads "at 55429 rows".
+- **AND I RAISED A MIMIC DUA ALARM THAT WAS WRONG.** Seeing
+  `data/mimic_omop/` with record-level person, measurement and
+  drug rows, I read it as redistributed MIMIC-IV under a
+  PhysioNet DUA and told the operator to take the repo private.
+  It is generated: `scripts/make_mimic_omop.py` builds it to
+  reproduce the shape AND THE MESS of the real extract, from
+  schemas transcribed off photographs of the data machine's
+  screen because the data has no route out. "OMOP-mimic" means
+  OMOP-MIMICKING. Grep for a generator before reading a
+  directory name as provenance - the correction cost less than
+  the alarm, but the alarm was mine to check first.
+
 - **THE BAND REACHED THE AUDIT RECORD AND THE BENCH, AND
   FAIL-FIRST ON A FAIL-FAST SUITE PROVES ONLY THE FIRST CHECK
   (2026-11-02).** Three gaps closed after the real run: verify
