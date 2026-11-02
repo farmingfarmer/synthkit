@@ -4,7 +4,7 @@ Synthetic clinical data generator and model-evaluation instrument. Core rule: le
 
 ## Verify before claiming
 
-- Run `python scripts/run_all_smokes.py` before claiming anything works. Expect **82 suites, 2475 checks**, ALL GREEN **on a checkout** (measured 2026-10-29). Off a zipball extract - which is what the data machine runs - nine checks in `smoke_buildid` need git to test the archive path and report SKIPPED without it, so the expected total there is NINE LOWER; that delta was measured when it was found, the current zipball total has not been re-run, and a total nobody ran is not a number to quote. Do not quote the checkout number to the data machine; that is how a correct run gets read as a failure.
+- Run `python scripts/run_all_smokes.py` before claiming anything works. Expect **82 suites, 2480 checks**, ALL GREEN **on a checkout** (measured 2026-10-29). Off a zipball extract - which is what the data machine runs - nine checks in `smoke_buildid` need git to test the archive path and report SKIPPED without it, so the expected total there is NINE LOWER; that delta was measured when it was found, the current zipball total has not been re-run, and a total nobody ran is not a number to quote. Do not quote the checkout number to the data machine; that is how a correct run gets read as a failure.
 - **THE DEVELOPMENT MACHINE WAS BEHIND THE DATA MACHINE, and that is
   how a green suite here failed there.** Dev was on Python 3.10 with
   pandas 2.3; the data machine installs fresh and got pandas 3.0.5,
@@ -3971,6 +3971,29 @@ exist.
   denies nothing (-0.025) and a return that needs no recovery
   (0.007) are the SAME fact, and two numbers agreeing is this
   file's signal rather than a coincidence.
+- **THE BAND REACHED THE AUDIT RECORD AND THE BENCH, AND
+  FAIL-FIRST ON A FAIL-FAST SUITE PROVES ONLY THE FIRST CHECK
+  (2026-11-02).** Three gaps closed after the real run: verify
+  printed a BARE `[-0.39, +0.39]` while the cipher already
+  carried `distinct_child` - a field written and never read,
+  this file's own named fault, now named in the line; a cipher
+  predating the band printed NOTHING, which reads as "no
+  ceiling here" rather than "cannot be said from this record",
+  the empty-versus-missing distinction one more time; and the
+  BENCH still showed asked beside landed alone, so the one
+  surface an operator actually reads was the last place still
+  implying a gap is a miss.
+- **AND THE MUTATION THAT SHOULD HAVE FAILED THREE CHECKS
+  FAILED ONE, WHICH IS A PROPERTY OF THE SUITE, NOT THE FIX.**
+  `smoke_gui.check()` calls `sys.exit(1)` on the first failure,
+  so reverting the page printed ONE `FAIL:` line, no summary
+  line, and an exit code belonging to the pipeline's `tail`.
+  Two of the three checks were therefore UNVERIFIED while
+  looking verified - the shape this file already records as a
+  crashed suite emitting no FAIL line. On a fail-fast suite
+  each check must be mutated ALONE; done, and all three go red
+  on their own target.
+
 - **AND A ZERO FAIL COUNT MADE THE RUNNER REPORT A GREEN NET
   AS FAILED.** The net printed `ALL GREEN: 82 suites, 2475
   checks` and `exit=0`, and the harness still called the job

@@ -5383,12 +5383,40 @@ function relKey(rel){
     'never leaves with the data.</div>';
   if(P.length){
     h+='<table class="jt"><tr><th>relationship</th>'+
-       '<th>asked for</th><th>landed at</th></tr>';
+       '<th>asked for</th><th>landed at</th>'+
+       '<th>what this pair can reach</th></tr>';
+    /* THE GAP BETWEEN ASKED AND LANDED IS NOT AUTOMATICALLY A
+       MISS, and the bench was the last place still implying it
+       was. Rank correlation is bounded by the TIE STRUCTURE: on
+       the real extract span_days holds five distinct values, so
+       a request of -0.60 does not exist for it however the
+       values are arranged, and it landed -0.29. A reader shown
+       only those two numbers hunts a sampler bug. The CLI says
+       this now; a bench that did not would be the two halves
+       disagreeing about the same run. */
     P.forEach(function(r){
+      var band='<span class="hint">not recorded</span>', out=false;
+      if(r.reachable&&r.reachable.length===2){
+        var lo=Number(r.reachable[0]), hi=Number(r.reachable[1]);
+        out=(Number(r.requested)<lo-1e-9)||
+            (Number(r.requested)>hi+1e-9);
+        band=lo.toFixed(2)+' to '+hi.toFixed(2)+
+          (r.distinct_child?' <span class="hint">('+
+            r.distinct_child+' distinct values)</span>':'');}
       h+='<tr><td>'+r.pair+'</td><td>'+
         Number(r.requested).toFixed(2)+'</td><td>'+
-        Number(r.achieved).toFixed(2)+'</td></tr>';});
-    h+='</table>';}
+        Number(r.achieved).toFixed(2)+'</td><td>'+band+
+        (out?' <b>ask was outside this</b>':'')+'</td></tr>';});
+    h+='</table>';
+    if(P.some(function(r){return r.reachable&&
+        r.reachable.length===2&&
+        (Number(r.requested)<Number(r.reachable[0])-1e-9||
+         Number(r.requested)>Number(r.reachable[1])+1e-9);}))
+      h+='<div class="hint">An ask outside the band is an '+
+        'IMPOSSIBLE ASK, not a weak dial - no arrangement of '+
+        'those values reaches it. The dial went as far as the '+
+        'pair allows, and the landed figure is the honest '+
+        'one.</div>';}
   if(S.length)h+='<div>removed on request: <b>'+S.length+
     '</b> relationship(s)</div>';
   if(A.length)h+='<div>strongest removed automatically: <b>'+

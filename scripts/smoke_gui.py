@@ -2211,6 +2211,23 @@ def main():
               "is this repo's named silent-failure class",
               "pairBox(!!(j.result&&j.result.pair))" in html
               and "function pairBox(" in html)
+        check("the answer key carries WHAT THE PAIR CAN REACH "
+              "beside asked and landed - the gap between them "
+              "is not automatically a miss, and the bench was "
+              "the last place still implying it was",
+              "what this pair can reach" in html
+              and "r.reachable" in html
+              and "r.distinct_child" in html)
+        check("...and an ask outside the band is called an "
+              "IMPOSSIBLE ASK rather than a weak dial, which "
+              "is the reading that sends somebody hunting a "
+              "sampler bug",
+              "ask was outside this" in html
+              and "IMPOSSIBLE ASK" in html)
+        check("...and a run with no band recorded says NOT "
+              "RECORDED rather than rendering an empty cell - "
+              "absent is not known-to-be-representable",
+              "not recorded" in html)
         r = post("/api/pair-verify", {"out": ""})
         check("/api/pair-verify is routed and refuses an empty "
               "run directory BY NAME",
