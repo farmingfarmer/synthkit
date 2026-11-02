@@ -3971,6 +3971,33 @@ exist.
   denies nothing (-0.025) and a return that needs no recovery
   (0.007) are the SAME fact, and two numbers agreeing is this
   file's signal rather than a coincidence.
+- **THE REAL EXTRACT DOCUMENTS ITS OWN CEILING NOW, AND THE
+  HAND MEASUREMENT AND THE IMPLEMENTATION AGREE TO THREE
+  DECIMALS (2026-11-02, run_dial2).** The same dial on the
+  current build:
+      re-pointed condition_count~span_days
+        asked -0.60   landed -0.29
+        reachable band [-0.395, +0.445], bounded by the 5
+        distinct value(s) the dialed column holds
+        THE ASK WAS OUTSIDE THAT BAND
+  The floor was predicted at **-0.395**, measured here by hand
+  by sorting span_days against condition_count in the key file
+  before the fix was written; the engine's own solve reports
+  **-0.395**. Two independent routes to one number is what
+  makes it a measurement rather than an implementation detail.
+  NOT predicted and worth keeping: the band is ASYMMETRIC
+  (+0.445 up, -0.395 down) - a tie structure does not bound
+  both directions equally, and only the floor had been checked.
+- **AND A `cd && (...) || echo ABSENT` CHAIN IS NOT AN EXISTENCE
+  TEST.** The first check of that run reported RUNDIR-ABSENT and
+  I briefly believed the run had produced nothing - while its
+  own log ended "wrote key.csv and cipher.json". Two readings
+  disagreeing is this file's alarm and it was right: the
+  directory was there, and the malformed cmd chain was the
+  liar. `if exist X (...) else (...)` gave the truth
+  immediately. A negative from a compound chain is worth less
+  than a positive from a simple one.
+
 - **THE ONE MISTAKE THE WHOLE SPLIT EXISTS TO PREVENT HAD NO
   GUARD AT ALL (2026-11-02).** Two machines, real extracts on
   one and fixtures on the other, and every rule in this file
