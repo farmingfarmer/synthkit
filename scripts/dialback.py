@@ -145,20 +145,41 @@ def verify(run):
         _got = float(r.get("achieved", 0))
         print("    re-pointed {:<28} asked {:+.2f}  landed "
               "{:+.2f}".format(r.get("pair", "?"), _ask, _got))
-        if _rch:
-            # A GAP BETWEEN ASKED AND LANDED IS NOT AUTOMATICALLY
-            # A MISS. Rank correlation is bounded by the tie
-            # structure, and a reader who sees -0.60 asked and
-            # -0.29 landed will hunt a sampler bug unless the
-            # ceiling is printed beside it.
-            _lo, _hi = float(_rch[0]), float(_rch[1])
-            _bound = (_ask < _lo - 1e-9) or (_ask > _hi + 1e-9)
-            print("      reachable band for this pair "
-                  "[{:+.3f}, {:+.3f}]{}".format(
-                      _lo, _hi,
-                      "  <- the ask was outside it; the dial "
-                      "went as far as the pair allows"
-                      if _bound else ""))
+        if not _rch:
+            # ABSENT IS NOT KNOWN-TO-BE-FINE. A cipher written
+            # before the band was recorded cannot say whether
+            # the ask was representable at all, and printing
+            # nothing in that case reads as "no ceiling here" -
+            # which is the one reading that sends somebody
+            # hunting a sampler bug for an impossible ask.
+            print("      reachable band NOT RECORDED by this "
+                  "run - it cannot be said from this cipher "
+                  "whether the ask was representable; re-run "
+                  "the dial to learn that")
+            continue
+        # A GAP BETWEEN ASKED AND LANDED IS NOT AUTOMATICALLY
+        # A MISS. Rank correlation is bounded by the TIE
+        # STRUCTURE, and a reader who sees -0.60 asked and -0.29
+        # landed will hunt a sampler bug unless the ceiling is
+        # printed beside it WITH THE THING THAT BOUNDS IT. The
+        # run's own console names the distinct-value count;
+        # verify is the audit record somebody reads weeks later
+        # when that console is long gone, so it has to name it
+        # too, or the band is a bare bracket nobody can check.
+        _lo, _hi = float(_rch[0]), float(_rch[1])
+        _nd = r.get("distinct_child")
+        print("      reachable band for this pair "
+              "[{:+.3f}, {:+.3f}]{}".format(
+                  _lo, _hi,
+                  "" if _nd is None else
+                  ", bounded by the {} distinct value(s) the "
+                  "dialed column holds".format(_nd)))
+        if (_ask < _lo - 1e-9) or (_ask > _hi + 1e-9):
+            print("      THE ASK WAS OUTSIDE THAT BAND: {:+.2f} "
+                  "does not exist for this pair however the "
+                  "values are arranged, so the dial went as far "
+                  "as the pair allows. An impossible ask, not a "
+                  "weak dial.".format(_ask))
     for r in (c.get("suppressed") or []):
         print("    suppressed {}".format(r))
     print("")

@@ -357,6 +357,41 @@ def main():
               "without it",
               rc == 0 and "reachable band" in out
               and "as far as the pair allows" in out)
+        # THE BAND MUST CARRY WHAT BOUNDS IT. verify is the
+        # audit record read weeks after the run's console is
+        # gone, and a bare [-0.39, +0.39] is a number nobody can
+        # check against anything. The run's NOTE already names
+        # the distinct-value count; this asserts verify does too.
+        check("...and the band NAMES the distinct-value count "
+              "that bounds it, so the ceiling can be checked "
+              "rather than taken on trust",
+              "distinct value" in out
+              and str(rp.get("distinct_child")) in out)
+        # ABSENT IS NOT KNOWN-TO-BE-FINE. A cipher written
+        # before the band was recorded must SAY it cannot
+        # answer, rather than printing nothing - silence there
+        # reads as "no ceiling", the one reading that sends
+        # somebody hunting a sampler bug for an impossible ask.
+        old = td / "tied_old"
+        old.mkdir()
+        for nm in ("key.csv", "generated.csv"):
+            (old / nm).write_bytes(
+                (td / "tied" / nm).read_bytes())
+        ct_old = json.loads(
+            (td / "tied" / "cipher.json").read_text(
+                encoding="utf-8"))
+        for e in (ct_old.get("repointed") or []):
+            e.pop("reachable", None)
+            e.pop("distinct_child", None)
+        (old / "cipher.json").write_text(
+            json.dumps(ct_old), encoding="utf-8")
+        rc, out_old = db("verify", old)
+        check("...and a cipher with NO band recorded says so by "
+              "name instead of printing nothing - absent is not "
+              "known-to-be-representable",
+              rc == 0 and "NOT RECORDED" in out_old
+              and "reachable band" not in out_old.replace(
+                  "reachable band NOT RECORDED", ""))
 
         # ---- recover refuses what it cannot relate
         bad = td / "bad.csv"
