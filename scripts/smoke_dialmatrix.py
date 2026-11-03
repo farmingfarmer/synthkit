@@ -77,8 +77,10 @@ def main():
     # refused with value/sparse/bystander all None. Asserted
     # against a BUILT blueprint so a rename breaks this rather
     # than a run on the machine that holds the extract.
+    import io
     import json as _json
     import dial_matrix as _M
+    from synthkit import sets as _S
     _df = _M.fixture()
     from synthkit import blueprint as _B
     from synthkit.discover import discover as _disc
@@ -92,6 +94,66 @@ def main():
           "remembered. got: {}".format(
               ", ".join(sorted(str(t) for t in _types))),
           "quantiles" in _types)
+
+    # ---- THE PICKER MUST NEVER CHOOSE SCAFFOLDING. A
+    # set-token indicator like `conditions__has__E11.9` lives
+    # in the blueprint because the SEARCH needs it and is
+    # DROPPED before generated.csv is written, so picking one
+    # kills the run with a KeyError on a column the generator
+    # never emits - which is exactly what the first real
+    # blueprint did. The fixture above has no set column, so it
+    # cannot reach this; one is built here that can.
+    import numpy as _np
+    import pandas as _pd
+    import tempfile as _tf
+    _r = _np.random.RandomState(4)
+    _n = 240
+    _g = _np.repeat(_np.arange(_n), 6)
+    _toks = ["E11.9", "I10", "J45"]
+    _vv = _np.round(_r.normal(40, 7, len(_g)), 2)
+    _rows = {
+        "person_id": ["Q{:04d}".format(i) for i in _g],
+        # BOTH REAL NUMERICS ARE IN THE GRAPH, which is what
+        # makes this fixture able to reach the fault. The
+        # bystander role wants a well-covered numeric the graph
+        # does NOT touch - and on the real blueprint every real
+        # numeric was in the graph, so the picker fell through
+        # to a `__has__` indicator, which is quantiles-typed,
+        # fully covered and related to nothing. A fixture whose
+        # real columns are unrelated hands the picker a safe
+        # bystander first and never reaches the scaffolding at
+        # all, which is a check that cannot fail.
+        "val": _vv,
+        "other2": _np.round(2.2 * _vv
+                            + _r.normal(0, 1.2, len(_g)), 2),
+        "conditions": [";".join(sorted(_r.choice(
+            _toks, size=_r.randint(1, 3), replace=False)))
+            for _ in range(len(_g))],
+    }
+    _sdf = _pd.DataFrame(_rows)
+    _sbp = _B.build(_sdf, _disc(_sdf, group_by="person_id",
+                                seed=1),
+                    group_by="person_id")
+    _scaf = [c for c in (_sbp.get("columns") or {})
+             if _S.is_scaffolding(c)]
+    check("the scaffolding fixture actually CONTAINS "
+          "scaffolding - a check for skipping it is vacuous "
+          "against a blueprint that has none. found {}".format(
+              len(_scaf)),
+          len(_scaf) > 0)
+    _f = _tf.mktemp(suffix=".json")
+    io.open(_f, "w", encoding="utf-8").write(_json.dumps(_sbp))
+    _bpx, _v, _sp, _by, _ed = _M.from_blueprint(_f, "person_id")
+    picked = [c for c in (_v, _sp, _by) if c]
+    if _ed:
+        picked += _ed.split("<-")
+    check("...and the picker chooses NONE of it - the "
+          "predicate in sets.py is CALLED rather than "
+          "re-decided here, which is this repo's own rule for "
+          "what counts as scaffolding. picked: {}".format(
+              ", ".join(picked) or "(none)"),
+          picked and not any(_S.is_scaffolding(c)
+                             for c in picked))
 
     # ---- THE CONTROL. `z` is named by no dial and is a child
     # of nothing. If it ever moves, the matrix is measuring

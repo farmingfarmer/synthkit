@@ -49,6 +49,7 @@ import pandas as pd
 ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT))
 from synthkit import blueprint as B                      # noqa: E402
+from synthkit import sets as S                           # noqa: E402
 from synthkit import dials as D                          # noqa: E402
 from synthkit.discover import discover                   # noqa: E402
 from synthkit.generate import generate                   # noqa: E402
@@ -232,7 +233,19 @@ def from_blueprint(path, group_by):
         m = (cols[c] or {}).get("marginal") or {}
         return m.get("type") == "quantiles"
 
-    nums = [c for c in cols if _num(c) and c != group_by]
+    # SCAFFOLDING IS NOT THE OPERATOR'S DATA, and it is not even
+    # IN the generated file. `conditions__has__ICD10-CM!E11.9`
+    # is a set-token indicator: it lives in the blueprint
+    # because the search needs it, and is dropped before
+    # generated.csv is written. The first real-blueprint run
+    # picked one and died with a KeyError on a column the
+    # generator never emits. This repository already has the
+    # predicate and already says both halves must CALL it
+    # rather than each decide separately what counts as
+    # scaffolding - so it is called here.
+    nums = [c for c in cols
+            if _num(c) and c != group_by
+            and not S.is_scaffolding(c)]
     val = next((c for c in nums
                 if _cov(c) > 0.95 and c in related), None)
     sparse = next((c for c in nums

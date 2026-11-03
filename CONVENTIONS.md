@@ -4,7 +4,7 @@ Synthetic clinical data generator and model-evaluation instrument. Core rule: le
 
 ## Verify before claiming
 
-- Run `python scripts/run_all_smokes.py` before claiming anything works. Expect **84 suites, 2531 checks**, ALL GREEN **on a checkout** (measured 2026-10-29). Off a zipball extract - which is what the data machine runs - the total is TWELVE LOWER, and the gap is now MEASURED rather than estimated (2026-11-02: 2480 on a checkout against **2468** on the data machine at the same commit, ALL GREEN both ways). It decomposes exactly, with no residue: nine in `smoke_buildid`, which needs git to test the archive path; one for `node`, absent, so the full JS parse cannot run; two for Chrome, absent, so the in-browser load check cannot run. All three report NOTES and pass rather than failing - that is the design, and it is why the count moves. This entry previously said NINE LOWER and warned that a total nobody ran is not a number to quote; somebody has now run it. CONFIRMED AT A SECOND COMMIT the same day: 2483 against **2471**, the same delta of twelve - and that pair is the stronger evidence, because the commit between them ADDED THREE checks on the dev side and all three appeared on BOTH machines. That is `gated()` doing exactly what its docstring promises: a skipped check still emits a line, so the count stays one number across both places and only the genuinely unavailable tooling moves it. Do not quote the checkout number to the data machine; that is how a correct run gets read as a failure.
+- Run `python scripts/run_all_smokes.py` before claiming anything works. Expect **84 suites, 2533 checks**, ALL GREEN **on a checkout** (measured 2026-10-29). Off a zipball extract - which is what the data machine runs - the total is TWELVE LOWER, and the gap is now MEASURED rather than estimated (2026-11-02: 2480 on a checkout against **2468** on the data machine at the same commit, ALL GREEN both ways). It decomposes exactly, with no residue: nine in `smoke_buildid`, which needs git to test the archive path; one for `node`, absent, so the full JS parse cannot run; two for Chrome, absent, so the in-browser load check cannot run. All three report NOTES and pass rather than failing - that is the design, and it is why the count moves. This entry previously said NINE LOWER and warned that a total nobody ran is not a number to quote; somebody has now run it. CONFIRMED AT A SECOND COMMIT the same day: 2483 against **2471**, the same delta of twelve - and that pair is the stronger evidence, because the commit between them ADDED THREE checks on the dev side and all three appeared on BOTH machines. That is `gated()` doing exactly what its docstring promises: a skipped check still emits a line, so the count stays one number across both places and only the genuinely unavailable tooling moves it. Do not quote the checkout number to the data machine; that is how a correct run gets read as a failure.
 - **THE DEVELOPMENT MACHINE WAS BEHIND THE DATA MACHINE, and that is
   how a green suite here failed there.** Dev was on Python 3.10 with
   pandas 2.3; the data machine installs fresh and got pandas 3.0.5,
@@ -4101,6 +4101,30 @@ exist.
   `marginal["type"]`, so it matched none of 133 quantiles
   columns. Proven by reverting - wrong key gives
   (None, None, None, None), right key picks its columns.
+- **AND THE SECOND REAL-BLUEPRINT ATTEMPT DIED ON
+  SCAFFOLDING.** With the key fixed the picker chose
+  `conditions__has__ICD10-CM!E11.9` and the run crashed with a
+  KeyError - because a `__has__` indicator lives in the
+  BLUEPRINT, where the search needs it, and is DROPPED before
+  generated.csv is written. This file already records that
+  class twice (the constraints section counted scaffolding as
+  the operator's data; the gate's absolute stop judged a
+  scaffolding inversion), and it already says the predicate
+  lives in `sets.py` and both halves must CALL it rather than
+  each decide. Called now.
+- **AND THE FIXTURE COULD NOT REACH THE FAULT UNTIL ITS REAL
+  COLUMNS WERE IN THE GRAPH.** Removing the exclusion broke
+  NOTHING at first: scaffolding qualifies as a BYSTANDER -
+  quantiles-typed, fully covered, related to nothing - but the
+  fixture's own unrelated numerics came first in iteration
+  order and were picked safely. On the real blueprint every
+  real numeric was in the graph, so the picker fell through to
+  the scaffolding. The fixture now relates its two numerics,
+  which leaves scaffolding as the only bystander candidate,
+  and the same mutation then picks `conditions__n` and goes
+  red. A mutation that changes nothing is not proof the check
+  works; it is proof the fixture cannot reach it.
+
 - **THAT IS THE THIRD WRONG-KEY FAULT IN ONE DAY**, after
   jointcheck's `skill_real` and verify_frame's
   `requested_in_sds`. The same shape every time: writing the
