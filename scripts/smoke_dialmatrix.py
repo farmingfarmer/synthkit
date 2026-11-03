@@ -204,6 +204,20 @@ def main():
     check("...and every row carries a verdict, so a blueprint "
           "run is readable rather than merely non-crashing",
           all(r.get("verdict") for r in _brows))
+    # THE EDGE DIAL MUST FIND ITS OWN PAIR ON ANY NAMING. The
+    # matrix read `name == "x~y"` - the FIXTURE's two column
+    # names, written into the logic - so on a blueprint whose
+    # edge is aa<-bb the strength dial reported NO-TARGET: a
+    # dial that names a property the matrix measures perfectly
+    # well, declared unmeasurable because the key was spelled
+    # for one fixture. Reachable only from a blueprint whose
+    # columns are not called x and y.
+    _st = [r for r in _brows if r["dial"].endswith(".strength")]
+    check("the edge dial finds its own pair on a blueprint "
+          "whose columns are not named x and y - the target "
+          "key is built from the edge the run chose, not "
+          "spelled for the fixture",
+          _st and _st[0]["verdict"] != "NO-TARGET")
 
     # ---- THE CONTROL. `z` is named by no dial and is a child
     # of nothing. If it ever moves, the matrix is measuring

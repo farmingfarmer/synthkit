@@ -4,7 +4,7 @@ Synthetic clinical data generator and model-evaluation instrument. Core rule: le
 
 ## Verify before claiming
 
-- Run `python scripts/run_all_smokes.py` before claiming anything works. Expect **84 suites, 2536 checks**, ALL GREEN **on a checkout** (measured 2026-10-29). Off a zipball extract - which is what the data machine runs - the total is TWELVE LOWER, and the gap is now MEASURED rather than estimated (2026-11-02: 2480 on a checkout against **2468** on the data machine at the same commit, ALL GREEN both ways). It decomposes exactly, with no residue: nine in `smoke_buildid`, which needs git to test the archive path; one for `node`, absent, so the full JS parse cannot run; two for Chrome, absent, so the in-browser load check cannot run. All three report NOTES and pass rather than failing - that is the design, and it is why the count moves. This entry previously said NINE LOWER and warned that a total nobody ran is not a number to quote; somebody has now run it. CONFIRMED AT A SECOND COMMIT the same day: 2483 against **2471**, the same delta of twelve - and that pair is the stronger evidence, because the commit between them ADDED THREE checks on the dev side and all three appeared on BOTH machines. That is `gated()` doing exactly what its docstring promises: a skipped check still emits a line, so the count stays one number across both places and only the genuinely unavailable tooling moves it. Do not quote the checkout number to the data machine; that is how a correct run gets read as a failure.
+- Run `python scripts/run_all_smokes.py` before claiming anything works. Expect **84 suites, 2542 checks**, ALL GREEN **on a checkout** (measured 2026-10-29). Off a zipball extract - which is what the data machine runs - the total is TWELVE LOWER, and the gap is now MEASURED rather than estimated (2026-11-02: 2480 on a checkout against **2468** on the data machine at the same commit, ALL GREEN both ways). It decomposes exactly, with no residue: nine in `smoke_buildid`, which needs git to test the archive path; one for `node`, absent, so the full JS parse cannot run; two for Chrome, absent, so the in-browser load check cannot run. All three report NOTES and pass rather than failing - that is the design, and it is why the count moves. This entry previously said NINE LOWER and warned that a total nobody ran is not a number to quote; somebody has now run it. CONFIRMED AT A SECOND COMMIT the same day: 2483 against **2471**, the same delta of twelve - and that pair is the stronger evidence, because the commit between them ADDED THREE checks on the dev side and all three appeared on BOTH machines. That is `gated()` doing exactly what its docstring promises: a skipped check still emits a line, so the count stays one number across both places and only the genuinely unavailable tooling moves it. Do not quote the checkout number to the data machine; that is how a correct run gets read as a failure.
 - **THE DEVELOPMENT MACHINE WAS BEHIND THE DATA MACHINE, and that is
   how a green suite here failed there.** Dev was on Python 3.10 with
   pandas 2.3; the data machine installs fresh and got pandas 3.0.5,
@@ -4101,6 +4101,39 @@ exist.
   `marginal["type"]`, so it matched none of 133 quantiles
   columns. Proven by reverting - wrong key gives
   (None, None, None, None), right key picks its columns.
+- **THE REAL BLUEPRINT'S FIRST READING: EVERY VALUE DIAL ON
+  span_days READ NO-OP, AND THE MECHANISM REPRODUCES ON A
+  FIXTURE (2026-11-03).** 1 of 10 dials moved what it named
+  and nothing else. Three hypotheses died before the right
+  one: span_days is NOT derived (derived_from is None); "a
+  relationship child bypasses its marginal" is refuted BY THE
+  REPO'S OWN FIXTURE, where x is a child and its dial works;
+  and constraint repair is off by default and that constraint
+  is `<=`, not the `==` class that always fires. Reproduced
+  locally on four columns, shift 40:
+      c    no parents                 +40.00  applied
+      b    child, marginal-drawn      +40.00  applied
+      a    child, curve-drawn           0.00  NO-OP
+      out  child, curve-drawn           0.00  NO-OP
+  **A column whose parents survive the cycle trim is generated
+  from THEIR CURVES, not from its own marginal, so a shift
+  written into the marginal is never read.** The dial reaches
+  the blueprint, `apply` reports no problem, and the number
+  does not move. WHICH children are curve-drawn is decided by
+  cycle-breaking and trim order, so an operator cannot read it
+  off the blueprint - and on the real extract EVERY
+  well-covered numeric is a relationship child, which is why
+  the value dials are inert there.
+- **AND THE MISS REPORTED A BARE NUMBER.** `verify` already
+  called it - hit False, achieved 0.70 against a requested 40 -
+  and said NOTHING about why, which is a verdict a reader
+  cannot act on. It now names the relationship and the parents
+  the column is generated from, and a dial that DID apply
+  carries no such excuse, so the explanation marks a real
+  cause rather than printing on every row. Both watched red.
+  **This is the fault class the cipher cannot tolerate**: a
+  governance control that reports success and does nothing.
+
 - **A MODE WITH NO TEST WAS DEBUGGED SIX TIMES ON THE MACHINE
   THAT HOLDS THE DATA, AND EVERY FAULT WAS LOCAL.** The
   matrix's --blueprint path was written and never exercised

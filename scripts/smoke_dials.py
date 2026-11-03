@@ -176,6 +176,73 @@ def main():
           small_row.get("collateral") is None
           and not small_row.get("note"))
 
+    # ---- A VALUE DIAL ON A CURVE-DRAWN COLUMN DOES NOTHING,
+    # AND USED TO SAY NOTHING ABOUT WHY. Found by taking the
+    # dial matrix to the real extract, where EVERY value dial
+    # on span_days read NO-OP - and every well-covered numeric
+    # there is a relationship child. Reproduced here on four
+    # columns, shift 40:
+    #     c    no parents                 +40.00  applied
+    #     b    child, marginal-drawn      +40.00  applied
+    #     a    child, curve-drawn           0.00  NO-OP
+    #     out  child, curve-drawn           0.00  NO-OP
+    # The dial reaches the blueprint, `apply` reports no
+    # problem, and the number does not move. Which children are
+    # curve-drawn is decided by cycle-breaking and trim order,
+    # so an operator cannot read it off the blueprint - which
+    # is why the MISS has to explain itself.
+    _r9 = np.random.RandomState(5)
+    _n9, _v9 = 300, 8
+    _g9 = np.repeat(np.arange(_n9), _v9)
+    _a9 = np.round(_r9.normal(50, 10, len(_g9)), 2)
+    _b9 = np.round(_r9.normal(10, 3, len(_g9)), 2)
+    _c9 = np.round(_r9.normal(-5, 2, len(_g9)), 2)
+    _o9 = np.round(1.5 * _a9 + 2.0 * _b9 + 0.5 * _c9
+                   + _r9.normal(0, 4, len(_g9)), 2)
+    _df9 = pd.DataFrame({
+        "person_id": ["P{:04d}".format(i) for i in _g9],
+        "a": _a9, "b": _b9, "c": _c9, "out": _o9})
+    _bp9 = B.build(_df9, discover(_df9, group_by="person_id",
+                                  seed=1),
+                   group_by="person_id")
+    _kids9 = {q.get("child")
+              for q in (_bp9.get("relationships") or [])}
+    check("the no-op fixture actually CONTAINS a curve-drawn "
+          "child - a check about a dial that cannot apply is "
+          "vacuous without one",
+          "out" in _kids9)
+
+    def _row9(col):
+        _ov = {col: {"shift": 40.0}}
+        _b = json.loads(json.dumps(_bp9))
+        D.apply(_b, _ov)
+        _gg = generate(_b, n_patients=_n9, seed=7)
+        return [q for q in D.verify(_bp9, _ov, _df9, _gg,
+                                    "person_id")
+                if q["dial"] == col + ".shift"][0]
+
+    _miss = _row9("out")
+    _hits = _row9("c")
+    check("a value dial on a column with NO parents applies "
+          "exactly - requested 40, achieved {:.2f}".format(
+              _hits.get("achieved") or 0),
+          _hits.get("hit") is True)
+    check("...while the SAME dial on a curve-drawn child does "
+          "nothing at all - achieved {:.2f} against a "
+          "requested 40".format(_miss.get("achieved") or 0),
+          _miss.get("hit") is False
+          and abs(_miss.get("achieved") or 0) < 5.0)
+    check("...and the MISS now explains itself instead of "
+          "reporting a bare number: it names the relationship "
+          "and the parents the column is generated from",
+          "relationship CHILD" in (_miss.get("note") or "")
+          and isinstance(_miss.get("why_missed"), dict)
+          and _miss["why_missed"]["generated_from"])
+    check("...and a dial that DID apply carries no such "
+          "excuse, so the explanation marks a real cause "
+          "rather than printing on every row",
+          "relationship CHILD" not in (_hits.get("note") or ""))
+
     # A dial that genuinely does not arrive must read as a MISS. The
     # report is worthless if it cannot say no.
     faked = [{"dial": "x.shift", "requested": 20.0,

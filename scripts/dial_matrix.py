@@ -483,7 +483,19 @@ def run(seed=7, n_pat=260, blueprint=None, group_by="person_id"):
                 own = kind == ("patients" if tgt_dial == "count"
                                else "rows")
             if tgt_dial == "strength":
-                own = kind == "pair" and name == "x~y"
+                # THE EDGE'S OWN PAIR, NOT THE FIXTURE'S. This
+                # read `name == "x~y"` - the fixture's two
+                # column names, written into the logic - so on
+                # the real blueprint the strength dial's target
+                # key is `span_days~procedure_count` and the
+                # matrix could not find it, reporting NO-TARGET
+                # on a dial that names a property it measures
+                # perfectly well. The pair key is built from
+                # the edge the run actually chose.
+                _ch, _, _pa = (tgt_col or "").partition("<-")
+                own = kind == "pair" and name in (
+                    "{}~{}".format(_ch, _pa),
+                    "{}~{}".format(_pa, _ch))
             if own:
                 targets.append(key)
                 continue

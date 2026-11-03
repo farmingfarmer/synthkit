@@ -355,6 +355,44 @@ def verify(bp_before: Dict[str, Any],
             # the hit, because a dial that reports a clean hit
             # while deleting the column's patterns is precisely
             # the silent difference this module exists to refuse.
+            if key in ("shift", "scale") and row.get("hit") is False:
+                # A VALUE DIAL THAT SILENTLY DID NOT APPLY, and
+                # until now it reported a bare MISS with no
+                # reason. A column whose parents survive the
+                # cycle trim is generated from THEIR CURVES, not
+                # from its own marginal - so a shift written
+                # into the marginal is never read, the dial
+                # lands in the blueprint, `apply` reports no
+                # problem, and the number simply does not move.
+                #
+                # Measured on a four-column fixture, shift 40:
+                #     c    no parents          +40.00  applied
+                #     b    child, marginal-    +40.00  applied
+                #          drawn this run
+                #     a    child, curve-drawn    0.00  NO-OP
+                #     out  child, curve-drawn    0.00  NO-OP
+                #
+                # WHICH children are curve-drawn is decided by
+                # cycle-breaking and trim order, so it is not
+                # something an operator can read off the
+                # blueprint - which is exactly why the miss has
+                # to explain itself rather than just report a
+                # number. On the real extract EVERY well-covered
+                # numeric is a relationship child.
+                _par = sorted({p for r in rels
+                               if r.get("child") == name
+                               for p in (r.get("parents") or [])})
+                if _par:
+                    row["why_missed"] = {"generated_from": _par}
+                    row["note"] = (
+                        "this column is a relationship CHILD of "
+                        "{}. If its parents survive cycle-"
+                        "trimming it is generated from their "
+                        "curves, not from its own marginal - so "
+                        "a shift or scale written into the "
+                        "marginal is never read. The dial "
+                        "reached the blueprint and had nothing "
+                        "to act on.".format(", ".join(_par[:4])))
             if key in ("shift", "scale"):
                 col1 = _collateral(name, generated)
                 if col1 and col1["children"] \
