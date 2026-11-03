@@ -4,7 +4,7 @@ Synthetic clinical data generator and model-evaluation instrument. Core rule: le
 
 ## Verify before claiming
 
-- Run `python scripts/run_all_smokes.py` before claiming anything works. Expect **82 suites, 2491 checks**, ALL GREEN **on a checkout** (measured 2026-10-29). Off a zipball extract - which is what the data machine runs - the total is TWELVE LOWER, and the gap is now MEASURED rather than estimated (2026-11-02: 2480 on a checkout against **2468** on the data machine at the same commit, ALL GREEN both ways). It decomposes exactly, with no residue: nine in `smoke_buildid`, which needs git to test the archive path; one for `node`, absent, so the full JS parse cannot run; two for Chrome, absent, so the in-browser load check cannot run. All three report NOTES and pass rather than failing - that is the design, and it is why the count moves. This entry previously said NINE LOWER and warned that a total nobody ran is not a number to quote; somebody has now run it. CONFIRMED AT A SECOND COMMIT the same day: 2483 against **2471**, the same delta of twelve - and that pair is the stronger evidence, because the commit between them ADDED THREE checks on the dev side and all three appeared on BOTH machines. That is `gated()` doing exactly what its docstring promises: a skipped check still emits a line, so the count stays one number across both places and only the genuinely unavailable tooling moves it. Do not quote the checkout number to the data machine; that is how a correct run gets read as a failure.
+- Run `python scripts/run_all_smokes.py` before claiming anything works. Expect **83 suites, 2509 checks**, ALL GREEN **on a checkout** (measured 2026-10-29). Off a zipball extract - which is what the data machine runs - the total is TWELVE LOWER, and the gap is now MEASURED rather than estimated (2026-11-02: 2480 on a checkout against **2468** on the data machine at the same commit, ALL GREEN both ways). It decomposes exactly, with no residue: nine in `smoke_buildid`, which needs git to test the archive path; one for `node`, absent, so the full JS parse cannot run; two for Chrome, absent, so the in-browser load check cannot run. All three report NOTES and pass rather than failing - that is the design, and it is why the count moves. This entry previously said NINE LOWER and warned that a total nobody ran is not a number to quote; somebody has now run it. CONFIRMED AT A SECOND COMMIT the same day: 2483 against **2471**, the same delta of twelve - and that pair is the stronger evidence, because the commit between them ADDED THREE checks on the dev side and all three appeared on BOTH machines. That is `gated()` doing exactly what its docstring promises: a skipped check still emits a line, so the count stays one number across both places and only the genuinely unavailable tooling moves it. Do not quote the checkout number to the data machine; that is how a correct run gets read as a failure.
 - **THE DEVELOPMENT MACHINE WAS BEHIND THE DATA MACHINE, and that is
   how a green suite here failed there.** Dev was on Python 3.10 with
   pandas 2.3; the data machine installs fresh and got pandas 3.0.5,
@@ -4032,6 +4032,53 @@ exist.
   barely reads the moved column needs no recovery - a
   different fact from a surrogate that recovers well, and the
   two are easy to confuse in one number.
+- **ROUTE A HAD NO TOOLING, AND WHAT WAS MISSING WAS THE
+  ANSWER (2026-11-02, `vendor_exam.py`).** `dialback` names
+  three routes and recommends A - we hold the model, or they
+  score our file - because it has no approximation error at
+  all. It was the only route that existed solely as ADVICE IN
+  A DOCSTRING. And what it lacked was never the scoring: a
+  score is gradeable only against a truth somebody knows, and
+  `semisynth.plant_frame` has been able to supply one since it
+  was written while being called by NOTHING BUT ITS OWN SMOKE
+  TEST - a capability wired to nothing, this file's own
+  recurring fault, sitting next to the route that needed it.
+  Now joined: plant a known outcome on key.csv, copy it to the
+  released file and RE-POINT it there, and grade in
+  report_card's vocabulary so the two halves say the same
+  words - CEILING (a model that SAW our truth), FLOOR (a model
+  trained on the RELEASED file), VENDOR between them.
+  Measured: a vendor who trained on what we sent grades 0.483
+  against a floor of 0.484 and a ceiling of 0.649.
+- **ABOVE THE CEILING IS A BROKEN EXAM, NOT A GOOD SCORE.**
+  The first cut printed "they are at the ceiling" for a vendor
+  sitting **0.344 ABOVE it** - a verdict contradicting the
+  number two lines above, which is this file's named fault.
+  Nothing legitimately beats a model that saw the answer, so
+  there are two explanations and both invalidate the result:
+  the planted truth reached them, or their scores were
+  computed in-sample. It is loud now, names both causes, and
+  the praise branch is bounded on BOTH sides.
+- **AND AN EXAM WHOSE CEILING SITS UNDER ITS FLOOR IS REFUSED,
+  NOT WARNED ABOUT.** On a thin fixture it read ceiling 0.502
+  against floor 0.539 - the best achievable score BELOW what a
+  re-pointed file gives you, which is not a weak exam but a
+  meaningless one, both numbers being AUC noise around chance
+  with their order a coin flip. The first cut warned and wrote
+  the answer key anyway, producing an artifact that looks
+  usable and grades nobody. The checks caught it. The
+  condition CANNOT BE FORCED, only found: it is reached by
+  planting on a pure-noise column and pinning a seed that
+  lands the wrong way round, and the pin is named as such.
+- **AND THE WRONG-KEY FAULT HAPPENED AGAIN, in the same week
+  it was recorded for jointcheck.** `verify_frame` returns
+  `effects` / `requested_in_sds` / `recovered_in_sds`; the
+  first cut read `recovered` / `requested` / `recovered` and
+  printed an EMPTY TABLE on a healthy exam. The suite now
+  asserts those names against a LIVE `verify_frame` call, so a
+  rename breaks the checks rather than somebody's report -
+  the same fix that entry prescribes.
+
 - **THE SWEEP RAN ON THE REAL EXTRACT, AND ONE MEASUREMENT
   EXPLAINS BOTH ITS RESULTS (2026-11-02, run_dial2, 56,065
   rows).**
