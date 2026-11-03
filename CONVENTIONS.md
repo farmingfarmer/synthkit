@@ -4,7 +4,7 @@ Synthetic clinical data generator and model-evaluation instrument. Core rule: le
 
 ## Verify before claiming
 
-- Run `python scripts/run_all_smokes.py` before claiming anything works. Expect **84 suites, 2542 checks**, ALL GREEN **on a checkout** (measured 2026-10-29). Off a zipball extract - which is what the data machine runs - the total is TWELVE LOWER, and the gap is now MEASURED rather than estimated (2026-11-02: 2480 on a checkout against **2468** on the data machine at the same commit, ALL GREEN both ways). It decomposes exactly, with no residue: nine in `smoke_buildid`, which needs git to test the archive path; one for `node`, absent, so the full JS parse cannot run; two for Chrome, absent, so the in-browser load check cannot run. All three report NOTES and pass rather than failing - that is the design, and it is why the count moves. This entry previously said NINE LOWER and warned that a total nobody ran is not a number to quote; somebody has now run it. CONFIRMED AT A SECOND COMMIT the same day: 2483 against **2471**, the same delta of twelve - and that pair is the stronger evidence, because the commit between them ADDED THREE checks on the dev side and all three appeared on BOTH machines. That is `gated()` doing exactly what its docstring promises: a skipped check still emits a line, so the count stays one number across both places and only the genuinely unavailable tooling moves it. Do not quote the checkout number to the data machine; that is how a correct run gets read as a failure.
+- Run `python scripts/run_all_smokes.py` before claiming anything works. Expect **85 suites, 2553 checks**, ALL GREEN **on a checkout** (measured 2026-10-29). Off a zipball extract - which is what the data machine runs - the total is TWELVE LOWER, and the gap is now MEASURED rather than estimated (2026-11-02: 2480 on a checkout against **2468** on the data machine at the same commit, ALL GREEN both ways). It decomposes exactly, with no residue: nine in `smoke_buildid`, which needs git to test the archive path; one for `node`, absent, so the full JS parse cannot run; two for Chrome, absent, so the in-browser load check cannot run. All three report NOTES and pass rather than failing - that is the design, and it is why the count moves. This entry previously said NINE LOWER and warned that a total nobody ran is not a number to quote; somebody has now run it. CONFIRMED AT A SECOND COMMIT the same day: 2483 against **2471**, the same delta of twelve - and that pair is the stronger evidence, because the commit between them ADDED THREE checks on the dev side and all three appeared on BOTH machines. That is `gated()` doing exactly what its docstring promises: a skipped check still emits a line, so the count stays one number across both places and only the genuinely unavailable tooling moves it. Do not quote the checkout number to the data machine; that is how a correct run gets read as a failure.
 - **THE DEVELOPMENT MACHINE WAS BEHIND THE DATA MACHINE, and that is
   how a green suite here failed there.** Dev was on Python 3.10 with
   pandas 2.3; the data machine installs fresh and got pandas 3.0.5,
@@ -4101,6 +4101,48 @@ exist.
   `marginal["type"]`, so it matched none of 133 quantiles
   columns. Proven by reverting - wrong key gives
   (None, None, None, None), right key picks its columns.
+- **CONFIRMED ON THE REAL EXTRACT: span_days HAS THREE
+  PARENTS (2026-11-03).** `visit_type, procedure_count,
+  procedure_quantity` - and it is also PARENT of
+  procedure_count and procedure_quantity, so it sits in a
+  cycle. That is the reproduced mechanism, on the data the
+  dials would actually be used against: a column generated
+  from its parents' curves never reads a shift written into
+  its marginal, and which side of a cycle gets drawn from its
+  marginal is decided by trim order, which is why the
+  behaviour cannot be predicted from the blueprint.
+- **SO THE VALUE DIALS ARE INERT ON THE REAL DATA, AND THE
+  RELEASE CONTROLS ARE NOT.** Both halves have to be said
+  together. `shift` and `scale` land in the blueprint, report
+  no problem, and move nothing, because every well-covered
+  numeric there is a relationship child. `--poison` and
+  `--suppress` are PERMUTATIONS APPLIED TO THE OUTPUT after
+  every tier has run - verified landing and inverting exactly
+  on 56,065 real rows. The governance controls are sound; a
+  different set of dials is not, and nobody should quote
+  "dials over every pattern" without that distinction.
+- **AND THE PATTERN INVENTORY SAYS THE GAP IS THE SAME FROM
+  BOTH ENDS (`pattern_dials.py`).** The product goal is a
+  user seeing every pattern found and choosing per pattern how
+  to distort it. The inventory lists every pattern the
+  blueprint carries with the dial that reaches it, the LAYER
+  that dial acts on, and whether it is invertible. On any
+  blueprint today: **NOT ONE discovered pattern is reachable
+  by an invertible dial.** The invertible dials exist and are
+  attached to a pair an operator names BY HAND; every dial
+  attached to a discovered pattern is a blueprint dial, the
+  layer measured inert. Effect curves and identities have no
+  dial at all. The unreachable kinds are NAMED rather than
+  summed, because the list is the roadmap and the count is an
+  advert.
+- **AND WHAT IS ABSENT MAY BE UNDECIDABLE RATHER THAN ABSENT.**
+  Three-way structure needs roughly 3,200 patients on this
+  project's own power curve and the extract has 800, so
+  "no three-way patterns found" is a statement about the
+  cohort. The inventory says so where the counts are read,
+  because a user asked to dial "all patterns" deserves to know
+  which ones nobody could decide.
+
 - **THE REAL BLUEPRINT'S FIRST READING: EVERY VALUE DIAL ON
   span_days READ NO-OP, AND THE MECHANISM REPRODUCES ON A
   FIXTURE (2026-11-03).** 1 of 10 dials moved what it named
