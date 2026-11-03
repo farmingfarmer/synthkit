@@ -281,6 +281,46 @@ def main():
                                         errors="coerce")
                           .dropna().to_numpy())))
 
+        # ---- THE DIAL IS RECORDED, OR IT IS UNDOABLE BY
+        # NOBODY. The first cut wrote the dialled file and no
+        # cipher entry: a rearrangement invertible in
+        # principle and written down nowhere, which is this
+        # repo's own capability-wired-to-nothing fault.
+        cip = json.loads((run2 / "cipher.json")
+                         .read_text(encoding="utf-8"))
+        check("--apply records the ARRANGEMENT in cipher.json, "
+              "so the dial can be undone - a permutation "
+              "nobody wrote down is invertible in principle "
+              "and by nobody in practice",
+              ch in (cip.get("columns") or {}))
+        check("...and records what was ASKED beside what "
+              "LANDED, with the band, so the entry is an "
+              "answer key rather than a diff",
+              cip.get("repointed")
+              and "requested" in cip["repointed"][0]
+              and "achieved" in cip["repointed"][0])
+        _k = read_frame(run2 / "generated.csv")
+        _tf = np.asarray(cip["columns"][ch])
+        _back = np.empty(len(out), dtype=object)
+        _back[_tf] = out[ch].to_numpy()
+        check("...and the inverse reproduces the generated "
+              "file EXACTLY, value for value - which needs the "
+              "ORIGINAL strings moved rather than numeric "
+              "values re-rendered, or 22.29 comes back as "
+              "22.289999999999999",
+              np.array_equal(np.asarray(_back, dtype=str),
+                             _k[ch].to_numpy().astype(str)))
+        _moved = [c for c in out.columns
+                  if c not in (cip.get("columns") or {})
+                  and not np.array_equal(
+                      out[c].to_numpy().astype(str),
+                      _k[c].to_numpy().astype(str))]
+        check("...and NO column without a cipher entry changed "
+              "- nothing moved that the record does not name{}"
+              .format("" if not _moved
+                      else ": " + ", ".join(_moved[:4])),
+              not _moved)
+
         # ---- REFUSALS, BY NAME
         # A CHECK GUARDED BY `if` CAN VANISH INSTEAD OF
         # FAILING. This was written as `if und:` - so widening

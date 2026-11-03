@@ -4,7 +4,7 @@ Synthetic clinical data generator and model-evaluation instrument. Core rule: le
 
 ## Verify before claiming
 
-- Run `python scripts/run_all_smokes.py` before claiming anything works. Expect **86 suites, 2575 checks**, ALL GREEN **on a checkout** (measured 2026-10-29). Off a zipball extract - which is what the data machine runs - the total is TWELVE LOWER, and the gap is now MEASURED rather than estimated (2026-11-02: 2480 on a checkout against **2468** on the data machine at the same commit, ALL GREEN both ways). It decomposes exactly, with no residue: nine in `smoke_buildid`, which needs git to test the archive path; one for `node`, absent, so the full JS parse cannot run; two for Chrome, absent, so the in-browser load check cannot run. All three report NOTES and pass rather than failing - that is the design, and it is why the count moves. This entry previously said NINE LOWER and warned that a total nobody ran is not a number to quote; somebody has now run it. CONFIRMED AT A SECOND COMMIT the same day: 2483 against **2471**, the same delta of twelve - and that pair is the stronger evidence, because the commit between them ADDED THREE checks on the dev side and all three appeared on BOTH machines. That is `gated()` doing exactly what its docstring promises: a skipped check still emits a line, so the count stays one number across both places and only the genuinely unavailable tooling moves it. Do not quote the checkout number to the data machine; that is how a correct run gets read as a failure.
+- Run `python scripts/run_all_smokes.py` before claiming anything works. Expect **86 suites, 2579 checks**, ALL GREEN **on a checkout** (measured 2026-10-29). Off a zipball extract - which is what the data machine runs - the total is TWELVE LOWER, and the gap is now MEASURED rather than estimated (2026-11-02: 2480 on a checkout against **2468** on the data machine at the same commit, ALL GREEN both ways). It decomposes exactly, with no residue: nine in `smoke_buildid`, which needs git to test the archive path; one for `node`, absent, so the full JS parse cannot run; two for Chrome, absent, so the in-browser load check cannot run. All three report NOTES and pass rather than failing - that is the design, and it is why the count moves. This entry previously said NINE LOWER and warned that a total nobody ran is not a number to quote; somebody has now run it. CONFIRMED AT A SECOND COMMIT the same day: 2483 against **2471**, the same delta of twelve - and that pair is the stronger evidence, because the commit between them ADDED THREE checks on the dev side and all three appeared on BOTH machines. That is `gated()` doing exactly what its docstring promises: a skipped check still emits a line, so the count stays one number across both places and only the genuinely unavailable tooling moves it. Do not quote the checkout number to the data machine; that is how a correct run gets read as a failure.
 - **THE DEVELOPMENT MACHINE WAS BEHIND THE DATA MACHINE, and that is
   how a green suite here failed there.** Dev was on Python 3.10 with
   pandas 2.3; the data machine installs fresh and got pandas 3.0.5,
@@ -4101,6 +4101,30 @@ exist.
   `marginal["type"]`, so it matched none of 133 quantiles
   columns. Proven by reverting - wrong key gives
   (None, None, None, None), right key picks its columns.
+- **THE PATTERN DIAL WROTE NO CIPHER, AND I SHIPPED THAT
+  WHILE WRITING PROSE ABOUT INVERTIBILITY (2026-11-03).**
+  `--apply` wrote the dialled file and nothing else: a
+  rearrangement invertible IN PRINCIPLE and recorded nowhere,
+  so undoable by nobody. That is this file's own
+  capability-wired-to-nothing fault, committed in the same
+  module whose docstring explains why permutations matter.
+  `repair` now fills a `record` dict with {child: taken_from}
+  and the dial writes it into cipher.json in the same shape
+  the engine's own cipher uses, so `dialback verify` reads it
+  with no special case - and the entry carries requested
+  beside achieved and the band, which makes it an answer key
+  rather than a diff.
+- **AND THE INVERSE READ EXACTLY FALSE, BECAUSE THE DIAL
+  RE-RENDERED THE VALUES.** `repair` assigns NUMERIC values
+  back into the frame, so a file written from it carries
+  22.289999999999999 where the generated file holds 22.29 -
+  the released file was not a byte-level rearrangement of the
+  generated one, and the cipher's round trip failed on
+  formatting rather than on arrangement. The arrangement IS
+  the whole content of the change, so it is applied to the
+  UNTOUCHED ORIGINAL STRINGS. Inverse exact afterwards, and
+  no column without a cipher entry changed at all.
+
 - **A PATTERN IS ADDRESSED BY ID NOW, AND THE ID IS CONTENT-
   DERIVED (2026-11-03).** `pattern_dials.py RUNDIR --dial
   ID=TARGET` rearranges one named pattern as an output

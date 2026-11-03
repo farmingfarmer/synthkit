@@ -69,7 +69,7 @@ def _inverted_pairs(fid):
 
 
 def repair(src, gen, pairs, seed=0, floor=COUPLING_FLOOR,
-           targets=None, hold_others=True):
+           targets=None, hold_others=True, record=None):
     """Rearrange each pair's CHILD to hit a set of rank
     correlations - the named partner and every other partner at
     once. Returns (repaired_frame, notes).
@@ -93,6 +93,15 @@ def repair(src, gen, pairs, seed=0, floor=COUPLING_FLOOR,
     AND IT IS A PERMUTATION EITHER WAY: the child keeps the
     exact multiset it had, so the marginal cannot move and the
     change is invertible from the recorded arrangement.
+
+    `record`, when a dict is passed, is filled with
+    {child: taken_from} - the ARRANGEMENT, where taken_from[p]
+    is the row whose value row p now carries. Without it the
+    rearrangement is invertible IN PRINCIPLE and undoable by
+    nobody, because the permutation is not written down. That
+    is the difference between a change the cipher can describe
+    and one it cannot, and it is the whole basis of the
+    key/released pair.
 
     `hold_others` IS A REAL CHOICE AND NOT A TUNING KNOB,
     because dialing one pattern while pinning its neighbours is
@@ -198,9 +207,25 @@ def repair(src, gen, pairs, seed=0, floor=COUPLING_FLOOR,
             b /= np.sqrt(v)
             v = 1.0
         z = P @ b + np.sqrt(max(1.0 - v, 0.0)) * rng.normal(0, 1, m3)
+        live_pos = np.flatnonzero(live.to_numpy())
+        order = np.argsort(cg[live].to_numpy(), kind="stable")
         vals = np.sort(cg[live].to_numpy())
         newv = np.empty(m3)
-        newv[z.argsort()] = vals
+        zi = z.argsort()
+        newv[zi] = vals
+        if record is not None:
+            # WHICH ROW EACH VALUE CAME FROM. zi[r] is the live
+            # row RECEIVING the r-th smallest value and order[r]
+            # is the live row that HELD it; rows outside the
+            # rearrangement map to themselves. Composed onto any
+            # arrangement this column already carries, so a
+            # column dialled twice has one record of the round
+            # trip rather than only the last step.
+            tf = np.arange(len(out))
+            tf[live_pos[zi]] = live_pos[order]
+            prev = record.get(child)
+            record[child] = (tf if prev is None
+                             else np.asarray(prev)[tf])
         before = float(cg[live].corr(
             pd.to_numeric(out[parent], errors="coerce")[live],
             method="spearman")) if parent in out.columns else float("nan")

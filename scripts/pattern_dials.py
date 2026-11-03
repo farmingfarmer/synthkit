@@ -309,9 +309,23 @@ def dial(run, spec, hold_others=True, apply_it=False, seed=0):
     # other patterns should stay as this file has them, which
     # is what passing the generated frame as its own reference
     # means.
+    arrangement = {}
     out, _notes = repair(gen, gen, [(child, parent)], seed=seed,
                          targets={(child, parent): want},
-                         hold_others=hold_others)
+                         hold_others=hold_others,
+                         record=arrangement)
+    # MOVE THE ORIGINAL VALUES, NOT RE-RENDERED ONES. `repair`
+    # assigns NUMERIC values back into the frame, so a file
+    # written from it carries reformatted floats - 22.29
+    # becoming 22.289999999999999 - and the released file is
+    # then not a byte-level rearrangement of the generated one.
+    # The cipher's inverse read EXACTLY FALSE because of it.
+    # The arrangement is the whole content of the change, so
+    # applying it to the untouched original strings is both
+    # more honest and exactly invertible.
+    _tf = arrangement.get(child)
+    if _tf is not None:
+        out[child] = gen[child].to_numpy()[np.asarray(_tf)]
     after = _sp(out)
     print("  landed {:+.3f}".format(after))
     print("  mode: {}".format(
@@ -361,6 +375,55 @@ def dial(run, spec, hold_others=True, apply_it=False, seed=0):
         dest = run / "generated_dialled.csv"
         out.to_csv(dest, index=False)
         print("  wrote {}".format(dest))
+        # AND THE ARRANGEMENT, OR THE DIAL IS UNDOABLE BY
+        # NOBODY. The first cut of this wrote the dialled file
+        # and no cipher entry - a rearrangement invertible in
+        # principle and recorded nowhere, which is this repo's
+        # own capability-wired-to-nothing fault committed while
+        # writing prose about invertibility. The entry is the
+        # same shape the engine's own cipher uses, so
+        # `dialback verify` reads it with no special case.
+        cpath = run / "cipher.json"
+        if cpath.exists():
+            rec = json.loads(cpath.read_text(encoding="utf-8"))
+        else:
+            rec = {
+                "what_this_is":
+                    "the exact arrangement that turns the file "
+                    "this run generated into the one it "
+                    "released. taken_from[p] is the row whose "
+                    "value row p carries, for that column. "
+                    "Every entry is a PERMUTATION, so the "
+                    "column's own distribution is identical in "
+                    "both files.",
+                "rows": int(len(out)),
+                "key_file": "generated.csv",
+                "released_file": "generated_dialled.csv",
+                "columns": {},
+                "repointed": [],
+            }
+        cols_rec = rec.setdefault("columns", {})
+        for col, tf in arrangement.items():
+            prev = cols_rec.get(col)
+            tf = [int(x) for x in tf]
+            if prev is not None:
+                # compose, so a column dialled twice records
+                # the round trip and not only the last step
+                tf = [int(prev[i]) for i in tf]
+            cols_rec[col] = tf
+        rec.setdefault("repointed", []).append({
+            "pattern": pid.strip(),
+            "pair": "{}~{}".format(parent, child),
+            "requested": want,
+            "achieved": round(after, 3),
+            "reachable": [round(band[0], 3), round(band[1], 3)]
+            if band else None,
+            "held_others": bool(hold_others),
+        })
+        cpath.write_text(json.dumps(rec, indent=2),
+                         encoding="utf-8")
+        print("  wrote {} - the arrangement, so this dial can "
+              "be undone".format(cpath))
     else:
         print("  nothing written - pass --apply to write "
               "generated_dialled.csv")
