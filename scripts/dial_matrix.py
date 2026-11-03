@@ -293,9 +293,20 @@ def from_blueprint(path, group_by):
     edge = None
     for r in rels:
         ch, pars = r.get("child"), (r.get("parents") or [])
-        if ch in cols and _num(ch):
-            par = next((q for q in pars
-                        if q in cols and _num(q)), None)
+        # THE SAME EXCLUSIONS AS THE COLUMN PICKS. The date and
+        # scaffolding filters were applied to `nums`, which the
+        # value/sparse/bystander picks read - and the EDGE pick
+        # calls `_num` directly, so it kept choosing
+        # visit_start_date<-visit_end_date. A rank correlation
+        # between two dates is not what the strength dial is
+        # judged on. One exclusion written twice is one that
+        # gets applied once.
+        def _ok(c):
+            return (c in cols and _num(c) and not _is_date(c)
+                    and not S.is_scaffolding(c))
+
+        if _ok(ch):
+            par = next((q for q in pars if _ok(q)), None)
             if par:
                 edge = "{}<-{}".format(ch, par)
                 break
