@@ -4,7 +4,7 @@ Synthetic clinical data generator and model-evaluation instrument. Core rule: le
 
 ## Verify before claiming
 
-- Run `python scripts/run_all_smokes.py` before claiming anything works. Expect **86 suites, 2563 checks**, ALL GREEN **on a checkout** (measured 2026-10-29). Off a zipball extract - which is what the data machine runs - the total is TWELVE LOWER, and the gap is now MEASURED rather than estimated (2026-11-02: 2480 on a checkout against **2468** on the data machine at the same commit, ALL GREEN both ways). It decomposes exactly, with no residue: nine in `smoke_buildid`, which needs git to test the archive path; one for `node`, absent, so the full JS parse cannot run; two for Chrome, absent, so the in-browser load check cannot run. All three report NOTES and pass rather than failing - that is the design, and it is why the count moves. This entry previously said NINE LOWER and warned that a total nobody ran is not a number to quote; somebody has now run it. CONFIRMED AT A SECOND COMMIT the same day: 2483 against **2471**, the same delta of twelve - and that pair is the stronger evidence, because the commit between them ADDED THREE checks on the dev side and all three appeared on BOTH machines. That is `gated()` doing exactly what its docstring promises: a skipped check still emits a line, so the count stays one number across both places and only the genuinely unavailable tooling moves it. Do not quote the checkout number to the data machine; that is how a correct run gets read as a failure.
+- Run `python scripts/run_all_smokes.py` before claiming anything works. Expect **86 suites, 2575 checks**, ALL GREEN **on a checkout** (measured 2026-10-29). Off a zipball extract - which is what the data machine runs - the total is TWELVE LOWER, and the gap is now MEASURED rather than estimated (2026-11-02: 2480 on a checkout against **2468** on the data machine at the same commit, ALL GREEN both ways). It decomposes exactly, with no residue: nine in `smoke_buildid`, which needs git to test the archive path; one for `node`, absent, so the full JS parse cannot run; two for Chrome, absent, so the in-browser load check cannot run. All three report NOTES and pass rather than failing - that is the design, and it is why the count moves. This entry previously said NINE LOWER and warned that a total nobody ran is not a number to quote; somebody has now run it. CONFIRMED AT A SECOND COMMIT the same day: 2483 against **2471**, the same delta of twelve - and that pair is the stronger evidence, because the commit between them ADDED THREE checks on the dev side and all three appeared on BOTH machines. That is `gated()` doing exactly what its docstring promises: a skipped check still emits a line, so the count stays one number across both places and only the genuinely unavailable tooling moves it. Do not quote the checkout number to the data machine; that is how a correct run gets read as a failure.
 - **THE DEVELOPMENT MACHINE WAS BEHIND THE DATA MACHINE, and that is
   how a green suite here failed there.** Dev was on Python 3.10 with
   pandas 2.3; the data machine installs fresh and got pandas 3.0.5,
@@ -4101,6 +4101,43 @@ exist.
   `marginal["type"]`, so it matched none of 133 quantiles
   columns. Proven by reverting - wrong key gives
   (None, None, None, None), right key picks its columns.
+- **A PATTERN IS ADDRESSED BY ID NOW, AND THE ID IS CONTENT-
+  DERIVED (2026-11-03).** `pattern_dials.py RUNDIR --dial
+  ID=TARGET` rearranges one named pattern as an output
+  permutation, reports the reachable band, names the
+  collateral, and writes nothing without `--apply`.
+  POSITIONAL IDS WOULD HAVE BEEN A TRAP: `p07` meaning the
+  seventh row shifts the moment discovery finds one more
+  pattern, so a user who dialed p07 yesterday dials something
+  else today with no error and no sign. The id hashes the
+  pattern's CONTENT.
+- **AND SORTING THE COLUMNS GAVE TWO DIRECTIONS ONE ID.**
+  `x <- y` and `y <- x` are different patterns; the first cut
+  sorted the column names and handed both the same
+  identifier, which is the exact hazard content-derived ids
+  exist to prevent. Only a SYMMETRIC kind is sorted now, and
+  a check asserts the two directions differ.
+- **AND A CHECK GUARDED BY `if` VANISHES INSTEAD OF FAILING.**
+  The refusal test was written `if und:` - so a mutation that
+  made every pattern dialable removed `und`, SKIPPED the
+  check, and the mutation "found nothing". The fixture is
+  asserted to contain an undialable pattern FIRST, then the
+  refusal is tested unconditionally. A conditional check is a
+  check that can disappear.
+- **AND THE MUTATION HAD TO HIT THE RIGHT GATE.** Widening
+  `DIALABLE` still found nothing, because `dial_pair` ALSO
+  requires two columns - so a single-column pattern stayed
+  undialable whatever the kind list said. Two gates, one
+  mutated: the fail-first was testing a path that was not
+  load-bearing. Mutate the gate the behaviour actually passes
+  through.
+- **AND A PERMUTATION CLAIM ACROSS A FILE WRITE COMPARES TWO
+  FILES.** The written-file check compared the CSV against the
+  IN-MEMORY frame and read `array_equal False / allclose
+  True` - a round trip moves the last bits. `dialback verify`
+  reads BOTH sides from disk for exactly this reason, and the
+  claim being made is about two files.
+
 - **PER-PATTERN DIALS RUN ON THE REPAIR ENGINE, AND THE
   CONSTRAINT IS GEOMETRIC (2026-11-03).** The product goal is
   a user choosing, per pattern, how to distort it. The engine

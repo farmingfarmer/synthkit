@@ -186,6 +186,131 @@ def main():
           "that decides whether a dial can be overwritten",
           "can be silently overwritten" in out)
 
+    # ---- IDS ARE CONTENT-DERIVED, WHICH IS THE WHOLE POINT
+    ids = [q["id"] for q in pats]
+    check("every pattern has a DISTINCT id - {} patterns, {} "
+          "ids. A collision would dial whichever the lookup "
+          "found first, silently".format(len(ids),
+                                         len(set(ids))),
+          len(ids) == len(set(ids)))
+    again = P.patterns(bp)
+    check("...and the ids are STABLE across a re-read, because "
+          "they hash the pattern's CONTENT. Positional ids "
+          "would shift the moment discovery finds one more "
+          "pattern and dial something else with no error",
+          [q["id"] for q in again] == ids)
+    fwd = [q for q in pats
+           if q["kind"] == "relationship" and " <- " in q["what"]]
+    if len(fwd) >= 2:
+        check("...and DIRECTION changes the id - x <- y and "
+              "y <- x are different patterns, and sorting the "
+              "columns gave them the same id until it was "
+              "caught",
+              len({q["id"] for q in fwd}) == len(fwd))
+
+    # ---- THE DIAL, END TO END
+    import contextlib
+    import numpy as np
+    from synthkit.generate import generate
+    from fidelity_deck import read_frame
+    with tempfile.TemporaryDirectory() as td2:
+        run2 = Path(td2)
+        (run2 / "blueprint.json").write_text(json.dumps(bp),
+                                             encoding="utf-8")
+        gen = generate(bp, n_patients=240, seed=7)
+        gen.to_csv(run2 / "generated.csv", index=False)
+        target = next(q for q in pats
+                      if q["dialable"]
+                      and q["kind"] == "relationship")
+
+        def _run(*extra):
+            buf = io.StringIO()
+            with contextlib.redirect_stdout(buf):
+                rc = P.dial(run2,
+                            "{}=-0.3".format(target["id"]),
+                            *extra)
+            return rc, buf.getvalue()
+
+        rc, free = _run(False, False)
+        got = float([ln for ln in free.splitlines()
+                     if "landed" in ln][0].split()[-1])
+        check("a pattern dialled BY ID lands when neighbours "
+              "may move - asked -0.300, landed {:+.3f}".format(
+                  got),
+              rc == 0 and abs(got + 0.3) < 0.1)
+        check("...and the run reports the REACHABLE BAND, so a "
+              "miss can be told apart from an ask that never "
+              "existed",
+              "reachable band for this pair" in free)
+        check("...and names the COLLATERAL - the other "
+              "couplings of that column which moved",
+              "COLLATERAL" in free or "no other coupling" in free)
+        check("...and states that the column holds the "
+              "identical multiset, which is what makes the "
+              "change a rearrangement and invertible",
+              "IDENTICAL multiset: yes" in free)
+        check("...and writes NOTHING without --apply, because "
+              "a tool that rewrites a released file by default "
+              "is not a tool anyone should run twice",
+              not (run2 / "generated_dialled.csv").exists()
+              and "nothing written" in free)
+
+        rc2, _held = _run(True, True)
+        out = read_frame(run2 / "generated_dialled.csv")
+        ch = P.dial_pair(target)[0]
+        # BOTH SIDES READ FROM DISK. Comparing the written
+        # file against the IN-MEMORY frame compares two
+        # different things: a CSV round trip moves the last
+        # bits, so the multiset was identical to tolerance and
+        # unequal exactly. `dialback verify` reads both sides
+        # from disk for precisely this reason, and the claim
+        # being made - that the released file is a
+        # rearrangement of the generated one - is a claim about
+        # two FILES.
+        _on_disk = read_frame(run2 / "generated.csv")
+        check("...and with --apply it writes a file that is a "
+              "PERMUTATION of the generated one - both read "
+              "from disk, the dialled column holds the same "
+              "multiset",
+              rc2 == 0
+              and np.array_equal(
+                  np.sort(pd.to_numeric(out[ch],
+                                        errors="coerce")
+                          .dropna().to_numpy()),
+                  np.sort(pd.to_numeric(_on_disk[ch],
+                                        errors="coerce")
+                          .dropna().to_numpy())))
+
+        # ---- REFUSALS, BY NAME
+        # A CHECK GUARDED BY `if` CAN VANISH INSTEAD OF
+        # FAILING. This was written as `if und:` - so widening
+        # DIALABLE until nothing was undialable made the check
+        # SKIP rather than go red, and the mutation that should
+        # have caught it found nothing. The fixture is asserted
+        # to contain an undialable pattern FIRST, then the
+        # refusal is tested unconditionally.
+        und = next((q for q in pats if not q["dialable"]), None)
+        check("the fixture still contains a pattern no dial "
+              "reaches - without one the refusal check below "
+              "would skip rather than fail, which is how a "
+              "widened DIALABLE list would pass unnoticed",
+              und is not None)
+        buf = io.StringIO()
+        with contextlib.redirect_stdout(buf):
+            rc3 = P.dial(run2, "{}=-0.3".format(
+                (und or {}).get("id", "pzzzzzz")))
+        check("a pattern NO dial reaches is refused by name, "
+              "naming the kind - an operator handed a shrug "
+              "has been told nothing",
+              rc3 != 0 and und is not None
+              and und["kind"] in buf.getvalue())
+        buf = io.StringIO()
+        with contextlib.redirect_stdout(buf):
+            rc4 = P.dial(run2, "pzzzzzz=-0.3")
+        check("...and an unknown id is refused with a pointer "
+              "to the listing, not a traceback",
+              rc4 != 0 and "no pattern with id" in buf.getvalue())
+
     print()
     if FAIL:
         print("{} FAILED".format(FAIL))

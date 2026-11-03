@@ -47,6 +47,12 @@ ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT))
 from synthkit import sets as S                          # noqa: E402
 
+# Which pattern kinds a dial can actually reach today. A kind
+# not here is REFUSED BY NAME rather than silently accepted -
+# an operator who dials an effect curve and gets a shrug has
+# been told nothing.
+DIALABLE = ("relationship", "effect_curve", "identity")
+
 # Which dial, if any, reaches each kind of pattern - and whether
 # that dial is a PERMUTATION, which is what makes it invertible
 # through the cipher and what makes it immune to being
@@ -67,6 +73,49 @@ REACH = {
     "set_token": (None, None, False),
     "whole_column": ("--suppress A~B", "output", True),
 }
+
+
+def pattern_id(kind, columns):
+    """A stable id for a pattern, derived from its CONTENT.
+
+    POSITIONAL IDS WOULD BE A TRAP. `p07` meaning the seventh
+    row of a list shifts the moment discovery finds one more
+    pattern, so a user who dialed p07 yesterday dials something
+    else today with no error and no sign. The id is a short
+    hash of the kind and the columns involved, so it names the
+    same pattern across runs and a pattern that has genuinely
+    gone simply is not found.
+    """
+    import hashlib
+    cols = [c for c in columns if c]
+    # DIRECTION IS PART OF THE PATTERN. Sorting the columns
+    # gave `x <- y` and `y <- x` the SAME id - two different
+    # patterns, one identifier, and a dial that would act on
+    # whichever the lookup happened to find first. That is the
+    # exact hazard content-derived ids exist to avoid, so only
+    # a SYMMETRIC kind is sorted.
+    if kind in ("identity",):
+        cols = sorted(cols)
+    key = "{}|{}".format(kind, "|".join(cols))
+    return "p" + hashlib.sha1(
+        key.encode("utf-8")).hexdigest()[:6]
+
+
+def dial_pair(pat):
+    """The (child, partner) a dial would rearrange, or None.
+
+    Only pair-shaped patterns have one. A pattern with three
+    columns names its first two, because the rearrangement acts
+    on a child against one partner at a time - and saying that
+    here is better than letting a three-column pattern look
+    dialable and quietly act on part of itself.
+    """
+    if pat["kind"] not in DIALABLE:
+        return None
+    cols = [c for c in pat["columns"] if c]
+    if len(cols) < 2:
+        return None
+    return (cols[0], cols[1])
 
 
 def patterns(bp):
@@ -149,7 +198,173 @@ def patterns(bp):
                     con.get("lhs"), con.get("rhs")),
                 "columns": [con.get("lhs"), con.get("rhs")],
                 "strength": 1.0})
+    for p in out:
+        p["id"] = pattern_id(p["kind"], p["columns"])
+        p["dialable"] = dial_pair(p) is not None
     return out
+
+
+def reachable_band(frame, child, parent):
+    """The rank correlations this pair can actually reach.
+
+    A pair's achievable range is bounded by its TIE STRUCTURE,
+    and the bound can be far inside [-1, +1]: on the real
+    extract span_days holds five distinct values over 56,065
+    rows and no arrangement reaches +/-0.4 against
+    condition_count. A per-pattern dial that cannot say this
+    reports a miss for an ask that never existed.
+
+    Measured, not derived: both columns sorted the same way is
+    the ceiling, opposed is the floor.
+    """
+    import numpy as np
+    import pandas as pd
+    a_ = pd.to_numeric(frame[parent], errors="coerce")
+    b_ = pd.to_numeric(frame[child], errors="coerce")
+    m = a_.notna() & b_.notna()
+    if int(m.sum()) < 20:
+        return None
+    av = np.sort(a_[m].to_numpy())
+    bv = np.sort(b_[m].to_numpy())
+    hi = float(pd.Series(av).corr(pd.Series(bv),
+                                  method="spearman"))
+    lo = float(pd.Series(av).corr(pd.Series(bv[::-1]),
+                                  method="spearman"))
+    return (lo, hi)
+
+
+def dial(run, spec, hold_others=True, apply_it=False, seed=0):
+    """Dial ONE pattern by its id, as an output permutation."""
+    import numpy as np
+    import pandas as pd
+    sys.path.insert(0, str(ROOT / "scripts"))
+    from fidelity_deck import read_frame
+    from repair_inversions import repair
+
+    run = Path(run)
+    bp_path = run / "blueprint.json"
+    gen_path = run / "generated.csv"
+    for need in (bp_path, gen_path):
+        if not need.exists():
+            print("STOP: no {} in {}".format(need.name, run))
+            return 1
+    if "=" not in spec:
+        print("STOP: --dial wants ID=TARGET, got {}".format(spec))
+        return 2
+    pid, _, want_s = spec.partition("=")
+    try:
+        want = float(want_s)
+    except ValueError:
+        print("STOP: {} is not a number".format(want_s))
+        return 2
+
+    bp = json.loads(bp_path.read_text(encoding="utf-8"))
+    pats = patterns(bp)
+    hit = [q for q in pats if q["id"] == pid.strip()]
+    if not hit:
+        print("STOP: no pattern with id {}. Run without --dial "
+              "to list them.".format(pid))
+        return 1
+    pat = hit[0]
+    pair = dial_pair(pat)
+    if pair is None:
+        # REFUSED BY NAME. An operator who dials a pattern no
+        # dial reaches deserves to be told which pattern and
+        # why, not handed a shrug or a silent no-op.
+        print("STOP: pattern {} is a {} - no dial reaches that "
+              "kind today. {}".format(pid, pat["kind"],
+                                      pat["what"]))
+        return 1
+    child, parent = pair
+
+    gen = read_frame(gen_path)
+    for c in (child, parent):
+        if c not in gen.columns:
+            print("STOP: {} is not in generated.csv - this "
+                  "pattern names a column the written file "
+                  "does not carry.".format(c))
+            return 1
+
+    def _sp(f):
+        a_ = pd.to_numeric(f[parent], errors="coerce")
+        b_ = pd.to_numeric(f[child], errors="coerce")
+        m = a_.notna() & b_.notna()
+        return float(a_[m].corr(b_[m], method="spearman"))
+
+    before = _sp(gen)
+    band = reachable_band(gen, child, parent)
+    print("pattern {}  {}".format(pid, pat["what"]))
+    print("  rearranging {} against {}".format(child, parent))
+    print("  now {:+.3f}   asked {:+.3f}".format(before, want))
+    if band:
+        print("  reachable band for this pair [{:+.3f}, "
+              "{:+.3f}]".format(band[0], band[1]))
+        if want < band[0] - 1e-9 or want > band[1] + 1e-9:
+            print("  THE ASK IS OUTSIDE THAT BAND: no "
+                  "arrangement of these values reaches it. The "
+                  "dial will go as far as the pair allows.")
+
+    # HOLD AT THE FILE'S OWN VALUES, not the source's. The
+    # operator is changing one pattern of THIS output; the
+    # other patterns should stay as this file has them, which
+    # is what passing the generated frame as its own reference
+    # means.
+    out, _notes = repair(gen, gen, [(child, parent)], seed=seed,
+                         targets={(child, parent): want},
+                         hold_others=hold_others)
+    after = _sp(out)
+    print("  landed {:+.3f}".format(after))
+    print("  mode: {}".format(
+        "neighbours HELD - the ask may be geometrically "
+        "unavailable while they are pinned" if hold_others
+        else "neighbours free to move - the ask lands, and "
+             "the drift is reported below"))
+
+    moved = []
+    for c in out.columns:
+        if c in (child,):
+            continue
+        a0 = pd.to_numeric(gen[c], errors="coerce")
+        if not a0.notna().any():
+            continue
+        g0 = pd.to_numeric(gen[child], errors="coerce")
+        g1 = pd.to_numeric(out[child], errors="coerce")
+        m0 = a0.notna() & g0.notna()
+        m1 = a0.notna() & g1.notna()
+        if int(m0.sum()) < 20 or int(m1.sum()) < 20:
+            continue
+        r0 = float(a0[m0].corr(g0[m0], method="spearman"))
+        r1 = float(a0[m1].corr(g1[m1], method="spearman"))
+        if np.isfinite(r0) and np.isfinite(r1) \
+                and abs(r1 - r0) > 0.1 and c != parent:
+            moved.append((c, r0, r1))
+    if moved:
+        print("  COLLATERAL - other couplings of {} that "
+              "moved:".format(child))
+        for c, r0, r1 in moved[:6]:
+            print("      {:<28} {:+.3f} -> {:+.3f}".format(
+                c, r0, r1))
+    else:
+        print("  no other coupling of {} moved by more than "
+              "0.10".format(child))
+
+    same = np.array_equal(
+        np.sort(pd.to_numeric(gen[child],
+                              errors="coerce").dropna()),
+        np.sort(pd.to_numeric(out[child],
+                              errors="coerce").dropna()))
+    print("  the column holds the IDENTICAL multiset: {} - so "
+          "this is a rearrangement, the marginal cannot have "
+          "moved, and the change is invertible".format(
+              "yes" if same else "NO"))
+    if apply_it:
+        dest = run / "generated_dialled.csv"
+        out.to_csv(dest, index=False)
+        print("  wrote {}".format(dest))
+    else:
+        print("  nothing written - pass --apply to write "
+              "generated_dialled.csv")
+    return 0
 
 
 def report(run):
@@ -249,9 +464,22 @@ def report(run):
 def main(argv):
     if not argv:
         print(__doc__)
-        print("usage: pattern_dials.py RUNDIR")
+        print("usage:")
+        print("  pattern_dials.py RUNDIR")
+        print("  pattern_dials.py RUNDIR --dial ID=TARGET "
+              "[--let-neighbours-move] [--apply]")
         return 2
-    return report(argv[0])
+    run = argv[0]
+    rest = argv[1:]
+    spec = None
+    for i, tok in enumerate(rest):
+        if tok == "--dial" and i + 1 < len(rest):
+            spec = rest[i + 1]
+    if spec is None:
+        return report(run)
+    return dial(run, spec,
+                hold_others="--let-neighbours-move" not in rest,
+                apply_it="--apply" in rest)
 
 
 if __name__ == "__main__":
