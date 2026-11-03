@@ -37,6 +37,7 @@ corrupted LABEL leaves it nothing to learn. Both branches of
 same in each - no perturbed predictor - and the conclusion is
 the opposite.
 """
+import io
 import json
 import subprocess
 import sys
@@ -392,6 +393,50 @@ def main():
               rc == 0 and "NOT RECORDED" in out_old
               and "reachable band" not in out_old.replace(
                   "reachable band NOT RECORDED", ""))
+
+        # ---- ROUTE B IS A RANGE, NOT A NUMBER. The first
+        #      measurement of this route used a LINEAR stand-in
+        #      vendor and read 0.041 sd on the real extract -
+        #      the easiest case ever constructed, quoted as if
+        #      it described the route. The sweep spans model
+        #      shapes so the honest answer is a range.
+        import subprocess as _sp
+        rb = _sp.run([PY, "-u",
+                      str(ROOT / "scripts" / "route_b_sweep.py"),
+                      str(td / "lab_only"), "risk", "span_days",
+                      "--group-by", "person_id"],
+                     capture_output=True, text=True, timeout=1800)
+        out = (rb.stdout or "") + (rb.stderr or "")
+        check("the route-B sweep runs across model shapes and "
+              "reports every one, so no single stand-in can "
+              "stand for the route",
+              rb.returncode == 0
+              and all(n in out for n in
+                      ("linear", "curved", "interaction",
+                       "threshold", "xor-like")))
+        check("...and it reports DEPENDENCE beside the error - "
+              "a model that barely reads the moved column needs "
+              "no recovery, which is a different fact from a "
+              "surrogate that recovers well",
+              "dependence" in out)
+        check("...and it names the WORST shape rather than "
+              "leaving a reader to take the best row",
+              "The worst shape here is" in out)
+        check("...and it states that route A stays exact, so "
+              "the range is never read as the best available "
+              "option",
+              "route A remains exact" in out)
+        # THE MEASUREMENT REFUTED THE GUESS, and the module now
+        # says so: the surrogate is a TREE, so a threshold is
+        # native and easy while a PRODUCT across the perturbed
+        # and untouched columns is the hard case. Pinned,
+        # because the first version of that file asserted the
+        # opposite as if it were known.
+        check("...and the module records that the sweep refuted "
+              "its own prior rather than quietly rewriting it",
+              "refuted it on its first run" in io.open(
+                  str(ROOT / "scripts" / "route_b_sweep.py"),
+                  encoding="utf-8").read())
 
         # ---- recover refuses what it cannot relate
         bad = td / "bad.csv"

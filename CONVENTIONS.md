@@ -4,7 +4,7 @@ Synthetic clinical data generator and model-evaluation instrument. Core rule: le
 
 ## Verify before claiming
 
-- Run `python scripts/run_all_smokes.py` before claiming anything works. Expect **82 suites, 2483 checks**, ALL GREEN **on a checkout** (measured 2026-10-29). Off a zipball extract - which is what the data machine runs - the total is TWELVE LOWER, and the gap is now MEASURED rather than estimated (2026-11-02: 2480 on a checkout against **2468** on the data machine at the same commit, ALL GREEN both ways). It decomposes exactly, with no residue: nine in `smoke_buildid`, which needs git to test the archive path; one for `node`, absent, so the full JS parse cannot run; two for Chrome, absent, so the in-browser load check cannot run. All three report NOTES and pass rather than failing - that is the design, and it is why the count moves. This entry previously said NINE LOWER and warned that a total nobody ran is not a number to quote; somebody has now run it. CONFIRMED AT A SECOND COMMIT the same day: 2483 against **2471**, the same delta of twelve - and that pair is the stronger evidence, because the commit between them ADDED THREE checks on the dev side and all three appeared on BOTH machines. That is `gated()` doing exactly what its docstring promises: a skipped check still emits a line, so the count stays one number across both places and only the genuinely unavailable tooling moves it. Do not quote the checkout number to the data machine; that is how a correct run gets read as a failure.
+- Run `python scripts/run_all_smokes.py` before claiming anything works. Expect **82 suites, 2488 checks**, ALL GREEN **on a checkout** (measured 2026-10-29). Off a zipball extract - which is what the data machine runs - the total is TWELVE LOWER, and the gap is now MEASURED rather than estimated (2026-11-02: 2480 on a checkout against **2468** on the data machine at the same commit, ALL GREEN both ways). It decomposes exactly, with no residue: nine in `smoke_buildid`, which needs git to test the archive path; one for `node`, absent, so the full JS parse cannot run; two for Chrome, absent, so the in-browser load check cannot run. All three report NOTES and pass rather than failing - that is the design, and it is why the count moves. This entry previously said NINE LOWER and warned that a total nobody ran is not a number to quote; somebody has now run it. CONFIRMED AT A SECOND COMMIT the same day: 2483 against **2471**, the same delta of twelve - and that pair is the stronger evidence, because the commit between them ADDED THREE checks on the dev side and all three appeared on BOTH machines. That is `gated()` doing exactly what its docstring promises: a skipped check still emits a line, so the count stays one number across both places and only the genuinely unavailable tooling moves it. Do not quote the checkout number to the data machine; that is how a correct run gets read as a failure.
 - **THE DEVELOPMENT MACHINE WAS BEHIND THE DATA MACHINE, and that is
   how a green suite here failed there.** Dev was on Python 3.10 with
   pandas 2.3; the data machine installs fresh and got pandas 3.0.5,
@@ -4006,6 +4006,41 @@ exist.
   order is still route A - get the model, run it on key.csv,
   exact - and `rehearse` remains the thing that says which
   route a given dial setting leaves you.
+
+- **ROUTE B IS A RANGE, AND THE SWEEP REFUTED THE PRIOR IT WAS
+  BUILT ON (2026-11-02).** The 0.041 sd first reported for this
+  route came from a LINEAR stand-in vendor, quoted as if it
+  described the route. `route_b_sweep.py` runs five shapes at
+  one dial setting. On the fixture:
+      shape          dependence  untouched  route B
+      linear              0.439      0.660    0.085
+      curved              0.567      0.796    0.079
+      interaction         0.845      1.147    0.250
+      threshold           0.775      1.143    0.030
+      xor-like            1.000      2.112    0.031
+  **The guess was that nonlinear would be harder and linear
+  would be the ceiling. Both are wrong.** The surrogate is a
+  gradient-boosted TREE: a threshold or a sign flip is native
+  to it and reads EASY, while a smooth slope is approximated
+  by a staircase and reads WORSE. The hard case is a PRODUCT
+  across the perturbed and the untouched column - 0.250,
+  three times linear - because the surrogate must learn a
+  surface from outputs that only ever sampled it along the
+  wrong diagonal. The module says it was refuted rather than
+  quietly rewriting itself, and a check pins that sentence.
+  DEPENDENCE is reported beside the error because a model that
+  barely reads the moved column needs no recovery - a
+  different fact from a surrogate that recovers well, and the
+  two are easy to confuse in one number.
+- **AND A MUTATION THAT DOES NOT APPLY LOOKS EXACTLY LIKE A
+  CHECK THAT CANNOT FAIL.** The first fail-first on the
+  worst-shape check found nothing and was nearly reported as a
+  vacuous check. The CHECK was fine; my mutation had two
+  replacements and I asserted count==1 on the first only, so
+  the second silently no-opped and the text never changed.
+  This file's oldest editing rule - assert count==1 before
+  EVERY replacement - applies to the mutation as much as to
+  the fix, and skipping it inverts the conclusion.
 
 - **AND A `cd && (...) || echo ABSENT` CHAIN IS NOT AN EXISTENCE
   TEST.** The first check of that run reported RUNDIR-ABSENT and
