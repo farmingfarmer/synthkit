@@ -4,7 +4,7 @@ Synthetic clinical data generator and model-evaluation instrument. Core rule: le
 
 ## Verify before claiming
 
-- Run `python scripts/run_all_smokes.py` before claiming anything works. Expect **84 suites, 2533 checks**, ALL GREEN **on a checkout** (measured 2026-10-29). Off a zipball extract - which is what the data machine runs - the total is TWELVE LOWER, and the gap is now MEASURED rather than estimated (2026-11-02: 2480 on a checkout against **2468** on the data machine at the same commit, ALL GREEN both ways). It decomposes exactly, with no residue: nine in `smoke_buildid`, which needs git to test the archive path; one for `node`, absent, so the full JS parse cannot run; two for Chrome, absent, so the in-browser load check cannot run. All three report NOTES and pass rather than failing - that is the design, and it is why the count moves. This entry previously said NINE LOWER and warned that a total nobody ran is not a number to quote; somebody has now run it. CONFIRMED AT A SECOND COMMIT the same day: 2483 against **2471**, the same delta of twelve - and that pair is the stronger evidence, because the commit between them ADDED THREE checks on the dev side and all three appeared on BOTH machines. That is `gated()` doing exactly what its docstring promises: a skipped check still emits a line, so the count stays one number across both places and only the genuinely unavailable tooling moves it. Do not quote the checkout number to the data machine; that is how a correct run gets read as a failure.
+- Run `python scripts/run_all_smokes.py` before claiming anything works. Expect **84 suites, 2536 checks**, ALL GREEN **on a checkout** (measured 2026-10-29). Off a zipball extract - which is what the data machine runs - the total is TWELVE LOWER, and the gap is now MEASURED rather than estimated (2026-11-02: 2480 on a checkout against **2468** on the data machine at the same commit, ALL GREEN both ways). It decomposes exactly, with no residue: nine in `smoke_buildid`, which needs git to test the archive path; one for `node`, absent, so the full JS parse cannot run; two for Chrome, absent, so the in-browser load check cannot run. All three report NOTES and pass rather than failing - that is the design, and it is why the count moves. This entry previously said NINE LOWER and warned that a total nobody ran is not a number to quote; somebody has now run it. CONFIRMED AT A SECOND COMMIT the same day: 2483 against **2471**, the same delta of twelve - and that pair is the stronger evidence, because the commit between them ADDED THREE checks on the dev side and all three appeared on BOTH machines. That is `gated()` doing exactly what its docstring promises: a skipped check still emits a line, so the count stays one number across both places and only the genuinely unavailable tooling moves it. Do not quote the checkout number to the data machine; that is how a correct run gets read as a failure.
 - **THE DEVELOPMENT MACHINE WAS BEHIND THE DATA MACHINE, and that is
   how a green suite here failed there.** Dev was on Python 3.10 with
   pandas 2.3; the data machine installs fresh and got pandas 3.0.5,
@@ -4101,6 +4101,41 @@ exist.
   `marginal["type"]`, so it matched none of 133 quantiles
   columns. Proven by reverting - wrong key gives
   (None, None, None, None), right key picks its columns.
+- **A MODE WITH NO TEST WAS DEBUGGED SIX TIMES ON THE MACHINE
+  THAT HOLDS THE DATA, AND EVERY FAULT WAS LOCAL.** The
+  matrix's --blueprint path was written and never exercised
+  against anything but the real extract. Six round trips at
+  roughly ten minutes each:
+      1  marginal key read as `kind`, the field is `type`
+      2  picked a `__has__` indicator, which is dropped before
+         generated.csv is written
+      3  no control at all - "related to nothing" finds nothing
+         on a dense graph
+      4  picked a date column, whose marginal is quantiles like
+         any numeric
+      5  the date and scaffolding filters applied to the column
+         picks and NOT to the edge pick
+      6  a banner that indexed a source frame blueprint mode
+         does not have
+  Five of the six were reproducible on a fixture of six
+  columns and two relationships. The suite stayed GREEN through
+  all of them, because every check pointed at the fixture path.
+  **A second mode is a second thing to test, not a flag.** The
+  blueprint path now has an end-to-end check that builds a
+  two-component blueprint, picks all four roles and runs the
+  whole matrix - and the fixture needs TWO components because
+  the control is more than two hops from the value column, so
+  with a single relationship there is nowhere far enough to
+  stand.
+- **AND THE MUTATION THAT PROVED IT LOOKED LIKE IT FOUND
+  NOTHING, TWICE OVER.** Restoring the broken banner was
+  greppped for `^FAIL` and came back empty - because a CRASH
+  emits a traceback, not a FAIL line, which this file already
+  records - and the `exit=0` beside it belonged to the
+  pipeline's `tail`, not the suite, which this file also
+  already records. Both traps in one command. Read the whole
+  output of a mutation, not a filtered view of it.
+
 - **AND THE SECOND REAL-BLUEPRINT ATTEMPT DIED ON
   SCAFFOLDING.** With the key fixed the picker chose
   `conditions__has__ICD10-CM!E11.9` and the run crashed with a

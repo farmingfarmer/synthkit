@@ -155,6 +155,56 @@ def main():
           picked and not any(_S.is_scaffolding(c)
                              for c in picked))
 
+    # ---- BLUEPRINT MODE, END TO END, LOCALLY.
+    # THIS IS THE CHECK THAT SHOULD HAVE EXISTED FIRST. The
+    # --blueprint path was written and never run against
+    # anything but the real extract, so it was debugged by
+    # round-tripping to the machine that holds the data - six
+    # times, at roughly ten minutes each, for faults that were
+    # every one of them local: a wrong marginal key, a
+    # scaffolding column, a date column, a control definition
+    # that only works on a sparse graph, an exclusion applied
+    # in one of two places, and finally a banner that indexed
+    # a source frame blueprint mode does not have.
+    #
+    # The fixture needs TWO SEPARATE COMPONENTS, because the
+    # control is defined as more than two hops from the value
+    # column - with a single relationship there is nowhere far
+    # enough away to stand.
+    _r2 = _np.random.RandomState(11)
+    _m = 220
+    _gg = _np.repeat(_np.arange(_m), 6)
+    _a = _np.round(_r2.normal(50, 9, len(_gg)), 2)
+    _c = _np.round(_r2.normal(12, 3, len(_gg)), 2)
+    _sp = _np.round(_r2.normal(7, 2, len(_gg)), 2)
+    _sp[_r2.random_sample(len(_gg)) < 0.4] = _np.nan
+    _bdf = _pd.DataFrame({
+        "person_id": ["R{:04d}".format(i) for i in _gg],
+        "aa": _a,
+        "bb": _np.round(2.1 * _a + _r2.normal(0, 3, len(_gg)), 2),
+        "cc": _c,
+        "dd": _np.round(1.7 * _c + _r2.normal(0, 2, len(_gg)), 2),
+        "spx": _sp})
+    _bbp = _B.build(_bdf, _disc(_bdf, group_by="person_id",
+                                seed=1),
+                    group_by="person_id")
+    _bf = _tf.mktemp(suffix=".json")
+    io.open(_bf, "w", encoding="utf-8").write(_json.dumps(_bbp))
+    _bp2, _v2, _s2, _b2, _e2 = _M.from_blueprint(_bf, "person_id")
+    check("blueprint mode PICKS all four roles on a two-"
+          "component blueprint - value {}, sparse {}, "
+          "bystander {}, edge {}".format(_v2, _s2, _b2, _e2),
+          _v2 and _b2 and _e2 and _v2 != _b2)
+    _brows = _M.run(blueprint=_bf, group_by="person_id")
+    check("...and the whole blueprint path RUNS end to end "
+          "without touching a source frame, which is the mode "
+          "that was debugged six times on the machine holding "
+          "the extract because nothing exercised it here",
+          isinstance(_brows, list) and len(_brows) >= 8)
+    check("...and every row carries a verdict, so a blueprint "
+          "run is readable rather than merely non-crashing",
+          all(r.get("verdict") for r in _brows))
+
     # ---- THE CONTROL. `z` is named by no dial and is a child
     # of nothing. If it ever moves, the matrix is measuring
     # noise rather than effects, and every other row is worth

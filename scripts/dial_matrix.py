@@ -415,10 +415,22 @@ def run(seed=7, n_pat=260, blueprint=None, group_by="person_id"):
 
     print("DIAL MATRIX - every dial against every neighbouring "
           "property")
-    print("  fixture {} patients x {} visits, {} columns, one "
-          "relationship".format(
-              df["person_id"].nunique(),
-              len(df) // df["person_id"].nunique(), len(cols)))
+    # THE HEADER HAS TO KNOW WHICH MODE IT IS IN. Blueprint
+    # mode has no source frame - `df` is None there - and this
+    # line indexed it unconditionally, so the real run got
+    # through the whole picker and died on its own banner.
+    if df is not None:
+        print("  fixture {} patients x {} visits, {} columns, "
+              "one relationship".format(
+                  df["person_id"].nunique(),
+                  len(df) // df["person_id"].nunique(),
+                  len(cols)))
+    else:
+        print("  {} columns measured, {} relationships in the "
+              "blueprint, control is >2 hops from the value "
+              "column".format(
+                  len(cols),
+                  len(base_bp.get("relationships") or [])))
     print("  tolerances: " + "  ".join(
         "{} {:g}".format(k, v) for k, v in TOL.items()))
     print("")
