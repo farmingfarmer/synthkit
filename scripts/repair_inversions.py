@@ -68,10 +68,51 @@ def _inverted_pairs(fid):
     return out
 
 
-def repair(src, gen, pairs, seed=0, floor=COUPLING_FLOOR):
-    """Rearrange each inverted pair's CHILD to recover the source
-    rank correlations - the inverted partner and every other
-    partner at once. Returns (repaired_frame, notes)."""
+def repair(src, gen, pairs, seed=0, floor=COUPLING_FLOOR,
+           targets=None, hold_others=True):
+    """Rearrange each pair's CHILD to hit a set of rank
+    correlations - the named partner and every other partner at
+    once. Returns (repaired_frame, notes).
+
+    `targets` maps (child, partner) to a DESIRED rank
+    correlation, overriding the source value for that one pair
+    while every other partner keeps its source value. With
+    targets None this restores the source, which is the repair
+    this module was written for; with a target it is a
+    per-pattern DIAL.
+
+    THE SAME SOLVE SERVES BOTH, and that is the point. A
+    rearrangement that targets one coupling randomises every
+    other relationship the column has - measured on a hub
+    column, where landing the size coupling cost span 0.537 ->
+    0.361 - so the joint solve is not an optimisation, it is
+    the thing that makes a single-pattern dial safe. Reusing it
+    rather than writing a second rearrangement is also what
+    keeps the two from disagreeing.
+
+    AND IT IS A PERMUTATION EITHER WAY: the child keeps the
+    exact multiset it had, so the marginal cannot move and the
+    change is invertible from the recorded arrangement.
+
+    `hold_others` IS A REAL CHOICE AND NOT A TUNING KNOB,
+    because dialing one pattern while pinning its neighbours is
+    sometimes GEOMETRICALLY IMPOSSIBLE. Where a common driver
+    feeds two children, their couplings to it are linked, and
+    no arrangement satisfies an arbitrary value for one while
+    holding the other. Measured on exactly that shape - a
+    drives both b and c:
+
+        target   holding others     letting them move
+        -0.50    a~b -0.209         a~b -0.490
+        -0.80    a~b -0.297         a~b -0.806
+
+    Letting them move LANDS the ask; holding them lands about
+    40% of it and drags the held pair as well, because the
+    solve splits the difference and neither target is met. So
+    the operator chooses which they want, and the report says
+    what the choice cost. Hiding this behind one default would
+    make a dial that silently under-delivers - the fault this
+    whole module exists to refuse."""
     import numpy as np
     import pandas as pd
     rng = np.random.default_rng(seed)
@@ -98,6 +139,21 @@ def repair(src, gen, pairs, seed=0, floor=COUPLING_FLOOR):
             if int(m.sum()) < 50:
                 continue
             r = float(cs[m].corr(ps[m], method="spearman"))
+            want = (targets or {}).get((child, col))
+            if want is not None:
+                # A DIALED PARTNER IS KEPT WHATEVER ITS SOURCE
+                # STRENGTH. The floor exists to stop noise
+                # partners joining the solve; a pattern the
+                # operator named is not noise, and dropping it
+                # for being weak in the source is exactly how a
+                # dial comes to report success and do nothing.
+                part.append((col, float(want)))
+                continue
+            if not hold_others:
+                # the operator asked for this ONE pattern to
+                # land; every other partner is free to move and
+                # the drift is reported rather than prevented
+                continue
             if not np.isfinite(r) or abs(r) < floor:
                 continue
             part.append((col, r))

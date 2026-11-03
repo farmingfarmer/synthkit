@@ -4,7 +4,7 @@ Synthetic clinical data generator and model-evaluation instrument. Core rule: le
 
 ## Verify before claiming
 
-- Run `python scripts/run_all_smokes.py` before claiming anything works. Expect **85 suites, 2553 checks**, ALL GREEN **on a checkout** (measured 2026-10-29). Off a zipball extract - which is what the data machine runs - the total is TWELVE LOWER, and the gap is now MEASURED rather than estimated (2026-11-02: 2480 on a checkout against **2468** on the data machine at the same commit, ALL GREEN both ways). It decomposes exactly, with no residue: nine in `smoke_buildid`, which needs git to test the archive path; one for `node`, absent, so the full JS parse cannot run; two for Chrome, absent, so the in-browser load check cannot run. All three report NOTES and pass rather than failing - that is the design, and it is why the count moves. This entry previously said NINE LOWER and warned that a total nobody ran is not a number to quote; somebody has now run it. CONFIRMED AT A SECOND COMMIT the same day: 2483 against **2471**, the same delta of twelve - and that pair is the stronger evidence, because the commit between them ADDED THREE checks on the dev side and all three appeared on BOTH machines. That is `gated()` doing exactly what its docstring promises: a skipped check still emits a line, so the count stays one number across both places and only the genuinely unavailable tooling moves it. Do not quote the checkout number to the data machine; that is how a correct run gets read as a failure.
+- Run `python scripts/run_all_smokes.py` before claiming anything works. Expect **86 suites, 2563 checks**, ALL GREEN **on a checkout** (measured 2026-10-29). Off a zipball extract - which is what the data machine runs - the total is TWELVE LOWER, and the gap is now MEASURED rather than estimated (2026-11-02: 2480 on a checkout against **2468** on the data machine at the same commit, ALL GREEN both ways). It decomposes exactly, with no residue: nine in `smoke_buildid`, which needs git to test the archive path; one for `node`, absent, so the full JS parse cannot run; two for Chrome, absent, so the in-browser load check cannot run. All three report NOTES and pass rather than failing - that is the design, and it is why the count moves. This entry previously said NINE LOWER and warned that a total nobody ran is not a number to quote; somebody has now run it. CONFIRMED AT A SECOND COMMIT the same day: 2483 against **2471**, the same delta of twelve - and that pair is the stronger evidence, because the commit between them ADDED THREE checks on the dev side and all three appeared on BOTH machines. That is `gated()` doing exactly what its docstring promises: a skipped check still emits a line, so the count stays one number across both places and only the genuinely unavailable tooling moves it. Do not quote the checkout number to the data machine; that is how a correct run gets read as a failure.
 - **THE DEVELOPMENT MACHINE WAS BEHIND THE DATA MACHINE, and that is
   how a green suite here failed there.** Dev was on Python 3.10 with
   pandas 2.3; the data machine installs fresh and got pandas 3.0.5,
@@ -4101,6 +4101,46 @@ exist.
   `marginal["type"]`, so it matched none of 133 quantiles
   columns. Proven by reverting - wrong key gives
   (None, None, None, None), right key picks its columns.
+- **PER-PATTERN DIALS RUN ON THE REPAIR ENGINE, AND THE
+  CONSTRAINT IS GEOMETRIC (2026-11-03).** The product goal is
+  a user choosing, per pattern, how to distort it. The engine
+  for that already existed: `repair_inversions` rearranges a
+  child JOINTLY against all its partners, which is what stops
+  a single-pattern dial randomising everything else. It now
+  takes a `targets` map overriding one pair's desired rank
+  correlation - the same solve, so the two cannot disagree,
+  and a permutation either way so the marginal cannot move and
+  the cipher can undo it.
+- **AND "CHANGE THIS PATTERN, LEAVE THE REST ALONE" IS
+  SOMETIMES IMPOSSIBLE.** Where one driver feeds two children
+  their couplings to it are LINKED, and no arrangement
+  satisfies an arbitrary value for one while pinning the
+  other. Measured on exactly that shape:
+      target   holding others     letting them move
+      -0.50    a~b -0.209         a~b -0.490
+      -0.80    a~b -0.297         a~b -0.806
+  Letting them move LANDS the ask. Holding them lands about
+  40% of it AND drags the held pair anyway, because the solve
+  splits the difference and neither target is met. So
+  `hold_others` is a real choice the operator makes and the
+  report says what it cost - one default hiding this would be
+  a dial that silently under-delivers, which is the fault the
+  module exists to refuse.
+- **AND A PATTERN THE OPERATOR NAMED IS NEVER DROPPED FOR
+  BEING WEAK.** The coupling floor screens NOISE partners out
+  of the joint solve; a pair somebody dialed is not noise, and
+  dropping it for a low source correlation is exactly how a
+  dial comes to report success and do nothing.
+- **`repair_inversions` HAD NO CHECKS AT ALL** - a script that
+  rewrites a generated file with `--apply`, used on the
+  deliverable, with nothing automated exercising it. Covered
+  now, including the restore path it was written for. And its
+  first fixture was VACUOUS: `sample(frac=1.0)` permutes every
+  column TOGETHER, so every correlation survived and the
+  restore check passed by restoring something never lost. The
+  suite's own fixture-validation check caught it; shuffling
+  the CHILD alone is what destroys the coupling.
+
 - **CONFIRMED ON THE REAL EXTRACT: span_days HAS THREE
   PARENTS (2026-11-03).** `visit_type, procedure_count,
   procedure_quantity` - and it is also PARENT of
