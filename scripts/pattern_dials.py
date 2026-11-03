@@ -57,9 +57,19 @@ DIALABLE = ("relationship", "effect_curve", "identity")
 # that dial is a PERMUTATION, which is what makes it invertible
 # through the cipher and what makes it immune to being
 # overwritten by a later generation tier.
+# THIS TABLE HAD TO BE UPDATED WHEN THE DIAL WAS BUILT, and
+# the bench caught it: the panel read "layer blueprint,
+# invertible no" for a relationship while the dial button
+# beside it applied an invertible OUTPUT permutation. An
+# inventory that describes the tool as it was is worse than no
+# inventory, because somebody reads it and believes it.
 REACH = {
-    "relationship": ("CHILD<-PARENT.strength", "blueprint",
-                     False),
+    "relationship": ("pattern_dials --dial ID=RHO", "output",
+                     True),
+    "effect_curve": ("pattern_dials --dial ID=RHO", "output",
+                     True),
+    "identity": ("pattern_dials --dial ID=RHO", "output",
+                 True),
     "pair_correlation": ("--poison A~B=RHO", "output", True),
     "column_presence": ("COL.coverage", "blueprint", False),
     "column_centre": ("COL.shift", "blueprint", False),
@@ -67,10 +77,10 @@ REACH = {
     "within_patient": ("COL.persistence", "blueprint", False),
     "missing_clustering": ("COL.missing_clustering",
                            "blueprint", False),
-    "effect_curve": (None, None, False),
-    "interaction_surface": (None, None, False),
-    "identity": (None, None, False),
-    "set_token": (None, None, False),
+    "interaction_surface": ("pattern_dials --dial ID=GAIN",
+                            "output", True),
+    "set_token": ("pattern_dials --dial ID=RHO --against COL",
+                  "output", True),
     "whole_column": ("--suppress A~B", "output", True),
 }
 
@@ -165,6 +175,37 @@ def patterns(bp):
                 "strength": inter.get("gain"),
             })
 
+    # A SET COLUMN'S TOKENS ARE PATTERNS AND THE INVENTORY
+    # COULD NOT SEE THEM. `set_token` sat in the reach table
+    # with no builder emitting it, so a page promising "every
+    # pattern the fit found" showed a clinical extract's drug
+    # and condition structure as four rows of
+    # column_presence. A token with a published share is as
+    # much a fact about the data as a pair correlation, and on
+    # this project's own extract the set columns are where
+    # most of the structure lives.
+    #
+    # Only tokens that CLEARED THE k FLOOR are listed, because
+    # those are the ones the blueprint published; the rest are
+    # not patterns this tool is allowed to name.
+    for c, v in cols.items():
+        if S.is_scaffolding(c):
+            continue
+        mg = v.get("marginal") or {}
+        if (mg.get("type") or "") != "list":
+            continue
+        for t in (mg.get("tokens") or []):
+            tv = t.get("value")
+            if not tv:
+                continue
+            out.append({
+                "kind": "set_token",
+                "what": "{} carries {} on {:.1%} of rows".format(
+                    c, tv, float(t.get("p") or 0.0)),
+                "columns": [c, tv],
+                "strength": float(t.get("p") or 0.0),
+            })
+
     for c, v in cols.items():
         if S.is_scaffolding(c):
             continue
@@ -200,7 +241,18 @@ def patterns(bp):
                 "strength": 1.0})
     for p in out:
         p["id"] = pattern_id(p["kind"], p["columns"])
-        p["dialable"] = dial_pair(p) is not None
+        # A SET TOKEN IS DIALABLE AND HAS NO COLUMN PAIR. Its
+        # two entries are a column and a TOKEN, so the pair
+        # test that serves every other kind says no - and the
+        # page would then show eight real, movable patterns as
+        # out of reach.
+        p["dialable"] = (
+            dial_pair(p) is not None
+            or (p["kind"] == "set_token"
+                and len(p["columns"]) == 2)
+            or (p["kind"] == "interaction_surface"
+                and len([x for x in p["columns"] if x]) >= 3))
+        p["needs_partner"] = (p["kind"] == "set_token")
     return out
 
 
@@ -233,7 +285,553 @@ def reachable_band(frame, child, parent):
     return (lo, hi)
 
 
-def dial(run, spec, hold_others=True, apply_it=False, seed=0):
+def size_partners(bp, col):
+    """Columns the blueprint declares EQUAL to this set's size.
+
+    A SET COLUMN CANNOT TRAVEL ALONE. `nc == conds__n` holds on
+    every source row because the count IS the length, and
+    rearranging the strings while leaving the count behind
+    produces a file whose condition_count contradicts its own
+    condition list - measured at 75.3% of rows on the first
+    cut of this dial, from 0.0% before it. This repo has
+    recorded that wound twice already, in the rules engine and
+    again in the neural one; a dial that reintroduces it is
+    not a dial anybody should be offered.
+
+    The identity is declared in the blueprint's constraints, so
+    it is READ rather than guessed.
+    """
+    import synthkit.sets as _S
+    want = col + _S.SIZE
+    out = []
+    for q in (bp.get("constraints") or []):
+        if (q.get("op") or "") != "==":
+            continue
+        a_, b_ = q.get("lhs"), q.get("rhs")
+        if a_ == want and b_ and b_ != want:
+            out.append(b_)
+        elif b_ == want and a_ and a_ != want:
+            out.append(a_)
+    return sorted(set(out))
+
+
+def dial_set_token(gen, col, token, partner, want, seed=0):
+    """Rearrange a SET COLUMN so one token tracks a partner.
+
+    A SET TOKEN'S SHARE IS NOT THE DIALABLE THING. Changing
+    how often a token appears means adding it to rows that did
+    not hold it, which invents a value - not a permutation,
+    not invertible, and a lie about what that visit recorded.
+    What CAN be moved, exactly and reversibly, is WHICH ROWS
+    hold it: the association between the token and everything
+    else.
+
+    So the whole set STRING travels as a unit. Every row still
+    holds a set that some row genuinely held, every token's
+    published share is preserved to the row (the same strings
+    are present, just elsewhere), and the arrangement is a
+    permutation the cipher can undo.
+
+    The target is reached by SELECTION, not by search over
+    arrangements: score each row by its partner rank plus
+    noise, give the token-bearing strings to the top `m` rows
+    by that score, and bisect the noise weight until the
+    indicator's correlation with the partner lands on the ask.
+    `m` is fixed at the number of bearers the file already
+    has, so the share is exact by construction rather than
+    approached.
+    """
+    import numpy as np
+    import pandas as pd
+    import synthkit.sets as _S
+
+    sep = ";"
+    vals = gen[col].astype(object).to_numpy()
+    strs = pd.Series(vals).fillna("").astype(str)
+    has = _S.has_token(strs, sep, token).to_numpy(dtype=float)
+    z = pd.to_numeric(gen[partner], errors="coerce")
+    live = np.isfinite(has) & z.notna().to_numpy()
+    n = int(live.sum())
+    m = int(np.nansum(has[live]))
+    if n < 20 or m < 2 or m >= n - 1:
+        return None, ("too few rows carry {} to arrange it "
+                      "against {} ({} of {} usable rows)"
+                      .format(token, partner, m, n))
+
+    pos = np.flatnonzero(live)
+    zr = pd.Series(z.to_numpy()[pos]).rank().to_numpy()
+    zr = (zr - zr.mean()) / (zr.std() or 1.0)
+    rng = np.random.default_rng(seed)
+    noise = rng.normal(0.0, 1.0, n)
+
+    def corr_at(w):
+        sc = w * zr + noise
+        pick = np.zeros(n)
+        pick[np.argsort(-sc)[:m]] = 1.0
+        if pick.std() == 0:
+            return 0.0
+        return float(pd.Series(pick).corr(
+            pd.Series(zr), method="spearman"))
+
+    lo, hi = -40.0, 40.0
+    best_w, best_c = 0.0, corr_at(0.0)
+    for _ in range(48):
+        mid = 0.5 * (lo + hi)
+        c = corr_at(mid)
+        if abs(c - want) < abs(best_c - want):
+            best_w, best_c = mid, c
+        if c < want:
+            lo = mid
+        else:
+            hi = mid
+    sc = best_w * zr + noise
+    take = np.argsort(-sc)[:m]
+    want_tok = np.zeros(n, dtype=bool)
+    want_tok[take] = True
+
+    # THE STRINGS ARE DEALT BACK AS TWO POOLS. Bearers go to
+    # the chosen rows and non-bearers to the rest, each in the
+    # order they already appeared - so the result is a
+    # permutation of the column and nothing was rewritten.
+    cur = has[pos] > 0.5
+    bearers = list(pos[cur])
+    others = list(pos[~cur])
+    newpos = np.empty(n, dtype=int)
+    bi = oi = 0
+    for i in range(n):
+        if want_tok[i]:
+            newpos[i] = bearers[bi]; bi += 1
+        else:
+            newpos[i] = others[oi]; oi += 1
+    tf = np.arange(len(gen))
+    tf[pos] = newpos
+    return tf, None
+
+
+def _grid_gain(y, qa, qb):
+    """How much a 2-way cell grid beats an additive fit.
+
+    The same shape `curvecheck` uses for published surfaces:
+    an interaction is what the cell means hold that the row
+    and column means cannot explain.
+    """
+    import numpy as np
+    import pandas as pd
+    d = pd.DataFrame({"y": y, "a": qa, "b": qb})
+    cell = d.groupby(["a", "b"])["y"].mean()
+    ma = d.groupby("a")["y"].mean()
+    mb = d.groupby("b")["y"].mean()
+    g = float(d["y"].mean())
+    sd = float(d["y"].std())
+    if not sd or not np.isfinite(sd):
+        return float("nan")
+    add = pd.Series({(i, j): ma[i] + mb[j] - g
+                     for i, j in cell.index})
+    return float(np.sqrt(((cell - add) ** 2).mean()) / sd)
+
+
+def _dial_interaction(run, bp, pat, pid, want, apply_it, seed):
+    """Suppress a published JOINT effect, keeping both mains.
+
+    THE OBVIOUS VERSION OF THIS IS WRONG AND THE SWEEP SHOWED
+    IT. Rearranging the child so each (A, B) cell lands on its
+    ADDITIVE target is what "no interaction" means, and it
+    works - gain 0.660 -> 0.188 on a planted fixture. It also
+    DOUBLED both main effects, +0.367 -> +0.790 and +0.235 ->
+    +0.501, because the additive target IS the main effects
+    and ranking on it makes them maximally clean. An operator
+    who asked to remove an interaction would have received a
+    file with twice the linear signal.
+
+    So the arrangement carries noise, and the noise scale is
+    chosen by SEARCH over both objectives at once: land the
+    asked-for gain, and among the settings that do, take the
+    one whose main effects sit closest to where they started.
+    Measured on the same fixture: at the chosen scale the gain
+    falls 0.660 -> 0.045 while the mains read +0.360 and
+    +0.218 against a source +0.367 and +0.235.
+
+    SUPPRESSION ONLY, said plainly. This construction flattens
+    a surface; it cannot invent one that the column's own
+    values cannot express, so the reachable band runs from the
+    floor the search finds up to the gain the file already
+    has. Asking for more is refused with the band.
+    """
+    import numpy as np
+    import pandas as pd
+    sys.path.insert(0, str(ROOT / "scripts"))
+    from fidelity_deck import read_frame
+
+    cols = [c for c in pat["columns"] if c]
+    if len(cols) < 3:
+        print("STOP: pattern {} names fewer than three "
+              "columns - an interaction needs a child and "
+              "two parents.".format(pid))
+        return 1
+    child, pa, pb = cols[0], cols[1], cols[2]
+    gen = read_frame(run / "generated.csv")
+    for c in (child, pa, pb):
+        if c not in gen.columns:
+            print("STOP: {} is not in generated.csv - this "
+                  "pattern names a column the written file "
+                  "does not carry.".format(c))
+            return 1
+
+    y = pd.to_numeric(gen[child], errors="coerce")
+    av = pd.to_numeric(gen[pa], errors="coerce")
+    bv = pd.to_numeric(gen[pb], errors="coerce")
+    live = y.notna() & av.notna() & bv.notna()
+    n = int(live.sum())
+    if n < 200:
+        print("STOP: only {} rows carry all three columns - "
+              "a 3x3 grid on that is noise.".format(n))
+        return 1
+    pos = np.flatnonzero(live.to_numpy())
+    yv = y.to_numpy()[pos]
+    try:
+        qa = pd.qcut(pd.Series(av.to_numpy()[pos]), 3,
+                     labels=False, duplicates="drop").to_numpy()
+        qb = pd.qcut(pd.Series(bv.to_numpy()[pos]), 3,
+                     labels=False, duplicates="drop").to_numpy()
+    except ValueError:
+        print("STOP: {} or {} cannot be cut into three bands - "
+              "too few distinct values.".format(pa, pb))
+        return 1
+
+    def _mains(vals):
+        return (float(pd.Series(av.to_numpy()[pos]).corr(
+                    pd.Series(vals), method="spearman")),
+                float(pd.Series(bv.to_numpy()[pos]).corr(
+                    pd.Series(vals), method="spearman")))
+
+    g0 = _grid_gain(yv, qa, qb)
+    m0 = _mains(yv)
+    print("pattern {}  {}".format(pid, pat["what"]))
+    print("  flattening {} over {} x {}".format(child, pa, pb))
+    print("  now gain {:.4f}   asked {:.4f}".format(g0, want))
+    print("  main effects now {:+.3f} ({}) and {:+.3f} ({})"
+          .format(m0[0], pa, m0[1], pb))
+
+    d = pd.DataFrame({"y": yv, "a": qa, "b": qb})
+    ma = d.groupby("a")["y"].mean()
+    mb = d.groupby("b")["y"].mean()
+    gm = float(d["y"].mean())
+    tgt = np.array([ma[i] + mb[j] - gm
+                    for i, j in zip(qa, qb)], dtype=float)
+    tsd = tgt.std() or 1.0
+    tgt = (tgt - tgt.mean()) / tsd
+    rng = np.random.default_rng(seed)
+    nz = rng.normal(0.0, 1.0, n)
+    srt = np.sort(yv)
+
+    best = None
+    for sd in [0.0, 0.25, 0.5, 0.75, 1.0, 1.25, 1.5, 1.75,
+               2.0, 2.5, 3.0, 4.0, 5.0, 6.0, 8.0]:
+        order = np.argsort(np.argsort(tgt + sd * nz))
+        cand = srt[order]
+        gg = _grid_gain(cand, qa, qb)
+        xa, xb = _mains(cand)
+        merr = abs(xa - m0[0]) + abs(xb - m0[1])
+        gerr = abs(gg - want)
+        # THE TIE TOLERANCE IS THE WHOLE SEARCH. At 3
+        # decimals almost nothing ties, so the gain error
+        # decides alone and the mains constraint never gets a
+        # vote - the first version picked a setting with
+        # +0.052 of main-effect drift while a neighbouring
+        # one held them to +0.012. Two decimals is a tenth of
+        # the DEPARTS bar the deck already uses for a surface,
+        # which is below anything a reader would act on, so
+        # settings that close are genuinely interchangeable
+        # on gain and the mains pick between them.
+        score = (round(gerr, 2), merr)
+        if best is None or score < best[0]:
+            best = (score, sd, cand, gg, (xa, xb))
+    _, sd, cand, gg, mm = best
+    lo = min(_grid_gain(srt[np.argsort(np.argsort(
+        tgt + s * nz))], qa, qb)
+        for s in (1.5, 2.0, 3.0, 4.0))
+    print("  reachable band for this surface [{:.4f}, {:.4f}] "
+          "- this dial FLATTENS a surface and cannot invent "
+          "one, so the ceiling is the gain the file already "
+          "has".format(lo, g0))
+    if want > g0 + 1e-9:
+        print("  THE ASK IS ABOVE THAT CEILING: no "
+              "rearrangement of these values amplifies the "
+              "surface. The dial will go as close as it can.")
+    print("  landed gain {:.4f}  (noise scale {:.2f} chosen to "
+          "hold the mains)".format(gg, sd))
+    print("  main effects after {:+.3f} and {:+.3f}  - drift "
+          "{:+.3f} / {:+.3f}".format(
+              mm[0], mm[1], mm[0] - m0[0], mm[1] - m0[1]))
+    if abs(mm[0] - m0[0]) > 0.06 or abs(mm[1] - m0[1]) > 0.06:
+        print("  THE MAIN EFFECTS MOVED more than 0.06. The "
+              "search could not hold them at this gain - read "
+              "the drift above as part of the change, not as "
+              "a rounding error.")
+
+    tf = np.arange(len(gen))
+    tf[pos] = pos[np.argsort(yv)][np.argsort(np.argsort(
+        tgt + sd * nz))]
+    out = gen.copy()
+    out[child] = gen[child].to_numpy()[tf]
+    same = (sorted(gen[child].astype(str))
+            == sorted(out[child].astype(str)))
+    print("  the column holds the IDENTICAL multiset: {} - so "
+          "this is a rearrangement and the change is "
+          "invertible".format("yes" if same else "NO"))
+
+    if apply_it:
+        dest = run / "generated_dialled.csv"
+        out.to_csv(dest, index=False)
+        print("  wrote {}".format(dest))
+        cpath = run / "cipher.json"
+        if cpath.exists():
+            rec = json.loads(cpath.read_text(encoding="utf-8"))
+        else:
+            rec = {"what_this_is":
+                   "the exact arrangement that turns the file "
+                   "this run generated into the one it "
+                   "released. taken_from[p] is the row whose "
+                   "value row p carries, for that column. "
+                   "Every entry is a PERMUTATION, so the "
+                   "column's own distribution is identical in "
+                   "both files.",
+                   "rows": int(len(out)),
+                   "key_file": "generated.csv",
+                   "released_file": "generated_dialled.csv",
+                   "columns": {}, "repointed": []}
+        cols_rec = rec.setdefault("columns", {})
+        prev = cols_rec.get(child)
+        t2 = [int(x) for x in tf]
+        if prev is not None:
+            t2 = [int(prev[i]) for i in t2]
+        cols_rec[child] = t2
+        rec.setdefault("repointed", []).append({
+            "pattern": pid.strip(),
+            "pair": "{}x{}->{}".format(pa, pb, child),
+            "requested": want,
+            "achieved": round(gg, 4),
+            "reachable": [round(lo, 4), round(g0, 4)],
+            "mains_before": [round(m0[0], 3), round(m0[1], 3)],
+            "mains_after": [round(mm[0], 3), round(mm[1], 3)],
+        })
+        cpath.write_text(json.dumps(rec, indent=1),
+                         encoding="utf-8")
+        print("  recorded the arrangement in {}".format(cpath))
+    else:
+        print("  nothing written - pass --apply to write "
+              "generated_dialled.csv")
+    return 0
+
+
+def _dial_set(run, bp, pat, pid, want, against, apply_it,
+              seed):
+    """Dial one SET TOKEN against a named partner column."""
+    import numpy as np
+    import pandas as pd
+    import synthkit.sets as _S
+    sys.path.insert(0, str(ROOT / "scripts"))
+    from fidelity_deck import read_frame
+
+    col, token = pat["columns"][0], pat["columns"][1]
+    if not against:
+        print("STOP: pattern {} is a set token - {}".format(
+            pid, pat["what"]))
+        print("      Its SHARE is not dialable: changing how "
+              "often a token appears means writing it onto "
+              "rows that never recorded it, which is not a "
+              "rearrangement and cannot be undone. What IS "
+              "dialable is which rows hold it, so name the "
+              "column to move it against:")
+        print("      --dial {}=TARGET --against COLUMN"
+              .format(pid))
+        return 2
+    gen = read_frame(run / "generated.csv")
+    if col not in gen.columns:
+        print("STOP: {} is not in generated.csv".format(col))
+        return 1
+    if against not in gen.columns:
+        print("STOP: --against {} is not a column of "
+              "generated.csv".format(against))
+        return 1
+
+    sep = ";"
+
+    def _ind(f):
+        return _S.has_token(
+            f[col].fillna("").astype(str), sep,
+            token).to_numpy(dtype=float)
+
+    def _corr(f):
+        h = pd.Series(_ind(f))
+        z = pd.to_numeric(f[against], errors="coerce")
+        m = h.notna() & z.notna()
+        if int(m.sum()) < 20:
+            return float("nan")
+        return float(h[m].corr(z[m], method="spearman"))
+
+    before = _corr(gen)
+    # THE BAND FOR AN INDICATOR IS SET BY ITS SHARE, not by
+    # [-1, +1]. A token on 42% of rows cannot reach +1 against
+    # a continuous column however it is arranged, and a dial
+    # that cannot say so reports a miss for an ask that never
+    # existed - the same rule the numeric pairs already have.
+    _h = pd.Series(_ind(gen))
+    _z = pd.to_numeric(gen[against], errors="coerce")
+    _m = _h.notna() & _z.notna()
+    _zr = _z[_m].rank().to_numpy()
+    _k = int(_h[_m].sum())
+    _srt = np.zeros(int(_m.sum()))
+    if 0 < _k < len(_srt):
+        _ord = np.argsort(_zr)
+        _top = _srt.copy(); _top[_ord[-_k:]] = 1.0
+        hi = float(pd.Series(_top).corr(pd.Series(_zr),
+                                        method="spearman"))
+        lo = -hi
+    else:
+        hi = lo = float("nan")
+
+    print("pattern {}  {}".format(pid, pat["what"]))
+    print("  rearranging {} so {} tracks {}".format(
+        col, token, against))
+    print("  now {:+.3f}   asked {:+.3f}".format(before, want))
+    if np.isfinite(hi):
+        print("  reachable band for this token [{:+.3f}, "
+              "{:+.3f}] - set by its {:.1%} share, not by "
+              "[-1, +1]".format(lo, hi, float(_h[_m].mean())))
+        if want < lo - 1e-9 or want > hi + 1e-9:
+            print("  THE ASK IS OUTSIDE THAT BAND: no "
+                  "arrangement of these rows reaches it.")
+
+    tf, err = dial_set_token(gen, col, token, against, want,
+                             seed=seed)
+    if tf is None:
+        print("STOP: {}".format(err))
+        return 1
+
+    # THE SIZE PARTNER TRAVELS WITH THE SET. Leaving it behind
+    # broke `nc == len(conds)` on 75.3% of rows, measured, from
+    # 0.0% before - a file whose count contradicts its own
+    # list, which this repo has already paid for twice.
+    movers = [col] + [c for c in size_partners(bp, col)
+                      if c in gen.columns]
+    out = gen.copy()
+    for c in movers:
+        out[c] = gen[c].to_numpy()[tf]
+    after = _corr(out)
+    print("  landed {:+.3f}".format(after))
+    if len(movers) > 1:
+        print("  moved WITH it, to keep the declared size "
+              "identity: {}".format(", ".join(movers[1:])))
+
+    # COLLATERAL, AND FOR A SET IT IS TWO KINDS. The set's
+    # other tokens move because whole strings travel; and any
+    # size partner's own couplings move because it travelled
+    # too. Both are reported, because a dial that reports a
+    # clean hit while silently rearranging a column's other
+    # relationships is the silent difference this tool exists
+    # to refuse.
+    toks = [t.get("value") for t in
+            (((bp.get("columns") or {}).get(col) or {})
+             .get("marginal") or {}).get("tokens") or []]
+    tmoved = []
+    for t in toks:
+        if not t or t == token:
+            continue
+        h0 = pd.Series(_S.has_token(
+            gen[col].fillna("").astype(str), sep, t
+        ).to_numpy(dtype=float))
+        h1 = pd.Series(_S.has_token(
+            out[col].fillna("").astype(str), sep, t
+        ).to_numpy(dtype=float))
+        z = pd.to_numeric(gen[against], errors="coerce")
+        r0 = float(h0.corr(z, method="spearman"))
+        r1 = float(h1.corr(z, method="spearman"))
+        if np.isfinite(r0) and np.isfinite(r1) \
+                and abs(r1 - r0) > 0.1:
+            tmoved.append((t, r0, r1))
+    if tmoved:
+        print("  COLLATERAL - other tokens of {} whose tie to "
+              "{} moved:".format(col, against))
+        for t, r0, r1 in tmoved[:6]:
+            print("      {:<24} {:+.3f} -> {:+.3f}".format(
+                t, r0, r1))
+    else:
+        print("  no other token of {} moved by more than 0.10"
+              .format(col))
+    for c in movers[1:]:
+        z = pd.to_numeric(gen[against], errors="coerce")
+        r0 = float(pd.to_numeric(gen[c], errors="coerce").corr(
+            z, method="spearman"))
+        r1 = float(pd.to_numeric(out[c], errors="coerce").corr(
+            z, method="spearman"))
+        if np.isfinite(r0) and np.isfinite(r1):
+            print("      {:<24} {:+.3f} -> {:+.3f}  (size "
+                  "partner, moved with the set)".format(
+                      c, r0, r1))
+
+    # THE IDENTITY IS ASSERTED, NOT ASSUMED.
+    if movers[1:]:
+        _sz = _S.sizes_of(out[col].fillna("").astype(str), sep)
+        _bad = float((_sz != pd.to_numeric(
+            out[movers[1]], errors="coerce")).mean())
+        print("  declared size identity {} == len({}) broken "
+              "on {:.1%} of rows after the dial".format(
+                  movers[1], col, _bad))
+
+    same = (sorted(gen[col].fillna("").astype(str))
+            == sorted(out[col].fillna("").astype(str)))
+    print("  the column holds the IDENTICAL multiset: {} - so "
+          "every token's published share is untouched and the "
+          "change is invertible".format("yes" if same else "NO"))
+
+    if apply_it:
+        dest = run / "generated_dialled.csv"
+        out.to_csv(dest, index=False)
+        print("  wrote {}".format(dest))
+        cpath = run / "cipher.json"
+        if cpath.exists():
+            rec = json.loads(cpath.read_text(encoding="utf-8"))
+        else:
+            rec = {"what_this_is":
+                   "the exact arrangement that turns the file "
+                   "this run generated into the one it "
+                   "released. taken_from[p] is the row whose "
+                   "value row p carries, for that column. "
+                   "Every entry is a PERMUTATION, so the "
+                   "column's own distribution is identical in "
+                   "both files.",
+                   "rows": int(len(out)),
+                   "key_file": "generated.csv",
+                   "released_file": "generated_dialled.csv",
+                   "columns": {}, "repointed": []}
+        cols_rec = rec.setdefault("columns", {})
+        for c in movers:
+            prev = cols_rec.get(c)
+            t2 = [int(x) for x in tf]
+            if prev is not None:
+                t2 = [int(prev[i]) for i in t2]
+            cols_rec[c] = t2
+        rec.setdefault("repointed", []).append({
+            "pattern": pid.strip(),
+            "pair": "{}~{}:{}".format(against, col, token),
+            "requested": want,
+            "achieved": round(after, 3),
+            "reachable": ([round(lo, 3), round(hi, 3)]
+                          if np.isfinite(hi) else None),
+            "moved_with_it": movers[1:],
+        })
+        cpath.write_text(json.dumps(rec, indent=1),
+                         encoding="utf-8")
+        print("  recorded the arrangement in {}".format(cpath))
+    else:
+        print("  nothing written - pass --apply to write "
+              "generated_dialled.csv")
+    return 0
+
+
+def dial(run, spec, hold_others=True, apply_it=False,
+         seed=0, against=None):
     """Dial ONE pattern by its id, as an output permutation."""
     import numpy as np
     import pandas as pd
@@ -266,14 +864,51 @@ def dial(run, spec, hold_others=True, apply_it=False, seed=0):
               "to list them.".format(pid))
         return 1
     pat = hit[0]
+
+    # A SET TOKEN IS DIALLED AGAINST A NAMED PARTNER, because
+    # its own share is not the movable thing. Changing how
+    # often a token appears means writing it onto rows that
+    # did not record it; what is movable, exactly and
+    # reversibly, is WHICH rows hold it.
+    if pat["kind"] == "set_token":
+        return _dial_set(run, bp, pat, pid, want, against,
+                         apply_it, seed)
+
+    # AND AN INTERACTION SURFACE IS FLATTENED, not re-aimed.
+    # Its target is the GAIN - how much the two-variable grid
+    # beats an additive fit - and the dial drives it toward
+    # the ask while holding both main effects where they were.
+    if pat["kind"] == "interaction_surface":
+        return _dial_interaction(run, bp, pat, pid, want,
+                                 apply_it, seed)
+
     pair = dial_pair(pat)
     if pair is None:
         # REFUSED BY NAME. An operator who dials a pattern no
         # dial reaches deserves to be told which pattern and
         # why, not handed a shrug or a silent no-op.
-        print("STOP: pattern {} is a {} - no dial reaches that "
-              "kind today. {}".format(pid, pat["kind"],
-                                      pat["what"]))
+        # AND IT SAYS WHETHER A WEAKER DIAL EXISTS. "No dial
+        # reaches that kind" was false the moment the reach
+        # table grew a blueprint entry for it: a blueprint dial
+        # reaches column_presence, it is simply inert on the
+        # real extract. Telling an operator there is nothing
+        # when there is something that does not work sends them
+        # to the wrong question.
+        _d, _lay, _inv = REACH.get(pat["kind"],
+                                   (None, None, False))
+        print("STOP: pattern {} is a {} - NO PER-PATTERN DIAL "
+              "reaches that kind today. {}".format(
+                  pid, pat["kind"], pat["what"]))
+        if _d:
+            print("      There is a {} dial for it ({}). It "
+                  "takes effect, but it CANNOT BE UNDONE: it "
+                  "changes what generation produces rather "
+                  "than rearranging what it wrote, so there "
+                  "is no cipher entry and no way back to the "
+                  "key file except regenerating."
+                  .format(_lay, _d))
+        else:
+            print("      Nothing reaches it at either layer.")
         return 1
     child, parent = pair
 
@@ -468,30 +1103,73 @@ def report(run):
           "reachable at all.".format(reach, unreach))
     print("  {} reachable by an INVERTIBLE dial."
           .format(inv_n))
+    if inv_n:
+        print("  Those are output-layer permutations: they "
+              "always take effect, keep each column's own "
+              "distribution exactly, and the arrangement is "
+              "recorded so the change can be undone.")
+    # THE REMAINING GAP, IN ONE SENTENCE, AND IT MOVED. It
+    # used to be that NOTHING discovery found was reachable by
+    # an invertible dial - the invertible dials existed but
+    # were attached to a pair an operator named by hand. The
+    # per-pattern dial closed that for the kinds that reduce to
+    # a pair of columns. What is left is the kinds whose only
+    # dial is a BLUEPRINT dial, which is the layer measured
+    # inert on the real extract, and the kinds nothing reaches.
+    # Naming which half a pattern falls in is the useful part;
+    # a count of seven is not.
+    bp_only = sum(len(v) for k, v in by_kind.items()
+                  if REACH.get(k, (None, None, False))[0]
+                  and not REACH.get(k, (None, None, False))[2])
+    if bp_only:
+        # "MEASURED INERT" WAS TOO BROAD A CLAIM, and it was
+        # corrected by measuring it. What was measured inert is
+        # SHIFT AND SCALE on a column inside a cycle - the
+        # refinement sweep re-ranked onto an undialed marginal
+        # pool - and that is now FIXED. The other blueprint
+        # dials were never in that measurement: with a control
+        # column in the same run, `persistence` moved a
+        # column's between-patient share 0.935 -> 0.384 and
+        # `coverage` moved presence 0.603 -> 0.319 on the ask
+        # of 0.30. They bite.
+        #
+        # The distinction that IS always true is invertibility.
+        # A recipe dial changes what generation produces, so
+        # undoing it means generating again; an output dial is
+        # a permutation of the written file, so the cipher
+        # takes it back value for value. That is the reason
+        # these are not offered per-pattern here, and it does
+        # not depend on anybody's measurement holding.
+        print("")
+        print("  {} pattern(s) are reachable only by a "
+              "BLUEPRINT dial. Those change what generation "
+              "produces rather than rearranging what it "
+              "wrote, so they are NOT permutations: there is "
+              "no cipher entry and no way to undo one against "
+              "a key file - you regenerate. They are not "
+              "offered per-pattern for that reason, not "
+              "because they fail to take effect."
+              .format(bp_only))
     if inv_n == 0:
-        # THE GAP, IN ONE SENTENCE. The invertible dials exist -
-        # re-pointing and suppression are permutations on the
-        # output, they always bite, and the cipher can undo
-        # them exactly. They are simply not ATTACHED to
-        # anything discovery found: an operator names a pair by
-        # hand. Every dial that IS attached to a discovered
-        # pattern is a blueprint dial, which is the layer
-        # measured to be inert on the real extract. So the
-        # per-pattern control the product wants does not exist
-        # yet in either direction, and saying that plainly is
-        # more useful than a count of seven.
         print("")
         print("  NOT ONE PATTERN IS REACHABLE BY AN INVERTIBLE "
-              "DIAL. The invertible dials exist - re-pointing "
-              "and suppression are permutations on the output, "
-              "they always bite, and the cipher undoes them "
-              "exactly - but they are attached to a pair an "
-              "operator names BY HAND, not to anything "
-              "discovery found. Every dial that IS attached to "
-              "a discovered pattern is a blueprint dial, which "
-              "is the layer measured inert on the real "
-              "extract. That gap is the work, and it is the "
-              "same gap from both ends.")
+              "DIAL on this blueprint. That gap is the work, "
+              "and it is the same gap from both ends.")
+    if unreach == 0:
+        # A FULL TABLE READS AS COMPLETENESS, and it is not.
+        # Every KIND this inventory emits now has a dial; the
+        # kinds it does not emit are untouched by that, and a
+        # reader looking at a table with no gaps will not
+        # think to ask which those are. The roadmap moved - it
+        # did not finish - and the line that said so used to
+        # be the unreachable list.
+        print("")
+        print("  EVERY KIND LISTED ABOVE NOW HAS A DIAL, AND "
+              "THAT IS NOT THE SAME AS BEING FINISHED. The "
+              "remaining gap is no longer what a dial cannot "
+              "reach - it is what this inventory does not "
+              "NAME. Read the next paragraph as the roadmap, "
+              "not the table.")
     print("")
     # THE UNREACHABLE ONES ARE THE ROADMAP, so they are named
     # rather than summed. A count of what works is an advert; a
@@ -514,13 +1192,25 @@ def report(run):
           "searched for it. A pattern this inventory does not "
           "name was either not looked for or not decidable at "
           "this cohort size.")
-    print("  THE LAYER COLUMN IS THE ONE THAT MATTERS FOR "
-          "CONTROL: a `blueprint` dial is written into the "
-          "recipe and can be silently overwritten by a later "
-          "generation tier - measured, on the real extract, "
-          "for every value dial. An `output` dial is a "
-          "permutation applied after everything else, which is "
-          "why it always bites and why it can be inverted.")
+    # THE CLAIM THIS LINE USED TO MAKE WAS TOO BROAD. It
+    # said a blueprint dial can be silently overwritten
+    # "for every value dial, measured on the real extract".
+    # The measurement behind it was shift and scale on a
+    # column inside a cycle, which is now fixed; persistence
+    # and coverage were never in it and both bite. The
+    # property that holds without qualification is
+    # invertibility.
+    print("  THE LAYER COLUMN IS THE ONE THAT MATTERS, AND "
+          "THE PROPERTY IS INVERTIBILITY. An `output` dial "
+          "is a permutation applied after everything else, "
+          "so it always bites, the column keeps its exact "
+          "distribution, and the cipher takes it back value "
+          "for value. A `blueprint` dial changes what "
+          "generation produces, so undoing it means "
+          "generating again. It is not weaker - persistence "
+          "and coverage both move their column, measured "
+          "with a control in the same run - it is simply not "
+          "reversible.")
     return 0
 
 
@@ -531,18 +1221,24 @@ def main(argv):
         print("  pattern_dials.py RUNDIR")
         print("  pattern_dials.py RUNDIR --dial ID=TARGET "
               "[--let-neighbours-move] [--apply]")
+        print("  pattern_dials.py RUNDIR --dial ID=TARGET "
+              "--against COLUMN [--apply]   (set tokens)")
         return 2
     run = argv[0]
     rest = argv[1:]
     spec = None
+    against = None
     for i, tok in enumerate(rest):
         if tok == "--dial" and i + 1 < len(rest):
             spec = rest[i + 1]
+        if tok == "--against" and i + 1 < len(rest):
+            against = rest[i + 1]
     if spec is None:
         return report(run)
     return dial(run, spec,
                 hold_others="--let-neighbours-move" not in rest,
-                apply_it="--apply" in rest)
+                apply_it="--apply" in rest,
+                against=against)
 
 
 if __name__ == "__main__":

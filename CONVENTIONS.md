@@ -4,7 +4,7 @@ Synthetic clinical data generator and model-evaluation instrument. Core rule: le
 
 ## Verify before claiming
 
-- Run `python scripts/run_all_smokes.py` before claiming anything works. Expect **86 suites, 2579 checks**, ALL GREEN **on a checkout** (measured 2026-10-29). Off a zipball extract - which is what the data machine runs - the total is TWELVE LOWER, and the gap is now MEASURED rather than estimated (2026-11-02: 2480 on a checkout against **2468** on the data machine at the same commit, ALL GREEN both ways). It decomposes exactly, with no residue: nine in `smoke_buildid`, which needs git to test the archive path; one for `node`, absent, so the full JS parse cannot run; two for Chrome, absent, so the in-browser load check cannot run. All three report NOTES and pass rather than failing - that is the design, and it is why the count moves. This entry previously said NINE LOWER and warned that a total nobody ran is not a number to quote; somebody has now run it. CONFIRMED AT A SECOND COMMIT the same day: 2483 against **2471**, the same delta of twelve - and that pair is the stronger evidence, because the commit between them ADDED THREE checks on the dev side and all three appeared on BOTH machines. That is `gated()` doing exactly what its docstring promises: a skipped check still emits a line, so the count stays one number across both places and only the genuinely unavailable tooling moves it. Do not quote the checkout number to the data machine; that is how a correct run gets read as a failure.
+- Run `python scripts/run_all_smokes.py` before claiming anything works. Expect **86 suites, 2631 checks**, ALL GREEN **on a checkout** (measured 2026-11-03). Off a zipball extract - which is what the data machine runs - the total is TWELVE LOWER, and the gap is now MEASURED rather than estimated (2026-11-02: 2480 on a checkout against **2468** on the data machine at the same commit, ALL GREEN both ways). It decomposes exactly, with no residue: nine in `smoke_buildid`, which needs git to test the archive path; one for `node`, absent, so the full JS parse cannot run; two for Chrome, absent, so the in-browser load check cannot run. All three report NOTES and pass rather than failing - that is the design, and it is why the count moves. This entry previously said NINE LOWER and warned that a total nobody ran is not a number to quote; somebody has now run it. CONFIRMED AT A SECOND COMMIT the same day: 2483 against **2471**, the same delta of twelve - and that pair is the stronger evidence, because the commit between them ADDED THREE checks on the dev side and all three appeared on BOTH machines. That is `gated()` doing exactly what its docstring promises: a skipped check still emits a line, so the count stays one number across both places and only the genuinely unavailable tooling moves it. Do not quote the checkout number to the data machine; that is how a correct run gets read as a failure.
 - **THE DEVELOPMENT MACHINE WAS BEHIND THE DATA MACHINE, and that is
   how a green suite here failed there.** Dev was on Python 3.10 with
   pandas 2.3; the data machine installs fresh and got pandas 3.0.5,
@@ -4866,3 +4866,152 @@ exist.
   before a claim; a performance claim is a claim. Measure the cost
   before optimising it, and be suspicious when the suspect happens
   to be whatever you edited last.
+
+- **THE MARGINAL DIAL'S NO-OP WAS THE CYCLIC SWEEP, NOT THE
+  CURVE, AND THE NOTE EXPLAINING IT NAMED THE WRONG HALF OF
+  THE GENERATOR (2026-11-03).** `dials.py` told a reader that
+  a column whose parents survive the cycle trim is generated
+  from their curves and so never reads a shift written into
+  its marginal. Measured across all four cells with a control
+  column in each run, shift +25:
+      acyclic, no parents      +25.000
+      acyclic, curve-drawn     +25.000
+      cyclic,  no parents      +25.000
+      cyclic,  curve-drawn       0.000  <-
+  Being curve-drawn is not the cause - an acyclic child reads
+  the dial perfectly. The cause is the CYCLIC REFINEMENT
+  SWEEP, which re-ranks a cyclic column onto the multiset the
+  MARGINAL drew; that pool is captured before the relationship
+  and so before the dial, so the sweep took the relationship's
+  order and the marginal's UNDIALED values and the dial
+  vanished with no error. Named in one run by setting
+  `refine_sweeps=0`, where the same child moved +25.000.
+- **THE FIX MOVES THE POOL WITH THE DIAL, which keeps the
+  property the re-rank rests on.** The pool is still exactly
+  the multiset the marginal produced, shifted and scaled as a
+  whole, so the sweep still cannot drift or diverge - the dial
+  moved the marginal, which is what a marginal dial is. Shift
+  lands +25.000 with spread unmoved and every other column
+  unmoved; scale lands x1.500 with the centre holding.
+  Verified BIT-IDENTICAL on every undialed arm, cyclic and
+  acyclic, two seeds each - the change acts only where its
+  mechanism lives.
+- **AND "MEASURED INERT" WAS AN OVERCLAIM THAT THREE PAGES
+  REPEATED.** The bench panel, the pattern report and the
+  suite docstring all told a reader the recipe layer does not
+  take effect. That came from shift/scale on a cyclic column -
+  the one cell that ever missed, now fixed - and persistence
+  and coverage were never in the measurement. With a control
+  in the same run, `persistence` moved a column's
+  between-patient share 0.919 -> 0.384 and `coverage` moved
+  presence 0.602 -> 0.301 on an ask of 0.30. The distinction
+  that survives without qualification is INVERTIBILITY: an
+  output dial is a permutation the cipher takes back value for
+  value, a recipe dial changes what generation produces and
+  undoing it means generating again. The claim now carries a
+  CHECK rather than a comment, because a number in prose that
+  nothing runs is the class this file already forbids.
+
+- **A SET COLUMN'S TOKENS WERE PATTERNS NOTHING LISTED
+  (2026-11-03).** `set_token` sat in the pattern inventory's
+  reach table with NO BUILDER EMITTING IT, so a page promising
+  "every pattern the fit found" showed a clinical extract's
+  drug and condition structure as four rows of
+  column_presence. Only tokens that cleared the k floor are
+  named - naming a sub-k token would be the inventory
+  disclosing what the generator refused to.
+- **A SET TOKEN'S SHARE IS NOT THE DIALABLE THING.** Changing
+  how often a token appears means writing it onto rows that
+  never recorded it: not a rearrangement, not invertible, and
+  a lie about what that visit held. What moves exactly and
+  reversibly is WHICH ROWS hold it, so the whole set STRING
+  travels as a unit and the dial takes a partner column:
+  `--dial ID=RHO --against COLUMN`. Measured: asks of -0.5,
+  0.0, +0.5 and +0.8 land within 0.001, the column holds the
+  identical multiset, and every published token's share drifts
+  by 0.0000. The reachable band is set by the token's SHARE,
+  not [-1, +1] - a token on 42% of rows reaches +/-0.850.
+- **AND THE FIRST CUT BROKE THE DECLARED SIZE IDENTITY, which
+  this file has already recorded twice in other engines.**
+  `nc == len(conds)` holds on every source row because the
+  count IS the length. Rearranging the strings and leaving the
+  count behind took it from broken on 0.0% of rows to broken
+  on **75.3%** - a file whose condition_count contradicts its
+  own condition list. The identity is DECLARED in the
+  blueprint's constraints, so it is read rather than guessed,
+  and every size partner travels with the set. Identity back
+  to 0.0% broken; the partner's own couplings move (+0.260 ->
+  -0.239) and are reported, because a column that travels
+  silently is a relationship changed behind the operator's
+  back.
+
+- **THE INTERACTION DIAL'S OBVIOUS VERSION DOUBLED THE MAIN
+  EFFECTS (2026-11-03).** Flattening a joint effect means
+  rearranging the child so each (A, B) cell lands on its
+  ADDITIVE target, and it works - gain 0.660 -> 0.188 on a
+  planted fixture. It also took the main effects from +0.367
+  and +0.235 to **+0.790 and +0.501**, because the additive
+  target IS the main effects and ranking on it makes them
+  maximally clean. An operator who asked to remove an
+  interaction would have received a file with twice the linear
+  signal.
+- **SO THE ARRANGEMENT CARRIES NOISE, AND THE NOISE SCALE IS
+  CHOSEN BY SEARCHING BOTH OBJECTIVES AT ONCE:** land the
+  asked-for gain, and among the settings that do, take the one
+  whose main effects sit closest to where they started. On the
+  real run: gain **0.6884 -> 0.0318** with main-effect drift
+  **-0.000 / +0.015**.
+- **THE TIE TOLERANCE IS THE WHOLE SEARCH.** At three decimals
+  of gain error almost nothing ties, so gain decides alone and
+  the mains never get a vote - that version picked a setting
+  with 0.088 of total drift where its neighbour held 0.015.
+  Two decimals is a tenth of the DEPARTS bar the deck already
+  uses for a surface, so settings that close are genuinely
+  interchangeable on gain and the mains pick between them.
+- **AND THE CHECK'S OWN BAR HAD TO BE TIGHTENED TO MEAN
+  ANYTHING.** At 0.06 per effect it could not tell the
+  two-objective search from one that ignores the mains
+  entirely - both land under it, and the mutation that removed
+  the mains vote went GREEN. Pinned on TOTAL drift under 0.04,
+  which separates 0.015 from 0.088. A check that cannot
+  separate a mechanism from its absence is not testing the
+  mechanism.
+- **SUPPRESSION ONLY, AND THE BAND SAYS SO.** This dial
+  flattens a surface; it cannot invent one the column's values
+  cannot express, so the ceiling is the gain the file already
+  has and an ask above it is called out rather than quietly
+  returning the closest thing.
+
+- **A FULL REACH TABLE READS AS COMPLETENESS, AND IT IS NOT
+  (2026-11-03).** Both unreachable kinds got dials in one
+  session, which emptied the "nothing reaches this" list - the
+  exact table this file warned is an advert, now arrived at
+  honestly. The remaining gap moved from what a dial cannot
+  reach to what the inventory does not NAME, and the report
+  says that in those words, because a reader looking at a
+  table with no gaps will not think to ask which patterns are
+  missing from it.
+- **AND ELEVEN CHECKS VANISHED INSTEAD OF FAILING, because
+  they were appended after the suite's own `if FAIL:
+  sys.exit(1)`.** A mutation anywhere earlier deleted the
+  whole block and the suite reported `1 FAILED` where it
+  should have reported eight. Moved above the exit, and the
+  one value the block cannot run without falls back to a
+  stand-in id that cannot resolve - so the dependent checks go
+  RED and loud rather than disappearing, which reads the same
+  as passing. Same class as the `if und:` guard this file
+  already records, and as the checks that could not fail.
+- **ASSERT THE DECISION, NOT THE MESSAGE.** The bench check
+  for "a set token with no partner is refused" looked for the
+  refusal TEXT, which survives with the guard disabled - the
+  mutation went green. Pinning the guard EXPRESSION catches
+  it. Same move as counting at the decision site rather than
+  re-deriving it from the seeds.
+- **AND A UI BRANCH NO ROW REACHES IS AN UNTESTED BRANCH.**
+  The patterns panel asserted that its "no dial reaches this"
+  text was present in the source, and passed - while on the
+  fixture's own blueprint four rows rendered a dial's NAME
+  beside an empty cell, a named dial with no box and no
+  reason. Only a RENDER tells those apart: `patRow` is
+  unit-run in node against all four cases, best-effort with a
+  printed NOTE when node is absent rather than a silent pass.

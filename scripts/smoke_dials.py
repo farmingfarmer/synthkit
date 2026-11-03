@@ -227,21 +227,134 @@ def main():
           "exactly - requested 40, achieved {:.2f}".format(
               _hits.get("achieved") or 0),
           _hits.get("hit") is True)
-    check("...while the SAME dial on a curve-drawn child does "
-          "nothing at all - achieved {:.2f} against a "
-          "requested 40".format(_miss.get("achieved") or 0),
-          _miss.get("hit") is False
-          and abs(_miss.get("achieved") or 0) < 5.0)
-    check("...and the MISS now explains itself instead of "
-          "reporting a bare number: it names the relationship "
-          "and the parents the column is generated from",
-          "relationship CHILD" in (_miss.get("note") or "")
-          and isinstance(_miss.get("why_missed"), dict)
-          and _miss["why_missed"]["generated_from"])
-    check("...and a dial that DID apply carries no such "
-          "excuse, so the explanation marks a real cause "
-          "rather than printing on every row",
-          "relationship CHILD" not in (_hits.get("note") or ""))
+    # THESE TWO CHECKS PINNED A DEFECT, AND THE DEFECT IS
+    # FIXED - so they went red, which is what a
+    # characterization test is for. They asserted that the
+    # same dial on a CURVE-DRAWN CHILD did nothing. That was
+    # never the real rule: measured across all four cells with
+    # a control in each run, an acyclic curve-drawn child read
+    # the dial perfectly and only a CYCLIC one missed, because
+    # the refinement sweep re-ranks onto a marginal pool
+    # captured before the dial. The pool moves with the dial
+    # now, and the assertion is the opposite of what it was.
+    check("...and the SAME dial on a CURVE-DRAWN CHILD now "
+          "applies too - requested 40, achieved {:.2f}. This "
+          "assertion is inverted from the one it replaces: it "
+          "used to pin the no-op as a known defect"
+          .format(_miss.get("achieved") or 0),
+          _miss.get("hit") is True)
+    check("...and a landed dial carries no excuse note, so an "
+          "explanation marks a real cause rather than "
+          "printing on every row",
+          "relationship CHILD" not in (_hits.get("note") or "")
+          and "relationship CHILD" not in (_miss.get("note")
+                                           or ""))
+
+    # AND THE CELL THAT ACTUALLY BROKE IS PINNED BY NAME. The
+    # fixture above has to CONTAIN a cyclic column or the
+    # inverted assertion is vacuous - the acyclic case passed
+    # before the fix and would pass after it, so a fixture
+    # with no cycle proves nothing about the change.
+    _cyc9 = set()
+    for _q in (_bp9.get("relationships") or []):
+        for _p in (_q.get("parents") or []):
+            if any(_z.get("child") == _p
+                   and "out" in (_z.get("parents") or [])
+                   for _z in (_bp9.get("relationships") or [])):
+                _cyc9.add(_q.get("child"))
+    check("the fixture contains a column inside a CYCLE - the "
+          "only cell that ever missed - so the inverted "
+          "assertion above is not passing on the acyclic case "
+          "that always worked",
+          bool(_cyc9))
+
+    # THE PROPERTY THE FIX RESTS ON, asserted rather than
+    # described: a shift moves the marginal pool AS A WHOLE, so
+    # the dialled column holds the undialed multiset translated
+    # by exactly the shift. If the sweep had drifted, or
+    # re-ranked onto a different pool, the sorted values would
+    # not line up.
+    _plain = generate(json.loads(json.dumps(_bp9)),
+                      n_patients=_n9, seed=7)
+    _bs = json.loads(json.dumps(_bp9))
+    D.apply(_bs, {"out": {"shift": 40.0}})
+    _shift = generate(_bs, n_patients=_n9, seed=7)
+    _u = np.sort(np.asarray(_plain["out"], dtype=float))
+    _d = np.sort(np.asarray(_shift["out"], dtype=float))
+    _worst = float(np.nanmax(np.abs(_d - _u - 40.0))) \
+        if len(_u) == len(_d) else 1e9
+    check("a shift TRANSLATES the whole multiset - the sorted "
+          "dialled values equal the sorted undialed values "
+          "plus the shift, worst gap {:.4f}. The sweep still "
+          "re-ranks onto exactly the multiset the marginal "
+          "produced, which is what stops it drifting"
+          .format(_worst),
+          _worst < 0.01)
+
+    # THE OTHER BLUEPRINT DIALS BITE, AND THAT IS ASSERTED
+    # RATHER THAN ASSUMED. The bench and the pattern report
+    # both used to tell a reader the recipe layer "was
+    # measured inert" - a claim carried over from shift/scale
+    # on a cyclic column, which was the only cell that ever
+    # missed and is now fixed. persistence and coverage were
+    # never in that measurement. If either of them ever DOES
+    # go inert, the pages are lying again, so the claim gets a
+    # check instead of a comment.
+    _r8 = np.random.RandomState(11)
+    _n8, _v8 = 200, 8
+    _g8 = np.repeat(np.arange(_n8), _v8)
+    _lv8 = np.repeat(_r8.normal(0, 1, _n8), _v8)
+    _st8 = np.round(100 + 15 * _lv8 + _r8.normal(0, 4, len(_g8)), 2)
+    _sp8 = np.round(_r8.normal(5, 1, len(_g8)), 2)
+    _sp8 = np.where(_r8.rand(len(_g8)) < 0.6, _sp8, np.nan)
+    _df8 = pd.DataFrame({
+        "person_id": ["Q{:04d}".format(i) for i in _g8],
+        "sticky": _st8, "sparse": _sp8,
+        "plain": np.round(_r8.normal(7, 2, len(_g8)), 2)})
+    _bp8 = B.build(_df8, discover(_df8, group_by="person_id",
+                                  seed=2),
+                   group_by="person_id")
+
+    def _gen8(col, **dl):
+        _b = json.loads(json.dumps(_bp8))
+        if dl:
+            D.apply(_b, {col: dl})
+        return generate(_b, n_patients=_n8, seed=9)
+
+    def _between(g, col):
+        _d = pd.DataFrame({
+            "p": g["person_id"],
+            "v": pd.to_numeric(g[col], errors="coerce")})
+        _t = _d["v"].var()
+        if not _t or not np.isfinite(_t) or _t <= 0:
+            return float("nan")
+        return float(_d.groupby("p")["v"].mean().var() / _t)
+
+    _b_off = _between(_gen8("sticky"), "sticky")
+    _b_on = _between(_gen8("sticky", persistence=0.4), "sticky")
+    check("the fixture's sticky column IS sticky before the "
+          "dial ({:.3f} of its variance between patients) - a "
+          "persistence dial measured on a column that "
+          "re-rolls every row is the vacuous "
+          "between-patient check this repo already paid for"
+          .format(_b_off),
+          _b_off > 0.5)
+    check("...and the PERSISTENCE dial bites: between-patient "
+          "share {:.3f} -> {:.3f} on an ask of 0.4x. The "
+          "recipe layer is not inert, which is why the pages "
+          "no longer say it is"
+          .format(_b_off, _b_on),
+          _b_on < _b_off - 0.1)
+
+    def _cov8(g):
+        return float(pd.to_numeric(g["sparse"],
+                                   errors="coerce").notna().mean())
+    _c_off = _cov8(_gen8("sparse"))
+    _c_on = _cov8(_gen8("sparse", coverage=0.30))
+    check("...and the COVERAGE dial lands on its ASK rather "
+          "than merely moving - presence {:.3f} -> {:.3f} "
+          "against a requested 0.30".format(_c_off, _c_on),
+          abs(_c_on - 0.30) < 0.05 and _c_off > 0.5)
 
     # A dial that genuinely does not arrive must read as a MISS. The
     # report is worthless if it cannot say no.

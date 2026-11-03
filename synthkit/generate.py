@@ -1776,6 +1776,36 @@ def generate(blueprint: Dict[str, Any],
                 # seed.
                 mid = float(m.get("mean", 0.0))
                 base = (arr - mid) * sc + mid + sh
+                # AND THE REFINEMENT POOL GETS THE SAME MOVE,
+                # or the dial is discarded on every CYCLIC
+                # column.
+                #
+                # A sweep re-ranks a cyclic column onto the
+                # multiset the MARGINAL drew - that is what
+                # makes it safe, because a permutation cannot
+                # move a marginal or run away. The pool is
+                # captured before the relationship and so
+                # before this block, so it held the UNDIALED
+                # values: the sweep took the relationship's
+                # order and the marginal's unshifted values,
+                # and the dial vanished with no error.
+                # Measured on a fixture with a control column
+                # in the same run - a column with no parents
+                # moved +25.000 on an ask of +25 while a
+                # cyclic child moved 0.000, and the same child
+                # moved +25.000 at refine_sweeps=0, which is
+                # what named the sweep rather than the
+                # relationship.
+                #
+                # Moving the pool keeps the property the
+                # re-rank rests on: it is still the exact
+                # multiset the marginal produced, shifted and
+                # scaled as a whole, so the sweep still cannot
+                # drift or diverge - the dial moved the
+                # marginal, which is what a marginal dial is.
+                if c in marg_draw:
+                    marg_draw[c] = ((marg_draw[c] - mid) * sc
+                                    + mid + sh)
             else:
                 base = np.asarray(base, dtype=float)
             if m.get("integral"):

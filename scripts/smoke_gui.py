@@ -41,6 +41,64 @@ def check(label, cond):
     print("ok  {:02d}  {}".format(PASS, label))
 
 
+def _render_patrow(html):
+    """Run the page's own patRow in node, on all three cases.
+
+    BEST EFFORT, and it says so when it cannot run: a check
+    that hangs or crashes on a machine without node takes the
+    whole suite with it, which this repo has already paid for
+    once. Absent node prints a note; it never passes silently.
+    """
+    import shutil
+    import subprocess
+    import tempfile
+    if not shutil.which("node"):
+        return None
+    i = html.find("function patRow(")
+    if i < 0:
+        return None
+    j = html.index("\nasync function patList(", i)
+    fn = html[i:j]
+    cases = {
+        "inv": {"id": "pAAA", "kind": "relationship",
+                "what": "a <- b", "dial": "pattern_dials",
+                "layer": "output", "invertible": True,
+                "dialable": True},
+        "bp": {"id": "pBBB", "kind": "within_patient",
+               "what": "c sticks", "dial": "COL.persistence",
+               "layer": "blueprint", "invertible": False,
+               "dialable": False},
+        "none": {"id": "pCCC", "kind": "interaction_surface",
+                 "what": "d x e", "dial": None, "layer": None,
+                 "invertible": False, "dialable": False},
+        "surf": {"id": "pEEE",
+                 "kind": "interaction_surface",
+                 "what": "y from a x b jointly",
+                 "dial": "pattern_dials", "layer": "output",
+                 "invertible": True, "dialable": True},
+        "tok": {"id": "pDDD", "kind": "set_token",
+                "what": "conds carries t00 on 42% of rows",
+                "dial": "pattern_dials", "layer": "output",
+                "invertible": True, "dialable": True,
+                "needs_partner": True},
+    }
+    prog = (fn + "\nvar C=" + json.dumps(cases) + ";\n"
+            "var o={};for(var k in C){o[k]=patRow(C[k]);}\n"
+            "console.log(JSON.stringify(o));\n")
+    with tempfile.NamedTemporaryFile("w", suffix=".js",
+                                     delete=False) as f:
+        f.write(prog)
+        path = f.name
+    try:
+        r = subprocess.run(["node", path], capture_output=True,
+                           text=True, timeout=45)
+    except Exception:
+        return None
+    if r.returncode != 0:
+        return None
+    return json.loads(r.stdout.strip())
+
+
 def main():
     tmp = Path(tempfile.mkdtemp(prefix="synthkit_gui_"))
     server = gui.make_server(0)
@@ -2238,6 +2296,209 @@ def main():
               "crashing or reporting a vacuous pass",
               "error" not in r and r.get("ok") is False
               and "no key.csv" in (r.get("report") or ""))
+
+        # ---- THE PATTERNS PANEL. The product the operator
+        # described is "show me every pattern and let me choose
+        # what to do to each one". The inventory and the
+        # per-pattern dial both existed as command-line tools;
+        # the bench is where somebody who is not holding a
+        # terminal meets them.
+        check("the patterns panel is INSIDE <main> with its "
+              "list button and its table - a section appended "
+              "after </main> renders at the foot of the page "
+              "under the tabs, which no content check can see",
+              'id="patbox"' in _m and "patList()" in _m
+              and 'id="pat-table"' in _m
+              and 'id="pat-out"' in _m)
+        # THE PANEL USED TO SAY THE RECIPE DIALS DO NOT BITE,
+        # and that was corrected by measuring it: persistence
+        # and coverage both move their column, with a control
+        # in the same run. What is always true is that a
+        # recipe dial is not a permutation, so no cipher can
+        # undo it - and a page that overstates the case
+        # against the other layer is as misleading as one that
+        # oversells its own.
+        check("...and the panel separates the two layers by "
+              "INVERTIBILITY rather than by claiming the "
+              "recipe dials fail to take effect - they do "
+              "take effect, and the page says so with the "
+              "numbers",
+              "rearrangement of the written" in _m
+              and "cipher undo it" in _m.replace(
+                  "lets the cipher undo it", "cipher undo it")
+              and "0.935" in _m and "0.603" in _m
+              and "never read" not in _m)
+        # AND THE SECOND PIECE OF PROSE ABOUT THE SAME THING.
+        # The panel's explain div was corrected and the
+        # paragraph the table renders above itself was not -
+        # one page, two texts, one of them still claiming the
+        # recipe dials are inert. Both are asserted now.
+        check("...and the paragraph rendered ABOVE the table "
+              "says the same thing as the panel's own text - "
+              "two pieces of prose about one fact is how a "
+              "correction lands in one and not the other",
+              # THE RENDERED SENTENCE, not the phrase - the
+              # comments above the fix explain the history
+              # and legitimately contain the old words, and a
+              # blunt ban on the phrase failed on those.
+              "generation tier overwrites it &mdash; "
+              "measured inert" not in html
+              and "undoing it means generating again" in html)
+        # patRow IS UNIT-RUN IN NODE AGAINST ALL THREE CASES.
+        # Asserting the branch text is PRESENT IN THE SOURCE
+        # passed while no row on the fixture's own blueprint
+        # ever reached it - four rows rendered a dial's name
+        # beside an empty cell, a named dial with no box and no
+        # reason, which reads as a broken tool. A branch no row
+        # reaches is an untested branch, and only a render can
+        # tell them apart.
+        _rows = _render_patrow(html)
+        check("the row renderer SHOWS the patterns nothing "
+              "reaches rather than filtering them out, and "
+              "each row carries the LAYER and whether the dial "
+              "is INVERTIBLE - a table where everything is "
+              "dialable is an advert",
+              _rows is None
+              or ("nothing reaches it" in _rows["none"]
+                  and ">none<" in _rows["none"]
+                  and ">output<" in _rows["inv"]
+                  and ">yes<" in _rows["inv"]))
+        check("...and a row whose ONLY dial is a blueprint "
+              "dial says so in the row - the first version "
+              "rendered the dial's NAME beside an empty cell, "
+              "which is a named dial with no box and no "
+              "reason",
+              _rows is None
+              or ("cannot be" in _rows["bp"]
+                  and "recipe dial only" in _rows["bp"]
+                  and "COL.persistence" in _rows["bp"]
+                  and "INERT" not in _rows["bp"]))
+        check("...and only the invertible row gets an input "
+              "and a dial button - an input on a pattern the "
+              "dial refuses is a button that cannot work",
+              _rows is None
+              or ("<input" in _rows["inv"]
+                  and "patDial(" in _rows["inv"]
+                  and "<input" not in _rows["bp"]
+                  and "<input" not in _rows["none"]))
+        check("an INTERACTION SURFACE row asks for a GAIN, "
+              "not a correlation - the two are different "
+              "quantities and a surface has no negative ask, "
+              "so one placeholder for every kind invites an "
+              "ask that means nothing",
+              _rows is None
+              or ("0 = flat" in _rows["surf"]
+                  and "-0.3" in _rows["inv"]
+                  and "-0.3" not in _rows["surf"]))
+        check("...and a SET TOKEN row asks for the PARTNER as "
+              "well as the target - its share is not the "
+              "movable thing, so a target alone names no "
+              "change the tool can make",
+              _rows is None
+              or ('id="pa_pDDD"' in _rows["tok"]
+                  and 'id="pt_pDDD"' in _rows["tok"]
+                  and 'id="pa_pAAA"' not in _rows["inv"]))
+        if _rows is None:
+            print("   NOTE: node is not on PATH - the patRow "
+                  "render checks reported SKIPPED rather than "
+                  "passing on an unrendered page.")
+        check("the bench's dial is a DRY RUN: it sends "
+              "apply:false and says in words that nothing was "
+              "written - rewriting a released file on a click "
+              "is not a default anybody should get",
+              "apply:false" in html
+              and "Nothing was written" in html)
+        check("...and it refuses to dial a pattern with no "
+              "target rather than sending an empty one",
+              "give a target for " in html)
+        check("...and refuses a set token with no PARTNER, "
+              "saying why the share is not what moves - "
+              "rather than sending an empty --against and "
+              "letting the subprocess explain it",
+              # ASSERT THE DECISION, NOT THE MESSAGE. The
+              # first version looked for the refusal text,
+              # which survives with the guard disabled - the
+              # mutation went green. The guard EXPRESSION is
+              # what decides, so that is what is pinned.
+              "getElementById('pa_'+pid) && !ag" in html
+              and "set token. Its share is not" in html
+              and "against:ag," in html)
+        # THE HOLD/FREE CHOICE REACHES THE PAGE. Held is the
+        # right default - a rearrangement aimed at one pair
+        # randomizes the column's others - but held also makes
+        # an ask geometrically unavailable, and a live click
+        # landed -0.035 against an ask of -0.300 with no way
+        # on the page to choose otherwise. A default nobody can
+        # change is not a default, it is a limit.
+        check("the panel offers the HOLD-OR-FREE choice and "
+              "sends it, so an ask the neighbours refuse is "
+              "something the operator can act on rather than "
+              "read about",
+              'id="patfree"' in _m
+              and "let_neighbours_move:" in html
+              and "getElementById(\n          'patfree')" in html)
+        check("...and says what the choice COSTS in each "
+              "direction, because 'let the other couplings "
+              "move' is a fidelity decision and the page is "
+              "where it gets made",
+              "randomizes every other relationship" in _m
+              and "geometrically unavailable" in _m)
+        # ASSERTING THE NEW PATTERN IS PRESENT PROVED
+        # NOTHING. The first version of this check looked for
+        # nField anywhere in the page, and the page has several
+        # call sites - so pointing patList at a station's own
+        # box left it green. Assert the OLD pattern is GONE,
+        # which is what catches every straggler.
+        # SLICED TO THE PANEL'S OWN FUNCTIONS, because a
+        # whole-page ban is wrong: the Fit station reads its
+        # own fout box directly and should. The fault this
+        # guards is a NEW call site reading a station's box
+        # instead of the override-aware fallback.
+        _pan = html[html.index("async function patList("):
+                    html.index("async function pairVerify(")]
+        check("the panel reads the run directory through the "
+              "nField FALLBACK and NEITHER of its two call "
+              "sites reads a "
+              "station's own box directly - a value that must "
+              "be COPIED into a second input before anything "
+              "can read it fails silently whenever the copy "
+              "does not run",
+              _pan.count("nField('nout','fout')") == 2
+              and "getElementById('nout')" not in _pan
+              and "getElementById('fout')" not in _pan)
+
+        r = post("/api/patterns", {"out": ""})
+        check("/api/patterns is routed and refuses an empty "
+              "run directory BY NAME",
+              "error" in r and "run directory" in r["error"])
+        r = post("/api/patterns", {"out": str(tmp)})
+        check("...and a directory with no blueprint is refused "
+              "naming the missing file, rather than reporting "
+              "zero patterns - absent is not known-to-be-none",
+              "error" in r and "blueprint.json" in r["error"])
+        r = post("/api/pattern-dial", {"out": "", "pattern": "p1",
+                                       "target": "-0.3"})
+        check("/api/pattern-dial is routed and refuses an empty "
+              "run directory BY NAME",
+              "error" in r and "run directory" in r["error"])
+        r = post("/api/pattern-dial", {"out": str(tmp),
+                                       "pattern": "",
+                                       "target": "-0.3"})
+        check("...and refuses a missing pattern id by name "
+              "instead of dialling whatever it finds first - "
+              "and the refusal names THAT field, not all "
+              "three, or a reader with one blank box is told "
+              "to check boxes they filled",
+              "error" in r and "pattern id" in r["error"]
+              and "run directory" not in r["error"])
+        r = post("/api/pattern-dial", {"out": str(tmp),
+                                       "pattern": "p123456",
+                                       "target": "not a number"})
+        check("...and refuses a target that is not a number, "
+              "at the endpoint, rather than passing it to a "
+              "subprocess to fail somewhere a reader cannot "
+              "see",
+              "error" in r and "number" in r["error"])
 
     finally:
         gui.BACKEND_FACTORY = None

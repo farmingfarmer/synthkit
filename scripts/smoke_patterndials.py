@@ -15,11 +15,20 @@ A dial applied to the OUTPUT as a permutation always bites,
 preserves the column's distribution exactly, and is invertible
 through the cipher.
 
-So the inventory reports the LAYER of each dial, and counts how
-many patterns are reachable by an invertible one. On any
-blueprint today that count is ZERO - the invertible dials are
-attached to a pair an operator names by hand, not to anything
-discovery found. Naming that is more useful than a total.
+So the inventory reports the LAYER of each dial, and counts
+how many patterns are reachable by an invertible one.
+
+THAT COUNT USED TO BE ZERO, AND BOTH HALVES OF THE SENTENCE
+ABOVE HAVE SINCE BEEN CORRECTED BY MEASUREMENT. The invertible
+dials were attached only to a pair an operator named by hand;
+the per-pattern dial attached them to what discovery found.
+And the claim that a blueprint dial is inert was too broad - it
+came from shift and scale on a column inside a CYCLE, where
+the refinement sweep re-ranked onto an undialed marginal pool,
+which is now fixed; persistence and coverage were never in
+that measurement and both move their column. The distinction
+that survives is INVERTIBILITY: an output dial is a
+permutation the cipher can take back, a recipe dial is not.
 """
 import io
 import json
@@ -45,6 +54,66 @@ def check(label, cond):
     else:
         FAIL += 1
         print("FAIL: {}".format(label))
+
+
+def inter_fixture(seed=7, n=400, v=8):
+    """A PLANTED JOINT EFFECT, with real main effects too.
+
+    Both halves matter. Without main effects the check that
+    they SURVIVE the dial is vacuous - and surviving is the
+    property that broke: the first cut of the interaction
+    dial ranked the child on its additive target, which IS
+    the main effects, and doubled them while flattening the
+    surface (+0.367 -> +0.790).
+    """
+    rng = np.random.default_rng(seed)
+    pid = np.repeat(["P{:03d}".format(i) for i in range(n)], v)
+    N = n * v
+    a_ = rng.normal(0, 1, N)
+    b_ = rng.normal(0, 1, N)
+    y_ = 0.8 * a_ + 0.5 * b_ + 1.6 * (a_ * b_) \
+        + rng.normal(0, 0.6, N)
+    return pd.DataFrame({
+        "person_id": pid, "visit": np.tile(np.arange(v), n),
+        "a": np.round(a_, 3), "b": np.round(b_, 3),
+        "y": np.round(y_, 3)})
+
+
+def set_fixture(seed=5, n=160, v=6):
+    """A SET COLUMN WITH A DECLARED SIZE PARTNER.
+
+    Its own fixture, not a column bolted onto the one above:
+    adding a column to a fixture other checks depend on moved
+    an estimate across a threshold once and broke three checks
+    that had nothing to do with it.
+
+    It has to carry the size partner, because the first cut of
+    the set dial rearranged the strings and left the count
+    behind - `nc == len(conds)` went from broken on 0.0% of
+    rows to broken on 75.3%, a file whose count contradicts
+    its own list. A fixture without the identity cannot see
+    that, and the check would have passed on the broken code.
+    """
+    rng = np.random.default_rng(seed)
+    pid = np.repeat(["P{:03d}".format(i) for i in range(n)], v)
+    N = n * v
+    sev = rng.normal(0, 1, N)
+    toks = ["t{:02d}".format(i) for i in range(8)]
+    rows = []
+    for i in range(N):
+        k = int(rng.integers(0, 4))
+        pick = list(rng.choice(toks, size=k, replace=False))
+        # t00 is PLANTED on the high-severity rows, so the
+        # token has a real tie to move rather than noise
+        if sev[i] > 0.6 and "t00" not in pick:
+            pick.append("t00")
+        rows.append(";".join(sorted(pick)))
+    return pd.DataFrame({
+        "person_id": pid,
+        "visit": np.tile(np.arange(v), n),
+        "sev": np.round(sev, 3),
+        "conds": rows,
+        "nc": [len(r.split(";")) if r else 0 for r in rows]})
 
 
 def fixture(seed=3, n=240, v=7):
@@ -139,24 +208,53 @@ def main():
           not scaf)
 
     # ---- THE REACH TABLE IS HONEST IN BOTH DIRECTIONS
-    reachable = [k for k in kinds
-                 if P.REACH.get(k, (None,))[0]]
-    unreachable = [k for k in kinds
-                   if not P.REACH.get(k, (None,))[0]]
-    check("some kinds are reachable and some are NOT, and both "
-          "are named - a table where everything is reachable "
-          "is an advert. reachable: {} / unreachable: {}"
-          .format(len(reachable), len(unreachable)),
-          reachable and unreachable)
+    # THE TABLE MUST STILL NAME WHAT NOTHING REACHES. When the
+    # per-pattern dial shipped, three kinds moved from
+    # blueprint-and-inert to output-and-invertible, and the
+    # first version of these checks asserted the OLD claim -
+    # correctly going red. Two kinds are still reached by
+    # nothing at all, and a table where everything is reachable
+    # is an advert.
+    none_reaches = [k for k, v in P.REACH.items() if not v[0]]
+    # THE UNREACHABLE LIST IS EMPTY NOW, AND THAT IS THE
+    # DANGEROUS STATE. It used to hold set_token and
+    # interaction_surface, and both got dials. A table with
+    # no gaps reads as completeness to anybody who did not
+    # watch it fill, so the honest burden moved from "which
+    # kinds have no dial" to "which patterns this inventory
+    # never names at all" - and the report has to say that
+    # out loud rather than letting a full table speak.
+    check("every kind the reach table carries now has a "
+          "dial - unreachable: {} - which is why the check "
+          "below matters more than this one"
+          .format(", ".join(sorted(none_reaches)) or "none"),
+          not none_reaches)
 
-    inv = [k for k in kinds
-           if P.REACH.get(k, (None, None, False))[2]]
-    check("NOT ONE discovered pattern is reachable by an "
-          "INVERTIBLE dial - the invertible dials are attached "
-          "to a pair named by hand, and every dial attached to "
-          "a discovered pattern is a blueprint dial, the layer "
-          "measured inert on the real extract",
-          not inv)
+    # THE SPLIT THAT MATTERS IS NOT reachable/unreachable, IT
+    # IS INVERTIBLE-OUTPUT AGAINST INERT-BLUEPRINT. A blueprint
+    # dial has a name in the dial column and does nothing on the
+    # real extract, so counting it as reach flatters the table.
+    inv = sorted(k for k in kinds
+                 if P.REACH.get(k, (None, None, False))[2])
+    bp_only = sorted(k for k in kinds
+                     if P.REACH.get(k, (None, None, False))[0]
+                     and not P.REACH.get(k,
+                                         (None, None, False))[2])
+    check("the kinds a per-pattern INVERTIBLE dial reaches - "
+          "{} - are every one of them an OUTPUT dial. A set "
+          "token is in that list and does NOT reduce to a "
+          "column pair: its second entry is a token, which is "
+          "why the generic pair test had to stop deciding "
+          "dialability on its own".format(", ".join(inv)),
+          inv == ["effect_curve", "identity",
+                  "relationship", "set_token"]
+          and all(P.REACH[k][1] == "output" for k in inv))
+    check("...and the kinds whose ONLY dial is a blueprint "
+          "dial are named apart - {} - because that layer was "
+          "measured inert on the real extract and a dial "
+          "column alone would read as control"
+          .format(", ".join(bp_only)),
+          bp_only == ["column_presence", "within_patient"])
 
     # ---- THE REPORT SAYS IT
     with tempfile.TemporaryDirectory() as td:
@@ -170,21 +268,45 @@ def main():
         out = buf.getvalue()
     check("the report runs on a run directory and exits clean",
           rc == 0)
-    check("...and states the invertibility gap in words, not "
-          "only as a zero somebody has to notice",
-          "NOT ONE PATTERN IS REACHABLE BY AN INVERTIBLE "
-          "DIAL" in out)
-    check("...and NAMES the unreachable patterns rather than "
-          "summing them, because the list is the roadmap and "
-          "the count is not",
-          "NO DIAL REACHES effect_curve" in out)
+    check("...and states what the INVERTIBLE dials buy, in "
+          "words - a permutation that always bites, keeps the "
+          "column's own distribution, and can be undone",
+          "output-layer permutations" in out
+          and "can be undone" in out)
+    # "MEASURED INERT" WAS AN OVERCLAIM AND MEASURING IT
+    # CORRECTED IT: persistence moved a column's
+    # between-patient share 0.935 -> 0.384 and coverage moved
+    # presence 0.603 -> 0.319, each with a control in the same
+    # run. What is always true is that a recipe dial is not a
+    # permutation, so nothing can undo it.
+    check("...and names the REMAINING gap by the property "
+          "that is always true - a recipe dial is not a "
+          "permutation, so no cipher can take it back - "
+          "rather than by claiming it does not take effect, "
+          "which was measured false",
+          "BLUEPRINT dial" in out
+          and "NOT permutations" in out
+          and "no cipher entry" in out
+          and "not because they fail to take effect" in out
+          and "INERT" not in out)
+    check("...and when NOTHING is unreachable it says so "
+          "explicitly and points at what the inventory does "
+          "not NAME - a table with no gaps reads as "
+          "completeness to a reader who did not watch it fill",
+          "NOT THE SAME AS BEING FINISHED" in out
+          and "does not NAME" in out)
     check("...and says that what is absent may be UNDECIDABLE "
           "rather than absent - three-way structure needs "
           "roughly 3,200 patients and this cohort has fewer",
           "UNDECIDABLE" in out and "3,200" in out)
-    check("...and explains the LAYER column, which is the one "
-          "that decides whether a dial can be overwritten",
-          "can be silently overwritten" in out)
+    check("...and explains the LAYER column by the property "
+          "that decides whether a dial can be TAKEN BACK - "
+          "it used to say the layer decides whether a dial "
+          "is overwritten, which was the narrow cyclic "
+          "shift/scale case and is now fixed",
+          "THE PROPERTY IS INVERTIBILITY" in out
+          and "generating again" in out
+          and "not weaker" in out)
 
     # ---- IDS ARE CONTENT-DERIVED, WHICH IS THE WHOLE POINT
     ids = [q["id"] for q in pats]
@@ -330,26 +452,332 @@ def main():
         # to contain an undialable pattern FIRST, then the
         # refusal is tested unconditionally.
         und = next((q for q in pats if not q["dialable"]), None)
-        check("the fixture still contains a pattern no dial "
-              "reaches - without one the refusal check below "
-              "would skip rather than fail, which is how a "
-              "widened DIALABLE list would pass unnoticed",
+        check("the fixture still contains a pattern NO "
+              "PER-PATTERN dial reaches - without one the "
+              "refusal check below would skip rather than "
+              "fail, which is how a widened DIALABLE list "
+              "would pass unnoticed",
               und is not None)
         buf = io.StringIO()
         with contextlib.redirect_stdout(buf):
             rc3 = P.dial(run2, "{}=-0.3".format(
                 (und or {}).get("id", "pzzzzzz")))
-        check("a pattern NO dial reaches is refused by name, "
-              "naming the kind - an operator handed a shrug "
-              "has been told nothing",
+        check("a pattern NO PER-PATTERN dial reaches is "
+              "refused by name, naming the kind - an operator "
+              "handed a shrug has been told nothing",
               rc3 != 0 and und is not None
               and und["kind"] in buf.getvalue())
+        check("...and the refusal says whether a WEAKER dial "
+              "exists for that kind and what is wrong with "
+              "it - telling an operator there is nothing when "
+              "there is something they cannot undo sends them "
+              "to the wrong question",
+              "CANNOT BE UNDONE" in buf.getvalue()
+              or "either layer" in buf.getvalue())
         buf = io.StringIO()
         with contextlib.redirect_stdout(buf):
             rc4 = P.dial(run2, "pzzzzzz=-0.3")
         check("...and an unknown id is refused with a pointer "
               "to the listing, not a traceback",
               rc4 != 0 and "no pattern with id" in buf.getvalue())
+
+    # ---- SET TOKENS: INVISIBLE BEFORE, AND DIALABLE NOW
+    import synthkit.sets as SS
+    sdf = set_fixture()
+    sbp = B.build(sdf, discover(sdf, group_by="person_id",
+                                seed=2),
+                  group_by="person_id")
+    spats = P.patterns(sbp)
+    stok = [q for q in spats if q["kind"] == "set_token"]
+    check("a SET COLUMN'S TOKENS are listed as patterns - "
+          "{} of them. `set_token` sat in the reach table "
+          "with no builder emitting it, so a clinical "
+          "extract's drug and condition structure showed as "
+          "nothing at all on a page promising every pattern "
+          "the fit found".format(len(stok)),
+          len(stok) >= 5)
+    check("...and only tokens that CLEARED THE k FLOOR are "
+          "named, because those are the ones the blueprint "
+          "published - naming a sub-k token would be the "
+          "inventory disclosing what the generator refused to",
+          bool(stok) and all(
+              q["columns"][1] in
+              {t["value"] for t in
+               sbp["columns"]["conds"]["marginal"]["tokens"]}
+              for q in stok))
+    check("...and a set token is DIALABLE even though its two "
+          "entries are a column and a TOKEN, not a column "
+          "pair - the pair test that serves every other kind "
+          "says no, and the page would have shown real "
+          "movable patterns as out of reach",
+          bool(stok)
+          and all(q["dialable"] for q in stok)
+          and all(q.get("needs_partner") for q in stok))
+
+    with tempfile.TemporaryDirectory() as td:
+        srun = Path(td)
+        (srun / "blueprint.json").write_text(
+            json.dumps(sbp), encoding="utf-8")
+        sgen = generate(sbp, n_patients=160, seed=4)
+        sgen.to_csv(srun / "generated.csv", index=False)
+        # AND THE SUITE MUST FAIL RATHER THAN CRASH if the
+        # tokens vanish. An IndexError here prints a traceback
+        # and no FAIL line, and this repo has already read
+        # "no failures" off a crashed run once.
+        _t = [q for q in stok if q["columns"][1] == "t00"]
+        check("the planted token t00 is among the patterns - "
+              "without it the checks below cannot run, and a "
+              "suite that crashes prints no FAIL line at all",
+              bool(_t))
+        # The dependent checks below cannot run without it.
+        # They are skipped rather than crashing - and the
+        # explicit check above has already recorded a FAIL, so
+        # the suite goes red either way. A block that vanishes
+        # with nothing red is the fault; a block that vanishes
+        # under a failure that was already reported is not.
+        # AND THE BLOCK BELOW STILL RUNS when it is absent,
+        # on a stand-in id that cannot resolve. Skipping would
+        # make eleven checks VANISH, which is the fault this
+        # repo already paid for - a check that disappears
+        # reads the same as a check that passed. With the
+        # stand-in they all go RED, loudly, naming what is
+        # missing.
+        t00 = _t[0] if _t else {"id": "pnosuch",
+                                "columns": ["conds", "t00"]}
+
+        import contextlib
+        buf = io.StringIO()
+        with contextlib.redirect_stdout(buf):
+            rc = P.dial(srun, "{}=-0.5".format(t00["id"]))
+        out = buf.getvalue()
+        check("dialling a set token with NO partner is "
+              "REFUSED, and the refusal says why its SHARE is "
+              "not the movable thing: writing a token onto "
+              "rows that never recorded it is not a "
+              "rearrangement and cannot be undone",
+              rc != 0 and "not dialable" in out
+              and "cannot be undone" in out
+              and "--against" in out)
+
+        def _corr(f):
+            h = pd.Series(SS.has_token(
+                f["conds"].fillna("").astype(str), ";",
+                "t00").to_numpy(dtype=float))
+            return float(h.corr(pd.to_numeric(f["sev"]),
+                                method="spearman"))
+        _was = _corr(sgen)
+        check("the fixture's token actually HAS a tie to move "
+              "({:+.3f}) - a dial measured on an unrelated "
+              "token would land at zero from zero and prove "
+              "nothing".format(_was),
+              abs(_was) > 0.3)
+
+        buf = io.StringIO()
+        with contextlib.redirect_stdout(buf):
+            rc = P.dial(srun, "{}=-0.5".format(t00["id"]),
+                        against="sev", apply_it=True)
+        out = buf.getvalue()
+        check("...and WITH a partner it lands: {}".format(
+            [l.strip() for l in out.splitlines()
+             if "landed" in l]),
+            rc == 0 and any("landed -0.4" in l or
+                            "landed -0.5" in l
+                            for l in out.splitlines()))
+        check("...and reports the REACHABLE BAND as set by the "
+              "token's SHARE rather than [-1, +1] - a token on "
+              "42% of rows cannot reach +1 against a "
+              "continuous column however it is arranged",
+              "share, not by" in out)
+
+        rel = pd.read_csv(srun / "generated_dialled.csv",
+                          keep_default_na=False, dtype=str)
+        key = pd.read_csv(srun / "generated.csv",
+                          keep_default_na=False, dtype=str)
+        check("every published token's SHARE is untouched - "
+              "the whole set string travels as a unit, so the "
+              "column holds the identical multiset and the "
+              "privacy posture is exactly what was published",
+              sorted(key["conds"]) == sorted(rel["conds"]))
+
+        # THE NEIGHBOURING PROPERTY, AND IT IS THE ONE THAT
+        # BROKE. Measured on the first cut of this dial: the
+        # strings moved, the count stayed, and nc disagreed
+        # with len(conds) on 75.3% of rows where it had
+        # disagreed on 0.0%.
+        _sz = SS.sizes_of(rel["conds"].astype(str), ";")
+        _bad = float((_sz != pd.to_numeric(
+            rel["nc"], errors="coerce")).mean())
+        check("the DECLARED SIZE IDENTITY survives the dial - "
+              "nc == len(conds) broken on {:.1%} of rows. The "
+              "first cut left the count behind and broke it "
+              "on 75.3%, which is a file whose count "
+              "contradicts its own list".format(_bad),
+              _bad < 0.001)
+        check("...and the size partner is NAMED as having "
+              "moved with the set, with its own coupling "
+              "before and after - a column that travels "
+              "silently is a relationship changed behind the "
+              "operator's back",
+              "to keep the declared size identity" in out
+              and "size partner, moved with the set" in out)
+
+        rec = json.loads((srun / "cipher.json")
+                         .read_text(encoding="utf-8"))
+        check("the arrangement is RECORDED for every column "
+              "that moved, the size partner included - a "
+              "permutation nobody wrote down is invertible in "
+              "principle and by nobody in practice",
+              set(rec["columns"]) == {"conds", "nc"})
+        okinv = True
+        for c, tf in rec["columns"].items():
+            tf = np.asarray(tf)
+            v = rel[c].to_numpy()
+            backc = np.empty(len(v), dtype=object)
+            backc[tf] = v
+            okinv = okinv and bool((backc == key[c].to_numpy())
+                                   .all())
+        check("...and the inverse reproduces the key file "
+              "EXACTLY, value for value, through the disk",
+              okinv)
+        changed = [c for c in key.columns
+                   if c not in rec["columns"]
+                   and not (rel[c] == key[c]).all()]
+        check("...and NO column without a cipher entry "
+              "changed - nothing moved that the record does "
+              "not name. changed: {}".format(changed),
+              not changed)
+
+    # ---- INTERACTION SURFACES: FLATTENED, MAINS HELD
+    idf = inter_fixture()
+    ibp = B.build(idf, discover(idf, group_by="person_id",
+                                seed=1),
+                  group_by="person_id")
+    ipats = [q for q in P.patterns(ibp)
+             if q["kind"] == "interaction_surface"]
+    check("the fixture publishes an INTERACTION SURFACE - {} "
+          "of them - without one every check below would pass "
+          "on an empty list".format(len(ipats)),
+          bool(ipats))
+    _iy = [q for q in ipats if q["columns"][0] == "y"]
+    check("...including one whose child is the planted "
+          "column, which is the only one with a joint effect "
+          "to remove",
+          bool(_iy))
+    isurf = _iy[0] if _iy else (ipats[0] if ipats
+                                else {"id": "pnosuch"})
+
+    with tempfile.TemporaryDirectory() as td:
+        irun = Path(td)
+        (irun / "blueprint.json").write_text(
+            json.dumps(ibp), encoding="utf-8")
+        igen = generate(ibp, n_patients=400, seed=3)
+        igen.to_csv(irun / "generated.csv", index=False)
+
+        def _g(f):
+            yy = pd.to_numeric(f["y"], errors="coerce")
+            qa = pd.qcut(pd.to_numeric(f["a"], errors="coerce"),
+                         3, labels=False, duplicates="drop")
+            qb = pd.qcut(pd.to_numeric(f["b"], errors="coerce"),
+                         3, labels=False, duplicates="drop")
+            return P._grid_gain(yy.to_numpy(), qa.to_numpy(),
+                                qb.to_numpy())
+
+        def _mn(f):
+            yy = pd.to_numeric(f["y"], errors="coerce")
+            return (float(pd.to_numeric(f["a"]).corr(
+                        yy, method="spearman")),
+                    float(pd.to_numeric(f["b"]).corr(
+                        yy, method="spearman")))
+
+        _g0 = _g(igen)
+        check("the generated file CARRIES the joint effect "
+              "({:.4f} gain) - flattening a surface that is "
+              "already flat measures nothing".format(_g0),
+              _g0 > 0.25)
+
+        import contextlib
+        buf = io.StringIO()
+        with contextlib.redirect_stdout(buf):
+            rc = P.dial(irun, "{}=0.0".format(isurf["id"]),
+                        apply_it=True)
+        iout = buf.getvalue()
+        check("an interaction surface is DIALABLE and the "
+              "dial runs: {}".format(
+                  [l.strip() for l in iout.splitlines()
+                   if "landed gain" in l]),
+              rc == 0 and "landed gain" in iout)
+
+        irel = pd.read_csv(irun / "generated_dialled.csv")
+        _g1 = _g(irel)
+        check("...and the joint effect is SUPPRESSED: gain "
+              "{:.4f} -> {:.4f}".format(_g0, _g1),
+              _g1 < _g0 * 0.35)
+
+        # THE NEIGHBOURING PROPERTY, AND THE ONE THAT BROKE.
+        m0, m1 = _mn(igen), _mn(irel)
+        check("...while BOTH MAIN EFFECTS survive: {:+.3f} -> "
+              "{:+.3f} and {:+.3f} -> {:+.3f}. The first cut "
+              "ranked the child on its additive target, which "
+              "IS the main effects, and doubled them while "
+              "flattening the surface - an operator who asked "
+              "to remove an interaction would have received a "
+              "file with twice the linear signal"
+              .format(m0[0], m1[0], m0[1], m1[1]),
+              # TOTAL DRIFT, AND THE BAR HAD TO BE
+              # TIGHTENED TO MEAN ANYTHING. At 0.06 per
+              # effect the check could not tell the
+              # two-objective search from a search that
+              # ignores the mains entirely - measured, the
+              # two land 0.015 and 0.088 of total drift and
+              # both passed. A check that cannot separate
+              # the mechanism from its absence is not
+              # testing the mechanism.
+              abs(m1[0] - m0[0]) + abs(m1[1] - m0[1]) < 0.04)
+        check("...and the run REPORTS that drift rather than "
+              "reporting only the gain, because a dial that "
+              "lands its target while moving two other "
+              "things has not told the operator what it did",
+              "main effects after" in iout and "drift" in iout)
+        check("...and the column holds the IDENTICAL multiset, "
+              "so the marginal and the published bounds are "
+              "exactly what they were",
+              sorted(np.round(pd.to_numeric(igen["y"]), 6))
+              == sorted(np.round(pd.to_numeric(irel["y"]), 6)))
+        check("...and the reachable band says this dial "
+              "FLATTENS and cannot amplify, with the ceiling "
+              "being the gain the file already has - a dial "
+              "that cannot say what it is unable to do "
+              "reports a miss for an ask that never existed",
+              "cannot invent" in iout
+              and "reachable band for this surface" in iout)
+
+        buf = io.StringIO()
+        with contextlib.redirect_stdout(buf):
+            P.dial(irun, "{}=9.0".format(isurf["id"]))
+        check("...and an ask ABOVE that ceiling is called out "
+              "as unreachable rather than quietly returning "
+              "the closest thing",
+              "ABOVE THAT CEILING" in buf.getvalue())
+
+        irec = json.loads((irun / "cipher.json")
+                          .read_text(encoding="utf-8"))
+        check("the arrangement is RECORDED with the mains "
+              "before and after, so the entry says what the "
+              "dial cost as well as what it changed",
+              "y" in irec["columns"]
+              and any("mains_before" in r
+                      for r in irec["repointed"]))
+        _tf = np.asarray(irec["columns"]["y"])
+        _k = pd.read_csv(irun / "generated.csv",
+                         keep_default_na=False, dtype=str)
+        _r = pd.read_csv(irun / "generated_dialled.csv",
+                         keep_default_na=False, dtype=str)
+        _b = np.empty(len(_tf), dtype=object)
+        _b[_tf] = _r["y"].to_numpy()
+        check("...and the inverse reproduces the key file's "
+              "column EXACTLY, value for value, through the "
+              "disk",
+              bool((_b == _k["y"].to_numpy()).all()))
 
     print()
     if FAIL:
@@ -360,3 +788,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+

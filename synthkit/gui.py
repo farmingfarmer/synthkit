@@ -1623,6 +1623,107 @@ def _latent_work(payload: dict) -> dict:
                 payload.get("seed") or 0))}
 
 
+def api_patterns(payload: dict) -> dict:
+    """Every pattern the run found, with the dial that reaches it.
+
+    THE POINT OF THE PRODUCT, ON A PAGE. A user is meant to see
+    every pattern the tool found and choose, per pattern, how to
+    distort it. Both halves existed only as command-line tools,
+    and the one surface an operator actually works in could not
+    show a single pattern.
+
+    It reports the UNREACHABLE ones too. A list of what can be
+    dialed is an advert; the list of what cannot is the part
+    somebody can act on.
+    """
+    import sys as _sys
+    out = (payload.get("out") or "").strip()
+    if not out:
+        return {"error": "give the run directory the generated "
+                         "file was written to."}
+    sc = Path(__file__).resolve().parent.parent / "scripts"
+    if str(sc) not in _sys.path:
+        _sys.path.insert(0, str(sc))
+    bp = Path(out) / "blueprint.json"
+    if not bp.exists():
+        return {"error": "no blueprint.json in {} - patterns "
+                         "come from the fitted contract, so "
+                         "the run has to have written "
+                         "one.".format(out)}
+    try:
+        import pattern_dials as PD
+        pats = PD.patterns(json.loads(
+            bp.read_text(encoding="utf-8")))
+    except Exception as e:
+        return {"error": "could not read the patterns: "
+                         "{}".format(e)}
+    for q in pats:
+        d = PD.REACH.get(q["kind"], (None, None, False))
+        q["dial"], q["layer"], q["invertible"] = d
+    return {"patterns": pats,
+            "dialable": sum(1 for q in pats if q["dialable"]),
+            "total": len(pats)}
+
+
+def api_pattern_dial(payload: dict) -> dict:
+    """Dial ONE pattern, as an output permutation.
+
+    Runs the SAME script a terminal would, so the bench and the
+    command line cannot disagree about what a dial did - and
+    nothing is written unless the caller asked for it, because
+    a page that rewrites a released file on a click is not one
+    anybody should use twice.
+    """
+    import subprocess
+    import sys as _sys
+    out = (payload.get("out") or "").strip()
+    pid = (payload.get("pattern") or "").strip()
+    target = str(payload.get("target") or "").strip()
+    # EACH REFUSAL NAMES THE THING THAT IS MISSING. One
+    # message covering all three reads the same whichever field
+    # is blank, so an operator with a filled pattern id and an
+    # empty run directory is told to check all three.
+    if not out:
+        return {"error": "give the run directory holding "
+                         "blueprint.json and generated.csv."}
+    if not pid:
+        return {"error": "give the pattern id - list the "
+                         "patterns first and copy one."}
+    if not target:
+        return {"error": "give the target rank correlation "
+                         "for that pattern."}
+    # AND THE TARGET IS CHECKED HERE, not in the subprocess. A
+    # value that fails inside a child process fails somewhere
+    # the page cannot show; the refusal belongs where the
+    # reader is.
+    try:
+        float(target)
+    except ValueError:
+        return {"error": "the target must be a number - got "
+                         "{!r}.".format(target)}
+    script = (Path(__file__).resolve().parent.parent
+              / "scripts" / "pattern_dials.py")
+    if not script.exists():
+        return {"error": "scripts/pattern_dials.py is not "
+                         "beside this install - run from the "
+                         "repository checkout."}
+    cmd = [_sys.executable, "-u", str(script), out,
+           "--dial", "{}={}".format(pid, target)]
+    ag = (payload.get("against") or "").strip()
+    if ag:
+        cmd += ["--against", ag]
+    if payload.get("let_neighbours_move"):
+        cmd.append("--let-neighbours-move")
+    if payload.get("apply"):
+        cmd.append("--apply")
+    r = subprocess.run(cmd, capture_output=True, text=True,
+                       timeout=1800)
+    return {"ok": r.returncode == 0,
+            "applied": bool(payload.get("apply"))
+            and r.returncode == 0,
+            "report": (r.stdout or "") + (r.stderr or "")}
+
+
 def api_pair_verify(payload: dict) -> dict:
     """Prove the released file is an exact rearrangement of the
     key - the one claim that makes a dialed file a legitimate
@@ -1838,6 +1939,8 @@ _ROUTES = {
         "synthkit.explain", fromlist=["x"]).as_json(),
     "/api/duel": api_duel,
     "/api/pair-verify": api_pair_verify,
+    "/api/patterns": api_patterns,
+    "/api/pattern-dial": api_pattern_dial,
     "/api/neural-async": lambda payload: {
         "job": _start_job(api_neural, payload,
                           budget_s=2 * 3600.0)},
@@ -2071,6 +2174,25 @@ pre.out:empty{display:none}
 pre.out .ok{color:var(--pass)} pre.out .bad{color:var(--fail)}
 .verdict-pass{color:var(--pass);font-weight:600}
 .verdict-fail{color:var(--fail);font-weight:600}
+table.patt{border-collapse:collapse;width:100%;
+  font-size:12px;margin-top:6px}
+table.patt th{text-align:left;font-family:var(--mono);
+  font-size:10px;letter-spacing:.06em;text-transform:uppercase;
+  color:var(--muted);padding:3px 8px 5px 0;
+  border-bottom:1px solid var(--rule);white-space:nowrap}
+table.patt td{padding:6px 8px 6px 0;vertical-align:top;
+  border-top:1px solid rgba(0,0,0,.06)}
+table.patt td code{font-size:11px}
+table.patt .patset{white-space:nowrap;padding-right:0}
+table.patt .patset input{width:4.4em;margin-right:5px;
+  padding:2px 5px;font-size:11px}
+/* THE PARTNER BOX CLIPPED ITS OWN PLACEHOLDER - "against"
+   rendered as "agains" at the shared 4.4em. Read off a
+   screenshot, which is the only place it shows. */
+table.patt .patset input.pa{width:7.5em}
+table.patt .patset .act{padding:2px 9px;font-size:11px}
+table.patt .patset .hint{white-space:normal;
+  display:inline-block;max-width:16em;line-height:1.35}
 table.preview{border-collapse:collapse;font-family:var(--mono);
   font-size:11.5px;margin-top:12px;width:100%}
 table.preview th,table.preview td{border:1px solid var(--rule);
@@ -3628,6 +3750,43 @@ textarea:focus,input:focus,select:focus{
     <button class="act ghost" onclick="neuralReview()">Review the output</button>
     <div class="out" id="neural-out">Nothing yet.</div>
     <div class="explain" id="relkey" style="display:none"></div>
+    <details id="patbox" class="expert"><summary>Patterns
+    found &mdash; and what you can do to each</summary>
+    <div class="explain">Every pattern the fit found, with the
+    dial that reaches it. The ones NOTHING reaches are listed
+    too: a table of what you can change is an advert, and the
+    list of what you cannot is the part you can act on.
+    <br><br><b>A dial here is a rearrangement of the written
+    file.</b> It moves values between rows and never changes
+    them, so the column keeps its own distribution exactly and
+    the arrangement is recorded &mdash; which is what lets the
+    cipher undo it against the key file, value for value.
+    <br><br>The <b>recipe</b> dials in the layer column are a
+    different thing. They change what generation produces, so
+    undoing one means generating again, not reversing a
+    permutation; there is no cipher entry for them. They do
+    take effect &mdash; measured with a control column in the
+    same run, <code>persistence</code> moved a column's
+    between-patient share from 0.935 to 0.384 and
+    <code>coverage</code> moved presence from 0.603 to 0.319
+    on an ask of 0.30.</div>
+    <button class="act ghost" onclick="patList()">List the
+    patterns found</button>
+    <label class="chk"><input type="checkbox" id="patfree">
+    let the column's OTHER couplings move</label>
+    <div class="explain">Held by default: a rearrangement
+    aimed at one pair randomizes every other relationship that
+    column has, so the dial solves for all of them at once and
+    the neighbours keep their own values. The cost is that an
+    ask can be geometrically unavailable while they are pinned
+    &mdash; the report says which mode it ran in, and a small
+    landed value under HELD means the neighbours refused it,
+    not that the dial is weak. Tick this when the one pattern
+    matters more than its column's other couplings.</div>
+    <div class="out" id="pat-out" style="display:none">Nothing
+    yet.</div>
+    <div id="pat-table"></div>
+    </details>
     <div class="explain" id="pairbox" style="display:none">
     <b>This run wrote a key/released pair.</b>
     <div class="hint"><code>key.csv</code> is the full-fidelity
@@ -5432,6 +5591,137 @@ function pairBox(on){
      the page rather than left to be noticed in a directory. */
   var el=document.getElementById('pairbox');
   if(el)el.style.display=on?'block':'none';}
+function patRow(p){
+  /* ONE ROW PER PATTERN, and the ones no dial reaches are
+     shown rather than filtered out - the list of what is out
+     of reach is the half an operator can act on.
+
+     THREE CASES, AND THE FIRST VERSION HAD TWO. A row with a
+     blueprint dial rendered the dial's NAME beside an empty
+     cell: a named dial and no box and no reason, which reads
+     as a tool that is broken rather than a layer that was
+     measured inert. A live render showed four such rows on the
+     fixture's own blueprint while the source-text check for
+     the other branch passed - a branch no row reaches is an
+     untested branch. */
+  /* THE DIAL STRING IS IDENTICAL ON EVERY REACHABLE ROW, so
+     printing it twelve times spends the widest column saying
+     one thing. The command is stated ONCE above the table and
+     the column carries the LAYER, which is the part that
+     differs and the part that decides whether the dial
+     bites. */
+  var h='<tr><td><code>'+p.id+'</code></td><td>'+p.kind+
+    '</td><td>'+p.what+'</td><td>'+(p.layer||'none')+
+    '</td><td>'+
+    (p.invertible? 'yes':(p.dial?'no':'-'))+
+    '</td><td class="patset">';
+  if(p.dialable){
+    /* THE TARGET IS NOT THE SAME QUANTITY FOR EVERY KIND.
+       A relationship takes a rank correlation in [-1, +1]; an
+       interaction surface takes a GAIN, which is a distance
+       from an additive fit and is never negative - 0 means
+       flatten it. A single placeholder of "-0.3" on a surface
+       row invites an ask that has no meaning. */
+    h+='<input id="pt_'+p.id+'" size="5" placeholder="'+
+       (p.kind==='interaction_surface'?'0 = flat':'-0.3')+
+       '">';
+    /* A SET TOKEN NEEDS A PARTNER, because its SHARE is not
+       the movable thing - writing a token onto rows that
+       never recorded it is not a rearrangement and cannot be
+       undone. What moves is which rows hold it, so the row
+       asks which column to move it against. */
+    if(p.needs_partner){
+      h+='<input class="pa" id="pa_'+p.id+'" '+
+         'placeholder="against">';
+    }
+    h+='<button class="act ghost" onclick="patDial(\''+p.id+
+       '\')">dial</button>';
+  } else if(p.dial){
+    h+='<span class="hint">recipe dial only (<code>'+p.dial+
+       '</code>) &mdash; takes effect, but cannot be '+
+       'undone</span>';
+  } else {
+    h+='<span class="hint">nothing reaches it</span>';
+  }
+  return h+'</td></tr>';
+}
+async function patList(){
+  var o=document.getElementById('pat-out');
+  var t=document.getElementById('pat-table');
+  o.style.display='block'; o.textContent='reading the patterns ...';
+  t.innerHTML='';
+  try{
+    const r=await fetch('/api/patterns',{method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({out:nField('nout','fout')})});
+    const j=await r.json();
+    if(j.error){o.textContent='refused: '+j.error;return;}
+    o.textContent=j.dialable+' of '+j.total+
+      ' patterns can be dialled. The rest are listed so you '+
+      'can see what is out of reach.';
+    /* THIS PARAGRAPH CARRIED THE STALE CLAIM AFTER THE
+       panel's own explain text had been corrected - two
+       pieces of prose about one thing, and only one of them
+       was fixed. It said a blueprint dial is "measured inert
+       on the real extract"; what was measured inert is shift
+       and scale on a column inside a cycle, now fixed, and
+       persistence and coverage both bite. */
+    var h='<p class="hint">Every dialable pattern below takes '+
+      'the same command: <code>pattern_dials RUNDIR --dial '+
+      'ID=TARGET</code>; a set token also needs '+
+      '<code>--against COLUMN</code>. An <b>output</b> layer '+
+      'is a permutation of the written file, so the cipher '+
+      'can undo it. A <b>blueprint</b> layer takes effect '+
+      'too, but it changes what generation produces, so '+
+      'undoing it means generating again. A relationship '+
+      'or token takes a rank correlation; an '+
+      '<b>interaction surface</b> takes a GAIN instead, '+
+      'where 0 flattens it and the main effects are held '+
+      'where they are.</p>'+
+      '<table class="jt patt"><tr><th>id</th><th>kind</th>'+
+      '<th>pattern</th><th>layer</th>'+
+      '<th>invertible</th><th>set it to</th></tr>';
+    j.patterns.forEach(function(p){h+=patRow(p);});
+    t.innerHTML=h+'</table>';
+  }catch(e){o.textContent='refused: '+e;}
+}
+async function patDial(pid){
+  var o=document.getElementById('pat-out');
+  var box=document.getElementById('pt_'+pid);
+  var val=(box&&box.value||'').trim();
+  var ag=(document.getElementById('pa_'+pid)||{}).value;
+  ag=(ag||'').trim();
+  if(!val){o.style.display='block';
+    o.textContent='give a target for '+pid+
+      ' before dialling it.';return;}
+  if(document.getElementById('pa_'+pid) && !ag){
+    o.style.display='block';
+    o.textContent='this is a set token. Its share is not '+
+      'the movable thing - name the column to move it '+
+      'AGAINST in the second box.';return;}
+  o.style.display='block';
+  o.textContent='dialling '+pid+' to '+val+' ...';
+  try{
+    const r=await fetch('/api/pattern-dial',{method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({out:nField('nout','fout'),
+        pattern:pid, target:val, apply:false,
+        against:ag,
+        let_neighbours_move:!!(document.getElementById(
+          'patfree')||{}).checked})});
+    const j=await r.json();
+    if(j.error){o.textContent='refused: '+j.error;return;}
+    /* A DRY RUN BY DEFAULT. The report says what it WOULD do -
+       what landed, what the pair can reach, and which other
+       couplings moved - and writes nothing. Rewriting a
+       released file on a click is not a thing to do by
+       default. */
+    o.textContent=(j.report||'(no report)')+
+      '\n\nNothing was written. This is what the dial WOULD '+
+      'do. Re-run it from the command line with --apply when '+
+      'you want the file changed.';
+  }catch(e){o.textContent='refused: '+e;}
+}
 async function pairVerify(){
   var o=document.getElementById('pair-out');
   if(!o)return;

@@ -356,43 +356,60 @@ def verify(bp_before: Dict[str, Any],
             # while deleting the column's patterns is precisely
             # the silent difference this module exists to refuse.
             if key in ("shift", "scale") and row.get("hit") is False:
-                # A VALUE DIAL THAT SILENTLY DID NOT APPLY, and
-                # until now it reported a bare MISS with no
-                # reason. A column whose parents survive the
-                # cycle trim is generated from THEIR CURVES, not
-                # from its own marginal - so a shift written
-                # into the marginal is never read, the dial
-                # lands in the blueprint, `apply` reports no
-                # problem, and the number simply does not move.
+                # A VALUE DIAL THAT SILENTLY DID NOT APPLY.
                 #
-                # Measured on a four-column fixture, shift 40:
-                #     c    no parents          +40.00  applied
-                #     b    child, marginal-    +40.00  applied
-                #          drawn this run
-                #     a    child, curve-drawn    0.00  NO-OP
-                #     out  child, curve-drawn    0.00  NO-OP
+                # THE MECHANISM THIS NOTE NAMED WAS WRONG, and
+                # it was wrong in a way that sent a reader to
+                # the wrong half of the generator. It said a
+                # column whose parents survive the cycle trim
+                # is generated from their curves and so never
+                # reads its marginal dial. Measured across all
+                # four cells with a control in each run, shift
+                # +25:
                 #
-                # WHICH children are curve-drawn is decided by
-                # cycle-breaking and trim order, so it is not
-                # something an operator can read off the
-                # blueprint - which is exactly why the miss has
-                # to explain itself rather than just report a
-                # number. On the real extract EVERY well-covered
-                # numeric is a relationship child.
-                _par = sorted({p for r in rels
-                               if r.get("child") == name
-                               for p in (r.get("parents") or [])})
-                if _par:
-                    row["why_missed"] = {"generated_from": _par}
-                    row["note"] = (
-                        "this column is a relationship CHILD of "
-                        "{}. If its parents survive cycle-"
-                        "trimming it is generated from their "
-                        "curves, not from its own marginal - so "
-                        "a shift or scale written into the "
-                        "marginal is never read. The dial "
-                        "reached the blueprint and had nothing "
-                        "to act on.".format(", ".join(_par[:4])))
+                #     acyclic, no parents      +25.000
+                #     acyclic, curve-drawn     +25.000
+                #     cyclic,  no parents      +25.000
+                #     cyclic,  curve-drawn       0.000  <-
+                #
+                # Being curve-drawn is not the cause: an
+                # acyclic child reads the dial perfectly. The
+                # cause was the CYCLIC REFINEMENT SWEEP, which
+                # re-ranks a cyclic column onto the multiset
+                # the marginal drew - a pool captured before
+                # the dial is applied - so the sweep took the
+                # relationship's order and the marginal's
+                # UNDIALED values and the dial vanished. Named
+                # by running the same child at refine_sweeps=0,
+                # where it moved +25.000.
+                #
+                # FIXED in generate.py: the pool is moved with
+                # the dial, so it is still exactly the multiset
+                # the marginal produced and the re-rank still
+                # cannot drift. Verified bit-identical on every
+                # undialed arm, cyclic and acyclic, two seeds.
+                #
+                # So a miss here is NOT the sweep any more. The
+                # remaining causes are a bound that caps the
+                # ask and constraint repair swapping values
+                # back, both of which are reported where they
+                # happen - and a miss with no cause reported is
+                # a defect to find, not a layer to explain
+                # away.
+                row["why_missed"] = {"generated_from": sorted(
+                    {p for r in rels if r.get("child") == name
+                     for p in (r.get("parents") or [])})}
+                row["note"] = (
+                    "this dial reached the blueprint and the "
+                    "column did not move. The cyclic-sweep "
+                    "cause of this was found and fixed, so "
+                    "this is no longer explained by the column "
+                    "being a relationship child - check the "
+                    "published k-anonymous bound, which caps "
+                    "an ask that would push values past it, "
+                    "and the constraint repair, which can swap "
+                    "values back. If neither accounts for it, "
+                    "it is a defect.")
             if key in ("shift", "scale"):
                 col1 = _collateral(name, generated)
                 if col1 and col1["children"] \
