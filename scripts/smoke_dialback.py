@@ -89,13 +89,25 @@ def fixture(path, npat=110, seed=5):
             risk = float(0.045 * span + 0.020 * (age - 60)
                          + 0.010 * (lab - 40)
                          + rng.normal(0, 0.25))
-            # A TIED COLUMN, because the real extract has one
-            # and no continuous fixture can reach the fault:
-            # span_days holds FIVE distinct values over 56,065
-            # rows there, which bounds the rank correlation to
-            # [-0.395, +0.395] however the values are arranged.
+            # A TIED AND HEAVILY SKEWED COLUMN, because the
+            # real extract has one and no continuous fixture
+            # can reach either fault it causes. span_days holds
+            # FIVE distinct values over 56,065 rows, which
+            # bounds the rank correlation to about [-0.4, +0.4]
+            # however the values are arranged - AND is skewed
+            # enough that a permutation leaves 86.9% of rows
+            # holding the value they already had.
+            #
+            # THE FIRST VERSION OF THIS COLUMN WAS COARSE BUT
+            # EVEN (5 levels from a span cut), which moved 63%
+            # of rows - so it reached the band fault and NOT
+            # the flattered-recovery one. A fixture must carry
+            # the shape the check is about, and "coarse" was
+            # not the shape; "coarse AND dominated by one
+            # level" is.
             rows.append(dict(person_id=pid, age_at_visit=age,
-                             tied=int(min(4, max(0, span // 12))),
+                             tied=(0 if rng.random() < 0.93
+                                   else int(rng.randint(1, 5))),
                              span_days=round(span, 2),
                              lab=round(lab, 2),
                              other=round(float(
@@ -437,6 +449,33 @@ def main():
               "refuted it on its first run" in io.open(
                   str(ROOT / "scripts" / "route_b_sweep.py"),
                   encoding="utf-8").read())
+
+        check("...and the sweep reports how much the dial "
+              "actually MOVED, which is the number that makes "
+              "every error below interpretable",
+              "rows the dial actually MOVED" in out)
+        # A COARSE COLUMN FLATTERS THE ROUTE, and that has to be
+        # said where the numbers are read. On the real extract
+        # span_days holds five distinct values and 86.9% of rows
+        # came through UNCHANGED - the same fact that made an
+        # ask of -0.60 impossible also left route B with little
+        # to recover. The fine fixture above moves 99.9% of
+        # rows and does NOT warn; the tied one must.
+        rbt = _sp.run([PY, "-u",
+                       str(ROOT / "scripts" / "route_b_sweep.py"),
+                       str(td / "tied"), "tied", "risk",
+                       "--group-by", "person_id"],
+                      capture_output=True, text=True, timeout=1800)
+        tout = (rbt.stdout or "") + (rbt.stderr or "")
+        check("...and a COARSE dialed column is called out as "
+              "flattering the route - most rows were never "
+              "changed, so the errors are the easy end",
+              rbt.returncode == 0
+              and "A COARSE COLUMN FLATTERS THIS ROUTE" in tout)
+        check("...while a fine column does NOT carry that "
+              "warning, so it marks a real property rather than "
+              "printing on everything",
+              "A COARSE COLUMN FLATTERS THIS ROUTE" not in out)
 
         # ---- recover refuses what it cannot relate
         bad = td / "bad.csv"

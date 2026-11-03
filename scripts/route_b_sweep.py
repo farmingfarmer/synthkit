@@ -125,7 +125,27 @@ def sweep(run, driver, partner, group_by=None, seed=0):
           .format(driver))
     print("  untouched partner:                              {}"
           .format(partner))
-    print("  rows: {}".format(len(k)))
+    # HOW MUCH THE DIAL ACTUALLY MOVED, which is the number
+    # that makes every row below interpretable. A permutation
+    # of a COARSE column leaves most rows holding the value
+    # they already had: on the real extract span_days has five
+    # distinct values and 86.9% of rows came through unchanged.
+    # That one fact explains two results at once - why the ask
+    # of -0.60 was impossible, and why route B recovers so
+    # easily here. Recovery looks good partly because there was
+    # little to recover.
+    _same = float((k[driver].astype(str)
+                   == g[driver].astype(str)).mean())
+    print("  rows: {}   distinct values in the dialed column: "
+          "{}".format(len(k), int(pd.Series(bk).nunique())))
+    print("  rows the dial actually MOVED: {:.1%}   (the rest "
+          "hold the value they already had){}".format(
+              1.0 - _same,
+              "" if _same < 0.5 else
+              "\n  A COARSE COLUMN FLATTERS THIS ROUTE: most "
+              "rows were never changed, so the errors below are "
+              "the easy end. A finer column moves more rows and "
+              "recovery gets harder."))
     print("")
     print("  {:<13} {:>10} {:>10} {:>10}  {}".format(
         "vendor shape", "dependence", "untouched", "route B",

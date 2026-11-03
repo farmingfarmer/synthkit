@@ -4,7 +4,7 @@ Synthetic clinical data generator and model-evaluation instrument. Core rule: le
 
 ## Verify before claiming
 
-- Run `python scripts/run_all_smokes.py` before claiming anything works. Expect **82 suites, 2488 checks**, ALL GREEN **on a checkout** (measured 2026-10-29). Off a zipball extract - which is what the data machine runs - the total is TWELVE LOWER, and the gap is now MEASURED rather than estimated (2026-11-02: 2480 on a checkout against **2468** on the data machine at the same commit, ALL GREEN both ways). It decomposes exactly, with no residue: nine in `smoke_buildid`, which needs git to test the archive path; one for `node`, absent, so the full JS parse cannot run; two for Chrome, absent, so the in-browser load check cannot run. All three report NOTES and pass rather than failing - that is the design, and it is why the count moves. This entry previously said NINE LOWER and warned that a total nobody ran is not a number to quote; somebody has now run it. CONFIRMED AT A SECOND COMMIT the same day: 2483 against **2471**, the same delta of twelve - and that pair is the stronger evidence, because the commit between them ADDED THREE checks on the dev side and all three appeared on BOTH machines. That is `gated()` doing exactly what its docstring promises: a skipped check still emits a line, so the count stays one number across both places and only the genuinely unavailable tooling moves it. Do not quote the checkout number to the data machine; that is how a correct run gets read as a failure.
+- Run `python scripts/run_all_smokes.py` before claiming anything works. Expect **82 suites, 2491 checks**, ALL GREEN **on a checkout** (measured 2026-10-29). Off a zipball extract - which is what the data machine runs - the total is TWELVE LOWER, and the gap is now MEASURED rather than estimated (2026-11-02: 2480 on a checkout against **2468** on the data machine at the same commit, ALL GREEN both ways). It decomposes exactly, with no residue: nine in `smoke_buildid`, which needs git to test the archive path; one for `node`, absent, so the full JS parse cannot run; two for Chrome, absent, so the in-browser load check cannot run. All three report NOTES and pass rather than failing - that is the design, and it is why the count moves. This entry previously said NINE LOWER and warned that a total nobody ran is not a number to quote; somebody has now run it. CONFIRMED AT A SECOND COMMIT the same day: 2483 against **2471**, the same delta of twelve - and that pair is the stronger evidence, because the commit between them ADDED THREE checks on the dev side and all three appeared on BOTH machines. That is `gated()` doing exactly what its docstring promises: a skipped check still emits a line, so the count stays one number across both places and only the genuinely unavailable tooling moves it. Do not quote the checkout number to the data machine; that is how a correct run gets read as a failure.
 - **THE DEVELOPMENT MACHINE WAS BEHIND THE DATA MACHINE, and that is
   how a green suite here failed there.** Dev was on Python 3.10 with
   pandas 2.3; the data machine installs fresh and got pandas 3.0.5,
@@ -4032,6 +4032,37 @@ exist.
   barely reads the moved column needs no recovery - a
   different fact from a surrogate that recovers well, and the
   two are easy to confuse in one number.
+- **THE SWEEP RAN ON THE REAL EXTRACT, AND ONE MEASUREMENT
+  EXPLAINS BOTH ITS RESULTS (2026-11-02, run_dial2, 56,065
+  rows).**
+      shape          dependence  untouched  route B
+      linear              0.602      0.305    0.003
+      curved              0.924      0.428    0.010
+      interaction         0.944      0.315    0.036
+      threshold           0.718      0.368    0.007
+      xor-like            1.000      0.264    0.000
+  `interaction` is still the hard case, so the fixture's
+  ORDERING transfers. The MAGNITUDES do not: every shape reads
+  three to seven times better than on the fixture, and the
+  reason is one number - **86.9% of rows hold the identical
+  span_days value in both files**. Five distinct values
+  dominated by one, so a permutation mostly swaps a value for
+  itself. That single fact explains the impossible ask AND the
+  easy recovery: the dial moved 13% of one column, so there
+  was little to protect and little to recover. The sweep
+  prints the moved share and warns when a coarse column is
+  flattering it. Quote these numbers only with that share
+  beside them.
+- **AND "COARSE" WAS NOT THE SHAPE THE CHECK NEEDED - "COARSE
+  AND DOMINATED BY ONE LEVEL" WAS.** The fixture's tied column
+  was five even levels cut from a span and moved 63% of rows,
+  so it reached the impossible-ask fault and NOT the
+  flattered-recovery one, and the new check went red. Rebuilt
+  with 93% of rows on a single level it reproduces the real
+  86.9% almost exactly. This file's own rule - a fixture must
+  contain the thing the check is about - and the wrong
+  property was planted because "coarse" sounded sufficient.
+
 - **AND A MUTATION THAT DOES NOT APPLY LOOKS EXACTLY LIKE A
   CHECK THAT CANNOT FAIL.** The first fail-first on the
   worst-shape check found nothing and was nearly reported as a
