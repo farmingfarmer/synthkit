@@ -221,6 +221,17 @@ def from_blueprint(path, group_by):
     def _cov(c):
         return float((cols[c] or {}).get("coverage") or 0.0)
 
+    def _is_date(c):
+        # A DATE IS NOT A VALUE COLUMN FOR THESE DIALS. Its
+        # marginal is quantiles like any numeric, so the type
+        # alone cannot tell them apart - the blueprint carries
+        # a `date` block on exactly the date columns, and the
+        # third real-blueprint attempt picked visit_start_date
+        # as the column to shift by 2 sd. Shifting a date is a
+        # different operation from shifting a measurement, and
+        # not the one these dials are judged on.
+        return bool((cols[c] or {}).get("date"))
+
     def _num(c):
         # THE KEY IS `type`, NOT `kind`. The first cut guessed
         # `kind` and matched NOTHING across 142 real columns -
@@ -245,13 +256,36 @@ def from_blueprint(path, group_by):
     # scaffolding - so it is called here.
     nums = [c for c in cols
             if _num(c) and c != group_by
+            and not _is_date(c)
             and not S.is_scaffolding(c)]
     val = next((c for c in nums
                 if _cov(c) > 0.95 and c in related), None)
     sparse = next((c for c in nums
                    if 0.2 < _cov(c) < 0.8), None)
+    # THE CONTROL IS GRAPH-DISTANT, NOT GRAPH-ABSENT. On the
+    # fixture those coincide: four columns, one relationship,
+    # and `z` touches nothing. On the real blueprint - 142
+    # columns, 88 relationships - every real numeric is IN the
+    # graph once scaffolding is excluded, so "related to
+    # nothing" found NO bystander at all and the matrix
+    # refused. The property a control actually needs is that
+    # the dialed column cannot reach it, so it is defined by
+    # DISTANCE: nothing within two hops of the value column,
+    # in either direction. Stated plainly because a control
+    # two hops away is a weaker claim than one in no
+    # relationship at all, and the reader should know which
+    # they have.
+    adj = {}
+    for r in rels:
+        ch = r.get("child")
+        for par in (r.get("parents") or []):
+            adj.setdefault(ch, set()).add(par)
+            adj.setdefault(par, set()).add(ch)
+    near = {val}
+    for _ in range(2):
+        near |= {q for c in list(near) for q in adj.get(c, ())}
     bystander = next((c for c in nums
-                      if c not in related and _cov(c) > 0.9), None)
+                      if c not in near and _cov(c) > 0.9), None)
     # AN EDGE WHOSE BOTH ENDS ARE NUMERIC. The first pick on
     # the real blueprint was visit_start_date<-visit_end_date,
     # and a rank correlation between two date columns is not
