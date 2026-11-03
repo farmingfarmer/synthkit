@@ -174,6 +174,47 @@ def verify(bp_before: Dict[str, Any],
     import pandas as pd
     rows: List[Dict[str, Any]] = []
     cols = bp_before.get("columns") or {}
+    rels = bp_before.get("relationships") or []
+
+    def _collateral(col, gen_frame):
+        """What a value dial costs the column's RELATIONSHIPS.
+
+        MEASURED, not warned about in general. A child is drawn
+        from a curve published over the parent's OBSERVED range,
+        and `np.interp` holds the last value flat outside it - a
+        plateau this repository already records for the
+        fidelity deck. Shift a parent far enough and its
+        children stop tracking it, while the dial reports a
+        clean hit on the only property it was asked about.
+
+        Swept on a two-column fixture, Spearman between parent
+        and child, three seeds each:
+
+            shift 0.0 sd   0.968      shift 2.0 sd   0.832
+            shift 1.0 sd   0.965      shift 3.0 sd   0.313
+                                      shift 5.0 sd  -0.027
+
+        So the cost is not a rounding error at the far end - it
+        is the whole relationship. The share of generated values
+        landing outside the published grid is the number that
+        predicts it, and it is reported rather than inferred.
+        """
+        marg = ((cols.get(col) or {}).get("marginal") or {})
+        grid = marg.get("v") or []
+        if len(grid) < 2 or col not in getattr(
+                gen_frame, "columns", []):
+            return None
+        lo, hi = float(min(grid)), float(max(grid))
+        v = pd.to_numeric(gen_frame[col], errors="coerce")
+        v = v[v.notna()]
+        if not len(v):
+            return None
+        out = float(((v < lo) | (v > hi)).mean())
+        kids = sorted({r.get("child") for r in rels
+                       if col in (r.get("parents") or [])
+                       and r.get("child")})
+        return {"outside_published_range": round(out, 4),
+                "children": kids}
 
     for name, wanted in (overlay or {}).items():
         if "<-" in name:
@@ -309,6 +350,26 @@ def verify(bp_before: Dict[str, Any],
                 row.update(achieved=None, hit=None,
                            note="not re-measured here; see the "
                                 "dynamics block of fidelity.json")
+            # A VALUE DIAL CAN LAND PERFECTLY AND STILL COST THE
+            # COLUMN EVERY RELATIONSHIP IT HAS. Reported beside
+            # the hit, because a dial that reports a clean hit
+            # while deleting the column's patterns is precisely
+            # the silent difference this module exists to refuse.
+            if key in ("shift", "scale"):
+                col1 = _collateral(name, generated)
+                if col1 and col1["children"] \
+                        and col1["outside_published_range"] > 0.02:
+                    row["collateral"] = col1
+                    row["note"] = (
+                        "{:.1%} of this column's generated values "
+                        "now fall OUTSIDE its published grid, where "
+                        "the effect curves plateau - so its {} "
+                        "child relationship(s) ({}) will have "
+                        "flattened. The dial did what it names; "
+                        "this is what else it did.".format(
+                            col1["outside_published_range"],
+                            len(col1["children"]),
+                            ", ".join(col1["children"][:4])))
             rows.append(row)
     return rows
 

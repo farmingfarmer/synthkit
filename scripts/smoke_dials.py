@@ -121,6 +121,61 @@ def main():
           "move was large FOR THIS COLUMN",
           abs(shift_row["achieved_in_sds"] - 20.0 / src_sd) < 0.25)
 
+    # ---- A VALUE DIAL CAN LAND PERFECTLY AND STILL DELETE THE
+    # COLUMN'S RELATIONSHIPS. Found by the dial matrix, measured
+    # before it was reported: a child is drawn from a curve
+    # published over the parent's OBSERVED range and np.interp
+    # holds flat outside it, so shifting a parent far enough
+    # stops its children tracking it. Swept on this fixture,
+    # parent~child Spearman over three seeds:
+    #     0.0 sd  0.968     2.0 sd  0.832
+    #     1.0 sd  0.965     3.0 sd  0.313     5.0 sd  -0.027
+    # The dial reports a clean hit throughout. That silent
+    # difference is exactly what this module exists to refuse.
+    def _pair(fr):
+        a_ = pd.to_numeric(fr["x"], errors="coerce")
+        b_ = pd.to_numeric(fr["y"], errors="coerce")
+        m_ = a_.notna() & b_.notna()
+        return float(a_[m_].corr(b_[m_], method="spearman"))
+
+    big_ov = {"x": {"shift": 3.0 * src_sd}}
+    big_bp = json.loads(json.dumps(base_bp))
+    D.apply(big_bp, big_ov)
+    big_gen = generate(big_bp, n_patients=n_pat, seed=7)
+    big_row = [q for q in D.verify(base_bp, big_ov, df, big_gen,
+                                   "person_id")
+               if q["dial"] == "x.shift"][0]
+    check("THE PHENOMENON ITSELF: a 3 sd shift on a parent "
+          "flattens its relationship to its child, from {:.2f} "
+          "to {:.2f}".format(_pair(gen), _pair(big_gen)),
+          _pair(big_gen) < _pair(gen) - 0.3)
+    check("...and the dial still reports a clean HIT, which is "
+          "why the collateral has to be reported beside it "
+          "rather than left to be noticed",
+          big_row.get("hit") is True)
+    check("...so the row carries the collateral as DATA - the "
+          "share outside the published grid and the children "
+          "that will have flattened",
+          isinstance(big_row.get("collateral"), dict)
+          and big_row["collateral"]["outside_published_range"] > 0.2
+          and "y" in big_row["collateral"]["children"])
+    check("...and says it in a sentence an operator can act on",
+          "OUTSIDE its published grid" in (big_row.get("note")
+                                           or "")
+          and "flattened" in (big_row.get("note") or ""))
+    small_ov = {"x": {"shift": 0.5 * src_sd}}
+    small_bp = json.loads(json.dumps(base_bp))
+    D.apply(small_bp, small_ov)
+    small_gen = generate(small_bp, n_patients=n_pat, seed=7)
+    small_row = [q for q in D.verify(base_bp, small_ov, df,
+                                     small_gen, "person_id")
+                 if q["dial"] == "x.shift"][0]
+    check("...while a SAFE shift reports no collateral at all - "
+          "it marks a real property rather than printing a "
+          "warning on everything",
+          small_row.get("collateral") is None
+          and not small_row.get("note"))
+
     # A dial that genuinely does not arrive must read as a MISS. The
     # report is worthless if it cannot say no.
     faked = [{"dial": "x.shift", "requested": 20.0,

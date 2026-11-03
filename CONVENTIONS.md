@@ -4,7 +4,7 @@ Synthetic clinical data generator and model-evaluation instrument. Core rule: le
 
 ## Verify before claiming
 
-- Run `python scripts/run_all_smokes.py` before claiming anything works. Expect **83 suites, 2509 checks**, ALL GREEN **on a checkout** (measured 2026-10-29). Off a zipball extract - which is what the data machine runs - the total is TWELVE LOWER, and the gap is now MEASURED rather than estimated (2026-11-02: 2480 on a checkout against **2468** on the data machine at the same commit, ALL GREEN both ways). It decomposes exactly, with no residue: nine in `smoke_buildid`, which needs git to test the archive path; one for `node`, absent, so the full JS parse cannot run; two for Chrome, absent, so the in-browser load check cannot run. All three report NOTES and pass rather than failing - that is the design, and it is why the count moves. This entry previously said NINE LOWER and warned that a total nobody ran is not a number to quote; somebody has now run it. CONFIRMED AT A SECOND COMMIT the same day: 2483 against **2471**, the same delta of twelve - and that pair is the stronger evidence, because the commit between them ADDED THREE checks on the dev side and all three appeared on BOTH machines. That is `gated()` doing exactly what its docstring promises: a skipped check still emits a line, so the count stays one number across both places and only the genuinely unavailable tooling moves it. Do not quote the checkout number to the data machine; that is how a correct run gets read as a failure.
+- Run `python scripts/run_all_smokes.py` before claiming anything works. Expect **84 suites, 2530 checks**, ALL GREEN **on a checkout** (measured 2026-10-29). Off a zipball extract - which is what the data machine runs - the total is TWELVE LOWER, and the gap is now MEASURED rather than estimated (2026-11-02: 2480 on a checkout against **2468** on the data machine at the same commit, ALL GREEN both ways). It decomposes exactly, with no residue: nine in `smoke_buildid`, which needs git to test the archive path; one for `node`, absent, so the full JS parse cannot run; two for Chrome, absent, so the in-browser load check cannot run. All three report NOTES and pass rather than failing - that is the design, and it is why the count moves. This entry previously said NINE LOWER and warned that a total nobody ran is not a number to quote; somebody has now run it. CONFIRMED AT A SECOND COMMIT the same day: 2483 against **2471**, the same delta of twelve - and that pair is the stronger evidence, because the commit between them ADDED THREE checks on the dev side and all three appeared on BOTH machines. That is `gated()` doing exactly what its docstring promises: a skipped check still emits a line, so the count stays one number across both places and only the genuinely unavailable tooling moves it. Do not quote the checkout number to the data machine; that is how a correct run gets read as a failure.
 - **THE DEVELOPMENT MACHINE WAS BEHIND THE DATA MACHINE, and that is
   how a green suite here failed there.** Dev was on Python 3.10 with
   pandas 2.3; the data machine installs fresh and got pandas 3.0.5,
@@ -4032,6 +4032,72 @@ exist.
   barely reads the moved column needs no recovery - a
   different fact from a surrogate that recovers well, and the
   two are easy to confuse in one number.
+- **GOAL 4'S NAMED NEXT STEP IS BUILT: EVERY DIAL AGAINST
+  EVERY NEIGHBOURING PROPERTY (2026-11-02, `dial_matrix.py`).**
+  The roadmap asked for "the full per-class verification pass,
+  each dial asserting its neighbouring properties", and this
+  file says why: shift and scale fought each other for as long
+  as both existed because each check set ONE dial and neither
+  looked at the other's property; one edge to zero collapsed an
+  innocent neighbour 0.555 -> 0.007. The fault is a CROSS
+  PRODUCT - dial times property - so the test is one. Each of
+  the eight classes runs alone on one seed, and the same
+  property vector is measured on every column plus the pair
+  correlations between them.
+- **A SHIFT ON A PARENT SILENTLY DELETES ITS RELATIONSHIPS, AND
+  THE DIAL REPORTS A CLEAN HIT THROUGHOUT.** The matrix's first
+  real catch. A child is drawn from a curve published over the
+  parent's OBSERVED range and `np.interp` holds flat outside
+  it - the plateau already recorded for the deck. Swept on a
+  two-column fixture, parent~child Spearman, three seeds:
+      shift 0.0 sd  0.968     shift 2.0 sd  0.832
+      shift 1.0 sd  0.965     shift 3.0 sd  0.313
+                              shift 5.0 sd -0.027
+  Not a rounding error at the far end - the whole relationship.
+  For the cipher this is the worst shape of fault: dial a shift
+  to protect one column and unknowingly delete every pattern it
+  takes part in, with the record saying nothing. `dials.verify`
+  now reports the share of generated values landing outside the
+  published grid and NAMES the children that will have
+  flattened, beside the hit. A safe shift reports nothing,
+  which is the negative case that makes it worth reading.
+- **THREE OF THE MATRIX'S FIRST FOUR FINDINGS WERE ITS OWN
+  FAULTS, and this file's rule caught all three.** When a
+  measurement script returns a clean negative, suspect the
+  script. `patients.count` read NO-OP because the matrix PASSED
+  n_patients EXPLICITLY on every arm - overriding the dial it
+  was testing. `persistence` read NO-OP because the fixture had
+  no within-patient serial correlation at all, so the dial had
+  nowhere to land. And `persistence` is a MULTIPLIER on the
+  column's own persistence, not a target: asked 0.4 of a base
+  0.388 it lands 0.157, exact, and grading it as a target
+  called it broken. The matrix records each dial's SEMANTICS
+  now - absolute, multiplier, target, move - which is
+  documentation that did not exist anywhere.
+- **AND THE DISTINCTIONS THE FIRST CUT COLLAPSED.** A NO-OP
+  reads CLEAN if only neighbours are checked, so the TARGET is
+  asserted too - and the branch has a case that reaches it
+  (`scale=1.0`, a setting that changes nothing by definition),
+  because every real dial works and an unreachable branch
+  inside the tool built to catch unreachable behaviour is a
+  joke at its own expense. MOVING is not LANDING: the edge
+  dial asked x0.40 and delivered x0.86 while reading CLEAN,
+  and the SHORT verdict now names the live REVERSE edge
+  carrying the pair. PROPAGATION is not a LEAK: flattening a
+  parent's persistence flattens its child's, which is the
+  relationship working, so it is reported as propagation -
+  read from the blueprint's graph, not assumed - while a
+  bystander column the graph never touches is the control that
+  makes every other row mean something.
+- **AND A RED CHECK WAS WALKED PAST.** The suite went red when
+  the sparse cases were restored, the `1 FAILED` was printed in
+  an output I read, and I continued into the shift
+  investigation without fixing it. The NET caught it. The check
+  was right - at 2 sd the shift genuinely leaks - and the fix
+  is that the matrix carries BOTH sizes, clean at 0.5 sd and
+  leaking 0.68 of the pair at 3 sd, with both pinned so the
+  detection cannot regress into a clean row.
+
 - **ROUTE A HAD NO TOOLING, AND WHAT WAS MISSING WAS THE
   ANSWER (2026-11-02, `vendor_exam.py`).** `dialback` names
   three routes and recommends A - we hold the model, or they
