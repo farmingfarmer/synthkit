@@ -4,7 +4,7 @@ Synthetic clinical data generator and model-evaluation instrument. Core rule: le
 
 ## Verify before claiming
 
-- Run `python scripts/run_all_smokes.py` before claiming anything works. Expect **84 suites, 2530 checks**, ALL GREEN **on a checkout** (measured 2026-10-29). Off a zipball extract - which is what the data machine runs - the total is TWELVE LOWER, and the gap is now MEASURED rather than estimated (2026-11-02: 2480 on a checkout against **2468** on the data machine at the same commit, ALL GREEN both ways). It decomposes exactly, with no residue: nine in `smoke_buildid`, which needs git to test the archive path; one for `node`, absent, so the full JS parse cannot run; two for Chrome, absent, so the in-browser load check cannot run. All three report NOTES and pass rather than failing - that is the design, and it is why the count moves. This entry previously said NINE LOWER and warned that a total nobody ran is not a number to quote; somebody has now run it. CONFIRMED AT A SECOND COMMIT the same day: 2483 against **2471**, the same delta of twelve - and that pair is the stronger evidence, because the commit between them ADDED THREE checks on the dev side and all three appeared on BOTH machines. That is `gated()` doing exactly what its docstring promises: a skipped check still emits a line, so the count stays one number across both places and only the genuinely unavailable tooling moves it. Do not quote the checkout number to the data machine; that is how a correct run gets read as a failure.
+- Run `python scripts/run_all_smokes.py` before claiming anything works. Expect **84 suites, 2531 checks**, ALL GREEN **on a checkout** (measured 2026-10-29). Off a zipball extract - which is what the data machine runs - the total is TWELVE LOWER, and the gap is now MEASURED rather than estimated (2026-11-02: 2480 on a checkout against **2468** on the data machine at the same commit, ALL GREEN both ways). It decomposes exactly, with no residue: nine in `smoke_buildid`, which needs git to test the archive path; one for `node`, absent, so the full JS parse cannot run; two for Chrome, absent, so the in-browser load check cannot run. All three report NOTES and pass rather than failing - that is the design, and it is why the count moves. This entry previously said NINE LOWER and warned that a total nobody ran is not a number to quote; somebody has now run it. CONFIRMED AT A SECOND COMMIT the same day: 2483 against **2471**, the same delta of twelve - and that pair is the stronger evidence, because the commit between them ADDED THREE checks on the dev side and all three appeared on BOTH machines. That is `gated()` doing exactly what its docstring promises: a skipped check still emits a line, so the count stays one number across both places and only the genuinely unavailable tooling moves it. Do not quote the checkout number to the data machine; that is how a correct run gets read as a failure.
 - **THE DEVELOPMENT MACHINE WAS BEHIND THE DATA MACHINE, and that is
   how a green suite here failed there.** Dev was on Python 3.10 with
   pandas 2.3; the data machine installs fresh and got pandas 3.0.5,
@@ -4089,6 +4089,28 @@ exist.
   read from the blueprint's graph, not assumed - while a
   bystander column the graph never touches is the control that
   makes every other row mean something.
+- **THE REAL-BLUEPRINT RUN REFUSED, AND THE REFUSAL WAS THE
+  POINT.** Pointed at the extract's own blueprint - 142
+  columns, 88 relationships, 40 bystanders against the
+  fixture's 4 and 1 - the matrix reported value None, sparse
+  None, bystander None and STOPPED: "without a control the
+  matrix cannot tell an effect from noise". The guard, written
+  for the fixture, is what prevented an all-clean table on real
+  data that would have meant nothing. The PICKER was wrong, not
+  the blueprint: it read `marginal["kind"]` where the field is
+  `marginal["type"]`, so it matched none of 133 quantiles
+  columns. Proven by reverting - wrong key gives
+  (None, None, None, None), right key picks its columns.
+- **THAT IS THE THIRD WRONG-KEY FAULT IN ONE DAY**, after
+  jointcheck's `skill_real` and verify_frame's
+  `requested_in_sds`. The same shape every time: writing the
+  field name that sounds right instead of reading the
+  contract. The same fix applies and is now applied here - the
+  suite asserts the key against a LIVE BUILT BLUEPRINT, so a
+  rename breaks the checks rather than a run on the machine
+  that holds the extract. When a module reads another module's
+  dict, assert the key names live; do not remember them.
+
 - **AND A RED CHECK WAS WALKED PAST.** The suite went red when
   the sparse cases were restored, the `1 FAILED` was printed in
   an output I read, and I continued into the shift

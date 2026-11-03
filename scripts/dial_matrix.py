@@ -221,8 +221,16 @@ def from_blueprint(path, group_by):
         return float((cols[c] or {}).get("coverage") or 0.0)
 
     def _num(c):
+        # THE KEY IS `type`, NOT `kind`. The first cut guessed
+        # `kind` and matched NOTHING across 142 real columns -
+        # value, sparse and bystander all None - so the matrix
+        # refused to run. That refusal was the guard working;
+        # the guess was the third wrong-key fault of the day,
+        # after jointcheck's skill_real and verify_frame's
+        # requested_in_sds. The contract is asserted live in
+        # the suite now rather than read from memory.
         m = (cols[c] or {}).get("marginal") or {}
-        return m.get("kind") in ("quantiles", "counts", "numeric")
+        return m.get("type") == "quantiles"
 
     nums = [c for c in cols if _num(c) and c != group_by]
     val = next((c for c in nums
@@ -231,9 +239,19 @@ def from_blueprint(path, group_by):
                    if 0.2 < _cov(c) < 0.8), None)
     bystander = next((c for c in nums
                       if c not in related and _cov(c) > 0.9), None)
-    edge = next(("{}<-{}".format(r.get("child"),
-                                 (r.get("parents") or [None])[0])
-                 for r in rels if r.get("parents")), None)
+    # AN EDGE WHOSE BOTH ENDS ARE NUMERIC. The first pick on
+    # the real blueprint was visit_start_date<-visit_end_date,
+    # and a rank correlation between two date columns is not
+    # the property the strength dial is judged on.
+    edge = None
+    for r in rels:
+        ch, pars = r.get("child"), (r.get("parents") or [])
+        if ch in cols and _num(ch):
+            par = next((q for q in pars
+                        if q in cols and _num(q)), None)
+            if par:
+                edge = "{}<-{}".format(ch, par)
+                break
     return bp, val, sparse, bystander, edge
 
 

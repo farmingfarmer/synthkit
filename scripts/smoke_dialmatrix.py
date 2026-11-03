@@ -70,6 +70,29 @@ def main():
               ", ".join(sorted(want - covered)) or "none"),
           not (want - covered))
 
+    # ---- THE BLUEPRINT CONTRACT, ASSERTED LIVE. The picker
+    # reads `marginal["type"]` to find numeric columns. The
+    # first cut guessed `marginal["kind"]`, matched nothing
+    # across 142 real columns, and the real-blueprint run
+    # refused with value/sparse/bystander all None. Asserted
+    # against a BUILT blueprint so a rename breaks this rather
+    # than a run on the machine that holds the extract.
+    import json as _json
+    import dial_matrix as _M
+    _df = _M.fixture()
+    from synthkit import blueprint as _B
+    from synthkit.discover import discover as _disc
+    _bp = _B.build(_df, _disc(_df, group_by="person_id", seed=1),
+                   group_by="person_id")
+    _types = {(v.get("marginal") or {}).get("type")
+              for v in (_bp.get("columns") or {}).values()}
+    check("a numeric column's marginal is typed under `type` "
+          "and reads `quantiles` - the key the picker uses, "
+          "asserted against a built blueprint rather than "
+          "remembered. got: {}".format(
+              ", ".join(sorted(str(t) for t in _types))),
+          "quantiles" in _types)
+
     # ---- THE CONTROL. `z` is named by no dial and is a child
     # of nothing. If it ever moves, the matrix is measuring
     # noise rather than effects, and every other row is worth
