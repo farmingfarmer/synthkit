@@ -4,7 +4,7 @@ Synthetic clinical data generator and model-evaluation instrument. Core rule: le
 
 ## Verify before claiming
 
-- Run `python scripts/run_all_smokes.py` before claiming anything works. Expect **87 suites, 2676 checks**, ALL GREEN **on a checkout** (measured 2026-11-03). Off a zipball extract - which is what the data machine runs - the total is TWELVE LOWER, and the gap is now MEASURED rather than estimated (2026-11-02: 2480 on a checkout against **2468** on the data machine at the same commit, ALL GREEN both ways). It decomposes exactly, with no residue: nine in `smoke_buildid`, which needs git to test the archive path; one for `node`, absent, so the full JS parse cannot run; two for Chrome, absent, so the in-browser load check cannot run. All three report NOTES and pass rather than failing - that is the design, and it is why the count moves. This entry previously said NINE LOWER and warned that a total nobody ran is not a number to quote; somebody has now run it. CONFIRMED AT A SECOND COMMIT the same day: 2483 against **2471**, the same delta of twelve - and that pair is the stronger evidence, because the commit between them ADDED THREE checks on the dev side and all three appeared on BOTH machines. That is `gated()` doing exactly what its docstring promises: a skipped check still emits a line, so the count stays one number across both places and only the genuinely unavailable tooling moves it. Do not quote the checkout number to the data machine; that is how a correct run gets read as a failure.
+- Run `python scripts/run_all_smokes.py` before claiming anything works. Expect **88 suites, 2689 checks**, ALL GREEN **on a checkout** (measured 2026-11-03). Off a zipball extract - which is what the data machine runs - the total is TWELVE LOWER, and the gap is now MEASURED rather than estimated (2026-11-02: 2480 on a checkout against **2468** on the data machine at the same commit, ALL GREEN both ways). It decomposes exactly, with no residue: nine in `smoke_buildid`, which needs git to test the archive path; one for `node`, absent, so the full JS parse cannot run; two for Chrome, absent, so the in-browser load check cannot run. All three report NOTES and pass rather than failing - that is the design, and it is why the count moves. This entry previously said NINE LOWER and warned that a total nobody ran is not a number to quote; somebody has now run it. CONFIRMED AT A SECOND COMMIT the same day: 2483 against **2471**, the same delta of twelve - and that pair is the stronger evidence, because the commit between them ADDED THREE checks on the dev side and all three appeared on BOTH machines. That is `gated()` doing exactly what its docstring promises: a skipped check still emits a line, so the count stays one number across both places and only the genuinely unavailable tooling moves it. Do not quote the checkout number to the data machine; that is how a correct run gets read as a failure.
 - **THE DEVELOPMENT MACHINE WAS BEHIND THE DATA MACHINE, and that is
   how a green suite here failed there.** Dev was on Python 3.10 with
   pandas 2.3; the data machine installs fresh and got pandas 3.0.5,
@@ -5295,3 +5295,37 @@ exist.
   vacuous on POSIX, and labelled as such rather than left to
   look like coverage. Third entry in this file about a fault
   that only the other machine can see.
+
+- **THE VENDOR SEAT NEEDED A COMPETITOR, NOT A FLOOR
+  (2026-11-03 night, `synthkit/automl.py`).** `autosolver` is
+  deliberately modest - stdlib logistic regression, and honest
+  about it - so a vendor beating it has shown nothing. The
+  competitor tries three families with light feature
+  engineering and picks by held-out AUC on a slice carved from
+  the TRAINING rows. Measured over three mechanisms x three
+  seeds: **never worse than the floor** (0 of 9 arms worse by
+  more than 0.01), xor **0.49-0.52 -> 0.88-0.90**, curved
+  **0.54-0.58 -> 0.72-0.76**, and a correct TIE on linear
+  where it names logistic regression the winner itself.
+- **"BEATS THE FLOOR ON ALL THREE MECHANISMS" WAS THE WRONG
+  GATE.** A selector that picks the best family must TIE where
+  the simple family is best - beating the floor on a linear
+  mechanism would mean beating the right answer. The property
+  worth asserting is NEVER WORSE, decisively better where the
+  floor is blind, and that is what the suite pins.
+- **IT CANNOT PEEK, AND PROVING THAT TOOK THREE MUTATIONS.**
+  The first keyed the selection on `len(test_rows)`, which is
+  identical between the two probe calls, so nothing moved. The
+  second added a test-derived term too small to flip a 0.02
+  AUC gap. The third decided selection ENTIRELY on the test
+  rows and broke three performance checks - but not the
+  no-peek check itself, because that probe merely SWAPPED two
+  columns and left the test rows statistically similar.
+  Constant rows cannot be confused with the real ones, and
+  with that probe the same mutation breaks five.
+- **AND ONE CHECK WAS WRITTEN AS A LITERAL `True`.** A
+  placeholder that reads as coverage, shipped green for one
+  run, in a suite whose docstring is about not being fooled.
+  It asserts the thing now: the competitor must NAME DIFFERENT
+  FAMILIES on different mechanisms, or it is a second floor
+  with extra steps.

@@ -158,12 +158,19 @@ def _solver(name: str) -> Callable:
                              autosolver_hybrid,
                              autosolver_regress)
     from .examples import regex_extract, strip_cleaner
+    from .automl import automl
     registry: Dict[str, Callable] = {
         "autoclean": autoclean,
         "strip_cleaner": strip_cleaner,
         "autosolver": autosolver(),
         "autosolver_regress": autosolver_regress(),
         "autosolver_hybrid": autosolver_hybrid(),
+        # THE COMPETITOR, beside the floor rather than
+        # replacing it. A vendor beating `autosolver` has
+        # shown nothing - it is stdlib logistic regression
+        # and says so. `automl` is what we could actually do,
+        # which is the bar a vendor claim has to clear.
+        "automl": automl(),
         "regex_extract": regex_extract,
     }
     if name in registry:

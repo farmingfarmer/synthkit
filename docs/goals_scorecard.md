@@ -286,7 +286,7 @@ dashboard, and what-now guidance carries exact commands.)*
 
 ---
 
-## Goal 8 — AutoML competitor and report card   **~65%**
+## Goal 8 — AutoML competitor and report card   **~80%**
 
 **What works, measured**
 - `autosolver.py`: the deliberately modest floor (stdlib logistic
@@ -297,9 +297,23 @@ dashboard, and what-now guidance carries exact commands.)*
 **What remains**
 - The M1 gate half that belongs here: AutoML v1 beating the naive
   baseline on all 3 planted mechanisms, and the single report-card
-  artifact. Also unrun rather than unbuilt — but "auto-generated
-  competitor" beyond the stdlib floor (feature engineering, model
-  selection) is genuinely unstarted.
+  artifact. Also unrun rather than unbuilt.
+- ~~A competitor beyond the stdlib floor~~ SHIPPED 2026-11-03:
+  `synthkit.automl` tries three model families with light
+  feature engineering (numerics as numerics, capped one-hots,
+  and a MISSING INDICATOR per column, because being measured is
+  itself a signal) and picks by held-out AUC on a slice carved
+  from the TRAINING rows. Measured across three mechanisms and
+  three seeds: **never worse than the floor** (0 of 9 arms worse
+  by >0.01), and decisively better where the floor is blind —
+  xor **0.49–0.52 → 0.88–0.90**, curved **0.54–0.58 →
+  0.72–0.76** — while correctly TYING on a linear mechanism and
+  naming logistic regression as the winner there. It records
+  every family it tried with its score, refuses to hold a
+  contest below 120 rows, and falls back to the floor saying
+  **"this run is NOT a competitor result"** when scikit-learn is
+  absent, so a report card cannot claim one that never ran.
+  Registered as `automl`.
 
 **Time**: report card with the stdlib floor: inside M1's week.
 A competitor worth the name: est. 2 weeks, after M1.
