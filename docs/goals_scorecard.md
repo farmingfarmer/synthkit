@@ -286,7 +286,7 @@ dashboard, and what-now guidance carries exact commands.)*
 
 ---
 
-## Goal 8 — AutoML competitor and report card   **~80%**
+## Goal 8 — AutoML competitor and report card   **~90%**
 
 **What works, measured**
 - `autosolver.py`: the deliberately modest floor (stdlib logistic

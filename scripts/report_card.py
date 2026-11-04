@@ -108,7 +108,17 @@ def build_card(campaign_dir, planted_path, showdown_path):
                 + "</table>")
 
     # the line: ceiling / baseline / vendor, with bar judged
-    body.append("<h2>Ceiling / baseline / vendor</h2>")
+    # THE COLUMN APPEARS ONLY WHERE THE ARM RAN. A blank
+    # competitor cell on every row would read as a competitor
+    # that scored nothing, which is a different fact from one
+    # that was not asked to run.
+    tiers = showdown.get("tiers") or []
+    have_comp = any(t.get("competitor") is not None
+                    for t in tiers)
+    comp_name = next((t.get("competitor_name") for t in tiers
+                      if t.get("competitor_name")), "competitor")
+    body.append("<h2>Ceiling / floor{} / vendor</h2>".format(
+        " / " + esc(str(comp_name)) if have_comp else ""))
     rows = []
     miscal = []
     for t in showdown.get("tiers") or []:
@@ -132,13 +142,18 @@ def build_card(campaign_dir, planted_path, showdown_path):
         if bar_above:
             miscal.append((name, bar, ceiling))
         gap = m.get("predict.auroc_gap")
+        comp = t.get("competitor")
+        comp_cell = ('<td class="num">{:.3f}</td>'.format(
+            float(comp)) if comp is not None
+            else ('<td class="num">-</td>' if have_comp else ""))
         rows.append(
             '<tr><td>{}</td><td class="num">{:.3f}</td>'
-            '<td class="num">{:.3f}</td><td class="num">{:.3f}</td>'
+            '<td class="num">{:.3f}</td>{}'
+            '<td class="num">{:.3f}</td>'
             '<td class="num">{}</td>'
             '<td class="num">{}</td>'
             '<td class="verdict {}">{}</td></tr>'.format(
-                esc(name), ceiling, base, vend,
+                esc(name), ceiling, base, comp_cell, vend,
                 "{:.3f}".format(gap) if gap is not None else "-",
                 "{:.2f}".format(bar) if bar is not None else "-",
                 "pass" if ok else "fail",
@@ -146,7 +161,10 @@ def build_card(campaign_dir, planted_path, showdown_path):
                                    if bar_above else "FAIL")))
     body.append('<table class="wide"><tr><th>tier</th>'
                 "<th>ceiling</th>"
-                "<th>baseline</th><th>vendor</th>"
+                "<th>floor</th>"
+                + ("<th>{}</th>".format(esc(str(comp_name)))
+                   if have_comp else "")
+                + "<th>vendor</th>"
                 "<th>gap to ceiling</th><th>bar</th>"
                 "<th>verdict</th></tr>" + "".join(rows)
                 + "</table>")
@@ -156,6 +174,21 @@ def build_card(campaign_dir, planted_path, showdown_path):
                 'gap - what a solver leaves on the table - is the '
                 'solver-quality verdict; the bar is a business '
                 'threshold somebody chose.</p>')
+    if have_comp:
+        # THE SENTENCE THAT MAKES THE TABLE MEAN SOMETHING.
+        # Without it a reader sees four numbers and no
+        # statement about which one the vendor had to clear.
+        body.append(
+            '<p class="note"><b>The floor is not the bar.</b> '
+            'It is stdlib logistic regression, kept '
+            'deliberately modest and honest about it, so a '
+            'vendor clearing it has shown nothing. The '
+            '{} column is what we could actually do on the '
+            'same rows - three model families chosen on a '
+            'held-out slice of the TRAINING split, never a '
+            'test label - and a vendor sitting between the '
+            'two is better than nothing and worse than us.'
+            '</p>'.format(esc(str(comp_name))))
 
     for name, bar, ceiling in miscal:
         body.append(

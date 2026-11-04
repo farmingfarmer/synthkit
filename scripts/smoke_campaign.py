@@ -547,19 +547,66 @@ def main():
                       cwd=str(_root))
         _h = (_card.read_text(encoding="utf-8")
               if _card.exists() else "")
-        check("the report card assembles ceiling/baseline/vendor, "
+        check("the report card assembles ceiling/floor/vendor, "
               "the planted answer, and the honesty section from "
               "recorded artifacts",
               _rc.returncode == 0
-              and "Ceiling / baseline / vendor" in _h
+              and "Ceiling / floor" in _h
               and "planted effect (sd)" in _h
               and "NARROWER than" in _h
               and "never recomputed" in _h)
+        # A SHOWDOWN WITH NO COMPETITOR ARM MUST NOT RENDER AN
+        # EMPTY COLUMN. A blank cell on every row reads as a
+        # competitor that scored nothing, which is a different
+        # fact from one that was never asked to run.
+        check("...and with no competitor arm recorded, the card "
+              "shows NO competitor column rather than a blank "
+              "one - absent is not the same fact as zero",
+              "<th>automl</th>" not in _h
+              and "The floor is not the bar" not in _h)
         check("...and a bar above its own ceiling is called out BY "
               "NAME - miscalibrated bar, not a failed solver",
               "bar is above its own ceiling" in _h
               and "miscalibrated bar, not a failed solver" in _h
               and "1 miscalibrated bar(s)" in _rc.stdout)
+        # ---- AND WITH THE COMPETITOR ARM RECORDED
+        _sdj2 = _P(_td) / "showdown_comp.json"
+        _sdj2.write_text(_json.dumps({
+            "vendor": "acme",
+            "tiers": [{"tier": "strong", "ceiling": 0.9,
+                       "baseline": 0.62, "competitor": 0.80,
+                       "competitor_name": "automl",
+                       "vendor": 0.70, "passed": True}]}),
+            encoding="utf-8")
+        _card2 = _P(_td) / "card2.html"
+        _rc2 = _sp.run([_sys.executable, "scripts/report_card.py",
+                        str(_cd), "--planted", str(_pl),
+                        "--showdown", str(_sdj2),
+                        "-o", str(_card2)],
+                       capture_output=True, text=True,
+                       cwd=str(_root))
+        _h2 = (_card2.read_text(encoding="utf-8")
+               if _card2.exists() else "")
+        check("with a competitor arm recorded the card grows "
+              "the column and names it, so a reader sees what "
+              "the vendor actually had to clear",
+              _rc2.returncode == 0
+              and "<th>automl</th>" in _h2
+              and "0.800" in _h2)
+        check("...and says IN WORDS that the floor is not the "
+              "bar - four numbers with no sentence leaves a "
+              "reader to assume the smallest one was the "
+              "target",
+              "The floor is not the bar" in _h2
+              and "better than nothing and worse than us"
+              in _h2)
+        check("...and the competitor sits BETWEEN the floor "
+              "and the vendor in the header, where the eye "
+              "goes",
+              _h2.index("<th>floor</th>")
+              < _h2.index("<th>automl</th>")
+              < _h2.index("<th>vendor</th>"))
+
         _rm = _sp.run([_sys.executable, "scripts/report_card.py",
                        str(_P(_td) / "nope"), "--planted",
                        str(_pl), "--showdown", str(_sdj),
