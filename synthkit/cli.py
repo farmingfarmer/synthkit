@@ -515,6 +515,65 @@ def cmd_campaign_run(args) -> int:
         result.tier_results) else 1
 
 
+def cmd_batch(args) -> int:
+    """Source in, artifacts out, nothing else.
+
+    The whole point of this command is the SHAPE: one
+    direction for data, one allow-list for results, and a
+    dry run that says what would leave before anything does.
+    """
+    import tempfile
+    from . import cloud
+    print("SYNTHKIT BATCH")
+    for line in cloud.describe():
+        print("  {}".format(line))
+    print("")
+    work = Path(args.out)
+    work.mkdir(parents=True, exist_ok=True)
+    try:
+        with tempfile.TemporaryDirectory() as _tmp:
+            local_src = cloud.fetch_source(args.src, _tmp)
+            print("  source: {}".format(
+                "pulled into the compute"
+                if cloud.is_s3(args.src) else "read in place"))
+            if args.dry_run:
+                print("  DRY RUN - the fit was not started. "
+                      "What WOULD be published from {}: {}"
+                      .format(work, ", ".join(cloud.ALLOWED)))
+                return 0
+            from .pipeline import main as _fit
+            argv = ["--src", str(local_src),
+                    "--out", str(work),
+                    "--group-by", args.group_by,
+                    "--generate"]
+            if args.max_rows:
+                argv += ["--max-rows", str(args.max_rows)]
+            rc = _fit(argv)
+            if rc:
+                print("STOPPED: the fit exited {} - nothing "
+                      "is published from a run that did not "
+                      "finish".format(rc), file=sys.stderr)
+                return rc
+    except cloud.CloudRefusal as e:
+        print("STOPPED: {}".format(e), file=sys.stderr)
+        return 2
+    if not args.publish:
+        print("")
+        print("  nothing published - pass --publish to send "
+              "the artifacts somewhere")
+        return 0
+    try:
+        wrote = cloud.publish(work, args.publish)
+    except cloud.CloudRefusal as e:
+        print("STOPPED: {}".format(e), file=sys.stderr)
+        return 2
+    print("")
+    print("  published {} artifact(s):".format(len(wrote)))
+    for w in wrote:
+        print("    {}".format(w))
+    return 0
+
+
 def cmd_schema(args) -> int:
     """Find the keys and links across several tables.
 
@@ -1264,6 +1323,29 @@ def main(argv=None) -> int:
     p.add_argument("rundir")
     p.add_argument("-o", "--out", required=True)
     p.set_defaults(fn=cmd_signoff)
+
+    p = sub.add_parser("batch",
+                       help="run a fit end to end in a cloud "
+                            "account: source in, named "
+                            "artifacts out, nothing else")
+    p.add_argument("--src", required=True,
+                   help="the source table, a local path or an "
+                        "s3:// URI. It comes IN to the "
+                        "compute and is never sent anywhere.")
+    p.add_argument("--out", required=True,
+                   help="a local working directory for the run")
+    p.add_argument("--publish", default="",
+                   help="where the ARTIFACTS go - a local "
+                        "directory or an s3:// prefix. Only "
+                        "the allow-listed files leave; the "
+                        "source cannot, by any flag.")
+    p.add_argument("--group-by", default="person_id")
+    p.add_argument("--max-rows", type=int, default=0)
+    p.add_argument("--dry-run", action="store_true",
+                   help="say what WOULD leave and stop. A "
+                        "transfer nobody previewed is one "
+                        "nobody can object to.")
+    p.set_defaults(fn=cmd_batch)
 
     p = sub.add_parser("schema",
                        help="read several tables, find the keys "

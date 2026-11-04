@@ -1,0 +1,13 @@
+# NOTHING THAT COULD CARRY DATA. The image is the tool; an
+# extract or a run directory swept into a layer would travel
+# with every pull of it, which is the worst possible way for a
+# record to leave an account.
+data/
+*.csv
+*.parquet
+*.xlsx
+run_*/
+.venv*/
+.git/
+__pycache__/
+*.pyc

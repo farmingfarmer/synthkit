@@ -4,7 +4,7 @@ Synthetic clinical data generator and model-evaluation instrument. Core rule: le
 
 ## Verify before claiming
 
-- Run `python scripts/run_all_smokes.py` before claiming anything works. Expect **89 suites, 2749 checks**, ALL GREEN **on a checkout** (measured 2026-11-03). Off a zipball extract - which is what the data machine runs - the total is TWELVE LOWER, and the gap is now MEASURED rather than estimated (2026-11-02: 2480 on a checkout against **2468** on the data machine at the same commit, ALL GREEN both ways). It decomposes exactly, with no residue: nine in `smoke_buildid`, which needs git to test the archive path; one for `node`, absent, so the full JS parse cannot run; two for Chrome, absent, so the in-browser load check cannot run. All three report NOTES and pass rather than failing - that is the design, and it is why the count moves. This entry previously said NINE LOWER and warned that a total nobody ran is not a number to quote; somebody has now run it. CONFIRMED AT A SECOND COMMIT the same day: 2483 against **2471**, the same delta of twelve - and that pair is the stronger evidence, because the commit between them ADDED THREE checks on the dev side and all three appeared on BOTH machines. That is `gated()` doing exactly what its docstring promises: a skipped check still emits a line, so the count stays one number across both places and only the genuinely unavailable tooling moves it. Do not quote the checkout number to the data machine; that is how a correct run gets read as a failure.
+- Run `python scripts/run_all_smokes.py` before claiming anything works. Expect **90 suites, 2769 checks**, ALL GREEN **on a checkout** (measured 2026-11-03). Off a zipball extract - which is what the data machine runs - the total is TWELVE LOWER, and the gap is now MEASURED rather than estimated (2026-11-02: 2480 on a checkout against **2468** on the data machine at the same commit, ALL GREEN both ways). It decomposes exactly, with no residue: nine in `smoke_buildid`, which needs git to test the archive path; one for `node`, absent, so the full JS parse cannot run; two for Chrome, absent, so the in-browser load check cannot run. All three report NOTES and pass rather than failing - that is the design, and it is why the count moves. This entry previously said NINE LOWER and warned that a total nobody ran is not a number to quote; somebody has now run it. CONFIRMED AT A SECOND COMMIT the same day: 2483 against **2471**, the same delta of twelve - and that pair is the stronger evidence, because the commit between them ADDED THREE checks on the dev side and all three appeared on BOTH machines. That is `gated()` doing exactly what its docstring promises: a skipped check still emits a line, so the count stays one number across both places and only the genuinely unavailable tooling moves it. Do not quote the checkout number to the data machine; that is how a correct run gets read as a failure.
 - **THE DEVELOPMENT MACHINE WAS BEHIND THE DATA MACHINE, and that is
   how a green suite here failed there.** Dev was on Python 3.10 with
   pandas 2.3; the data machine installs fresh and got pandas 3.0.5,
@@ -5613,3 +5613,42 @@ exist.
   Note it also contradicts, for THIS column, the earlier
   reading that "nearly every token clearing the k floor is
   already in by 800".
+
+- **THE CLOUD PATH IS A REFUSAL BEFORE IT IS A TRANSFER
+  (2026-11-04, `synthkit/cloud.py`, `docs/AWS.md`).** A
+  hospital's own AWS account is a legitimate place to run
+  this; what it must never become is a route by which records
+  leave the account they were already in. So the compute goes
+  to the data: `fetch_source` brings a source IN and there is
+  NO function that sends one anywhere - that absence is the
+  design, not an omission.
+- **ONLY NAMED ARTIFACTS LEAVE, AND THE LIST CANNOT BE
+  EXTENDED BY A FLAG.** `publish()` refuses anything off the
+  allow-list BY NAME. Two refusals matter most: the SOURCE
+  EXTRACT, which sits in the same directory as the artifacts
+  during a run so "upload the run directory" is the natural
+  mistake; and **`key.csv`**, because the key is the
+  full-fidelity file the operator KEEPS and publishing it
+  would defeat the whole key/released arrangement. A request
+  naming both an allowed and a refused file is refused WHOLE -
+  a partial upload that looks complete is the
+  silent-difference fault this file refuses everywhere else.
+- **THE STORE IS A SECOND REAL IMPLEMENTATION, NOT A MOCK.**
+  The whole upload path runs against a local directory in the
+  checks, so what they exercise is this project's logic rather
+  than somebody else's SDK behaving as its author imagined. A
+  cloud path tested only against a mock is tested against the
+  mock. Three mutations - allowing the source, honouring a
+  mixed request partly, and adding `key.csv` to the list -
+  each turn the suite red.
+- **AND IT HAS NOT RUN AGAINST A LIVE AWS ACCOUNT, SAID IN THE
+  MODULE, IN THE DOC AND IN THE TOOL'S OWN OUTPUT.** A
+  deployment is not measured until somebody deploys it, which
+  is this file's oldest rule applied to infrastructure. The
+  container pins `python:3.14-slim` because this project has
+  twice been bitten by testing against a different interpreter
+  than the one that runs, runs as non-root, excludes `*.csv`,
+  `data/` and `run_*/` from the build context - an extract
+  swept into a layer travels with every pull of the image -
+  and carries the NET, so a deployment can prove the tool
+  works before it is pointed at an extract.
