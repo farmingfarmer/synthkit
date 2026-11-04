@@ -101,6 +101,59 @@ def pick_set_token(bp, gen):
     return best
 
 
+def pick_partnered_token(bp, gen):
+    """A token on a set column that DECLARES a size partner.
+
+    THE BRANCH THAT BROKE HAS NEVER RUN ON REAL DATA. On the
+    fixture, rearranging a set column while leaving its count
+    behind took `nc == len(conds)` from broken on 0.0% of rows
+    to broken on 75.3% - a file whose count contradicts its
+    own list. The fix makes the partner travel with the set.
+    The real extract's strongest-tied token happened to sit on
+    `drug_routes`, which declares no partner, so the first
+    real run exercised everything EXCEPT the repair.
+
+    This picks a token on a column that does declare one, even
+    if its tie is weaker, because covering the branch matters
+    more than dialling the biggest number.
+    """
+    import pattern_dials as _P
+    best = None
+    for col, v in (bp.get("columns") or {}).items():
+        mg = v.get("marginal") or {}
+        if (mg.get("type") or "") != "list" or col not in gen.columns:
+            continue
+        if not [c for c in _P.size_partners(bp, col)
+                if c in gen.columns]:
+            continue
+        strs = gen[col].fillna("").astype(str)
+        nums = [c for c in gen.columns
+                if not S.is_scaffolding(c)
+                and pd.to_numeric(gen[c],
+                                  errors="coerce").notna().mean()
+                > 0.5
+                and pd.to_numeric(gen[c],
+                                  errors="coerce").nunique() > 8]
+        for t in (mg.get("tokens") or [])[:30]:
+            tv = t.get("value")
+            if not tv:
+                continue
+            h = pd.Series(S.has_token(strs, ";", tv)
+                          .to_numpy(dtype=float))
+            if h.mean() < 0.02 or h.mean() > 0.9:
+                continue
+            for nc in nums[:20]:
+                z = pd.to_numeric(gen[nc], errors="coerce")
+                m = h.notna() & z.notna()
+                if int(m.sum()) < 500:
+                    continue
+                r = float(h[m].corr(z[m], method="spearman"))
+                if np.isfinite(r) and (best is None
+                                       or abs(r) > abs(best[0])):
+                    best = (r, col, tv, nc)
+    return best
+
+
 def pick_surface(bp, gen):
     """The published surface whose child carries the most gain."""
     best = None
@@ -129,8 +182,8 @@ def pick_surface(bp, gen):
     return best
 
 
-def _drift(txt):
-    """The larger of the two reported main-effect drifts."""
+def _drift(txt, total=False):
+    """The reported main-effect drift: larger, or the sum."""
     # SLICED TO WHAT FOLLOWS THE WORD, because the tool
     # prints the main effects and their drift on ONE line:
     # "main effects after +0.113 and +0.088 - drift -0.062 /
@@ -150,7 +203,7 @@ def _drift(txt):
                 except ValueError:
                     pass
             if vals:
-                return max(vals)
+                return sum(vals) if total else max(vals)
     return 0.0
 
 
@@ -259,6 +312,67 @@ def main(argv):
                 ok &= verdict("identity no worse than before",
                               bad <= was + 1e-9)
 
+    # ---- THE PARTNER BRANCH, ON A COLUMN THAT DECLARES ONE
+    print("")
+    print("SET TOKEN DIAL - COLUMN WITH A DECLARED SIZE "
+          "PARTNER")
+    ph = pick_partnered_token(bp, gen)
+    if not ph:
+        print("  no set column on this blueprint declares a "
+              "size partner - BRANCH NOT COVERED HERE")
+    else:
+        pr0, pcol, ptok, ppart = ph
+        pwant = -pr0 if abs(pr0) > 0.25 else (
+            0.4 if pr0 < 0 else -0.4)
+        movers = [pcol] + [c for c in P.size_partners(bp, pcol)
+                           if c in gen.columns]
+        print("  {} / {} against {}".format(pcol, ptok, ppart))
+        print("  declared size partner(s): {}".format(
+            ", ".join(movers[1:])))
+        print("  tie now {}   asking {}".format(
+            say(pr0), say(pwant)))
+        ptf, perr = P.dial_set_token(gen, pcol, ptok, ppart,
+                                     pwant, seed=0)
+        if ptf is None:
+            print("  REFUSED: {}".format(perr))
+            ok = False
+        else:
+            pout = gen.copy()
+            for c in movers:
+                pout[c] = gen[c].to_numpy()[ptf]
+            ph2 = pd.Series(S.has_token(
+                pout[pcol].fillna("").astype(str), ";", ptok
+            ).to_numpy(dtype=float))
+            pz = pd.to_numeric(pout[ppart], errors="coerce")
+            pgot = float(ph2.corr(pz, method="spearman"))
+            print("  landed {}".format(say(pgot)))
+            ok &= verdict("landed within 0.05 of the ask",
+                          abs(pgot - pwant) < 0.05)
+            for pc in movers[1:]:
+                sz = S.sizes_of(
+                    pout[pcol].fillna("").astype(str), ";")
+                bad = float((sz != pd.to_numeric(
+                    pout[pc], errors="coerce")).mean())
+                was = float((S.sizes_of(
+                    gen[pcol].fillna("").astype(str), ";")
+                    != pd.to_numeric(gen[pc],
+                                     errors="coerce")).mean())
+                print("  identity {} == len({}) broken on {} "
+                      "of rows, was {}".format(
+                          pc, pcol, say(bad, 4), say(was, 4)))
+                ok &= verdict("the declared identity SURVIVES "
+                              "the dial", bad <= was + 1e-9)
+            # AND THE PARTNER MUST ACTUALLY HAVE MOVED, or the
+            # branch passed by not running.
+            pmoved = int((pout[movers[1]].to_numpy()
+                          != gen[movers[1]].to_numpy()).sum())
+            print("  rows where the partner's value changed: "
+                  "{}".format(pmoved))
+            ok &= verdict("the partner actually TRAVELLED - a "
+                          "branch that passes by not running "
+                          "is the fault, not the test",
+                          pmoved > 0)
+
     # ---- INTERACTION SURFACE, ON A PUBLISHED ONE
     print("")
     print("INTERACTION SURFACE DIAL")
@@ -307,15 +421,26 @@ def main(argv):
         # Whether the mains can be held while a surface is
         # flattened is a property of the DATA; what the tool
         # owes is to SAY so, and that is what is graded.
-        if "THE MAIN EFFECTS MOVED" in txt:
-            print("  FINDING: this surface could not be "
-                  "flattened without moving its main effects "
-                  "more than 0.06. That is a cost of the ask "
+        # ONE THRESHOLD. The tool used to carry a per-effect
+        # warning at 0.06 beside a total-drift bar at 0.10,
+        # so it could report the bar met and the mains moved
+        # in the same breath. The bar is the only statement.
+        _tot = _drift(txt, total=True)
+        if "COULD NOT BE MET WITHOUT COST" in txt:
+            print("  FINDING: no arrangement flattened this "
+                  "surface while holding its main effects "
+                  "inside the bar. That is a cost of the ask "
                   "on this data, and the tool stated it.")
         ok &= verdict("it states plainly when the mains could "
-                      "not be held",
-                      ("THE MAIN EFFECTS MOVED" in txt)
-                      == (abs(_drift(txt)) > 0.06))
+                      "not be held, on the SAME threshold it "
+                      "judges by",
+                      ("COULD NOT BE MET WITHOUT COST" in txt)
+                      == (_tot > P.MAIN_DRIFT_BAR + 1e-9))
+        ok &= verdict("...and it names the REJECTED "
+                      "construction and what it would have "
+                      "cost, so the trade is the operator's "
+                      "to see rather than mine to hide",
+                      "the other construction" in txt)
 
     # ---- THE VALUE DIAL, ON THE REAL BLUEPRINT
     #

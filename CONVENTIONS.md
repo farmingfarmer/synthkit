@@ -4,7 +4,7 @@ Synthetic clinical data generator and model-evaluation instrument. Core rule: le
 
 ## Verify before claiming
 
-- Run `python scripts/run_all_smokes.py` before claiming anything works. Expect **86 suites, 2647 checks**, ALL GREEN **on a checkout** (measured 2026-11-03). Off a zipball extract - which is what the data machine runs - the total is TWELVE LOWER, and the gap is now MEASURED rather than estimated (2026-11-02: 2480 on a checkout against **2468** on the data machine at the same commit, ALL GREEN both ways). It decomposes exactly, with no residue: nine in `smoke_buildid`, which needs git to test the archive path; one for `node`, absent, so the full JS parse cannot run; two for Chrome, absent, so the in-browser load check cannot run. All three report NOTES and pass rather than failing - that is the design, and it is why the count moves. This entry previously said NINE LOWER and warned that a total nobody ran is not a number to quote; somebody has now run it. CONFIRMED AT A SECOND COMMIT the same day: 2483 against **2471**, the same delta of twelve - and that pair is the stronger evidence, because the commit between them ADDED THREE checks on the dev side and all three appeared on BOTH machines. That is `gated()` doing exactly what its docstring promises: a skipped check still emits a line, so the count stays one number across both places and only the genuinely unavailable tooling moves it. Do not quote the checkout number to the data machine; that is how a correct run gets read as a failure.
+- Run `python scripts/run_all_smokes.py` before claiming anything works. Expect **86 suites, 2652 checks**, ALL GREEN **on a checkout** (measured 2026-11-03). Off a zipball extract - which is what the data machine runs - the total is TWELVE LOWER, and the gap is now MEASURED rather than estimated (2026-11-02: 2480 on a checkout against **2468** on the data machine at the same commit, ALL GREEN both ways). It decomposes exactly, with no residue: nine in `smoke_buildid`, which needs git to test the archive path; one for `node`, absent, so the full JS parse cannot run; two for Chrome, absent, so the in-browser load check cannot run. All three report NOTES and pass rather than failing - that is the design, and it is why the count moves. This entry previously said NINE LOWER and warned that a total nobody ran is not a number to quote; somebody has now run it. CONFIRMED AT A SECOND COMMIT the same day: 2483 against **2471**, the same delta of twelve - and that pair is the stronger evidence, because the commit between them ADDED THREE checks on the dev side and all three appeared on BOTH machines. That is `gated()` doing exactly what its docstring promises: a skipped check still emits a line, so the count stays one number across both places and only the genuinely unavailable tooling moves it. Do not quote the checkout number to the data machine; that is how a correct run gets read as a failure.
 - **THE DEVELOPMENT MACHINE WAS BEHIND THE DATA MACHINE, and that is
   how a green suite here failed there.** Dev was on Python 3.10 with
   pandas 2.3; the data machine installs fresh and got pandas 3.0.5,
@@ -5132,3 +5132,70 @@ exist.
   find. The helper catches the exception and returns it as
   text now, so a crash becomes a failed check instead of a
   dead suite.
+
+- **THE INTERACTION DIAL HAS TWO CONSTRUCTIONS NOW, AND THE
+  SWEEP IS WHAT DECIDED THAT (2026-11-03 night).** The shipped
+  one ranks the child on its additive target plus gaussian
+  noise. A second starts from the arrangement the file ALREADY
+  HAS, makes minimal swaps between grid cells to pull each
+  cell's mean onto its additive target, then re-sorts each
+  cell's values onto that cell's ORIGINAL ranking - a re-sort
+  cannot move a cell mean, so it cannot move the gain, and it
+  repairs the within-cell disorder the swaps caused at zero
+  cost to the thing being dialled.
+- **A SINGLE SEED SAID THE NEW ONE WAS THREE TIMES BETTER ON
+  BOTH AXES. THE SWEEP SAID IT WINS OUTRIGHT IN 1 OF 12.**
+  Four interaction shapes x three seeds. Neither construction
+  dominates - each won six cells under the final rule - so
+  both are generated and scored. That is this file's own rule
+  about single-seed measurements of a generation change, and
+  it came within one commit of shipping a regression as an
+  improvement.
+- **WHAT THE SWEEP ACTUALLY FOUND IS THAT THE SHIPPED
+  ALGORITHM WRECKS WEAK SURFACES.** On the thresh and
+  weak-interaction shapes its total main-effect drift ran
+  **0.537 to 0.890** against source mains of about 1.0 and
+  0.8 - it was not flattening those surfaces, it was emptying
+  the column of its linear signal. The swap arm held the same
+  cells at 0.012 to 0.031.
+- **SO DRIFT IS A BAR, NOT A TIEBREAK.** The old score put
+  gain error first and used the mains only to separate
+  near-ties, which chose an arm with 0.890 of drift over one
+  with 0.012 because the gain read 0.013 against 0.032.
+  Wrecking both main effects to move a residual gain by two
+  hundredths is not a trade anybody asked for. Arrangements
+  that hold the mains within 0.10 are considered FIRST and
+  the gain is optimised among those; if none qualify the
+  least-damaging one is taken and the run says the ask could
+  not be met without cost. Over the same twelve cells the
+  **worst drift falls from 0.890 to 0.094** and every cell
+  meets the bar.
+- **AND THE PRICE IS NAMED: on a weak surface the suppression
+  drops to 40-86% where the old rule claimed 90%+.** That is
+  the honest trade and the run prints both halves - the share
+  of the surface removed, and what the REJECTED construction
+  would have reached and at what cost. A 35% suppression
+  looks weak until you see the alternative bought 95% by
+  moving a main effect a third of its value.
+- **ONE THRESHOLD, NOT TWO.** A per-effect warning at 0.06
+  fired beside the total-drift bar at 0.10, so a run could
+  report the bar MET and the mains MOVED in one breath - a
+  verdict contradicting the note under it. The bar is the
+  only threshold.
+- **AND REMOVING THE BAR BROKE NO CHECK UNTIL THE RIGHT
+  FIXTURE EXISTED.** Every surface in the suite was a STRONG
+  interaction, where the old construction is harmless, so the
+  mutation that deleted the bar passed. The weak-interaction
+  fixture is the shape the bar exists for: with it the chosen
+  arrangement drifts 0.099, without it 0.397, and the check
+  goes red. A fixture must contain the thing the check is
+  about, and "an interaction" was not specific enough.
+- **THE BOUNDARY NOTE IS A RECORDED COVERAGE GAP.** It fires
+  when the chosen arm sits at the last noise scale, meaning
+  the result was bounded by the SEARCH rather than the data.
+  It has fired once, on the real extract's 787_2 surface. No
+  fixture here reaches it - with the drift bar opened the
+  high-noise arms still tie on gain at two decimals and lose
+  on drift. Writing a check that passes without exercising it
+  would be the cap-no-fixture-reaches fault; the coverage
+  that exists is the real-run driver, watched printing it.

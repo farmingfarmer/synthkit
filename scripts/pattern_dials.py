@@ -53,6 +53,15 @@ from synthkit import sets as S                          # noqa: E402
 # been told nothing.
 DIALABLE = ("relationship", "effect_curve", "identity")
 
+# HOW MUCH MAIN-EFFECT DRIFT A FLATTENED SURFACE MAY COST.
+# Measured across four interaction shapes and three seeds: the
+# rerank construction alone ran 0.537 to 0.890 of total drift
+# on the weak shapes, against source mains of about 1.0 and
+# 0.8 - it was not flattening those surfaces, it was wrecking
+# the column. With the bar applied the worst drift over the
+# same twelve cells is 0.094.
+MAIN_DRIFT_BAR = 0.10
+
 # Which dial, if any, reaches each kind of pattern - and whether
 # that dial is a PERMUTATION, which is what makes it invertible
 # through the cipher and what makes it immune to being
@@ -536,7 +545,32 @@ def _dial_interaction(run, bp, pat, pid, want, apply_it, seed):
     # and SAYS when the chosen scale is still the last one.
     GRID = [0.0, 0.25, 0.5, 0.75, 1.0, 1.25, 1.5, 1.75, 2.0,
             2.5, 3.0, 4.0, 5.0, 6.0, 8.0, 12.0, 16.0, 24.0]
-    best = None
+    # TWO CONSTRUCTIONS, AND THE SWEEP SAYS KEEP BOTH.
+    #
+    # The first is the one this tool shipped with: rank the
+    # child on its additive target plus gaussian noise. It
+    # suppresses hard and, on a WEAK surface, destroys the
+    # main effects doing it - measured across four shapes and
+    # three seeds, its total main-effect drift ran 0.537 to
+    # 0.890 on the thresh and weak-interaction shapes, where
+    # the source mains are about 1.0 and 0.8. That is not a
+    # flattened surface, it is a wrecked column.
+    #
+    # The second starts from the arrangement the file ALREADY
+    # HAS and makes minimal swaps between grid cells to pull
+    # each cell's mean onto its additive target, then re-sorts
+    # each cell's values onto that cell's ORIGINAL ranking.
+    # The re-sort cannot move a cell mean, so it cannot move
+    # the gain - it repairs the within-cell disorder the swaps
+    # caused at zero cost to the thing being dialled.
+    #
+    # NEITHER DOMINATES. Over twelve cells each won six, so
+    # both are generated and scored. A single-seed prototype
+    # said the swap arm was three times better on both axes;
+    # the sweep said it wins outright in 1 of 12. That is this
+    # file's own rule about single-seed measurements of a
+    # generation change, and it nearly shipped a regression.
+    cands = []
     seen = []
     for sd in GRID:
         order = np.argsort(np.argsort(tgt + sd * nz))
@@ -544,22 +578,85 @@ def _dial_interaction(run, bp, pat, pid, want, apply_it, seed):
         gg = _grid_gain(cand, qa, qb)
         xa, xb = _mains(cand)
         merr = abs(xa - m0[0]) + abs(xb - m0[1])
-        gerr = abs(gg - want)
-        # THE TIE TOLERANCE IS THE WHOLE SEARCH. At 3
-        # decimals almost nothing ties, so the gain error
-        # decides alone and the mains constraint never gets a
-        # vote - the first version picked a setting with
-        # +0.052 of main-effect drift while a neighbouring
-        # one held them to +0.012. Two decimals is a tenth of
-        # the DEPARTS bar the deck already uses for a surface,
-        # which is below anything a reader would act on, so
-        # settings that close are genuinely interchangeable
-        # on gain and the mains pick between them.
-        score = (round(gerr, 2), merr)
         seen.append(gg)
-        if best is None or score < best[0]:
-            best = (score, sd, cand, gg, (xa, xb))
-    _, sd, cand, gg, mm = best
+        cands.append(("rerank", sd, cand, gg, (xa, xb), merr))
+        del order
+
+    # ---- THE SECOND CONSTRUCTION
+    cells = {}
+    for _i, (_ca, _cb) in enumerate(zip(qa, qb)):
+        cells.setdefault((_ca, _cb), []).append(_i)
+    cells = {_k: np.array(_v) for _k, _v in cells.items()}
+    rank0 = {_k: np.argsort(np.argsort(yv[_v]))
+             for _k, _v in cells.items()}
+    cur = yv.copy()
+    curi = np.arange(n)
+    for _ in range(300):
+        _d = pd.DataFrame({"y": cur, "a": qa, "b": qb})
+        _ma = _d.groupby("a")["y"].mean()
+        _mb = _d.groupby("b")["y"].mean()
+        _gm = float(_d["y"].mean())
+        errs = {_k: float(cur[_v].mean()
+                          - (_ma[_k[0]] + _mb[_k[1]] - _gm))
+                for _k, _v in cells.items()}
+        # the REPAIRED version of the current state is a
+        # candidate at every step, so the search sees the
+        # whole path rather than only where it stops
+        rep = cur.copy()
+        repi = curi.copy()
+        for _k, _v in cells.items():
+            _o = np.argsort(rep[_v])
+            rep[_v] = rep[_v][_o][rank0[_k]]
+            repi[_v] = repi[_v][_o][rank0[_k]]
+        _g = _grid_gain(rep, qa, qb)
+        _x = _mains(rep)
+        cands.append(("swap", repi.copy(), rep, _g, _x,
+                      abs(_x[0] - m0[0]) + abs(_x[1] - m0[1])))
+        seen.append(_g)
+        _hi = max(errs, key=errs.get)
+        _lo = min(errs, key=errs.get)
+        if errs[_hi] - errs[_lo] < 1e-4:
+            break
+        H, L = cells[_hi], cells[_lo]
+        _k2 = min(max(1, int(0.02 * len(H))),
+                  max(1, int(0.02 * len(L))))
+        hs = H[np.argsort(-cur[H])[:_k2]]
+        ls = L[np.argsort(cur[L])[:_k2]]
+        cur[hs], cur[ls] = cur[ls].copy(), cur[hs].copy()
+        curi[hs], curi[ls] = curi[ls].copy(), curi[hs].copy()
+
+    # ---- DRIFT IS A BAR, NOT A TIEBREAK.
+    #
+    # The old score put gain error first and used the mains
+    # only to separate near-ties, which on a weak surface
+    # chose an arm with 0.890 of main-effect drift over one
+    # with 0.012 because the gain read 0.013 against 0.032.
+    # Wrecking both main effects to move the residual gain by
+    # two hundredths is not a trade anybody asked for. Arms
+    # that keep the mains within the bar are considered FIRST,
+    # and the gain is optimised among those; if none qualify
+    # the least-damaging arm is taken and the run says the ask
+    # could not be met without cost.
+    inbar = [c for c in cands if c[5] <= MAIN_DRIFT_BAR]
+    pool = inbar if inbar else cands
+    if inbar:
+        # THE TIE TOLERANCE SURVIVES THE REWRITE. At three
+        # decimals almost nothing ties, so the gain decides
+        # alone and the drift never gets a vote even inside
+        # the bar - rewriting the scorer dropped this and the
+        # fixture's drift went 0.015 to 0.088 in one edit.
+        # Two decimals is a tenth of the DEPARTS bar the deck
+        # already uses for a surface, so arrangements that
+        # close are interchangeable on gain and the mains
+        # choose between them.
+        pick = min(pool, key=lambda c: (round(abs(c[3] - want), 2),
+                                        c[5]))
+    else:
+        pick = min(pool, key=lambda c: c[5])
+    how, _second, cand, gg, mm, _merr = pick
+    bar_met = bool(inbar)
+    sd = _second if how == "rerank" else 0.0
+    swap_idx = _second if how == "swap" else None
     # THE BAND IS THE MINIMUM THE SEARCH ACTUALLY SAW, not a
     # second probe over a different set of scales. Probing
     # separately is how the floor came to contradict the
@@ -577,9 +674,26 @@ def _dial_interaction(run, bp, pat, pid, want, apply_it, seed):
         print("  THE ASK IS ABOVE THAT CEILING: no "
               "rearrangement of these values amplifies the "
               "surface. The dial will go as close as it can.")
-    print("  landed gain {:.4f}  (noise scale {:.2f} chosen to "
-          "hold the mains)".format(gg, sd))
-    if sd >= GRID[-1]:
+    print("  landed gain {:.4f}  ({:.0f}% of the gain this "
+          "surface carried)".format(
+              gg, 100.0 * (g0 - gg) / g0 if g0 else 0.0))
+    print("  construction: {}".format(
+        "re-ranked on the additive target (noise scale "
+        "{:.2f})".format(sd) if how == "rerank"
+        else "minimal swaps from the arrangement the file "
+             "already had, then each cell re-sorted onto its "
+             "own original order"))
+    if not bar_met:
+        # LOUD, BECAUSE THE ALTERNATIVE IS A SILENT COST. No
+        # arrangement held the main effects inside the bar, so
+        # the least-damaging one was taken and the ask was not
+        # met for free.
+        print("  THE ASK COULD NOT BE MET WITHOUT COST: no "
+              "arrangement kept the main effects within {:.2f} "
+              "of where they were, so the least damaging one "
+              "was taken. Read the drift below as part of the "
+              "change.".format(MAIN_DRIFT_BAR))
+    if how == "rerank" and sd >= GRID[-1]:
         # A SEARCH THAT STOPS AT ITS OWN BOUNDARY has not
         # finished looking, and a reader cannot tell that from
         # the number alone.
@@ -590,15 +704,41 @@ def _dial_interaction(run, bp, pat, pid, want, apply_it, seed):
     print("  main effects after {:+.3f} and {:+.3f}  - drift "
           "{:+.3f} / {:+.3f}".format(
               mm[0], mm[1], mm[0] - m0[0], mm[1] - m0[1]))
-    if abs(mm[0] - m0[0]) > 0.06 or abs(mm[1] - m0[1]) > 0.06:
-        print("  THE MAIN EFFECTS MOVED more than 0.06. The "
-              "search could not hold them at this gain - read "
-              "the drift above as part of the change, not as "
-              "a rounding error.")
+    # ONE THRESHOLD, NOT TWO. A separate per-effect warning at
+    # 0.06 fired beside a total-drift bar at 0.10, so a run
+    # could report the bar MET and the mains MOVED in the same
+    # breath - a verdict contradicting the note under it,
+    # which this file forbids. The bar is the only threshold
+    # and `bar_met` above is the only statement about it.
+    #
+    # AND THE REJECTED ARM IS REPORTED, because the choice
+    # between them is the operator's to understand. A run that
+    # suppressed 35% of a surface looks weak until you see
+    # that the alternative reached 95% by moving a main effect
+    # a third of its value.
+    other = [c for c in cands if c[0] != how]
+    if other:
+        alt = min(other, key=lambda c: abs(c[3] - want))
+        print("  the other construction ({}) reached gain "
+              "{:.4f} ({:.0f}%) at a main-effect drift of "
+              "{:.3f}, against {:.3f} here - that trade is "
+              "why this one was taken".format(
+                  alt[0], alt[3],
+                  100.0 * (g0 - alt[3]) / g0 if g0 else 0.0,
+                  alt[5], _merr))
 
+    # THE PERMUTATION COMES FROM WHICHEVER ARM WON. The
+    # rerank arm's is implied by its ordering; the swap arm
+    # carries its own index array, because it moves values
+    # between cells and there is no formula to re-derive it
+    # from. Re-deriving it would be a second copy of the
+    # construction, which is how two halves come to disagree.
     tf = np.arange(len(gen))
-    tf[pos] = pos[np.argsort(yv)][np.argsort(np.argsort(
-        tgt + sd * nz))]
+    if how == "rerank":
+        tf[pos] = pos[np.argsort(yv)][np.argsort(np.argsort(
+            tgt + sd * nz))]
+    else:
+        tf[pos] = pos[swap_idx]
     out = gen.copy()
     out[child] = gen[child].to_numpy()[tf]
     same = (sorted(gen[child].astype(str))

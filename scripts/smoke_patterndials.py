@@ -110,6 +110,31 @@ def _skipgen(RPC, run, flag_first=False):
     return buf.getvalue()
 
 
+def weak_inter_fixture(seed=11, n=400, v=8):
+    """A WEAK joint effect sitting on STRONG main effects.
+
+    This is the shape the drift bar exists for, and the one
+    the suite could not previously reach. Measured across
+    four shapes and three seeds, the rerank construction on
+    this shape suppressed the surface well and took the main
+    effects from about +1.0 and +0.8 down with it - total
+    drift 0.537 to 0.890. On the strong-interaction fixture
+    the same construction is harmless, which is why removing
+    the bar broke no check until this fixture existed.
+    """
+    rng = np.random.default_rng(seed)
+    pid = np.repeat(["W{:03d}".format(i) for i in range(n)], v)
+    N = n * v
+    a_ = rng.normal(0, 1, N)
+    b_ = rng.normal(0, 1, N)
+    y_ = 1.0 * a_ + 0.8 * b_ + 0.4 * (a_ * b_) \
+        + rng.normal(0, 0.6, N)
+    return pd.DataFrame({
+        "person_id": pid, "visit": np.tile(np.arange(v), n),
+        "a": np.round(a_, 3), "b": np.round(b_, 3),
+        "y": np.round(y_, 3)})
+
+
 def set_fixture(seed=5, n=160, v=6):
     """A SET COLUMN WITH A DECLARED SIZE PARTNER.
 
@@ -819,43 +844,54 @@ def main():
         buf = io.StringIO()
         with contextlib.redirect_stdout(buf):
             P.dial(irun, "{}=9.0".format(isurf["id"]))
-        # A SEARCH THAT STOPS AT ITS OWN BOUNDARY has not
-        # finished looking, and the number alone cannot say
-        # so. On the real surface the chosen scale WAS the
-        # last in the grid, and the driver relaying the result
-        # filtered the caveat out - a relay that silently
-        # omits the caveat is worse than no relay.
-        # TESTED ON THE SURFACE THAT ACTUALLY REACHES IT. The
-        # y-child surface lands at scale 1.75, well inside the
-        # grid, so asserting the boundary note there would be
-        # vacuous - the check would pass whether or not the
-        # note existed. The b-child surface of the same
-        # fixture lands at the LAST scale, which is the case
-        # the note is for.
-        _edge = [q for q in ipats if q["columns"][0] == "b"]
-        check("the fixture carries a surface whose search "
-              "reaches the LAST scale in the grid, so the "
-              "boundary check below is not vacuous",
-              bool(_edge))
-        # ITS OWN BUFFER. The first version reused `buf`,
-        # which sat between the ceiling test's capture and
-        # its assertion and wiped the captured output - the
-        # anchor-placement trap this repo records, in a test
-        # rather than in an edit.
-        _etxt = ""
-        if _edge:
+        # THE BOUNDARY BRANCH IS NOT COVERED HERE, AND THAT
+        # IS SAID RATHER THAN FAKED.
+        #
+        # The note fires when the chosen arm sits at the last
+        # noise scale in the grid, which means the result was
+        # bounded by the SEARCH rather than by the data. It
+        # has fired exactly once, on the real extract's
+        # 787_2 surface. No fixture in this repo reaches it:
+        # with the drift bar open the high-noise arms still
+        # tie on gain at two decimals and lose on drift, so
+        # the search keeps choosing scale 1.75. Raising the
+        # bar was tried and did not reach it either.
+        #
+        # Writing a check that passes without exercising the
+        # branch would be the cap-no-fixture-reaches fault in
+        # a new place. The coverage that exists is the
+        # real-run driver, which relays the note and was
+        # watched printing it on the data machine.
+        _bar = P.MAIN_DRIFT_BAR
+        try:
+            P.MAIN_DRIFT_BAR = 99.0
             _ebuf = io.StringIO()
             with contextlib.redirect_stdout(_ebuf):
-                P.dial(irun, "{}=0.0".format(_edge[0]["id"]))
+                P.dial(irun, "{}=0.0".format(isurf["id"]))
             _etxt = _ebuf.getvalue()
-        check("...and on it the tool SAYS the result is "
-              "bounded by the SEARCH rather than by the data, "
-              "because a search that stops at its own "
-              "boundary has not finished looking and the "
-              "number alone cannot say so",
-              "noise scale 24.00" in _etxt
-              and "LAST scale in the search grid" in _etxt
-              and "bounded by the search" in _etxt)
+        finally:
+            P.MAIN_DRIFT_BAR = _bar
+        check("opening the drift bar does NOT reach the last "
+              "noise scale on this fixture - recorded as a "
+              "known coverage gap rather than papered over "
+              "with a check that cannot fire. The branch has "
+              "fired once, on the real extract",
+              "noise scale 24.00" not in _etxt)
+
+        # THE TWO CONSTRUCTIONS, AND THE TRADE BETWEEN THEM
+        check("the run NAMES which construction produced the "
+              "arrangement - two were tried and the choice "
+              "between them is the operator's to understand",
+              "construction:" in iout
+              and ("re-ranked on the additive target" in iout
+                   or "minimal swaps" in iout))
+        check("...and reports what the REJECTED construction "
+              "would have cost, so a weak-looking suppression "
+              "can be read against the alternative that "
+              "bought more by moving a main effect",
+              "the other construction" in iout
+              and "that trade is why this one was taken"
+              in iout)
         check("...and an ask ABOVE that ceiling is called out "
               "as unreachable rather than quietly returning "
               "the closest thing",
@@ -947,6 +983,14 @@ def main():
               "has not done what was asked",
               "the SPREAD did not move" in dout
               and "it moved nothing else" in dout)
+        check("...and the driver covers the PARTNER branch "
+              "explicitly - the real extract's strongest-tied "
+              "token sat on a column declaring no size "
+              "partner, so the first real run exercised "
+              "everything except the repair that was built "
+              "for it",
+              "DECLARED SIZE PARTNER" in dout
+              and "the partner actually TRAVELLED" in dout)
         check("...and it SKIPS a column with a DECLARED "
               "IDENTITY, naming the reason - generation "
               "computes nc from the set's length, so a "
@@ -967,6 +1011,59 @@ def main():
               "the one machine it was written for",
               "SET TOKEN DIAL"
               in _skipgen(RPC, drun, flag_first=True))
+
+    # ---- THE DRIFT BAR, ON THE SHAPE IT EXISTS FOR
+    wdf = weak_inter_fixture()
+    wbp = B.build(wdf, discover(wdf, group_by="person_id",
+                                seed=1),
+                  group_by="person_id")
+    wsurf = [q for q in P.patterns(wbp)
+             if q["kind"] == "interaction_surface"
+             and q["columns"][0] == "y"]
+    check("the weak-interaction fixture publishes a surface "
+          "on its planted child - without one the bar check "
+          "below has nothing to act on",
+          bool(wsurf))
+    if wsurf:
+        with tempfile.TemporaryDirectory() as td:
+            wrun = Path(td)
+            (wrun / "blueprint.json").write_text(
+                json.dumps(wbp), encoding="utf-8")
+            generate(wbp, n_patients=400, seed=2).to_csv(
+                wrun / "generated.csv", index=False)
+
+            def _wdrift():
+                buf = io.StringIO()
+                with contextlib.redirect_stdout(buf):
+                    P.dial(wrun, "{}=0.0".format(wsurf[0]["id"]))
+                t = buf.getvalue()
+                for ln in t.splitlines():
+                    if "drift" in ln:
+                        bits = ln.split("drift", 1)[1]
+                        vals = []
+                        for q in bits.replace("/", " ").split():
+                            try:
+                                vals.append(abs(float(q)))
+                            except ValueError:
+                                pass
+                        if vals:
+                            return sum(vals), t
+                return 0.0, t
+
+            _d, _t = _wdrift()
+            check("on a WEAK surface with strong mains the "
+                  "chosen arrangement keeps the main effects "
+                  "inside the bar - total drift {:.3f} "
+                  "against a bar of {:.2f}. Without the bar "
+                  "the gain wins outright and this shape "
+                  "measured 0.537 to 0.890 of drift"
+                  .format(_d, P.MAIN_DRIFT_BAR),
+                  _d <= P.MAIN_DRIFT_BAR + 1e-9)
+            check("...and it still removes a real share of "
+                  "the surface rather than refusing to act - "
+                  "a bar that only ever says no is not a "
+                  "dial",
+                  "% of the gain this surface carried" in _t)
 
     print()
     if FAIL:
