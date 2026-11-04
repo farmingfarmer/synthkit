@@ -5551,9 +5551,14 @@ exist.
                          that CANNOT be rebuilt:  37
   Every pair touching one of those 37 was silently skipped, so
   the recorded percentage and any re-measured one were over
-  DIFFERENT PAIR SETS. That is the whole of the 137-against-57
-  gap, and it means the earlier `120/137 before, 47/57 after`
-  was two questions wearing a before and an after.
+  DIFFERENT PAIR SETS - which means the earlier `120/137
+  before, 47/57 after` was two questions wearing a before and
+  an after.
+  **CORRECTED WITHIN THE HOUR: the cap is A cause and NOT the
+  whole gap.** This entry first said it was. With the fix the
+  real extract's re-measure goes **57 to 69**, not to 137, so
+  the cap accounts for twelve pairs of about eighty. The rest
+  is the second half of the same question and is named below.
 - **THE FIX IS TO MEASURE ON THE SURFACE THE RUN WAS MEASURED
   ON.** `prepare(vocab=...)` takes the vocabulary a caller
   already knows and skips the cap for it; `compare()` passes

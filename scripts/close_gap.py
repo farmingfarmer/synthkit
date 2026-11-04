@@ -142,6 +142,43 @@ def surface(run, src_path):
         print("  examples that cannot be rebuilt:")
         for m in missing[:6]:
             print("      {}".format(m))
+    # AND THE SECOND HALF: IS THE TOKEN IN THE OUTPUT AT ALL?
+    #
+    # Rebuilding the indicator from the SOURCE is only half
+    # the job - a pair is measured on both tables, so a token
+    # the generated file never emits gives an all-zero
+    # indicator there and the pair is skipped whatever the
+    # cap does. Raising the cap recovered 57 pairs to 69 on
+    # the real extract, not to 137, so the cap was A cause
+    # and not the main one. This counts the other half.
+    gen_p = Path(run) / "generated.csv"
+    if gen_p.exists():
+        g = pd.read_csv(gen_p, dtype=str,
+                        keep_default_na=False,
+                        encoding="utf-8-sig", low_memory=False)
+        print("")
+        print("  AND WHETHER THE OUTPUT CARRIES THE TOKEN AT "
+              "ALL - a pair is measured on BOTH tables, so a "
+              "token the generated file never emits is "
+              "unmeasurable however the source is expanded:")
+        for c in sorted(pub):
+            if c not in g.columns or c not in df.columns:
+                continue
+            sep = ";"
+            def toks(fr):
+                out = set()
+                for v in fr[c].fillna("").astype(str):
+                    for t in v.split(sep):
+                        t = t.strip()
+                        if t:
+                            out.add(t)
+                return out
+            st, gt = toks(df), toks(g)
+            print("      {:<22} published {:>5}   in source "
+                  "{:>5}   in OUTPUT {:>5}".format(
+                      c, sayn(pub[c]).split()[0],
+                      len(st), len(gt)))
+
     # THE CONCLUSION, STATED ONLY IF THE NUMBERS SUPPORT IT.
     if missing and len(made) <= _S.EXPAND_CAP * max(1, len(pub)):
         print("")
