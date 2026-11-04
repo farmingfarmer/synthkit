@@ -347,6 +347,98 @@ def main():
               "exactly one more pair",
               len(_dr2) <= 1)
 
+    # ---- THE MISSES THAT ARE NOT IN THE FILE AT ALL
+    #
+    # On the real extract the biggest group of close misses is
+    # a `set__has__token` against an ordinary column, and the
+    # indicator is NOT in generated.csv - it is search
+    # machinery, dropped before the file is written. The set it
+    # was derived from IS written, so moving the whole set
+    # string moves the indicator with it.
+    #
+    # THE FADE IS PLANTED, because generation does not produce
+    # one on this fixture: the set column is shuffled ALONE
+    # (with its size partner, so the declared identity
+    # survives), which kills the token's tie to the numeric
+    # without touching anything else. Shuffling the whole
+    # frame would permute every column together and preserve
+    # every correlation, which is the vacuous-fixture fault
+    # this repo has already recorded.
+    import pattern_dials as _PD3
+    import synthkit.sets as _S3
+    import smoke_patterndials as _SP3
+    _sdf = _SP3.set_fixture(n=320, v=6)
+    _sbp = _B2.build(_sdf, _disc2(_sdf, group_by="person_id",
+                                  seed=2),
+                     group_by="person_id")
+    _sgen = _gen2(_sbp, n_patients=320, seed=4)
+    _perm = _np2.random.default_rng(9).permutation(len(_sgen))
+    _bad = _sgen.copy()
+    for _c in ("conds", "nc"):
+        if _c in _bad.columns:
+            _bad[_c] = _sgen[_c].to_numpy()[_perm]
+    _sfid = _cmp2(_sdf, _bad, _sbp, "person_id",
+                  _sbp.get("time_column"))
+    _srel = _sfid["relationships"]
+    _tokmiss = [r for r in _srel["pairs"]
+                if r.get("kind") == "numeric"
+                and abs(r.get("source") or 0) >= 0.1
+                and abs(r.get("delta") or 0) > 0.2
+                and (_S3.HAS in str(r["child"]))
+                != (_S3.HAS in str(r["parent"]))]
+    check("the planted fade produces a close miss on a TOKEN "
+          "INDICATOR against a plain column - the shape that "
+          "is the biggest group on the real extract and that "
+          "no rearrangement of the written file could reach",
+          bool(_tokmiss))
+    with _tf2.TemporaryDirectory() as _td3:
+        _rd3 = Path(_td3)
+        (_rd3 / "blueprint.json").write_text(json.dumps(_sbp),
+                                             encoding="utf-8")
+        _bad.to_csv(_rd3 / "generated.csv", index=False)
+        (_rd3 / "fidelity.json").write_text(json.dumps(_sfid),
+                                            encoding="utf-8")
+        _sp3 = _rd3 / "src.csv"
+        _sdf.to_csv(_sp3, index=False)
+        _r3 = _sp2.run(
+            [sys.executable, "scripts/repair_inversions.py",
+             str(_rd3), str(_sp3), "--close"],
+            capture_output=True, text=True,
+            cwd=str(ROOT), timeout=1800)
+        _o3 = _r3.stdout
+        check("...and the repair REACHES it through the set "
+              "column the indicator was derived from, saying "
+              "which set moved and against what",
+              _r3.returncode == 0
+              and "reached through its SET column" in _o3
+              and "moved against" in _o3)
+        check("...and close is FIXED while nothing reads "
+              "BROKEN - moving a set moves every OTHER token "
+              "on it too, so only the whole-gate re-measure "
+              "can say whether it was worth it",
+              "close" in _o3 and "FIXED" in _o3
+              and "BROKEN" not in _o3)
+        check("...and `set token shares` is unmoved, because a "
+              "permutation cannot change what was published - "
+              "the privacy posture is exactly what it was",
+              "set token shares" in _o3
+              and "set token shares" in _o3.split("BROKEN")[0])
+        # THIS FIXTURE HAS A SIZE PARTNER, so accepting "no
+        # size partner" as an alternative made the check
+        # unable to fail - removing the partner passed. The
+        # fixture's own declared identity is asserted first so
+        # the demand below is not vacuous.
+        check("the fixture's set column DECLARES a size "
+              "partner, so the demand below is not vacuous",
+              "nc" in _PD3.size_partners(_sbp, "conds"))
+        check("...and the SIZE PARTNER travels with the set, "
+              "so the declared identity survives a repair "
+              "aimed at a token - `nc` IS the length of "
+              "`conds`, and moving one without the other "
+              "writes a file whose count contradicts its own "
+              "list",
+              "with nc" in _o3)
+
     print()
     if FAIL:
         print("{} FAILED".format(FAIL))

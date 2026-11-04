@@ -68,6 +68,59 @@ def _inverted_pairs(fid):
     return out
 
 
+def _token_misses(fid, gen_cols, limit=0):
+    """Close misses on a TOKEN INDICATOR against a plain column.
+
+    THESE ARE THE BIGGEST GROUP AND THE REPAIR COULD NOT REACH
+    THEM. On the real extract 5 of the 17 close misses are a
+    `set__has__token` against an ordinary column, and the
+    indicator is not in generated.csv - it is search machinery,
+    dropped before the file is written.
+
+    But it is DERIVED from the set column, which IS written.
+    Rearranging the set so the whole string travels as a unit
+    moves the indicator with it, and that rearrangement is
+    already built and measured: it lands within 0.001 of an ask
+    and leaves every published token's share untouched, because
+    a permutation cannot move a marginal.
+
+    THE COLLATERAL IS REAL AND IS NOT HIDDEN. Moving the set
+    moves every OTHER token on it too, so this can only be
+    judged by the whole gate - which is what the caller
+    re-measures. A fix that lands one pair and costs two is
+    what two reverted fidelity tiers did.
+    """
+    import synthkit.sets as _S
+    rel = fid.get("relationships") or {}
+    out = []
+    for r in (rel.get("pairs") or []):
+        if r.get("kind") != "numeric":
+            continue
+        srcv = float(r.get("source") or 0.0)
+        if abs(srcv) < 0.1:
+            continue
+        if abs(float(r.get("delta") or 0.0)) <= 0.2:
+            continue
+        c, p = str(r.get("child")), str(r.get("parent"))
+        tok_c, tok_p = _S.HAS in c, _S.HAS in p
+        # EXACTLY ONE SIDE A TOKEN, and the other side a column
+        # the written file carries. A cross-set pair needs both
+        # sets rearranged against each other and is a different
+        # problem; saying so beats half-doing it.
+        if tok_c == tok_p:
+            continue
+        tcol, other = (c, p) if tok_c else (p, c)
+        setcol, token = tcol.split(_S.HAS, 1)
+        if setcol not in gen_cols or other not in gen_cols:
+            continue
+        out.append((setcol, token, other, srcv,
+                    abs(float(r.get("delta") or 0.0))))
+    out.sort(key=lambda t: -t[4])
+    if limit:
+        out = out[:limit]
+    return out
+
+
 def _drifted_pairs(fid, gen_cols, limit=0):
     """The pairs this run misses `close` on, as (child, parent).
 
@@ -354,7 +407,24 @@ def main(argv=None):
                   "before the file is written, so no "
                   "rearrangement can reach them"
                   .format(len(absent)))
-        if not drifted:
+        # AND THE TOKEN MISSES, REACHED THROUGH THEIR SET.
+        # The indicator is not in the file; the set column it
+        # came from is, and moving the whole set string moves
+        # the indicator with it.
+        toks = _token_misses(fid, set(gen.columns),
+                             limit=a.max)
+        if toks:
+            print("")
+            print("  and {} miss(es) on a TOKEN INDICATOR that "
+                  "can be reached through its SET column - the "
+                  "indicator is search machinery and is not "
+                  "written, but the set it came from is:"
+                  .format(len(toks)))
+            for sc, tk, ot, want, d in toks:
+                print("    {:<16} token {:<22} against {:<18} "
+                      "source {:+.3f}  drift {:.3f}".format(
+                          sc[:16], tk[:22], ot[:18], want, d))
+        if not drifted and not toks:
             print("nothing repairable - every close miss is on "
                   "a column the written file does not carry")
             return 0
@@ -371,7 +441,31 @@ def main(argv=None):
                   "inversion")
             return 0
     rep, notes = repair(src, gen, pairs, seed=a.seed,
-                        targets=targets)
+                        targets=targets) if pairs \
+        else (gen.copy(), [])
+
+    # THE SET REARRANGEMENTS, APPLIED AFTER. Each moves one
+    # whole set column so a token of it recovers its tie; the
+    # other tokens on that set move too, which is why only the
+    # whole-gate re-measure below can say whether it was worth
+    # it.
+    if a.close:
+        import pattern_dials as _PD
+        for sc, tk, ot, want, _d in locals().get("toks", []):
+            tf, err = _PD.dial_set_token(rep, sc, tk, ot, want,
+                                         seed=a.seed)
+            if tf is None:
+                print("  set {} / {}: REFUSED - {}".format(
+                    sc, tk, err))
+                continue
+            movers = [sc] + [c for c in _PD.size_partners(bp, sc)
+                             if c in rep.columns]
+            for c in movers:
+                rep[c] = rep[c].to_numpy()[tf]
+            print("  set {:<14} token {:<20} moved against "
+                  "{:<16} (with {})".format(
+                      sc[:14], tk[:20], ot[:16],
+                      ", ".join(movers[1:]) or "no size partner"))
     print("")
     for child, parent, what, n, before, after in notes:
         print("  {:<30} {:<24} {:<12} rows {:>6}  "

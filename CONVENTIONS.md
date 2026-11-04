@@ -4,7 +4,7 @@ Synthetic clinical data generator and model-evaluation instrument. Core rule: le
 
 ## Verify before claiming
 
-- Run `python scripts/run_all_smokes.py` before claiming anything works. Expect **89 suites, 2737 checks**, ALL GREEN **on a checkout** (measured 2026-11-03). Off a zipball extract - which is what the data machine runs - the total is TWELVE LOWER, and the gap is now MEASURED rather than estimated (2026-11-02: 2480 on a checkout against **2468** on the data machine at the same commit, ALL GREEN both ways). It decomposes exactly, with no residue: nine in `smoke_buildid`, which needs git to test the archive path; one for `node`, absent, so the full JS parse cannot run; two for Chrome, absent, so the in-browser load check cannot run. All three report NOTES and pass rather than failing - that is the design, and it is why the count moves. This entry previously said NINE LOWER and warned that a total nobody ran is not a number to quote; somebody has now run it. CONFIRMED AT A SECOND COMMIT the same day: 2483 against **2471**, the same delta of twelve - and that pair is the stronger evidence, because the commit between them ADDED THREE checks on the dev side and all three appeared on BOTH machines. That is `gated()` doing exactly what its docstring promises: a skipped check still emits a line, so the count stays one number across both places and only the genuinely unavailable tooling moves it. Do not quote the checkout number to the data machine; that is how a correct run gets read as a failure.
+- Run `python scripts/run_all_smokes.py` before claiming anything works. Expect **89 suites, 2743 checks**, ALL GREEN **on a checkout** (measured 2026-11-03). Off a zipball extract - which is what the data machine runs - the total is TWELVE LOWER, and the gap is now MEASURED rather than estimated (2026-11-02: 2480 on a checkout against **2468** on the data machine at the same commit, ALL GREEN both ways). It decomposes exactly, with no residue: nine in `smoke_buildid`, which needs git to test the archive path; one for `node`, absent, so the full JS parse cannot run; two for Chrome, absent, so the in-browser load check cannot run. All three report NOTES and pass rather than failing - that is the design, and it is why the count moves. This entry previously said NINE LOWER and warned that a total nobody ran is not a number to quote; somebody has now run it. CONFIRMED AT A SECOND COMMIT the same day: 2483 against **2471**, the same delta of twelve - and that pair is the stronger evidence, because the commit between them ADDED THREE checks on the dev side and all three appeared on BOTH machines. That is `gated()` doing exactly what its docstring promises: a skipped check still emits a line, so the count stays one number across both places and only the genuinely unavailable tooling moves it. Do not quote the checkout number to the data machine; that is how a correct run gets read as a failure.
 - **THE DEVELOPMENT MACHINE WAS BEHIND THE DATA MACHINE, and that is
   how a green suite here failed there.** Dev was on Python 3.10 with
   pandas 2.3; the data machine installs fresh and got pandas 3.0.5,
@@ -5497,3 +5497,19 @@ exist.
   single-table pipeline alone, so a cross-table relationship -
   a lab value that depends on its visit's length of stay - is
   not modelled. That is the rest of M3.
+- **AND THE MISSES THAT ARE NOT IN THE FILE CAN BE REACHED
+  THROUGH THEIR SET.** The biggest single group of close
+  misses on the real extract is a `set__has__token` against an
+  ordinary column - 5 of 17 - and the indicator is NOT in
+  generated.csv, so no rearrangement of the written file can
+  touch it. But it is DERIVED from the set column, which IS
+  written: moving the whole set string as a unit moves the
+  indicator with it, which is the rearrangement already
+  measured to land within 0.001 of an ask while leaving every
+  published token's share untouched. On a fixture with the
+  fade planted - the set column shuffled ALONE, because
+  shuffling the frame permutes every column together and
+  preserves every correlation - close goes **5/7 to 7/7** and
+  direction **5/7 to 7/7**, with `set token shares` unmoved
+  and nothing BROKEN. The size partner travels with the set,
+  so the declared identity survives a repair aimed at a token.
