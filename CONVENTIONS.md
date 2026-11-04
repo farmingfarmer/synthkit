@@ -4,7 +4,7 @@ Synthetic clinical data generator and model-evaluation instrument. Core rule: le
 
 ## Verify before claiming
 
-- Run `python scripts/run_all_smokes.py` before claiming anything works. Expect **88 suites, 2716 checks**, ALL GREEN **on a checkout** (measured 2026-11-03). Off a zipball extract - which is what the data machine runs - the total is TWELVE LOWER, and the gap is now MEASURED rather than estimated (2026-11-02: 2480 on a checkout against **2468** on the data machine at the same commit, ALL GREEN both ways). It decomposes exactly, with no residue: nine in `smoke_buildid`, which needs git to test the archive path; one for `node`, absent, so the full JS parse cannot run; two for Chrome, absent, so the in-browser load check cannot run. All three report NOTES and pass rather than failing - that is the design, and it is why the count moves. This entry previously said NINE LOWER and warned that a total nobody ran is not a number to quote; somebody has now run it. CONFIRMED AT A SECOND COMMIT the same day: 2483 against **2471**, the same delta of twelve - and that pair is the stronger evidence, because the commit between them ADDED THREE checks on the dev side and all three appeared on BOTH machines. That is `gated()` doing exactly what its docstring promises: a skipped check still emits a line, so the count stays one number across both places and only the genuinely unavailable tooling moves it. Do not quote the checkout number to the data machine; that is how a correct run gets read as a failure.
+- Run `python scripts/run_all_smokes.py` before claiming anything works. Expect **89 suites, 2737 checks**, ALL GREEN **on a checkout** (measured 2026-11-03). Off a zipball extract - which is what the data machine runs - the total is TWELVE LOWER, and the gap is now MEASURED rather than estimated (2026-11-02: 2480 on a checkout against **2468** on the data machine at the same commit, ALL GREEN both ways). It decomposes exactly, with no residue: nine in `smoke_buildid`, which needs git to test the archive path; one for `node`, absent, so the full JS parse cannot run; two for Chrome, absent, so the in-browser load check cannot run. All three report NOTES and pass rather than failing - that is the design, and it is why the count moves. This entry previously said NINE LOWER and warned that a total nobody ran is not a number to quote; somebody has now run it. CONFIRMED AT A SECOND COMMIT the same day: 2483 against **2471**, the same delta of twelve - and that pair is the stronger evidence, because the commit between them ADDED THREE checks on the dev side and all three appeared on BOTH machines. That is `gated()` doing exactly what its docstring promises: a skipped check still emits a line, so the count stays one number across both places and only the genuinely unavailable tooling moves it. Do not quote the checkout number to the data machine; that is how a correct run gets read as a failure.
 - **THE DEVELOPMENT MACHINE WAS BEHIND THE DATA MACHINE, and that is
   how a green suite here failed there.** Dev was on Python 3.10 with
   pandas 2.3; the data machine installs fresh and got pandas 3.0.5,
@@ -5455,3 +5455,45 @@ exist.
   restored the old arrangement passed. The mismatch is
   PLANTED in the suite instead of faked away, so the branch
   that explains it is exercised.
+
+- **MULTI-TABLE INTAKE EXISTS, AND THE KEYS COME FROM THE
+  VALUES (2026-11-04, `synthkit/multitable.py`).** The fitted
+  path has always been single-table, so an operator with
+  patients, visits and labs had to join them by hand first -
+  and a hand join is where row counts and missingness quietly
+  change before this tool ever sees them. `synthkit schema`
+  reads several tables, finds each primary key, finds the
+  links by VALUE OVERLAP, and reports referential integrity.
+  Three fixtures: a star, a chain, and one whose headers lie.
+- **A CONTINUOUS MEASUREMENT WAS MADE A PRIMARY KEY, AND IT
+  WOULD HAVE LINKED TABLES ON IT.** 300 normal draws are
+  unique on every row and present on every row, so a
+  uniqueness test calls the column a key - and the fixture
+  caught it on the first run. Identifiers are strings or WHOLE
+  numbers; a value with a fractional part is something
+  somebody measured. Integers are deliberately left alone,
+  because a patient number usually is one and refusing those
+  rejects the most common key there is.
+- **ORPHANS ARE KEPT, NOT CLEANED AWAY.** A real extract has
+  visits whose patient was filtered out by somebody's cohort
+  query. The star fixture plants 20, the source measures
+  **97.8%**, and the generated set reads **97.8%** - with the
+  orphans pointing at invented `ORPHAN*` keys that belong to
+  nobody, so an orphan is an orphan rather than a real
+  identifier that happens not to match. Emitting 100% where
+  the source had 97.8% would invent a cleanliness the data
+  never had and make every downstream count that depends on
+  orphans wrong.
+- **INTEGRITY IS BY CONSTRUCTION, NOT BY REPAIR.** The parent's
+  key is invented first and every child key is DRAWN from keys
+  that already exist, so there is no step at which a child can
+  point at a parent that is not there - the same reason the
+  size identity is enforced by copying rather than by drawing
+  twice. And no real key is republished: an MRN is a direct
+  identifier, and a file carrying one has republished it
+  however synthetic everything around it is.
+- **WHAT IS NOT DONE, NAMED: the tables are detected and
+  re-keyed, not FITTED TOGETHER.** Each still goes through the
+  single-table pipeline alone, so a cross-table relationship -
+  a lab value that depends on its visit's length of stay - is
+  not modelled. That is the rest of M3.

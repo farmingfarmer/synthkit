@@ -515,6 +515,69 @@ def cmd_campaign_run(args) -> int:
         result.tier_results) else 1
 
 
+def cmd_schema(args) -> int:
+    """Find the keys and links across several tables.
+
+    DETECTION ONLY. It reads, measures and reports - nothing is
+    written unless --json-out is given, because a tool that
+    reshapes somebody's extract on the strength of a guessed
+    key is the silent-wrong-answer fault at its most
+    expensive.
+    """
+    from .intake import IntakeError, read_table
+    from .multitable import detect, integrity, render
+    frames = {}
+    for f in args.files:
+        path = Path(f)
+        try:
+            fr, how = read_table(path)
+        except IntakeError as e:
+            print("STOPPED: {}".format(e), file=sys.stderr)
+            return 2
+        name = path.stem
+        if name in frames:
+            print("STOPPED: two files are both called {!r} - "
+                  "tables are named after their files, so "
+                  "rename one".format(name), file=sys.stderr)
+            return 2
+        frames[name] = fr
+        print("  read {}".format(how))
+    if len(frames) < 2:
+        print("STOPPED: schema detection needs at least two "
+              "tables - with one there is nothing to link. Use "
+              "`synthkit types` for a single table.",
+              file=sys.stderr)
+        return 2
+    found = detect(frames)
+    integ = integrity(frames, found["links"])
+    print("")
+    print(render(found, integ))
+    if args.json_out:
+        import json as _json
+        payload = {
+            "tables": {n: {"rows": len(t.frame),
+                           "columns": list(t.frame.columns),
+                           "primary_key": t.primary_key,
+                           "candidates": t.pk_candidates,
+                           "notes": t.notes}
+                       for n, t in found["tables"].items()},
+            "links": [{"child": lk.child, "column": lk.column,
+                       "parent": lk.parent,
+                       "parent_key": lk.parent_key,
+                       "match": round(lk.match, 4),
+                       "orphans": lk.orphans}
+                      for lk in found["links"]],
+            "warnings": found["warnings"],
+            "integrity": integ,
+        }
+        Path(args.json_out).write_text(
+            _json.dumps(payload, indent=1), encoding="utf-8")
+        print("")
+        print("wrote {}".format(args.json_out))
+    # A SCHEMA WITH NO LINKS IS A FINDING, NOT A SUCCESS.
+    return 0 if found["links"] else 1
+
+
 def cmd_showdown(args) -> int:
     from .autosolver import run_showdown
     from .campaign import load_campaign
@@ -1201,6 +1264,17 @@ def main(argv=None) -> int:
     p.add_argument("rundir")
     p.add_argument("-o", "--out", required=True)
     p.set_defaults(fn=cmd_signoff)
+
+    p = sub.add_parser("schema",
+                       help="read several tables, find the keys "
+                            "from the VALUES, and report the "
+                            "links and referential integrity")
+    p.add_argument("files", nargs="+",
+                   help="the tables, as csv/xlsx/jsonl/parquet. "
+                        "Each table is named after its file.")
+    p.add_argument("--json-out", default="",
+                   help="write the detected schema as JSON")
+    p.set_defaults(fn=cmd_schema)
 
     p = sub.add_parser("scrub",
                        help="detect (and with --apply, drop) "

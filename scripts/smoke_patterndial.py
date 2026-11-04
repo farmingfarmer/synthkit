@@ -299,11 +299,14 @@ def main():
             capture_output=True, text=True,
             cwd=str(ROOT), timeout=1800)
         check("when the RECORDED pair count differs from the "
-              "re-measured one the tool says so and explains "
-              "why, rather than letting a reader compare two "
-              "different measurements",
+              "re-measured one the tool says so, marks the "
+              "recorded percentage NOT comparable, and is "
+              "explicit that the CAUSE is not established - "
+              "naming a cause it has not measured would be "
+              "the fault this suite exists to catch",
               "the run RECORDED 999 pairs" in _r2.stdout
-              and "different things" in _r2.stdout)
+              and "NOT comparable" in _r2.stdout
+              and "not established" in _r2.stdout)
         check("...and it writes NOTHING without --apply, "
               "because a repair that costs more than it gains "
               "should not be able to land by accident",

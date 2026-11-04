@@ -415,12 +415,26 @@ def main(argv=None):
         "NOT comparable"))
     _rec = ((fid.get("relationships") or {}).get("compared"))
     if _rec is not None and _rec != _nb:
-        print("  (the run RECORDED {} pairs; this re-measure "
-              "relates {} because it reads the written file, "
-              "which drops the token indicators the original "
-              "search expanded. Both are true - they count "
-              "different things - and only the two columns "
-              "above are a comparison.)".format(_rec, _nb))
+        # WHAT IS ESTABLISHED AND WHAT IS NOT.
+        #
+        # Established: the two counts differ, so the recorded
+        # percentage and the ones above are NOT comparable.
+        # Not established: why. `prepare()` does re-derive the
+        # token indicators from the set columns, so they are
+        # not simply missing; the run used a raised token cap
+        # and this re-measure uses the default, which WOULD
+        # narrow the surface - but that is a hypothesis with
+        # no measurement behind it yet, and this file's rule
+        # is not to state one as the other.
+        print("  (the run RECORDED {} pairs and this "
+              "re-measure relates {}. They count different "
+              "surfaces, so the recorded percentage is NOT "
+              "comparable with the two columns above - only "
+              "those two are a comparison. WHY they differ is "
+              "not established: the token indicators are "
+              "re-derived here, so the likely cause is a "
+              "different token cap, which has not been "
+              "measured.)".format(_rec, _nb))
     bmap = dict((n, (d, ok)) for n, d, ok in before_rows)
     print("")
     print("  {:<22} {:<26} {:<26} {}".format(

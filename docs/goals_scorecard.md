@@ -13,7 +13,7 @@ end-to-end) are where the remaining work lives.**
 
 ---
 
-## Goal 1 — Universal upload with auto schema mapping   **~65%**
+## Goal 1 — Universal upload with auto schema mapping   **~75%**
 
 **What works, measured**
 - Single-table CSV end to end. Types detected in seconds
@@ -31,10 +31,24 @@ end-to-end) are where the remaining work lives.**
   repeat, and is named in the run.
 
 **What remains**
-- Relational, multi-table intake with key auto-detection (M3):
-  `relational.py` exists from the first engine but the fitted path
-  is single-table. The M3 gate: 3 multi-table fixtures, keys
-  auto-detected, referential integrity 100%.
+- Multi-table intake, M3's gate, DONE 2026-11-04
+  (`synthkit/multitable.py`, `synthkit schema`): three
+  fixtures — a star, a chain and one whose headers lie — with
+  keys auto-detected FROM THE VALUES and referential integrity
+  reproduced. Orphans are kept rather than cleaned away: the
+  star plants 20, the source measures 97.8%, and the generated
+  set reads 97.8% with the orphans pointing at invented keys
+  that belong to nobody. No real key is republished. The
+  negative controls carry the weight — a continuous
+  measurement is refused as a key (the first version made a
+  lab value a primary key and would have linked tables on it),
+  a two-value column is refused, and unrelated tables produce
+  NO links and say so.
+- What remains for M3: FITTING the linked tables, rather than
+  detecting and re-keying them. Each table still goes through
+  the single-table pipeline on its own, so cross-table
+  relationships — a lab value that depends on the visit's
+  length of stay — are not modelled. Named, not claimed.
 - ~~File formats beyond CSV~~ SHIPPED 2026-11-03:
   `synthkit.intake` reads .csv/.tsv/.txt, .jsonl/.ndjson/.json,
   .xlsx/.xlsm and .parquet, dispatching on the extension, with
