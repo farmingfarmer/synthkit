@@ -383,8 +383,44 @@ def main(argv=None):
     print("\nre-measuring the WHOLE gate on the repaired table...")
     fid2 = compare(src, rep, bp, a.group_by, time_col,
                    ordinals=ordinals)
-    before_rows, before_met = _gate_rows(fid)
+    # BOTH SIDES MEASURED THE SAME WAY, OR IT IS NOT A
+    # COMPARISON.
+    #
+    # The `before` used to come from the run's recorded
+    # fidelity.json and the `after` from a fresh `compare()`
+    # call - and on the real extract those two count
+    # DIFFERENT PAIRS. The recorded run related 137; the
+    # recomputed one relates 57, because the original was
+    # measured on the expanded frame carrying token
+    # indicators and this one is measured on the written file,
+    # which drops them. 120/137 against 47/57 is two
+    # measurements, not a before and an after, and this
+    # file's own rule says a percentage whose denominator
+    # moved is not a comparison.
+    #
+    # So the UNREPAIRED frame is measured here too, through
+    # the identical call. It costs a second pass and it is
+    # the only thing that makes the verdict column mean
+    # anything.
+    fid1 = compare(src, gen, bp, a.group_by, time_col,
+                   ordinals=ordinals)
+    before_rows, before_met = _gate_rows(fid1)
     after_rows, after_met = _gate_rows(fid2)
+    _nb = ((fid1.get("relationships") or {}).get("compared"))
+    _na = ((fid2.get("relationships") or {}).get("compared"))
+    print("  pairs compared: before {}  after {}{}".format(
+        _nb, _na,
+        "" if _nb == _na else
+        "   <- DENOMINATORS DIFFER, the verdicts below are "
+        "NOT comparable"))
+    _rec = ((fid.get("relationships") or {}).get("compared"))
+    if _rec is not None and _rec != _nb:
+        print("  (the run RECORDED {} pairs; this re-measure "
+              "relates {} because it reads the written file, "
+              "which drops the token indicators the original "
+              "search expanded. Both are true - they count "
+              "different things - and only the two columns "
+              "above are a comparison.)".format(_rec, _nb))
     bmap = dict((n, (d, ok)) for n, d, ok in before_rows)
     print("")
     print("  {:<22} {:<26} {:<26} {}".format(

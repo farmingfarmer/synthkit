@@ -4,7 +4,7 @@ Synthetic clinical data generator and model-evaluation instrument. Core rule: le
 
 ## Verify before claiming
 
-- Run `python scripts/run_all_smokes.py` before claiming anything works. Expect **88 suites, 2713 checks**, ALL GREEN **on a checkout** (measured 2026-11-03). Off a zipball extract - which is what the data machine runs - the total is TWELVE LOWER, and the gap is now MEASURED rather than estimated (2026-11-02: 2480 on a checkout against **2468** on the data machine at the same commit, ALL GREEN both ways). It decomposes exactly, with no residue: nine in `smoke_buildid`, which needs git to test the archive path; one for `node`, absent, so the full JS parse cannot run; two for Chrome, absent, so the in-browser load check cannot run. All three report NOTES and pass rather than failing - that is the design, and it is why the count moves. This entry previously said NINE LOWER and warned that a total nobody ran is not a number to quote; somebody has now run it. CONFIRMED AT A SECOND COMMIT the same day: 2483 against **2471**, the same delta of twelve - and that pair is the stronger evidence, because the commit between them ADDED THREE checks on the dev side and all three appeared on BOTH machines. That is `gated()` doing exactly what its docstring promises: a skipped check still emits a line, so the count stays one number across both places and only the genuinely unavailable tooling moves it. Do not quote the checkout number to the data machine; that is how a correct run gets read as a failure.
+- Run `python scripts/run_all_smokes.py` before claiming anything works. Expect **88 suites, 2716 checks**, ALL GREEN **on a checkout** (measured 2026-11-03). Off a zipball extract - which is what the data machine runs - the total is TWELVE LOWER, and the gap is now MEASURED rather than estimated (2026-11-02: 2480 on a checkout against **2468** on the data machine at the same commit, ALL GREEN both ways). It decomposes exactly, with no residue: nine in `smoke_buildid`, which needs git to test the archive path; one for `node`, absent, so the full JS parse cannot run; two for Chrome, absent, so the in-browser load check cannot run. All three report NOTES and pass rather than failing - that is the design, and it is why the count moves. This entry previously said NINE LOWER and warned that a total nobody ran is not a number to quote; somebody has now run it. CONFIRMED AT A SECOND COMMIT the same day: 2483 against **2471**, the same delta of twelve - and that pair is the stronger evidence, because the commit between them ADDED THREE checks on the dev side and all three appeared on BOTH machines. That is `gated()` doing exactly what its docstring promises: a skipped check still emits a line, so the count stays one number across both places and only the genuinely unavailable tooling moves it. Do not quote the checkout number to the data machine; that is how a correct run gets read as a failure.
 - **THE DEVELOPMENT MACHINE WAS BEHIND THE DATA MACHINE, and that is
   how a green suite here failed there.** Dev was on Python 3.10 with
   pandas 2.3; the data machine installs fresh and got pandas 3.0.5,
@@ -5411,3 +5411,47 @@ exist.
   detector that cannot see them. This file's oldest rule
   about single-seed measurements, applied to the instrument
   rather than to the thing it measures.
+
+- **THE CLOSE GAP ON THE REAL EXTRACT IS ONE PAIR, AND THIRTEEN
+  OF THE SEVENTEEN MISSES CANNOT BE REACHED (2026-11-04,
+  `close_gap.py` on run_deliverable).** 17 pairs miss close at
+  **87.6%** against an 87.9% bar - the gate needs exactly ONE
+  more pair inside 0.2. The misses decompose: token against a
+  plain column 5, CROSS-set token pair 5, ordinary numeric 4,
+  other scaffolding 3, and **ZERO bound-explained** - none of
+  this gap is the k rule, so all of it is in principle
+  fixable. But only **4 are repairable by rearrangement**: the
+  other 13 sit on token indicators and set sizes, which are
+  search machinery dropped before the file is written, and
+  nobody can rearrange a column that is not there.
+- **THE OVERSHOOT-IS-CYCLIC HYPOTHESIS WAS REFUTED BY ITS OWN
+  CONTROL.** 14 of the 17 misses are FADES and 3 are
+  OVERSHOOTS - the worst being `777_3 <- 6690_2` at source
+  +0.444, generated **+0.721**. The sweeps over-correlating
+  cyclic neighbours was the obvious suspect, and this file
+  records them doing exactly that on dense twins. Measured:
+  **ZERO of the three overshot pairs sit in a cycle**, and of
+  25 cyclic pairs that PASSED only 8 lean high, which is near
+  chance. Clean negative, and the reason to measure before
+  building.
+- **AND THE REPAIR TOOL WAS COMPARING TWO DIFFERENT
+  MEASUREMENTS.** Its `before` came from the run's recorded
+  `fidelity.json` and its `after` from a fresh `compare()` -
+  and on the real extract those count different pairs. The
+  recorded run relates **137**; the re-measure relates **57**,
+  because it reads the WRITTEN FILE, which drops the token
+  indicators the original search expanded. So the first real
+  `--close` run printed `120/137 before, 47/57 after` and a
+  verdict column over the top of it. That is two answers to
+  two questions wearing a before and an after, and this file's
+  own rule says a percentage whose denominator moved is not a
+  comparison. **Any earlier claim from this tool rests on the
+  same arrangement and should be re-read.** The unrepaired
+  frame is measured through the identical call now, both
+  denominators are printed, and a mismatch with the recorded
+  count is explained rather than left to be misread.
+- **THE FIXTURE CANNOT REACH THAT FAULT**, because it has no
+  set columns and so no expansion gap - the mutation that
+  restored the old arrangement passed. The mismatch is
+  PLANTED in the suite instead of faked away, so the branch
+  that explains it is exercised.

@@ -259,6 +259,51 @@ def main():
               "reads BROKEN",
               "close" in _o and "FIXED" in _o
               and "BROKEN" not in _o)
+        # THE DENOMINATORS MUST MATCH, or the verdict column
+        # is comparing two measurements. On the real extract
+        # the recorded run related 137 pairs and the
+        # re-measure related 57 - it reads the written file,
+        # which drops the token indicators the search
+        # expanded - so `120/137 before, 47/57 after` was two
+        # answers to two questions wearing a before and an
+        # after.
+        _pc = [ln for ln in _o.splitlines()
+               if "pairs compared:" in ln]
+        check("the tool measures BOTH sides itself and prints "
+              "the two denominators, so a mismatch cannot "
+              "hide inside a percentage: {}"
+              .format(_pc[0].strip() if _pc else "(absent)"),
+              _pc and "before" in _pc[0] and "after" in _pc[0])
+        check("...and on this run they MATCH, which is what "
+              "makes the verdicts above a comparison",
+              _pc and "DENOMINATORS DIFFER" not in _pc[0])
+
+        # THE RECORDED COUNT CAN DIFFER FROM THE RE-MEASURED
+        # ONE, AND THE TOOL MUST SAY SO.
+        #
+        # This fixture cannot produce that by itself - it has
+        # no set columns, so the pipeline's token expansion
+        # does not apply and the two counts agree. The REAL
+        # extract recorded 137 pairs and re-measures 57. The
+        # mismatch is planted here instead of faked away,
+        # because the branch that explains it is the one that
+        # stops a reader comparing 120/137 against 47/57.
+        _fk = json.loads((_rd / "fidelity.json")
+                         .read_text(encoding="utf-8"))
+        _fk["relationships"]["compared"] = 999
+        (_rd / "fidelity.json").write_text(json.dumps(_fk),
+                                           encoding="utf-8")
+        _r2 = _sp2.run(
+            [sys.executable, "scripts/repair_inversions.py",
+             str(_rd), str(_sp), "--close"],
+            capture_output=True, text=True,
+            cwd=str(ROOT), timeout=1800)
+        check("when the RECORDED pair count differs from the "
+              "re-measured one the tool says so and explains "
+              "why, rather than letting a reader compare two "
+              "different measurements",
+              "the run RECORDED 999 pairs" in _r2.stdout
+              and "different things" in _r2.stdout)
         check("...and it writes NOTHING without --apply, "
               "because a repair that costs more than it gains "
               "should not be able to land by accident",
