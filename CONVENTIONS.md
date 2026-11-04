@@ -5578,3 +5578,38 @@ exist.
   real extract names 37 because the run that wrote its
   blueprint expanded 1,827 tokens. The verification runs on
   the machine that has the shape.
+- **AND THE REST OF THE GAP IS THAT THE ENGINE NEVER EMITS
+  WHAT THE BLUEPRINT PUBLISHES.** A pair is measured on BOTH
+  tables, so a token the generated file never carries gives an
+  all-zero indicator there and the pair is skipped however the
+  source is expanded. Measured on the real extract:
+      column        published   in source   in OUTPUT
+      active_drugs        529         824         477
+      conditions         1050        2721     **800**
+      drug_routes          53          71          48
+      procedures          195        2376         169
+  **`conditions` emits exactly 800 - the engine's token cap -
+  against 1050 that cleared k**, so 250 published condition
+  tokens appear in no generated row at all. The number was
+  read back spelled ("eight zero zero") because it is the one
+  that decides. The other three sit under the cap, so their
+  smaller losses are a separate and much smaller effect.
+- **THE ROUNDING HYPOTHESIS WAS REFUTED BY ITS OWN COUNT.**
+  The independent per-token draw places `round(p x n)` rows,
+  which would erase any token whose expected count is under a
+  half - deterministically, on every seed. Measured: **ZERO**
+  published tokens round to zero on this run. A clean
+  negative, and the reason to count before fixing.
+- **SO THE TWO HALVES DISAGREE ABOUT THE VOCABULARY.** The
+  blueprint publishes everything that clears k and the engine
+  models a capped subset, so the contract promises 250 tokens
+  the output does not contain. That is this file's recurring
+  two-halves fault in a new place, and the choice between
+  fixing it by RAISING the engine's cap (better coverage,
+  more encoded width - the record has 1,601 dimensions at
+  800) and by publishing only what the engine can emit
+  (cheaper, and makes the artifact honest) is a product
+  decision with a cost, not something to settle quietly.
+  Note it also contradicts, for THIS column, the earlier
+  reading that "nearly every token clearing the k floor is
+  already in by 800".
