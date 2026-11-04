@@ -130,6 +130,61 @@ def main(argv):
             say(100.0 * (len(strong) - len(miss)) / len(strong),
                 1)))
 
+    # FADE AND OVERSHOOT ARE DIFFERENT FAULTS, and one count
+    # hides that. A relationship the generator LOST is a draw
+    # or a trim problem; one it INVENTED beyond the source is
+    # a tier over-enforcing, and this project already records
+    # the sweeps over-correlating dense neighbours (0.989
+    # against a source 0.967). Treating them as one number
+    # sends a fix at the wrong half.
+    over = [r for r in miss
+            if abs(float(r.get("generated") or 0))
+            > abs(float(r.get("source") or 0))]
+    fade = [r for r in miss if r not in over]
+    print("")
+    print("  FADED (the generator lost it):     {}"
+          .format(sayn(len(fade))))
+    print("  OVERSHOT (the generator invented): {}"
+          .format(sayn(len(over))))
+
+    # AND WHETHER THE PAIR SITS IN A CYCLE, because that is
+    # the suspect for overshoot: the refinement sweeps pull
+    # cyclic neighbours together, which helps a ring whose
+    # true adjacent correlation is high and overshoots one
+    # whose source correlation is only moderate.
+    kids = {}
+    for rel in (bp.get("relationships") or []):
+        for par in (rel.get("parents") or []):
+            kids.setdefault(par, set()).add(rel.get("child"))
+
+    def cyclic(r):
+        a_, b_ = r.get("child"), r.get("parent")
+        return (b_ in kids.get(a_, ())) and (a_ in kids.get(b_, ()))
+
+    if over:
+        n_cyc = sum(1 for r in over if cyclic(r))
+        print("    of the overshot, {} sit in a CYCLE (both "
+              "directions in the graph)".format(sayn(n_cyc)))
+        print("    their source correlations: {}".format(
+            ", ".join("{:+.2f}".format(float(r.get("source") or 0))
+                      for r in over[:8])))
+        print("    and what they became:       {}".format(
+            ", ".join("{:+.2f}".format(
+                float(r.get("generated") or 0))
+                for r in over[:8])))
+    # THE SAME QUESTION OF THE PAIRS THAT PASSED, which is the
+    # control: if cyclic pairs overshoot generally, the ones
+    # inside 0.2 should lean high too.
+    good = [r for r in strong if r not in miss]
+    gc = [r for r in good if cyclic(r)]
+    if gc:
+        lean = sum(1 for r in gc
+                   if abs(float(r.get("generated") or 0))
+                   > abs(float(r.get("source") or 0)))
+        print("    CONTROL - of {} cyclic pairs that DID pass, "
+              "{} also lean high".format(sayn(len(gc)),
+                                         sayn(lean)))
+
     groups = {}
     for r in miss:
         groups.setdefault(classify(r, bound_cols), []).append(r)
