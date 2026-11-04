@@ -543,6 +543,21 @@ def cmd_showdown(args) -> int:
         from .gui import _solver as _gui_solver
         kwargs["baseline"] = _gui_solver(args.baseline)
         kwargs["baseline_name"] = args.baseline
+    # THE COMPETITOR ARM, OFF BY DEFAULT AND SAID WHEN ON.
+    # `autosolver` is stdlib logistic regression and honest
+    # about it, so a vendor clearing it has shown nothing;
+    # --competitor adds what we could actually do, which is
+    # the bar a claim has to clear. Default off because it
+    # trains three model families per tier and an operator
+    # should choose to pay for that.
+    if getattr(args, "competitor", None):
+        from .gui import _solver as _gui_solver
+        try:
+            kwargs["competitor"] = _gui_solver(args.competitor)
+        except ValueError as e:
+            print("STOPPED: {}".format(e), file=sys.stderr)
+            return 2
+        kwargs["competitor_name"] = args.competitor
     result = run_showdown(camp, fn,
                           vendor_name=args.name or args.solver,
                           **kwargs)
@@ -553,6 +568,9 @@ def cmd_showdown(args) -> int:
             "vendor": result.vendor_name,
             "tiers": [{"tier": t.tier, "ceiling": t.ceiling,
                        "baseline": t.baseline_auroc,
+                       "competitor": t.competitor_auroc,
+                       "competitor_name": t.competitor_name,
+                       "verdict": t.verdict,
                        "vendor": t.vendor_auroc,
                        "passed": t.vendor_passed}
                       for t in result.tiers],
@@ -1116,6 +1134,15 @@ def main(argv=None) -> int:
     p.add_argument("--json-out", default="")
     p.add_argument("--baseline", default="",
                    help="baseline solver (registry name or pkg.mod:fn); default autosolver")
+    p.add_argument("--competitor", default="",
+                   help="also run a COMPETITOR arm, e.g. "
+                        "automl. The default baseline is "
+                        "stdlib logistic regression and says "
+                        "so, which a vendor can clear without "
+                        "showing anything; the competitor is "
+                        "what we could actually do. Off by "
+                        "default because it trains several "
+                        "model families per tier")
     p.set_defaults(fn=cmd_showdown)
 
     p = sub.add_parser("trials",

@@ -248,6 +248,56 @@ def main():
           any("competitor:" in ln for ln in lines)
           and any("tried" in ln for ln in lines))
 
+    # ---- THE SHOWDOWN'S FOURTH ARM
+    #
+    # A vendor clearing `autosolver` has shown nothing, so the
+    # verdict is placed against the COMPETITOR where one ran.
+    # The three placements are the product statement and each
+    # is asserted, because a vendor between the floor and us
+    # must not round up to a pass.
+    from synthkit.autosolver import ShowdownResult, ShowdownTier
+
+    def tier(comp, vend):
+        return ShowdownTier(tier="t", ceiling=0.90,
+                            baseline_auroc=0.62,
+                            vendor_auroc=vend,
+                            vendor_passed=True,
+                            competitor_auroc=comp,
+                            competitor_name="automl")
+
+    check("a vendor ABOVE our competitor is told its claim is "
+          "worth something",
+          "worth something" in tier(0.80, 0.85).verdict)
+    check("...a vendor BETWEEN the stdlib floor and our "
+          "competitor is named as exactly that, rather than "
+          "rounded up to beating a baseline nobody should be "
+          "impressed by",
+          "between the stdlib floor" in tier(0.80, 0.70).verdict
+          and "worse than us" in tier(0.80, 0.70).verdict)
+    check("...and a vendor below the floor still says so",
+          "loses to a stdlib baseline"
+          in tier(0.80, 0.55).verdict)
+    check("...while a tier where NO competitor ran keeps the "
+          "old wording - absent is not the same fact as "
+          "scoring zero, and an old result must still load",
+          tier(None, 0.70).competitor_auroc is None
+          and "baseline" in tier(None, 0.70).verdict)
+
+    res = ShowdownResult(title="t", vendor_name="acme",
+                         tiers=[tier(0.80, 0.70)])
+    txt = res.format_text()
+    # THE TIER LINE, not the whole document - the header
+    # names the vendor first, so searching the text found
+    # "acme" before "competitor" and failed a line that was
+    # already correct.
+    _tl = txt.splitlines()[-1]
+    check("the printed line puts the competitor BETWEEN the "
+          "floor and the vendor, where the eye goes - at the "
+          "end the floor would keep reading as the thing to "
+          "beat: {}".format(txt.splitlines()[-1].strip()[:70]),
+          _tl.index("competitor") < _tl.index("acme")
+          and _tl.index("floor") < _tl.index("competitor"))
+
     print()
     if FAIL:
         print("{} FAILED".format(FAIL))

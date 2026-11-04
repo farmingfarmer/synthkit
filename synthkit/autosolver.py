@@ -419,9 +419,32 @@ class ShowdownTier:
     baseline_auroc: float
     vendor_auroc: float
     vendor_passed: bool
+    # THE FOURTH ARM, OPTIONAL SO OLD RESULTS STILL LOAD.
+    # None means the competitor did not run, which is a
+    # different fact from it scoring zero - the
+    # absent-is-not-known-to-be-nothing rule this file already
+    # applies to `id_column` and to set emptiness.
+    competitor_auroc: float = None
+    competitor_name: str = ""
 
     @property
     def verdict(self) -> str:
+        # BEATING THE FLOOR IS NOT THE QUESTION ANY MORE.
+        # `autosolver` is stdlib logistic regression and says
+        # so, so a vendor clearing it has shown nothing. Where
+        # a competitor ran, the verdict is placed against
+        # WHAT WE COULD ACTUALLY DO, and a vendor between the
+        # two is named as exactly that rather than rounded up
+        # to a pass.
+        if self.competitor_auroc is not None:
+            if self.vendor_auroc > self.competitor_auroc + 1e-9:
+                return ("vendor beats our own competitor - the "
+                        "claim is worth something")
+            if self.vendor_auroc < self.baseline_auroc - 1e-9:
+                return "vendor loses to a stdlib baseline"
+            return ("vendor sits between the stdlib floor and "
+                    "our competitor - better than nothing, "
+                    "worse than us")
         if abs(self.vendor_auroc - self.baseline_auroc) < 1e-9:
             return "vendor matches the baseline"
         if self.vendor_auroc > self.baseline_auroc:
@@ -441,10 +464,17 @@ class ShowdownResult:
             self.vendor_name, self.baseline_name,
             self.title)]
         for t in self.tiers:
+            # THE COMPETITOR SITS BETWEEN THE FLOOR AND THE
+            # VENDOR, where a reader's eye goes. Printing it
+            # at the end would let the floor keep reading as
+            # the thing to beat.
+            mid = ("competitor {:.3f} / ".format(
+                t.competitor_auroc)
+                if t.competitor_auroc is not None else "")
             lines.append(
-                "  {:<14} ceiling {:.3f} / baseline {:.3f} / "
-                "{} {:.3f}  [bar: {}] {}".format(
-                    t.tier, t.ceiling, t.baseline_auroc,
+                "  {:<14} ceiling {:.3f} / floor {:.3f} / "
+                "{}{} {:.3f}  [bar: {}] {}".format(
+                    t.tier, t.ceiling, t.baseline_auroc, mid,
                     self.vendor_name, t.vendor_auroc,
                     "PASS" if t.vendor_passed else "FAIL",
                     t.verdict))
@@ -602,7 +632,10 @@ def run_showdown(campaign, vendor: Callable,
                  vendor_name: str = "vendor",
                  train_seed_offset: int = 1000,
                  baseline: Optional[Callable] = None,
-                 baseline_name: str = "synthkit baseline") -> ShowdownResult:
+                 baseline_name: str = "synthkit baseline",
+                 competitor: Optional[Callable] = None,
+                 competitor_name: str = "synthkit competitor"
+                 ) -> ShowdownResult:
     from .campaign import _judge
     from .tableeval import (evaluate_prediction,
                             resolve_prediction_metric)
@@ -634,6 +667,14 @@ def run_showdown(campaign, vendor: Callable,
         v_scores = list(vendor(train_rows, train_labels,
                                test_rows))
         b_scores = baseline(train_rows, train_labels, test_rows)
+        c_auroc = None
+        if competitor is not None:
+            c_scores = competitor(train_rows, train_labels,
+                                  test_rows)
+            c_rep = evaluate_prediction(test_bp, outcome,
+                                        c_scores,
+                                        competitor_name)
+            c_auroc = round(c_rep.auroc, 4)
         v_rep = evaluate_prediction(test_bp, outcome, v_scores,
                                     vendor_name)
         b_rep = evaluate_prediction(test_bp, outcome, b_scores,
@@ -646,6 +687,9 @@ def run_showdown(campaign, vendor: Callable,
             baseline_auroc=round(b_rep.auroc, 4),
             vendor_auroc=round(v_rep.auroc, 4),
             vendor_passed=tr.passed,
+            competitor_auroc=c_auroc,
+            competitor_name=(competitor_name
+                             if competitor is not None else ""),
         ))
     return ShowdownResult(title=campaign.title,
                           vendor_name=vendor_name,
