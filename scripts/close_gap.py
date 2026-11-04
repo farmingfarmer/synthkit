@@ -174,10 +174,13 @@ def surface(run, src_path):
                             out.add(t)
                 return out
             st, gt = toks(df), toks(g)
+            # THE OUTPUT COUNT CROSSES IN WORDS. It is the
+            # number that decides whether a cap is binding,
+            # and the digits channel off that screen turns a
+            # 0 into an @.
             print("      {:<22} published {:>5}   in source "
-                  "{:>5}   in OUTPUT {:>5}".format(
-                      c, sayn(pub[c]).split()[0],
-                      len(st), len(gt)))
+                  "{:>5}   in OUTPUT {}".format(
+                      c, pub[c], len(st), sayn(len(gt))))
 
         # AND WHY A PUBLISHED TOKEN CAN BE ABSENT.
         #
