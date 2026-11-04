@@ -404,6 +404,38 @@ def main(argv=None):
         encoding="utf-8"))
     src = read_frame(a.src)
     gen = read_frame(str(run / "generated.csv"))
+
+    # THE SOURCE MUST BE THE ONE THIS RUN WAS BUILT FROM.
+    #
+    # Nothing checked it, and I spent a night measuring
+    # run_deliverable against a DIFFERENT extract: the file I
+    # passed has 23,092 rows and the run recorded 55,428. Every
+    # before/after in that session compared a generated file
+    # against a source that never produced it, and the numbers
+    # looked perfectly reasonable - which is the whole danger.
+    # The run already records what it read; comparing against
+    # it costs nothing and refuses the mistake outright.
+    prov = run / "provenance.json"
+    if prov.exists():
+        try:
+            _p = json.loads(prov.read_text(encoding="utf-8"))
+        except ValueError:
+            _p = {}
+        _want = (_p.get("rows_read")
+                 or ((_p.get("source") or {}).get("rows_read")
+                     if isinstance(_p.get("source"), dict)
+                     else None))
+        if _want and int(_want) != len(src):
+            print("STOPPED: {} has {} rows but this run "
+                  "recorded reading {}. That is not the "
+                  "extract this run was built from, and "
+                  "comparing a generated file against a "
+                  "source that never produced it gives "
+                  "numbers that look perfectly reasonable "
+                  "and mean nothing."
+                  .format(Path(a.src).name, len(src),
+                          int(_want)), file=sys.stderr)
+            return 2
     targets = None
     if a.close:
         drifted, absent = _drifted_pairs(

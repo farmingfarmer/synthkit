@@ -4,7 +4,7 @@ Synthetic clinical data generator and model-evaluation instrument. Core rule: le
 
 ## Verify before claiming
 
-- Run `python scripts/run_all_smokes.py` before claiming anything works. Expect **90 suites, 2779 checks**, ALL GREEN **on a checkout** (measured 2026-11-03). Off a zipball extract - which is what the data machine runs - the total is TWELVE LOWER, and the gap is now MEASURED rather than estimated (2026-11-02: 2480 on a checkout against **2468** on the data machine at the same commit, ALL GREEN both ways). It decomposes exactly, with no residue: nine in `smoke_buildid`, which needs git to test the archive path; one for `node`, absent, so the full JS parse cannot run; two for Chrome, absent, so the in-browser load check cannot run. All three report NOTES and pass rather than failing - that is the design, and it is why the count moves. This entry previously said NINE LOWER and warned that a total nobody ran is not a number to quote; somebody has now run it. CONFIRMED AT A SECOND COMMIT the same day: 2483 against **2471**, the same delta of twelve - and that pair is the stronger evidence, because the commit between them ADDED THREE checks on the dev side and all three appeared on BOTH machines. That is `gated()` doing exactly what its docstring promises: a skipped check still emits a line, so the count stays one number across both places and only the genuinely unavailable tooling moves it. Do not quote the checkout number to the data machine; that is how a correct run gets read as a failure.
+- Run `python scripts/run_all_smokes.py` before claiming anything works. Expect **90 suites, 2780 checks**, ALL GREEN **on a checkout** (measured 2026-11-03). Off a zipball extract - which is what the data machine runs - the total is TWELVE LOWER, and the gap is now MEASURED rather than estimated (2026-11-02: 2480 on a checkout against **2468** on the data machine at the same commit, ALL GREEN both ways). It decomposes exactly, with no residue: nine in `smoke_buildid`, which needs git to test the archive path; one for `node`, absent, so the full JS parse cannot run; two for Chrome, absent, so the in-browser load check cannot run. All three report NOTES and pass rather than failing - that is the design, and it is why the count moves. This entry previously said NINE LOWER and warned that a total nobody ran is not a number to quote; somebody has now run it. CONFIRMED AT A SECOND COMMIT the same day: 2483 against **2471**, the same delta of twelve - and that pair is the stronger evidence, because the commit between them ADDED THREE checks on the dev side and all three appeared on BOTH machines. That is `gated()` doing exactly what its docstring promises: a skipped check still emits a line, so the count stays one number across both places and only the genuinely unavailable tooling moves it. Do not quote the checkout number to the data machine; that is how a correct run gets read as a failure.
 - **THE DEVELOPMENT MACHINE WAS BEHIND THE DATA MACHINE, and that is
   how a green suite here failed there.** Dev was on Python 3.10 with
   pandas 2.3; the data machine installs fresh and got pandas 3.0.5,
@@ -5716,3 +5716,42 @@ exist.
   raised-cap run must be paired with a CONTROL ARM AT THE
   SAME SEED, run by the same hand, rather than compared
   against the deliverable. That pair is queued, not yet run.
+
+- **I MEASURED A RUN AGAINST AN EXTRACT THAT NEVER PRODUCED
+  IT, FOR A WHOLE SESSION, AND EVERY NUMBER LOOKED
+  REASONABLE (2026-11-04).** `yesha_tidy\tidy_visits.csv` has
+  **23,092 rows**; the run of record reports reading
+  **55,428**. Nothing compared the two, so every
+  `repair_inversions --close` and `close_gap --surface`
+  invocation that night compared `run_deliverable`'s
+  generated file against a DIFFERENT, smaller extract. The
+  outputs were plausible in every respect - that is the
+  danger, and it is the oldest shape in this file wearing a
+  file path.
+- **WHAT FALLS, AND WHAT DOES NOT.** The source-dependent
+  numbers are withdrawn: the re-measured pair counts (57, 69),
+  the "37 indicators cannot be rebuilt" count, and every
+  before/after gate column from those repair runs. What
+  STANDS is what came from the run's own artifacts: the
+  close-gap attribution (17 misses at **87.6%**, zero
+  bound-explained, 4 repairable, 14 fades against 3
+  overshoots, the mechanism groups) read `fidelity.json`
+  alone; and "**conditions publishes 1,050 and the output
+  carries exactly 800**" took one number from the blueprint
+  and the other from the generated file, neither from the
+  source. State which artifact a number came from, or a
+  wrong file silently reclassifies all of them.
+- **THE GUARD IS THE ROW COUNT THE RUN ALREADY RECORDED.**
+  Both tools now read `provenance.json` and REFUSE a source
+  whose row count differs, naming both numbers. It costs
+  nothing and it would have caught this on the first
+  command. Watched red against a planted mismatch.
+- **AND THE ENGINE'S k SCREEN IS NOT THE BLUEPRINT'S.**
+  Measured on the smaller extract while chasing the cap: of
+  2,543 `conditions` tokens found, **288 clear k and 288 are
+  modeled** - the cap of 800 does not bind there at all. The
+  blueprint for the 55,428-row run publishes 1,050. So the
+  two halves screen on different populations (the engine on
+  its 85% training split), and "how many tokens clear k" is
+  not one number. The cap question has to be re-asked on the
+  right file.

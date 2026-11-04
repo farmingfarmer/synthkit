@@ -227,6 +227,30 @@ def main():
             capture_output=True, text=True,
             cwd=str(ROOT), timeout=1800)
         _o = _r.stdout
+        # THE SOURCE MUST BE THE ONE THAT PRODUCED THE RUN,
+        # and nothing checked it. A whole night of measurement
+        # went against a different extract - 23,092 rows
+        # passed where the run had recorded 55,428 - and every
+        # before/after compared a generated file against a
+        # source that never produced it. The numbers looked
+        # perfectly reasonable, which is the danger.
+        (_rd / "provenance.json").write_text(
+            json.dumps({"rows_read": 999999}), encoding="utf-8")
+        _rw = _sp2.run(
+            [sys.executable, "scripts/repair_inversions.py",
+             str(_rd), str(_sp), "--close"],
+            capture_output=True, text=True,
+            cwd=str(ROOT), timeout=1800)
+        check("a source whose row count does NOT match what "
+              "the run recorded is REFUSED, naming both "
+              "numbers - comparing against a source that "
+              "never produced the output gives numbers that "
+              "look reasonable and mean nothing",
+              _rw.returncode != 0
+              and "recorded reading 999999"
+              in (_rw.stdout + _rw.stderr))
+        (_rd / "provenance.json").unlink()
+
         check("--close finds the drifted pairs and aims each at "
               "the correlation the SOURCE has, rather than at "
               "zero or a guess",

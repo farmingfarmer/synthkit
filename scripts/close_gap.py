@@ -103,6 +103,29 @@ def surface(run, src_path):
                      .read_text(encoding="utf-8"))
     df = pd.read_csv(src_path, dtype=str, keep_default_na=False,
                      encoding="utf-8-sig", low_memory=False)
+    # THE SOURCE MUST BE THE ONE THIS RUN WAS BUILT FROM.
+    # Nothing checked it, and a whole night of measurement
+    # went against a different extract - 23,092 rows passed
+    # where the run had recorded 55,428 - producing numbers
+    # that looked perfectly reasonable and meant nothing.
+    prov = Path(run) / "provenance.json"
+    if prov.exists():
+        try:
+            _p = json.loads(prov.read_text(encoding="utf-8"))
+        except ValueError:
+            _p = {}
+        _want = _p.get("rows_read")
+        if isinstance(_p.get("source"), dict):
+            _want = _want or _p["source"].get("rows_read")
+        if _want and int(_want) != len(df):
+            print("STOP: {} has {} rows but this run recorded "
+                  "reading {}. That is not the extract this "
+                  "run was built from - every number below "
+                  "would be a comparison against a source "
+                  "that never produced this output."
+                  .format(Path(src_path).name, len(df),
+                          int(_want)))
+            return 2
     gb = bp.get("id_column") or bp.get("group_by") or "person_id"
     X = prepare(df, gb, ordinals=bp.get("ordinals") or None)[0]
     made = {c for c in X.columns if _S.HAS in c}
