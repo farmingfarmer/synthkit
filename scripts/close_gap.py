@@ -77,11 +77,101 @@ def classify(row, bound_cols):
     return "ordinary numeric pair"
 
 
+def surface(run, src_path):
+    """Why the gate counts more pairs than a re-measure does.
+
+    THE TWO SURFACES ARE NOT THE SAME, and until this was
+    measured the difference was a hypothesis. The gate's
+    `fidelity.json` was written by a run that expanded set
+    tokens into `__has__` indicators with whatever cap that
+    run was given; any later `compare()` re-derives those
+    indicators through `prepare()`, which applies the module
+    constant `EXPAND_CAP`. A pair whose indicator cannot be
+    re-derived is SKIPPED, so the re-measure relates fewer
+    pairs - and comparing one percentage against the other is
+    comparing two questions.
+
+    This counts both, so the claim rests on numbers rather
+    than on reading the code.
+    """
+    import pandas as pd
+    import synthkit.sets as _S
+    from synthkit.discover import prepare
+    bp = json.loads((Path(run) / "blueprint.json")
+                    .read_text(encoding="utf-8"))
+    fid = json.loads((Path(run) / "fidelity.json")
+                     .read_text(encoding="utf-8"))
+    df = pd.read_csv(src_path, dtype=str, keep_default_na=False,
+                     encoding="utf-8-sig", low_memory=False)
+    gb = bp.get("id_column") or bp.get("group_by") or "person_id"
+    X = prepare(df, gb, ordinals=bp.get("ordinals") or None)[0]
+    made = {c for c in X.columns if _S.HAS in c}
+
+    wanted = set()
+    for rel in (bp.get("relationships") or []):
+        ch = rel.get("child")
+        if ch and _S.HAS in str(ch):
+            wanted.add(str(ch))
+        for par in (rel.get("parents") or []):
+            if _S.HAS in str(par):
+                wanted.add(str(par))
+
+    pub = {}
+    for c, v in (bp.get("columns") or {}).items():
+        mg = v.get("marginal") or {}
+        if (mg.get("type") or "") == "list":
+            pub[c] = len(mg.get("tokens") or [])
+
+    print("WHY THE TWO SURFACES DIFFER  {}".format(
+        Path(run).name))
+    print("  the run RECORDED {} related pairs".format(
+        (fid.get("relationships") or {}).get("compared")))
+    print("  a re-measure through prepare() rebuilds {} token "
+          "indicator column(s)".format(sayn(len(made))))
+    print("  the blueprint's relationships NAME {} token "
+          "indicator column(s)".format(sayn(len(wanted))))
+    missing = sorted(wanted - made)
+    print("  of those, {} CANNOT be rebuilt, so every pair "
+          "touching them is skipped".format(sayn(len(missing))))
+    print("  EXPAND_CAP is {} per set column, and the "
+          "blueprint published:".format(sayn(_S.EXPAND_CAP)))
+    for c in sorted(pub):
+        print("      {:<24} {} token(s) published".format(
+            c, sayn(pub[c])))
+    if missing:
+        print("  examples that cannot be rebuilt:")
+        for m in missing[:6]:
+            print("      {}".format(m))
+    # THE CONCLUSION, STATED ONLY IF THE NUMBERS SUPPORT IT.
+    if missing and len(made) <= _S.EXPAND_CAP * max(1, len(pub)):
+        print("")
+        print("  ESTABLISHED: the re-measure rebuilds at most "
+              "{} indicators per set column because "
+              "`prepare()` applies EXPAND_CAP, while the run "
+              "that wrote the blueprint expanded more. The "
+              "two percentages are over DIFFERENT pair sets "
+              "and must not be compared.".format(
+                  sayn(_S.EXPAND_CAP)))
+    elif not missing:
+        print("")
+        print("  The blueprint names no indicator that cannot "
+              "be rebuilt, so the cap is NOT the cause here - "
+              "whatever the difference is, it is somewhere "
+              "else.")
+    return 0
+
+
 def main(argv):
     if not argv:
         print(__doc__)
         print("usage: close_gap.py RUNDIR")
         return 2
+    if "--surface" in argv:
+        rest = [x for x in argv if x != "--surface"]
+        if len(rest) < 2:
+            print("usage: close_gap.py RUNDIR --surface SRC.csv")
+            return 2
+        return surface(rest[0], rest[1])
     run = Path(argv[0])
     fid_p = run / "fidelity.json"
     bp_p = run / "blueprint.json"
