@@ -356,12 +356,12 @@ A competitor worth the name: est. 2 weeks, after M1.
 
 | Milestone | Agreed | Status 2026-09-01 |
 |---|---|---|
-| M0 fidelity core | Aug 29 | **5/6 criteria**; `close` 76.5% vs 87.9% is the whole gap |
+| M0 fidelity core | Aug 29 | `close` **87.6% vs 87.9% - ONE pair short**, measured and attributed 2026-11-04: 17 misses, zero bound-explained, 4 repairable. INVERTED cleared. |
 | M1 evaluation loop | Sep 12 | components done, assembled run not started |
 | M2 structured PHI | Sep 26 | not started; holds if begun within ~a week |
-| M3 relational intake | Oct 17 | first-engine module exists; fitted path single-table |
+| M3 relational intake | Oct 17 | **detection DONE 2026-11-04** (`synthkit schema`, 3 fixtures, keys from the values, integrity reproduced); FITTING the linked tables together remains |
 | M4 pattern ceiling | Oct 31 | 12/13 forest; ring survival is the open research item |
-| M5 dials + sign-off | Nov 14 | dials live; verification pass + rollup artifact remain |
+| M5 dials + sign-off | Nov 14 | **DONE 2026-11-03**: per-pattern dials over every kind the inventory names, and the dial matrix run on the REAL blueprint |
 | M6 free text | Dec 5 | decision gate at M2, intentionally unpromised |
 
 Projected completion, carrying the observed ~1-week M0 slip through
@@ -369,6 +369,18 @@ the near milestones and holding the far ones: **without free text,
 mid-November; with free text (if M2 says yes), mid-December.** The
 original plan's estimate-quality caveat stands in both directions:
 the last runtime estimate on this project was wrong by 30x, upward.
+
+## Deployment — added 2026-11-04
+
+Not one of the eight goals, and needed before any of them ship
+to a hospital: `synthkit batch`, `synthkit/cloud.py`, a
+`Dockerfile` and `docs/AWS.md`. The compute goes to the data —
+`fetch_source` brings a source IN and there is no function that
+sends one anywhere. Only allow-listed artifacts leave; the
+source extract and `key.csv` are both refused by name and the
+list cannot be extended by a flag. **Not run against a live AWS
+account** — that is the next thing it needs, and it is stated in
+the module, the doc and the tool's own output.
 
 ## Weighted overall
 
