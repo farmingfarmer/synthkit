@@ -400,9 +400,34 @@ def main():
                                             encoding="utf-8")
         _sp3 = _rd3 / "src.csv"
         _sdf.to_csv(_sp3, index=False)
-        _r3 = _sp2.run(
+        # THE SET ROUTE IS OFF BY DEFAULT, and the default is
+        # checked first: on the REAL extract it reached all
+        # five token misses and took close from 46/57 to
+        # 32/57, because moving one set moves every other
+        # token on it and a real set column carries hundreds
+        # where this fixture's carries eight. The capability
+        # is kept behind a flag with that measurement in its
+        # help text, and the default SAYS what it did not do.
+        _r3d = _sp2.run(
             [sys.executable, "scripts/repair_inversions.py",
              str(_rd3), str(_sp3), "--close"],
+            capture_output=True, text=True,
+            cwd=str(ROOT), timeout=1800)
+        check("by DEFAULT the set route is not taken, and the "
+              "run says so with the measurement that decided "
+              "it - a capability that was harmful on real "
+              "data must not be the default just because a "
+              "fixture liked it",
+              # THE OBSERVABLE, not the message. Asserting
+              # the explanation passed while the route ran
+              # anyway - the sentence prints from a separate
+              # branch. What matters is that no set MOVED.
+              "COULD be reached" in _r3d.stdout
+              and "46/57 to 32/57" in _r3d.stdout
+              and "moved against" not in _r3d.stdout)
+        _r3 = _sp2.run(
+            [sys.executable, "scripts/repair_inversions.py",
+             str(_rd3), str(_sp3), "--close", "--via-sets"],
             capture_output=True, text=True,
             cwd=str(ROOT), timeout=1800)
         _o3 = _r3.stdout

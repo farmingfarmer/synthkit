@@ -363,6 +363,21 @@ def main(argv=None):
                          "cost others - which is not a "
                          "hypothesis, it is what two reverted "
                          "fidelity tiers did.")
+    ap.add_argument("--via-sets", action="store_true",
+                    help="also repair close misses on TOKEN "
+                         "INDICATORS by rearranging the set "
+                         "column they came from. OFF by "
+                         "default because it was MEASURED "
+                         "HARMFUL on the real extract: it "
+                         "reached all 5 token misses and took "
+                         "close from 46/57 to 32/57, because "
+                         "moving one set moves every other "
+                         "token on it and a real set column "
+                         "carries hundreds. On a narrow set "
+                         "it works - a fixture with 8 tokens "
+                         "went 5/7 to 7/7 - so the capability "
+                         "stays, behind a flag, with the "
+                         "whole gate re-measured either way.")
     ap.add_argument("--max", type=int, default=0,
                     help="repair at most N pairs, worst drift "
                          "first. The close bar on the real "
@@ -411,8 +426,24 @@ def main(argv=None):
         # The indicator is not in the file; the set column it
         # came from is, and moving the whole set string moves
         # the indicator with it.
-        toks = _token_misses(fid, set(gen.columns),
-                             limit=a.max)
+        toks = (_token_misses(fid, set(gen.columns),
+                              limit=a.max)
+                if a.via_sets else [])
+        if not a.via_sets:
+            _would = _token_misses(fid, set(gen.columns))
+            if _would:
+                print("")
+                print("  {} further miss(es) are on a TOKEN "
+                      "INDICATOR and COULD be reached by "
+                      "rearranging the set column they came "
+                      "from - not done, because that was "
+                      "measured harmful here: it moves every "
+                      "other token on the same set, and on "
+                      "the real extract it took close from "
+                      "46/57 to 32/57. Pass --via-sets to try "
+                      "it anyway; the whole gate is "
+                      "re-measured either way."
+                      .format(len(_would)))
         if toks:
             print("")
             print("  and {} miss(es) on a TOKEN INDICATOR that "

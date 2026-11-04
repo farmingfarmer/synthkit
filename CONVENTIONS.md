@@ -4,7 +4,7 @@ Synthetic clinical data generator and model-evaluation instrument. Core rule: le
 
 ## Verify before claiming
 
-- Run `python scripts/run_all_smokes.py` before claiming anything works. Expect **89 suites, 2743 checks**, ALL GREEN **on a checkout** (measured 2026-11-03). Off a zipball extract - which is what the data machine runs - the total is TWELVE LOWER, and the gap is now MEASURED rather than estimated (2026-11-02: 2480 on a checkout against **2468** on the data machine at the same commit, ALL GREEN both ways). It decomposes exactly, with no residue: nine in `smoke_buildid`, which needs git to test the archive path; one for `node`, absent, so the full JS parse cannot run; two for Chrome, absent, so the in-browser load check cannot run. All three report NOTES and pass rather than failing - that is the design, and it is why the count moves. This entry previously said NINE LOWER and warned that a total nobody ran is not a number to quote; somebody has now run it. CONFIRMED AT A SECOND COMMIT the same day: 2483 against **2471**, the same delta of twelve - and that pair is the stronger evidence, because the commit between them ADDED THREE checks on the dev side and all three appeared on BOTH machines. That is `gated()` doing exactly what its docstring promises: a skipped check still emits a line, so the count stays one number across both places and only the genuinely unavailable tooling moves it. Do not quote the checkout number to the data machine; that is how a correct run gets read as a failure.
+- Run `python scripts/run_all_smokes.py` before claiming anything works. Expect **89 suites, 2744 checks**, ALL GREEN **on a checkout** (measured 2026-11-03). Off a zipball extract - which is what the data machine runs - the total is TWELVE LOWER, and the gap is now MEASURED rather than estimated (2026-11-02: 2480 on a checkout against **2468** on the data machine at the same commit, ALL GREEN both ways). It decomposes exactly, with no residue: nine in `smoke_buildid`, which needs git to test the archive path; one for `node`, absent, so the full JS parse cannot run; two for Chrome, absent, so the in-browser load check cannot run. All three report NOTES and pass rather than failing - that is the design, and it is why the count moves. This entry previously said NINE LOWER and warned that a total nobody ran is not a number to quote; somebody has now run it. CONFIRMED AT A SECOND COMMIT the same day: 2483 against **2471**, the same delta of twelve - and that pair is the stronger evidence, because the commit between them ADDED THREE checks on the dev side and all three appeared on BOTH machines. That is `gated()` doing exactly what its docstring promises: a skipped check still emits a line, so the count stays one number across both places and only the genuinely unavailable tooling moves it. Do not quote the checkout number to the data machine; that is how a correct run gets read as a failure.
 - **THE DEVELOPMENT MACHINE WAS BEHIND THE DATA MACHINE, and that is
   how a green suite here failed there.** Dev was on Python 3.10 with
   pandas 2.3; the data machine installs fresh and got pandas 3.0.5,
@@ -5513,3 +5513,25 @@ exist.
   direction **5/7 to 7/7**, with `set token shares` unmoved
   and nothing BROKEN. The size partner travels with the set,
   so the declared identity survives a repair aimed at a token.
+- **AND ON THE REAL EXTRACT THE SET ROUTE WAS MEASURED
+  HARMFUL, SO IT IS OFF BY DEFAULT.** It reached all 5 token
+  misses and took close from **46/57 to 32/57**, with
+  direction 57/57 to 56/57. Moving one set moves every OTHER
+  token on it, and a real set column carries hundreds where
+  the fixture's carries eight - five repairs cost about
+  fourteen pairs. The fixture said 5/7 to 7/7 and the extract
+  said the opposite, which is the measured-at-one-scale
+  lesson in a new place. The capability stays behind
+  `--via-sets` with that measurement in its help text, the
+  default SAYS what it did not do and why, and the whole gate
+  is re-measured either way. **The whole-gate re-measure is
+  what caught it** - a repair judged only on the criterion it
+  aimed at would have shipped a 24-point regression as a fix.
+- **TWICE IN ONE NIGHT A CHECK ASSERTED THE MESSAGE INSTEAD OF
+  THE DECISION.** The default-off check looked for the
+  sentence explaining that the set route was skipped - and
+  that sentence prints from a SEPARATE branch, so a mutation
+  turning the route back on passed while the sets moved
+  anyway. The observable is that no set MOVED, and asserting
+  that catches it. Same fault as the bench's refusal check
+  earlier.
