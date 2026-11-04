@@ -68,6 +68,51 @@ def _inverted_pairs(fid):
     return out
 
 
+def _drifted_pairs(fid, gen_cols, limit=0):
+    """The pairs this run misses `close` on, as (child, parent).
+
+    Read from the run's own record, like the inverted list -
+    recomputing "which pairs drifted" in a second place is how
+    a tool and the gate come to disagree.
+
+    TWO THINGS ARE REFUSED HERE, LOUDLY.
+
+    A pair whose columns are not in generated.csv cannot be
+    repaired: the `__has__` token indicators and the set-size
+    columns are search machinery and are DROPPED before the
+    file is written. Nobody can rearrange a column that is not
+    there, and this project has already had a verdict counting
+    exactly such a column. They are skipped WITH A COUNT, not
+    quietly dropped.
+
+    And the target is the SOURCE correlation, not zero and not
+    a guess - the whole point is to put back what generation
+    lost, which is a quantity the run already measured.
+    """
+    rel = fid.get("relationships") or {}
+    out, absent = [], []
+    for r in (rel.get("pairs") or []):
+        if r.get("kind") != "numeric":
+            continue
+        srcv = float(r.get("source") or 0.0)
+        if abs(srcv) < 0.1:
+            continue
+        if abs(float(r.get("delta") or 0.0)) <= 0.2:
+            continue
+        c, p = str(r.get("child")), str(r.get("parent"))
+        if c not in gen_cols or p not in gen_cols:
+            absent.append((c, p))
+            continue
+        out.append((c, p, srcv,
+                    abs(float(r.get("delta") or 0.0))))
+    # WORST FIRST, so a capped run repairs the pairs with the
+    # most to give back rather than whichever came first.
+    out.sort(key=lambda t: -t[3])
+    if limit:
+        out = out[:limit]
+    return out, absent
+
+
 def repair(src, gen, pairs, seed=0, floor=COUPLING_FLOOR,
            targets=None, hold_others=True, record=None):
     """Rearrange each pair's CHILD to hit a set of rank
@@ -255,6 +300,22 @@ def main(argv=None):
     ap.add_argument("src")
     ap.add_argument("--group-by", default="person_id")
     ap.add_argument("--seed", type=int, default=0)
+    ap.add_argument("--close", action="store_true",
+                    help="repair the pairs that miss the CLOSE "
+                         "criterion instead of the inverted "
+                         "ones, each aimed at the correlation "
+                         "the SOURCE has. The whole gate is "
+                         "re-measured either way, because a "
+                         "repair aimed at one criterion can "
+                         "cost others - which is not a "
+                         "hypothesis, it is what two reverted "
+                         "fidelity tiers did.")
+    ap.add_argument("--max", type=int, default=0,
+                    help="repair at most N pairs, worst drift "
+                         "first. The close bar on the real "
+                         "extract needed ONE more pair, so a "
+                         "capped run is the cheapest thing "
+                         "that could move it.")
     ap.add_argument("--apply", action="store_true",
                     help="write generated_repaired.csv and "
                          "fidelity_repaired.json. Without this "
@@ -273,17 +334,44 @@ def main(argv=None):
         encoding="utf-8"))
     bp = json.loads((run / "blueprint.json").read_text(
         encoding="utf-8"))
-    pairs = _inverted_pairs(fid)
-    print("inverted pairs recorded by this run: {}".format(len(pairs)))
-    for c, p in pairs:
-        print("  {} <- {}".format(c, p))
-    if not pairs:
-        print("nothing to repair - the gate reports no inversion")
-        return 0
-
     src = read_frame(a.src)
     gen = read_frame(str(run / "generated.csv"))
-    rep, notes = repair(src, gen, pairs, seed=a.seed)
+    targets = None
+    if a.close:
+        drifted, absent = _drifted_pairs(
+            fid, set(gen.columns), limit=a.max)
+        print("pairs this run misses CLOSE on and that are "
+              "REPAIRABLE: {}".format(len(drifted)))
+        for c, p, want, d in drifted:
+            print("  {:<28} <- {:<28} source {:+.3f}  "
+                  "drift {:.3f}".format(c[:28], p[:28], want, d))
+        if absent:
+            # SAID, NOT SWALLOWED. A silent skip would make the
+            # repairable count read as the whole gap.
+            print("  ...and {} more miss close on columns that "
+                  "are NOT in generated.csv - token indicators "
+                  "and set sizes are search machinery, dropped "
+                  "before the file is written, so no "
+                  "rearrangement can reach them"
+                  .format(len(absent)))
+        if not drifted:
+            print("nothing repairable - every close miss is on "
+                  "a column the written file does not carry")
+            return 0
+        pairs = [(c, p) for c, p, _w, _d in drifted]
+        targets = dict(((c, p), w) for c, p, w, _d in drifted)
+    else:
+        pairs = _inverted_pairs(fid)
+        print("inverted pairs recorded by this run: {}"
+              .format(len(pairs)))
+        for c, p in pairs:
+            print("  {} <- {}".format(c, p))
+        if not pairs:
+            print("nothing to repair - the gate reports no "
+                  "inversion")
+            return 0
+    rep, notes = repair(src, gen, pairs, seed=a.seed,
+                        targets=targets)
     print("")
     for child, parent, what, n, before, after in notes:
         print("  {:<30} {:<24} {:<12} rows {:>6}  "

@@ -162,6 +162,143 @@ def main():
           "not noise. got {:+.3f}".format(sp(weak, "a", "b")),
           abs(sp(weak, "a", "b") + 0.5) < 0.15)
 
+    # ---- REPAIRING THE PAIRS THAT MISS `close`
+    #
+    # The close criterion has the smallest margin of the nine,
+    # and on the real extract it sat at 87.6% against an 87.9%
+    # bar - ONE pair short. The same joint rearrangement that
+    # fixed the inversion there can be aimed at a drifted pair
+    # instead, targeting the correlation the SOURCE has.
+    #
+    # It is a PERMUTATION, so no marginal moves and the
+    # published bounds are exactly what they were; and the
+    # WHOLE gate is re-measured, because a repair aimed at one
+    # criterion can cost others - which is not a hypothesis,
+    # it is what two reverted fidelity tiers did.
+    import json
+    import subprocess as _sp2
+    import tempfile as _tf2
+    import numpy as _np2
+    import pandas as _pd2
+    from synthkit import blueprint as _B2
+    from synthkit.discover import discover as _disc2
+    from synthkit.generate import generate as _gen2
+    from synthkit.pipeline import compare as _cmp2
+
+    _rng = _np2.random.default_rng(5)
+    _n, _v = 300, 6
+    _pid = _np2.repeat(["P{:03d}".format(i) for i in range(_n)], _v)
+    _N = _n * _v
+    _a = _rng.normal(0, 1, _N)
+    _b = 0.7 * _a + _rng.normal(0, 0.7, _N)
+    _c = 0.5 * _a + _rng.normal(0, 0.9, _N)
+    _d = _rng.normal(0, 1, _N)
+    _df = _pd2.DataFrame({
+        "person_id": _pid, "visit": _np2.tile(_np2.arange(_v), _n),
+        "a": _np2.round(_a, 3), "b": _np2.round(_b, 3),
+        "c": _np2.round(_c, 3), "d": _np2.round(_d, 3)})
+    _bp = _B2.build(_df, _disc2(_df, group_by="person_id", seed=1),
+                    group_by="person_id")
+    with _tf2.TemporaryDirectory() as _td:
+        _rd = Path(_td)
+        (_rd / "blueprint.json").write_text(json.dumps(_bp),
+                                            encoding="utf-8")
+        _g = _gen2(_bp, n_patients=_n, seed=3)
+        _g.to_csv(_rd / "generated.csv", index=False)
+        _sp = _rd / "src.csv"
+        _df.to_csv(_sp, index=False)
+        _fid = _cmp2(_df, _g, _bp, "person_id",
+                     _bp.get("time_column"))
+        (_rd / "fidelity.json").write_text(json.dumps(_fid),
+                                           encoding="utf-8")
+        _rel = _fid["relationships"]
+        _miss = [r for r in _rel["pairs"]
+                 if r.get("kind") == "numeric"
+                 and abs(r.get("source") or 0) >= 0.1
+                 and abs(r.get("delta") or 0) > 0.2]
+        check("the fixture run actually MISSES close on a pair "
+              "whose columns are both in the written file - "
+              "without one the repair below has nothing to do "
+              "and would pass by not running",
+              bool(_miss))
+        _r = _sp2.run(
+            [sys.executable, "scripts/repair_inversions.py",
+             str(_rd), str(_sp), "--close"],
+            capture_output=True, text=True,
+            cwd=str(ROOT), timeout=1800)
+        _o = _r.stdout
+        check("--close finds the drifted pairs and aims each at "
+              "the correlation the SOURCE has, rather than at "
+              "zero or a guess",
+              _r.returncode == 0
+              and "misses CLOSE on" in _o
+              and "source +" in _o)
+        # AND IT LANDS NEAR THE SOURCE, which is the observable
+        # - asserting that a `targets` argument was passed
+        # proved nothing, because the repair already aims at
+        # the source by default and the two paths agree.
+        _pl = [ln for ln in _o.splitlines() if "pair " in ln
+               and "->" in ln]
+        _got = None
+        if _pl:
+            _got = float(_pl[0].split("->")[1].strip())
+        _want = float(_miss[0]["source"])
+        check("...and the repaired pair LANDS near that source "
+              "value - {} against a source of {}"
+              .format("{:+.3f}".format(_got) if _got is not None
+                      else "none", "{:+.3f}".format(_want)),
+              _got is not None and abs(_got - _want) < 0.1)
+        check("...and it re-measures the WHOLE gate, not only "
+              "the criterion it aimed at - a repair that costs "
+              "more than it gains must be visible in the same "
+              "output",
+              "re-measuring the WHOLE gate" in _o
+              and "direction kept" in _o
+              and "dynamics tracked" in _o)
+        check("...and close is FIXED on this run while nothing "
+              "reads BROKEN",
+              "close" in _o and "FIXED" in _o
+              and "BROKEN" not in _o)
+        check("...and it writes NOTHING without --apply, "
+              "because a repair that costs more than it gains "
+              "should not be able to land by accident",
+              "nothing written" in _o
+              and not (_rd / "generated_repaired.csv").exists())
+
+        # THE COLUMNS THAT CANNOT BE REACHED ARE COUNTED, NOT
+        # SWALLOWED. Token indicators and set sizes are search
+        # machinery, dropped before the file is written -
+        # nobody can rearrange a column that is not there, and
+        # a silent skip would make the repairable count read as
+        # the whole gap.
+        import repair_inversions as _RI
+        # ASSERTED ON THE SELECTION ITSELF, because the
+        # fixture has no unreachable pair and the CLI branch
+        # therefore never runs - a mutation that disabled the
+        # report found nothing until this asked the function
+        # directly. The pair a<-c is made unreachable by
+        # telling it the file carries only `a`.
+        _dr, _ab = _RI._drifted_pairs(_fid, {"a"}, limit=0)
+        check("a close miss on a column the written file does "
+              "not carry is RETURNED as skipped rather than "
+              "dropped - nobody can rearrange a column that is "
+              "not there, and a silent skip makes the "
+              "repairable count read as the whole gap",
+              len(_ab) >= 1 and not _dr)
+        _dr3, _ab3 = _RI._drifted_pairs(_fid, set(_g.columns),
+                                        limit=0)
+        check("...while with the real column set the same pair "
+              "IS repairable, so the skip is about reachability "
+              "and not about the pair",
+              len(_dr3) >= 1 and not _ab3)
+        _dr2, _ = _RI._drifted_pairs(_fid, set(_g.columns),
+                                     limit=1)
+        check("...and --max repairs the WORST drift first, so "
+              "a capped run spends its one repair where there "
+              "is most to give back - the real extract needed "
+              "exactly one more pair",
+              len(_dr2) <= 1)
+
     print()
     if FAIL:
         print("{} FAILED".format(FAIL))
