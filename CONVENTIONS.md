@@ -5364,8 +5364,8 @@ exist.
       systolic.missing_clustering  LEAKED  own persistence +0.13
       patients.count               LEAKED  age persistence +0.10,
                                            a pair +0.16
-      patients.visits_scale        LEAKED  two counts' spread
-                                           +0.12, +0.13
+      patients.visits_scale        LEAKED  span_days.spread
+                                           +0.12
       span_days<-proc.strength     NO-OP
   **`span_days.shift` and `.scale` reading CLEAN is the
   cyclic-sweep fix holding on the real blueprint** through a
@@ -5374,6 +5374,17 @@ exist.
   fixture - a dense graph propagates a dial's effect in ways
   a forest cannot show, which is the same lesson the
   fixture-was-a-forest entry records for discovery.
+  **CORRECTED AN HOUR LATER BY THE NOISE FLOOR, and the
+  correction is the point.** The first version of this entry
+  said `patients.visits_scale` moved TWO count columns'
+  spread, +0.12 and +0.13. Re-running the UNDIALLED blueprint
+  at other seeds puts the floor for `procedure_count.spread`
+  at **+0.17**, so that one was the SEED and not the dial;
+  `span_days.spread +0.12` survives. One of three reported
+  collateral items was noise, written up as a finding,
+  exactly as this file warns about every single-seed
+  measurement - and caught only because the instrument was
+  made to measure itself.
 - **AND THE MATRIX WAS COUNTING ITS OWN CONTROL AS A FAULT.**
   `scale@1.0` exists to prove the NO-OP detector can fire - a
   dial asked for x1.0 moves nothing BY DEFINITION - and it

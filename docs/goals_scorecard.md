@@ -178,7 +178,10 @@ on this page.
   `missing_clustering` moves its own column's persistence
   (+0.13), `patients.count` moves `age_at_visit.persistence`
   (+0.10) and a pair (+0.16), `patients.visits_scale` moves
-  two count columns' spread (+0.12, +0.13). TWO are genuine
+  `span_days.spread` (+0.12 — a second column it appeared to
+  move was measured as SEED NOISE, floor +0.17, once the
+  matrix was taught to measure its own floor). TWO are
+  genuine
   NO-OPs on real data — `span_days.persistence` and
   `span_days<-procedure_count.strength`.
 - Per-pattern dials over every pattern KIND the inventory
