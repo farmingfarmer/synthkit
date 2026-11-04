@@ -4,7 +4,7 @@ Synthetic clinical data generator and model-evaluation instrument. Core rule: le
 
 ## Verify before claiming
 
-- Run `python scripts/run_all_smokes.py` before claiming anything works. Expect **86 suites, 2643 checks**, ALL GREEN **on a checkout** (measured 2026-11-03). Off a zipball extract - which is what the data machine runs - the total is TWELVE LOWER, and the gap is now MEASURED rather than estimated (2026-11-02: 2480 on a checkout against **2468** on the data machine at the same commit, ALL GREEN both ways). It decomposes exactly, with no residue: nine in `smoke_buildid`, which needs git to test the archive path; one for `node`, absent, so the full JS parse cannot run; two for Chrome, absent, so the in-browser load check cannot run. All three report NOTES and pass rather than failing - that is the design, and it is why the count moves. This entry previously said NINE LOWER and warned that a total nobody ran is not a number to quote; somebody has now run it. CONFIRMED AT A SECOND COMMIT the same day: 2483 against **2471**, the same delta of twelve - and that pair is the stronger evidence, because the commit between them ADDED THREE checks on the dev side and all three appeared on BOTH machines. That is `gated()` doing exactly what its docstring promises: a skipped check still emits a line, so the count stays one number across both places and only the genuinely unavailable tooling moves it. Do not quote the checkout number to the data machine; that is how a correct run gets read as a failure.
+- Run `python scripts/run_all_smokes.py` before claiming anything works. Expect **86 suites, 2647 checks**, ALL GREEN **on a checkout** (measured 2026-11-03). Off a zipball extract - which is what the data machine runs - the total is TWELVE LOWER, and the gap is now MEASURED rather than estimated (2026-11-02: 2480 on a checkout against **2468** on the data machine at the same commit, ALL GREEN both ways). It decomposes exactly, with no residue: nine in `smoke_buildid`, which needs git to test the archive path; one for `node`, absent, so the full JS parse cannot run; two for Chrome, absent, so the in-browser load check cannot run. All three report NOTES and pass rather than failing - that is the design, and it is why the count moves. This entry previously said NINE LOWER and warned that a total nobody ran is not a number to quote; somebody has now run it. CONFIRMED AT A SECOND COMMIT the same day: 2483 against **2471**, the same delta of twelve - and that pair is the stronger evidence, because the commit between them ADDED THREE checks on the dev side and all three appeared on BOTH machines. That is `gated()` doing exactly what its docstring promises: a skipped check still emits a line, so the count stays one number across both places and only the genuinely unavailable tooling moves it. Do not quote the checkout number to the data machine; that is how a correct run gets read as a failure.
 - **THE DEVELOPMENT MACHINE WAS BEHIND THE DATA MACHINE, and that is
   how a green suite here failed there.** Dev was on Python 3.10 with
   pandas 2.3; the data machine installs fresh and got pandas 3.0.5,
@@ -5087,3 +5087,48 @@ exist.
   version of the driver graded it as a FAILURE directly
   beneath the tool's own correct report. A verdict must not
   contradict the note under it.
+
+- **`git checkout COMMIT -- PATH` STAGES THE FILE, SO THE
+  PLAIN RESTORE PUTS THE OLD ONE BACK - AND THE DATA MACHINE
+  RAN OLD CODE WHILE EVERY SHA CHECK SAID OTHERWISE
+  (2026-11-03).** The control arm for the span_days fix was
+  run by checking the previous build's `generate.py` into the
+  working tree. `git checkout <commit> -- <path>` writes to
+  the INDEX as well, so the `git checkout -- <path>` that was
+  meant to undo it restored from the index - the OLD file -
+  and a subsequent `git checkout <newsha>` carried the staged
+  modification forward. `git rev-parse HEAD` matched the
+  intended commit every time; `git diff --stat HEAD` showed
+  **30 deletions in generate.py**. Caught only because a
+  re-run of a test that had read YES came back NO, which is
+  the two-readings-disagree alarm. The restore is
+  `git reset HEAD -- PATH` THEN `git checkout HEAD -- PATH`,
+  and the verification is `git diff --quiet HEAD -- PATH`
+  printing a WORD, not a SHA anybody reads. **A matching SHA
+  is not a matching TREE**, which this file already says
+  about the hybrid left by a hand-typed payload; here it
+  arrived through git itself.
+- **AND A RELAY THAT FILTERS THE CAVEAT IS WORSE THAN NO
+  RELAY.** The real surface's search chose the LAST scale in
+  its grid, so the result was bounded by the SEARCH rather
+  than by the data - and the tool said so while the driver
+  relaying it dropped the line, because the filter listed
+  four prefixes and `NOTE:` was not one of them. The
+  boundary case is pinned on the ONE fixture surface that
+  reaches it: the y-child surface lands at scale 1.75, well
+  inside the grid, so asserting the note there would pass
+  whether or not the note existed.
+- **A FLAG IS NOT A PATH, AND THE CHECK COULD NOT SEE IT.**
+  The driver took `argv[0]` as the run directory, so invoking
+  it with the flag alone - which is how the data machine
+  invoked it - opened `--skip-generate/blueprint.json` and
+  died. The local check passed the path FIRST and the flag
+  second, which is the one ordering that works. Both
+  orderings are tested now. And the first fail-first on that
+  check found nothing twice over: once because the mutation
+  was applied without asserting count==1 and silently
+  no-opped, and once because the mutated run CRASHED rather
+  than failing, printing no `FAIL:` line for the grep to
+  find. The helper catches the exception and returns it as
+  text now, so a crash becomes a failed check instead of a
+  dead suite.

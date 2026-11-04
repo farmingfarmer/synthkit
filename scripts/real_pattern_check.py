@@ -155,7 +155,17 @@ def _drift(txt):
 
 
 def main(argv):
-    run = Path(argv[0]) if argv else Path(
+    # FLAGS ARE NOT THE PATH. The first version took argv[0]
+    # as the run directory, so calling it with the flag alone
+    # - which is how it was invoked on the data machine -
+    # tried to open `--skip-generate\\blueprint.json` and died
+    # on a traceback. The local check could never have caught
+    # it: it passed the path FIRST and the flag second, which
+    # is the one ordering that works.
+    flags = [a for a in argv if a.startswith("-")]
+    pos = [a for a in argv if not a.startswith("-")]
+    argv = flags
+    run = Path(pos[0]) if pos else Path(
         open(ROOT / "_run.txt").read().strip())
     bp = json.loads((run / "blueprint.json").read_text(
         encoding="utf-8"))
@@ -270,9 +280,19 @@ def main(argv):
         txt = buf.getvalue()
         for line in txt.splitlines():
             t = line.strip()
+            # THE NOTE IS RELAYED TOO, and it was being
+            # filtered out. On the real surface the search
+            # chose the LAST scale in its grid, so the result
+            # was bounded by the search rather than by the
+            # data - and the tool said so while this driver
+            # dropped the line, because the filter listed
+            # four prefixes and NOTE was not one of them. A
+            # relay that silently omits the caveat is worse
+            # than no relay.
             if t.startswith(("landed gain", "main effects",
-                             "reachable band", "the column "
-                             "holds")):
+                             "reachable band", "NOTE:",
+                             "THE ASK", "THE MAIN EFFECTS",
+                             "the column holds")):
                 print("  {}".format(t))
         ok &= verdict("the dial ran clean", rc == 0)
         ok &= verdict("it reports the drift it caused",

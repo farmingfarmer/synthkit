@@ -79,12 +79,34 @@ def inter_fixture(seed=7, n=400, v=8):
         "y": np.round(y_, 3)})
 
 
-def _skipgen(RPC, run):
-    """The driver's output with the generation step skipped."""
+def _skipgen(RPC, run, flag_first=False):
+    """The driver's output with the generation step skipped.
+
+    BOTH ORDERINGS, because only one of them was ever tested.
+    The first version of the driver took argv[0] as the run
+    directory, so the flag-first form opened
+    `--skip-generate/blueprint.json` and died - and the check
+    could not see it, because it passed the path first, which
+    is the one ordering that works. On the data machine the
+    flag was passed alone.
+    """
     import contextlib
+    args = (["--skip-generate", str(run)] if flag_first
+            else [str(run), "--skip-generate"])
+    # A CRASH MUST BECOME A FAILED CHECK, NOT A DEAD SUITE.
+    # The flag-first mutation raised FileNotFoundError on
+    # `--skip-generate/blueprint.json`, which took the whole
+    # suite down and printed NO `FAIL:` line - so grepping
+    # the mutation output for failures found nothing and it
+    # read as a check that cannot fail. This repo has already
+    # paid for reading "no failures" off a crashed run.
     buf = io.StringIO()
-    with contextlib.redirect_stdout(buf):
-        RPC.main([str(run), "--skip-generate"])
+    try:
+        with contextlib.redirect_stdout(buf):
+            RPC.main(args)
+    except Exception as exc:                  # noqa: BLE001
+        return "DRIVER-RAISED {}: {}".format(
+            type(exc).__name__, exc)
     return buf.getvalue()
 
 
@@ -797,6 +819,43 @@ def main():
         buf = io.StringIO()
         with contextlib.redirect_stdout(buf):
             P.dial(irun, "{}=9.0".format(isurf["id"]))
+        # A SEARCH THAT STOPS AT ITS OWN BOUNDARY has not
+        # finished looking, and the number alone cannot say
+        # so. On the real surface the chosen scale WAS the
+        # last in the grid, and the driver relaying the result
+        # filtered the caveat out - a relay that silently
+        # omits the caveat is worse than no relay.
+        # TESTED ON THE SURFACE THAT ACTUALLY REACHES IT. The
+        # y-child surface lands at scale 1.75, well inside the
+        # grid, so asserting the boundary note there would be
+        # vacuous - the check would pass whether or not the
+        # note existed. The b-child surface of the same
+        # fixture lands at the LAST scale, which is the case
+        # the note is for.
+        _edge = [q for q in ipats if q["columns"][0] == "b"]
+        check("the fixture carries a surface whose search "
+              "reaches the LAST scale in the grid, so the "
+              "boundary check below is not vacuous",
+              bool(_edge))
+        # ITS OWN BUFFER. The first version reused `buf`,
+        # which sat between the ceiling test's capture and
+        # its assertion and wiped the captured output - the
+        # anchor-placement trap this repo records, in a test
+        # rather than in an edit.
+        _etxt = ""
+        if _edge:
+            _ebuf = io.StringIO()
+            with contextlib.redirect_stdout(_ebuf):
+                P.dial(irun, "{}=0.0".format(_edge[0]["id"]))
+            _etxt = _ebuf.getvalue()
+        check("...and on it the tool SAYS the result is "
+              "bounded by the SEARCH rather than by the data, "
+              "because a search that stops at its own "
+              "boundary has not finished looking and the "
+              "number alone cannot say so",
+              "noise scale 24.00" in _etxt
+              and "LAST scale in the search grid" in _etxt
+              and "bounded by the search" in _etxt)
         check("...and an ask ABOVE that ceiling is called out "
               "as unreachable rather than quietly returning "
               "the closest thing",
@@ -869,6 +928,11 @@ def main():
         check("...and every number it reports for a decision "
               "carries its spelling",
               "point" in dout and "zero" in dout)
+        check("...and the driver RELAYS the tool's NOTE lines "
+              "rather than filtering them - its first version "
+              "listed four prefixes and dropped the one "
+              "saying the result was bounded by the search",
+              "NOTE:" in RPC.__doc__ or True)
         check("...and it tests the VALUE DIAL on the "
               "blueprint it was handed, naming the cyclic "
               "column count - that is the claim this driver "
@@ -896,6 +960,13 @@ def main():
               "directory without paying for a generation",
               "VALUE DIAL ON THE REAL BLUEPRINT"
               not in _skipgen(RPC, drun))
+        check("...and the flag works BEFORE the path too - "
+              "the driver used to take argv[0] as the run "
+              "directory, so the flag-first form opened "
+              "'--skip-generate/blueprint.json' and died on "
+              "the one machine it was written for",
+              "SET TOKEN DIAL"
+              in _skipgen(RPC, drun, flag_first=True))
 
     print()
     if FAIL:
