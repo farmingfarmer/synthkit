@@ -2098,6 +2098,73 @@ def main():
     if FAIL:
         print("{} of {} checks failed.".format(FAIL, PASS + FAIL))
         sys.exit(1)
+    # ---- THE DISPATCH MUST REFUSE WHAT IT DOES NOT KNOW
+    #
+    # `sys.argv[1]` chose the subcommand and anything it did
+    # not match fell through to the DEFAULT - so `--help`
+    # spent minutes fitting five seeds of a planted fixture
+    # and printed a result, which reads as an answer to
+    # whatever the caller actually asked. A command that does
+    # something plausible instead of refusing is this
+    # project's oldest failure shape, and it cost real time
+    # before it was noticed.
+    import subprocess as _sp9
+
+    def _dispatch(args, secs=60):
+        """Run a dispatch case, and treat a HANG as a failure.
+
+        A CHECK THAT HANGS IS WORSE THAN ONE THAT CANNOT FAIL,
+        because it takes the whole suite with it - this repo
+        has already paid for that with a headless-Chrome
+        launch. And the hang is exactly what the OLD behaviour
+        produces here: an unrecognised argument fell through
+        to the fixture demo, which fits five seeds and takes
+        MINUTES. So the timeout is short and expiring it is
+        reported as the fault it is.
+        """
+        try:
+            return _sp9.run(
+                [sys.executable,
+                 str(_root / "scripts" / "latent_challenger.py")]
+                + args,
+                capture_output=True, text=True,
+                cwd=str(_root), timeout=secs)
+        except _sp9.TimeoutExpired:
+            class _T:
+                returncode = -1
+                stdout = ("DID NOT RETURN within {}s - which is "
+                          "what falling through to the fixture "
+                          "demo looks like".format(secs))
+                stderr = ""
+            return _T()
+
+    _h = _dispatch(["--help"])
+    check("`--help` PRINTS the subcommands and exits 0, "
+          "rather than running the fixture demo for minutes "
+          "and printing a result that answers a different "
+          "question",
+          _h.returncode == 0
+          and "usage: latent_challenger.py SUBCOMMAND"
+          in _h.stdout
+          and "csv " in _h.stdout)
+    _u = _dispatch(["wibble"])
+    check("...and an unknown subcommand STOPs by name with a "
+          "non-zero exit, instead of silently becoming the "
+          "default one",
+          _u.returncode != 0
+          and "'wibble' is not a subcommand" in _u.stdout)
+    check("...and the refusal LISTS what it will accept, so "
+          "the next attempt can succeed",
+          all(w in _u.stdout
+              for w in ("csv", "support", "compare", "attack")))
+    _d = _dispatch(["--max-tokens", "900"])
+    check("...and a bare OPTION with no subcommand is refused "
+          "too - that is the exact shape that ran the demo, "
+          "because an option does not match any subcommand "
+          "name",
+          _d.returncode != 0
+          and "not a subcommand" in _d.stdout)
+
     print("All {} checks passed.".format(PASS))
 
 

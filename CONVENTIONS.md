@@ -4,7 +4,7 @@ Synthetic clinical data generator and model-evaluation instrument. Core rule: le
 
 ## Verify before claiming
 
-- Run `python scripts/run_all_smokes.py` before claiming anything works. Expect **90 suites, 2775 checks**, ALL GREEN **on a checkout** (measured 2026-11-03). Off a zipball extract - which is what the data machine runs - the total is TWELVE LOWER, and the gap is now MEASURED rather than estimated (2026-11-02: 2480 on a checkout against **2468** on the data machine at the same commit, ALL GREEN both ways). It decomposes exactly, with no residue: nine in `smoke_buildid`, which needs git to test the archive path; one for `node`, absent, so the full JS parse cannot run; two for Chrome, absent, so the in-browser load check cannot run. All three report NOTES and pass rather than failing - that is the design, and it is why the count moves. This entry previously said NINE LOWER and warned that a total nobody ran is not a number to quote; somebody has now run it. CONFIRMED AT A SECOND COMMIT the same day: 2483 against **2471**, the same delta of twelve - and that pair is the stronger evidence, because the commit between them ADDED THREE checks on the dev side and all three appeared on BOTH machines. That is `gated()` doing exactly what its docstring promises: a skipped check still emits a line, so the count stays one number across both places and only the genuinely unavailable tooling moves it. Do not quote the checkout number to the data machine; that is how a correct run gets read as a failure.
+- Run `python scripts/run_all_smokes.py` before claiming anything works. Expect **90 suites, 2779 checks**, ALL GREEN **on a checkout** (measured 2026-11-03). Off a zipball extract - which is what the data machine runs - the total is TWELVE LOWER, and the gap is now MEASURED rather than estimated (2026-11-02: 2480 on a checkout against **2468** on the data machine at the same commit, ALL GREEN both ways). It decomposes exactly, with no residue: nine in `smoke_buildid`, which needs git to test the archive path; one for `node`, absent, so the full JS parse cannot run; two for Chrome, absent, so the in-browser load check cannot run. All three report NOTES and pass rather than failing - that is the design, and it is why the count moves. This entry previously said NINE LOWER and warned that a total nobody ran is not a number to quote; somebody has now run it. CONFIRMED AT A SECOND COMMIT the same day: 2483 against **2471**, the same delta of twelve - and that pair is the stronger evidence, because the commit between them ADDED THREE checks on the dev side and all three appeared on BOTH machines. That is `gated()` doing exactly what its docstring promises: a skipped check still emits a line, so the count stays one number across both places and only the genuinely unavailable tooling moves it. Do not quote the checkout number to the data machine; that is how a correct run gets read as a failure.
 - **THE DEVELOPMENT MACHINE WAS BEHIND THE DATA MACHINE, and that is
   how a green suite here failed there.** Dev was on Python 3.10 with
   pandas 2.3; the data machine installs fresh and got pandas 3.0.5,
@@ -5689,3 +5689,30 @@ exist.
   already had. About 133 columns, 119 MB for the pair. A
   measurement that cannot run is worth less than one that is
   slightly narrow, and what it leaves out is named.
+
+- **`--help` RAN A FIVE-SEED FIXTURE DEMO AND PRINTED A
+  RESULT (2026-11-04).** `latent_challenger.py` picked its
+  subcommand from `sys.argv[1]` and let anything it did not
+  match fall through to the DEFAULT - so `--help`, and any
+  bare option, spent minutes fitting a planted fixture and
+  then printed numbers, which read as an answer to whatever
+  the caller actually asked. A command that does something
+  plausible instead of refusing is this file's oldest failure
+  shape, and it cost real time before it was noticed. `--help`
+  prints the subcommands and exits 0; an unknown one STOPs by
+  name, lists what is accepted, and exits non-zero.
+- **AND THE CHECK FOR IT HAD TO NOT HANG.** Under the old
+  behaviour the probe runs the demo, so a straightforward
+  `subprocess.run` check would take MINUTES and then blow the
+  suite's timeout - a check that hangs is worse than one that
+  cannot fail, because it takes the whole suite with it. The
+  timeout is short and expiring it is REPORTED as the fault
+  it is, so the mutation turns three checks red in seconds.
+- **THE TOKEN CAP IS CONFIRMED AS THE THING THAT BINDS.**
+  `provenance.json` for the run of record reads `"token_cap":
+  800` and the output carries exactly 800 `conditions` tokens
+  against 1,050 that cleared k. The run also records 55,428
+  rows and 800 patients, and NOT the seed - which is why a
+  raised-cap run must be paired with a CONTROL ARM AT THE
+  SAME SEED, run by the same hand, rather than compared
+  against the deliverable. That pair is queued, not yet run.

@@ -3649,8 +3649,50 @@ def _planted_frame(seed):
     return df[keep]
 
 
+SUBCOMMANDS = ("csv", "support", "compare", "attack",
+               "triangle")
+
+
+def _usage(bad=None):
+    """Say what the subcommands are, and refuse an unknown one.
+
+    AN UNRECOGNISED FIRST ARGUMENT USED TO RUN THE FIXTURE
+    DEMO. `sys.argv[1]` chose the subcommand and anything it
+    did not match fell through to the default - so
+    `--help` spent minutes fitting five seeds of a planted
+    fixture and printed a result, which reads as an answer to
+    whatever the caller actually asked. A command that does
+    something plausible instead of refusing is this project's
+    oldest failure shape, and it cost real time before it was
+    noticed.
+    """
+    out = ["LATENT CHALLENGER - the fidelity-at-any-cost ruler.",
+           "Privacy posture: trains on records; its output is a",
+           "MEASUREMENT, not a release.",
+           "",
+           "usage: latent_challenger.py SUBCOMMAND [options]",
+           "",
+           "  csv        fit and generate from a real table",
+           "  support    what this dataset can honestly support",
+           "  compare    this engine against the rules engine",
+           "  attack     the membership battery",
+           "  triangle   the planted-fixture demo (the default)",
+           "",
+           "Each takes its own --help, e.g.",
+           "  latent_challenger.py csv --help"]
+    if bad is not None:
+        out = ["STOP: {!r} is not a subcommand.".format(bad),
+               ""] + out
+    print("\n".join(out))
+    return 2 if bad is not None else 0
+
+
 if __name__ == "__main__":
     which = sys.argv[1] if len(sys.argv) > 1 else "triangle"
+    if which in ("-h", "--help", "help"):
+        sys.exit(_usage())
+    if which.startswith("-") or which not in SUBCOMMANDS:
+        sys.exit(_usage(which))
     if which == "csv":
         # the return value IS the exit code - the k-floor
         # refusal returns 2, and a discarded return exits 0,
