@@ -4,7 +4,7 @@ Synthetic clinical data generator and model-evaluation instrument. Core rule: le
 
 ## Verify before claiming
 
-- Run `python scripts/run_all_smokes.py` before claiming anything works. Expect **86 suites, 2642 checks**, ALL GREEN **on a checkout** (measured 2026-11-03). Off a zipball extract - which is what the data machine runs - the total is TWELVE LOWER, and the gap is now MEASURED rather than estimated (2026-11-02: 2480 on a checkout against **2468** on the data machine at the same commit, ALL GREEN both ways). It decomposes exactly, with no residue: nine in `smoke_buildid`, which needs git to test the archive path; one for `node`, absent, so the full JS parse cannot run; two for Chrome, absent, so the in-browser load check cannot run. All three report NOTES and pass rather than failing - that is the design, and it is why the count moves. This entry previously said NINE LOWER and warned that a total nobody ran is not a number to quote; somebody has now run it. CONFIRMED AT A SECOND COMMIT the same day: 2483 against **2471**, the same delta of twelve - and that pair is the stronger evidence, because the commit between them ADDED THREE checks on the dev side and all three appeared on BOTH machines. That is `gated()` doing exactly what its docstring promises: a skipped check still emits a line, so the count stays one number across both places and only the genuinely unavailable tooling moves it. Do not quote the checkout number to the data machine; that is how a correct run gets read as a failure.
+- Run `python scripts/run_all_smokes.py` before claiming anything works. Expect **86 suites, 2643 checks**, ALL GREEN **on a checkout** (measured 2026-11-03). Off a zipball extract - which is what the data machine runs - the total is TWELVE LOWER, and the gap is now MEASURED rather than estimated (2026-11-02: 2480 on a checkout against **2468** on the data machine at the same commit, ALL GREEN both ways). It decomposes exactly, with no residue: nine in `smoke_buildid`, which needs git to test the archive path; one for `node`, absent, so the full JS parse cannot run; two for Chrome, absent, so the in-browser load check cannot run. All three report NOTES and pass rather than failing - that is the design, and it is why the count moves. This entry previously said NINE LOWER and warned that a total nobody ran is not a number to quote; somebody has now run it. CONFIRMED AT A SECOND COMMIT the same day: 2483 against **2471**, the same delta of twelve - and that pair is the stronger evidence, because the commit between them ADDED THREE checks on the dev side and all three appeared on BOTH machines. That is `gated()` doing exactly what its docstring promises: a skipped check still emits a line, so the count stays one number across both places and only the genuinely unavailable tooling moves it. Do not quote the checkout number to the data machine; that is how a correct run gets read as a failure.
 - **THE DEVELOPMENT MACHINE WAS BEHIND THE DATA MACHINE, and that is
   how a green suite here failed there.** Dev was on Python 3.10 with
   pandas 2.3; the data machine installs fresh and got pandas 3.0.5,
@@ -5015,3 +5015,75 @@ exist.
   reason. Only a RENDER tells those apart: `patRow` is
   unit-run in node against all four cases, best-effort with a
   printed NOTE when node is absent rather than a silent pass.
+
+- **THE PATTERN DIALS RAN ON THE REAL EXTRACT, AND THE
+  CONTROL ARM IS WHAT MAKES THE HEADLINE A MEASUREMENT
+  (2026-11-03, run_deliverable, 800 patients, build b023fac).**
+  The real blueprint carries **1,827 set-token patterns**, 50
+  effect curves, 26 column presences, 23 within-patient, 23
+  missing-clustering, 19 relationships, 7 interaction surfaces
+  and 2 identities - and before this work the inventory
+  emitted NONE of the set tokens, so the largest body of
+  structure in the extract was invisible on a page promising
+  every pattern the fit found. 72 patterns are reachable only
+  by a blueprint dial (26 + 23 + 23, which is the whole of the
+  three non-permutation kinds).
+- **THE RECORDED NO-OP IS FIXED, AND THE PAIRED ARMS DIFFER IN
+  ONE FILE.** Same blueprint, same seed, same patient count,
+  only `generate.py` changed:
+      old generate.py   asked +0.559   moved +0.000   NO-OP
+      new generate.py   asked +0.559   moved +0.559   exact
+  on `span_days` - the column the record names. Spread 0.937
+  -> 0.937 and ZERO other columns moved their mean. Both
+  numbers were read back spelled by the machine ("plus zero
+  point zero zero zero" against "plus zero point five five
+  nine") because the digits channel off that screen is not
+  trustworthy. This is the comparison shape the two reverted
+  fidelity tiers lacked: one variable, one blueprint, both
+  arms run the same hour.
+- **AND THE DIAL CORRECTLY REFUSES THE THREE COLUMNS IT
+  CANNOT MOVE.** `procedure_count`, `procedure_quantity` and
+  `active_drug_count` carry declared identities, so generation
+  computes them from another column and a marginal dial on one
+  is overridden BY DESIGN. The first run of the driver picked
+  one and read the dial as a no-op - asked +2.342, moved
+  +1.628, spread 1.125 -> 1.771 - which is the identity tier
+  working, not a dial fault. Grading it would have sent the
+  next person hunting a guarantee.
+- **THE SET-TOKEN DIAL LANDS AT REAL WIDTH, AND IT LANDED ON
+  THE HARDEST TOKEN IN THE FILE.** The driver picked
+  `drug_routes / Oral against active_drug_count` - the exact
+  two-regime pair this file records as the one the sharpness
+  build inverted. Tie **+0.472 -> -0.472**, a full sign flip,
+  landed within 0.001 of the ask, with the WORST published
+  token share drifting **0.0000** across all 1,827 tokens and
+  the column holding the identical multiset. `drug_routes`
+  declares no size partner on this blueprint, so the
+  partner-travels branch was NOT exercised on real data -
+  said out loud, because it is the branch whose absence broke
+  the identity on the fixture.
+- **THE INTERACTION DIAL EXPOSED A CONTRADICTION IN ITS OWN
+  BAND.** On `787_2 from 789_8 x 4544_3` it printed a
+  reachable floor of **0.3143** and then landed **0.2404** -
+  below its own stated floor. The band was probed over four
+  noise scales while the search ran over fifteen, so a band
+  computed from a narrower grid than the search is not the
+  band. Two numbers on one screen disagreeing is this file's
+  alarm and it was right. The floor is now the minimum the
+  search ACTUALLY SAW, so it contains the result by
+  construction and no later grid change can part them.
+  **The fixture cannot reach this**: its gain bottoms out at
+  noise scale 1.5, inside the old probe, so the old code
+  passes the new check there. The real extract reached it
+  because its gain kept falling past the probe's last scale.
+  Structural fix, real-run verification.
+- **AND THAT SURFACE COULD NOT BE FLATTENED FOR FREE.** Gain
+  1.1503 -> 0.2404 cost the main effect -0.274 -> -0.040, a
+  drift of +0.235, and the search chose the LAST scale in its
+  grid - so the result was bounded by the search rather than
+  by the data. The tool stated both, which is what it owes;
+  whether the mains can be held while a surface is flattened
+  is a property of the data, not a defect, and the first
+  version of the driver graded it as a FAILURE directly
+  beneath the tool's own correct report. A verdict must not
+  contradict the note under it.

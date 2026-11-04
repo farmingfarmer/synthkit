@@ -524,9 +524,21 @@ def _dial_interaction(run, bp, pat, pid, want, apply_it, seed):
     nz = rng.normal(0.0, 1.0, n)
     srt = np.sort(yv)
 
+    # ONE GRID, USED BY BOTH THE SEARCH AND THE BAND. The
+    # band was probed over four noise values while the search
+    # ran over fifteen, so on the real extract it printed a
+    # floor of 0.3143 and then landed 0.2404 - BELOW its own
+    # stated floor. Two numbers on one screen disagreeing is
+    # this project's alarm and it was right: a band computed
+    # from a narrower grid than the search is not the band.
+    # The top of the grid was also reachable, which means the
+    # search could be boundary-limited, so it extends further
+    # and SAYS when the chosen scale is still the last one.
+    GRID = [0.0, 0.25, 0.5, 0.75, 1.0, 1.25, 1.5, 1.75, 2.0,
+            2.5, 3.0, 4.0, 5.0, 6.0, 8.0, 12.0, 16.0, 24.0]
     best = None
-    for sd in [0.0, 0.25, 0.5, 0.75, 1.0, 1.25, 1.5, 1.75,
-               2.0, 2.5, 3.0, 4.0, 5.0, 6.0, 8.0]:
+    seen = []
+    for sd in GRID:
         order = np.argsort(np.argsort(tgt + sd * nz))
         cand = srt[order]
         gg = _grid_gain(cand, qa, qb)
@@ -544,12 +556,19 @@ def _dial_interaction(run, bp, pat, pid, want, apply_it, seed):
         # settings that close are genuinely interchangeable
         # on gain and the mains pick between them.
         score = (round(gerr, 2), merr)
+        seen.append(gg)
         if best is None or score < best[0]:
             best = (score, sd, cand, gg, (xa, xb))
     _, sd, cand, gg, mm = best
-    lo = min(_grid_gain(srt[np.argsort(np.argsort(
-        tgt + s * nz))], qa, qb)
-        for s in (1.5, 2.0, 3.0, 4.0))
+    # THE BAND IS THE MINIMUM THE SEARCH ACTUALLY SAW, not a
+    # second probe over a different set of scales. Probing
+    # separately is how the floor came to contradict the
+    # result on the real extract - 0.3143 printed, 0.2404
+    # landed. Taking it from the candidates already evaluated
+    # makes the band contain the result BY CONSTRUCTION, so
+    # the contradiction cannot come back however the grid is
+    # later changed.
+    lo = min(seen) if seen else gg
     print("  reachable band for this surface [{:.4f}, {:.4f}] "
           "- this dial FLATTENS a surface and cannot invent "
           "one, so the ceiling is the gain the file already "
@@ -560,6 +579,14 @@ def _dial_interaction(run, bp, pat, pid, want, apply_it, seed):
               "surface. The dial will go as close as it can.")
     print("  landed gain {:.4f}  (noise scale {:.2f} chosen to "
           "hold the mains)".format(gg, sd))
+    if sd >= GRID[-1]:
+        # A SEARCH THAT STOPS AT ITS OWN BOUNDARY has not
+        # finished looking, and a reader cannot tell that from
+        # the number alone.
+        print("  NOTE: that is the LAST scale in the search "
+              "grid, so this result is bounded by the search "
+              "rather than by the data - more suppression may "
+              "be available.")
     print("  main effects after {:+.3f} and {:+.3f}  - drift "
           "{:+.3f} / {:+.3f}".format(
               mm[0], mm[1], mm[0] - m0[0], mm[1] - m0[1]))

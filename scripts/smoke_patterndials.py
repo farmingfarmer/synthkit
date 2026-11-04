@@ -752,6 +752,40 @@ def main():
               "exactly what they were",
               sorted(np.round(pd.to_numeric(igen["y"]), 6))
               == sorted(np.round(pd.to_numeric(irel["y"]), 6)))
+        # THE BAND AND THE RESULT MUST NOT CONTRADICT EACH
+        # OTHER. On the real extract the band printed a floor
+        # of 0.3143 and the dial then landed 0.2404 - below
+        # its own stated floor - because the band was probed
+        # over four noise values while the search ran over
+        # fifteen. Two numbers on one screen disagreeing is
+        # this project's alarm.
+        _bandlo = None
+        for _l in iout.splitlines():
+            if "reachable band for this surface" in _l:
+                _bandlo = float(_l.split("[")[1].split(",")[0])
+        _landed = None
+        for _l in iout.splitlines():
+            if "landed gain" in _l:
+                _landed = float(_l.split("landed gain")[1]
+                                .split()[0])
+        # SAID PLAINLY: this fixture cannot reach the
+        # contradiction. Its gain bottoms out at noise scale
+        # 1.5, inside the old narrow probe, so the old code
+        # passes this check too - mutating it back goes GREEN
+        # here. The REAL extract reached it, because its gain
+        # kept falling past the probe's last scale. The fix is
+        # therefore structural rather than fixture-verified:
+        # the floor is now the minimum the search ACTUALLY
+        # SAW, so it contains the result by construction and
+        # no grid change can part them again. The real re-run
+        # is the verification.
+        check("the reported band CONTAINS the result - floor "
+              "{} against a landed {}. On the real extract "
+              "these read 0.3143 and 0.2404, the floor above "
+              "its own result"
+              .format(_bandlo, _landed),
+              _bandlo is not None and _landed is not None
+              and _landed >= _bandlo - 1e-9)
         check("...and the reachable band says this dial "
               "FLATTENS and cannot amplify, with the ceiling "
               "being the gain the file already has - a dial "
