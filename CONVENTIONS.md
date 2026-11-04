@@ -5755,3 +5755,27 @@ exist.
   its 85% training split), and "how many tokens clear k" is
   not one number. The cap question has to be re-asked on the
   right file.
+
+- **THE MULTI-TABLE INTAKE MET REAL OMOP TABLES AND GOT IT
+  RIGHT FIRST TIME (2026-11-04).** `synthkit schema` on the
+  data machine's own `visit_occurrence`, `drug_exposure` and
+  `procedure_occurrence`:
+      visit_occurrence       23,091 rows x 22 cols
+                             key visit_occurrence_id
+      drug_exposure         111,545 rows x 23 cols
+                             key drug_exposure_id
+      procedure_occurrence   97,215 rows x 17 cols
+                             key procedure_occurrence_id
+      drug_exposure.visit_occurrence_id
+          -> visit_occurrence   111,545/111,545   100.0%
+      procedure_occurrence.visit_occurrence_id
+          -> visit_occurrence    97,204/97,204    100.0%
+  Every key is the canonical OMOP one and was found from the
+  VALUES, not the names. No false link was reported, and no
+  link to `person_id` was invented - there is no person table
+  in the set, and a column with no parent table is not a
+  foreign key however it is named. The 11 `procedure_occurrence`
+  rows between 97,215 and 97,204 carry a BLANK visit id and
+  are counted as absent rather than as orphans, which is the
+  present-versus-missing distinction this file draws for keys
+  deliberately and the opposite of the one it draws for sets.
