@@ -79,6 +79,15 @@ def inter_fixture(seed=7, n=400, v=8):
         "y": np.round(y_, 3)})
 
 
+def _skipgen(RPC, run):
+    """The driver's output with the generation step skipped."""
+    import contextlib
+    buf = io.StringIO()
+    with contextlib.redirect_stdout(buf):
+        RPC.main([str(run), "--skip-generate"])
+    return buf.getvalue()
+
+
 def set_fixture(seed=5, n=160, v=6):
     """A SET COLUMN WITH A DECLARED SIZE PARTNER.
 
@@ -778,6 +787,81 @@ def main():
               "column EXACTLY, value for value, through the "
               "disk",
               bool((_b == _k["y"].to_numpy()).all()))
+
+    # ---- THE REAL-RUN DRIVER. Diagnostic tooling that
+    # nothing runs is a gap this repo has already recorded
+    # about peek.py; the driver that will be pointed at the
+    # real extract gets checks here.
+    import real_pattern_check as RPC
+    check("say() spells a number beside its digits - the data "
+          "machine is read by OCR and `0123456789` came back "
+          "as `9123456789` there, while all ten spelled words "
+          "came back perfect",
+          "minus zero point three" in RPC.say(-0.3)
+          and "-0.300" in RPC.say(-0.3))
+    check("...and it spells the MINUS, because a dropped sign "
+          "turns a confirmed inversion into a confirmed fix",
+          RPC.say(-0.5).count("minus") == 1
+          and "minus" not in RPC.say(0.5))
+    _d = RPC._drift("  main effects after +0.113 and +0.088  "
+                    "- drift -0.062 / +0.035")
+    check("_drift reads the LARGER of the two reported "
+          "main-effect drifts off the tool's own line - got "
+          "{:.3f}".format(_d),
+          abs(_d - 0.062) < 1e-9)
+    check("...and returns zero when no drift line is present, "
+          "rather than raising inside a driver whose whole "
+          "job is to report",
+          RPC._drift("nothing here") == 0.0)
+
+    with tempfile.TemporaryDirectory() as td:
+        drun = Path(td)
+        (drun / "blueprint.json").write_text(
+            json.dumps(sbp), encoding="utf-8")
+        sgen.to_csv(drun / "generated.csv", index=False)
+        buf = io.StringIO()
+        with contextlib.redirect_stdout(buf):
+            rcd = RPC.main([str(drun)])
+        dout = buf.getvalue()
+        check("the real-run driver runs end to end on a run "
+              "directory and exits clean",
+              rcd == 0 and "OVERALL ALL-CLEAN" in dout)
+        check("...and it SELECTS its own targets rather than "
+              "being handed a pattern id - an id is six hex "
+              "characters and transcribing one off that "
+              "screen is a coin flip",
+              "SET TOKEN DIAL" in dout
+              and "against" in dout)
+        check("...and every number it reports for a decision "
+              "carries its spelling",
+              "point" in dout and "zero" in dout)
+        check("...and it tests the VALUE DIAL on the "
+              "blueprint it was handed, naming the cyclic "
+              "column count - that is the claim this driver "
+              "exists to check on the real extract, where "
+              "every value dial was recorded as a NO-OP",
+              "VALUE DIAL ON THE REAL BLUEPRINT" in dout
+              and "cyclic numeric columns" in dout)
+        check("...and it asserts the NEIGHBOURING properties "
+              "in the same test - spread held and no other "
+              "column moved - because a dial that lands its "
+              "own number while dragging the column's spread "
+              "has not done what was asked",
+              "the SPREAD did not move" in dout
+              and "it moved nothing else" in dout)
+        check("...and it SKIPS a column with a DECLARED "
+              "IDENTITY, naming the reason - generation "
+              "computes nc from the set's length, so a "
+              "marginal dial on it is overridden by design "
+              "and grading it would report a guarantee as a "
+              "bug",
+              "DECLARED IDENTITY" in dout
+              and "overridden by design" in dout)
+        check("...and --skip-generate turns that section off, "
+              "so the driver can be pointed at a run "
+              "directory without paying for a generation",
+              "VALUE DIAL ON THE REAL BLUEPRINT"
+              not in _skipgen(RPC, drun))
 
     print()
     if FAIL:
