@@ -179,6 +179,37 @@ def surface(run, src_path):
                       c, sayn(pub[c]).split()[0],
                       len(st), len(gt)))
 
+        # AND WHY A PUBLISHED TOKEN CAN BE ABSENT.
+        #
+        # The independent per-token draw places round(p * n)
+        # rows per token, which makes the marginal shares
+        # exact by construction - and ROUNDS ANY TOKEN WHOSE
+        # EXPECTED COUNT IS UNDER A HALF TO ZERO ROWS. That
+        # is not sampling luck, it is deterministic erasure:
+        # the same tokens vanish on every seed. This counts
+        # how many published tokens that rule removes, which
+        # separates "too rare to appear" from "a draw that
+        # cannot represent it".
+        nrows = len(g)
+        print("")
+        print("  AND WHY: the per-token draw places "
+              "round(p x n) rows, so any published token with "
+              "an expected count under a HALF gets ZERO rows "
+              "- deterministically, on every seed:")
+        tot_lost = 0
+        for c in sorted(pub):
+            mg = ((bp.get("columns") or {}).get(c)
+                  or {}).get("marginal") or {}
+            ps = [float(t.get("p") or 0.0)
+                  for t in (mg.get("tokens") or [])]
+            lost = [q for q in ps if q * nrows < 0.5]
+            tot_lost += len(lost)
+            print("      {:<22} {:>5} of {:>5} published "
+                  "round to zero rows".format(
+                      c, len(lost), len(ps)))
+        print("      {:<22} {:>5} in total"
+              .format("", tot_lost))
+
     # THE CONCLUSION, STATED ONLY IF THE NUMBERS SUPPORT IT.
     if missing and len(made) <= _S.EXPAND_CAP * max(1, len(pub)):
         print("")
