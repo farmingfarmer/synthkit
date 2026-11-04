@@ -685,6 +685,29 @@ def main():
         # extract: active_drugs/acetaminophen against
         # active_drug_count read asked -0.425, landed
         # +0.425, with every other verdict clean.
+        # ONE BAND IMPLEMENTATION, SHARED. It lived inside
+        # the printer, so the real-run driver - which calls
+        # the rearrangement directly - graded an ask against
+        # no band at all and reported a MISS for an ask of
+        # -0.400 on a token whose floor is near -0.33.
+        _bd = P.token_band(sgen, "conds", "t00", "sev")
+        check("token_band is a FUNCTION both halves call, and "
+              "it returns the floor, the ceiling and the "
+              "share that sets them - {}"
+              .format("[{:+.3f}, {:+.3f}] on {:.1%}".format(*_bd)
+                      if _bd else "NONE"),
+              _bd is not None and _bd[0] < 0 < _bd[1]
+              and 0.0 < _bd[2] < 1.0)
+        check("...and the band is NARROWER than [-1, +1], "
+              "because an indicator on a fraction of rows "
+              "cannot reach either end however it is arranged",
+              _bd is not None and _bd[1] < 0.999)
+        check("...and the printed band comes from that same "
+              "function, so the tool and the driver cannot "
+              "disagree about what a token can reach",
+              "{:+.3f}".format(_bd[1]).lstrip("+")
+              in out.replace("+", ""))
+
         _own = P.size_partners(sbp, "conds")
         check("the fixture's set column declares a size "
               "partner, so the refusal below is not vacuous",

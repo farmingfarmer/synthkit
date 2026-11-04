@@ -282,8 +282,26 @@ def main(argv):
             z = pd.to_numeric(out[part], errors="coerce")
             got = float(h.corr(z, method="spearman"))
             print("  landed  {}".format(say(got)))
-            ok &= verdict("landed within 0.05 of the ask",
-                          abs(got - want) < 0.05)
+            # GRADED AGAINST WHAT THE TOKEN CAN REACH. The
+            # band is set by the token's SHARE, and the first
+            # real run reported a MISS for an ask of -0.400 on
+            # a token whose floor is near -0.33 - a verdict
+            # about an ask that never existed. The band comes
+            # from the tool's own function, not a second copy.
+            bd = P.token_band(gen, col, tok, part)
+            tgt = want
+            if bd:
+                print("  reachable band [{}, {}] on a share "
+                      "of {}".format(say(bd[0]), say(bd[1]),
+                                     say(bd[2])))
+                tgt = min(max(want, bd[0]), bd[1])
+                if abs(tgt - want) > 1e-9:
+                    print("  THE ASK WAS OUTSIDE THAT BAND - "
+                          "graded against {} instead"
+                          .format(say(tgt)))
+            ok &= verdict("landed within 0.05 of what the "
+                          "token can reach",
+                          abs(got - tgt) < 0.05)
             # EVERY PUBLISHED TOKEN'S SHARE MUST BE UNTOUCHED.
             worst = 0.0
             for t in ((bp["columns"][col]["marginal"]
@@ -354,8 +372,20 @@ def main(argv):
             pz = pd.to_numeric(pout[ppart], errors="coerce")
             pgot = float(ph2.corr(pz, method="spearman"))
             print("  landed {}".format(say(pgot)))
-            ok &= verdict("landed within 0.05 of the ask",
-                          abs(pgot - pwant) < 0.05)
+            pbd = P.token_band(gen, pcol, ptok, ppart)
+            ptgt = pwant
+            if pbd:
+                print("  reachable band [{}, {}] on a share "
+                      "of {}".format(say(pbd[0]), say(pbd[1]),
+                                     say(pbd[2])))
+                ptgt = min(max(pwant, pbd[0]), pbd[1])
+                if abs(ptgt - pwant) > 1e-9:
+                    print("  THE ASK WAS OUTSIDE THAT BAND - "
+                          "graded against {} instead"
+                          .format(say(ptgt)))
+            ok &= verdict("landed within 0.05 of what the "
+                          "token can reach",
+                          abs(pgot - ptgt) < 0.05)
             for pc in movers[1:]:
                 sz = S.sizes_of(
                     pout[pcol].fillna("").astype(str), ";")

@@ -324,6 +324,42 @@ def size_partners(bp, col):
     return sorted(set(out))
 
 
+def token_band(gen, col, token, partner, sep=";"):
+    """What rank correlations this token can reach at all.
+
+    AN INDICATOR'S BAND IS SET BY ITS SHARE, not by [-1, +1].
+    A token on 42% of rows cannot reach +1 against a
+    continuous column however it is arranged.
+
+    ONE IMPLEMENTATION, because two halves computing the same
+    bound is how they come to disagree: this lived inside the
+    printer, so the real-run driver - which calls the
+    rearrangement directly - graded an ask against no band at
+    all and reported a MISS for an ask that was never
+    reachable. Measured on the real extract: asked -0.400 on
+    a token whose floor is near -0.33.
+    """
+    import numpy as np
+    import pandas as pd
+    import synthkit.sets as _S
+    h = pd.Series(_S.has_token(
+        gen[col].fillna("").astype(str), sep, token
+    ).to_numpy(dtype=float))
+    z = pd.to_numeric(gen[partner], errors="coerce")
+    m = h.notna() & z.notna()
+    if int(m.sum()) < 20:
+        return None
+    zr = z[m].rank().to_numpy()
+    k = int(h[m].sum())
+    if k <= 0 or k >= len(zr):
+        return None
+    top = np.zeros(len(zr))
+    top[np.argsort(zr)[-k:]] = 1.0
+    hi = float(pd.Series(top).corr(pd.Series(zr),
+                                   method="spearman"))
+    return (-hi, hi, float(h[m].mean()))
+
+
 def dial_set_token(gen, col, token, partner, want, seed=0):
     """Rearrange a SET COLUMN so one token tracks a partner.
 
@@ -876,20 +912,12 @@ def _dial_set(run, bp, pat, pid, want, against, apply_it,
     # a continuous column however it is arranged, and a dial
     # that cannot say so reports a miss for an ask that never
     # existed - the same rule the numeric pairs already have.
-    _h = pd.Series(_ind(gen))
-    _z = pd.to_numeric(gen[against], errors="coerce")
-    _m = _h.notna() & _z.notna()
-    _zr = _z[_m].rank().to_numpy()
-    _k = int(_h[_m].sum())
-    _srt = np.zeros(int(_m.sum()))
-    if 0 < _k < len(_srt):
-        _ord = np.argsort(_zr)
-        _top = _srt.copy(); _top[_ord[-_k:]] = 1.0
-        hi = float(pd.Series(_top).corr(pd.Series(_zr),
-                                        method="spearman"))
-        lo = -hi
-    else:
+    _band = token_band(gen, col, token, against, sep)
+    if _band is None:
         hi = lo = float("nan")
+        _share = float("nan")
+    else:
+        lo, hi, _share = _band
 
     print("pattern {}  {}".format(pid, pat["what"]))
     print("  rearranging {} so {} tracks {}".format(
@@ -898,7 +926,7 @@ def _dial_set(run, bp, pat, pid, want, against, apply_it,
     if np.isfinite(hi):
         print("  reachable band for this token [{:+.3f}, "
               "{:+.3f}] - set by its {:.1%} share, not by "
-              "[-1, +1]".format(lo, hi, float(_h[_m].mean())))
+              "[-1, +1]".format(lo, hi, _share))
         if want < lo - 1e-9 or want > hi + 1e-9:
             print("  THE ASK IS OUTSIDE THAT BAND: no "
                   "arrangement of these rows reaches it.")
