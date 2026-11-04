@@ -13,7 +13,7 @@ end-to-end) are where the remaining work lives.**
 
 ---
 
-## Goal 1 — Universal upload with auto schema mapping   **~55%**
+## Goal 1 — Universal upload with auto schema mapping   **~65%**
 
 **What works, measured**
 - Single-table CSV end to end. Types detected in seconds
@@ -35,7 +35,20 @@ end-to-end) are where the remaining work lives.**
   `relational.py` exists from the first engine but the fitted path
   is single-table. The M3 gate: 3 multi-table fixtures, keys
   auto-detected, referential integrity 100%.
-- File formats beyond CSV (Excel, JSON lines) — small, unstarted.
+- ~~File formats beyond CSV~~ SHIPPED 2026-11-03:
+  `synthkit.intake` reads .csv/.tsv/.txt, .jsonl/.ndjson/.json,
+  .xlsx/.xlsm and .parquet, dispatching on the extension, with
+  `--sheet` for workbooks. The load-bearing check is not that
+  each format opens but that EVERY FORMAT PRODUCES THE IDENTICAL
+  FRAME to the CSV path — the reader is part of the suspect path,
+  and a second reader that disagrees about a blank or a number
+  would put the folded-empties fault back invisibly. That check
+  immediately caught one: pandas' own `dtype=str` renders an
+  integral float 60.0 as "60" where the CSV path preserves
+  "60.0", so Excel disagreed on exactly those cells. Integrality
+  is now decided per COLUMN by one renderer. A format whose
+  package is absent is refused with the install that would fix
+  it; an absent worksheet is refused listing the real ones.
 - Document upload is the M6 free-text decision, not promised yet.
 
 **Time**: relational is the block — est. 2–3 weeks (M3, plan Oct 17

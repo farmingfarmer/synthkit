@@ -4,7 +4,7 @@ Synthetic clinical data generator and model-evaluation instrument. Core rule: le
 
 ## Verify before claiming
 
-- Run `python scripts/run_all_smokes.py` before claiming anything works. Expect **86 suites, 2658 checks**, ALL GREEN **on a checkout** (measured 2026-11-03). Off a zipball extract - which is what the data machine runs - the total is TWELVE LOWER, and the gap is now MEASURED rather than estimated (2026-11-02: 2480 on a checkout against **2468** on the data machine at the same commit, ALL GREEN both ways). It decomposes exactly, with no residue: nine in `smoke_buildid`, which needs git to test the archive path; one for `node`, absent, so the full JS parse cannot run; two for Chrome, absent, so the in-browser load check cannot run. All three report NOTES and pass rather than failing - that is the design, and it is why the count moves. This entry previously said NINE LOWER and warned that a total nobody ran is not a number to quote; somebody has now run it. CONFIRMED AT A SECOND COMMIT the same day: 2483 against **2471**, the same delta of twelve - and that pair is the stronger evidence, because the commit between them ADDED THREE checks on the dev side and all three appeared on BOTH machines. That is `gated()` doing exactly what its docstring promises: a skipped check still emits a line, so the count stays one number across both places and only the genuinely unavailable tooling moves it. Do not quote the checkout number to the data machine; that is how a correct run gets read as a failure.
+- Run `python scripts/run_all_smokes.py` before claiming anything works. Expect **87 suites, 2675 checks**, ALL GREEN **on a checkout** (measured 2026-11-03). Off a zipball extract - which is what the data machine runs - the total is TWELVE LOWER, and the gap is now MEASURED rather than estimated (2026-11-02: 2480 on a checkout against **2468** on the data machine at the same commit, ALL GREEN both ways). It decomposes exactly, with no residue: nine in `smoke_buildid`, which needs git to test the archive path; one for `node`, absent, so the full JS parse cannot run; two for Chrome, absent, so the in-browser load check cannot run. All three report NOTES and pass rather than failing - that is the design, and it is why the count moves. This entry previously said NINE LOWER and warned that a total nobody ran is not a number to quote; somebody has now run it. CONFIRMED AT A SECOND COMMIT the same day: 2483 against **2471**, the same delta of twelve - and that pair is the stronger evidence, because the commit between them ADDED THREE checks on the dev side and all three appeared on BOTH machines. That is `gated()` doing exactly what its docstring promises: a skipped check still emits a line, so the count stays one number across both places and only the genuinely unavailable tooling moves it. Do not quote the checkout number to the data machine; that is how a correct run gets read as a failure.
 - **THE DEVELOPMENT MACHINE WAS BEHIND THE DATA MACHINE, and that is
   how a green suite here failed there.** Dev was on Python 3.10 with
   pandas 2.3; the data machine installs fresh and got pandas 3.0.5,
@@ -5248,3 +5248,36 @@ exist.
   same bound separately is how they come to disagree; this
   file has said so about token screening, about scaffolding
   and about the two categorical draw paths.
+
+- **THE FITTED PATH READS MORE THAN CSV NOW, AND THE CHECK
+  THAT MATTERS IS THAT THE FORMATS AGREE (2026-11-03 night,
+  `synthkit/intake.py`).** An operator with an .xlsx export or
+  a .jsonl dump had to convert it first, and the error when
+  they did not was pandas' own - a parser complaint about a
+  binary file, which says nothing about what to do next.
+  `read_table` dispatches on the extension across
+  csv/tsv/txt, jsonl/ndjson/json, xlsx/xlsm and parquet.
+- **THE LOAD-BEARING CHECK IS NOT "XLSX OPENS".** The reader is
+  part of the suspect path - this file records the wrong-type
+  fault four times and empty-versus-missing twice, and both
+  are reader faults. So every format is asserted to produce
+  the IDENTICAL FRAME to the CSV path. A second reader that
+  disagrees about a blank or a number is invisible from
+  inside, because the run would be self-consistently wrong.
+- **AND IT CAUGHT ONE IMMEDIATELY.** pandas' own `dtype=str`
+  renders an integral float 60.0 as `"60"` where the CSV path
+  preserves `"60.0"`, so a normal draw that happened to land
+  on a whole number disagreed between Excel and CSV. The first
+  fix was worse: rendering any integral value without its tail
+  repaired the integer column and broke the float one.
+  INTEGRALITY IS A PROPERTY OF THE COLUMN, NOT THE CELL - all
+  values whole means an integer column and no tails, anything
+  fractional means every value keeps its own rendering - and
+  the Excel branch reads NATIVELY so there is only one
+  renderer in the path rather than pandas' and ours.
+- **A WORKBOOK HAS SHEETS AND A CSV DOES NOT.** Reading the
+  first tab silently is how an operator gets a run over their
+  notes; the run names the sheet it took and what else was in
+  the book, and an absent sheet is refused LISTING the real
+  ones so the next attempt can succeed. A format whose package
+  is missing is refused with the install that fixes it.

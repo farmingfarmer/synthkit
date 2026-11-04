@@ -86,6 +86,12 @@ def build_parser(prog=None, add_help=True):
     ap.add_argument("--patients", type=int, default=0,
                     help="how many patients to generate (default: as "
                          "many as the source had)")
+    ap.add_argument("--sheet", default=None,
+                    help="which worksheet to read, for .xlsx "
+                         "input. The first sheet is used when "
+                         "this is not given, and the run says "
+                         "which one it took and what else was "
+                         "in the book")
     ap.add_argument("--max-rows", type=int, default=0,
                     help="read only the first N rows - for a quick "
                          "first pass before committing to the full "
@@ -246,13 +252,26 @@ def main(argv=None, args=None):
     from synthkit.discover import discover
     from synthkit.generate import generate
 
+    # THE READER DISPATCHES ON THE EXTENSION NOW. An operator
+    # with an .xlsx export or a .jsonl dump had to convert it
+    # first, and the error when they did not was pandas'
+    # own - a parser complaint about a binary file, which says
+    # nothing about what to do next. `intake` keeps the CSV
+    # path's semantics for every format: all strings, blanks
+    # preserved as "", nothing dropped or renamed.
     say("reading {}".format(src))
+    from synthkit.intake import read_table, IntakeError
     try:
-        df = pd.read_csv(src, dtype=str, keep_default_na=False,
-                         encoding="utf-8-sig",
-                         nrows=(a.max_rows or None))
+        df, _how = read_table(src, max_rows=(a.max_rows or None),
+                              sheet=getattr(a, "sheet", None))
+    except IntakeError as e:
+        die(str(e))
     except Exception as e:
-        die("could not read {} as CSV: {}".format(src, e))
+        die("could not read {}: {}".format(src, e))
+    # SAID OUT LOUD, because a workbook has sheets and a CSV
+    # does not - a run over somebody's notes tab should not be
+    # silent about which tab it read.
+    say("  read {}".format(_how))
     unknown_ord = [c for c in ordinals if c not in df.columns]
     if unknown_ord:
         die("--ordinal names {} which {} not a column in {}"
