@@ -207,9 +207,39 @@ def main():
                   "succeed",
                   "absent" in sh and "visits" in sh
                   and "notes" in sh)
+            # THE HANDLE MUST BE RELEASED, and this check is
+            # REAL ONLY ON WINDOWS - said out loud rather than
+            # left to look like coverage.
+            #
+            # `pd.ExcelFile(src)` left open keeps the file
+            # locked. POSIX does not block a delete on an open
+            # handle, so this suite passed every check on the
+            # development machine and then CRASHED on the data
+            # machine cleaning up its own temp directory with
+            # WinError 32 - which would have taken
+            # RUN_CHECKS.bat down for the whole team. No amount
+            # of testing here could have found it; deleting the
+            # file right after reading is the probe that can.
+            import os
+            spare = d / "handle.xlsx"
+            with pd.ExcelWriter(spare) as w:
+                df.head(5).to_excel(w, sheet_name="one",
+                                    index=False)
+            read_table(spare)
+            try:
+                os.unlink(spare)
+                freed = True
+            except PermissionError:
+                freed = False
+            check("the workbook's file handle is RELEASED "
+                  "after reading - vacuous on POSIX, which "
+                  "does not block a delete on an open handle, "
+                  "and the only thing that catches the leak "
+                  "that crashed the data machine on Windows",
+                  freed)
         else:
             print("     NOTE: openpyxl is not installed - the "
-                  "three Excel checks were SKIPPED rather than "
+                  "Excel checks were SKIPPED rather than "
                   "passing on a reader that never ran")
 
         # ---- IT REACHES THE CLI, not only the module

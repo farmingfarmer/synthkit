@@ -142,25 +142,34 @@ def read_table(src, max_rows=None, sheet=None):
             # run over their notes tab. The sheet is named in
             # the note, and the others are named in the error
             # when the requested one is absent.
-            book = pd.ExcelFile(src)
-            names = list(book.sheet_names)
-            if sheet is None:
-                pick = names[0]
-            elif sheet in names:
-                pick = sheet
-            else:
-                raise IntakeError(
-                    "{} has no sheet called {!r}. It has: {}"
-                    .format(src.name, sheet, ", ".join(names)))
-            # READ NATIVELY, NOT AS STRINGS. pandas' own
-            # dtype=str conversion renders an integral float
-            # 60.0 as "60" while the CSV path preserves
-            # "60.0", so passing it here put a second renderer
-            # in front of this module's and the two formats
-            # disagreed on exactly those cells. Reading
-            # natively leaves one renderer - the one below,
-            # which decides integrality per COLUMN.
-            df = book.parse(pick, nrows=max_rows)
+            # CLOSED, BECAUSE WINDOWS HOLDS THE HANDLE.
+            # `pd.ExcelFile(src)` left open keeps the file
+            # locked, and on Windows that makes any later
+            # delete fail with WinError 32 - the suite passed
+            # every check here and then CRASHED on the data
+            # machine cleaning up its own temp directory, which
+            # would have taken RUN_CHECKS.bat down for the
+            # whole team. POSIX does not block a delete on an
+            # open handle, so no amount of testing on this
+            # machine could have found it.
+            with pd.ExcelFile(src) as book:
+                names = list(book.sheet_names)
+                if sheet is None:
+                    pick = names[0]
+                elif sheet in names:
+                    pick = sheet
+                else:
+                    raise IntakeError(
+                        "{} has no sheet called {!r}. It has: "
+                        "{}".format(src.name, sheet,
+                                    ", ".join(names)))
+                df = book.parse(pick, nrows=max_rows)
+            # Read NATIVELY above, not as strings: pandas'
+            # own dtype=str renders an integral float 60.0 as
+            # "60" while the CSV path preserves "60.0", so
+            # passing it would put a second renderer in front
+            # of this module's and the formats would disagree
+            # on exactly those cells.
             df = _as_strings(df)
             note = "{} sheet {!r}{}".format(
                 src.name, pick,
