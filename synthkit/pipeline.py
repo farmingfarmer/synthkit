@@ -1815,6 +1815,26 @@ def _pair_fidelity(Xs, Xg, bp):
     }
 
 
+def blueprint_vocab(bp):
+    """The set tokens this blueprint actually published.
+
+    Read from the artifact rather than re-derived, so a
+    measurement of an existing run lands on the SAME surface
+    the run was measured on. Published tokens have already
+    cleared the k floor, so this changes what is measured and
+    not what is disclosed.
+    """
+    out = {}
+    for c, v in ((bp or {}).get("columns") or {}).items():
+        mg = v.get("marginal") or {}
+        if (mg.get("type") or "") != "list":
+            continue
+        toks = mg.get("tokens") or []
+        if toks:
+            out[c] = toks
+    return out
+
+
 def compare(df, g, bp, group_by, time_col, ordinals=None,
             gen_report=None):
     """Source against generated, column by column."""
@@ -1828,8 +1848,18 @@ def compare(df, g, bp, group_by, time_col, ordinals=None,
     # declared ordinal is numeric in the contract, so comparing
     # it as a category here would measure a different column
     # from the one that was generated.
-    Xs, _, _, _, _ = prepare(df, group_by, ordinals=ordinals)
-    Xg, _, _, _, _ = prepare(g, group_by, ordinals=ordinals)
+    # MEASURE ON THE SURFACE THE RUN WAS MEASURED ON. Without
+    # `vocab` this re-derives the token indicators under
+    # EXPAND_CAP and builds a NARROWER frame than the run that
+    # wrote the blueprint, so a later comparison is over a
+    # different pair set - measured on the real extract as 137
+    # recorded against 57 re-measured, with 37 indicators the
+    # blueprint names that could not be rebuilt at all.
+    _vocab = blueprint_vocab(bp)
+    Xs, _, _, _, _ = prepare(df, group_by, ordinals=ordinals,
+                             vocab=_vocab)
+    Xg, _, _, _, _ = prepare(g, group_by, ordinals=ordinals,
+                             vocab=_vocab)
     gt = "visit_number" if "visit_number" in g.columns else None
     ds = measure(df, Xs, group_by, time_col)
     dg = measure(g, Xg, group_by, gt)

@@ -4,7 +4,7 @@ Synthetic clinical data generator and model-evaluation instrument. Core rule: le
 
 ## Verify before claiming
 
-- Run `python scripts/run_all_smokes.py` before claiming anything works. Expect **89 suites, 2744 checks**, ALL GREEN **on a checkout** (measured 2026-11-03). Off a zipball extract - which is what the data machine runs - the total is TWELVE LOWER, and the gap is now MEASURED rather than estimated (2026-11-02: 2480 on a checkout against **2468** on the data machine at the same commit, ALL GREEN both ways). It decomposes exactly, with no residue: nine in `smoke_buildid`, which needs git to test the archive path; one for `node`, absent, so the full JS parse cannot run; two for Chrome, absent, so the in-browser load check cannot run. All three report NOTES and pass rather than failing - that is the design, and it is why the count moves. This entry previously said NINE LOWER and warned that a total nobody ran is not a number to quote; somebody has now run it. CONFIRMED AT A SECOND COMMIT the same day: 2483 against **2471**, the same delta of twelve - and that pair is the stronger evidence, because the commit between them ADDED THREE checks on the dev side and all three appeared on BOTH machines. That is `gated()` doing exactly what its docstring promises: a skipped check still emits a line, so the count stays one number across both places and only the genuinely unavailable tooling moves it. Do not quote the checkout number to the data machine; that is how a correct run gets read as a failure.
+- Run `python scripts/run_all_smokes.py` before claiming anything works. Expect **89 suites, 2749 checks**, ALL GREEN **on a checkout** (measured 2026-11-03). Off a zipball extract - which is what the data machine runs - the total is TWELVE LOWER, and the gap is now MEASURED rather than estimated (2026-11-02: 2480 on a checkout against **2468** on the data machine at the same commit, ALL GREEN both ways). It decomposes exactly, with no residue: nine in `smoke_buildid`, which needs git to test the archive path; one for `node`, absent, so the full JS parse cannot run; two for Chrome, absent, so the in-browser load check cannot run. All three report NOTES and pass rather than failing - that is the design, and it is why the count moves. This entry previously said NINE LOWER and warned that a total nobody ran is not a number to quote; somebody has now run it. CONFIRMED AT A SECOND COMMIT the same day: 2483 against **2471**, the same delta of twelve - and that pair is the stronger evidence, because the commit between them ADDED THREE checks on the dev side and all three appeared on BOTH machines. That is `gated()` doing exactly what its docstring promises: a skipped check still emits a line, so the count stays one number across both places and only the genuinely unavailable tooling moves it. Do not quote the checkout number to the data machine; that is how a correct run gets read as a failure.
 - **THE DEVELOPMENT MACHINE WAS BEHIND THE DATA MACHINE, and that is
   how a green suite here failed there.** Dev was on Python 3.10 with
   pandas 2.3; the data machine installs fresh and got pandas 3.0.5,
@@ -5535,3 +5535,41 @@ exist.
   anyway. The observable is that no set MOVED, and asserting
   that catches it. Same fault as the bench's refusal check
   earlier.
+
+- **WHY THE GATE COUNTS 137 PAIRS AND A RE-MEASURE COUNTS 57:
+  ESTABLISHED, NOT GUESSED (2026-11-04).** The run that wrote
+  the blueprint expanded its set columns into `__has__`
+  indicators with the cap it was given; any later `compare()`
+  re-derived them through `prepare()`, which applies the
+  MODULE CONSTANT `EXPAND_CAP = 24`. Measured on the real
+  extract by `close_gap.py RUNDIR --surface SRC.csv`:
+      published tokens   active_drugs 529, conditions 1050,
+                         drug_routes 53, procedures 195
+                         (1,827 - the inventory's own count)
+      prepare() rebuilds at most 24 per set column
+      indicators the blueprint's relationships NAME
+                         that CANNOT be rebuilt:  37
+  Every pair touching one of those 37 was silently skipped, so
+  the recorded percentage and any re-measured one were over
+  DIFFERENT PAIR SETS. That is the whole of the 137-against-57
+  gap, and it means the earlier `120/137 before, 47/57 after`
+  was two questions wearing a before and an after.
+- **THE FIX IS TO MEASURE ON THE SURFACE THE RUN WAS MEASURED
+  ON.** `prepare(vocab=...)` takes the vocabulary a caller
+  already knows and skips the cap for it; `compare()` passes
+  `blueprint_vocab(bp)`, read straight off the artifact. The
+  cap exists to choose which tokens become SEARCH columns
+  when nobody has decided yet - measuring an existing run is
+  a different job. Published tokens have ALREADY cleared the
+  k floor, so this changes what is measured and not what is
+  disclosed. Verified where the cap binds: 24 rebuilt by
+  default against 40 with the vocabulary.
+- **AND NO FIXTURE HERE CAN REACH THE CONDITION, which is
+  said rather than papered over.** For `compare()` to relate
+  MORE pairs with the vocabulary, the blueprint must NAME an
+  indicator the default cap cannot rebuild - and on a fixture
+  it cannot, because discovery and the re-measure apply the
+  SAME cap, so whatever discovery named is rebuildable. The
+  real extract names 37 because the run that wrote its
+  blueprint expanded 1,827 tokens. The verification runs on
+  the machine that has the shape.

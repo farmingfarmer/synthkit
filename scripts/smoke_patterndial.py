@@ -347,6 +347,79 @@ def main():
               "exactly one more pair",
               len(_dr2) <= 1)
 
+    # ---- THE TWO SURFACES MUST BE THE SAME ONE
+    #
+    # The gate's fidelity.json was written by a run that
+    # expanded set tokens with the cap it was given; any later
+    # compare() used to re-derive them through prepare(),
+    # which applies the module constant EXPAND_CAP. Measured
+    # on the real extract: the blueprint publishes 1,827
+    # tokens, prepare() rebuilds at most 96, and 37 indicators
+    # the blueprint's own relationships NAME could not be
+    # rebuilt at all - so 137 recorded pairs became 57
+    # re-measured and the two percentages were over different
+    # pair sets.
+    import synthkit.sets as _S4
+    from synthkit.discover import prepare as _prep4
+    from synthkit.pipeline import blueprint_vocab as _bv4
+    _rng4 = _np2.random.default_rng(4)
+    _n4, _v4 = 300, 6
+    _t4 = ["t{:02d}".format(i) for i in range(40)]
+    _N4 = _n4 * _v4
+    _rows4 = [";".join(sorted(_rng4.choice(
+        _t4, size=int(_rng4.integers(1, 5)), replace=False)))
+        for _ in range(_N4)]
+    _df4 = _pd2.DataFrame({
+        "person_id": _np2.repeat(
+            ["P{:03d}".format(i) for i in range(_n4)], _v4),
+        "visit": _np2.tile(_np2.arange(_v4), _n4),
+        "conds": _rows4,
+        "sev": _rng4.normal(0, 1, _N4)})
+    _x0 = _prep4(_df4, "person_id")[0]
+    _n_def = len([c for c in _x0.columns if _S4.HAS in c])
+    check("the fixture has MORE tokens than EXPAND_CAP, so "
+          "the cap genuinely binds - without that the vocab "
+          "path below would pass by not mattering: {} "
+          "rebuilt against a cap of {}"
+          .format(_n_def, _S4.EXPAND_CAP),
+          _n_def == _S4.EXPAND_CAP and len(_t4) > _S4.EXPAND_CAP)
+    _vb = {"conds": [{"value": t, "p": 0.1} for t in _t4]}
+    _x1 = _prep4(_df4, "person_id", vocab=_vb)[0]
+    _n_voc = len([c for c in _x1.columns if _S4.HAS in c])
+    check("...and a caller that already KNOWS the vocabulary "
+          "gets all of it, not the cap - {} indicators. The "
+          "cap chooses which tokens become SEARCH columns "
+          "when nobody has decided; measuring an existing run "
+          "is a different job"
+          .format(_n_voc),
+          _n_voc == len(_t4))
+    _bpv = {"columns": {"conds": {"marginal": {
+        "type": "list", "tokens": _vb["conds"]}}}}
+    check("...and blueprint_vocab reads the published tokens "
+          "straight off the artifact, so the measurement "
+          "lands on the surface the run was measured on",
+          _bv4(_bpv).get("conds") == _vb["conds"])
+    check("...and published tokens have ALREADY cleared the k "
+          "floor, so using them changes what is measured and "
+          "not what is disclosed",
+          all("value" in t for t in _bv4(_bpv)["conds"]))
+    check("...and compare() asks for that vocabulary rather "
+          "than letting prepare re-derive one - the call site "
+          "is what makes the measurement land on the run's "
+          "own surface",
+          "vocab=_vocab" in (ROOT / "synthkit" / "pipeline.py")
+          .read_text(encoding="utf-8"))
+    # SAID PLAINLY: NO FIXTURE HERE REACHES THE CONDITION.
+    # For compare() to relate MORE pairs with the vocabulary,
+    # the blueprint must NAME an indicator the default cap
+    # cannot rebuild - and on a fixture it cannot, because
+    # discovery and the re-measure apply the same cap, so
+    # whatever discovery named is rebuildable. The real
+    # extract names 37 such indicators because the run that
+    # wrote its blueprint expanded 1,827 tokens. That is the
+    # verification, and it runs on the machine that has the
+    # shape.
+
     # ---- THE MISSES THAT ARE NOT IN THE FILE AT ALL
     #
     # On the real extract the biggest group of close misses is

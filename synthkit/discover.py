@@ -117,7 +117,8 @@ def prepare(df: pd.DataFrame,
             drop_identifiers: bool = True,
             ordinals: Optional[Dict[str, Any]] = None,
             k: int = 10,
-            expand_by: Optional[str] = None):
+            expand_by: Optional[str] = None,
+            vocab: Optional[Dict[str, Any]] = None):
     """Typed frame: numerics as float with NaN, DATES as days since
     DATE_ORIGIN, everything else as a capped category. Blanks become
     NaN rather than a level, so `missing` is one concept and not three
@@ -297,6 +298,35 @@ def prepare(df: pd.DataFrame,
         for c in pending_sets:
             v = sets[c]
             toks = v.get("tokens") or []
+            # A CALLER THAT ALREADY KNOWS THE VOCABULARY SAYS
+            # SO, AND THE CAP IS NOT APPLIED TO IT.
+            #
+            # `EXPAND_CAP` chooses which tokens become SEARCH
+            # columns when nobody has decided yet. A
+            # measurement of an existing run is a different
+            # job: the blueprint already published its tokens,
+            # and re-deriving them under a default cap builds
+            # a NARROWER frame than the run was measured on.
+            # On the real extract that is 96 indicators
+            # against 1,827 published, and 37 that the
+            # blueprint's own relationships name cannot be
+            # rebuilt at all - so every pair touching them was
+            # silently skipped and the two percentages were
+            # over different pair sets.
+            #
+            # The published tokens are ALREADY k-screened -
+            # published means cleared the floor - so using
+            # them changes what is measured and not what is
+            # disclosed.
+            if vocab and c in vocab:
+                toks = list(vocab[c])
+                v = dict(v)
+                v["tokens"] = toks
+                v["tokens_returned"] = len(toks)
+                v["expansion_chosen_by"] = "caller-supplied"
+                sets[c] = v
+                cols.update(_sets.expand(df[c], v))
+                continue
             if len(toks) > _sets.EXPAND_CAP:
                 # THE CAP ALWAYS APPLIES; only the ORDER depends on
                 # the rule. Putting the truncation inside the signal
