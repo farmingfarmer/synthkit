@@ -583,10 +583,29 @@ def run(seed=7, n_pat=260, blueprint=None, group_by="person_id"):
                      "landed": landed.strip()})
 
     print("")
-    bad = [r for r in rows if r["verdict"] != "CLEAN"]
+    bad = [r for r in rows if r["verdict"] != "CLEAN"
+           and not r["dial"].endswith("@1.0")]
+    graded = [r for r in rows if not r["dial"].endswith("@1.0")]
     print("  {} of {} dials move what they name AND nothing "
-          "else.".format(len(rows) - len(bad), len(rows)))
-    noop = [r["dial"] for r in rows if r["verdict"] == "NO-OP"]
+          "else.".format(len(graded) - len(bad), len(graded)))
+    # THE CONTROL ARM IS NOT A FAULT, AND LISTING IT AS ONE
+    # UNDERMINES THE LIST. `scale@1.0` is the arm that exists
+    # to prove the NO-OP detector can fire - a dial that by
+    # definition moves nothing. Counting it among the defects
+    # makes every real NO-OP one item less alarming, and on
+    # the real blueprint it sat in a list of three where only
+    # two were findings.
+    noop = [r["dial"] for r in rows
+            if r["verdict"] == "NO-OP"
+            and not r["dial"].endswith("@1.0")]
+    ctrl = [r["dial"] for r in rows
+            if r["verdict"] == "NO-OP"
+            and r["dial"].endswith("@1.0")]
+    if ctrl:
+        print("  the NO-OP detector FIRED on its own control "
+              "({}) - a dial asked for x1.0 must move nothing, "
+              "so this row is what proves the detector below "
+              "can fail".format(", ".join(ctrl)))
     if noop:
         print("  NO-OP: {} - a dial that moves nothing is worse "
               "than no dial, because the report says it was "

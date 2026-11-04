@@ -306,6 +306,34 @@ def main():
     if FAIL:
         print("{} FAILED".format(FAIL))
         sys.exit(1)
+    # THE CONTROL ARM MUST NOT BE COUNTED AS A FAULT.
+    # `scale@1.0` exists to prove the NO-OP detector can
+    # fire - a dial asked for x1.0 moves nothing by
+    # definition. On the real blueprint it sat in a list of
+    # three NO-OPs where only two were findings, which makes
+    # every real one a third less alarming.
+    import contextlib
+    import io as _io
+    import dial_matrix as _MM
+    _b = _io.StringIO()
+    with contextlib.redirect_stdout(_b):
+        _rows = _MM.run()
+    _out = _b.getvalue()
+    _ctrl = [r for r in _rows if r["dial"].endswith("@1.0")]
+    check("the matrix still CARRIES the x1.0 control arm, so "
+          "the NO-OP detector has something that must trip it",
+          len(_ctrl) == 1 and _ctrl[0]["verdict"] == "NO-OP")
+    check("...and reports it as the CONTROL that proves the "
+          "detector can fire, not as one of the faults",
+          "control" in _out
+          and "proves the detector" in _out)
+    _noopline = [ln for ln in _out.splitlines()
+                 if ln.strip().startswith("NO-OP:")]
+    check("...and the fault list does not name it - a control "
+          "counted among the defects makes every real one "
+          "less alarming",
+          all("@1.0" not in ln for ln in _noopline))
+
     print("All {} checks passed.".format(PASS))
 
 

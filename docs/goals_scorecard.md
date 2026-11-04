@@ -155,7 +155,7 @@ on this page.
 
 ---
 
-## Goal 4 — Dials over every pattern   **~80%**
+## Goal 4 — Dials over every pattern   **~90%**
 
 **What works, measured**
 - `--dial` reaches patients.count, coverage, shift, scale,
@@ -167,9 +167,24 @@ on this page.
   (they used to fight; measured and fixed).
 
 **What remains**
-- M5: every dial class verified requested-vs-achieved with its
-  neighboring properties asserted (the shift/scale fight was found
-  exactly because neighbors were not asserted).
+- ~~M5: every dial class verified requested-vs-achieved with
+  its neighboring properties asserted~~ DONE 2026-11-03,
+  including the first run ON THE REAL BLUEPRINT
+  (`dial_matrix.py --blueprint`). Four columns measured
+  against 88 relationships. `span_days.shift` and `.scale`
+  read CLEAN — that column was the recorded NO-OP until the
+  cyclic-sweep fix. THREE dials LEAK on the real graph where
+  all of them were clean on the one-relationship fixture:
+  `missing_clustering` moves its own column's persistence
+  (+0.13), `patients.count` moves `age_at_visit.persistence`
+  (+0.10) and a pair (+0.16), `patients.visits_scale` moves
+  two count columns' spread (+0.12, +0.13). TWO are genuine
+  NO-OPs on real data — `span_days.persistence` and
+  `span_days<-procedure_count.strength`.
+- Per-pattern dials over every pattern KIND the inventory
+  names, shipped 2026-11-03: relationship, effect curve,
+  identity, set token and interaction surface all reachable
+  by an invertible output permutation the cipher can undo.
 - ~~Dials over relationships~~ SHIPPED 2026-09-18:
   `--dial "CHILD<-PARENT.strength=0..1"` weakens ONE edge.
   Measured on a two-parent child: dialing both directions of the

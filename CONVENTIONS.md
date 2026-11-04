@@ -4,7 +4,7 @@ Synthetic clinical data generator and model-evaluation instrument. Core rule: le
 
 ## Verify before claiming
 
-- Run `python scripts/run_all_smokes.py` before claiming anything works. Expect **88 suites, 2698 checks**, ALL GREEN **on a checkout** (measured 2026-11-03). Off a zipball extract - which is what the data machine runs - the total is TWELVE LOWER, and the gap is now MEASURED rather than estimated (2026-11-02: 2480 on a checkout against **2468** on the data machine at the same commit, ALL GREEN both ways). It decomposes exactly, with no residue: nine in `smoke_buildid`, which needs git to test the archive path; one for `node`, absent, so the full JS parse cannot run; two for Chrome, absent, so the in-browser load check cannot run. All three report NOTES and pass rather than failing - that is the design, and it is why the count moves. This entry previously said NINE LOWER and warned that a total nobody ran is not a number to quote; somebody has now run it. CONFIRMED AT A SECOND COMMIT the same day: 2483 against **2471**, the same delta of twelve - and that pair is the stronger evidence, because the commit between them ADDED THREE checks on the dev side and all three appeared on BOTH machines. That is `gated()` doing exactly what its docstring promises: a skipped check still emits a line, so the count stays one number across both places and only the genuinely unavailable tooling moves it. Do not quote the checkout number to the data machine; that is how a correct run gets read as a failure.
+- Run `python scripts/run_all_smokes.py` before claiming anything works. Expect **88 suites, 2701 checks**, ALL GREEN **on a checkout** (measured 2026-11-03). Off a zipball extract - which is what the data machine runs - the total is TWELVE LOWER, and the gap is now MEASURED rather than estimated (2026-11-02: 2480 on a checkout against **2468** on the data machine at the same commit, ALL GREEN both ways). It decomposes exactly, with no residue: nine in `smoke_buildid`, which needs git to test the archive path; one for `node`, absent, so the full JS parse cannot run; two for Chrome, absent, so the in-browser load check cannot run. All three report NOTES and pass rather than failing - that is the design, and it is why the count moves. This entry previously said NINE LOWER and warned that a total nobody ran is not a number to quote; somebody has now run it. CONFIRMED AT A SECOND COMMIT the same day: 2483 against **2471**, the same delta of twelve - and that pair is the stronger evidence, because the commit between them ADDED THREE checks on the dev side and all three appeared on BOTH machines. That is `gated()` doing exactly what its docstring promises: a skipped check still emits a line, so the count stays one number across both places and only the genuinely unavailable tooling moves it. Do not quote the checkout number to the data machine; that is how a correct run gets read as a failure.
 - **THE DEVELOPMENT MACHINE WAS BEHIND THE DATA MACHINE, and that is
   how a green suite here failed there.** Dev was on Python 3.10 with
   pandas 2.3; the data machine installs fresh and got pandas 3.0.5,
@@ -5352,3 +5352,33 @@ exist.
   WORDS that **the floor is not the bar**: four numbers with
   no sentence leaves a reader to assume the smallest one was
   the target.
+
+- **THE DIAL MATRIX RAN ON THE REAL BLUEPRINT, AND THE REAL
+  GRAPH LEAKS WHERE THE FIXTURE DID NOT (2026-11-03 night).**
+  Four columns against 88 relationships, where the fixture has
+  one:
+      span_days.shift              CLEAN
+      span_days.scale              CLEAN   x1.50 asked x1.50
+      span_days.persistence        NO-OP
+      systolic.coverage            CLEAN
+      systolic.missing_clustering  LEAKED  own persistence +0.13
+      patients.count               LEAKED  age persistence +0.10,
+                                           a pair +0.16
+      patients.visits_scale        LEAKED  two counts' spread
+                                           +0.12, +0.13
+      span_days<-proc.strength     NO-OP
+  **`span_days.shift` and `.scale` reading CLEAN is the
+  cyclic-sweep fix holding on the real blueprint** through a
+  second instrument. THREE dials leak into neighbouring
+  properties that were all clean on the one-relationship
+  fixture - a dense graph propagates a dial's effect in ways
+  a forest cannot show, which is the same lesson the
+  fixture-was-a-forest entry records for discovery.
+- **AND THE MATRIX WAS COUNTING ITS OWN CONTROL AS A FAULT.**
+  `scale@1.0` exists to prove the NO-OP detector can fire - a
+  dial asked for x1.0 moves nothing BY DEFINITION - and it
+  was listed among the defects, so the real blueprint showed
+  three NO-OPs where only two were findings. A control
+  counted among the faults makes every real one a third less
+  alarming. It is reported as the control that proves the
+  detector can fail, and the fault list no longer names it.
