@@ -844,6 +844,23 @@ def main(argv=None, args=None):
         say("set tokens within 0.05 of their source share on {}/{} - "
             "counted apart from the columns above, which are yours"
             .format(s["set_tokens_ok"], s["set_tokens_compared"]))
+    # SAID WHERE THE TOKEN SHARES ARE SAID, because a reader
+    # who sees "45/45 token shares within 0.05" and is not
+    # told that 250 published tokens were never emitted has
+    # been given a pass on a question nobody asked.
+    _ne = s.get("set_tokens_never_emitted") or 0
+    if _ne:
+        say("  {} of {} PUBLISHED tokens appear in NO generated "
+            "row - not a drifted share, a share with nothing to "
+            "compare. The contract names tokens the file does "
+            "not contain.".format(
+                _ne, s.get("set_tokens_published")))
+        for _r in (fid.get("set_tokens_absent") or []):
+            if _r["never_emitted"]:
+                say("    {:<22} published {:>5}  in output "
+                    "{:>5}  never emitted {:>5}".format(
+                        _r["column"], _r["published"],
+                        _r["in_output"], _r["never_emitted"]))
     say("RELATIONSHIPS: {}/{} keep their direction, {}/{} land within "
         "0.2".format(s["pairs_sign_ok"], s["pairs"],
                      s["pairs_close"], s["pairs"]))
@@ -1957,6 +1974,47 @@ def compare(df, g, bp, group_by, time_col, ordinals=None,
                        "share_generated": round(pg_, 4),
                        "delta": round(pg_ - ps_, 4)})
 
+    # AND WHICH PUBLISHED TOKENS THE OUTPUT NEVER CARRIES.
+    #
+    # The loop above skips a token absent from the generated
+    # frame with a `continue`, so a token the engine never
+    # emits is invisible to `set token shares` - it is not a
+    # share that drifted, it is a share with nothing to
+    # compare. Measured on the real extract: the blueprint
+    # publishes 1,050 `conditions` tokens and the output
+    # carries exactly 800, the engine's own cap, so 250
+    # published tokens appear in no generated row at all.
+    #
+    # That is the contract promising what the file does not
+    # contain - this project's two-halves fault - and the
+    # first thing it needs is to stop being invisible. It is
+    # REPORTED rather than made a criterion, because whether
+    # to fix it by raising the engine's cap or by publishing
+    # less is a costed decision somebody has to make.
+    absent = []
+    for c, spec in ((bp.get("columns") or {}).items()):
+        m = (spec or {}).get("marginal") or {}
+        if m.get("type") != "list":
+            continue
+        if c not in g.columns:
+            continue
+        sep = m.get("separator") or ";"
+        seen = set()
+        for v in g[c].fillna("").astype(str):
+            for t in v.split(sep):
+                t = t.strip()
+                if t:
+                    seen.add(t)
+        pub = [str(t.get("value")) for t in (m.get("tokens") or [])
+               if t.get("value")]
+        gone = [t for t in pub if t not in seen]
+        if pub:
+            absent.append({"column": c,
+                           "published": len(pub),
+                           "in_output": len(seen),
+                           "never_emitted": len(gone),
+                           "examples": sorted(gone)[:5]})
+
     # DID THE EMPTY SETS COME OUT AT THE SOURCE'S RATE? MEASURED.
     #
     # The typing report states how often a set column is empty in the
@@ -2148,6 +2206,7 @@ def compare(df, g, bp, group_by, time_col, ordinals=None,
         "columns": cols,
         "set_tokens": tokens,
         "set_shape": set_shape,
+        "set_tokens_absent": absent,
         "constraints": cons,
         "relationships": pairs,
         "shapes": shapes,
@@ -2162,6 +2221,13 @@ def compare(df, g, bp, group_by, time_col, ordinals=None,
                                 if abs(x["delta"]) <= 0.05),
             "set_tokens_ok": sum(1 for x in tokens
                                  if abs(x["delta"]) <= 0.05),
+            # PUBLISHED BUT NEVER EMITTED. Not a drifted share -
+            # a share with nothing to compare, because the
+            # output carries no row holding the token.
+            "set_tokens_published": sum(
+                x["published"] for x in absent),
+            "set_tokens_never_emitted": sum(
+                x["never_emitted"] for x in absent),
             "numeric_dynamic": n_ok["dyn"],
             # source-vs-generated within-patient fidelity: 0
             # when the data has no repeat-visit structure to

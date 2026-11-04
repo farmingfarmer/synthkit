@@ -1545,6 +1545,87 @@ def main():
     if FAIL:
         print("{} FAILED".format(FAIL))
         sys.exit(1)
+    # ---- PUBLISHED BUT NEVER EMITTED
+    #
+    # `set token shares` skips a token absent from the
+    # generated frame with a `continue`, so a token the engine
+    # never emits is INVISIBLE to it - not a share that
+    # drifted, a share with nothing to compare. Measured on
+    # the real extract: the blueprint publishes 1,050
+    # `conditions` tokens and the output carries exactly 800,
+    # the engine's own cap, so 250 published tokens appear in
+    # no generated row at all. The contract names tokens the
+    # file does not contain.
+    import smoke_patterndials as _SPX
+    from synthkit import blueprint as _BX
+    from synthkit.discover import discover as _dX
+    from synthkit.generate import generate as _gX
+    from synthkit.pipeline import compare as _cX
+
+    _df = _SPX.set_fixture(n=200, v=5)
+    _bp = _BX.build(_df, _dX(_df, group_by="person_id", seed=2),
+                    group_by="person_id")
+    _g = _gX(_bp, n_patients=200, seed=4)
+    _fid = _cX(_df, _g, _bp, "person_id",
+               _bp.get("time_column"))
+    _s = _fid["summary"]
+    check("a healthy run reports ZERO published tokens missing "
+          "from the output - {} published, {} never emitted"
+          .format(_s.get("set_tokens_published"),
+                  _s.get("set_tokens_never_emitted")),
+          _s.get("set_tokens_published", 0) > 0
+          and _s.get("set_tokens_never_emitted") == 0)
+
+    # PLANT THE CONDITION: strip one published token from every
+    # generated row, which is exactly what a cap does - the
+    # token is published, and no row carries it.
+    _pub = [t["value"] for t in
+            _bp["columns"]["conds"]["marginal"]["tokens"]]
+    _gone = _pub[0]
+    _g2 = _g.copy()
+    _g2["conds"] = [";".join(x for x in str(v).split(";")
+                             if x.strip() and x.strip() != _gone)
+                    for v in _g["conds"].fillna("")]
+    _fid2 = _cX(_df, _g2, _bp, "person_id",
+                _bp.get("time_column"))
+    _s2 = _fid2["summary"]
+    check("...and a token the output never carries is COUNTED "
+          "rather than skipped - {} never emitted after one "
+          "was stripped from every row"
+          .format(_s2.get("set_tokens_never_emitted")),
+          _s2.get("set_tokens_never_emitted") == 1)
+    _rows = [r for r in (_fid2.get("set_tokens_absent") or [])
+             if r["never_emitted"]]
+    check("...and the column is NAMED with an example, so the "
+          "number is actionable rather than a total somebody "
+          "has to go looking for",
+          _rows and _rows[0]["column"] == "conds"
+          and _gone in (_rows[0]["examples"] or []))
+    # AND WHAT THE SHARE CRITERION DOES AND DOES NOT SEE,
+    # CORRECTED BY MEASUREMENT. The first version of this
+    # check claimed `set token shares` is blind to a missing
+    # token. It is not, HERE: the indicator column exists with
+    # a share of zero, so the delta is the whole source share
+    # and the criterion counts it - 7 of 8.
+    #
+    # It was blind on the REAL extract only because the
+    # indicator column was never BUILT: `prepare()` rebuilt
+    # the vocabulary under EXPAND_CAP, so 250 published
+    # `conditions` tokens had no column on either side and
+    # were skipped. With the vocabulary now read off the
+    # blueprint those columns exist, which makes the criterion
+    # STRICTER and more honest - and means it was previously
+    # flattered by the tokens it could not see.
+    check("...and `set token shares` DOES see it once the "
+          "column exists - {} of {} within 0.05. The count "
+          "above is not a substitute for the criterion; it "
+          "NAMES which tokens and which column, which a "
+          "ratio cannot"
+          .format(_s2.get("set_tokens_ok"),
+                  _s2.get("set_tokens_compared")),
+          _s2.get("set_tokens_ok")
+          < _s2.get("set_tokens_compared"))
+
     print("All {} checks passed.".format(PASS))
 
 

@@ -4,7 +4,7 @@ Synthetic clinical data generator and model-evaluation instrument. Core rule: le
 
 ## Verify before claiming
 
-- Run `python scripts/run_all_smokes.py` before claiming anything works. Expect **90 suites, 2769 checks**, ALL GREEN **on a checkout** (measured 2026-11-03). Off a zipball extract - which is what the data machine runs - the total is TWELVE LOWER, and the gap is now MEASURED rather than estimated (2026-11-02: 2480 on a checkout against **2468** on the data machine at the same commit, ALL GREEN both ways). It decomposes exactly, with no residue: nine in `smoke_buildid`, which needs git to test the archive path; one for `node`, absent, so the full JS parse cannot run; two for Chrome, absent, so the in-browser load check cannot run. All three report NOTES and pass rather than failing - that is the design, and it is why the count moves. This entry previously said NINE LOWER and warned that a total nobody ran is not a number to quote; somebody has now run it. CONFIRMED AT A SECOND COMMIT the same day: 2483 against **2471**, the same delta of twelve - and that pair is the stronger evidence, because the commit between them ADDED THREE checks on the dev side and all three appeared on BOTH machines. That is `gated()` doing exactly what its docstring promises: a skipped check still emits a line, so the count stays one number across both places and only the genuinely unavailable tooling moves it. Do not quote the checkout number to the data machine; that is how a correct run gets read as a failure.
+- Run `python scripts/run_all_smokes.py` before claiming anything works. Expect **90 suites, 2773 checks**, ALL GREEN **on a checkout** (measured 2026-11-03). Off a zipball extract - which is what the data machine runs - the total is TWELVE LOWER, and the gap is now MEASURED rather than estimated (2026-11-02: 2480 on a checkout against **2468** on the data machine at the same commit, ALL GREEN both ways). It decomposes exactly, with no residue: nine in `smoke_buildid`, which needs git to test the archive path; one for `node`, absent, so the full JS parse cannot run; two for Chrome, absent, so the in-browser load check cannot run. All three report NOTES and pass rather than failing - that is the design, and it is why the count moves. This entry previously said NINE LOWER and warned that a total nobody ran is not a number to quote; somebody has now run it. CONFIRMED AT A SECOND COMMIT the same day: 2483 against **2471**, the same delta of twelve - and that pair is the stronger evidence, because the commit between them ADDED THREE checks on the dev side and all three appeared on BOTH machines. That is `gated()` doing exactly what its docstring promises: a skipped check still emits a line, so the count stays one number across both places and only the genuinely unavailable tooling moves it. Do not quote the checkout number to the data machine; that is how a correct run gets read as a failure.
 - **THE DEVELOPMENT MACHINE WAS BEHIND THE DATA MACHINE, and that is
   how a green suite here failed there.** Dev was on Python 3.10 with
   pandas 2.3; the data machine installs fresh and got pandas 3.0.5,
@@ -5652,3 +5652,26 @@ exist.
   swept into a layer travels with every pull of the image -
   and carries the NET, so a deployment can prove the tool
   works before it is pointed at an extract.
+- **AND THE RUN NOW COUNTS WHAT IT PUBLISHED AND NEVER
+  EMITTED.** `set token shares` skips a token absent from the
+  generated frame with a `continue`, so a token the engine
+  never emits was invisible to it - not a share that drifted,
+  a share with nothing to compare. `set_tokens_never_emitted`
+  counts them and NAMES the column with examples, because a
+  reader told "45/45 token shares within 0.05" and not told
+  that 250 published tokens appear in no generated row has
+  been given a pass on a question nobody asked.
+- **AND A CLAIM I MADE ABOUT THAT CRITERION WAS WRONG, CAUGHT
+  BY ITS OWN CHECK.** The first version said `set token
+  shares` is BLIND to a missing token. It is not, where the
+  indicator column exists: the share reads zero, the delta is
+  the whole source share, and the criterion counts it - 7 of
+  8 on the fixture. It was blind on the real extract only
+  because the column was never BUILT, `prepare()` having
+  rebuilt the vocabulary under EXPAND_CAP. **With the
+  vocabulary now read off the blueprint those columns exist,
+  which makes the criterion STRICTER - and means it was
+  previously FLATTERED by the tokens it could not see.** A
+  future real run should be expected to read worse on `set
+  token shares` for that reason, and that is a better number,
+  not a regression.
