@@ -393,12 +393,38 @@ def main():
           "is a different job"
           .format(_n_voc),
           _n_voc == len(_t4))
+    # THE VOCABULARY IS BOUNDED, AND THE BOUND IS MEASURED.
+    # Expanding every published token builds one indicator
+    # column per token on BOTH frames - 1,827 columns over
+    # 56,065 rows on the real extract, 1.64 GB for the pair,
+    # the same order as the allocation that once killed a run
+    # outright. So it is the union of what the pair criteria
+    # NAME and what the share criterion already saw.
+    _many = [{"value": "t{:03d}".format(i), "p": 0.1}
+             for i in range(200)]
     _bpv = {"columns": {"conds": {"marginal": {
-        "type": "list", "tokens": _vb["conds"]}}}}
-    check("...and blueprint_vocab reads the published tokens "
-          "straight off the artifact, so the measurement "
-          "lands on the surface the run was measured on",
-          _bv4(_bpv).get("conds") == _vb["conds"])
+        "type": "list", "tokens": _many}}},
+        "relationships": [
+            {"child": "sev",
+             "parents": ["conds" + _S4.HAS + "t150"]}]}
+    _got = _bv4(_bpv).get("conds") or []
+    _vals = [str(t["value"]) for t in _got]
+    check("blueprint_vocab is BOUNDED rather than taking all "
+          "{} published - it kept {}, because one indicator "
+          "column per token on two frames is 1.64 GB on the "
+          "real extract"
+          .format(len(_many), len(_got)),
+          len(_got) < len(_many))
+    check("...and it keeps the first EXPAND_CAP, so the "
+          "token-share criterion sees what it saw before "
+          "rather than quietly narrowing",
+          all("t{:03d}".format(i) in _vals
+              for i in range(_S4.EXPAND_CAP)))
+    check("...and it ALSO keeps a token the relationships "
+          "NAME even though it sits far past the cap - that "
+          "is the whole reason the surface was wrong, 37 such "
+          "tokens on the real extract",
+          "t150" in _vals)
     check("...and published tokens have ALREADY cleared the k "
           "floor, so using them changes what is measured and "
           "not what is disclosed",

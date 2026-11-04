@@ -1833,22 +1833,63 @@ def _pair_fidelity(Xs, Xg, bp):
 
 
 def blueprint_vocab(bp):
-    """The set tokens this blueprint actually published.
+    """The tokens a measurement of THIS run actually needs.
 
     Read from the artifact rather than re-derived, so a
-    measurement of an existing run lands on the SAME surface
-    the run was measured on. Published tokens have already
-    cleared the k floor, so this changes what is measured and
-    not what is disclosed.
+    measurement lands on the SAME surface the run was measured
+    on. Published tokens have already cleared the k floor, so
+    this changes what is measured and not what is disclosed.
+
+    BOUNDED, AND THE BOUND IS NOT ARBITRARY. Expanding every
+    published token would build one indicator column per token
+    on BOTH frames: on the real extract that is 1,827 columns
+    over 56,065 rows, **1.64 GB for the pair** - the same
+    order as the allocation that once killed a run outright.
+    So the set is the UNION of two things, each of which a
+    criterion genuinely needs:
+
+      - every token the blueprint's RELATIONSHIPS name, which
+        is what the pair criteria measure and the whole reason
+        the surface was wrong (37 of them on the real extract
+        could not be rebuilt under the cap); and
+      - the first EXPAND_CAP by published order, which is what
+        the token-share criterion saw before, so that criterion
+        keeps its meaning rather than quietly narrowing.
+
+    About 133 columns on the real extract, 119 MB for the
+    pair. A measurement that cannot run is worth less than one
+    that is slightly narrow, and what it leaves out is named.
     """
+    import synthkit.sets as _S
+    named = set()
+    for rel in ((bp or {}).get("relationships") or []):
+        ch = rel.get("child")
+        if ch and _S.HAS in str(ch):
+            named.add(str(ch))
+        for par in (rel.get("parents") or []):
+            if par and _S.HAS in str(par):
+                named.add(str(par))
     out = {}
     for c, v in ((bp or {}).get("columns") or {}).items():
         mg = v.get("marginal") or {}
         if (mg.get("type") or "") != "list":
             continue
         toks = mg.get("tokens") or []
-        if toks:
-            out[c] = toks
+        if not toks:
+            continue
+        keep, seen = [], set()
+        for t in toks[:_S.EXPAND_CAP]:
+            keep.append(t)
+            seen.add(str(t.get("value")))
+        pre = c + _S.HAS
+        for t in toks:
+            tv = str(t.get("value"))
+            if tv in seen:
+                continue
+            if pre + tv in named:
+                keep.append(t)
+                seen.add(tv)
+        out[c] = keep
     return out
 
 
