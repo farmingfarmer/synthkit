@@ -822,6 +822,39 @@ def _dial_set(run, bp, pat, pid, want, against, apply_it,
               "generated.csv".format(against))
         return 1
 
+    # TWO ASKS THAT CANNOT BOTH BE MET, AND THE REFUSAL IS THE
+    # ONLY HONEST ANSWER.
+    #
+    # A set column's declared size partner TRAVELS WITH IT, so
+    # that `count == len(set)` survives the rearrangement.
+    # Dialling a token of that set AGAINST that same partner
+    # therefore moves both sides together and their
+    # correlation is invariant by construction - there is no
+    # arrangement that changes it while the identity holds.
+    #
+    # Found on the real extract, where the strongest tie for
+    # a partnered column was `active_drugs / acetaminophen`
+    # against `active_drug_count`: asked -0.425, landed
+    # +0.425, unchanged to three decimals, with every other
+    # verdict reading clean. A dial that reports a landed
+    # number for an ask it cannot touch is the silent
+    # difference this whole module exists to refuse.
+    _part = size_partners(bp, col)
+    if against in _part:
+        print("STOP: {} is the DECLARED SIZE PARTNER of {} - "
+              "this dial cannot move that pair.".format(
+                  against, col))
+        print("      The partner travels with the set so that "
+              "`{} == len({})` survives the rearrangement, so "
+              "both sides move together and their correlation "
+              "is unchanged by construction. You can keep the "
+              "declared identity or change this pair, not "
+              "both.".format(against, col))
+        print("      Dial the token against a column that is "
+              "NOT derived from this set, or dial the size "
+              "relationship itself.")
+        return 2
+
     sep = ";"
 
     def _ind(f):

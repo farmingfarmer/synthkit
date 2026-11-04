@@ -4,7 +4,7 @@ Synthetic clinical data generator and model-evaluation instrument. Core rule: le
 
 ## Verify before claiming
 
-- Run `python scripts/run_all_smokes.py` before claiming anything works. Expect **86 suites, 2652 checks**, ALL GREEN **on a checkout** (measured 2026-11-03). Off a zipball extract - which is what the data machine runs - the total is TWELVE LOWER, and the gap is now MEASURED rather than estimated (2026-11-02: 2480 on a checkout against **2468** on the data machine at the same commit, ALL GREEN both ways). It decomposes exactly, with no residue: nine in `smoke_buildid`, which needs git to test the archive path; one for `node`, absent, so the full JS parse cannot run; two for Chrome, absent, so the in-browser load check cannot run. All three report NOTES and pass rather than failing - that is the design, and it is why the count moves. This entry previously said NINE LOWER and warned that a total nobody ran is not a number to quote; somebody has now run it. CONFIRMED AT A SECOND COMMIT the same day: 2483 against **2471**, the same delta of twelve - and that pair is the stronger evidence, because the commit between them ADDED THREE checks on the dev side and all three appeared on BOTH machines. That is `gated()` doing exactly what its docstring promises: a skipped check still emits a line, so the count stays one number across both places and only the genuinely unavailable tooling moves it. Do not quote the checkout number to the data machine; that is how a correct run gets read as a failure.
+- Run `python scripts/run_all_smokes.py` before claiming anything works. Expect **86 suites, 2655 checks**, ALL GREEN **on a checkout** (measured 2026-11-03). Off a zipball extract - which is what the data machine runs - the total is TWELVE LOWER, and the gap is now MEASURED rather than estimated (2026-11-02: 2480 on a checkout against **2468** on the data machine at the same commit, ALL GREEN both ways). It decomposes exactly, with no residue: nine in `smoke_buildid`, which needs git to test the archive path; one for `node`, absent, so the full JS parse cannot run; two for Chrome, absent, so the in-browser load check cannot run. All three report NOTES and pass rather than failing - that is the design, and it is why the count moves. This entry previously said NINE LOWER and warned that a total nobody ran is not a number to quote; somebody has now run it. CONFIRMED AT A SECOND COMMIT the same day: 2483 against **2471**, the same delta of twelve - and that pair is the stronger evidence, because the commit between them ADDED THREE checks on the dev side and all three appeared on BOTH machines. That is `gated()` doing exactly what its docstring promises: a skipped check still emits a line, so the count stays one number across both places and only the genuinely unavailable tooling moves it. Do not quote the checkout number to the data machine; that is how a correct run gets read as a failure.
 - **THE DEVELOPMENT MACHINE WAS BEHIND THE DATA MACHINE, and that is
   how a green suite here failed there.** Dev was on Python 3.10 with
   pandas 2.3; the data machine installs fresh and got pandas 3.0.5,
@@ -5199,3 +5199,37 @@ exist.
   on drift. Writing a check that passes without exercising it
   would be the cap-no-fixture-reaches fault; the coverage
   that exists is the real-run driver, watched printing it.
+
+- **THE TWO-CONSTRUCTION DIAL IS A DOUBLE WIN ON THE REAL
+  SURFACE, WHICH THE FIXTURE SWEEP DID NOT PREDICT
+  (2026-11-03 night, run_deliverable, 787_2 from 789_8 x
+  4544_3).**
+      before   gain 1.1503 -> 0.2016   82%   drift 0.254
+      after    gain 1.1503 -> 0.1334   88%   drift 0.081
+  The main effect it used to wreck (-0.274 -> -0.040) now
+  holds at -0.291. The sweep predicted a TRADE - more
+  suppression or less drift, not both - and on the real
+  surface the drift bar bought both, because the arrangement
+  it rejected was not on the efficient frontier at all.
+- **AND THE PARTNER BRANCH IS COVERED ON REAL DATA AT LAST.**
+  The first real run picked `drug_routes`, which declares no
+  size partner, so the repair built for that case never ran.
+  Pointed at `active_drugs`, which declares
+  `active_drug_count`: the identity reads broken on ZERO rows
+  after the dial, unchanged from before, and the partner's
+  values verifiably moved - a branch that passes by not
+  running is the fault, not the test.
+- **AND IT FOUND A DIAL THAT CANNOT WORK AND DID NOT SAY SO.**
+  The driver's strongest tie for a partnered column was
+  `active_drugs / acetaminophen` AGAINST `active_drug_count`
+  - the set's OWN size partner. That partner travels with the
+  set so `count == len(set)` survives, so both sides move
+  together and their correlation is INVARIANT by
+  construction. Asked **-0.425, landed +0.425**, unchanged to
+  three decimals, with every other verdict on the page
+  reading clean. Two asks that cannot both be met: keep the
+  declared identity, or change that pair. It is REFUSED now,
+  naming the conflict rather than reporting a landed number
+  for an ask it cannot touch - the silent-difference class
+  this module exists to refuse, found only by running on a
+  blueprint where a set column HAS a declared partner.

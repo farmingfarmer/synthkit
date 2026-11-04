@@ -134,6 +134,14 @@ def pick_partnered_token(bp, gen):
                 > 0.5
                 and pd.to_numeric(gen[c],
                                   errors="coerce").nunique() > 8]
+        # AND NOT AGAINST THE SET'S OWN SIZE PARTNER. That
+        # partner travels with the set to keep the declared
+        # identity, so both sides move together and the
+        # correlation cannot change - the first real run
+        # picked exactly that pair and read asked -0.425,
+        # landed +0.425.
+        _own = set(_P.size_partners(bp, col))
+        nums = [c for c in nums if c not in _own]
         for t in (mg.get("tokens") or [])[:30]:
             tv = t.get("value")
             if not tv:

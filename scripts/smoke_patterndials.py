@@ -677,6 +677,39 @@ def main():
               "to keep the declared size identity" in out
               and "size partner, moved with the set" in out)
 
+        # TWO ASKS THAT CANNOT BOTH BE MET. The set's
+        # declared size partner travels WITH it so the
+        # identity survives, so dialling a token against
+        # that same partner moves both sides together and
+        # the correlation is invariant. Found on the real
+        # extract: active_drugs/acetaminophen against
+        # active_drug_count read asked -0.425, landed
+        # +0.425, with every other verdict clean.
+        _own = P.size_partners(sbp, "conds")
+        check("the fixture's set column declares a size "
+              "partner, so the refusal below is not vacuous",
+              "nc" in _own)
+        buf = io.StringIO()
+        with contextlib.redirect_stdout(buf):
+            rc5 = P.dial(srun, "{}=-0.5".format(t00["id"]),
+                         against="nc")
+        _o5 = buf.getvalue()
+        check("dialling a set token against its OWN declared "
+              "size partner is REFUSED, not attempted - the "
+              "partner travels with the set to keep the "
+              "identity, so both sides move together and the "
+              "correlation cannot change",
+              rc5 != 0
+              and "DECLARED SIZE PARTNER" in _o5
+              and "cannot move that pair" in _o5)
+        check("...and the refusal states the CONFLICT rather "
+              "than just saying no - you can keep the "
+              "declared identity or change this pair, and "
+              "the operator needs to know which they are "
+              "giving up",
+              "not both" in _o5
+              and "survives the rearrangement" in _o5)
+
         rec = json.loads((srun / "cipher.json")
                          .read_text(encoding="utf-8"))
         check("the arrangement is RECORDED for every column "
