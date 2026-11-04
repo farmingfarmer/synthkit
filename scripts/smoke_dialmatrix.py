@@ -320,6 +320,32 @@ def main():
         _rows = _MM.run()
     _out = _b.getvalue()
     _ctrl = [r for r in _rows if r["dial"].endswith("@1.0")]
+    # THE MATRIX MUST KNOW ITS OWN NOISE FLOOR. Every verdict
+    # compares one dialled run against one undialled run at
+    # ONE seed - and for a dial that changes the SAMPLE the
+    # whole frame is re-drawn, so every property moves by
+    # whatever re-seeding moves it. On the real blueprint
+    # three dials read LEAKED at +0.10 to +0.16, which is the
+    # size a different seed can produce on its own.
+    _bn = _io.StringIO()
+    with contextlib.redirect_stdout(_bn):
+        _nrows = _MM.run(noise_seeds=3)
+    check("every row carries a within_noise bucket when the "
+          "floor was measured, so what a tolerance absorbed "
+          "is visible rather than silently swallowed",
+          all("within_noise" in r for r in _nrows))
+    _leak = [r for r in _nrows if r["dial"].endswith("@3sd")]
+    check("...and a leak far ABOVE the floor still reads as a "
+          "leak - a floor that absorbs everything is a "
+          "detector that cannot fail",
+          _leak and _leak[0]["verdict"] == "LEAKED"
+          and not _leak[0]["within_noise"])
+    check("...and the floor is only computed when asked for, "
+          "so the default run is one generation per arm and "
+          "not four",
+          all(not r.get("within_noise")
+              for r in _MM.run(noise_seeds=1)))
+
     check("the matrix still CARRIES the x1.0 control arm, so "
           "the NO-OP detector has something that must trip it",
           len(_ctrl) == 1 and _ctrl[0]["verdict"] == "NO-OP")

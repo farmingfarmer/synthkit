@@ -4,7 +4,7 @@ Synthetic clinical data generator and model-evaluation instrument. Core rule: le
 
 ## Verify before claiming
 
-- Run `python scripts/run_all_smokes.py` before claiming anything works. Expect **88 suites, 2701 checks**, ALL GREEN **on a checkout** (measured 2026-11-03). Off a zipball extract - which is what the data machine runs - the total is TWELVE LOWER, and the gap is now MEASURED rather than estimated (2026-11-02: 2480 on a checkout against **2468** on the data machine at the same commit, ALL GREEN both ways). It decomposes exactly, with no residue: nine in `smoke_buildid`, which needs git to test the archive path; one for `node`, absent, so the full JS parse cannot run; two for Chrome, absent, so the in-browser load check cannot run. All three report NOTES and pass rather than failing - that is the design, and it is why the count moves. This entry previously said NINE LOWER and warned that a total nobody ran is not a number to quote; somebody has now run it. CONFIRMED AT A SECOND COMMIT the same day: 2483 against **2471**, the same delta of twelve - and that pair is the stronger evidence, because the commit between them ADDED THREE checks on the dev side and all three appeared on BOTH machines. That is `gated()` doing exactly what its docstring promises: a skipped check still emits a line, so the count stays one number across both places and only the genuinely unavailable tooling moves it. Do not quote the checkout number to the data machine; that is how a correct run gets read as a failure.
+- Run `python scripts/run_all_smokes.py` before claiming anything works. Expect **88 suites, 2704 checks**, ALL GREEN **on a checkout** (measured 2026-11-03). Off a zipball extract - which is what the data machine runs - the total is TWELVE LOWER, and the gap is now MEASURED rather than estimated (2026-11-02: 2480 on a checkout against **2468** on the data machine at the same commit, ALL GREEN both ways). It decomposes exactly, with no residue: nine in `smoke_buildid`, which needs git to test the archive path; one for `node`, absent, so the full JS parse cannot run; two for Chrome, absent, so the in-browser load check cannot run. All three report NOTES and pass rather than failing - that is the design, and it is why the count moves. This entry previously said NINE LOWER and warned that a total nobody ran is not a number to quote; somebody has now run it. CONFIRMED AT A SECOND COMMIT the same day: 2483 against **2471**, the same delta of twelve - and that pair is the stronger evidence, because the commit between them ADDED THREE checks on the dev side and all three appeared on BOTH machines. That is `gated()` doing exactly what its docstring promises: a skipped check still emits a line, so the count stays one number across both places and only the genuinely unavailable tooling moves it. Do not quote the checkout number to the data machine; that is how a correct run gets read as a failure.
 - **THE DEVELOPMENT MACHINE WAS BEHIND THE DATA MACHINE, and that is
   how a green suite here failed there.** Dev was on Python 3.10 with
   pandas 2.3; the data machine installs fresh and got pandas 3.0.5,
@@ -5382,3 +5382,21 @@ exist.
   counted among the faults makes every real one a third less
   alarming. It is reported as the control that proves the
   detector can fail, and the fault list no longer names it.
+- **AND THE MATRIX NOW MEASURES ITS OWN NOISE FLOOR, BECAUSE
+  THREE OF THOSE LEAKS MIGHT BE THE SEED.** Every verdict
+  compares ONE dialled run against ONE undialled run at one
+  seed with a flat tolerance - and `patients.count` draws a
+  different number of people while `visits_scale` draws a
+  different number of rows, so the whole frame is re-drawn
+  and every property moves by whatever re-seeding moves it.
+  The three LEAKED verdicts sat at +0.10 to +0.16, which is
+  the size a different seed can produce unaided.
+  `--noise-seeds N` re-runs the UNDIALLED blueprint at other
+  seeds and takes the per-property spread as the floor; a
+  move no bigger than that is reported as INSIDE THE NOISE
+  FLOOR with the floor printed beside it, not as a finding.
+  What the floor absorbed is listed, because a tolerance that
+  silently swallows moves is indistinguishable from a
+  detector that cannot see them. This file's oldest rule
+  about single-seed measurements, applied to the instrument
+  rather than to the thing it measures.

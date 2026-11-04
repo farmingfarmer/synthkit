@@ -313,7 +313,8 @@ def from_blueprint(path, group_by):
     return bp, val, sparse, bystander, edge
 
 
-def run(seed=7, n_pat=260, blueprint=None, group_by="person_id"):
+def run(seed=7, n_pat=260, blueprint=None,
+        group_by="person_id", noise_seeds=1):
     if blueprint:
         base_bp, val, sparse_c, byst, edge = from_blueprint(
             blueprint, group_by)
@@ -357,6 +358,38 @@ def run(seed=7, n_pat=260, blueprint=None, group_by="person_id"):
     base_gen = generate(json.loads(json.dumps(base_bp)),
                         n_patients=n_pat, seed=seed)
     before = properties(base_gen, cols, group_by)
+
+    # THE MATRIX HAS TO KNOW ITS OWN NOISE FLOOR, or it reports
+    # the seed as a leak.
+    #
+    # Every verdict here compares one dialled run against one
+    # undialled run at ONE seed, with a flat tolerance. For a
+    # dial that changes the SAMPLE - `patients.count` draws a
+    # different number of people, `visits_scale` a different
+    # number of rows - the whole frame is re-drawn, so every
+    # property moves by whatever re-seeding moves it. On the
+    # real blueprint three dials read LEAKED at +0.10 to +0.16,
+    # which is exactly the size a different seed might produce
+    # on its own.
+    #
+    # So the undialled run is repeated at other seeds and the
+    # per-property spread of THAT is the floor. A move below it
+    # is not a finding, and this file's oldest rule about
+    # single-seed measurements applies to the instrument as
+    # much as to the thing it measures.
+    floor = {}
+    if noise_seeds > 1:
+        reps = [before]
+        for k in range(1, noise_seeds):
+            g = generate(json.loads(json.dumps(base_bp)),
+                         n_patients=n_pat, seed=seed + 100 * k)
+            reps.append(properties(g, cols, group_by))
+        for key in before:
+            vals = []
+            for r in reps:
+                ok, d = moved(before, r, key, sds.get(key[0], 1.0))
+                vals.append(d)
+            floor[key] = max(vals)
 
     # EVERY dial class, each one alone. The column chosen for
     # each is the one that can express it: `sparse` for the two
@@ -448,6 +481,7 @@ def run(seed=7, n_pat=260, blueprint=None, group_by="person_id"):
                          "verdict": "REFUSED",
                          "note": "; ".join(problems),
                          "leaks": [], "propagated": [],
+                         "within_noise": [],
                          "landed": ""})
             continue
         # DO NOT OVERRIDE THE DIAL UNDER TEST. The first cut
@@ -469,6 +503,7 @@ def run(seed=7, n_pat=260, blueprint=None, group_by="person_id"):
         # used. The target has to be asserted too.
         targets = []
         leaks = []
+        noisy = []
         prop = []
         for key in sorted(before, key=lambda k: (k[0], k[1])):
             name, kind = key
@@ -510,6 +545,20 @@ def run(seed=7, n_pat=260, blueprint=None, group_by="person_id"):
                 # named one, so it is reported as PROPAGATED
                 # rather than hidden or called a leak. The
                 # bystander column z is the control: it holds.
+                # BELOW THE NOISE FLOOR IS NOT A FINDING.
+                # Where the floor was measured, a move no
+                # bigger than re-seeding produces on its own
+                # is reported as such rather than as a leak -
+                # otherwise the seed gets written up as a
+                # defect, which is the fault this file records
+                # about close, about row counts and about
+                # centre_ok.
+                _fl = floor.get(key)
+                if _fl is not None and d <= _fl:
+                    noisy.append(
+                        "{}.{} {:+.2f} (floor {:+.2f})".format(
+                            name, kind, d, _fl))
+                    continue
                 tag = ("propagated" if name in kids.get(
                     tgt_col, ()) else "leak")
                 (prop if tag == "propagated" else leaks).append(
@@ -580,7 +629,22 @@ def run(seed=7, n_pat=260, blueprint=None, group_by="person_id"):
         rows.append({"dial": label, "semantics": sem,
                      "verdict": verdict, "note": note,
                      "leaks": leaks, "propagated": prop,
+                     "within_noise": noisy,
                      "landed": landed.strip()})
+
+    # WHAT THE FLOOR ABSORBED, SAID OUT LOUD. A tolerance
+    # that quietly swallows moves is indistinguishable from a
+    # detector that cannot see them.
+    _absorbed = [(r["dial"], w) for r in rows
+                 for w in r.get("within_noise") or []]
+    if _absorbed:
+        print("")
+        print("  INSIDE THE NOISE FLOOR - measured by "
+              "re-running the UNDIALLED blueprint at other "
+              "seeds, so these are what the seed moves on its "
+              "own and not what the dial did:")
+        for dname, w in _absorbed[:10]:
+            print("      {:<30} {}".format(dname, w))
 
     print("")
     bad = [r for r in rows if r["verdict"] != "CLEAN"
@@ -622,11 +686,15 @@ if __name__ == "__main__":
     _bp = None
     _gb = "person_id"
     _a = sys.argv[1:]
+    _ns = 1
     for i, tok in enumerate(_a):
         if tok == "--blueprint" and i + 1 < len(_a):
             _bp = _a[i + 1]
         if tok == "--group-by" and i + 1 < len(_a):
             _gb = _a[i + 1]
-    rows = run(blueprint=_bp, group_by=_gb)
+        if tok == "--noise-seeds" and i + 1 < len(_a):
+            _ns = int(_a[i + 1])
+    rows = run(blueprint=_bp, group_by=_gb,
+               noise_seeds=_ns)
     sys.exit(0 if all(r["verdict"] in ("CLEAN", "SHORT")
                       for r in rows) else 1)
