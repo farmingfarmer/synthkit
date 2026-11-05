@@ -295,6 +295,36 @@ def surface_verdict(n_new, n_rec):
     return "same"
 
 
+def published_order(bp):
+    """Each set column's published tokens, in published order.
+
+    A FUNCTION rather than four lines inline, because the four
+    lines read the WRONG FIELD NAME and no check could catch
+    it: `token_ranks` is asserted against a planted order map,
+    so the step that BUILDS the map was the one piece with
+    nothing on it - and that is precisely where the bug was.
+    Reading `token` where a list marginal writes `value`
+    returned None for every entry and reported 29 real
+    published tokens as unpublished, which read as a blueprint
+    declaring relationships on tokens it does not publish.
+    What refuted it was the contradiction: the names were
+    `metoclopramide` and `Oral`, whose published shares are on
+    record, so "not published" could not be true.
+
+    Fifth instance here of writing the field name that sounds
+    right instead of reading the contract - so the suite
+    asserts this against a LIVE built blueprint, and a rename
+    breaks the checks rather than somebody's report.
+    """
+    order = {}
+    for c, v in (bp.get("columns") or {}).items():
+        mg = v.get("marginal") or {}
+        if (mg.get("type") or "") == "list":
+            order[c] = [str(t.get("value"))
+                        for t in (mg.get("tokens") or [])]
+    return order
+
+
 def token_ranks(pairs, order, cap, has="__has__"):
     """Where each extra pair's token sits in published order.
 
@@ -464,12 +494,7 @@ def pair_diff(run, src_path):
     # ranks are spread through the list instead, the
     # vocabulary is not the cause and the candidate dies here
     # rather than being carried another week.
-    order = {}
-    for c, v in (bp.get("columns") or {}).items():
-        mg = v.get("marginal") or {}
-        if (mg.get("type") or "") == "list":
-            order[c] = [str(t.get("token"))
-                        for t in (mg.get("tokens") or [])]
+    order = published_order(bp)
     _tr = token_ranks(sorted(new - rec), order,
                       _S.EXPAND_CAP, has=_S.HAS)
     beyond, inside = _tr["beyond"], _tr["inside"]

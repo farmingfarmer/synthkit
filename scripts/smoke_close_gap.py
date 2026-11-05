@@ -113,6 +113,54 @@ def main():
           len(tr["beyond"]) + len(tr["inside"]) + tr["unknown"]
           == 3)
 
+    # ---- THE ORDER MAP, BUILT FROM A LIVE BLUEPRINT
+    #
+    # The census read `token` where a list marginal writes
+    # `value`, so every lookup returned None and 29 real
+    # published tokens were reported as unpublished. The first
+    # check written for it asserted only that the FIELD exists
+    # and did NOT go through the builder - so restoring the bug
+    # produced zero failures and the fail-first said the fix
+    # was untested. A check that cannot see the defect it was
+    # written for is the fault this project keeps re-finding.
+    # This drives `published_order` itself.
+    import numpy as _np
+    import pandas as _pd
+    from synthkit import blueprint as _B
+    from synthkit.discover import discover as _disc
+    _n, _v = 40, 4
+    _rng = _np.random.default_rng(3)
+    _tok = ["t{:02d}".format(i) for i in range(6)]
+    _sets = [";".join(sorted(_rng.choice(
+        _tok, size=2, replace=False))) for _ in range(_n * _v)]
+    _df = _pd.DataFrame({
+        "person_id": _np.repeat(
+            ["P{:03d}".format(i) for i in range(_n)], _v),
+        "conds": _sets,
+        "num": _np.round(_rng.normal(0, 1, _n * _v), 3)})
+    _bpl = _B.build(_df, _disc(_df, group_by="person_id",
+                               seed=1), group_by="person_id")
+    _ord = CG.published_order(_bpl)
+    check("the order map is built from a LIVE blueprint and "
+          "names the set column it published",
+          "conds" in _ord and bool(_ord["conds"]))
+    check("...and its entries are the REAL token labels, not "
+          "`None` - the check that was missing, and the reason "
+          "a misspelled field reported 29 published tokens as "
+          "unpublished",
+          all(t in _tok for t in _ord["conds"])
+          and "None" not in _ord["conds"])
+    check("...so a token the blueprint published RESOLVES "
+          "through the census rather than falling into the "
+          "unknown bucket, which is the observable the fault "
+          "actually changed. The token comes from the SOURCE "
+          "data, not from the map - taking it from the map "
+          "made the check self-fulfilling, since under the bug "
+          "the map held `None` and `None` then resolved",
+          CG.token_ranks(
+              [("conds__has__" + _tok[0], "num")],
+              _ord, 99, has="__has__")["unknown"] == 0)
+
     with tempfile.TemporaryDirectory() as td:
         d = Path(td)
         run = d / "run"
