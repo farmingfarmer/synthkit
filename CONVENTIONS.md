@@ -5953,7 +5953,15 @@ exist.
   only to SHORT, so the one verdict that needed it most printed
   a bare number that reads as a dead dial. It is on NO-OP too
   now, named from the blueprint rather than assumed.
-- **AND THE RECORDED 3 sd DESTRUCTION DOES NOT REPRODUCE.** The
+- **AND THE RECORDED 3 sd DESTRUCTION DOES NOT REPRODUCE.**
+  **WRONG - SUPERSEDED 2026-11-05, and the error was the
+  VENV.** Everything in this bullet was measured on Python 3.10
+  with pandas 2.3. On the stack the data machine installs -
+  3.14 with pandas 3.0 - the shift DOES leak (`x~y.pair +0.68`)
+  and the original check was right. Kept here because the shape
+  of the mistake matters: a reproduction attempt on the wrong
+  library stack is not a reproduction attempt, and I used it to
+  overwrite a correct check. The
   matrix's own comment recorded parent~child Spearman falling
   0.968 -> 0.313 at a 3 sd shift and asserted that row was
   EXPECTED to read LEAKED. Re-measured on this fixture: the
@@ -6172,3 +6180,62 @@ exist.
   processes. Recorded as unexplained rather than attributed,
   because attributing it would be the fifth wrong theory in one
   session.
+
+- **I DEVELOPED ALL NIGHT AGAINST THE WRONG VENV, AND THE DATA
+  MACHINE'S NET SAID SO IN FOURTEEN FAILURES (2026-11-05).**
+  `.venv` here is Python 3.10 with pandas 2.3.3 / numpy 2.2.6 /
+  sklearn 1.7.2; the data machine installs **3.14.6 with pandas
+  3.0 / numpy 2.5 / sklearn 1.9 / scipy 1.18**. `.venv314`
+  ALREADY EXISTED with exactly that stack - the tool was there
+  and I used the old one, which is this file's oldest rule
+  ignored by its own author. Run the net under `.venv314`
+  before believing anything.
+- **AND FOUR DIAL VERDICTS DIFFER BY LIBRARY VERSION, SO LAST
+  NIGHT'S "CORRECTION" WAS WRONG ON THE STACK THAT SHIPS.** On
+  pandas 3 the engine behaves BETTER, and the ORIGINAL checks
+  were right:
+      x.shift@3sd      LEAKED, x~y.pair +0.68   (3.10: CLEAN)
+      x.persistence    CLEAN, x0.42 asked x0.40 (3.10: x0.84)
+      y<-x.strength    SHORT, x0.86 asked x0.40 (3.10: NO-OP)
+      dials clean      7 of 9                   (3.10: 6 of 9)
+  So the recorded 0.968 -> 0.313 shift destruction DOES
+  reproduce, the persistence dial LANDS where asked, and the
+  edge dial moves-but-does-not-land exactly as the check said.
+  I rewrote four correct checks to match an old-library
+  artifact and wrote a CONVENTIONS entry asserting the
+  destruction did not reproduce. Both are corrected. The arms
+  are now pinned on pandas 3+ via `staged()` and print a NOTE
+  naming the stack on an older lane - the `gated()` pattern,
+  because a skipped check that says nothing reads as a pass.
+  WHAT SURVIVES from that work, because it holds on BOTH
+  stacks: the per-arm noise floor for sample-changing dials,
+  SHORT being reachable at all, propagation surviving a
+  non-CLEAN row, the reverse-edge explanation on a NO-OP, the
+  pure `classify_move` with planted inputs, and moving the
+  suite's `sys.exit` to the END so six checks stopped
+  vanishing.
+- **A SCRIPT'S sys.path[0] IS ITS OWN DIRECTORY, AND
+  `m0_gate.py` WAS THE ONE SCRIPT OF 143 THAT DID NOT ADD THE
+  ROOT.** `python scripts/m0_gate.py RUNDIR` - the command in
+  its own docstring - died with
+  `ModuleNotFoundError: No module named 'synthkit'` on a source
+  tree with no install, which is the documented no-git zipball
+  flow on the data machine. It took TEN checks down with it and
+  every one read as a gate defect. `peek.py` had the same fault
+  in a worse form: its insert sat INSIDE one helper, so
+  `peek surfaces` and the rest failed while the fixed caller
+  passed - a path fix buried in a function fixes one caller and
+  leaves the others looking like a different bug. **`python -c`
+  hides this entirely, because the CWD is on the path**, which
+  is why it never showed up by hand.
+- **AND THE CHECK FOR IT WENT VACUOUS, THEN TOO BROAD.** First
+  cut ran `peek.py RUNDIR` with no subcommand: peek printed its
+  usage and exited without importing anything, so removing the
+  insert broke nothing. Fixed by planting a published surface
+  with no gap record, which is the branch that imports. Second
+  cut then rejected ANY `ModuleNotFoundError` and failed on the
+  bare interpreter lacking NUMPY - an environment limitation
+  reported as the path defect. The fault being tested is that
+  the ROOT is not on the path, so the observable is
+  `No module named 'synthkit'` and nothing else. Both mutations
+  red now, on an interpreter chosen BECAUSE it has no install.

@@ -26,6 +26,14 @@ import json
 import sys
 from pathlib import Path
 
+# THE ROOT GOES ON THE PATH FOR EVERY SUBCOMMAND, not just one.
+# This insert used to sit INSIDE the `empty` helper, so `peek
+# surfaces` and the rest died with ModuleNotFoundError on a
+# source tree with no install - the documented zipball flow on
+# the data machine. A path fix buried in one function fixes one
+# caller and leaves the others looking like a different bug.
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+
 
 def _load(run, name):
     p = Path(run) / name
@@ -439,7 +447,6 @@ def sizes_view(run, src):
     Needs the SOURCE as well as the run: the question is whether
     something true of the source survived generation."""
     import pandas as pd
-    sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
     from synthkit import sets as _sets
 
     gen_p = Path(run) / "generated.csv"

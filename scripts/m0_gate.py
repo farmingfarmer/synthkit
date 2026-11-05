@@ -37,6 +37,24 @@ import json
 import sys
 from pathlib import Path
 
+# THE REPO ROOT GOES ON THE PATH FIRST.
+#
+# Without this, `python scripts/m0_gate.py RUNDIR` - the exact
+# command this module's own docstring gives - dies with
+# ModuleNotFoundError on any source tree where the package is
+# not installed. A script's sys.path[0] is the SCRIPT's own
+# directory, not the repo root, so `import synthkit` only
+# resolves when something else put it there; `python -c` works
+# because the CWD is on the path, which is why this never
+# showed up by hand.
+#
+# It showed up on the data machine, where the documented
+# no-git flow is to extract a zipball and run - no install.
+# 143 of the scripts here do this insert; this one, the gate
+# entry point named in the conventions, was the one that did
+# not, and it took ten checks down with it.
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+
 # The computation lives in synthkit.gate - ONE place - because the
 # bench shows the same verdicts and a copy in gui.py is how two
 # halves of this codebase have repeatedly come to disagree.

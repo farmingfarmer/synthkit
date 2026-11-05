@@ -23,6 +23,7 @@ it reports SKIPPED rather than passing on an empty comparison - the
 same rule `smoke_no_personal` follows off a git checkout.
 """
 import re
+import subprocess
 import sys
 from pathlib import Path
 
@@ -246,6 +247,95 @@ def main():
           'OMP_NUM_THREADS' not in
           (ROOT / "synthkit" / "jointcheck.py").read_text(
               encoding="utf-8"))
+
+    # ---- A SCRIPT MUST RUN FROM A SOURCE TREE WITH NO INSTALL
+    #
+    # `python scripts/m0_gate.py RUNDIR` - the command that
+    # module's own docstring gives - died with
+    # ModuleNotFoundError on the data machine, where the
+    # documented no-git flow is to extract a zipball and run.
+    # A script's sys.path[0] is the SCRIPT's directory, not the
+    # repo root, so `import synthkit` resolves only when
+    # something else put it there. `python -c` works because the
+    # CWD is on the path, which is exactly why this never showed
+    # up by hand - and it took TEN checks down with it, all
+    # reading as gate defects.
+    #
+    # Tested with an interpreter that has NO install, so the
+    # script has to find the source tree itself. That is the
+    # observable the fault changed; asserting the sys.path line
+    # is present would pass on a tree where the import is
+    # satisfied some other way.
+    import json as _js
+    import shutil as _sh
+    import tempfile as _tf
+    _clean = {"summary": {
+        "pairs": 114, "pairs_sign_ok": 114, "pairs_close": 114,
+        "pairs_inverted": 0, "coverage_ok": 42, "columns": 42,
+        "set_tokens_ok": 62, "set_tokens_compared": 62,
+        "set_empty_ok": 4, "set_empty_compared": 4}}
+    _bare = None
+    for _cand in ("python3.14", "python3.13", "python3.12"):
+        _w = _sh.which(_cand)
+        if not _w:
+            continue
+        _probe = subprocess.run(
+            [_w, "-c", "import synthkit"],
+            capture_output=True, text=True, cwd=_tf.gettempdir())
+        if _probe.returncode != 0:
+            _bare = _w
+            break
+    with _tf.TemporaryDirectory() as _td:
+        _rd = Path(_td) / "run"
+        _rd.mkdir()
+        (_rd / "fidelity.json").write_text(
+            _js.dumps(_clean), encoding="utf-8")
+        if _bare is None:
+            print("     NOTE: no interpreter without synthkit "
+                  "installed is available, so the "
+                  "no-install path cannot be exercised here - "
+                  "SKIPPED rather than passed silently")
+        else:
+            # AND THE INVOCATION MUST REACH THE IMPORT.
+            #
+            # The first cut ran `peek.py RUNDIR` with no
+            # subcommand, so peek printed its usage and exited
+            # without importing anything - removing the path
+            # insert broke NOTHING and the check was vacuous.
+            # peek imports `synthkit.sets` inside the branch
+            # that explains an UNMEASURED published surface, so
+            # the fixture has to carry a published surface and
+            # no gap record for it.
+            (_rd / "blueprint.json").write_text(_js.dumps({
+                "relationships": [{
+                    "child": "y", "parents": ["x", "w"],
+                    "evidence": {"interaction": {
+                        "pair": ["x", "w"]}}}]}),
+                encoding="utf-8")
+            for _scr, _args in (("m0_gate.py", []),
+                                ("peek.py", ["surfaces"])):
+                _r = subprocess.run(
+                    [_bare, str(ROOT / "scripts" / _scr),
+                     str(_rd)] + _args,
+                    capture_output=True, text=True,
+                    cwd=_tf.gettempdir(), timeout=600)
+                _both = (_r.stdout or "") + (_r.stderr or "")
+                # THE ASSERTION IS ABOUT `synthkit`, NOT ABOUT
+                # ANY MISSING MODULE. The first cut rejected
+                # every ModuleNotFoundError, so it failed on the
+                # bare interpreter lacking NUMPY - an
+                # environment limitation - and reported it as
+                # the path defect. The fault being tested is
+                # that the repo root is not on the path, and the
+                # observable for that is `synthkit` itself.
+                check("scripts/{} resolves `synthkit` from a "
+                      "SOURCE TREE with no install - the "
+                      "documented zipball flow on the data "
+                      "machine, where a missing sys.path insert "
+                      "read as ten gate defects".format(_scr),
+                      "No module named 'synthkit'" not in _both
+                      and 'No module named "synthkit"'
+                      not in _both)
 
     print()
     if FAIL:
