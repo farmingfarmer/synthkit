@@ -572,26 +572,47 @@ def main(argv=None):
         "NOT comparable"))
     _rec = ((fid.get("relationships") or {}).get("compared"))
     if _rec is not None and _rec != _nb:
-        # WHAT IS ESTABLISHED AND WHAT IS NOT.
+        # WHAT IS ESTABLISHED, AND THE HYPOTHESIS THAT DIED.
         #
-        # Established: the two counts differ, so the recorded
-        # percentage and the ones above are NOT comparable.
-        # Not established: why. `prepare()` does re-derive the
-        # token indicators from the set columns, so they are
-        # not simply missing; the run used a raised token cap
-        # and this re-measure uses the default, which WOULD
-        # narrow the surface - but that is a hypothesis with
-        # no measurement behind it yet, and this file's rule
-        # is not to state one as the other.
+        # This note used to say the likely cause was a narrower
+        # token cap in the re-measure. THAT IS REFUTED, and the
+        # refutation is the SIGN of the difference: on the
+        # extract this run was actually built from, the
+        # re-measure relates MORE pairs than the run recorded
+        # (148 against 137), and a narrower surface cannot
+        # relate more. `close_gap.py --surface` measured the
+        # same thing from the other end - every token indicator
+        # the blueprint NAMES is rebuildable here, none are
+        # lost - so the cap is not what moves this number.
+        #
+        # The cap hypothesis survived as long as it did because
+        # it was measured against the WRONG SOURCE FILE: a
+        # 23,092-row extract that never produced this run, which
+        # made the re-measured surface look narrow. It read as a
+        # finding for a whole session. The provenance guard
+        # above exists so that cannot happen again.
+        #
+        # What remains unestablished is the leftover 11 pairs,
+        # and the direction points at the opposite cause from
+        # the old guess: the re-measure derives its own
+        # indicators from the source and can therefore relate
+        # pairs the blueprint never published a relationship
+        # for. Named as a candidate, not stated as the answer.
+        _dir = "MORE" if _nb > _rec else "FEWER"
         print("  (the run RECORDED {} pairs and this "
               "re-measure relates {}. They count different "
               "surfaces, so the recorded percentage is NOT "
               "comparable with the two columns above - only "
-              "those two are a comparison. WHY they differ is "
-              "not established: the token indicators are "
-              "re-derived here, so the likely cause is a "
-              "different token cap, which has not been "
-              "measured.)".format(_rec, _nb))
+              "those two are a comparison.)"
+              .format(_rec, _nb))
+        print("   this re-measure relates {} pairs than the "
+              "run recorded, which RULES OUT a narrower token "
+              "surface here - a narrower one cannot relate "
+              "more. The candidate left is the opposite: this "
+              "re-measure derives its own token indicators "
+              "from the source, so it can relate pairs the "
+              "blueprint never published. Named as a "
+              "candidate, not an answer.".format(_dir))
     bmap = dict((n, (d, ok)) for n, d, ok in before_rows)
     print("")
     print("  {:<22} {:<26} {:<26} {}".format(
