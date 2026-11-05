@@ -252,10 +252,32 @@ def main():
     # call that a leak; the check pins that it does, so the
     # detection cannot quietly regress into a clean row.
     big = by.get("x.shift@3sd", {})
-    check("a 3 sd shift is caught as a LEAK into the pair it "
-          "destroys - the same dial that is clean at 0.5 sd",
-          big.get("verdict") == "LEAKED"
-          and any("pair" in l for l in big.get("leaks") or []))
+    # THE RECORDED DESTRUCTION DOES NOT REPRODUCE, and this
+    # check used to pin it. The matrix's own comment recorded
+    # 0.968 falling to 0.313 at 3 sd; re-measured through the
+    # dials' entry point on THIS fixture, x's mean moves the
+    # full 3 sd (50.3 -> 84.9) and the pair is IDENTICAL -
+    # y~x +0.966 both ways. Discovery orients this fixture into
+    # a cycle, where the refinement sweep re-ranks the column
+    # onto the marginal's own multiset, so the arrangement
+    # survives the shift.
+    #
+    # CLEAN is therefore the truthful verdict - but a CLEAN that
+    # came from the dial doing NOTHING would read the same, and
+    # that is the whole fault class this matrix exists for. So
+    # both halves are asserted: it is clean, AND it moved what
+    # it names.
+    check("a 3 sd shift reads CLEAN on this fixture - the "
+          "recorded 0.968 -> 0.313 destruction does not "
+          "reproduce, because a cyclic blueprint's refinement "
+          "sweep re-ranks the column and the pair survives",
+          big.get("verdict") == "CLEAN")
+    check("...and it is clean because the shift LANDED, not "
+          "because the dial did nothing - a no-op would print "
+          "the same verdict, which is the fault this whole "
+          "matrix exists to separate",
+          big.get("verdict") != "NO-OP"
+          and "moved NOTHING" not in (big.get("note") or ""))
     check("...and the matrix does NOT call the safe 0.5 sd "
           "shift a leak, so the detection marks a real "
           "magnitude rather than the dial itself",
@@ -263,17 +285,25 @@ def main():
 
     # ---- PROPAGATION IS NOT A LEAK, and is still reported
     px = by.get("x.persistence", {})
-    check("persistence on a PARENT propagates to its child and "
-          "is named as propagation, not hidden and not called a "
-          "leak - y is 2.5x plus noise, so flattening x's "
-          "serial correlation flattens y's",
-          px.get("verdict") == "CLEAN"
-          and any(l.startswith("y.") for l in
-                  px.get("propagated") or []))
-    check("...and the propagation reaches the printed line, "
-          "which the first cut computed after the print and so "
-          "never showed",
-          "propagated to child" in (px.get("note") or ""))
+    # AND THE PERSISTENCE DIAL UNDER-DELIVERS, which is a
+    # finding and not a propagation story. Asked x0.40 of a base
+    # 0.313 it should land near 0.125; it lands 0.263, which is
+    # x0.84. The matrix used to call that NO-OP, because the
+    # move was smaller than the persistence tolerance - so a
+    # dial that is WIRED AND WEAK was reported as a dial that is
+    # not wired at all. Those take different fixes, and only one
+    # of them is in the plumbing.
+    check("a dial that moves its own property but far less than "
+          "asked reads SHORT, not NO-OP - persistence asked "
+          "x0.40 and landed {} - because wired-and-weak and "
+          "not-wired-at-all take different fixes"
+          .format(px.get("landed") or "(nothing)"),
+          px.get("verdict") == "SHORT")
+    check("...and the row states asked BESIDE landed, so the "
+          "under-delivery is a number an operator can act on "
+          "rather than a verdict they have to trust",
+          "asked x0.40" in (px.get("landed") or "")
+          and "x0.84" in (px.get("landed") or ""))
 
     # ---- THE NO-OP BRANCH HAS A CASE THAT REACHES IT.
     # Every real dial works, so nothing could land on NO-OP and
@@ -293,19 +323,25 @@ def main():
 
     # ---- MOVING IS NOT LANDING
     st = by.get("y<-x.strength", {})
-    check("an edge dial that MOVES but does not LAND reads "
-          "SHORT rather than CLEAN - asking x0.40 and "
-          "delivering x0.86 is not a pass",
-          st.get("verdict") == "SHORT")
-    check("...and the SHORT names the live REVERSE edge that "
-          "carries the pair, so the number does not read as a "
-          "broken dial",
+    check("an edge dial on a CYCLIC blueprint moves the pair "
+          "not at all - measured +0.966 against +0.966, "
+          "identical - so NO-OP is the truthful verdict here "
+          "and SHORT would overstate what it did",
+          st.get("verdict") == "NO-OP")
+    check("...and that NO-OP names the live REVERSE edge that "
+          "carries the pair, so `moved NOTHING` reads as the "
+          "graph answering rather than as a dead dial - a "
+          "no-op with a cause is not the same finding as an "
+          "unexplained one",
           "REVERSE edge" in (st.get("note") or ""))
 
-    print()
-    if FAIL:
-        print("{} FAILED".format(FAIL))
-        sys.exit(1)
+    # NOTE: there is NO `sys.exit` here any more. Six checks
+    # below used to sit AFTER it, so any earlier failure made
+    # them VANISH rather than run - and a vanished check reads
+    # exactly like a passing one in the summary. This suite hit
+    # that with six real failures: the floor and control checks
+    # never executed and nobody could tell. The verdict is taken
+    # once, at the end, after every check has had its turn.
     # THE CONTROL ARM MUST NOT BE COUNTED AS A FAULT.
     # `scale@1.0` exists to prove the NO-OP detector can
     # fire - a dial asked for x1.0 moves nothing by
@@ -334,17 +370,53 @@ def main():
           "floor was measured, so what a tolerance absorbed "
           "is visible rather than silently swallowed",
           all("within_noise" in r for r in _nrows))
-    _leak = [r for r in _nrows if r["dial"].endswith("@3sd")]
-    check("...and a leak far ABOVE the floor still reads as a "
-          "leak - a floor that absorbs everything is a "
-          "detector that cannot fail",
-          _leak and _leak[0]["verdict"] == "LEAKED"
-          and not _leak[0]["within_noise"])
-    check("...and the floor is only computed when asked for, "
-          "so the default run is one generation per arm and "
-          "not four",
-          all(not r.get("within_noise")
-              for r in _MM.run(noise_seeds=1)))
+    # AND THE LEAK DETECTOR IS TESTED ON PLANTED INPUT, not on
+    # a fixture that happens to leak. It used to rest on the
+    # 3 sd shift destroying its pair - which the engine no
+    # longer does - so the detector's only positive case
+    # evaporated when the engine improved, and a detector whose
+    # positive case can disappear is one that stops being able
+    # to fail without anybody editing it.
+    check("a move ABOVE the floor on a column the dialled one "
+          "does not parent is a LEAK",
+          _MM.classify_move("z", "spread", 0.40, 0.10,
+                            ("y",), "x") == "leak")
+    check("...the same move on a CHILD of the dialled column is "
+          "PROPAGATED instead - the relationship doing its job, "
+          "still reported because a second column moved",
+          _MM.classify_move("y", "spread", 0.40, 0.10,
+                            ("y",), "x") == "propagated")
+    check("...and a move no bigger than the floor is NOISE, "
+          "whichever column it is on - otherwise the seed gets "
+          "written up as a defect",
+          _MM.classify_move("z", "spread", 0.05, 0.10,
+                            ("y",), "x") == "noise"
+          and _MM.classify_move("y", "spread", 0.05, 0.10,
+                                ("y",), "x") == "noise")
+    check("...and with NO floor measured nothing is absorbed, "
+          "so the default run cannot quietly swallow a real "
+          "move",
+          _MM.classify_move("z", "spread", 0.001, None,
+                            ("y",), "x") == "leak")
+    # THE GLOBAL floor is still opt-in; the SAMPLE dials now
+    # always measure their own. A dial that redraws the whole
+    # frame cannot be graded against a floor taken at the base
+    # patient count - spread is less stable at a different n, so
+    # the resampling came back as `x.spread +0.12 LEAKED`, a
+    # seed written up as a defect. Those arms pay one extra
+    # generation; every other arm still pays none.
+    _d1 = _MM.run(noise_seeds=1)
+    _sample = ("patients.count", "patients.visits_scale")
+    check("the GLOBAL floor stays opt-in, so an ordinary arm in "
+          "the default run is still one generation and not four",
+          all(not r.get("within_noise") for r in _d1
+              if r["dial"] not in _sample))
+    check("...while a dial that REDRAWS THE SAMPLE is graded "
+          "against its own re-seeded run even in the default "
+          "run, and comes out CLEAN rather than leaking the "
+          "resampling it cannot avoid",
+          all(r["verdict"] in ("CLEAN", "NO-OP") for r in _d1
+              if r["dial"] in _sample))
 
     check("the matrix still CARRIES the x1.0 control arm, so "
           "the NO-OP detector has something that must trip it",
@@ -360,6 +432,10 @@ def main():
           "less alarming",
           all("@1.0" not in ln for ln in _noopline))
 
+    print()
+    if FAIL:
+        print("{} FAILED".format(FAIL))
+        sys.exit(1)
     print("All {} checks passed.".format(PASS))
 
 

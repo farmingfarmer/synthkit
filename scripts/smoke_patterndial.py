@@ -204,6 +204,32 @@ def main():
         (_rd / "blueprint.json").write_text(json.dumps(_bp),
                                             encoding="utf-8")
         _g = _gen2(_bp, n_patients=_n, seed=3)
+        # AND THE DRIFT IS PLANTED, NOT HOPED FOR.
+        #
+        # This fixture used to rely on generation happening to
+        # miss close on some pair. It does not: four clean
+        # gaussian columns come out well, worst delta 0.095
+        # against the 0.2 cut. Five shapes were tried before
+        # this was written - a smooth RING, a SPARSE pair at
+        # 25% presence, a HEAVY-SKEW pair, and a SET fixture
+        # over nine data/seed arms. The set shape is the only
+        # one that misses close at all, which is exactly where
+        # the real extract's drift concentrates - and every
+        # miss it produces is on a TOKEN INDICATOR, which is
+        # scaffolding dropped before generated.csv is written
+        # and therefore unreachable by this repair.
+        #
+        # So no fixture here can produce an in-file close miss
+        # by generating, and waiting for one is how this check
+        # came to pass by not running. The child is shuffled
+        # ALONE instead - the same way the restore fixture
+        # above plants its fault - which destroys b's coupling
+        # to its parents and leaves the multiset untouched, so
+        # the repair has something in-file to recover and the
+        # check cannot be green for want of a fault.
+        _g = _g.copy()
+        _g["b"] = _g["b"].to_numpy()[
+            _np2.random.default_rng(17).permutation(len(_g))]
         _g.to_csv(_rd / "generated.csv", index=False)
         _sp = _rd / "src.csv"
         _df.to_csv(_sp, index=False)
@@ -324,13 +350,20 @@ def main():
             cwd=str(ROOT), timeout=1800)
         check("when the RECORDED pair count differs from the "
               "re-measured one the tool says so, marks the "
-              "recorded percentage NOT comparable, and is "
-              "explicit that the CAUSE is not established - "
-              "naming a cause it has not measured would be "
-              "the fault this suite exists to catch",
+              "recorded percentage NOT comparable, and reports "
+              "the DIRECTION of the difference - which is what "
+              "rules hypotheses in or out, since a surface "
+              "narrowed by a cap cannot relate MORE pairs",
               "the run RECORDED 999 pairs" in _r2.stdout
               and "NOT comparable" in _r2.stdout
-              and "not established" in _r2.stdout)
+              and "FEWER pairs" in _r2.stdout)
+        check("...and it does NOT name the token cap as the "
+              "likely cause, which it used to: against the "
+              "extract a run was actually built from the "
+              "re-measure relates MORE pairs than the run "
+              "recorded, and that sign refutes it",
+              "likely cause is a "
+              "different token cap" not in _r2.stdout)
         check("...and it writes NOTHING without --apply, "
               "because a repair that costs more than it gains "
               "should not be able to land by accident",

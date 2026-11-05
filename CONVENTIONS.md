@@ -5833,3 +5833,153 @@ exist.
   screening on different populations - blueprint on the whole
   cohort, engine on its split - is the real disagreement, and
   it is a design question rather than a setting.
+
+- **THE 137-VERSUS-57 ANSWER WAS AN ARTIFACT OF THE WRONG FILE,
+  AND THE REAL ANSWER POINTS THE OTHER WAY (2026-11-04).** A
+  whole session established that the gate's pair surface
+  exceeded a re-measure's because `EXPAND_CAP` stopped the
+  token indicators being rebuilt. Every number behind that was
+  measured against a 23,092-row extract that never produced the
+  run. `find_extract.py` found the real one by ROW COUNT -
+  `phase2_800\tidy_visits.csv`, accepted by the provenance
+  guard, which is what CONFIRMED it rather than my reading of
+  an OCR'd digit. Re-measured there, the pair sets diff by name
+  as:
+      recorded by the run       196
+      related by a re-measure   218
+      in BOTH                   196
+      RE-MEASURE ONLY            22   all on indicators the
+                                      blueprint NAMES
+      RECORDED ONLY            NONE
+  **The re-measure is a strict SUPERSET: not one recorded pair
+  is lost.** A cap removes columns, so it cannot add pairs - the
+  SIGN of the difference refutes the whole story in one line of
+  arithmetic, with no need to look at a column. What remains is
+  the opposite finding: the RUN's own fidelity omitted 22 pairs
+  on indicators its own contract names, which by the
+  classifier's definition both surfaces should hold. The
+  candidate is the token vocabulary the run was built with
+  predating the `blueprint_vocab` change - NAMED as a
+  candidate, because naming a cause I have not measured is the
+  fault that produced this entry in the first place.
+- **AND A COUNT CANNOT ANSWER A QUESTION ABOUT WHICH.** Every
+  account of this gap for a week was a story told from two
+  sizes. `close_gap.py --pairs` diffs the sets BY NAME and
+  buckets each difference three ways - an indicator the
+  blueprint NAMES (a defect, since both surfaces should hold
+  it), an indicator it does NOT name (a re-measure deriving its
+  own columns), or plain columns (neither explanation covers
+  it). Those are three different findings and one number
+  reports none of them.
+- **`close_gap.py` HAD NO CHECKS, in a tool whose numbers were
+  quoted in a report.** The `peek.py` fault again. Twelve now,
+  each watched red, and the load-bearing one is the provenance
+  guard - which must refuse BEFORE the expensive `compare()`,
+  so the check asserts that no re-measure output appears.
+
+- **THE M0 CLOSE CRITERION CLEARS ON THE REAL EXTRACT, AND THE
+  MEASUREMENT HAS NO SEED TO ARGUE ABOUT (2026-11-04).**
+  `repair_inversions --close` against run_deliverable on the
+  correct source, one file, one column reordered, same
+  denominator both sides:
+      direction kept  145/148 = 98.0%  ->  146/148 = 98.6%
+      close           130/148 = 87.8%  ->  133/148 = 89.9%   FIXED
+  The bar is 87.9%, so close goes FAIL -> PASS. The three
+  headline figures were re-read through the word channel before
+  being written down, because the digits channel off that
+  screen is not trustworthy. Five further misses are on TOKEN
+  INDICATORS and are left alone: reaching them means rearranging
+  the set column they came from, which moves every other token
+  on the same set and was measured harmful (close 46/57 ->
+  32/57).
+
+- **NO FIXTURE HERE PRODUCES AN IN-FILE CLOSE MISS, AND THAT IS
+  WHY A CHECK PASSED BY NOT RUNNING (2026-11-04).**
+  `smoke_patterndial`'s `--close` fixture asserted that
+  generation would miss close on some pair and then use it. It
+  does not: four clean gaussian columns come out with a worst
+  delta of 0.095 against the 0.2 cut. Five shapes were measured
+  before anything was concluded - a smooth RING of colinear
+  columns (0 misses), a SPARSE pair at 25% presence (0), a
+  HEAVY-SKEW pair whose tail the k rule takes (0), and a SET
+  fixture over nine data/seed arms. **The set shape is the only
+  one that misses close at all** - which is exactly where the
+  real extract's drift concentrates, so the negative is
+  informative - and every miss it produces is on a TOKEN
+  INDICATOR, which is scaffolding dropped before generated.csv
+  is written and therefore unreachable by a repair. Adding one
+  plain column riding the count removed the misses entirely,
+  which is this file's own don't-add-a-column rule.
+  So the drift is PLANTED now - the child shuffled alone, the
+  way the restore fixture beside it already worked - and the
+  check cannot be green for want of a fault.
+
+- **THE DIAL MATRIX WAS GIVING THREE WRONG VERDICTS, AND SIX OF
+  ITS CHECKS WERE VANISHING RATHER THAN FAILING (2026-11-04).**
+  Found by running the net rather than by anything asking. Six
+  checks sat AFTER the suite's own `if FAIL: sys.exit(1)`, so
+  the six real failures below made them disappear - and a
+  vanished check reads exactly like a passing one. This file
+  already records that shape from `smoke_patterndial`; the exit
+  is at the END now, after every check has had its turn.
+- **A DIAL CAN BE WIRED AND WEAK, AND THAT IS NOT A NO-OP.**
+  `persistence` asked x0.40 of a base 0.313 and landed 0.263 -
+  x0.84, a real move but smaller than the property's own
+  tolerance - so the matrix reported THE DIAL MOVED NOTHING.
+  Unwired and under-delivering take different fixes and only
+  one of them is in the plumbing. The `elif not hit` branch
+  preceded `elif short`, so SHORT was unreachable for exactly
+  the dials that need it most; a second much smaller
+  did-it-budge-at-all threshold separates them, and the row now
+  states asked beside landed.
+- **A DIAL THAT REDRAWS THE SAMPLE NEEDS A FLOOR MEASURED UNDER
+  ITSELF.** `patients.count` read `x.spread +0.12 LEAKED` on
+  every run. The global noise floor re-seeds the UNDIALLED run
+  at the BASE patient count - the wrong conditions entirely for
+  a dial that draws a different number of people, since spread
+  is less stable at a different n. So the floor was too tight
+  and the resampling it exists to absorb came back as a defect:
+  a seed written up as a finding, one level below where this
+  file already records it. Those arms re-seed THEMSELVES now,
+  always, not on `--noise-seeds` - without it the verdict is
+  not conservative, it is wrong. CLEAN afterwards; every other
+  arm still pays nothing.
+- **AND A NO-OP WITH A CAUSE IS NOT THE SAME FINDING AS AN
+  UNEXPLAINED ONE.** `y<-x.strength` moves the pair not at all
+  - +0.966 against +0.966, identical, through the dials' own
+  entry point, with no problem reported - because discovery
+  orients this fixture into a CYCLE and the live REVERSE edge
+  carries the pair. The reverse-edge explanation was attached
+  only to SHORT, so the one verdict that needed it most printed
+  a bare number that reads as a dead dial. It is on NO-OP too
+  now, named from the blueprint rather than assumed.
+- **AND THE RECORDED 3 sd DESTRUCTION DOES NOT REPRODUCE.** The
+  matrix's own comment recorded parent~child Spearman falling
+  0.968 -> 0.313 at a 3 sd shift and asserted that row was
+  EXPECTED to read LEAKED. Re-measured on this fixture: the
+  shift LANDS - x mean 50.3 -> 84.9, the full 3 sd - and the
+  pair is UNHARMED, +0.966 dialled against +0.966 undialled. A
+  rebuilt fixture reads +0.986 -> +0.971, also inside
+  tolerance. Discovery orients both into a cycle, where the
+  refinement sweep re-ranks the column onto the multiset the
+  marginal drew, so the arrangement survives the shift and the
+  relationship with it. The check now asserts CLEAN **and that
+  the shift landed**, because a CLEAN produced by a dial doing
+  nothing prints identically and is the whole fault class this
+  matrix exists to separate.
+- **AND THE LEAK DETECTOR'S ONLY POSITIVE CASE HAD EVAPORATED
+  WITH THE ENGINE'S IMPROVEMENT.** It rested on that 3 sd row
+  leaking. A detector whose positive case can disappear without
+  anybody editing it is one that quietly stops being able to
+  fail - so the classification is a pure function taking
+  planted inputs now (`classify_move`), asserted on all four
+  branches: above the floor on an unrelated column is a LEAK,
+  the same move on a CHILD is PROPAGATED, under the floor is
+  NOISE either way, and with NO floor measured nothing is
+  absorbed.
+- **AND PROPAGATION IS INFORMATION, NOT A VERDICT.** It was
+  folded into the note only under CLEAN, so a dial that
+  under-delivered AND propagated reported the propagation
+  nowhere - the same value-assigned-downstream-of-its-reader
+  fault the block one branch over already carries a comment
+  about.

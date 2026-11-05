@@ -178,6 +178,32 @@ def properties(frame, cols, group_by):
     return p
 
 
+# MOVED AT ALL, versus MOVED ENOUGH. A dial can be wired and
+# weak: it shifts a property by a third of what it promised,
+# lands under the detector's tolerance, and gets reported as
+# having moved NOTHING. Those are different news - NO-OP means
+# unwired, SHORT means wired and under-delivering - and only
+# one of them is fixed by looking at the plumbing.
+STIR = 0.01
+
+
+def classify_move(name, kind, d, floor, children, target_col):
+    """What a second column moving actually means.
+
+    Returned rather than printed so a check can plant the
+    inputs and assert the DECISION. The leak detector used to
+    be testable only through a fixture that happened to leak,
+    which is a detector whose positive case can evaporate when
+    the engine improves - and it did: the 3 sd shift that this
+    matrix was built around no longer destroys its pair.
+    """
+    if floor is not None and d <= floor:
+        return "noise"
+    if name in (children or ()):
+        return "propagated"
+    return "leak"
+
+
 def moved(before, after, key, sd):
     """Did this property move beyond its own tolerance?"""
     name, kind = key
@@ -411,12 +437,30 @@ def run(seed=7, n_pat=260, blueprint=None,
         # show one of those. A child is drawn from a curve
         # published over the parent's OBSERVED range, so a
         # small shift stays inside it and a large one walks off
-        # the end, where np.interp holds flat. Measured on this
-        # fixture, parent~child Spearman over three seeds:
-        #     0.0 sd  0.968    2.0 sd  0.832
-        #     1.0 sd  0.965    3.0 sd  0.313    5.0 sd  -0.027
-        # The 3 sd row is EXPECTED to read LEAKED. It is the
-        # matrix catching a real cost, not the matrix failing.
+        # the end, where np.interp holds flat.
+        #
+        # THOSE NUMBERS NO LONGER HOLD, AND THE COMMENT SAID
+        # THEY DID. It recorded 0.968 at 0 sd falling to 0.313
+        # at 3 sd on a two-column fixture, and asserted the 3 sd
+        # row was EXPECTED to read LEAKED. Re-measured on THIS
+        # fixture through the dials' own entry point: the shift
+        # lands (x mean 50.3 -> 84.9, a full 3 sd) and the pair
+        # is UNHARMED - y~x +0.966 dialled against +0.966
+        # undialled, identical. An acyclic-looking rebuild reads
+        # +0.986 -> +0.971, also inside tolerance.
+        #
+        # The destruction needs a parent drawn from its own
+        # marginal with the child reading a curve published over
+        # the old range. Discovery orients both of these
+        # fixtures into a CYCLE, where the refinement sweep
+        # re-ranks the column onto the multiset the marginal
+        # drew - so the arrangement survives the shift and the
+        # relationship with it. Both arms are kept because the
+        # pair of them is what pins that, and the 3 sd row is
+        # expected CLEAN here with the shift LANDED - a CLEAN
+        # that came from the dial doing nothing would be a
+        # different thing entirely, which is why the check
+        # asserts both.
         ("{}.shift".format(val),
          {val: {"shift": 0.5 * _sd_val}}, "absolute"),
         ("{}.shift@3sd".format(val),
@@ -493,6 +537,38 @@ def run(seed=7, n_pat=260, blueprint=None,
         gen = generate(bp, seed=seed, **kw)
         after = properties(gen, cols, group_by)
 
+        # A DIAL THAT CHANGES THE SAMPLE NEEDS ITS OWN FLOOR,
+        # MEASURED UNDER ITSELF.
+        #
+        # The global floor above re-seeds the UNDIALLED run at
+        # the base patient count - so for `patients.count`,
+        # which draws a different number of people, it measures
+        # the wrong conditions entirely. Spread is less stable
+        # at a smaller n, so a floor taken at the base n is too
+        # tight and the resampling it was built to absorb comes
+        # back as `x.spread +0.12 LEAKED` - a seed written up as
+        # a defect, which is the fault this whole floor exists
+        # to prevent, reappearing one level down.
+        #
+        # So this arm re-seeds ITSELF and grades against that.
+        # It is always on for these dials rather than waiting
+        # for --noise-seeds, because without it the verdict is
+        # not conservative, it is wrong: every other column's
+        # moments are redrawn by construction, and printing
+        # that as a leak sends a reader after a dial that is
+        # behaving exactly as asked.
+        arm_floor = dict(floor)
+        if kw == {} or "visits_scale" in overlay.get(
+                "patients", {}):
+            _r2 = properties(
+                generate(json.loads(json.dumps(bp)),
+                         seed=seed + 7919, **kw),
+                cols, group_by)
+            for key in after:
+                _ok, _d = moved(after, _r2, key,
+                                sds.get(key[0], 1.0))
+                arm_floor[key] = max(arm_floor.get(key, 0.0), _d)
+
         tgt_col, _, tgt_dial = label.partition(".")
         tgt_dial = tgt_dial.partition("@")[0]
         # A NO-OP DIAL ALSO MOVES NOTHING, and the first cut of
@@ -553,25 +629,32 @@ def run(seed=7, n_pat=260, blueprint=None,
                 # defect, which is the fault this file records
                 # about close, about row counts and about
                 # centre_ok.
-                _fl = floor.get(key)
-                if _fl is not None and d <= _fl:
+                _fl = arm_floor.get(key)
+                tag = classify_move(name, kind, d, _fl,
+                                    kids.get(tgt_col, ()),
+                                    tgt_col)
+                if tag == "noise":
                     noisy.append(
                         "{}.{} {:+.2f} (floor {:+.2f})".format(
                             name, kind, d, _fl))
                     continue
-                tag = ("propagated" if name in kids.get(
-                    tgt_col, ()) else "leak")
                 (prop if tag == "propagated" else leaks).append(
                     "{}.{} {:+.2f}".format(name, kind, d))
         hit = any(moved(before, after, k, sds.get(k[0], 1.0))[0]
                   for k in targets)
+        # DID IT BUDGE AT ALL? Without this, a dial that
+        # delivers a third of what it promised is
+        # indistinguishable from one that is not wired up.
+        stirred = any(moved(before, after, k,
+                            sds.get(k[0], 1.0))[1] > STIR
+                      for k in targets)
         # A MULTIPLIER IS GRADED AS A MULTIPLIER. Asked 0.4 of a
         # base of 0.388 is 0.155, and a dial that lands there is
         # exactly right - while a target-value reading of the
         # same number calls it a miss.
         landed = ""
         short = ""
-        if sem == "multiplier" and targets and hit:
+        if sem == "multiplier" and targets and stirred:
             k0 = targets[0]
             want = float(list(overlay.values())[0][tgt_dial])
             b0, a0 = before.get(k0), after.get(k0)
@@ -587,7 +670,7 @@ def run(seed=7, n_pat=260, blueprint=None,
             verdict, note = "NO-TARGET", ("this dial names no "
                                           "property the matrix "
                                           "measures")
-        elif not hit:
+        elif not hit and not short:
             verdict, note = "NO-OP", ("the dial moved NOTHING - "
                                       "not even what it names")
         elif short:
@@ -609,9 +692,16 @@ def run(seed=7, n_pat=260, blueprint=None,
         # BEFORE the line is printed. The first cut computed it
         # after, so a real propagation never reached the page -
         # a value assigned downstream of its only reader.
-        if prop and verdict == "CLEAN":
-            note = "propagated to child: " + ", ".join(prop[:3])
-        if verdict == "SHORT" and "<-" in label:
+        if prop:
+            # AND IT SURVIVES A NON-CLEAN ROW. Folding it in
+            # only under CLEAN meant a dial that under-delivered
+            # AND propagated reported the propagation nowhere -
+            # the same value-assigned-downstream-of-its-reader
+            # fault this block already carries a comment about,
+            # one branch over.
+            _pn = "propagated to child: " + ", ".join(prop[:3])
+            note = _pn if verdict == "CLEAN" else note + "; " + _pn
+        if verdict in ("SHORT", "NO-OP") and "<-" in label:
             # A SINGLE-EDGE DIAL WITH A LIVE REVERSE EDGE
             # CANNOT REMOVE THE PAIR, and the number alone
             # reads as a broken dial. Named from the blueprint,
@@ -621,6 +711,13 @@ def run(seed=7, n_pat=260, blueprint=None,
                       (r.get("parents") or [])
                       for r in (base_bp.get("relationships") or []))
             if rev:
+                # A NO-OP WITH A CAUSE IS NOT THE SAME FINDING
+                # AS AN UNEXPLAINED ONE. On a cyclic blueprint
+                # the named edge cannot remove the pair by
+                # itself, so "moved nothing" is the graph
+                # answering, not a dead dial - and a reader
+                # given only the number goes looking for a bug
+                # that is not there.
                 note += (" - the REVERSE edge {}<-{} is still "
                          "live and carries the pair".format(
                              pa, ch))
