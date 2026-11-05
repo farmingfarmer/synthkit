@@ -6255,3 +6255,31 @@ exist.
   waited for, so self-matching is impossible by construction
   rather than by remembering. Same trick for any marker: put a
   wildcard where the real text has a space or a bracket.
+
+- **THE ZIPBALL DELTA IS NINETEEN NOW, AND IT STILL DECOMPOSES
+  EXACTLY (2026-11-05).** The net reads **2,869** here on the
+  shipping stack and **2,850** on the data machine's zipball
+  extract at the same commit. This file's rule is that the gap
+  is a number somebody accounted for, not a number nobody ran:
+      smoke_buildid    26 -> 17   -9   needs git for the
+                                       archive path
+      smoke_gui       251 -> 248  -3   node absent (1),
+                                       Chrome absent (2)
+      smoke_packaging  28 -> 21   -7   no interpreter WITHOUT
+                                       an install was found
+      total                      -19   = 2869 - 2850, no residue
+  The previously recorded delta of TWELVE was buildid plus gui;
+  the seven are new and they are mine.
+- **AND THE SEVEN WERE A GAP IN MY OWN CHECK, ON THE ONE MACHINE
+  WHERE IT MATTERS.** The no-install checks need an interpreter
+  that CANNOT import synthkit, and the data machine has one -
+  its system python carries the numeric stack and no install at
+  all. The search looked for `python3.14`, `python3.13` and
+  `python3.12`, none of which is a command name on Windows, so
+  it found nothing and printed its NOTE: the checks built for
+  the zipball flow skipped on the zipball machine. Plain
+  `python` and `python3` are candidates now - safe, because a
+  candidate is accepted only if importing synthkit FAILS in it,
+  so a venv with the package installed is rejected whatever it
+  is called. Found by insisting the delta decompose rather than
+  by anything going red.

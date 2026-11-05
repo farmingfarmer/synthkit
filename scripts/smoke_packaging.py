@@ -326,8 +326,24 @@ def main():
         "pairs_inverted": 0, "coverage_ok": 42, "columns": 42,
         "set_tokens_ok": 62, "set_tokens_compared": 62,
         "set_empty_ok": 4, "set_empty_compared": 4}}
+    # PLAIN `python` IS A CANDIDATE, and leaving it out meant
+    # these checks skipped on the one machine where the
+    # no-install path actually matters. The data machine runs a
+    # system interpreter with the numeric stack and NO synthkit
+    # installed - that is exactly a bare interpreter - but
+    # `python3.14` is not a command name on Windows, so the
+    # search found nothing and printed its NOTE. The accounting
+    # caught it: the zipball delta read 19 where the recorded
+    # decomposition is 9 (no git) + 3 (no node, no Chrome), and
+    # the missing 7 were these.
+    #
+    # Safe to add, because a candidate is accepted only if
+    # importing synthkit FAILS in it - a venv with the package
+    # installed is rejected by the probe below, whatever it is
+    # called.
     _bare = None
-    for _cand in ("python3.14", "python3.13", "python3.12"):
+    for _cand in ("python3.14", "python3.13", "python3.12",
+                  "python3", "python"):
         _w = _sh.which(_cand)
         if not _w:
             continue
