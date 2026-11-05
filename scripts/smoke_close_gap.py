@@ -113,6 +113,50 @@ def main():
           len(tr["beyond"]) + len(tr["inside"]) + tr["unknown"]
           == 3)
 
+    # ---- IS THE PAIR IN THE CONTRACT? the fourth candidate,
+    #      and the one that decides whether the gap is a defect
+    #      or two surfaces answering different questions.
+    _bp_e = {"relationships": [
+        {"child": "y", "parents": ["x", "w"]},
+        {"child": "q", "parents": ["r"]}]}
+    _E, _N = CG.edge_index(_bp_e)
+    check("every DECLARED edge is indexed from the contract, "
+          "both directions kept distinct - `y <- x` and "
+          "`x <- y` are different claims",
+          ("y", "x") in _E and ("x", "y") not in _E
+          and len(_E) == 3)
+    check("...and every column taking part in a relationship "
+          "is NAMED, parents included",
+          _N == {"y", "x", "w", "q", "r"})
+    check("a pair that IS a declared edge reads `declared` - "
+          "the outcome that would make this gap a defect, "
+          "since the run's own contract claims it",
+          CG.edge_status(("y", "x"), _E, _N) == "declared")
+    check("...the same pair reversed is marked as such rather "
+          "than as absent, so an orientation difference cannot "
+          "masquerade as a missing claim",
+          CG.edge_status(("x", "y"), _E, _N)
+          == "declared-reversed")
+    check("...two declared columns with no edge BETWEEN them "
+          "read `both-named-no-edge` - a correlation the "
+          "contract never claimed, which is a difference of "
+          "scope and not a loss",
+          CG.edge_status(("y", "q"), _E, _N)
+          == "both-named-no-edge")
+    check("...one declared column reads `one-named`",
+          CG.edge_status(("y", "zz"), _E, _N) == "one-named")
+    check("...and neither declared reads `neither-named`, "
+          "which would mean the re-measure is relating columns "
+          "the blueprint knows nothing about",
+          CG.edge_status(("aa", "zz"), _E, _N)
+          == "neither-named")
+    check("the five outcomes are DISTINCT, because collapsing "
+          "any two of them hides the distinction the question "
+          "turns on",
+          len({CG.edge_status(pr, _E, _N) for pr in
+               [("y", "x"), ("x", "y"), ("y", "q"),
+                ("y", "zz"), ("aa", "zz")]}) == 5)
+
     # ---- AN ORIENTATION ARTIFACT IS NOT A MISSING PAIR
     check("a pair the run recorded the OTHER WAY ROUND is "
           "counted as an orientation artifact, not as a pair "

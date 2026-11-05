@@ -295,6 +295,57 @@ def surface_verdict(n_new, n_rec):
     return "same"
 
 
+def edge_index(bp):
+    """Every DECLARED edge in the blueprint, and every column
+    that takes part in one.
+
+    Read from the contract rather than inferred from names,
+    because the question below is exactly whether a pair is in
+    the contract.
+    """
+    edges, named = set(), set()
+    for rel in (bp.get("relationships") or []):
+        ch = rel.get("child")
+        if not ch:
+            continue
+        named.add(str(ch))
+        for par in (rel.get("parents") or []):
+            edges.add((str(ch), str(par)))
+            named.add(str(par))
+    return edges, named
+
+
+def edge_status(pair, edges, named):
+    """Is this pair in the contract, and if not, how far out?
+
+    THE CANDIDATE THIS TESTS. A run writes its fidelity from
+    the relationships its blueprint DECLARES; a later
+    `compare()` relates any pair whose source correlation
+    clears the floor. If that is the difference, then the extra
+    pairs are not pairs the run LOST - they are pairs it never
+    undertook to measure, and the two surfaces answer two
+    different questions rather than one of them being wrong.
+
+    Five outcomes, because collapsing them would hide the
+    distinction the question turns on: a declared edge missing
+    from the run IS a defect; a pair of two declared columns
+    that is not an edge between them is a correlation the
+    contract never claimed; and "neither column declared" would
+    mean the re-measure is relating columns the blueprint knows
+    nothing about.
+    """
+    a, b = str(pair[0]), str(pair[1])
+    if (a, b) in edges:
+        return "declared"
+    if (b, a) in edges:
+        return "declared-reversed"
+    if a in named and b in named:
+        return "both-named-no-edge"
+    if a in named or b in named:
+        return "one-named"
+    return "neither-named"
+
+
 def orientation_artifacts(rec, new):
     """How many 'extra' pairs are the same pair, reversed.
 
@@ -526,6 +577,54 @@ def pair_diff(run, src_path):
 
     census(sorted(new - rec), "RE-MEASURE ONLY")
     census(sorted(rec - new), "RECORDED ONLY")
+
+    # ---- IS THE EXTRA PAIR IN THE CONTRACT AT ALL?
+    #
+    # Three candidates for this gap have already died by
+    # measurement - the token cap, the run's vocabulary, and
+    # orientation. This is the fourth, and it is a question
+    # about the CONTRACT rather than about the tooling: a run
+    # writes its fidelity from the relationships its blueprint
+    # DECLARES, while a re-measure relates any pair whose
+    # source correlation clears the floor. If the extra pairs
+    # are not declared edges, the run never undertook to
+    # measure them and the two surfaces are answering two
+    # different questions.
+    _edges, _named = edge_index(bp)
+    _extra = sorted(new - rec)
+    if _extra:
+        _cens = {}
+        for pr in _extra:
+            st = edge_status(pr, _edges, _named)
+            _cens.setdefault(st, []).append(pr)
+        print("")
+        print("  ARE THE EXTRA PAIRS IN THE CONTRACT? "
+              "({} declared edge(s) in the blueprint)"
+              .format(sayn(len(_edges))))
+        for st in ("declared", "declared-reversed",
+                   "both-named-no-edge", "one-named",
+                   "neither-named"):
+            got = _cens.get(st) or []
+            print("      {:>5}  {}".format(
+                sayn(len(got)), st))
+            for pr in got[:3]:
+                print("             {} <- {}".format(
+                    str(pr[0])[:36], str(pr[1])[:36]))
+        _dec = len(_cens.get("declared") or []) + len(
+            _cens.get("declared-reversed") or [])
+        if _dec == 0:
+            print("      NOT ONE extra pair is a declared edge."
+                  " The run wrote its fidelity from the "
+                  "contract; this re-measure relates whatever "
+                  "correlates. The two surfaces answer "
+                  "DIFFERENT QUESTIONS, and the run did not "
+                  "lose these pairs - it never undertook to "
+                  "measure them.")
+        else:
+            print("      {} extra pair(s) ARE declared edges, "
+                  "so the run omitted structure its own "
+                  "contract claims - that is a defect, not a "
+                  "difference of scope.".format(sayn(_dec)))
 
     # AND WHERE THE EXTRA PAIRS' TOKENS SIT IN THE PUBLISHED
     # ORDER, which is what turns a candidate into an answer.
