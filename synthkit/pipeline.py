@@ -1667,16 +1667,39 @@ def _pair_fidelity(Xs, Xg, bp):
     BOTH tables, so comparing them stays fair."""
     import pandas as pd
 
+    # EVERY DECLARED EDGE IS ACCOUNTED FOR, MEASURED OR NOT.
+    #
+    # This loop drops an edge silently at four points, and
+    # nothing counted them - so a run could publish 22 declared
+    # relationships it never measured and no line in the report
+    # would say so. That is precisely how a re-measure came to
+    # relate 22 pairs the run did not, and a week went into
+    # guessing at the cause from two totals.
+    #
+    # `measure_surfaces` has held the identity
+    # published == measured + token + absent + thin for months.
+    # The pair measurement never got the same treatment. It
+    # does now: declared == measured + the skip reasons, as an
+    # identity, because a category with no count is invisible
+    # in any other way.
     seen, rows = set(), []
+    skips = {"absent_source": [], "absent_generated": [],
+             "thin_or_unmeasurable": []}
+    declared = set()
     for rel in (bp.get("relationships") or []):
         child = rel.get("child")
         for par in (rel.get("parents") or []):
             key = frozenset([child, par])
             if key in seen or child == par:
                 continue
+            declared.add(key)
             if child not in Xs.columns or par not in Xs.columns:
+                skips["absent_source"].append((child, par))
+                seen.add(key)
                 continue
             if child not in Xg.columns or par not in Xg.columns:
+                skips["absent_generated"].append((child, par))
+                seen.add(key)
                 continue
             seen.add(key)
 
@@ -1714,6 +1737,16 @@ def _pair_fidelity(Xs, Xg, bp):
                     return _eta(fr[par], fr[child])
             rs, rg = assoc(Xs), assoc(Xg)
             if rs is None or rg is None:
+                # THIN OR UNMEASURABLE, and the two are worth
+                # separating from "absent": the column is
+                # there, and either fewer than 30 rows carry
+                # both values or the measure returned nothing
+                # because a column is constant on one side. A
+                # token indicator that no generated row carries
+                # lands here, which is the likeliest reason a
+                # declared edge goes unmeasured.
+                skips["thin_or_unmeasurable"].append(
+                    (child, par))
                 continue
             ev = rel.get("evidence") or {}
             eff = (ev.get("effect") or {}).get(par) or {}
@@ -1780,7 +1813,27 @@ def _pair_fidelity(Xs, Xg, bp):
                 if r["tightness_generated"] >= r["tightness_source"] - 0.2]
     _own = [r for r in strong
             if not _is_scaffold_pair(r)]
+    # THE IDENTITY, ASSERTED RATHER THAN DESCRIBED. If these
+    # ever disagree there is a fifth silent exit, and the whole
+    # point of this block is that such an exit cannot hide.
+    _acct = {
+        "declared": len(declared),
+        "measured": len(rows),
+        "absent_source": len(skips["absent_source"]),
+        "absent_generated": len(skips["absent_generated"]),
+        "thin_or_unmeasurable": len(
+            skips["thin_or_unmeasurable"]),
+        "examples": dict(
+            (k, [list(x) for x in v[:6]])
+            for k, v in skips.items() if v),
+    }
+    _acct["accounted"] = (
+        _acct["measured"] + _acct["absent_source"]
+        + _acct["absent_generated"]
+        + _acct["thin_or_unmeasurable"])
+    _acct["balances"] = _acct["accounted"] == _acct["declared"]
     return {
+        "declared_edges": _acct,
         "categorical_compared": len(strong_other),
         "categorical_kept": len(kept_other),
         "categorical_weakened": sorted(

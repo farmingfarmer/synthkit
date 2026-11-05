@@ -1864,6 +1864,73 @@ def main():
           and "does not exist yet" in (_r3.stderr + _r3.stdout)
           and "Traceback" not in (_r3.stderr + _r3.stdout))
 
+    # ---- EVERY DECLARED EDGE IS ACCOUNTED FOR
+    #
+    # The pair measurement dropped an edge silently at four
+    # points and counted none of them, so a run could publish
+    # 22 declared relationships it never measured with no line
+    # in the report saying so - which is exactly what happened,
+    # and a week went into guessing the cause from two totals.
+    # `measure_surfaces` has held the same identity for months;
+    # this is the pair half of it.
+    import numpy as _np
+    import pandas as _pd
+    from synthkit import blueprint as _Ba
+    from synthkit.discover import discover as _da
+    from synthkit.generate import generate as _ga
+    from synthkit.pipeline import compare as _ca
+    _n, _v = 120, 5
+    _N = _n * _v
+    _rg = _np.random.default_rng(4)
+    _x = _rg.normal(0, 1, _N)
+    _dfa = _pd.DataFrame({
+        "person_id": _np.repeat(
+            ["P{:03d}".format(i) for i in range(_n)], _v),
+        "visit": _np.tile(_np.arange(_v), _n),
+        "x": _np.round(_x, 3),
+        "y": _np.round(2 * _x + _rg.normal(0, 0.5, _N), 3),
+        "z": _np.round(_rg.normal(0, 1, _N), 3)})
+    _bpa = _Ba.build(_dfa, _da(_dfa, group_by="person_id",
+                               seed=1), group_by="person_id")
+    _base_declared = len(
+        _ca(_dfa, _ga(_bpa, n_patients=_n, seed=3), _bpa,
+            "person_id", _bpa.get("time_column")
+            )["relationships"]["declared_edges"]["examples"]
+        or {})
+    # A DECLARED EDGE ON A COLUMN NOTHING CARRIES - the skip
+    # this fixture exists to plant, because a fixture that
+    # cannot reach the branch proves nothing about it.
+    _bpa["relationships"].append(
+        {"child": "ghost", "parents": ["x"]})
+    _ga2 = _ga(_bpa, n_patients=_n, seed=3)
+    _acc = _ca(_dfa, _ga2, _bpa, "person_id",
+               _bpa.get("time_column")
+               )["relationships"]["declared_edges"]
+    check("fidelity now reports a DECLARED EDGE account, so a "
+          "relationship the contract claims and the run never "
+          "measured cannot go missing without a line",
+          _acc["declared"] >= 2)
+    check("...and the account BALANCES - declared equals "
+          "measured plus the skip reasons - so a fifth silent "
+          "exit cannot hide: {} declared, {} accounted"
+          .format(_acc["declared"], _acc["accounted"]),
+          _acc["balances"] is True
+          and _acc["accounted"] == _acc["declared"])
+    check("...the planted edge on a column NEITHER frame "
+          "carries is counted as absent rather than dropped, "
+          "which is the whole fault being closed",
+          _acc["absent_source"] == 1)
+    check("...and the skipped edge is NAMED, because a count "
+          "alone cannot tell anyone which relationship went "
+          "unmeasured - that was a week of archaeology",
+          any("ghost" in str(x)
+              for x in (_acc.get("examples") or {}).get(
+                  "absent_source") or []))
+    check("...while the genuine edge is still MEASURED, so the "
+          "accounting did not come at the cost of the "
+          "measurement",
+          _acc["measured"] >= 1)
+
     print()
     if FAIL:
         print("{} FAILED".format(FAIL))
