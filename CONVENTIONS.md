@@ -6119,3 +6119,56 @@ exist.
   rule holds exactly as recorded: dial the OUTCOME (denied
   0.744, recovery exact) and not a covariate (denies nothing,
   needs nothing).
+
+- **THE WORKING TREE ON THE DATA MACHINE WAS GUTTED, AND I SPENT
+  A DOZEN PROBES DISBELIEVING THE PROBES THAT SAID SO
+  (2026-11-05).** `.venv\Scripts\python` stopped being
+  recognized, `synthkit\*.py` matched nothing, and
+  `scripts\run_all_smokes.py` was absent - while jobs using
+  exactly those had run minutes earlier. Every `if exist` NO was
+  CORRECT and I treated each one as a channel artifact, invented
+  a new theory per contradiction, and at one point raised a
+  false alarm about endpoint security quarantining files. The
+  operator checked and there was nothing.
+  **WHEN A PROBE DISAGREES WITH YOUR MODEL, RUN THE THING.**
+  `python -V` settled in one command what twelve `if exist`
+  probes could not, because an execution either works or names
+  its failure, where a predicate about a path can only ever
+  return yes or no. This file already says a capability that
+  fails by returning something plausible is worse than one that
+  crashes; here the plausible thing was my own disbelief.
+- **A PATH WITH BACKSLASHES DOES NOT RENDER THROUGH THE SCREEN
+  CHANNEL AT ALL.** `cd` alone, `type _run.txt` and
+  `echo %USERPROFILE%` all came back as "(no output)" for a
+  whole night, which reads as a failed command and is in fact a
+  successful one whose answer cannot cross. Ask for the
+  DIRECTORY NAME instead - `for %i in (.) do @echo AT-%~nxi`
+  renders - or convert the separators before printing. Several
+  "the command did nothing" conclusions tonight were this.
+- **AND A SINGLE DIGIT DOES NOT RENDER EITHER.**
+  `python -c "print(1)"` came back empty; the same command
+  printing `STACK-OK` came back intact. The recorded rule is
+  that the WORDS are the channel and the digits beside them are
+  a convenience - that applies to a one-character success flag
+  as much as to a measurement, so a probe's answer must be a
+  WORD.
+- **RECOVERY NEEDED NO INSTALL, BECAUSE THE NUMERIC STACK IS
+  SYSTEM-WIDE THERE.** System `python` is 3.14.6 and imports
+  numpy, pandas, sklearn and scipy; only the source tree was
+  gone. A zipball re-extract at a known commit into a NEW
+  directory, run with the system interpreter, restored the
+  tooling without touching the broken copy, without pip, and
+  without going near the real extract. Verified by importing
+  pipeline / gate / generate and then by running the net there.
+- **WHAT WAS NEVER AT RISK, AND IT IS THE PART THAT MATTERS.**
+  The real extract and every run artifact survived untouched -
+  `phase2_800\tidy_visits.csv` plus the labeled copy, the
+  profile and the membership audit; `run_cipher_s0` with its
+  key, cipher, blueprint, fidelity and generated files. Every
+  number reported from tonight is backed by files still on
+  disk. The cause of the tree's state is NOT ESTABLISHED and is
+  not being guessed at: nothing run against it deletes files -
+  the commands only wrote with `curl -o`, copied, and launched
+  processes. Recorded as unexplained rather than attributed,
+  because attributing it would be the fifth wrong theory in one
+  session.
