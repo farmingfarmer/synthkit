@@ -6057,3 +6057,49 @@ exist.
   in the wrong place; index arithmetic is the same fault with
   no anchor at all. Exact string replacement with count==1,
   every time, including when refactoring.
+
+- **THE CIPHER CHAIN RAN END TO END ON THE REAL EXTRACT, AND IT
+  IS THE STRONGEST READING YET (2026-11-05, run_cipher_s0,
+  800 patients, k 10, token cap 800, dial
+  `condition_count~span_days=-0.60`).** Every figure below was
+  read back SPELLED by the machine before being written down,
+  because the digits channel off that screen turns a zero into
+  an @.
+      verify            43 column(s) untouched, 0 changed;
+                        every column's own distribution
+                        unchanged -> VERIFIED
+      asked             -0.60
+      landed            -0.24
+      reachable band    [-0.284, +0.392], bounded by the FOUR
+                        distinct values the dialed column holds
+                        - THE ASK WAS OUTSIDE IT, and the dial
+                        reached 85% of the floor that exists
+      key-trained       +0.690
+      released-trained  -0.055
+      DENIED            +0.744
+      recovery          EXACT, no surrogate
+  **A vendor who TRAINS on the released file goes from +0.690
+  to NEGATIVE skill - worse than predicting the mean - while a
+  vendor who merely SCORES our rows returns the key answer
+  already, because every predictor that target reads is
+  untouched.** The arithmetic is self-checking: 0.690 against
+  -0.055 is 0.745 and the tool reports 0.744, which is two
+  numbers agreeing rather than one asserted.
+- **AND THE SPAN_DAYS CEILING IS A PROPERTY OF THE COHORT, NOT
+  A SAMPLER MISS.** This run's `span_days` holds FOUR distinct
+  values where the earlier `run_dial2` held five, and the band
+  moved with it - [-0.284, +0.392] against [-0.395, +0.445].
+  Same mechanism, different cohort, and the dial states the
+  bound with the distinct-value count that causes it, so a
+  landed -0.24 against an asked -0.60 reads as an impossible
+  ask rather than a failure. Quote the band whenever the dial
+  magnitude comes up.
+- **THE SNAPSHOT IS PART OF THE METHOD.** The run writes
+  `generated.csv` and `cipher.json` per seed into one
+  directory, so reading them while a later seed is still
+  writing is the two-jobs-on-one-directory corruption this
+  file already records. The complete seed-0 trio was COPIED to
+  its own directory first and every verification ran there.
+  `key.csv` and `generated.csv` came out byte-identical in
+  SIZE, which is what a permutation of the same values looks
+  like before anything is measured.

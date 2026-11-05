@@ -389,9 +389,9 @@ A competitor worth the name: est. 2 weeks, after M1.
 | M0 fidelity core | Aug 29 | **CLEARS AFTER REPAIR, 2026-11-04 night.** On the extract the run was actually built from (`phase2_800`, accepted by the provenance guard): close **130/148 = 87.8% unrepaired**, one tenth of a point under the bar, and **133/148 = 89.9% after `repair_inversions --close`** - PASS. direction kept 145->146/148 = 98.6%. INVERTED 0. The repair is a verified PURE REARRANGEMENT of four columns, so the privacy posture is exactly what was published. Earlier readings of 87.6% / 76.5% were against a different cohort or the wrong source file; see the note below. |
 | M1 evaluation loop | Sep 12 | **ASSEMBLED RUN DONE** - this line was stale. `docs/e2e/end_to_end.json` records a full pass: 24 score checks passed, attack verdict PASS, showdown ceiling 0.9104 against a vendor 0.7308 with `vendor_beats_ours` False. The 2026-09-11 real run went bridge -> plant -> three tiers -> showdown on 55,428 rows, and its own finding was a MISCALIBRATED BAR: the as-specified tier demanded 0.700 over a 0.698 ceiling, visible in one line only because the ceiling is computable from the planted answer. Remaining: `vendor_exam` route A is built and exercised, the vendor SEAT is scheduling rather than building. |
 | M2 structured PHI | Sep 26 | not started; holds if begun within ~a week |
-| M3 relational intake | Oct 17 | **detection DONE 2026-11-04** (`synthkit schema`, 3 fixtures, keys from the values, integrity reproduced); FITTING the linked tables together remains |
+| M3 relational intake | Oct 17 | **detection DONE 2026-11-04** (`synthkit schema`, 3 fixtures, keys from the values, integrity reproduced). The remainder is now MEASURED rather than described: a lab value planted at 2.0x its visit's length of stay reads source **+0.906** and generated **+0.021** - fitting each table alone destroys the cross-table relationship. Pinned as a characterization check, so the day joint fitting lands it goes red and the claim gets updated with it. |
 | M4 pattern ceiling | Oct 31 | 12/13 forest; ring survival is the open research item |
-| M5 dials + sign-off | Nov 14 | **DONE 2026-11-03**: per-pattern dials over every kind the inventory names, and the dial matrix run on the REAL blueprint |
+| M5 dials + sign-off | Nov 14 | **DONE 2026-11-03**, and the CIPHER CHAIN now runs end to end on the real extract (2026-11-05): released file VERIFIED as a faithful rearrangement (43 columns untouched, every distribution unchanged); a vendor who TRAINS on it goes from **+0.690 to -0.055** skill, **denied 0.744**; a vendor who SCORES our rows returns the key answer **EXACTLY**, no surrogate. The dial also reported its own ceiling honestly - asked -0.60, landed -0.24, reachable band [-0.284, +0.392] bounded by the four distinct values the dialled column holds, so the ask did not exist. |
 | M6 free text | Dec 5 | decision gate at M2, intentionally unpromised |
 
 Projected completion, carrying the observed ~1-week M0 slip through
@@ -411,6 +411,20 @@ source extract and `key.csv` are both refused by name and the
 list cannot be extended by a flag. **Not run against a live AWS
 account** — that is the next thing it needs, and it is stated in
 the module, the doc and the tool's own output.
+
+Reviewed 2026-11-05 and **one real defect found by reading it**:
+the image set `ENV OMP_NUM_THREADS=1`, which is the TEST-RUN
+setting. Fixture frames spend more time starting threads than
+computing — worth 35x to the net — but a real extract is 55,428
+rows where the threads genuinely pay, and the net sets the
+variable on its own subprocesses by `setdefault` so an image ENV
+is exactly the outside value that beats it. Every production fit
+in that container would have run single-threaded, silently.
+Removed, with a check that fails if it comes back, plus the two
+cheapest real assertions about a deployment nobody has built:
+every `COPY` path exists, and the `ENTRYPOINT` names a console
+script the package actually declares — a Dockerfile naming a
+missing file fails only at build time.
 
 ## Weighted overall
 
