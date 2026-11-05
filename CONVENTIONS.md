@@ -5801,3 +5801,35 @@ exist.
   fixture uses genuine NaN, plus visit counts heavy enough
   that the draw undershoots (515 against 660 asked). Watched
   red: the old code raises the exact ValueError.
+
+- **THE TOKEN CAP WAS RAISED AND IT CHANGED NOTHING - THE CAP
+  IS NOT THE LIMITER ON THIS EXTRACT (2026-11-04).** Two arms,
+  same seed, same file, differing only in `--max-tokens`:
+      cap  800   conditions 2,543 found, 288 clear k, 288 modeled
+                 encoded frame 722 dimensions
+                 seed 5: sign 263/309 close 224/309 INVERTED 11
+                 nn-ratio 1.33, k-blur 36.3%
+      cap 1200   IDENTICAL IN EVERY DIGIT
+  Two arms that agree to the digit are one arm - and here that
+  is the correct conclusion rather than a bug: the parameter
+  genuinely has no effect in this range. **The limiter is the
+  k screen on the engine's 85% TRAINING SPLIT: 288 of 2,543
+  `conditions` tokens clear a k=10 patient floor there.** No
+  cap setting can emit a token the k rule will not publish.
+- **AND THE 1,050-AGAINST-800 OBSERVATION BELONGS TO A COHORT
+  WHOSE SOURCE NO LONGER EXISTS.** It came from
+  `run_deliverable`, which recorded reading 55,428 rows; the
+  file at that path today has **23,092**. The extract was
+  re-pulled or re-filtered at some point, so that run's gate
+  numbers describe a cohort that cannot be re-measured, and
+  no new run is comparable to it. Any future claim about
+  "the real extract" has to say WHICH one.
+- **WHAT WOULD ACTUALLY RAISE EMISSION, and none of it is a
+  cap.** Lower k - a privacy decision, not an engineering
+  one. Or screen on the FULL cohort rather than the training
+  split, which would leak holdout information into the
+  published vocabulary and is the thing the split exists to
+  prevent. Or recover the original extract. The two halves
+  screening on different populations - blueprint on the whole
+  cohort, engine on its split - is the real disagreement, and
+  it is a design question rather than a setting.
