@@ -5984,8 +5984,8 @@ exist.
   fault the block one branch over already carries a comment
   about.
 
-- **TWO CANDIDATES FOR THE 22 PAIRS DIED THE SAME NIGHT, BOTH BY
-  MEASUREMENT, AND THE THIRD GUESS IS NOT BEING MADE
+- **THREE CANDIDATES FOR THE 22 PAIRS DIED THE SAME NIGHT, ALL
+  BY MEASUREMENT, AND THE FOURTH GUESS IS NOT BEING MADE
   (2026-11-04).** With the pair sets diffed by name - 196
   shared, 22 extra, NONE lost - the question became why the RUN
   omitted 22 pairs on indicators its own blueprint names. The
@@ -6005,10 +6005,24 @@ exist.
   The extra pairs are CROSS-SET-COLUMN token pairs -
   `active_drugs__has__metoclopramide <- drug_routes__has__Oral`,
   `active_drugs__has__tacrolimus <- drug_routes__has__NG-tube` -
-  the drug-implies-route family this file already tracks. Why
-  the run related none of them is OPEN. Per this file's own
-  no-third-guess rule it earns a diagnostic in the run
-  directory, not a third hypothesis stated as a finding.
+  the drug-implies-route family this file already tracks.
+- **AND THE THIRD CANDIDATE - ORIENTATION - COST TWO LINES AND
+  ALSO DIED.** The diff keys on (child, parent), so a pair the
+  run recorded the other way round would read as missing from
+  it and present in the re-measure, inflating the difference
+  with pairs that are in both sets. Measured: ignoring
+  direction the re-measure still adds **22**, so none of the
+  difference is an orientation artifact - the extra pairs are
+  absent from the recorded set in BOTH directions.
+  So the characterization is now: **22 cross-set-column token
+  pairs, on tokens at published ranks 6 to 13, absent from the
+  run's own recorded fidelity in both directions, on indicators
+  the blueprint's own relationships name.** Why the run related
+  none of them is OPEN. Per this file's no-third-guess rule it
+  earns a diagnostic in the run directory rather than a fourth
+  hypothesis stated as a finding - and the three that died were
+  each cheap to kill, which is the argument for measuring a
+  candidate the hour it is thought of.
 - **AND THE FIRST READING OF THAT CENSUS WAS A WRONG FIELD
   NAME - THE FIFTH TIME.** It read `token` where a list
   marginal writes `value`, so every lookup returned None and
