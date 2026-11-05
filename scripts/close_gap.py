@@ -295,6 +295,35 @@ def surface_verdict(n_new, n_rec):
     return "same"
 
 
+def token_ranks(pairs, order, cap, has="__has__"):
+    """Where each extra pair's token sits in published order.
+
+    The test that decides whether the run's token vocabulary
+    accounts for the difference. Every extra token beyond a
+    capped expansion's reach means the vocabulary explains them
+    all; one INSIDE the cap means it does not, for that pair.
+
+    Returned rather than printed, because a candidate that gets
+    carried for a week on a story is what this whole module is
+    cleaning up after.
+    """
+    beyond, inside, unknown = [], [], 0
+    for pair in pairs:
+        for col in pair:
+            if has not in col:
+                continue
+            base, _, tok = col.partition(has)
+            lst = order.get(base) or []
+            if tok in lst:
+                rk = lst.index(tok)
+                (beyond if rk >= cap else inside).append(
+                    (rk, base, tok))
+            else:
+                unknown += 1
+    return {"beyond": sorted(beyond), "inside": sorted(inside),
+            "unknown": unknown}
+
+
 def pair_diff(run, src_path):
     """The two pair sets, diffed by NAME rather than by count.
 
@@ -424,6 +453,52 @@ def pair_diff(run, src_path):
 
     census(sorted(new - rec), "RE-MEASURE ONLY")
     census(sorted(rec - new), "RECORDED ONLY")
+
+    # AND WHERE THE EXTRA PAIRS' TOKENS SIT IN THE PUBLISHED
+    # ORDER, which is what turns a candidate into an answer.
+    #
+    # If the difference is the token vocabulary the run was
+    # built with, the indicators it missed are the ones past
+    # the position a capped expansion would have reached -
+    # EXPAND_CAP per set column, by published order. If their
+    # ranks are spread through the list instead, the
+    # vocabulary is not the cause and the candidate dies here
+    # rather than being carried another week.
+    order = {}
+    for c, v in (bp.get("columns") or {}).items():
+        mg = v.get("marginal") or {}
+        if (mg.get("type") or "") == "list":
+            order[c] = [str(t.get("token"))
+                        for t in (mg.get("tokens") or [])]
+    _tr = token_ranks(sorted(new - rec), order,
+                      _S.EXPAND_CAP, has=_S.HAS)
+    beyond, inside = _tr["beyond"], _tr["inside"]
+    unknown = _tr["unknown"]
+    ranks = beyond + inside
+    if ranks or unknown:
+        print("")
+        print("  WHERE THE EXTRA PAIRS' TOKENS SIT IN THEIR "
+              "COLUMN'S PUBLISHED ORDER (cap is {} per set "
+              "column):".format(sayn(_S.EXPAND_CAP)))
+        print("      {:>5}  rank at or BEYOND the cap"
+              .format(sayn(len(beyond))))
+        print("      {:>5}  rank INSIDE the cap"
+              .format(sayn(len(inside))))
+        print("      {:>5}  token not in the published list at "
+              "all".format(sayn(unknown)))
+        for rk, base, tok in sorted(ranks)[:6]:
+            print("        rank {:>5}  {}  {}".format(
+                sayn(rk), base, tok))
+        if ranks and not inside and not unknown:
+            print("      EVERY extra token sits beyond a capped "
+                  "expansion's reach, so the vocabulary the run "
+                  "was built with accounts for all of them.")
+        elif inside:
+            print("      {} token(s) sit INSIDE the cap, so the "
+                  "vocabulary does NOT account for the "
+                  "difference on its own - that candidate is "
+                  "refuted for those pairs."
+                  .format(sayn(len(inside))))
 
     print("")
     _v = surface_verdict(len(new), len(rec))

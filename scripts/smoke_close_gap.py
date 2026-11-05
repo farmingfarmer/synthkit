@@ -87,6 +87,32 @@ def main():
           len(b["named"]) + len(b["unnamed"]) + len(b["plain"])
           == len(pairs))
 
+    # ---- WHERE THE EXTRA TOKENS SIT, which is what decides
+    #      whether the run's vocabulary explains the difference
+    order = {"conds": ["t{:02d}".format(i) for i in range(40)]}
+    tr = CG.token_ranks(
+        [("conds__has__t30", "n"), ("conds__has__t05", "n"),
+         ("conds__has__ZZZ", "n"), ("age", "weight")],
+        order, 24, has="__has__")
+    check("a token past a capped expansion's reach is bucketed "
+          "BEYOND - if every extra token lands there, the "
+          "vocabulary the run was built with accounts for all "
+          "of them",
+          [r[2] for r in tr["beyond"]] == ["t30"])
+    check("...one INSIDE the cap refutes that for its pair, "
+          "because a capped expansion would have reached it "
+          "anyway",
+          [r[2] for r in tr["inside"]] == ["t05"])
+    check("...a token absent from the published list is "
+          "counted apart rather than folded into either, "
+          "since it is a third thing and a total a reader can "
+          "check must add up",
+          tr["unknown"] == 1)
+    check("...and a pair with no indicator at all contributes "
+          "nothing, so plain pairs cannot inflate the census",
+          len(tr["beyond"]) + len(tr["inside"]) + tr["unknown"]
+          == 3)
+
     with tempfile.TemporaryDirectory() as td:
         d = Path(td)
         run = d / "run"
