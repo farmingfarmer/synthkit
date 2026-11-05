@@ -220,6 +220,26 @@ on this page.
 ## Goal 5 — High-fidelity generation   **~85%**
 
 **What works, measured — on the real extract**
+
+*2026-11-04 night, on `phase2_800` — the extract the run was
+actually built from, confirmed by the provenance guard rather
+than by reading a number off a screen. Every figure in this
+block is from one file, one denominator:*
+
+| criterion | before repair | after repair |
+|---|---|---|
+| direction kept | 145/148 = 98.0% | **146/148 = 98.6%** PASS |
+| close (bar 87.9%) | 130/148 = 87.8% FAIL | **133/148 = 89.9%** PASS |
+| inverted | 0 | 0 |
+
+The repair reorders ONE column jointly against its partners.
+`verify_permutation` reads both files from disk and returns PURE
+REARRANGEMENT: four columns reordered, multisets identical, 40
+columns byte-identical. A permutation cannot move a marginal, so
+the published bounds, point masses and k-anonymous extremes are
+exactly what they were.
+
+*Earlier real-extract figures, kept for continuity:*
 - Coverage 42/42; center within 10% of spread on 30/33 (was 18/34);
   set token shares 62/62 (was 54 of 91 missing); set EMPTY rates
   4/4 including the zero point-mass fix; inverted relationships 0;
@@ -233,7 +253,17 @@ on this page.
   repaired by swapping, dates rendered after arithmetic.
 
 **What remains**
-- The last M0 criterion: `close` at 76.5% against the 87.9% bar —
+- **The close gap is no longer the open M0 item** — it clears on
+  the repaired artifact and misses by 0.1 points without the
+  repair. What remains on this goal is the *unrepaired* engine
+  reaching the bar on its own, plus the ring ceiling below.
+  Five further close misses sit on TOKEN INDICATORS, which are
+  search scaffolding dropped before `generated.csv` is written
+  and so unreachable by any rearrangement of the output; going
+  after them through their set column was measured HARMFUL
+  (close 46/57 -> 32/57) and is off by default.
+- *Superseded, kept so the trail is readable:* `close` at 76.5%
+  against the 87.9% bar —
   and the seed sweep (76.5/80.6/80.2) says the gap is REAL, not
   noise. The real-data reading is complete: shapes survive
   (8/9, 7/7, 7/7 across seeds), published surfaces mostly do not
@@ -356,7 +386,7 @@ A competitor worth the name: est. 2 weeks, after M1.
 
 | Milestone | Agreed | Status 2026-09-01 |
 |---|---|---|
-| M0 fidelity core | Aug 29 | `close` **87.6% vs 87.9% - ONE pair short**, measured and attributed 2026-11-04: 17 misses, zero bound-explained, 4 repairable. INVERTED cleared. |
+| M0 fidelity core | Aug 29 | **CLEARS AFTER REPAIR, 2026-11-04 night.** On the extract the run was actually built from (`phase2_800`, accepted by the provenance guard): close **130/148 = 87.8% unrepaired**, one tenth of a point under the bar, and **133/148 = 89.9% after `repair_inversions --close`** - PASS. direction kept 145->146/148 = 98.6%. INVERTED 0. The repair is a verified PURE REARRANGEMENT of four columns, so the privacy posture is exactly what was published. Earlier readings of 87.6% / 76.5% were against a different cohort or the wrong source file; see the note below. |
 | M1 evaluation loop | Sep 12 | components done, assembled run not started |
 | M2 structured PHI | Sep 26 | not started; holds if begun within ~a week |
 | M3 relational intake | Oct 17 | **detection DONE 2026-11-04** (`synthkit schema`, 3 fixtures, keys from the values, integrity reproduced); FITTING the linked tables together remains |

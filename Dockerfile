@@ -37,7 +37,23 @@ WORKDIR /work
 # THE NET IS PART OF THE IMAGE, so a deployment can prove the
 # tool works before it is pointed at an extract:
 #   docker run --rm IMAGE python /opt/synthkit/scripts/run_all_smokes.py
-ENV PYTHONUNBUFFERED=1 OMP_NUM_THREADS=1
+#
+# AND THE IMAGE DOES NOT PIN THE THREAD COUNT.
+#
+# It used to set OMP_NUM_THREADS=1 here. That is the TEST-RUN
+# setting: fixture-sized frames spend more time starting threads
+# than computing, which is worth 35x to the net. A real extract
+# is 55,428 rows, where the threads genuinely pay - so pinning
+# them in the image would make every production fit in this
+# container single-threaded, silently.
+#
+# The net sets the variable on the subprocesses it spawns, by
+# `setdefault`, so an outside value still wins. An ENV here IS
+# that outside value. `smoke_packaging` already guards the
+# module against this exact generalisation; the image needed
+# the same guard, and this one was found by reading the
+# deployment surface rather than by running it.
+ENV PYTHONUNBUFFERED=1
 
 ENTRYPOINT ["synthkit"]
 CMD ["batch", "--help"]

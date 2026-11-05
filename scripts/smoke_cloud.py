@@ -200,6 +200,53 @@ def main():
           "can prove the tool works before it is pointed at "
           "an extract",
           "run_all_smokes.py" in dockerfile)
+    # THE IMAGE MUST NOT PIN THE THREAD COUNT.
+    #
+    # It did: `ENV OMP_NUM_THREADS=1`, which is the TEST-RUN
+    # setting. Fixture frames spend more time starting threads
+    # than computing - worth 35x to the net - but a real extract
+    # is 55,428 rows where the threads genuinely pay, so an ENV
+    # here makes every production fit in the container
+    # single-threaded. The net sets it on its own subprocesses
+    # by setdefault, and an image ENV is exactly the outside
+    # value that beats it. `smoke_packaging` guards the module
+    # against this generalisation; the image needed it too.
+    check("the image does NOT pin OMP_NUM_THREADS - that is "
+          "the test-run setting, and in the image it would "
+          "make every production fit single-threaded on an "
+          "extract where the threads genuinely pay",
+          "OMP_NUM_THREADS" not in dockerfile.split(
+              "ENV ")[-1].splitlines()[0])
+    check("...while still setting PYTHONUNBUFFERED, so a long "
+          "fit's progress reaches the log rather than sitting "
+          "in a buffer - a run nobody can watch is one nobody "
+          "can tell from a hang",
+          "PYTHONUNBUFFERED=1" in dockerfile)
+    # AND EVERY PATH THE IMAGE COPIES MUST EXIST. A Dockerfile
+    # naming a missing file fails at BUILD time, and nobody has
+    # built this one - so the cheapest real check on a
+    # deployment nobody has run is that it refers to things
+    # that are there.
+    _copies = []
+    for _ln in dockerfile.splitlines():
+        _ln = _ln.strip()
+        if _ln.startswith("COPY "):
+            _parts = _ln.split()[1:-1]
+            _copies.extend(_parts)
+    check("every path the image COPYs exists in the repo, so "
+          "the build cannot fail on a name - checked here "
+          "because no one has built it yet: {}"
+          .format(", ".join(_copies)),
+          bool(_copies)
+          and all((ROOT / c).exists() for c in _copies))
+    check("...and the ENTRYPOINT names a console script the "
+          "package actually declares, or the container starts "
+          "and immediately cannot find itself",
+          "synthkit" in (ROOT / "pyproject.toml").read_text(
+              encoding="utf-8").split("[project.scripts]")[-1]
+          if "[project.scripts]" in
+          (ROOT / "pyproject.toml").read_text(encoding="utf-8")
+          else False)
 
     print()
     if FAIL:
