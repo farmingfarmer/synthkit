@@ -295,6 +295,42 @@ def surface_verdict(n_new, n_rec):
     return "same"
 
 
+def strength_census(extra, strengths):
+    """Split the extra pairs by what their source figure IS.
+
+    THREE CASES, not one average. A pair with a weak source
+    correlation is a candidate for the training-split
+    explanation; a pair whose source is NOT A NUMBER is
+    UNMEASURABLE, which is a different and much more likely
+    reason a run skipped it; and a pair with no figure at all
+    is a third thing again. The first version of this folded
+    the unmeasurable ones into 0.0, which both hid them and
+    stopped either summary branch from firing.
+
+    The counts must add up to the pairs handed in - a total a
+    reader can check against the categories beneath it, which
+    is this project's standing rule for any report that lists
+    categories.
+    """
+    nums, nan, absent = [], 0, 0
+    for pr in extra:
+        if pr not in strengths:
+            absent += 1
+            continue
+        v = strengths[pr]
+        try:
+            f = abs(float(v))
+        except (TypeError, ValueError):
+            nan += 1
+            continue
+        if f != f:
+            nan += 1
+            continue
+        nums.append(f)
+    return {"numeric": sorted(nums), "nan": nan,
+            "absent": absent}
+
+
 def edge_index(bp):
     """Every DECLARED edge in the blueprint, and every column
     that takes part in one.
@@ -604,14 +640,24 @@ def pair_diff(run, src_path):
     # cluster just above 0.1 that is the mechanism; if they are
     # strong, it is not, and no amount of resampling explains
     # them away.
+    # A SOURCE CORRELATION THAT IS NOT A NUMBER IS A THIRD
+    # CASE, and folding it into 0.0 hid it. The first reading
+    # of this census printed `strongest nan` - which survived
+    # the screen-read only because it is a WORD - and the two
+    # summary branches, written as if every pair had a number,
+    # both failed to fire. A pair whose source cannot be
+    # computed is not a weak pair; it is an unmeasurable one,
+    # and this project's rule is to count the categories a
+    # reader can check rather than average over them.
     _str = {}
     for r in ((fresh.get("relationships") or {}).get("pairs")
               or []):
         c, par = r.get("child"), r.get("parent")
         if c and par:
-            _str[(str(c), str(par))] = abs(
-                float(r.get("source") or 0.0))
-    _vals = sorted(_str.get(pr, 0.0) for pr in _extra)
+            _str[(str(c), str(par))] = r.get("source")
+    _sc = strength_census(_extra, _str)
+    _nan, _absent = _sc["nan"], _sc["absent"]
+    _vals = _sc["numeric"]
     if _vals:
         _near = [v for v in _vals if v < 0.15]
         print("")
@@ -623,7 +669,25 @@ def pair_diff(run, src_path):
         print("      {:>5}  sit under 0.15, within reach of the "
               "floor on a smaller sample".format(
                   sayn(len(_near))))
-        if len(_near) == len(_vals):
+        print("      {:>5}  have a source correlation that is "
+              "NOT A NUMBER - unmeasurable, not weak"
+              .format(sayn(_nan)))
+        print("      {:>5}  carry no source figure at all"
+              .format(sayn(_absent)))
+        print("      {:>5}  TOTAL, which must equal the extra "
+              "pairs above".format(
+                  sayn(len(_vals) + _nan + _absent)))
+        if _nan:
+            print("      A PAIR WHOSE SOURCE CANNOT BE "
+                  "COMPUTED is the likeliest reason a run "
+                  "skipped it: both sides must be numeric with "
+                  "variance, and a token indicator that is "
+                  "constant on one frame gives no correlation "
+                  "at all. That is a SKIP, and a skip nobody "
+                  "counts is invisible - which is exactly how "
+                  "22 declared edges went missing without a "
+                  "line in the report.")
+        if _nan == 0 and len(_near) == len(_vals):
             print("      EVERY extra pair is marginal, so a "
                   "fidelity measured on the 85% training split "
                   "would plausibly drop them all - that is a "

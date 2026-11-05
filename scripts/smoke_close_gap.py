@@ -113,6 +113,28 @@ def main():
           len(tr["beyond"]) + len(tr["inside"]) + tr["unknown"]
           == 3)
 
+    # ---- A SOURCE THAT IS NOT A NUMBER IS A THIRD CASE
+    _ex = [("a", "b"), ("c", "d"), ("e", "f"), ("g", "h")]
+    _sx = {("a", "b"): 0.12, ("c", "d"): float("nan"),
+           ("e", "f"): None}
+    _cs = CG.strength_census(_ex, _sx)
+    check("a weak but real source correlation is counted as a "
+          "NUMBER - the only case the training-split "
+          "explanation can reach",
+          _cs["numeric"] == [0.12])
+    check("...a NaN source is counted as UNMEASURABLE rather "
+          "than folded into 0.0, which is what hid it and "
+          "stopped either summary branch from firing",
+          _cs["nan"] == 2)
+    check("...and a pair with no source figure at all is a "
+          "third thing again",
+          _cs["absent"] == 1)
+    check("the three counts ADD UP to the pairs handed in, so "
+          "the report states a total a reader can check "
+          "against its own categories",
+          len(_cs["numeric"]) + _cs["nan"] + _cs["absent"]
+          == len(_ex))
+
     # ---- IS THE PAIR IN THE CONTRACT? the fourth candidate,
     #      and the one that decides whether the gap is a defect
     #      or two surfaces answering different questions.
