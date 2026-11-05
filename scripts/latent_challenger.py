@@ -61,6 +61,21 @@ SPARSE_PRESENCE = 0.05
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
+# THE REPO ROOT GOES ON THE PATH BEFORE THE PACKAGE IMPORT.
+#
+# A script's sys.path[0] is the SCRIPT's own directory, not the
+# repo root, so `import synthkit` resolves only when something
+# else put it there. `python -c` hides this because the CWD is
+# on the path; running the script does not. On the data machine
+# the documented flow is to extract a zipball and run with no
+# install, where this is the difference between working and
+# ModuleNotFoundError - and it cost ten checks reading as gate
+# defects before anyone looked at the path.
+import os as _os
+import sys as _sys
+_sys.path.insert(0, _os.path.dirname(_os.path.dirname(
+    _os.path.abspath(__file__))))
+
 from synthkit import dates, sets    # noqa: E402
 
 

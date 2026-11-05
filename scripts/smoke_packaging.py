@@ -248,6 +248,58 @@ def main():
           (ROOT / "synthkit" / "jointcheck.py").read_text(
               encoding="utf-8"))
 
+    # ---- EVERY SCRIPT THAT IMPORTS THE PACKAGE MUST PUT THE
+    #      ROOT ON THE PATH FIRST
+    #
+    # Four scripts had a module-level `from synthkit ...` with
+    # no preceding root insert, and each was found REACTIVELY -
+    # one when ten gate checks went red, one when three help
+    # checks did. A sweep costs nothing and catches the next
+    # one at authoring time instead of on the machine that
+    # holds the extract. The ORDER matters, not just the
+    # presence: `relationship_report.py` had an insert, inside
+    # a function, after the import.
+    import re as _re
+    _late = []
+    for _p in sorted((ROOT / "scripts").glob("*.py")):
+        _src = _p.read_text(encoding="utf-8")
+        _ins = _imp = None
+        for _i, _ln in enumerate(_src.splitlines()):
+            if (_ins is None and "sys.path.insert" in _ln
+                    and not _ln.startswith((" ", "\t"))):
+                _ins = _i
+            if (_imp is None
+                    and _re.match(r"^(from synthkit|import synthkit)",
+                                  _ln)):
+                _imp = _i
+        if _imp is not None and (_ins is None or _ins > _imp):
+            _late.append(_p.name)
+    check("every script importing the package at module level "
+          "puts the repo ROOT on sys.path FIRST - a script's "
+          "sys.path[0] is its own directory, so without it "
+          "`python scripts/X.py` dies on a tree with no "
+          "install{}".format(
+              "" if not _late else ": " + ", ".join(_late)),
+          not _late)
+
+    # A WRONG PATH IS WORSE THAN A MISSING ONE, and a STATIC
+    # check cannot see it. `smoke_tidy_fixture` inserted only
+    # `ROOT / "scripts"`, so `synthkit` was never on the path
+    # and the suite ran solely where the package happened to be
+    # installed - it passed here for months and died on the
+    # data machine's no-install tree. A regex for "does it
+    # insert the root" was written, flagged 38 scripts
+    # including two already verified to work, and was DELETED:
+    # the inserts here are written a dozen different ways, so
+    # that check matched style rather than behaviour and a
+    # check that cries wolf is worse than none.
+    #
+    # The behavioural test below is the real one, and for the
+    # SMOKE scripts the net itself is the detector - it runs
+    # each as a subprocess, so a broken path surfaces as a
+    # suite failure on a no-install tree, which is exactly how
+    # these were found.
+
     # ---- A SCRIPT MUST RUN FROM A SOURCE TREE WITH NO INSTALL
     #
     # `python scripts/m0_gate.py RUNDIR` - the command that
@@ -312,8 +364,18 @@ def main():
                     "evidence": {"interaction": {
                         "pair": ["x", "w"]}}}]}),
                 encoding="utf-8")
-            for _scr, _args in (("m0_gate.py", []),
-                                ("peek.py", ["surfaces"])):
+            # THE ENTRY POINTS AN OPERATOR ACTUALLY RUNS.
+            # Each of these is named in a docstring or in the
+            # conventions as `python scripts/X.py ...`, and
+            # each failed on the no-install tree.
+            for _scr, _args in (
+                    ("m0_gate.py", []),
+                    ("peek.py", ["surfaces"]),
+                    ("relationship_report.py", ["-h"]),
+                    ("latent_challenger.py", ["-h"]),
+                    ("handover_report.py", ["-h"]),
+                    ("close_gap.py", []),
+                    ("verify_permutation.py", [])):
                 _r = subprocess.run(
                     [_bare, str(ROOT / "scripts" / _scr),
                      str(_rd)] + _args,

@@ -15,6 +15,16 @@ from collections import defaultdict
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
+# THE ROOT ITSELF, NOT JUST THE SCRIPTS DIRECTORY.
+#
+# This used to insert only `ROOT / "scripts"`, so `synthkit`
+# was never on the path and the suite only ran where the
+# package happened to be INSTALLED. On the data machine's
+# documented no-install tree it died with
+# ModuleNotFoundError inside main(). A wrong path is worse
+# than a missing one, because every check for the PRESENCE of
+# an insert passes.
+sys.path.insert(0, str(ROOT))
 sys.path.insert(0, str(ROOT / "scripts"))
 from make_tidy_fixture import VITALS, LABS, VISIT_Q   # noqa: E402
 from emit_fixture_spec import icc as icc_of           # noqa: E402
