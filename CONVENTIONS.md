@@ -5983,3 +5983,63 @@ exist.
   nowhere - the same value-assigned-downstream-of-its-reader
   fault the block one branch over already carries a comment
   about.
+
+- **TWO CANDIDATES FOR THE 22 PAIRS DIED THE SAME NIGHT, BOTH BY
+  MEASUREMENT, AND THE THIRD GUESS IS NOT BEING MADE
+  (2026-11-04).** With the pair sets diffed by name - 196
+  shared, 22 extra, NONE lost - the question became why the RUN
+  omitted 22 pairs on indicators its own blueprint names. The
+  candidate was the token vocabulary that run was built with,
+  so `close_gap --pairs` was taught to ask where each extra
+  pair's token sits in its column's PUBLISHED order:
+      rank  6   active_drugs  lidocaine
+      rank 11   active_drugs  lidocaine topical
+      rank 13   procedures    ICD10-PCS!3EQU3BZ
+      ...
+      29 token(s) sit INSIDE the cap
+  **Every one is well within a capped expansion's reach.** A
+  cap of 24 per column would have expanded all of them, so
+  neither the cap nor the vocabulary accounts for the
+  difference. Both candidates are now refuted by numbers rather
+  than argued about.
+  The extra pairs are CROSS-SET-COLUMN token pairs -
+  `active_drugs__has__metoclopramide <- drug_routes__has__Oral`,
+  `active_drugs__has__tacrolimus <- drug_routes__has__NG-tube` -
+  the drug-implies-route family this file already tracks. Why
+  the run related none of them is OPEN. Per this file's own
+  no-third-guess rule it earns a diagnostic in the run
+  directory, not a third hypothesis stated as a finding.
+- **AND THE FIRST READING OF THAT CENSUS WAS A WRONG FIELD
+  NAME - THE FIFTH TIME.** It read `token` where a list
+  marginal writes `value`, so every lookup returned None and
+  all 29 indicators were reported as "not in the published list
+  at all" - which reads as a blueprint declaring relationships
+  on tokens it does not publish, a far more alarming finding,
+  and I was one step from reporting it. What refuted it was the
+  CONTRADICTION: the names were `metoclopramide` and `Oral`,
+  whose published shares are on record in this file, so "not
+  published" could not be true. The prescribed fix is applied -
+  the key is asserted against a LIVE built blueprint, so a
+  rename breaks the checks rather than somebody's report.
+- **AND THE CHECK WRITTEN FOR IT COULD NOT SEE IT, TWICE.**
+  First version asserted only that the FIELD exists and never
+  went through the builder: restoring the bug produced ZERO
+  failures. `token_ranks` is asserted against a PLANTED order
+  map, so the step that BUILDS the map was the one piece with
+  nothing on it - which is exactly where the bug was. Second
+  version was SELF-FULFILLING: it took its token name FROM the
+  map, so under the bug the map held `None`, `None` resolved,
+  and the check passed. The token comes from the SOURCE data
+  now and the mutation goes from zero red to two. Assert the
+  observable, and take the input from somewhere the bug cannot
+  reach.
+- **AND AN INDEX-BASED SPLICE ATE TWO FUNCTION BODIES.**
+  Factoring the builder out was done by slicing between two
+  found offsets rather than by exact string replacement, and
+  the slice removed `published_order`'s body, all of
+  `token_ranks`, and the head of `pair_diff` - leaving a
+  function whose only statement was a call to itself. It
+  COMPILED. This file's anchor rule is about a prefix matching
+  in the wrong place; index arithmetic is the same fault with
+  no anchor at all. Exact string replacement with count==1,
+  every time, including when refactoring.

@@ -113,6 +113,23 @@ def main():
           len(tr["beyond"]) + len(tr["inside"]) + tr["unknown"]
           == 3)
 
+    # ---- AN ORIENTATION ARTIFACT IS NOT A MISSING PAIR
+    check("a pair the run recorded the OTHER WAY ROUND is "
+          "counted as an orientation artifact, not as a pair "
+          "the run was missing - keying on (child, parent) "
+          "would inflate the difference with pairs that are in "
+          "both sets",
+          CG.orientation_artifacts([("a", "b")], [("b", "a")])
+          == 1)
+    check("...and a genuinely new pair is NOT counted as one, "
+          "so the explanation cannot absorb a real difference",
+          CG.orientation_artifacts([("a", "b")], [("c", "d")])
+          == 0)
+    check("...and a pair present in the same direction counts "
+          "as neither",
+          CG.orientation_artifacts([("a", "b")], [("a", "b")])
+          == 0)
+
     # ---- THE ORDER MAP, BUILT FROM A LIVE BLUEPRINT
     #
     # The census read `token` where a list marginal writes

@@ -295,6 +295,23 @@ def surface_verdict(n_new, n_rec):
     return "same"
 
 
+def orientation_artifacts(rec, new):
+    """How many 'extra' pairs are the same pair, reversed.
+
+    The ordered diff keys on (child, parent), so a pair the run
+    recorded the other way round reads as missing from it and
+    present in the re-measure - inflating a difference with
+    pairs that are in both sets. Two lines settle it, which is
+    cheaper than carrying it as a candidate, and this gap has
+    already buried two candidates that were argued rather than
+    measured.
+    """
+    extra = set(new) - set(rec)
+    u_extra = (set(frozenset(x) for x in new)
+               - set(frozenset(x) for x in rec))
+    return len(extra) - len(u_extra)
+
+
 def published_order(bp):
     """Each set column's published tokens, in published order.
 
@@ -444,6 +461,18 @@ def pair_diff(run, src_path):
             if _S.HAS in str(par):
                 named.add(str(par))
 
+    # AND THE SAME DIFF IGNORING DIRECTION.
+    #
+    # The ordered diff keys on (child, parent), so a pair the
+    # run recorded the other way round would read as missing
+    # from it and present in the re-measure - inflating the
+    # difference with pairs that are in both. That is not a
+    # hypothesis worth carrying when it costs two lines to
+    # settle, and this is the second candidate for this gap to
+    # be checked rather than argued.
+    u_rec = set(frozenset(x) for x in rec)
+    u_new = set(frozenset(x) for x in new)
+
     print("THE TWO PAIR SETS, DIFFED BY NAME  {}".format(
         Path(run).name))
     print("  recorded by the run     {}".format(sayn(len(rec))))
@@ -480,6 +509,20 @@ def pair_diff(run, src_path):
             for c, par in sorted(bucket)[:6]:
                 print("        [{}] {} <- {}".format(
                     tag, c, par))
+
+    _flip = orientation_artifacts(rec, new)
+    print("  ignoring DIRECTION, the re-measure adds {}"
+          .format(sayn(len(u_new - u_rec))))
+    if _flip > 0:
+        print("    so {} of the extra pair(s) ARE in the "
+              "recorded set, recorded the other way round - "
+              "an ordering difference, not a missing pair"
+              .format(sayn(_flip)))
+    else:
+        print("    so none of the difference is an orientation "
+              "artifact - the extra pairs are absent from the "
+              "recorded set in BOTH directions")
+    print("")
 
     census(sorted(new - rec), "RE-MEASURE ONLY")
     census(sorted(rec - new), "RECORDED ONLY")
