@@ -1931,6 +1931,66 @@ def main():
           "measurement",
           _acc["measured"] >= 1)
 
+    # ---- AND THE ACCOUNT REACHES THE GATE'S OWN PAGE
+    #
+    # A measurement that never reaches a page might as well not
+    # exist for the person deciding. The account exists so a
+    # reader judging "133 of 148" can see what 148 counts; if it
+    # lives only in fidelity.json, the next person chases the
+    # denominator from two totals exactly as before.
+    from synthkit import gate as _gt
+    _fidg = {
+        "summary": {"pairs": 10, "columns": 5},
+        "relationships": {
+            "compared": 10, "kept_direction": 10, "close": 10,
+            "inverted": [], "pairs": [],
+            "declared_edges": {
+                "declared": 12, "measured": 10,
+                "absent_source": 1, "absent_generated": 0,
+                "thin_or_unmeasurable": 1, "accounted": 12,
+                "balances": True}},
+        "coverage": {}, "centre": {}, "spread": {}}
+    _v = _gt.assess(_fidg)
+    check("the gate CARRIES the declared-edge account through "
+          "to its verdict, rather than leaving it in a file "
+          "nobody opens",
+          (_v.get("declared_edges") or {}).get("declared") == 12)
+    _ls, _ = _gt.report(_v, "run_x")
+    _txt = "\n".join(_ls)
+    check("...and the shared renderer PRINTS what the "
+          "denominator is made of - one text, so the terminal "
+          "and the bench cannot disagree about it",
+          "DECLARES 12 edge(s)" in _txt
+          and "measured 10" in _txt)
+    check("...naming each skip reason that actually occurred, "
+          "and only those - a zero bucket printed every time is "
+          "noise a reader learns to skip",
+          "absent from the source frame" in _txt
+          and "too thin or unmeasurable" in _txt
+          and "absent from the generated frame" not in _txt)
+    _v2 = _gt.assess(dict(_fidg, relationships=dict(
+        _fidg["relationships"],
+        declared_edges=dict(_fidg["relationships"]
+                            ["declared_edges"],
+                            accounted=11, balances=False))))
+    _ls2, _ = _gt.report(_v2, "run_x")
+    check("...and an account that does NOT balance says so "
+          "loudly, because that means an edge is dropped by a "
+          "path nothing counts - a defect in the measurement, "
+          "not in the data",
+          "DOES NOT BALANCE" in "\n".join(_ls2))
+    _v3 = _gt.assess({
+        "summary": {"pairs": 10, "columns": 5},
+        "relationships": {"compared": 10, "kept_direction": 10,
+                          "close": 10, "inverted": [],
+                          "pairs": []},
+        "coverage": {}, "centre": {}, "spread": {}})
+    _ls3, _ = _gt.report(_v3, "run_x")
+    check("...while a run that PREDATES the account prints "
+          "nothing about it - absent is not the same fact as "
+          "zero, and an old run must still read cleanly",
+          "DECLARES" not in "\n".join(_ls3))
+
     print()
     if FAIL:
         print("{} FAILED".format(FAIL))

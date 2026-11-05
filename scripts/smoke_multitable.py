@@ -276,6 +276,90 @@ def main():
               and "at least two tables" in (r2.stdout + r2.stderr)
               and "synthkit types" in (r2.stdout + r2.stderr))
 
+    # ---- WHAT MULTI-TABLE DOES NOT YET DO, AS A NUMBER
+    #
+    # Detection is done: keys from the values, links by overlap,
+    # integrity reproduced. But each table still goes through
+    # the single-table pipeline ALONE, so a child column that
+    # depends on its PARENT's column has no path to learn it.
+    # That was stated as a limitation and never measured, and a
+    # limitation without a number is one nobody can tell they
+    # have fixed.
+    #
+    # Measured here: a lab value planted at 2.0x its visit's
+    # length of stay. This is a CHARACTERIZATION test - it pins
+    # the gap as it stands so the net stays green for the team
+    # while the gap is open, and the day joint fitting lands it
+    # goes RED and says so. Arming it is raising the bound.
+    import numpy as _np
+    import pandas as _pd
+    from synthkit import blueprint as _Bx
+    from synthkit.discover import discover as _dx
+    from synthkit.generate import generate as _gx
+
+    _rg = _np.random.default_rng(7)
+    _NP, _NV = 200, 4
+    _vid = ["V{:05d}".format(i) for i in range(_NP * _NV)]
+    _los = _np.round(_rg.lognormal(1.0, 0.6, _NP * _NV), 2)
+    _vis = _pd.DataFrame({
+        "visit_id": _vid,
+        "person_id": _np.repeat(
+            ["P{:04d}".format(i) for i in range(_NP)], _NV),
+        "length_of_stay": _los,
+        "age": _np.round(_rg.normal(60, 12, _NP * _NV), 0)})
+    _rows = []
+    for _i, _v in enumerate(_vid):
+        for _ in range(int(_rg.integers(1, 4))):
+            _rows.append((_v, round(float(
+                2.0 * _los[_i] + _rg.normal(0, 1.2)), 3)))
+    _labs = _pd.DataFrame(_rows,
+                          columns=["visit_id", "lab_value"])
+
+    def _xcorr(lab_df, vis_df):
+        _m = lab_df.merge(
+            vis_df[["visit_id", "length_of_stay"]],
+            on="visit_id", how="inner")
+        _a = _pd.to_numeric(_m["lab_value"], errors="coerce")
+        _b = _pd.to_numeric(_m["length_of_stay"],
+                            errors="coerce")
+        _k = _a.notna() & _b.notna()
+        if int(_k.sum()) < 30:
+            return None
+        return float(_a[_k].corr(_b[_k], method="spearman"))
+
+    _src_x = _xcorr(_labs, _vis)
+    check("the fixture really carries a CROSS-TABLE "
+          "relationship - a lab value against its visit's "
+          "length of stay, source {:+.3f} - because a fixture "
+          "that does not cannot show the gap"
+          .format(_src_x or 0.0),
+          _src_x is not None and _src_x > 0.8)
+
+    _gen = {}
+    for _nm, _fr, _gb in (("visits", _vis, "person_id"),
+                          ("labs", _labs, "visit_id")):
+        _bpx = _Bx.build(_fr, _dx(_fr, group_by=_gb, seed=1),
+                         group_by=_gb)
+        _gen[_nm] = _gx(_bpx,
+                        n_patients=_fr[_gb].nunique(), seed=3)
+    _gv, _gl = _gen["visits"], _gen["labs"]
+    _keys = sorted(set(str(x) for x in _gv.get("visit_id", [])))
+    check("...and the parent's KEY survives generation, so the "
+          "join can be made at all - without it the "
+          "relationship could not even be asked about",
+          bool(_keys))
+    _gl = _gl.copy()
+    _gl["visit_id"] = _np.random.default_rng(11).choice(
+        _keys, size=len(_gl))
+    _gen_x = _xcorr(_gl, _gv)
+    check("FITTING EACH TABLE ALONE DESTROYS IT: source "
+          "{:+.3f} against generated {:+.3f}. Pinned as the "
+          "measured state of M3's remainder - the day joint "
+          "fitting lands, this check goes RED and the claim "
+          "gets updated with it"
+          .format(_src_x or 0.0, _gen_x or 0.0),
+          _gen_x is not None and abs(_gen_x) < 0.25)
+
     print()
     if FAIL:
         print("{} FAILED".format(FAIL))

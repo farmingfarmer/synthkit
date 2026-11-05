@@ -185,9 +185,27 @@ def assess(fid: Dict[str, Any],
             "which per-row fidelity is blind to".format(
                 dy_n, dy_d))
 
+    # THE DENOMINATOR'S OWN STORY, CARRIED BUT NOT GRADED.
+    #
+    # Every proportional criterion here is over the pairs the run
+    # MEASURED, and for a week nobody could say how that number
+    # related to the relationships the contract DECLARES - a
+    # re-measure related 22 the run did not, and the cause was
+    # chased from two totals because no artifact carried the
+    # decomposition. `_pair_fidelity` now accounts for every
+    # declared edge, and the gate passes it through so a reader
+    # judging 133/148 can see what 148 is.
+    #
+    # Deliberately NOT a criterion. Adding one would change what
+    # a MET means and make this run incomparable with the last,
+    # which is the denominator fault wearing a fix. It is
+    # context for the ones already here.
+    _de = ((fid.get("relationships") or {}).get("declared_edges")
+           or {})
     return {"criteria": crit,
             "met": all(c["ok"] for c in crit),
             "pairs": pairs,
+            "declared_edges": _de,
             "bars": {"direction": dir_bar, "close": close_bar,
                      "custom": bool(dir_custom or close_custom)}}
 
@@ -524,6 +542,37 @@ def report(verdict, rundir) -> "tuple":
     for c in verdict["criteria"]:
         lines.append("  {}  {:<18} {}".format(
             "PASS" if c["ok"] else "FAIL", c["name"], c["detail"]))
+    # WHAT THE DENOMINATOR IS MADE OF, under the criteria that
+    # rest on it. Printed whether the gate passes or fails,
+    # because a reader judging "133 of 148" needs to know what
+    # 148 counts - and for a week nobody could say, which is how
+    # 22 declared relationships went unmeasured with no line
+    # anywhere. Silent only when the run predates the account,
+    # since absent is not the same fact as zero.
+    _de = verdict.get("declared_edges") or {}
+    if _de.get("declared"):
+        lines.append("")
+        lines.append(
+            "  the contract DECLARES {} edge(s); this run "
+            "measured {}".format(_de.get("declared"),
+                                 _de.get("measured")))
+        _skipped = [
+            ("absent from the source frame", "absent_source"),
+            ("absent from the generated frame",
+             "absent_generated"),
+            ("too thin or unmeasurable", "thin_or_unmeasurable")]
+        for label, key in _skipped:
+            n = _de.get(key) or 0
+            if n:
+                lines.append(
+                    "    {:>4}  {}".format(n, label))
+        if not _de.get("balances", True):
+            lines.append(
+                "    THE ACCOUNT DOES NOT BALANCE - declared {} "
+                "against {} accounted for, so an edge is being "
+                "dropped by a path nothing counts. That is a "
+                "defect in the measurement, not in the data."
+                .format(_de.get("declared"), _de.get("accounted")))
     lines.append("")
     failed = [c["name"] for c in verdict["criteria"]
               if not c["ok"]]
