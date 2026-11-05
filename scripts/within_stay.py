@@ -156,6 +156,36 @@ def summarize(frame, visit, concept, time_col, value):
     }
 
 
+def summarize_untimed(frame, visit, concept, value):
+    """REPEATED and MOVING when the table carries no clock.
+
+    Deliberately NOT a reduced version of `summarize`: without a
+    timestamp there is no TIMED condition to compute, and
+    returning a zero for it would read as "the repeats share one
+    instant" - a different and wrong finding.
+    """
+    import pandas as pd
+    df = frame[[visit, concept, value]].copy()
+    df.columns = ["v", "c", "x"]
+    total_rows = int(len(df))
+    df = df[df["v"].astype(str).str.len() > 0]
+    distinct_visits = int(df["v"].nunique())
+    sizes = df.groupby(["v", "c"], sort=False).size()
+    repeated = sizes[sizes >= 2]
+    visits_repeated = int(
+        repeated.index.get_level_values(0).nunique())
+    df = df.assign(x=pd.to_numeric(df["x"], errors="coerce"))
+    live = df.dropna(subset=["x"])
+    nun = live.groupby(["v", "c"], sort=False)["x"].nunique()
+    moving = nun[nun >= 2]
+    visits_moving = int(
+        moving.index.get_level_values(0).nunique())
+    return {"total_rows": total_rows,
+            "distinct_visits": distinct_visits,
+            "visits_repeated": visits_repeated,
+            "visits_moving": visits_moving}
+
+
 def verdict(s):
     """PRESENT or ABSENT, in words, with the reason.
 
@@ -241,6 +271,52 @@ def main(argv):
         print("    {:<9} {:<28} {}".format(
             label, str(got),
             "given" if given else "GUESSED"))
+    # NO CLOCK IS A FINDING, NOT A REFUSAL.
+    #
+    # The real extract's measurement table has NO timestamp
+    # column at all - it carries measurement_id, person_id,
+    # concept, value, units, ranges and visit_occurrence_id, and
+    # nothing that says WHEN. Refusing outright threw away the
+    # answer: repeats can still be counted, and whether their
+    # values differ can still be measured. What cannot be known
+    # is the ORDER or the INTERVAL, which is exactly what a
+    # rule like "falls 2 g/dL in 24h" needs.
+    #
+    # So a missing time column gets its own verdict. It is a
+    # different fact from a collapsed table, and it calls for a
+    # different action: a re-pull that includes the datetime,
+    # rather than abandoning the line.
+    no_clock = (time_col is None
+                and visit is not None
+                and concept is not None
+                and value is not None)
+    if no_clock:
+        s = summarize_untimed(df, visit, concept, value)
+        print("")
+        print("  rows {:>10}    distinct visits {:>8}".format(
+            s["total_rows"], s["distinct_visits"]))
+        print("")
+        print("  REPEATED  {:>8} visit(s) hold the same concept "
+              "twice".format(s["visits_repeated"]))
+        print("  MOVING    {:>8} of those also CHANGE value"
+              .format(s["visits_moving"]))
+        print("  TIMED     {:>8} - THERE IS NO TIME COLUMN IN "
+              "THIS TABLE".format("n/a"))
+        print("")
+        print("VERDICT: NO-CLOCK")
+        print("  the repeats are here but nothing says WHEN. "
+              "Order and interval are unknowable from this "
+              "table, and a within-stay trend rule needs both. "
+              "This is NOT a collapsed extract - the series "
+              "exist - so the fix is a re-pull that includes "
+              "the measurement datetime, not abandoning the "
+              "line.")
+        print("")
+        print("  NOTE: counts and summaries only - no measured "
+              "value, concept label or identifier is printed "
+              "by this tool.")
+        return 4
+
     missing = [n for n, c in (("visit", visit),
                               ("concept", concept),
                               ("time", time_col),

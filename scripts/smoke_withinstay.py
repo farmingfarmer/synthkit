@@ -225,6 +225,52 @@ def main():
               "no business printing its contents",
               "91.3" not in r.stdout and "90.5" not in r.stdout)
 
+        # ---- NO CLOCK IS A FINDING, NOT A REFUSAL
+        #
+        # The real extract's measurement table has NO timestamp
+        # column at all. Refusing outright threw away the
+        # answer: the repeats are there and whether their values
+        # differ is measurable - what is unknowable is the order
+        # and the interval. That is a different fact from a
+        # collapsed extract and calls for a different action, so
+        # it gets its own verdict.
+        noclk = "visit_occurrence_id,measurement_concept_id," \
+                "value_as_number\n" + "".join(
+                    "V{:04d},3000963,{}\n".format(v, val)
+                    for v in range(60)
+                    for val in (91.3, 90.5, 89.7))
+        p_nc = d / "noclock.csv"
+        p_nc.write_text(noclk, encoding="utf-8")
+        dfn = pd.read_csv(p_nc, dtype=str, keep_default_na=False)
+        sn = WS.summarize_untimed(dfn, "visit_occurrence_id",
+                                  "measurement_concept_id",
+                                  "value_as_number")
+        check("with no time column the repeats are still "
+              "COUNTED - 60 visits repeated, 60 moving - "
+              "because refusing outright would throw away the "
+              "half of the answer that is knowable",
+              sn["visits_repeated"] == 60
+              and sn["visits_moving"] == 60)
+        check("...and TIMED is deliberately ABSENT from that "
+              "result rather than zero - a zero would read as "
+              "'the repeats share one instant', which is a "
+              "different and wrong finding",
+              "visits_timed" not in sn)
+        rnc = subprocess.run(
+            [sys.executable,
+             str(ROOT / "scripts" / "within_stay.py"),
+             str(p_nc)],
+            capture_output=True, text=True, timeout=600)
+        check("...and the CLI reports VERDICT: NO-CLOCK, naming "
+              "the re-pull as the fix rather than abandoning "
+              "the line - which is the actionable answer the "
+              "real extract produced",
+              "VERDICT: NO-CLOCK" in rnc.stdout
+              and "re-pull" in rnc.stdout)
+        check("...with its own exit code, so a script can tell "
+              "no-clock from absent-signal",
+              rnc.returncode == 4)
+
         # ---- A TABLE WITH NO MEASUREMENT COLUMNS IS REFUSED
         p_n = d / "visits.csv"
         p_n.write_text("person_id,span_days\nP1,3\n",
