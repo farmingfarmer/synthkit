@@ -2098,6 +2098,61 @@ def main():
     if FAIL:
         print("{} of {} checks failed.".format(FAIL, PASS + FAIL))
         sys.exit(1)
+    # ---- AN ALL-EMPTY COLUMN MUST NOT SIZE THE FRAME
+    #
+    # `n` is the REQUESTED row count. Generating patients
+    # hierarchically makes the REAL count the sum of the DRAWN
+    # visit counts, and those need not add up to the request -
+    # the visit-count grid is k-screened and its tail clipped,
+    # so a heavy-tailed cohort undershoots. Every column was
+    # built at the drawn length except the all-empty one,
+    # which used `n`, so pandas took the union and the group
+    # column then failed to insert:
+    #
+    #   ValueError: Length of values (21306) does not match
+    #   length of index (23091)
+    #
+    # It needs BOTH an all-empty column AND a cohort whose
+    # draw misses the request, which is why it survived every
+    # run until one real extract had both. The fixture plants
+    # both on purpose - a column of genuine NaN (an empty
+    # string reads as PRESENT and is not detected) and visit
+    # counts heavy enough that the draw undershoots.
+    import latent_challenger as _LC
+    _rngE = np.random.default_rng(3)
+    _npat = 120
+    _cts = _rngE.choice([1, 2, 3, 40, 60], size=_npat,
+                        p=[.4, .3, .2, .05, .05])
+    _pid, _vals = [], []
+    for _i, _c in enumerate(_cts):
+        for _ in range(int(_c)):
+            _pid.append("P{:04d}".format(_i))
+            _vals.append(_rngE.normal(5, 1))
+    _dfE = pd.DataFrame({
+        "person_id": _pid, "x": np.round(_vals, 3),
+        "y": np.round(_rngE.normal(0, 1, len(_pid)), 3),
+        "allempty": [np.nan] * len(_pid)})
+    _gE = _LC.LatentGen(seed=1).fit(_dfE, "person_id")
+    check("the fixture's all-NaN column IS detected as empty - "
+          "an empty STRING reads as present and would not be, "
+          "so the check below would pass by not running",
+          "allempty" in (getattr(_gE, "empty_cols", []) or []))
+    _outE = _gE.generate(len(_dfE), seed=2, n_patients=_npat)
+    check("...and the drawn row count genuinely MISSES the "
+          "request - {} drawn against {} asked - which is the "
+          "other half of the condition"
+          .format(len(_outE), len(_dfE)),
+          len(_outE) != len(_dfE))
+    check("...and generation still produces a SELF-CONSISTENT "
+          "frame: every column the drawn length, the group "
+          "column inserted, no ValueError",
+          len(_outE) == len(_outE["allempty"])
+          and "person_id" in _outE.columns)
+    check("...and the empty column comes back EMPTY rather "
+          "than invented - written as \"\" because that is "
+          "what the reader folds to missing",
+          (_outE["allempty"].astype(str) == "").all())
+
     # ---- THE DISPATCH MUST REFUSE WHAT IT DOES NOT KNOW
     #
     # `sys.argv[1]` chose the subcommand and anything it did

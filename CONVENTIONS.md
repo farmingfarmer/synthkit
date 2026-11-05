@@ -4,7 +4,7 @@ Synthetic clinical data generator and model-evaluation instrument. Core rule: le
 
 ## Verify before claiming
 
-- Run `python scripts/run_all_smokes.py` before claiming anything works. Expect **90 suites, 2780 checks**, ALL GREEN **on a checkout** (measured 2026-11-03). Off a zipball extract - which is what the data machine runs - the total is TWELVE LOWER, and the gap is now MEASURED rather than estimated (2026-11-02: 2480 on a checkout against **2468** on the data machine at the same commit, ALL GREEN both ways). It decomposes exactly, with no residue: nine in `smoke_buildid`, which needs git to test the archive path; one for `node`, absent, so the full JS parse cannot run; two for Chrome, absent, so the in-browser load check cannot run. All three report NOTES and pass rather than failing - that is the design, and it is why the count moves. This entry previously said NINE LOWER and warned that a total nobody ran is not a number to quote; somebody has now run it. CONFIRMED AT A SECOND COMMIT the same day: 2483 against **2471**, the same delta of twelve - and that pair is the stronger evidence, because the commit between them ADDED THREE checks on the dev side and all three appeared on BOTH machines. That is `gated()` doing exactly what its docstring promises: a skipped check still emits a line, so the count stays one number across both places and only the genuinely unavailable tooling moves it. Do not quote the checkout number to the data machine; that is how a correct run gets read as a failure.
+- Run `python scripts/run_all_smokes.py` before claiming anything works. Expect **90 suites, 2784 checks**, ALL GREEN **on a checkout** (measured 2026-11-03). Off a zipball extract - which is what the data machine runs - the total is TWELVE LOWER, and the gap is now MEASURED rather than estimated (2026-11-02: 2480 on a checkout against **2468** on the data machine at the same commit, ALL GREEN both ways). It decomposes exactly, with no residue: nine in `smoke_buildid`, which needs git to test the archive path; one for `node`, absent, so the full JS parse cannot run; two for Chrome, absent, so the in-browser load check cannot run. All three report NOTES and pass rather than failing - that is the design, and it is why the count moves. This entry previously said NINE LOWER and warned that a total nobody ran is not a number to quote; somebody has now run it. CONFIRMED AT A SECOND COMMIT the same day: 2483 against **2471**, the same delta of twelve - and that pair is the stronger evidence, because the commit between them ADDED THREE checks on the dev side and all three appeared on BOTH machines. That is `gated()` doing exactly what its docstring promises: a skipped check still emits a line, so the count stays one number across both places and only the genuinely unavailable tooling moves it. Do not quote the checkout number to the data machine; that is how a correct run gets read as a failure.
 - **THE DEVELOPMENT MACHINE WAS BEHIND THE DATA MACHINE, and that is
   how a green suite here failed there.** Dev was on Python 3.10 with
   pandas 2.3; the data machine installs fresh and got pandas 3.0.5,
@@ -5779,3 +5779,25 @@ exist.
   are counted as absent rather than as orphans, which is the
   present-versus-missing distinction this file draws for keys
   deliberately and the opposite of the one it draws for sets.
+
+- **AN ALL-EMPTY COLUMN SIZED THE WHOLE FRAME, AND THE ENGINE
+  CRASHED ON A REAL EXTRACT (2026-11-04).**
+      ValueError: Length of values (21306) does not match
+      length of index (23091)
+  `n` is the REQUESTED row count. Generating patients
+  hierarchically makes the real count the sum of the DRAWN
+  visit counts, and those need not add up to the request -
+  the visit-count grid is k-screened and its tail CLIPPED, so
+  a heavy-tailed cohort undershoots. Every column was built
+  at the drawn length except the all-empty one, which used
+  `n`; `pd.DataFrame` took the union and `frame.insert` of
+  the group column then failed. It needs BOTH an all-empty
+  column AND a draw that misses the request, which is why it
+  survived every run until one extract had both.
+- **AND THE FIXTURE HAD TO PLANT BOTH, including one that is
+  easy to get wrong.** A column of empty STRINGS is not
+  detected as empty - `""` reads as PRESENT, which is the
+  distinction this file draws deliberately for sets - so the
+  fixture uses genuine NaN, plus visit counts heavy enough
+  that the draw undershoots (515 against 660 asked). Watched
+  red: the old code raises the exact ValueError.

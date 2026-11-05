@@ -1907,8 +1907,29 @@ class LatentGen:
         # "" rather than NaN, because that is what the reader folds
         # back to missing and what a person opening the file expects
         # to see in a field nobody recorded.
+        # ...AT THE LENGTH THE REST OF THE FRAME ACTUALLY
+        # HAS, which is NOT the length that was asked for.
+        #
+        # `n` is the REQUESTED row count. When patients are
+        # generated hierarchically the real count is the sum of
+        # the DRAWN visit counts, and those need not add up to
+        # the request - the visit-count grid is k-screened and
+        # its tail clipped, so on a heavy-tailed cohort the
+        # draw undershoots. Every other column here is built at
+        # the drawn length; this one alone used `n`, so
+        # `pd.DataFrame` took the union and `frame.insert` then
+        # failed:
+        #
+        #   ValueError: Length of values (21306) does not match
+        #   length of index (23091)
+        #
+        # It needs BOTH an all-empty column and a cohort whose
+        # draw misses the request, which is why it survived
+        # every run until one extract had both. Found by
+        # crashing the engine on real data.
+        _nrow = max((len(v) for v in out.values()), default=n)
         for _ec in getattr(self, "empty_cols", []):
-            out[_ec] = pd.Series([""] * n)
+            out[_ec] = pd.Series([""] * _nrow)
         frame = pd.DataFrame(out)
         # THE RELEASE PASS runs before the identity tiers (which
         # recompute their children afterwards, keeping the file
