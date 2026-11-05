@@ -13,7 +13,7 @@ end-to-end) are where the remaining work lives.**
 
 ---
 
-## Goal 1 — Universal upload with auto schema mapping   **~75%**
+## Goal 1 — Universal upload with auto schema mapping   **~78%**
 
 **What works, measured**
 - Single-table CSV end to end. Types detected in seconds
@@ -130,7 +130,7 @@ machine; the free-text decision is governance, not engineering.
 
 ---
 
-## Goal 3 — Pattern analysis, explained with receipts   **~80%**
+## Goal 3 — Pattern analysis, explained with receipts   **~82%**
 
 *(2026-09-09: +10 — the dashboard's pattern cards, SHAP attribution
 on both tables with interaction ranking, per-run shape and surface
@@ -169,7 +169,7 @@ on this page.
 
 ---
 
-## Goal 4 — Dials over every pattern   **~90%**
+## Goal 4 — Dials over every pattern   **~95%**
 
 **What works, measured**
 - `--dial` reaches patients.count, coverage, shift, scale,
@@ -217,7 +217,7 @@ on this page.
 
 ---
 
-## Goal 5 — High-fidelity generation   **~85%**
+## Goal 5 — High-fidelity generation   **~90%**
 
 **What works, measured — on the real extract**
 
@@ -319,7 +319,7 @@ dashboard, and what-now guidance carries exact commands.)*
 
 ---
 
-## Goal 7 — Vendor evaluation against planted truth   **~90%**
+## Goal 7 — Vendor evaluation against planted truth   **~92%**
 
 **What works, measured**
 - `semisynth.plant/verify`: effects declared in standard
@@ -458,9 +458,22 @@ dates:
    ceiling: ongoing and unscheduled, because unknowns move dates
    and these are the genuine unknowns.
 
-Equal-weighting the eight goals: **~78% complete** (goal 2
-60→65 on 2026-09-23: the real-extract read, its three detector
-lessons, and the confirming re-read). Core complete in roughly
+Equal-weighting the eight goals: **~86.5% complete** as of
+2026-11-05 — 78, 65, 82, 95, 90, 100, 92, 90. Moved this week,
+each for a measured reason and not a feeling: goal 1 75→78
+(multi-table detection landed on real OMOP tables, and the
+cross-table gap is now a number rather than a caveat); goal 3
+80→82 (every declared edge is accounted for, so the gate's
+denominator can be audited); goal 4 90→95 (the cipher chain ran
+end to end on the real extract — verified rearrangement, denied
+0.744, exact recovery, and both recovery routes measured); goal
+5 85→90 (M0 `close` clears on the repaired artifact, 89.9%
+against an 87.9% bar, and misses by 0.1 points without it);
+goal 7 90→92 (route A exercised against a planted answer).
+**The percentages are judgments; the numbers beside them are
+not.** (Earlier: ~78%, goal 2 60→65 on 2026-09-23 — the
+real-extract read, its three detector lessons, and the
+confirming re-read.) Core complete in roughly
 **6-7 weeks from 2026-09-23** — early November — with free text,
 if its gate says yes, adding ~6 weeks beyond. The unweighted
 number understates the risk profile: what remains is mostly

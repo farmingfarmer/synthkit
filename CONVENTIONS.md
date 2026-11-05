@@ -6103,3 +6103,19 @@ exist.
   `key.csv` and `generated.csv` came out byte-identical in
   SIZE, which is what a permutation of the same values looks
   like before anything is measured.
+- **AND ROUTE B WAS EXERCISED ON THE REAL EXTRACT, WITH ITS
+  OWN AGREEMENT CHECK FIRING (2026-11-05).** Pointed at
+  `condition_count` - where the dialled column is a PREDICTOR
+  rather than the outcome - the chain reads surrogate **0.108
+  sd** and the returned score already **0.001 sd** from truth,
+  and the tool says so in the right words: *nothing to recover
+  here, because this target barely reads the column the dial
+  moved, and that is the SAME fact as the protection number
+  above, which is why they agree.* That is the conflation this
+  file recorded being refused in practice: "too distorted to
+  recover" and "nothing to recover" look identical in one
+  number and take opposite actions.
+  So both routes are now measured on real data, and the design
+  rule holds exactly as recorded: dial the OUTCOME (denied
+  0.744, recovery exact) and not a covariate (denies nothing,
+  needs nothing).
