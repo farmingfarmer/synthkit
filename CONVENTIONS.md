@@ -6239,3 +6239,19 @@ exist.
   the ROOT is not on the path, so the observable is
   `No module named 'synthkit'` and nothing else. Both mutations
   red now, on an interpreter chosen BECAUSE it has no install.
+- **AND THE WAITER MATCHED ITS OWN COMMAND TWICE IN A ROW, SO
+  THE RULE NEEDS A MECHANICAL FORM.** This file already says to
+  pick a marker that cannot appear in the command, because the
+  bridge ECHOES the command above the output. That is advice,
+  and advice is what I failed to follow twice inside five
+  minutes: a loop grepping for `ALL GREEN` matched the
+  `findstr /c:"ALL GREEN"` in its own echo and exited on the
+  first iteration, reporting a running net as finished; the
+  retry grepping for `suites,` did exactly the same.
+  THE MECHANICAL FORM: **make the PATTERN differ from the TEXT
+  it matches.** Search the remote file with a regex wildcard -
+  `findstr /r /c:"ALL.GREEN"` - and match locally on the literal
+  `ALL GREEN`. The command then CANNOT contain the string being
+  waited for, so self-matching is impossible by construction
+  rather than by remembering. Same trick for any marker: put a
+  wildcard where the real text has a space or a bracket.
