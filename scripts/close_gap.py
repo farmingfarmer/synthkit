@@ -458,6 +458,98 @@ def token_ranks(pairs, order, cap, has="__has__"):
             "unknown": unknown}
 
 
+def declared(run, src_path):
+    """The declared-edge account, read off a live re-measure.
+
+    WHY A MODE OF ITS OWN. The account is written by
+    `_pair_fidelity` into whatever fidelity the run produced -
+    so a run whose artifacts PREDATE it carries none, and the
+    only way to see it for such a run is to measure again. Any
+    run directory can therefore answer the question that cost a
+    week: of the relationships this contract DECLARES, how many
+    did the measurement actually reach, and what happened to
+    the rest.
+
+    Prints through the gate's own renderer, so this and the
+    terminal and the bench cannot disagree about it.
+    """
+    import pandas as pd
+    from synthkit.pipeline import compare
+    from synthkit import gate as _gate
+    bp = json.loads((Path(run) / "blueprint.json")
+                    .read_text(encoding="utf-8"))
+    gen_p = Path(run) / "generated.csv"
+    if not gen_p.exists():
+        print("STOP: no generated.csv in {}".format(run))
+        return 1
+    df = pd.read_csv(src_path, dtype=str, keep_default_na=False,
+                     encoding="utf-8-sig", low_memory=False)
+
+    prov = Path(run) / "provenance.json"
+    if prov.exists():
+        try:
+            _p = json.loads(prov.read_text(encoding="utf-8"))
+        except ValueError:
+            _p = {}
+        _want = _p.get("rows_read")
+        if isinstance(_p.get("source"), dict):
+            _want = _want or _p["source"].get("rows_read")
+        if _want and int(_want) != len(df):
+            print("STOP: {} has {} rows but this run recorded "
+                  "reading {}. That is not the extract this "
+                  "run was built from."
+                  .format(Path(src_path).name, len(df),
+                          int(_want)))
+            return 2
+
+    g = pd.read_csv(gen_p, dtype=str, keep_default_na=False,
+                    encoding="utf-8-sig", low_memory=False)
+    gb = bp.get("id_column") or bp.get("group_by") or "person_id"
+    fresh = compare(df, g, bp, gb, bp.get("time_column"),
+                    ordinals=bp.get("ordinals") or None)
+    acct = ((fresh.get("relationships") or {})
+            .get("declared_edges") or {})
+    if not acct:
+        print("STOP: this build's compare() carries no "
+              "declared-edge account, so there is nothing to "
+              "read. Update the engine and measure again.")
+        return 1
+    print("DECLARED-EDGE ACCOUNT  {}".format(Path(run).name))
+    for k in ("declared", "measured", "absent_source",
+              "absent_generated", "thin_or_unmeasurable",
+              "accounted"):
+        print("  {:<24} {}".format(k, sayn(acct.get(k) or 0)))
+    print("  {:<24} {}".format(
+        "balances", "YES" if acct.get("balances") else "NO"))
+    if not acct.get("balances"):
+        print("  THE ACCOUNT DOES NOT BALANCE - an edge is "
+              "being dropped by a path nothing counts. That is "
+              "a defect in the measurement, not in the data.")
+    for key, label in (
+            ("absent_source", "absent from the source frame"),
+            ("absent_generated",
+             "absent from the generated frame"),
+            ("thin_or_unmeasurable", "too thin or unmeasurable")):
+        ex = (acct.get("examples") or {}).get(key) or []
+        if ex:
+            print("  {} - examples:".format(label))
+            for pr in ex[:6]:
+                print("      {} <- {}".format(
+                    str(pr[0])[:40], str(pr[1])[:40]))
+    # AND THE SAME LINES THE GATE PRINTS, from the gate's own
+    # renderer, so no second rendering can drift from it.
+    try:
+        v = _gate.assess(fresh)
+    except ValueError as exc:
+        print("")
+        print("  the gate cannot be read: {}".format(exc))
+        return 0
+    print("")
+    for ln in _gate.report(v, run)[0]:
+        print(ln)
+    return 0
+
+
 def pair_diff(run, src_path):
     """The two pair sets, diffed by NAME rather than by count.
 
@@ -800,7 +892,15 @@ def main(argv):
         print("usage: close_gap.py RUNDIR")
         print("       close_gap.py RUNDIR --surface SRC.csv")
         print("       close_gap.py RUNDIR --pairs SRC.csv")
+        print("       close_gap.py RUNDIR --declared SRC.csv")
         return 2
+    if "--declared" in argv:
+        rest = [x for x in argv if x != "--declared"]
+        if len(rest) < 2:
+            print("usage: close_gap.py RUNDIR --declared "
+                  "SRC.csv")
+            return 2
+        return declared(rest[0], rest[1])
     if "--pairs" in argv:
         rest = [x for x in argv if x != "--pairs"]
         if len(rest) < 2:

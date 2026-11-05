@@ -300,6 +300,69 @@ def main():
               "it",
               "THE TWO PAIR SETS" not in r.stdout)
 
+        # ---- THE DECLARED MODE, END TO END ON A REAL RUN
+        #
+        # The account is written by whatever build produced a
+        # run, so a run whose artifacts PREDATE it carries
+        # none - and the only way to see it for such a run is
+        # to measure again. This mode is how any run directory
+        # answers the question that cost a week. The guard
+        # must still come first.
+        rcD = CG.declared(str(run), str(wrong))
+        check("the declared mode carries the SAME provenance "
+              "guard, so it cannot answer the question against "
+              "a source that never produced the run",
+              rcD == 2)
+
+        # A real little run, built here, so the mode is
+        # exercised rather than asserted.
+        import numpy as _np2
+        import pandas as _pd2
+        from synthkit import blueprint as _B2
+        from synthkit.discover import discover as _d2
+        from synthkit.generate import generate as _g2
+        _n2, _v2 = 120, 4
+        _N2 = _n2 * _v2
+        _r2 = _np2.random.default_rng(5)
+        _x2 = _r2.normal(0, 1, _N2)
+        _df2 = _pd2.DataFrame({
+            "person_id": _np2.repeat(
+                ["P{:03d}".format(i) for i in range(_n2)], _v2),
+            "visit": _np2.tile(_np2.arange(_v2), _n2),
+            "x": _np2.round(_x2, 3),
+            "y": _np2.round(2 * _x2
+                            + _r2.normal(0, 0.4, _N2), 3)})
+        _bp2 = _B2.build(_df2, _d2(_df2, group_by="person_id",
+                                   seed=1),
+                         group_by="person_id")
+        _rd2 = d / "live"
+        _rd2.mkdir()
+        (_rd2 / "blueprint.json").write_text(
+            json.dumps(_bp2), encoding="utf-8")
+        _g2(_bp2, n_patients=_n2, seed=3).to_csv(
+            _rd2 / "generated.csv", index=False)
+        _sp2 = d / "live_src.csv"
+        _df2.to_csv(_sp2, index=False)
+        import io as _io2
+        import contextlib as _cx2
+        _buf = _io2.StringIO()
+        with _cx2.redirect_stdout(_buf):
+            _rc2 = CG.declared(str(_rd2), str(_sp2))
+        _out2 = _buf.getvalue()
+        check("...and on a live run it PRINTS the account, "
+              "reading it off a fresh measure rather than "
+              "needing the run to have carried it",
+              _rc2 == 0 and "DECLARED-EDGE ACCOUNT" in _out2
+              and "declared" in _out2)
+        check("...including whether it BALANCES, which is the "
+              "line that says no edge is dropped by a path "
+              "nothing counts",
+              "balances" in _out2 and "YES" in _out2)
+        check("...and it renders the gate through the GATE's "
+              "own reporter, so this mode cannot drift from "
+              "the terminal or the bench",
+              "M0 gate on" in _out2)
+
         # ---- USAGE NAMES EVERY MODE
         r2 = subprocess.run(
             [sys.executable, str(ROOT / "scripts"
