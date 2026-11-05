@@ -592,6 +592,50 @@ def pair_diff(run, src_path):
     # different questions.
     _edges, _named = edge_index(bp)
     _extra = sorted(new - rec)
+
+    # ---- HOW STRONG ARE THE EXTRA PAIRS IN THE SOURCE?
+    #
+    # The pair floor is 0.1. A run whose fidelity was measured
+    # on the 85% TRAINING SPLIT sees the same correlations on
+    # fewer patients, so a pair sitting just above the floor on
+    # the whole cohort can fall below it on the split - and
+    # would be absent from the run while present in a
+    # re-measure, with no defect anywhere. If the extra pairs
+    # cluster just above 0.1 that is the mechanism; if they are
+    # strong, it is not, and no amount of resampling explains
+    # them away.
+    _str = {}
+    for r in ((fresh.get("relationships") or {}).get("pairs")
+              or []):
+        c, par = r.get("child"), r.get("parent")
+        if c and par:
+            _str[(str(c), str(par))] = abs(
+                float(r.get("source") or 0.0))
+    _vals = sorted(_str.get(pr, 0.0) for pr in _extra)
+    if _vals:
+        _near = [v for v in _vals if v < 0.15]
+        print("")
+        print("  HOW STRONG ARE THE EXTRA PAIRS IN THE SOURCE? "
+              "(the pair floor is 0.10)")
+        print("      weakest {:.3f}   median {:.3f}   "
+              "strongest {:.3f}".format(
+                  _vals[0], _vals[len(_vals) // 2], _vals[-1]))
+        print("      {:>5}  sit under 0.15, within reach of the "
+              "floor on a smaller sample".format(
+                  sayn(len(_near))))
+        if len(_near) == len(_vals):
+            print("      EVERY extra pair is marginal, so a "
+                  "fidelity measured on the 85% training split "
+                  "would plausibly drop them all - that is a "
+                  "DENOMINATOR difference with no defect in "
+                  "the engine, and it is testable by "
+                  "re-measuring on a patient subsample.")
+        elif not _near:
+            print("      NOT ONE is marginal, so a smaller "
+                  "sample does not explain them - the run "
+                  "omitted strong declared structure and the "
+                  "cause is in what it measured, not in how "
+                  "many rows it had.")
     if _extra:
         _cens = {}
         for pr in _extra:
