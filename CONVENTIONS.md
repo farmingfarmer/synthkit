@@ -6283,3 +6283,44 @@ exist.
   so a venv with the package installed is rejected whatever it
   is called. Found by insisting the delta decompose rather than
   by anything going red.
+
+- **TMP-1 IS ANSWERED ON THE REAL EXTRACT, AND THE WITHIN-STAY
+  LINE IS BLOCKED RATHER THAN DEAD (2026-11-05).** The gate
+  that could have killed the whole temporal item in one query
+  came back NO-CLOCK. Every figure read back spelled by the
+  machine:
+      rows                    882,103
+      distinct visits          14,241
+      REPEATED                  7,296  visits hold the same
+                                       concept twice
+      MOVING                    3,907  of those also CHANGE
+                                       value
+      TIMED                       n/a  THERE IS NO TIME COLUMN
+  **The series EXIST** - 51% of visits repeat a concept and in
+  3,907 the values actually move - so the extraction did NOT
+  collapse them, which was the feared answer. What the
+  measurement table has no column for is WHEN: it carries
+  measurement_id, person_id, concept, value, units, ranges and
+  visit_occurrence_id, and nothing that says time. Order and
+  interval are therefore unknowable, and "haemoglobin falls
+  2 g/dL in 24h" needs both.
+  THE ASK IS NOW CONCRETE AND SMALL: a re-pull including
+  `measurement_datetime`. That is a request to whoever runs the
+  extraction, not a research item, and it converts an 8-point
+  spike from unbuildable into blocked-on-one-column.
+- **AND THE PROBE'S FIRST RUN REFUSED, CORRECTLY AND
+  USELESSLY.** With no time column it stopped - a clean
+  sentence rather than a traceback, which is right - and threw
+  away the half of the answer that is knowable. Counting
+  repeats and asking whether their values differ needs no
+  clock. A missing clock is a DIFFERENT FACT from a collapsed
+  extract and calls for a different action, so it has its own
+  verdict and its own exit code, and TIMED is reported ABSENT
+  rather than zero: a zero would read as "the repeats share one
+  instant", which is a third thing again and wrong.
+- **THE MEASUREMENT TABLE IS A WIDER COHORT THAN THE FITTED
+  EXTRACT, said out loud so nobody pairs the numbers.** 14,241
+  distinct visits here against the 23,091 in visit_occurrence
+  and the 800 patients / 55,428 rows the gate numbers come
+  from. These counts describe what the SOURCE contains, not
+  the cohort any run was built on.
