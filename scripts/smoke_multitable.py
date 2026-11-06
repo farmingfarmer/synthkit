@@ -417,6 +417,47 @@ def main():
               and c["parent_column"] == "length_of_stay"
               for c in _c2))
 
+    # ---- AN IDENTIFIER IS NOT A QUANTITY
+    #
+    # The first real read came back led by
+    # `measurement_id ~ provider_id` and
+    # `value_as_concept_id ~ care_site_id`. Enforcing one of
+    # those would attach a child to a parent by ID SIMILARITY,
+    # which is worse than not enforcing at all. The fixture
+    # carried only genuine quantities, so nothing here could
+    # show it.
+    _vis3 = _vis.copy()
+    _labs3 = _labs.copy()
+    # THE PLANTED `_id` MUST ACTUALLY BE OFFERABLE, or the
+    # name test is not load-bearing and its mutation finds
+    # nothing - which is what happened first time, because a
+    # modular counter correlates with nothing. This one is a
+    # rounded copy of the length of stay, so it carries the
+    # SAME strong signal as the genuine coupling and only its
+    # NAME keeps it out.
+    _vis3["provider_id"] = _vis3["length_of_stay"].round(0)
+    _labs3["measurement_id"] = np.arange(len(_labs3))
+    _f3 = detect({"visits": _vis3, "labs": _labs3})
+    _c3 = cross_couplings({"visits": _vis3, "labs": _labs3},
+                          _f3)
+    check("an `_id` column is never offered as a coupling, on "
+          "either side - a rank correlation between two keys "
+          "means nothing, and enforcing it would attach a "
+          "child to a parent by ID similarity",
+          not any(c["child_column"].endswith("_id")
+                  or c["parent_column"].endswith("_id")
+                  for c in _c3))
+    check("...and a near-unique numeric column is refused "
+          "whatever it is called, because a renamed counter is "
+          "still a counter",
+          not MT._is_quantity(
+              pd.Series(np.arange(500), name="serial")))
+    check("...while an ordinary measured amount passes that "
+          "same test, so the screen is narrow and not a "
+          "blanket",
+          MT._is_quantity(_labs3["lab_value"].rename(
+              "lab_value")))
+
     _before = _gen["labs"]["lab_value"].copy()
     _par_before = _gen["visits"]["length_of_stay"].copy()
     _out = assign_keys(_gen, _found, seed=5,

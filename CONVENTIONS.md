@@ -6537,3 +6537,42 @@ exist.
   random in the child - reading the wrong side gives a
   different answer every time - and restoring the old merge
   turns it red.
+- **AND THE REAL TABLES THEN SHOWED THE COUPLINGS WERE MOSTLY
+  IDENTIFIERS.** With the join fixed, the strongest
+  cross-table couplings on `measurement` -> `visit_occurrence`
+  fell from +0.45 to **+0.16**, and the list was led by
+  `measurement_id ~ provider_id`, `value_as_concept_id ~
+  care_site_id` and `provider_id ~ care_site_id`. A rank
+  correlation between two keys means nothing, and enforcing
+  one would attach a child to a parent by ID SIMILARITY -
+  worse than not enforcing at all. Both sides are screened
+  now: by NAME (`_id`, `_code`, `_concept_id` - OMOP's
+  convention is strong enough to use, and it is stated as
+  used, the way the birth-date rule states that the header
+  decides) and by VALUE, so a renamed key is still caught.
+- **AND NEAR-UNIQUENESS WAS THE WRONG VALUE TEST, which the
+  suite caught immediately.** The first screen refused any
+  near-unique numeric - and a continuous measurement is
+  near-unique too, so `lab_value` itself was refused along
+  with `measurement_id`. What separates a counter from a
+  quantity is being INTEGRAL as well as near-unique: a key has
+  no fractional part, while an integer column with few
+  distinct values is an ordinary count and passes.
+- **AND THE PLANTED `_id` HAD TO BE OFFERABLE FOR ITS OWN
+  CHECK TO MEAN ANYTHING.** The first fixture gave
+  `provider_id` a modular counter, which correlates with
+  nothing - so removing the NAME screen changed no verdict and
+  the mutation found nothing. It is a rounded copy of the
+  length of stay now, carrying the same strong signal as the
+  genuine coupling, so only its name keeps it out and the
+  mutation turns it red.
+- **WHAT THE REAL READ MEANS FOR MT-1, STATED PLAINLY.** On
+  these two tables the clinical cross-table structure is WEAK
+  once the identifiers are gone - the surviving pairs sit near
+  the 0.1 floor. The mechanism is proven on a planted fixture
+  (+0.906 recovered as +0.917) and it is INERT where there is
+  nothing to carry, which is the right behaviour; but nobody
+  should quote the fixture number as a statement about this
+  extract. A visit table of dates and codes has few numeric
+  quantities for a measurement to depend on, and the obvious
+  candidate - a length of stay - is not a column there.

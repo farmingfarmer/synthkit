@@ -34,6 +34,8 @@ flattering itself.
 """
 from typing import Dict, List, Optional, Tuple
 
+import re
+
 import pandas as pd
 
 # A column must be present on at least this share of rows and
@@ -365,6 +367,47 @@ def _invent(prefix: str, n: int) -> List[str]:
 
 CROSS_MIN_ROWS = 30
 CROSS_MIN_RHO = 0.1
+# A key, a code or a row counter is not a QUANTITY, and a rank
+# correlation between two of them means nothing. The first real
+# read of cross-table couplings came back led by
+# `measurement_id ~ provider_id` and `value_as_concept_id ~
+# care_site_id` - and enforcing one of those would attach a
+# child to a parent by ID SIMILARITY, which is worse than not
+# enforcing at all. The fixture carried only genuine
+# quantities, so nothing there could show it.
+_ID_NAME = re.compile(r"(_id$|^id$|_code$|_concept_id$)",
+                      re.IGNORECASE)
+CROSS_MAX_UNIQUE_SHARE = 0.9
+
+
+def _is_quantity(series) -> bool:
+    """Is this a measured amount, or a label wearing digits?
+
+    Two tests, and the NAME is only one of them: OMOP's `_id`
+    convention is strong enough to use and stated as used, the
+    way the birth-date rule states that the header decides.
+    The value test catches a renamed key - near-unique numbers
+    are a counter however the column is called.
+    """
+    import pandas as _pd
+    if _ID_NAME.search(str(series.name or "")):
+        return False
+    v = _pd.to_numeric(series, errors="coerce").dropna()
+    if len(v) < CROSS_MIN_ROWS:
+        return False
+    # NEAR-UNIQUENESS ALONE IS THE WRONG TEST, and the first
+    # version used it: a continuous measurement is near-unique
+    # too, so `lab_value` was refused along with
+    # `measurement_id`. What separates a counter from a
+    # quantity is that the counter is INTEGRAL as well as
+    # near-unique - a key has no fractional part. An integer
+    # column with few distinct values is an ordinary count and
+    # passes.
+    integral = bool((v == v.round()).all())
+    if integral and (v.nunique() / float(len(v))
+                     >= CROSS_MAX_UNIQUE_SHARE):
+        return False
+    return True
 
 
 def cross_couplings(frames: Dict[str, pd.DataFrame],
@@ -421,8 +464,12 @@ def cross_couplings(frames: Dict[str, pd.DataFrame],
             a = _pd.to_numeric(joined.get(cc), errors="coerce")
             if a is None or a.notna().sum() < CROSS_MIN_ROWS:
                 continue
+            if not _is_quantity(ch[cc].rename(cc)):
+                continue
             for pc in pa.columns:
                 if pc == pk:
+                    continue
+                if not _is_quantity(pa[pc].rename(pc)):
                     continue
                 b = _pd.to_numeric(joined.get(_pfx + pc),
                                    errors="coerce")
