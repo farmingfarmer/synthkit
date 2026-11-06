@@ -6324,3 +6324,46 @@ exist.
   and the 800 patients / 55,428 rows the gate numbers come
   from. These counts describe what the SOURCE contains, not
   the cohort any run was built on.
+
+- **THE TOKEN CAP IS SOLVED NOW, NOT ASSUMED, AND IT LANDS ON
+  THE CAP THE MEASUREMENT ALREADY FOUND GOOD (2026-11-05).**
+  Raising the cap 60 -> 400 was measured as a real fidelity
+  gain - close **+3.1/+6.2/+3.1** paired over three seeds - and
+  it stayed off the default for weeks because a flat 400 is
+  unsafe on a wider frame. The budget that would have made it
+  safe was built, measured and withdrawn: it PREDICTED the
+  encoded width from k-screened levels on the full frame and
+  came out about 2.5x high at every cap, so it solved for a cap
+  on the wrong number and moved nothing.
+  Two things make it solvable now. `plan_width` gives the exact
+  width the encoder will build - num 2, cat len(levels), set
+  1 + tokens - and `fit(..., plan_only=True)` stops before
+  training, so pricing a candidate is a plan build and a sum
+  rather than a full fit. **The last attempt predicted because
+  measuring looked expensive. It is not: under a second on a
+  small frame.**
+  On an extract-shaped frame (61,121 rows x 78 columns) the
+  ladder walks down and the solve reports its work:
+      cap 800 -> width 3066   over budget
+      cap 600 -> width 2579   over budget
+      cap 400 -> width 1979   TAKEN
+  **400 is the cap the paired measurement found good, reached
+  by pricing rather than by guessing** - and 800 and 600 are
+  refused for exactly the reason that kept a flat default off.
+- **THE LADDER'S FLOOR IS THE OLD DEFAULT, so solving can only
+  match or improve on what shipped.** It cannot quietly narrow
+  a vocabulary, which is the failure mode a budget could
+  otherwise introduce. And where the mechanism is absent it is
+  INERT: on a frame with no set columns the solved run is
+  BYTE-IDENTICAL to the one before it, verified on the same
+  fixture and seed.
+- **AND THE WIDTH FUNCTION IS CHECKED AGAINST THE MATRIX IT
+  DESCRIBES.** `plan_width(plan) == encoder.d` is asserted on a
+  fixture whose plan carries the SET branch with 400 planted
+  tokens - that is the term a cap moves, and checking width on
+  a numeric-only frame would leave the formula that matters
+  untested. If the two ever drift, the 2.5x error is back in a
+  new place and every budget decision rests on it. Four
+  mutations red: the set size dimension dropped, the numeric
+  missing flag dropped, the budget ignored, and the ladder
+  floor pushed below the old default.

@@ -168,6 +168,56 @@ def plan_width(plan):
     return w
 
 
+# THE WIDTH A FRAME MAY SPEND. Measured, not guessed: the real
+# extract trains comfortably at 1,601 encoded dimensions, and
+# the run that died allocating 1.5 GiB inside the denoising
+# noise was at 4,326. 2,400 sits above the first and well below
+# the second.
+WIDTH_BUDGET = 2400
+CAP_LADDER = (800, 600, 400, 300, 200, 150, 100, 60)
+
+
+def solve_cap(df, group_by, k=10, budget=WIDTH_BUDGET,
+              ladder=CAP_LADDER, make=None):
+    """The largest token cap whose TRUE width fits the budget.
+
+    WHY THIS CAN EXIST NOW. Raising the cap 60 -> 400 is a
+    measured fidelity gain - close +3.1/+6.2/+3.1 paired over
+    three seeds - and it has stayed off the default because a
+    flat 400 is unsafe on a wider frame. The budget that would
+    have made it safe PREDICTED the encoded width and was 2.5x
+    high at every cap, so it chose on the wrong number and
+    moved nothing.
+
+    Two things changed. `plan_width` gives the true width, and
+    `fit(..., plan_only=True)` stops before training - so a
+    candidate costs well under a second to price instead of a
+    full fit. The reason the last attempt predicted rather
+    than measured was that measuring looked expensive. It is
+    not.
+
+    DESCENDING, AND NEVER BELOW THE OLD DEFAULT. The ladder
+    ends at 60, so the solve can only ever match or improve on
+    what shipped. Returns (cap, width, priced) - `priced` is
+    every candidate it costed, so a run can show its work
+    rather than announce a number.
+    """
+    made = make or (lambda: LatentGen(k=k, seed=0))
+    priced = []
+    for cap in ladder:
+        global MAX_TOKENS
+        keep, MAX_TOKENS = MAX_TOKENS, cap
+        try:
+            g = made().fit(df, group_by, plan_only=True)
+            w = int(g.d)
+        finally:
+            MAX_TOKENS = keep
+        priced.append((cap, w))
+        if w <= budget:
+            return cap, w, priced
+    return ladder[-1], priced[-1][1], priced
+
+
 MAX_TOKENS = 60
 # HOW FAITHFULLY THE TOKEN DRAW FOLLOWS THE DECODER. The Gumbel
 # top-k draw adds noise of fixed scale (~1.28 sd) to the LOG
@@ -366,7 +416,8 @@ class LatentGen:
         # person can re-run the sweep rather than re-reason it.
         self.dev_scale = dev_scale
 
-    def fit(self, df: pd.DataFrame, group_by: str):
+    def fit(self, df: pd.DataFrame, group_by: str,
+            plan_only: bool = False):
         from sklearn.mixture import GaussianMixture
         from sklearn.neural_network import MLPRegressor
         self._set_inds = {}
@@ -1195,6 +1246,21 @@ class LatentGen:
         # number the encoder does not use - which is exactly the
         # failure the recorded solver hit.
         self.planned_d = plan_width(self.plan)
+        # STOP HERE WHEN ONLY THE WIDTH IS WANTED.
+        #
+        # A budget has to know what a candidate cap actually
+        # COSTS, and the cost is this matrix's width. Training
+        # is the slow part and answers nothing about it, so a
+        # solver that had to train once per candidate would be
+        # too expensive to run and would get skipped - which is
+        # how the last budget ended up predicting instead of
+        # measuring.
+        #
+        # Returns self, so `fit(df, g, plan_only=True).d` is the
+        # true width at the current cap and nothing else has
+        # been spent.
+        if plan_only:
+            return self
         wide = [(it[1], len(it[2])) for it in self.plan
                 if it[0] == "cat" and len(it[2]) > 20]
         print("  encoded frame: {} rows x {} dimensions"
@@ -3245,11 +3311,15 @@ def run_csv(argv):
     # while the encoded frame sat at 437 dimensions against the 4,326
     # that once died allocating 1.5 GiB. A cap that throws away
     # publishable signal with that much headroom is worth sweeping.
-    ap.add_argument("--max-tokens", type=int, default=MAX_TOKENS,
-                    help="set-token dimensions per column (default "
-                         "{}): a MEMORY budget, not a privacy rule - "
-                         "the k floor still decides what may be "
-                         "published at all".format(MAX_TOKENS))
+    ap.add_argument("--max-tokens", type=int, default=None,
+                    help="set-token dimensions per column. Left "
+                         "unset it is SOLVED: the largest cap on "
+                         "the ladder whose true encoded width "
+                         "fits {} dimensions, priced by building "
+                         "the plan and measuring it. A MEMORY "
+                         "budget, not a privacy rule - the k "
+                         "floor still decides what may be "
+                         "published at all".format(WIDTH_BUDGET))
     ap.add_argument("--max-levels", type=int, default=MAX_LEVELS,
                     help="categorical level dimensions per column "
                          "(default {})".format(MAX_LEVELS))
@@ -3309,11 +3379,21 @@ def run_csv(argv):
     # building the frame; a sweep sets them once, here, and the run
     # PRINTS what it used so a reading can never be attributed to the
     # wrong budget.
-    if a.max_tokens != MAX_TOKENS or a.max_levels != MAX_LEVELS:
-        print("caps: set tokens {} -> {}, levels {} -> {} "
-              "(memory budget, not a privacy rule)".format(
-                  MAX_TOKENS, a.max_tokens, MAX_LEVELS, a.max_levels))
-    MAX_TOKENS, MAX_LEVELS = a.max_tokens, a.max_levels
+    # THE CAP IS SOLVED AFTER THE FRAME IS READ, because
+    # pricing a candidate means building the plan and the plan
+    # needs the data. Only the hand-set path can be decided
+    # here; the solve happens below, right after the read.
+    if a.max_tokens is not None:
+        if a.max_tokens != MAX_TOKENS:
+            print("cap set by hand to {} - the solver was not "
+                  "consulted".format(a.max_tokens))
+        if a.max_tokens != MAX_TOKENS or a.max_levels != MAX_LEVELS:
+            print("caps: set tokens {} -> {}, levels {} -> {} "
+                  "(memory budget, not a privacy rule)".format(
+                      MAX_TOKENS, a.max_tokens,
+                      MAX_LEVELS, a.max_levels))
+        MAX_TOKENS = a.max_tokens
+    MAX_LEVELS = a.max_levels
     _supp = []
     for _sp in a.suppress:
         if "~" not in _sp:
@@ -3363,6 +3443,29 @@ def run_csv(argv):
           "--k {}".format(a.group_by, a.seeds, a.out or "(none)",
                           a.shares or "(none)", a.k))
     df = _read_source(a.csv)
+    # THE CAP IS SOLVED WHEN NOBODY NAMED ONE.
+    #
+    # Raising it 60 -> 400 is a measured fidelity gain - close
+    # +3.1/+6.2/+3.1 paired over three seeds - and it stayed off
+    # the default because a flat 400 is unsafe on a wider frame.
+    # It is priced now instead of assumed: walk the ladder down
+    # and take the first cap whose TRUE encoded width fits the
+    # budget. On an extract-shaped frame (61,121 rows x 78
+    # columns) that refuses 800 at width 3,066 and 600 at 2,579
+    # and lands on 400 at 1,979 - the same cap the paired
+    # measurement found good, reached by measuring rather than
+    # guessing. The ladder's floor is the old default, so
+    # solving can only match or improve on what shipped.
+    if a.max_tokens is None:
+        _cap, _w, _priced = solve_cap(
+            df, a.group_by, k=a.k,
+            make=lambda: LatentGen(k=a.k))
+        print("cap SOLVED to {} - true encoded width {} against "
+              "a budget of {}".format(_cap, _w, WIDTH_BUDGET))
+        print("  priced: {}".format(", ".join(
+            "{}=>{}".format(c, w) for c, w in _priced)))
+        MAX_TOKENS = _cap
+        a.max_tokens = _cap
     print("read {}: {} rows x {} columns, {} patients".format(
         a.csv, len(df), df.shape[1],
         df[a.group_by].nunique()))

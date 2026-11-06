@@ -935,6 +935,35 @@ def main():
           "than predicted".format(gx.d),
           _LC.plan_width(gx.plan) == gx.d
           and gx.planned_d == gx.d)
+    # ---- THE CAP IS SOLVED, NOT ASSUMED
+    #
+    # Raising the cap 60 -> 400 is a measured fidelity gain
+    # (close +3.1/+6.2/+3.1, paired over three seeds) that
+    # stayed off the default because a flat 400 is unsafe on a
+    # wider frame. The budget that would have made it safe
+    # PREDICTED the width and was 2.5x high, so it chose on the
+    # wrong number. Pricing a candidate is now a plan build and
+    # a sum, so the solve measures instead.
+    _cap, _w, _priced = _LC.solve_cap(dfx, "person_id", k=10)
+    check("the cap is SOLVED by pricing candidates - {} chosen "
+          "at true width {}, from {} priced - rather than "
+          "predicted, which is what put the last attempt 2.5x "
+          "out".format(_cap, _w, len(_priced)),
+          _w <= _LC.WIDTH_BUDGET and _cap in _LC.CAP_LADDER)
+    check("...and the ladder's floor is the OLD DEFAULT, so a "
+          "solve can only ever match or improve on what "
+          "shipped - it cannot quietly narrow the vocabulary",
+          min(_LC.CAP_LADDER) == 60)
+    check("...and a frame too wide for the budget is REFUSED "
+          "down the ladder rather than accepted - the safety "
+          "concern that kept a flat 400 off the default",
+          _LC.solve_cap(dfx, "person_id", k=10,
+                        budget=1)[0] == 60)
+    check("...and every candidate it priced is reported, so a "
+          "run shows its work instead of announcing a number",
+          all(isinstance(c, int) and isinstance(w, int)
+              for c, w in _priced))
+
     _settok = sum(len(it[2]) for it in gx.plan if it[0] == "set")
     check("...and the set column contributes 1 + {} token "
           "dimensions, which is the term the cap moves - a "
