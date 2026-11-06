@@ -98,7 +98,60 @@ KINDS = {
     "name": "person names",
     "birth_date": "birth dates",
     "identifier": "per-patient identifiers",
+    "service_date": "service dates carrying a month and day",
+    "age_over_89": "ages over 89",
 }
+
+# WHAT TO DO ABOUT EACH, AND WHY IT IS NOT ONE ANSWER.
+#
+# Dropping is right for a name or an SSN: the column's only
+# content is who somebody is. It is WRONG for an admission date
+# or an age - span and length-of-stay are derived from the
+# dates, and every dynamics measure in this project rests on
+# them, so dropping would destroy the signal to remove the
+# identifier. Safe Harbor asks for those to be GENERALISED -
+# date to its year, age to a single 90-or-above category.
+#
+# So the remedy travels with the finding. `apply` drops only
+# what is marked drop, and a kind marked generalise stays in
+# the frame with the report saying it is still owed. A detector
+# that silently dropped a service date would be worse than one
+# that never found it.
+REMEDY = {
+    "ssn": "drop",
+    "phone": "drop",
+    "email": "drop",
+    "address": "drop",
+    "name": "drop",
+    "birth_date": "drop",
+    "identifier": "drop",
+    "service_date": "generalise",
+    "age_over_89": "generalise",
+}
+
+_AGE_HINT = re.compile(r"(\bage\b|_age\b|\bage_)", re.IGNORECASE)
+_NAME_HINT = re.compile(
+    r"(name|surname|first|last|given|family)", re.IGNORECASE)
+NAME_MAX_WORDS = 3
+
+
+def _looks_like_name(vals):
+    """Alphabetic, one to three words, no digits.
+
+    The VALUES carry this one - a person name is letters,
+    spaces, hyphens and apostrophes - but the values alone
+    cannot separate a person from a city or a drug, which is
+    what the per-patient test in `detect` is for.
+    """
+    ok = 0
+    for v in vals:
+        w = v.split()
+        if not w or len(w) > NAME_MAX_WORDS:
+            continue
+        if all(t.replace("-", "").replace("'", "").isalpha()
+               for t in w):
+            ok += 1
+    return ok / float(len(vals)) if vals else 0.0
 
 
 def _share(vals, rx) -> float:
@@ -184,6 +237,7 @@ def detect(df, group_by: Optional[str] = None,
             findings.append({
                 "column": c, "kind": kind,
                 "share": round(share, 4),
+                "remedy": REMEDY.get(kind, "drop"),
                 "why": "{:.0%} of non-empty values are {}{}".format(
                     share, KINDS[kind], extra)})
 
@@ -211,8 +265,137 @@ def detect(df, group_by: Optional[str] = None,
         # dates other than birth dates are left to the pipeline,
         # which models them and generates INVENTED dates.
         if _share(vals, _DATEISH) >= MATCH_SHARE:
-            clear.append(c)
+            # A SERVICE DATE IS A FINDING, AND THE REMEDY IS
+            # NOT A DROP.
+            #
+            # This used to fall straight to `clear`, on the
+            # reasoning that the pipeline models calendar dates
+            # and GENERATES INVENTED ones, so nothing real is
+            # republished in synthetic output. That reasoning
+            # still holds and is why the remedy is generalise
+            # rather than drop - but it is not a reason for the
+            # SCRUB to stay silent. Safe Harbor at 45 CFR
+            # 164.514(b)(2)(i)(C) asks for every element of an
+            # admission or discharge date except the year, and
+            # this tool's other job is de-identifying a table of
+            # REAL records, where a full service date is exactly
+            # the thing it is asked about.
+            #
+            # A column already reduced to a YEAR is not a
+            # finding - there is nothing left to remove - and
+            # `_DATEISH` already carries that: it requires a
+            # day component, so a bare year never reaches here.
+            #
+            # A second month-and-day pattern was written for
+            # this and DELETED: it matched exactly what
+            # `_DATEISH` matches, so the check meant to prove it
+            # could not fail. Two patterns for one rule is how
+            # two halves of a codebase come to disagree, and the
+            # property is asserted on `_DATEISH` itself instead.
+            md = _share(vals, _DATEISH)
+            if md >= MATCH_SHARE:
+                found("service_date", md,
+                      " - the YEAR may stay; Safe Harbor asks "
+                      "for the month and day. Dropping the "
+                      "column would destroy span and "
+                      "length-of-stay, so the remedy is to "
+                      "generalise")
+            else:
+                clear.append(c)
             continue
+        # A PERSON NAME, AND WHAT SEPARATES IT FROM A DRUG.
+        #
+        # `name` has sat in KINDS since the scrub was written
+        # with nothing emitting it - a column of plain person
+        # names landed in `clear` while a reader of KINDS
+        # believed the class was covered. A declared kind with
+        # no detector is worse than an absent one.
+        #
+        # The values give the SHAPE - letters, one to three
+        # words - but shape alone cannot tell a person from a
+        # city, a drug or OMOP's own `standard_concept_name`,
+        # and dropping a concept column would be a bad trade.
+        # What separates them is that A NAME IS A PROPERTY OF
+        # THE PERSON: constant within a patient, and about one
+        # distinct value per patient across the table. A
+        # concept name varies within a patient by construction,
+        # because a patient has many measurements.
+        #
+        # The header is a hint and never the verdict, so a
+        # column called `label` holding names is still caught
+        # and a column called `name` holding concepts is not.
+        if group_by and group_by in df.columns and c != group_by:
+            nm = _looks_like_name(vals)
+            if nm >= MATCH_SHARE:
+                per = df.groupby(group_by)[c].nunique()
+                constant = float((per <= 1).mean())
+                n_gid = df[group_by].nunique()
+                distinct = df[c].nunique()
+                # THE CONSTANCY TEST NEEDS PATIENTS WITH MORE
+                # THAN ONE ROW TO MEAN ANYTHING.
+                #
+                # On a table with one row per patient EVERY
+                # column is trivially constant within a
+                # patient, so the test that separates a person
+                # from a drug cannot discriminate at all - it
+                # would flag `standard_concept_name` as a name
+                # on any cross-sectional file. Found by the
+                # negative control, which fired on a fixture
+                # that had one row each.
+                #
+                # Where the evidence is unavailable the header
+                # has to carry the verdict, the way the birth
+                # rule already does, and the finding says which
+                # evidence it used.
+                repeated = float((df.groupby(group_by).size()
+                                  > 1).mean())
+                if repeated < 0.1:
+                    if _NAME_HINT.search(str(c)):
+                        found("name", nm,
+                              " - one row per patient, so the "
+                              "within-patient test cannot "
+                              "discriminate and the COLUMN "
+                              "NAME decides, as it does for "
+                              "birth dates. A renamed name "
+                              "column is not caught on a "
+                              "cross-sectional table")
+                        continue
+                elif constant >= 0.95 and distinct <= 1.5 * n_gid:
+                    found("name", nm,
+                          " and the column is CONSTANT within "
+                          "{:.0%} of patients with {} distinct "
+                          "values across {} patient(s) - a name "
+                          "belongs to the person, where a "
+                          "concept or drug name varies within "
+                          "one".format(constant, distinct,
+                                       n_gid))
+                    continue
+
+        # AN AGE OVER 89 IS A SAFE HARBOR CATEGORY.
+        #
+        # Not a direct identifier - it is the re-identification
+        # risk of a small tail. The rule asks for every age over
+        # 89 to be aggregated into one 90-or-above category, so
+        # the remedy is to generalise, never to drop the column:
+        # age is a covariate every model here uses.
+        if _AGE_HINT.search(str(c)):
+            import pandas as _pd
+            try:
+                nums = _pd.to_numeric(_pd.Series(vals),
+                                      errors="coerce").dropna()
+            except Exception:                 # pragma: no cover
+                nums = None
+            if nums is not None and len(nums):
+                over = float((nums > 89).mean())
+                if over > 0 and float(nums.max()) <= 130:
+                    found("age_over_89", over,
+                          " - {:.1%} of values exceed 89, which "
+                          "Safe Harbor asks to be aggregated "
+                          "into a single 90-or-above category. "
+                          "The column stays; the tail is "
+                          "capped".format(over))
+                    continue
+
         # An identifier: code-shaped values, near-unique per
         # patient or per row. The declared group key is expected
         # to be one - it is used for grouping and never reaches
@@ -268,11 +451,36 @@ def detect(df, group_by: Optional[str] = None,
 
 
 def apply(df, report: Dict[str, Any]):
-    """Drop every flagged column - the scrub itself. Dropping is
-    the only mode: pseudonymizing a name column keeps a column
-    whose only content is who somebody is, and this tool's whole
-    posture is that what cannot be published is removed, not
-    dressed."""
-    cols = [f["column"] for f in report.get("findings") or []]
+    """Drop what must be dropped - and ONLY that.
+
+    Dropping is right for a name or an SSN: pseudonymizing a
+    name column keeps a column whose only content is who
+    somebody is, and this tool's posture is that what cannot be
+    published is removed, not dressed.
+
+    IT IS WRONG FOR A SERVICE DATE OR AN AGE. Span and
+    length-of-stay are derived from the dates and every
+    dynamics measure here rests on them; age is a covariate
+    every model uses. Safe Harbor asks those to be GENERALISED,
+    so they carry remedy `generalise`, stay in the frame, and
+    are reported by `pending` as still owed. Adding detection
+    without this would have made the scrub destructive in
+    exactly the places it was previously silent."""
+    cols = [f["column"] for f in (report.get("findings") or [])
+            if f.get("remedy", "drop") == "drop"]
     return df.drop(columns=[c for c in cols if c in df.columns]), \
         cols
+
+
+def pending(report: Dict[str, Any]):
+    """Findings whose remedy is NOT a drop, and still owed.
+
+    `apply` removes what must be removed and leaves these in
+    the frame, so something has to say they are outstanding or
+    a caller will believe everything flagged was handled. A
+    service date that `apply` silently kept and nobody
+    mentioned is the worst of both: detected, reported, and not
+    acted on.
+    """
+    return [f for f in (report.get("findings") or [])
+            if f.get("remedy", "drop") != "drop"]

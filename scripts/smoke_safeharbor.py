@@ -76,7 +76,7 @@ def check(label, cond):
         print("FAIL: {}".format(label))
 
 
-def fixture(n=400):
+def fixture(n=400, visits=3):
     """A frame carrying every structured class, real shapes.
 
     The six the scrub already covers are planted as POSITIVE
@@ -88,14 +88,24 @@ def fixture(n=400):
     rng = np.random.default_rng(3)
     first = ["Dana", "Alex", "Priya", "Sam", "Noor", "Lee"]
     last = ["Ibarra", "Chen", "Okafor", "Novak", "Reyes"]
+    # PATIENTS MUST REPEAT, or the test that separates a
+    # person's name from a drug's cannot discriminate: on one
+    # row per patient EVERY column is trivially constant within
+    # a patient. The negative control caught exactly that.
+    N = n * visits
+    pid = ["P{:04d}".format(i // visits) for i in range(N)]
+    per_person = dict(
+        (p, i) for i, p in enumerate(sorted(set(pid))))
+    n = N
     start = pd.to_datetime("2024-01-01") + pd.to_timedelta(
         rng.integers(0, 700, n), unit="D")
     df = pd.DataFrame({
-        "person_id": ["P{:04d}".format(i) for i in range(n)],
+        "person_id": pid,
         # --- classes the scrub already covers
         "patient_name": [
-            "{} {}".format(rng.choice(first), rng.choice(last))
-            for _ in range(n)],
+            "{} {}".format(first[per_person[p] % len(first)],
+                           last[per_person[p] % len(last)])
+            for p in pid],
         "ssn": ["{:03d}-{:02d}-{:04d}".format(
             int(rng.integers(100, 900)),
             int(rng.integers(10, 99)),
@@ -111,8 +121,8 @@ def fixture(n=400):
             d.strftime("%Y-%m-%d") for d in
             pd.to_datetime("1940-01-01") + pd.to_timedelta(
                 rng.integers(0, 24000, n), unit="D")],
-        "mrn": ["MRN{:07d}".format(900000 + i)
-                for i in range(n)],
+        "mrn": ["MRN{:07d}".format(900000 + per_person[p])
+                for p in pid],
         # --- the two Safe Harbor classes nothing covers
         "visit_start_date": [d.strftime("%Y-%m-%d")
                              for d in start],
@@ -124,6 +134,22 @@ def fixture(n=400):
         # --- an ordinary clinical column, the control that must
         #     never be flagged
         "systolic": np.round(rng.normal(130, 18, n), 1),
+        # --- NEGATIVE CONTROLS, one per new detector. Without
+        #     these a detector that fired on everything would
+        #     pass every positive check above.
+        # looks exactly like a name and is NOT one: it varies
+        # within a patient, which is what separates a concept
+        # or drug name from a person's.
+        "concept_name": [
+            rng.choice(["Sodium Chloride", "Oral Tablet",
+                        "Blood Pressure", "Serum Creatinine"])
+            for _ in range(n)],
+        # a date already reduced to a YEAR - nothing left for
+        # Safe Harbor to remove, so not a finding
+        "visit_year": [str(y) for y in
+                       rng.integers(2018, 2025, n)],
+        # an age column whose tail does NOT exceed 89
+        "age_at_discharge": rng.integers(18, 80, n),
     })
     return df.astype(str)
 
@@ -168,54 +194,87 @@ def main():
           "something",
           "systolic" not in found)
 
-    # ---- A DECLARED KIND WITH NO DETECTOR
-    #
-    # The sharpest finding this fixture produced, and it was not
-    # the one it was built for. `name` sits in `scrub.KINDS`
-    # described as "person names", and NOTHING ever emits it:
-    # the battery implements ssn, email, phone and address, the
-    # birth rule reads the column header, and the identifier
-    # rule needs near-unique code-shaped values. A column of
-    # plain person names lands in `clear`.
-    #
-    # That is worse than an absent class, because a reader of
-    # KINDS believes names are covered. This project has a rule
-    # about it: a flag that is read but not used is worse than
-    # no flag.
-    check("CHARACTERIZATION: `name` is a DECLARED kind with no "
-          "detector - a column of person names lands in `clear` "
-          "while KINDS describes the class as covered, which is "
-          "worse than not declaring it",
-          "name" in scrub.KINDS
-          and found.get("patient_name") is None
-          and "patient_name" in (rep.get("clear") or []))
+    # ---- `name` IS DETECTED NOW (was a declared kind with
+    #      no detector; PHI-1 pinned that, PHI-2 closes it)
+    check("a column of person names is detected as `name` - it "
+          "used to land in `clear` while KINDS described the "
+          "class as covered, which is worse than not declaring "
+          "it",
+          found.get("patient_name") == "name")
+    check("...and the reason given is the PER-PATIENT test, not "
+          "the header: a name belongs to the person, where a "
+          "concept or drug name varies within one",
+          any("CONSTANT within" in f["why"]
+              for f in rep["findings"]
+              if f["column"] == "patient_name"))
+    check("NEGATIVE CONTROL: a concept name that VARIES within "
+          "a patient is NOT flagged - shape alone cannot tell a "
+          "person from a drug, and dropping OMOP's own "
+          "`standard_concept_name` would be a bad trade",
+          found.get("concept_name") is None)
 
-    # ---- AND THE ACTION IT TAKES
-    kept, dropped = scrub.apply(df, rep)
-    check("`apply` DROPS what it flags, which is right for an "
-          "SSN and is the only mode it has - that is why the "
-          "per-class policy is its own task",
-          all(c not in kept.columns for c in dropped)
-          and "ssn" in dropped)
+    # ---- SERVICE DATES AND AGES OVER 89 ARE DETECTED
+    check("a SERVICE DATE carrying a month and day is detected "
+          "- Safe Harbor 164.514(b)(2)(i)(C) asks for every "
+          "element of an admission or discharge date except the "
+          "year",
+          found.get("visit_start_date") == "service_date"
+          and found.get("visit_end_date") == "service_date")
+    check("NEGATIVE CONTROL: a date already reduced to a YEAR "
+          "is NOT a finding - there is nothing left to remove",
+          found.get("visit_year") is None)
+    check("...and that rests on `_DATEISH` REQUIRING a day, "
+          "asserted on the pattern itself - the end-to-end "
+          "control above passes because a bare year never "
+          "reaches the branch, so it cannot fail if the "
+          "pattern is loosened",
+          not scrub._DATEISH.search("2019")
+          and not scrub._DATEISH.search("2019-03")
+          and bool(scrub._DATEISH.search("2019-03-04")))
+    check("an AGE OVER 89 is detected, with the share that "
+          "exceeds the threshold stated",
+          found.get("age_at_visit") == "age_over_89")
+    check("NEGATIVE CONTROL: an age column whose tail stops "
+          "below 89 is NOT flagged - the finding is the tail, "
+          "not the column",
+          found.get("age_at_discharge") is None)
 
-    # ---- THE GAP, PINNED (characterization - flips when PHI-2
-    #      lands, and that is the signal to update the claim)
-    check("CHARACTERIZATION: a SERVICE DATE is not detected - "
-          "Safe Harbor 164.514(b)(2)(i)(C) asks for all "
-          "elements of an admission or discharge date except "
-          "the year, and `visit_start_date` passes untouched",
-          "visit_start_date" not in found
-          and "visit_end_date" not in found)
-    check("CHARACTERIZATION: an AGE OVER 89 is not detected - "
-          "Safe Harbor asks for ages over 89 to be aggregated "
-          "into a single 90-or-above category, and "
-          "`age_at_visit` passes untouched",
-          "age_at_visit" not in found)
-    check("...so the scrub's own kind list does not yet name "
-          "either class, which is the inventory this suite "
-          "exists to state rather than imply",
-          "service_date" not in scrub.KINDS
-          and "age_over_89" not in scrub.KINDS)
+    # ---- THE REMEDY IS THE SAFETY-CRITICAL PART
+    #
+    # `apply` drops every finding. Adding these two as findings
+    # WITHOUT a remedy would have made the scrub destroy span,
+    # length-of-stay and a covariate every model uses - worse
+    # than never detecting them. The remedy travels with the
+    # finding and `apply` honours it.
+    _rem = dict((f["column"], f.get("remedy"))
+                for f in rep["findings"])
+    check("a direct identifier carries remedy DROP",
+          _rem.get("ssn") == "drop"
+          and _rem.get("patient_name") == "drop")
+    check("...while a service date and an age carry remedy "
+          "GENERALISE - date to its year, age to a single "
+          "90-or-above category",
+          _rem.get("visit_start_date") == "generalise"
+          and _rem.get("age_at_visit") == "generalise")
+    _kept, _dropped = scrub.apply(df, rep)
+    check("and `apply` DOES NOT DROP them: span and "
+          "length-of-stay are derived from the dates and every "
+          "dynamics measure rests on them, so a detector that "
+          "silently removed a service date would be worse than "
+          "one that never found it",
+          "visit_start_date" in _kept.columns
+          and "visit_end_date" in _kept.columns
+          and "age_at_visit" in _kept.columns)
+    check("...while it still drops what must go",
+          "ssn" not in _kept.columns
+          and "patient_name" not in _kept.columns)
+    check("...and the outstanding work is REPORTED by "
+          "`pending`, so a caller cannot believe everything "
+          "flagged was handled - detected, reported and not "
+          "acted on is the worst of both",
+          sorted(f["column"] for f in scrub.pending(rep))
+          == ["age_at_visit", "visit_end_date",
+              "visit_start_date"])
 
     # ---- AND THE REMEDY IS NAMED, so PHI-2 is not built
     #      against the wrong one.
@@ -241,15 +300,15 @@ def main():
           (ROOT / "synthkit" / "scrub.py").read_text(
               encoding="utf-8")
           and "visit_start_date" in df.columns)
-    check("the structured Safe Harbor inventory is written down "
-          "- {} classes: SIX firing (ssn, phone, email, "
-          "address, birth_date, identifier), ONE declared with "
-          "no detector (name), TWO not declared (service_date, "
-          "age_over_89), free text deliberately excluded as the "
-          "M6 decision".format(len(SAFE_HARBOR_STRUCTURED)),
+    check("the structured Safe Harbor inventory is COMPLETE - "
+          "all {} classes now fire, and every one has a remedy "
+          "attached; free text remains deliberately excluded as "
+          "the M6 decision".format(len(SAFE_HARBOR_STRUCTURED)),
           len(SAFE_HARBOR_STRUCTURED) == 9
-          and "service_date" in SAFE_HARBOR_STRUCTURED
-          and "age_over_89" in SAFE_HARBOR_STRUCTURED)
+          and all(k in scrub.KINDS
+                  for k in SAFE_HARBOR_STRUCTURED)
+          and all(k in scrub.REMEDY
+                  for k in SAFE_HARBOR_STRUCTURED))
 
     print()
     if FAIL:

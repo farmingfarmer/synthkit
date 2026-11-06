@@ -6367,3 +6367,49 @@ exist.
   mutations red: the set size dimension dropped, the numeric
   missing flag dropped, the budget ignored, and the ladder
   floor pushed below the old default.
+
+- **PHI-2 LANDED: THE THREE MISSING DETECTORS, AND THE REMEDY
+  TRAVELS WITH THE FINDING (2026-11-06).** PHI-1 measured the
+  gap; this closes it. `name` now fires (it was a declared kind
+  with no detector - a column of person names landed in
+  `clear` while KINDS described the class as covered), and
+  `service_date` and `age_over_89` are new kinds. All three
+  characterization checks from PHI-1 went RED on the first run,
+  which is what they were for, and were armed.
+- **THE SAFETY-CRITICAL PART WAS NOT THE DETECTION, IT WAS THE
+  REMEDY.** `scrub.apply` drops every finding. Adding service
+  dates and ages as findings WITHOUT a remedy would have made
+  the scrub destroy span, length-of-stay and a covariate every
+  model uses - strictly worse than never detecting them. So
+  each finding carries `remedy`: drop for the direct
+  identifiers, GENERALISE for the two Safe Harbor categories.
+  `apply` removes only the drops, `pending()` reports what is
+  still owed, and a check asserts the dates SURVIVE `apply`.
+  Detected, reported and not acted on is bad; detected and
+  silently destroyed is worse.
+- **AND WHAT SEPARATES A PERSON'S NAME FROM A DRUG'S IS THAT IT
+  BELONGS TO THE PERSON.** Shape alone - letters, one to three
+  words - cannot tell `Dana Ibarra` from `Oxygen Therapy` or
+  from OMOP's own `standard_concept_name`, and dropping a
+  concept column would be a bad trade. A name is CONSTANT
+  within a patient and about one distinct value per patient; a
+  concept name varies within one by construction. The existing
+  scrub suite had planted `Oxygen Therapy` as a false-positive
+  control years before this detector existed, and it holds.
+- **THE NEGATIVE CONTROL CAUGHT THAT THE TEST CANNOT WORK ON A
+  CROSS-SECTIONAL TABLE.** On one row per patient EVERY column
+  is trivially constant within a patient, so the discriminator
+  discriminates nothing and would flag a concept column as a
+  name on any such file. My own fixture was one row per patient
+  and the control fired. Where fewer than 10% of patients
+  repeat, the header now decides - the way the birth-date rule
+  already does - and the finding SAYS which evidence it used.
+- **AND A SECOND PATTERN FOR ONE RULE WAS WRITTEN AND
+  DELETED.** `_MONTHDAY` was added so a date already reduced to
+  a year would not be a finding - then the mutation meant to
+  prove it found NOTHING, because `_DATEISH` already requires a
+  day component and a bare year never reaches the branch. Two
+  patterns for one rule is how two halves come to disagree, so
+  the duplicate went and the property is asserted on `_DATEISH`
+  itself: loosening it to accept `2019` now turns three checks
+  red where the end-to-end control alone could not fail.

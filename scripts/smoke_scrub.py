@@ -98,16 +98,32 @@ def main():
           "never names (soc_sec, contact, residence)",
           all(flagged.get(c) == k for c, k in planted.items()))
 
-    clean = ["creatinine", "severity", "visit_date", "procedure",
+    # `visit_date` LEFT THIS LIST when service dates became a
+    # finding. It is not a false positive: Safe Harbor asks for
+    # every element of a service date except the year, and the
+    # remedy is to GENERALISE, not to drop - which is asserted
+    # below rather than assumed here.
+    clean = ["creatinine", "severity", "procedure",
              "accession", "spo2", "drug_count"]
     check("...and the false-positive control: every ordinary "
-          "clinical column is CLEAR - including a visit date that "
-          "is not a birth date, `Oxygen Therapy` labels that wear "
-          "the two-capitalized-words shape without the given-name "
-          "lexicon, and nine-digit accession numbers shared "
-          "across patients",
+          "clinical column is CLEAR - `Oxygen Therapy` labels "
+          "that wear the two-capitalized-words shape without "
+          "the given-name lexicon, and nine-digit accession "
+          "numbers shared across patients",
           all(c in rep["clear"] for c in clean)
           and not any(c in flagged for c in clean))
+    check("...and `Oxygen Therapy` survives the NAME detector "
+          "specifically, because a procedure varies within a "
+          "patient where a person's name does not - the shape "
+          "alone would have caught it",
+          flagged.get("procedure") != "name")
+    check("...while the visit date is now a SERVICE DATE whose "
+          "remedy is to generalise, not a false positive and "
+          "not a drop",
+          flagged.get("visit_date") == "service_date"
+          and all(f.get("remedy") == "generalise"
+                  for f in rep["findings"]
+                  if f["column"] == "visit_date"))
 
     oos = {o["column"]: o["why"] for o in rep["out_of_scope"]}
     check("free text is OUT OF SCOPE by name, never silently "
@@ -159,13 +175,31 @@ def main():
         cleaned = pd.read_csv(out, dtype=str,
                               keep_default_na=False)
         rep3 = scrub.detect(cleaned, group_by="person_id")
+        # "CLEAN" NOW MEANS NOTHING LEFT TO DROP.
+        #
+        # `apply` removes what carries remedy `drop` and leaves
+        # a service date or an age in place on purpose - span,
+        # length-of-stay and a covariate every model uses are
+        # derived from them, so dropping would destroy the
+        # signal to remove the identifier. What must be true of
+        # the applied file is that no DROP-remedy finding
+        # survives; the generalise ones are still owed and
+        # `pending` reports them rather than them vanishing.
+        _left = [f for f in rep3["findings"]
+                 if f.get("remedy", "drop") == "drop"]
         check("the CLI exits 1 on undropped PHI naming the next "
               "command, 0 with --apply, and the applied file "
-              "re-detects CLEAN",
+              "has nothing left to DROP",
               r1.returncode == 1
               and "--apply" in (r1.stdout + r1.stderr)
               and r2.returncode == 0
-              and not rep3["findings"])
+              and not _left)
+        check("...and what remains is exactly the generalise "
+              "work, still reported rather than silently kept",
+              all(f.get("remedy") == "generalise"
+                  for f in rep3["findings"])
+              and len(scrub.pending(rep3))
+              == len(rep3["findings"]))
 
     # WHAT THE REAL EXTRACT'S FIRST READ FOUND (2026-09-22). The
     # operator ran the scrub against the real 44-column extract and
@@ -213,14 +247,16 @@ def main():
     rep4 = scrub.detect(df2, group_by="person_id")
     fl4 = {f["column"]: f for f in rep4["findings"]}
     n_dates = df2["visit_start_date"].nunique()
-    check("a DATE column is never an identifier, however many "
+    check("a DATE column is never an IDENTIFIER, however many "
           "distinct values it holds - {} distinct visit dates "
-          "over 120 patients (past the uniqueness bar, as the "
-          "extract's 4,692 over 800 was) come back clear".format(
-              n_dates),
+          "over 120 patients, past the uniqueness bar as the "
+          "extract's 4,692 over 800 was. It is a SERVICE DATE "
+          "now rather than clear, which is the point of this "
+          "check unchanged: the date rule must win over the "
+          "identifier rule".format(n_dates),
           n_dates > 108
-          and "visit_start_date" in rep4["clear"]
-          and "visit_start_date" not in fl4)
+          and (fl4.get("visit_start_date") or {}).get("kind")
+          == "service_date")
     avg_len = df2["active_drugs"].str.len().mean()
     check("a semicolon-joined SET column is not free text - "
           "active_drugs shaped after the extract (avg length "
