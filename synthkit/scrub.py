@@ -133,6 +133,13 @@ _AGE_HINT = re.compile(r"(\bage\b|_age\b|\bage_)", re.IGNORECASE)
 _NAME_HINT = re.compile(
     r"(name|surname|first|last|given|family)", re.IGNORECASE)
 NAME_MAX_WORDS = 3
+# A name column carries roughly one value per person. A
+# demographic category carries a handful for the whole cohort,
+# and is otherwise indistinguishable: alphabetic, short, and
+# constant within a patient. Measured on the real extract,
+# gender/race/ethnicity hold 3/10/7 distinct over 800 patients
+# where a name column holds hundreds.
+NAME_MIN_VARIETY = 0.2
 
 
 def _looks_like_name(vals):
@@ -360,7 +367,27 @@ def detect(df, group_by: Optional[str] = None,
                               "column is not caught on a "
                               "cross-sectional table")
                         continue
-                elif constant >= 0.95 and distinct <= 1.5 * n_gid:
+                # AND A NAME IS NEARLY UNIQUE TO ITS PERSON.
+                #
+                # The upper bound alone was not enough: the real
+                # extract's `gender`, `race` and `ethnicity` are
+                # alphabetic, one to three words, and constant
+                # within a patient - every test above passes -
+                # with 3, 10 and 7 distinct values across 800
+                # patients. They were flagged as names, and
+                # since the remedy is drop, `apply` would have
+                # deleted three covariates.
+                #
+                # What a demographic category does NOT have is
+                # variety: a name is roughly one value per
+                # person, a category a handful for the whole
+                # cohort. The floor is what separates them, and
+                # it was missing because no fixture here had a
+                # low-cardinality constant-per-patient column
+                # until the extract supplied three.
+                elif (constant >= 0.95
+                      and distinct <= 1.5 * n_gid
+                      and distinct >= NAME_MIN_VARIETY * n_gid):
                     found("name", nm,
                           " and the column is CONSTANT within "
                           "{:.0%} of patients with {} distinct "

@@ -86,8 +86,23 @@ def fixture(n=400, visits=3):
     import numpy as np
     import pandas as pd
     rng = np.random.default_rng(3)
-    first = ["Dana", "Alex", "Priya", "Sam", "Noor", "Lee"]
-    last = ["Ibarra", "Chen", "Okafor", "Novak", "Reyes"]
+    # ENOUGH VARIETY TO BE A NAME. The first version used 6
+    # first names and 5 last, giving 30 combinations across 400
+    # patients - below the variety floor a real name column
+    # clears, so the fixture could not have exercised it.
+    # ALPHABETIC, and with enough variety. The first version
+    # used 6 first names and 5 last - 30 combinations across
+    # 400 patients, below the variety floor a real name column
+    # clears. The second used "Nm00"-style placeholders, which
+    # are not alphabetic at all, so the shape test rejected
+    # them. Built from syllables now: letters only, and enough
+    # pairs to give about one name per person.
+    _s1 = ["Ka", "Lo", "Mi", "Ta", "Ve", "No", "Ri", "Sa",
+           "Du", "El"]
+    _s2 = ["na", "ren", "vik", "sha", "mir"]
+    first = [a + b for a in _s1 for b in _s2]
+    last = [b.capitalize() + a.lower() for a in _s1
+            for b in _s2]
     # PATIENTS MUST REPEAT, or the test that separates a
     # person's name from a drug's cannot discriminate: on one
     # row per patient EVERY column is trivially constant within
@@ -102,9 +117,14 @@ def fixture(n=400, visits=3):
     df = pd.DataFrame({
         "person_id": pid,
         # --- classes the scrub already covers
+        # First and last must vary INDEPENDENTLY or the column
+        # holds only `len(first)` distinct names however many
+        # are in the lists - which is how the first version
+        # landed below the variety floor.
         "patient_name": [
-            "{} {}".format(first[per_person[p] % len(first)],
-                           last[per_person[p] % len(last)])
+            "{} {}".format(
+                first[per_person[p] % len(first)],
+                last[(per_person[p] // len(first)) % len(last)])
             for p in pid],
         "ssn": ["{:03d}-{:02d}-{:04d}".format(
             int(rng.integers(100, 900)),
@@ -150,6 +170,18 @@ def fixture(n=400, visits=3):
                        rng.integers(2018, 2025, n)],
         # an age column whose tail does NOT exceed 89
         "age_at_discharge": rng.integers(18, 80, n),
+        # THE CONTROL THE REAL EXTRACT SUPPLIED. Demographics
+        # are alphabetic, short, and CONSTANT within a patient
+        # - every test a name passes - and differ only in
+        # variety: a handful of values for the whole cohort
+        # against roughly one per person. The first detector
+        # flagged gender, race and ethnicity as names on the
+        # real extract, and since the remedy is drop, `apply`
+        # would have deleted three covariates.
+        "gender": [("Female", "Male")[per_person[p] % 2]
+                   for p in pid],
+        "race": [("White", "Black", "Asian", "Other")[
+            per_person[p] % 4] for p in pid],
     })
     return df.astype(str)
 
@@ -212,6 +244,14 @@ def main():
           "person from a drug, and dropping OMOP's own "
           "`standard_concept_name` would be a bad trade",
           found.get("concept_name") is None)
+    check("NEGATIVE CONTROL: a DEMOGRAPHIC constant within a "
+          "patient is NOT flagged - gender and race pass every "
+          "other test a name passes and differ only in "
+          "VARIETY. The real extract flagged gender, race and "
+          "ethnicity as names, and with remedy drop that would "
+          "have deleted three covariates",
+          found.get("gender") is None
+          and found.get("race") is None)
 
     # ---- SERVICE DATES AND AGES OVER 89 ARE DETECTED
     check("a SERVICE DATE carrying a month and day is detected "

@@ -6413,3 +6413,26 @@ exist.
   the duplicate went and the property is asserted on `_DATEISH`
   itself: loosening it to accept `2019` now turns three checks
   red where the end-to-end control alone could not fail.
+- **AND THE REAL EXTRACT GRADED THE DETECTOR AGAIN, WITHIN THE
+  HOUR (2026-11-06).** PHI-2's first real read flagged
+  **gender, race and ethnicity as person names** - and the
+  remedy for `name` is DROP, so `apply` would have deleted
+  three covariates from the extract. Every test passed on them
+  honestly: alphabetic, one to three words, CONSTANT within
+  100% of patients. What they lack is VARIETY - 3, 10 and 7
+  distinct values across 800 patients, where a name column
+  holds roughly one per person. A floor at 0.2 x patients
+  separates them and no fixture here had a low-cardinality
+  constant-per-patient column until the extract supplied
+  three. The same lesson as the scrub's first real read in
+  September, in the same module, on a new kind.
+- **AND MY OWN FIXTURE COULD NOT REACH THE FLOOR, TWICE.**
+  First it used 6 first names and 5 surnames - 30 combinations
+  across 400 patients, well under the floor, so the positive
+  check went red when the floor was added. Then the
+  replacement used `Nm00`-style placeholders, which are not
+  ALPHABETIC at all and the shape test rejected them. A
+  fixture must contain the thing the check is about, and
+  "a name" turned out to mean three properties at once:
+  letters only, one to three words, and about one value per
+  person.
