@@ -130,6 +130,44 @@ MAX_LEVELS = 60
 # 1.5 GiB allocation died. The cap is REPORTED, because a reader
 # who is not told how many tokens were modeled cannot tell an
 # absent one from an unexamined one.
+def plan_width(plan):
+    """The encoded width this plan WILL build, exactly.
+
+    THE UNITS THAT BIND. The previous attempt at a width budget
+    PREDICTED the width from k-screened levels on the full
+    frame and overestimated what the encoder builds by about
+    2.5x at every cap - 973 against a measured 437 at cap 60,
+    3,222 against 1,308 at cap 400 - so the solver chose a cap
+    on the wrong number and measured nothing. It was built,
+    measured and withdrawn, and the recorded fix was to take
+    the true per-column width from the PLAN the encoder
+    already builds.
+
+    This is that. Each entry contributes exactly what the
+    encoder stacks for it:
+
+        num   2            the filled value and its missing flag
+        cat   len(levels)  one-hot
+        set   1 + tokens   the standardised size, then one
+                           indicator per published token
+
+    `smoke_latent` asserts this equals the encoder's own `d`
+    on a real fit, because a width function that drifts from
+    the matrix it describes would put the 2.5x error back in a
+    new place.
+    """
+    w = 0
+    for it in plan:
+        kind = it[0]
+        if kind == "num":
+            w += 2
+        elif kind == "cat":
+            w += len(it[2])
+        elif kind == "set":
+            w += 1 + len(it[2])
+    return w
+
+
 MAX_TOKENS = 60
 # HOW FAITHFULLY THE TOKEN DRAW FOLLOWS THE DECODER. The Gumbel
 # top-k draw adds noise of fixed scale (~1.28 sd) to the LOG
@@ -1152,6 +1190,11 @@ class LatentGen:
         # array here and half of it is one-hot zeros.
         X = np.hstack(mats).astype(np.float32, copy=False)
         self.d = X.shape[1]
+        # ONE IMPLEMENTATION. If the planned width and the built
+        # matrix ever disagree, the budget is being solved on a
+        # number the encoder does not use - which is exactly the
+        # failure the recorded solver hit.
+        self.planned_d = plan_width(self.plan)
         wide = [(it[1], len(it[2])) for it in self.plan
                 if it[0] == "cat" and len(it[2]) > 20]
         print("  encoded frame: {} rows x {} dimensions"

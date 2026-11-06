@@ -99,6 +99,7 @@ def main():
           0 < tr[tr["cat"] == "rare_level"][
               "person_id"].nunique() < K)
     g = LatentGen(seed=5).fit(tr, "person_id")
+
     gen1 = g.generate(800, seed=9)
     gen2 = g.generate(800, seed=9)
     check("generation is deterministic under its seed - same "
@@ -890,6 +891,60 @@ def main():
           "cap sent nearly every row to __other__: a string that "
           "is not empty and holds no real token",
           kinds.get("drugs") == "set")
+
+    # ---- THE PLANNED WIDTH IS THE BUILT WIDTH
+    #
+    # Checked HERE because this fixture's plan carries all
+    # three entry kinds - a numeric, a categorical and a SET
+    # with 400 planted tokens. The set branch is the one a
+    # token budget turns on, so checking width on a
+    # numeric-only frame would pass while leaving the formula
+    # that matters untested.
+    #
+    # Why it matters: the previous width budget PREDICTED the
+    # encoded width from k-screened levels on the full frame
+    # and overestimated what the encoder builds by about 2.5x
+    # at every cap - 973 against a measured 437 at cap 60 -
+    # so it solved for a cap on the wrong number and measured
+    # nothing. It was built, measured and withdrawn, and the
+    # recorded fix was to take the true per-column width from
+    # the PLAN the encoder already builds. If `plan_width`
+    # drifts from the matrix it describes, that error is back
+    # in a new place and every budget decision rests on it.
+    import latent_challenger as _LC
+    _kindset = set(it[0] for it in gx.plan)
+    check("the width fixture carries the SET branch ({}) - "
+          "that is the term a token budget moves, so checking "
+          "width on a numeric-only frame would leave the "
+          "formula that matters untested"
+          .format(", ".join(sorted(_kindset))),
+          "set" in _kindset and "num" in _kindset)
+    # The cat branch is covered on a PLANTED plan rather than
+    # by adding a column to this fixture - several checks below
+    # depend on its exact shape, and this file's own rule is
+    # not to add a column to a fixture other checks rest on.
+    check("...and the cat branch is one-hot wide, checked on a "
+          "planted plan so this fixture keeps the shape its "
+          "other checks depend on",
+          _LC.plan_width([("cat", "c", ["a", "b", "c"], None,
+                           False)]) == 3
+          and _LC.plan_width([("num", "n", 0, 1, None)]) == 2)
+    check("the PLANNED encoded width equals the width the "
+          "encoder actually BUILDS - {} dimensions - so a "
+          "budget is solved in the units that bind rather "
+          "than predicted".format(gx.d),
+          _LC.plan_width(gx.plan) == gx.d
+          and gx.planned_d == gx.d)
+    _settok = sum(len(it[2]) for it in gx.plan if it[0] == "set")
+    check("...and the set column contributes 1 + {} token "
+          "dimensions, which is the term the cap moves - a "
+          "width function that got this wrong would pick the "
+          "cap on the wrong number".format(_settok),
+          _settok > 0
+          and _LC.plan_width([it for it in gx.plan
+                              if it[0] == "set"])
+          == sum(1 + len(it[2]) for it in gx.plan
+                 if it[0] == "set"))
 
     gdt = pd.to_datetime(ox["visit_date"].astype(str),
                          format="%Y-%m-%d", errors="coerce")
