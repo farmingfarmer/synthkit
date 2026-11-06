@@ -397,8 +397,22 @@ def cross_couplings(frames: Dict[str, pd.DataFrame],
         pk = t.primary_key
         if lk.column not in ch.columns or pk not in pa.columns:
             continue
-        joined = ch.merge(pa, left_on=lk.column, right_on=pk,
-                          how="inner", suffixes=("", "__par"))
+        # EVERY PARENT COLUMN IS RENAMED BEFORE THE JOIN.
+        #
+        # With `suffixes=("", "__par")` only the COLLIDING
+        # names get suffixed, and the unsuffixed one then
+        # refers to the CHILD. So a parent column whose name
+        # also exists in the child - `provider_id` does, in
+        # real OMOP - was read from the child, and what came
+        # back as a cross-table coupling was a within-child
+        # correlation. Found on the real tables; the fixture
+        # had no colliding non-key column and could not reach
+        # it.
+        _pfx = "__par__"
+        pa2 = pa.rename(columns=dict(
+            (c, _pfx + c) for c in pa.columns if c != pk))
+        joined = ch.merge(pa2, left_on=lk.column, right_on=pk,
+                          how="inner")
         if len(joined) < CROSS_MIN_ROWS:
             continue
         for cc in ch.columns:
@@ -410,8 +424,7 @@ def cross_couplings(frames: Dict[str, pd.DataFrame],
             for pc in pa.columns:
                 if pc == pk:
                     continue
-                col = pc if pc in joined.columns else pc + "__par"
-                b = _pd.to_numeric(joined.get(col),
+                b = _pd.to_numeric(joined.get(_pfx + pc),
                                    errors="coerce")
                 if b is None or b.notna().sum() < CROSS_MIN_ROWS:
                     continue

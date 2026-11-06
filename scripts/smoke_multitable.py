@@ -384,6 +384,39 @@ def main():
               and c["parent_column"] == "length_of_stay"
               and abs(c["rho"]) > 0.8 for c in _cps))
 
+    # ---- A COLLIDING COLUMN NAME MUST READ THE PARENT'S
+    #
+    # With pandas' default merge suffixes only the colliding
+    # name gets suffixed and the bare one refers to the CHILD,
+    # so a parent column whose name also exists in the child
+    # was read from the child - and a within-child correlation
+    # came back labelled cross-table. `provider_id` collides in
+    # real OMOP, which is where this was found; this fixture
+    # had no colliding non-key column and could not reach it.
+    #
+    # The planted collision is unambiguous: `site` is CONSTANT
+    # in the parent and random in the child, so reading the
+    # wrong side gives a different answer every time.
+    _vis2 = _vis.copy()
+    _labs2 = _labs.copy()
+    _vis2["site"] = 1.0
+    _labs2["site"] = np.random.default_rng(3).normal(
+        0, 1, len(_labs2))
+    _f2 = detect({"visits": _vis2, "labs": _labs2})
+    _c2 = cross_couplings({"visits": _vis2, "labs": _labs2},
+                          _f2)
+    check("a parent column whose NAME collides with a child "
+          "column is read from the PARENT - the parent's `site` "
+          "is constant, so any coupling reported for it would "
+          "be the child's column wearing the parent's name",
+          not any(c["parent_column"] == "site" for c in _c2))
+    check("...while the genuine coupling still comes through "
+          "alongside the collision, so the fix did not simply "
+          "stop looking",
+          any(c["child_column"] == "lab_value"
+              and c["parent_column"] == "length_of_stay"
+              for c in _c2))
+
     _before = _gen["labs"]["lab_value"].copy()
     _par_before = _gen["visits"]["length_of_stay"].copy()
     _out = assign_keys(_gen, _found, seed=5,

@@ -6518,3 +6518,22 @@ exist.
   UNMUTATED code. Reported as a non-result and redone against
   the real line, where it turns one check red. The oldest
   editing rule in this file, and it still needs its own guard.
+- **AND THE REAL OMOP TABLES FOUND A BUG IN THE MEASUREMENT
+  ITSELF, WITHIN THE HOUR.** The first cross-coupling read on
+  `measurement` -> `visit_occurrence` returned pairs like
+  `value_as_number ~ standard_concept_code` and
+  `range_high ~ provider_id` - identifiers and codes, which
+  should never have been the strongest couplings across a
+  link. The cause: `merge(..., suffixes=("", "__par"))`
+  suffixes ONLY the colliding name, so the bare one refers to
+  the CHILD. `provider_id` exists in both tables in real OMOP,
+  so the parent's column was read from the child and a
+  WITHIN-CHILD correlation came back labelled cross-table.
+  Every parent column is renamed before the join now, so there
+  is nothing to resolve ambiguously.
+  THE FIXTURE COULD NOT REACH IT: its two tables share only
+  the join key, which is excluded. The control planted now is
+  a column named `site` that is CONSTANT in the parent and
+  random in the child - reading the wrong side gives a
+  different answer every time - and restoring the old merge
+  turns it red.
