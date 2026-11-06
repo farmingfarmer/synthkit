@@ -6436,3 +6436,44 @@ exist.
   "a name" turned out to mean three properties at once:
   letters only, one to three words, and about one value per
   person.
+
+- **PHI-3 APPLIES THE GENERALISATION, AND M2 IS COMPLETE
+  (2026-11-06).** `scrub.generalise` does the work `pending`
+  reported: a service date keeps its YEAR and loses the month
+  and day, an age over 89 is capped at 90 - the single
+  "90 or above" category the rule asks for - and both COLUMNS
+  STAY, which is the entire reason the remedy was never a drop.
+  The CLI's `--apply` now does both, reports each action, and
+  REFUSES with exit 1 if a fresh detect still finds anything,
+  because a file that says it was de-identified while half the
+  work is outstanding is the worst outcome available.
+- **THE LOAD-BEARING PROPERTY IS IDEMPOTENCE, AND IT CAUGHT THE
+  DETECTOR REJECTING ITS OWN REMEDY.** After dropping and
+  generalising, a fresh detect must find NOTHING. It found
+  `age_at_visit` still flagged - because the rule fired on any
+  value `> 89` and the cap writes exactly 90, which is itself
+  over 89. Safe Harbor's category IS "90 or above", so a column
+  already aggregated there is compliant; the finding is an
+  UNAGGREGATED TAIL, meaning any value above 90. A
+  de-identification step whose output fails its own detector is
+  incoherent, and only the end-to-end check could see it.
+- **AND TRUNCATING TWO DATES COSTS THE LENGTH OF STAY UNLESS
+  SOMETHING ELSE CARRIES IT.** Setting both service dates to
+  their years makes every duration computed from them zero -
+  the same destruction the generalise remedy exists to avoid,
+  wearing a different name. So before truncating, the tool
+  looks for a column that EQUALS the difference between the
+  dates - detected by equality on 95% of rows, never by a name
+  that sounds right - and the action says either "the span is
+  carried by `X`" or that the length of stay is LOST by this
+  step. It does not invent the column: this file's rule is not
+  to put a column in somebody's file that they did not give
+  you.
+- **AND PANDAS 3 TURNED THE WRITE-BACK INTO A HARD TypeError.**
+  Assigning the integer 90 into a string column raises on
+  pandas 3 where 2.x coerced silently - the same shape as the
+  FutureWarning-to-TypeError change that once passed here and
+  crashed on the data machine. Caught on the development
+  machine this time, for one reason: the work was done against
+  `.venv314`, the stack the data machine installs. The cap and
+  the year are written in the column's own dtype now.

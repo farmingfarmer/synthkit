@@ -926,10 +926,31 @@ def cmd_scrub(args) -> int:
         len(rep["clear"]), rep["columns_seen"]))
     print(rep["note"])
     if args.apply:
+        # TWO REMEDIES, BOTH APPLIED. Dropping alone would
+        # leave the Safe Harbor generalisations undone, and
+        # dropping a service date or an age instead would
+        # destroy span, length-of-stay and a covariate every
+        # model uses. So what must go is dropped, and what must
+        # be coarsened is coarsened - and both are REPORTED,
+        # because a file that says it was de-identified while
+        # half the work is outstanding is the worst outcome
+        # here.
         out_df, dropped = scrub.apply(df, rep)
+        out_df, actions = scrub.generalise(out_df, rep)
         out_df.to_csv(args.apply, index=False)
         print("dropped {} column(s) -> {}".format(
             len(dropped), args.apply))
+        for act in actions:
+            print("  generalised {}: {}".format(
+                act["column"], act["did"]))
+        left = [f for f in scrub.detect(
+            out_df, group_by=args.group_by)["findings"]]
+        if left:
+            print("STILL FLAGGED after applying: {} - this is "
+                  "a defect in the tool, not in your data"
+                  .format(", ".join(f["column"] for f in left)),
+                  file=sys.stderr)
+            return 1
         return 0
     if rep["findings"]:
         print("PHI-shaped columns present and nothing was "

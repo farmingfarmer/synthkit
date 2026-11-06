@@ -350,6 +350,78 @@ def main():
           and all(k in scrub.REMEDY
                   for k in SAFE_HARBOR_STRUCTURED))
 
+    # ---- PHI-3: THE GENERALISATION IS APPLIED
+    #
+    # `pending` reported the work; this does it. The load-
+    # bearing property is the LAST check here: after dropping
+    # what must go and generalising the rest, a FRESH detect
+    # finds nothing. Anything less means the tool reported work
+    # it did not finish.
+    _g, _acts = scrub.generalise(_kept, rep)
+    _did = dict((a["column"], a) for a in _acts)
+
+    check("a service date keeps its YEAR and loses the month "
+          "and day - Safe Harbor removes the elements, not the "
+          "column",
+          set(_g["visit_start_date"].astype(str)
+              .str.len().unique()) == {4}
+          and _g["visit_start_date"].astype(str).str[:2].eq(
+              "20").all())
+    check("...and the column STAYS, which is the entire reason "
+          "the remedy is not a drop",
+          "visit_start_date" in _g.columns
+          and "visit_end_date" in _g.columns)
+    check("an age over 89 is capped at 90 - the single "
+          "90-or-above category the rule asks for - and the "
+          "column stays numeric",
+          int(pd.to_numeric(_g["age_at_visit"]).max()) == 90
+          and int((pd.to_numeric(_g["age_at_visit"]) > 89)
+                  .sum()) == over89)
+    check("...while ages at or below 89 are untouched, so the "
+          "operation is the tail and not the column",
+          pd.to_numeric(_g["age_at_visit"]).between(18, 90)
+          .all()
+          and int((pd.to_numeric(_g["age_at_visit"]) < 90)
+                  .sum()) == len(_g) - over89)
+
+    # ---- AND IT SAYS WHAT TRUNCATION COSTS
+    #
+    # Setting two service dates to their years makes every
+    # duration computed from them zero. Before doing that the
+    # tool checks whether the span is carried elsewhere - by
+    # finding a column that EQUALS the difference, not one
+    # whose name sounds right - and says so either way. A step
+    # that silently destroyed the length of stay would be the
+    # drop this remedy exists to avoid, renamed.
+    check("truncation REPORTS the cost: with no column "
+          "carrying the span, the action says the length of "
+          "stay is lost rather than letting it vanish quietly",
+          "LOST" in _did["visit_start_date"]["did"])
+    _withspan = df.copy()
+    _withspan["span_days"] = (
+        pd.to_datetime(_withspan["visit_end_date"])
+        - pd.to_datetime(_withspan["visit_start_date"])).dt.days
+    _rep2 = scrub.detect(_withspan, group_by="person_id")
+    _g2, _acts2 = scrub.generalise(_withspan, _rep2)
+    _did2 = dict((a["column"], a) for a in _acts2)
+    check("...and when a column DOES carry the span it is "
+          "named, because then truncating costs no length of "
+          "stay - detected by equality with the difference, "
+          "never by the column's name",
+          "span_days" in _did2["visit_start_date"]["did"]
+          and "LOST" not in _did2["visit_start_date"]["did"])
+    check("...and that span column survives the "
+          "generalisation intact, which is what makes the "
+          "claim true",
+          _g2["span_days"].equals(_withspan["span_days"]))
+
+    # ---- THE WHOLE POINT: NOTHING IS LEFT
+    _again = scrub.detect(_g, group_by="person_id")
+    check("after dropping what must go and generalising the "
+          "rest, a FRESH detect finds NOTHING - the property "
+          "that says the tool finished the work it reported",
+          not _again["findings"])
+
     print()
     if FAIL:
         print("{} FAILED".format(FAIL))

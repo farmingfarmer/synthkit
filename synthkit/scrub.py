@@ -414,7 +414,21 @@ def detect(df, group_by: Optional[str] = None,
                 nums = None
             if nums is not None and len(nums):
                 over = float((nums > 89).mean())
-                if over > 0 and float(nums.max()) <= 130:
+                # THE FINDING IS AN UNAGGREGATED TAIL, NOT ANY
+                # VALUE ABOVE 89.
+                #
+                # Safe Harbor's category IS "90 or above", so a
+                # column whose every value over 89 is exactly
+                # 90 already satisfies the rule. Flagging on
+                # `> 89` made the detector reject its own
+                # remedy: capping at 90 produced a file that
+                # detected as non-compliant, caught by the
+                # check that a fresh detect must find nothing
+                # after generalising. A de-identification step
+                # that cannot satisfy its own detector is
+                # incoherent.
+                unaggregated = bool((nums > 90).any())
+                if unaggregated and float(nums.max()) <= 130:
                     found("age_over_89", over,
                           " - {:.1%} of values exceed 89, which "
                           "Safe Harbor asks to be aggregated "
@@ -497,6 +511,117 @@ def apply(df, report: Dict[str, Any]):
             if f.get("remedy", "drop") == "drop"]
     return df.drop(columns=[c for c in cols if c in df.columns]), \
         cols
+
+
+def _duration_carrier(df, date_cols):
+    """A column that already holds the span between two dates.
+
+    DETECTED FROM THE DATA, NOT THE HEADER. Truncating two
+    service dates to their years sets every duration computed
+    from them to zero, so before doing it the tool has to know
+    whether the length of stay is carried somewhere else. A
+    column named `span_days` proves nothing; a column that
+    EQUALS the difference on almost every row proves it.
+
+    Returns the column name, or None - and None is a finding
+    the caller must report, not swallow: it means truncation
+    costs the length of stay.
+    """
+    import pandas as _pd
+    if len(date_cols) < 2:
+        return None
+    try:
+        a = _pd.to_datetime(df[date_cols[0]], errors="coerce")
+        b = _pd.to_datetime(df[date_cols[1]], errors="coerce")
+    except Exception:                         # pragma: no cover
+        return None
+    delta = (b - a).dt.days
+    ok = delta.notna()
+    if int(ok.sum()) < 30:
+        return None
+    for c in df.columns:
+        if c in date_cols:
+            continue
+        nums = _pd.to_numeric(df[c], errors="coerce")
+        m = ok & nums.notna()
+        if int(m.sum()) < 30:
+            continue
+        if float((nums[m] == delta[m]).mean()) >= 0.95:
+            return c
+    return None
+
+
+def generalise(df, report: Dict[str, Any]):
+    """Apply the Safe Harbor generalisations, in place of a drop.
+
+    A service date keeps its YEAR and loses the month and day;
+    an age over 89 is capped at 90, which is the single
+    "90 or above" category the rule asks for. The columns STAY
+    - that is the whole point of a remedy that is not a drop,
+    because span, length-of-stay and age are what the data is
+    for.
+
+    Returns (frame, actions). Every action says what it did and,
+    where truncating dates costs something, what it costs - a
+    de-identification step that quietly destroyed the length of
+    stay would be the drop this remedy exists to avoid, wearing
+    a different name.
+    """
+    import pandas as _pd
+    out = df.copy()
+    actions: List[Dict[str, Any]] = []
+    pend = pending(report)
+    date_cols = [f["column"] for f in pend
+                 if f["kind"] == "service_date"
+                 and f["column"] in out.columns]
+    carrier = _duration_carrier(out, date_cols)
+    for f in pend:
+        c = f["column"]
+        if c not in out.columns:
+            continue
+        if f["kind"] == "service_date":
+            yr = _pd.to_datetime(out[c], errors="coerce").dt.year
+            keep = yr.notna()
+            # Years go back as STRINGS for the same reason: the
+            # column was read as text and must stay text.
+            out.loc[keep, c] = yr[keep].astype(int).astype(str)
+            if not (_pd.api.types.is_string_dtype(out[c])
+                    or out[c].dtype == object):
+                out[c] = out[c].astype(str)
+            note = ("month and day removed, year kept")
+            if len(date_cols) >= 2:
+                if carrier:
+                    note += ("; the span is carried by `{}`, "
+                             "which is why this costs no "
+                             "length of stay".format(carrier))
+                else:
+                    note += ("; NO column carries the span "
+                             "between these dates, so the "
+                             "length of stay is LOST by this "
+                             "step - derive it before "
+                             "generalising if it matters")
+            actions.append({"column": c, "kind": f["kind"],
+                            "did": note})
+        elif f["kind"] == "age_over_89":
+            nums = _pd.to_numeric(out[c], errors="coerce")
+            over = int((nums > 89).sum())
+            # WRITE BACK IN THE COLUMN'S OWN DTYPE. On pandas 3
+            # assigning an int into a string column is a hard
+            # TypeError, where 2.x coerced silently - the same
+            # shape as the FutureWarning-to-TypeError change
+            # that once passed here and crashed on the data
+            # machine. Caught here only because this is
+            # developed against the stack that ships.
+            cap = ("90" if _pd.api.types.is_string_dtype(out[c])
+                   or out[c].dtype == object else 90)
+            out.loc[nums > 89, c] = cap
+            actions.append({
+                "column": c, "kind": f["kind"],
+                "did": "{} value(s) over 89 capped at 90 - the "
+                       "single 90-or-above category the rule "
+                       "asks for, and the column stays "
+                       "numeric".format(over)})
+    return out, actions
 
 
 def pending(report: Dict[str, Any]):
