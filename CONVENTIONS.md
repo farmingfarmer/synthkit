@@ -6477,3 +6477,44 @@ exist.
   machine this time, for one reason: the work was done against
   `.venv314`, the stack the data machine installs. The cap and
   the year are written in the column's own dtype now.
+
+- **MT-1: THE CROSS-TABLE RELATIONSHIP IS RECOVERED, AND THE
+  ASSIGNMENT WAS THE ONLY FREE VARIABLE (2026-11-06).** Each
+  table is still fitted ALONE - that part is unchanged, and it
+  is why a child column that depends on a parent's had no path
+  to learn it. What changed is WHICH PARENT a child row points
+  at. `assign_keys` drew uniformly, which guaranteed the
+  structure was absent rather than merely weak.
+      source                     +0.906
+      uniform assignment         -0.023
+      coupled assignment         +0.917
+  The coupling is FOUND in the source, not declared: numeric
+  pairs over the join, rank correlation, screened for rows and
+  for the gate's own 0.1 floor so noise is not chased across a
+  key.
+- **IT IS A REARRANGEMENT, WHICH IS WHY IT COSTS NOTHING.** The
+  child's values and the parent's values are already drawn and
+  carry their marginals; only the attachment is permuted.
+  Measured: both value columns come out BYTE-IDENTICAL, and
+  referential integrity stays 100% because the pool assigned
+  from IS the parent keys that exist. Same instrument as the
+  repair and the dials, applied across a link instead of
+  within a column.
+- **AND THE CONTROL ARM IS IN THE SUITE, not just the result.**
+  The same seed with no couplings passed still reads -0.023, so
+  the recovery is the coupling and not the seed. This file has
+  twice recorded a fidelity "gain" that a control arm later
+  overturned; the control ships beside the claim now.
+- **THE LIMIT IS NAMED: ONE COUPLING PER LINK, THE STRONGEST.**
+  Two columns pulling on one assignment is a joint solve, and
+  this file already records how a cap that excluded exactly the
+  pair the gate measures is how a fix misses. Written down as
+  the next step rather than left to be discovered.
+- **AND A MUTATION THAT DOES NOT APPLY LOOKS EXACTLY LIKE A
+  CHECK THAT CANNOT FAIL, AGAIN.** The sign-inversion
+  fail-first asserted count==1 on a line whose indentation I
+  had guessed, the assert fired, the file was never modified -
+  and the run that followed reported FAILs: 0 against
+  UNMUTATED code. Reported as a non-result and redone against
+  the real line, where it turns one check red. The oldest
+  editing rule in this file, and it still needs its own guard.

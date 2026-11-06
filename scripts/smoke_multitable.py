@@ -34,8 +34,10 @@ ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT))
 sys.path.insert(0, str(ROOT / "scripts"))
 
+from synthkit import multitable as MT                 # noqa: E402
 from synthkit.multitable import (                     # noqa: E402
-    assign_keys, check_integrity, detect, integrity, render)
+    assign_keys, check_integrity, cross_couplings, detect,
+    integrity, render)
 
 PASS = FAIL = 0
 
@@ -352,13 +354,66 @@ def main():
     _gl["visit_id"] = _np.random.default_rng(11).choice(
         _keys, size=len(_gl))
     _gen_x = _xcorr(_gl, _gv)
-    check("FITTING EACH TABLE ALONE DESTROYS IT: source "
-          "{:+.3f} against generated {:+.3f}. Pinned as the "
-          "measured state of M3's remainder - the day joint "
-          "fitting lands, this check goes RED and the claim "
-          "gets updated with it"
+    check("fitting each table alone DOES destroy it - source "
+          "{:+.3f} against generated {:+.3f} with no coupling, "
+          "which is why the assignment cannot be left uniform"
           .format(_src_x or 0.0, _gen_x or 0.0),
           _gen_x is not None and abs(_gen_x) < 0.25)
+
+    # ---- MT-1: THE COUPLING IS MEASURED AND ENFORCED
+    #
+    # Each table is still fitted alone - that part is
+    # unchanged. What changed is WHICH PARENT a child row
+    # points at. The child's values and the parent's values
+    # are already drawn and carry their marginals; the
+    # assignment is the only free variable, and it is enough
+    # to set the correlation across the link.
+    #
+    # It is a REARRANGEMENT, the instrument the repair and the
+    # dials already use: no marginal can move and referential
+    # integrity is untouched, because the pool assigned from is
+    # the parent keys that exist.
+    _found = detect({"visits": _vis, "labs": _labs})
+    _cps = cross_couplings({"visits": _vis, "labs": _labs},
+                              _found)
+    check("the cross-table coupling is FOUND in the source - "
+          "numeric pairs over the join, rank correlation, "
+          "screened for rows and for the gate's own floor so "
+          "noise is not chased across a key",
+          any(c["child_column"] == "lab_value"
+              and c["parent_column"] == "length_of_stay"
+              and abs(c["rho"]) > 0.8 for c in _cps))
+
+    _before = _gen["labs"]["lab_value"].copy()
+    _par_before = _gen["visits"]["length_of_stay"].copy()
+    _out = assign_keys(_gen, _found, seed=5,
+                          couplings=_cps)
+    _rec = _xcorr(_out["labs"], _out["visits"])
+    check("and ENFORCING it recovers the relationship: "
+          "{:+.3f} against a source {:+.3f}, where the uniform "
+          "assignment gave {:+.3f}"
+          .format(_rec or 0.0, _src_x or 0.0, _gen_x or 0.0),
+          _rec is not None and abs(_rec - _src_x) < 0.15)
+    check("...and NO VALUE MOVED - the child's column and the "
+          "parent's are byte-identical, because only the "
+          "assignment was permuted",
+          _out["labs"]["lab_value"].equals(_before)
+          and _out["visits"]["length_of_stay"].equals(
+              _par_before))
+    check("...and referential integrity is untouched: every "
+          "child still points at a parent that exists, because "
+          "the pool assigned from IS the parents that exist",
+          _out["labs"]["visit_id"].isin(
+              set(_out["visits"]["visit_id"])).all())
+    _uncoupled = assign_keys(_gen, _found, seed=5,
+                                couplings=None)
+    check("...and the coupling is what did it - the same seed "
+          "with no couplings passed still reads {:+.3f}, so "
+          "the recovery is not the seed"
+          .format(_xcorr(_uncoupled["labs"],
+                         _uncoupled["visits"]) or 0.0),
+          abs(_xcorr(_uncoupled["labs"],
+                     _uncoupled["visits"]) or 0.0) < 0.25)
 
     print()
     if FAIL:

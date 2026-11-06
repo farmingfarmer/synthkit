@@ -363,9 +363,132 @@ def _invent(prefix: str, n: int) -> List[str]:
     return ["{}{:07d}".format(prefix, i + 1) for i in range(n)]
 
 
+CROSS_MIN_ROWS = 30
+CROSS_MIN_RHO = 0.1
+
+
+def cross_couplings(frames: Dict[str, pd.DataFrame],
+                    found: Dict, k: int = 10) -> List[Dict]:
+    """Relationships that live ACROSS a link, measured.
+
+    Each table is fitted on its own, so a child column that
+    depends on a PARENT's column has no path to learn it.
+    Measured on a planted fixture - a lab value at 2.0x its
+    visit's length of stay - the source reads +0.906 and the
+    generated set +0.021: the structure is destroyed, not
+    weakened.
+
+    This finds those pairs in the source so generation has
+    something to aim at. Numeric pairs only, by rank
+    correlation, over the JOIN - and screened the way every
+    other published number here is: a pair needs rows behind it
+    and a correlation above the gate's own floor, or it is
+    noise being chased across a key.
+    """
+    import pandas as _pd
+    out: List[Dict] = []
+    for lk in found["links"]:
+        if lk.child not in frames or lk.parent not in frames:
+            continue
+        ch, pa = frames[lk.child], frames[lk.parent]
+        t = found["tables"].get(lk.parent)
+        if t is None or not t.primary_key:
+            continue
+        pk = t.primary_key
+        if lk.column not in ch.columns or pk not in pa.columns:
+            continue
+        joined = ch.merge(pa, left_on=lk.column, right_on=pk,
+                          how="inner", suffixes=("", "__par"))
+        if len(joined) < CROSS_MIN_ROWS:
+            continue
+        for cc in ch.columns:
+            if cc == lk.column:
+                continue
+            a = _pd.to_numeric(joined.get(cc), errors="coerce")
+            if a is None or a.notna().sum() < CROSS_MIN_ROWS:
+                continue
+            for pc in pa.columns:
+                if pc == pk:
+                    continue
+                col = pc if pc in joined.columns else pc + "__par"
+                b = _pd.to_numeric(joined.get(col),
+                                   errors="coerce")
+                if b is None or b.notna().sum() < CROSS_MIN_ROWS:
+                    continue
+                m = a.notna() & b.notna()
+                if int(m.sum()) < CROSS_MIN_ROWS:
+                    continue
+                if a[m].nunique() < 3 or b[m].nunique() < 3:
+                    continue
+                rho = float(a[m].corr(b[m], method="spearman"))
+                if rho == rho and abs(rho) >= CROSS_MIN_RHO:
+                    out.append({
+                        "child": lk.child, "child_column": cc,
+                        "parent": lk.parent,
+                        "parent_column": pc,
+                        "fk": lk.column, "rho": round(rho, 4),
+                        "rows": int(m.sum())})
+    return out
+
+
+def _couple_assign(child_vals, pool, parent_vals, target, rng):
+    """Choose WHICH parent each child row points at.
+
+    THE ASSIGNMENT IS THE ONLY FREE VARIABLE, and it is enough.
+    The child's own values and the parent's own values are
+    already generated and must not move - they carry their
+    marginals. What is still free is which parent a child row
+    is attached to, and that alone sets the correlation across
+    the link.
+
+    So this is a REARRANGEMENT, the same instrument the repair
+    and the dials use: it permutes an assignment, so no
+    marginal can drift and referential integrity is untouched -
+    every child still points at a parent that exists, because
+    the pool is the parents that exist.
+
+    The noise scale is SEARCHED rather than assumed, because a
+    rank-perfect pairing lands rho near 1.0 and the source is
+    rarely there.
+    """
+    import numpy as np
+    import pandas as _pd
+    n = len(child_vals)
+    draws = rng.choice(len(pool), size=n, replace=True)
+    pv = _pd.Series(parent_vals).iloc[draws].to_numpy()
+    cv = _pd.to_numeric(_pd.Series(child_vals),
+                        errors="coerce").to_numpy()
+    ok = ~_pd.isna(cv)
+    if ok.sum() < CROSS_MIN_ROWS:
+        return [pool[i] for i in draws]
+    cr = _pd.Series(cv).rank(method="average").to_numpy()
+    pr = _pd.Series(pv).rank(method="average").to_numpy()
+    order_p = np.argsort(pr, kind="stable")
+    sign = 1.0 if target >= 0 else -1.0
+    best, best_err = None, None
+    for scale in (0.0, 0.15, 0.3, 0.5, 0.8, 1.2, 2.0, 3.5, 6.0):
+        jitter = cr + rng.normal(0, scale * n / 6.0, n)
+        order_c = np.argsort(sign * jitter, kind="stable")
+        pick = np.empty(n, dtype=int)
+        pick[order_c] = order_p
+        # child i is paired with parent slot pick[i], so the
+        # parent value it sees is pv[pick[i]].
+        got = float(_pd.Series(cv[ok]).corr(
+            _pd.Series(pv[pick][ok]), method="spearman"))
+        if got != got:
+            continue
+        err = abs(got - target)
+        if best_err is None or err < best_err:
+            best, best_err = pick, err
+    if best is None:
+        return [pool[i] for i in draws]
+    return [pool[draws[i]] for i in best]
+
+
 def assign_keys(frames: Dict[str, pd.DataFrame],
                 found: Dict, seed: int = 0,
-                keep_orphan_share: bool = True
+                keep_orphan_share: bool = True,
+                couplings: Optional[List[Dict]] = None
                 ) -> Dict[str, pd.DataFrame]:
     """Invent each table's key and point the children at them.
 
@@ -422,7 +545,45 @@ def assign_keys(frames: Dict[str, pd.DataFrame],
         child = out[lk.child]
         pool = newkeys[lk.parent]
         n = len(child)
-        picked = list(rng.choice(pool, size=n, replace=True))
+        # WHICH PARENT A CHILD POINTS AT IS NOT ARBITRARY.
+        #
+        # This drew uniformly, which is exactly where a
+        # cross-table relationship went: each table is fitted
+        # alone, so a lab value that depends on its visit's
+        # length of stay has no path to learn it, and a random
+        # attachment then guarantees it is absent. Measured on
+        # the planted fixture, source +0.906 against generated
+        # +0.021.
+        #
+        # The child's values and the parent's values are
+        # already drawn and must not move - they carry their
+        # marginals. The assignment is the only free variable,
+        # and it is enough to set the correlation across the
+        # link. Integrity is untouched because the pool is the
+        # parent keys that exist.
+        use = [cp for cp in (couplings or [])
+               if cp.get("child") == lk.child
+               and cp.get("parent") == lk.parent
+               and cp.get("child_column") in child.columns]
+        picked = None
+        if use:
+            # One coupling per link for now, the strongest -
+            # two columns pulling on one assignment is a joint
+            # solve, and this file's own record says a cap
+            # that excludes the pair the gate measures is how
+            # a fix misses. Named as the limit rather than
+            # left to be discovered.
+            cp = max(use, key=lambda d: abs(d.get("rho") or 0))
+            par = out[lk.parent]
+            pcol = cp.get("parent_column")
+            if pcol in par.columns:
+                pvals = pd.to_numeric(par[pcol],
+                                      errors="coerce").to_numpy()
+                picked = _couple_assign(
+                    child[cp["child_column"]].tolist(),
+                    list(pool), pvals, float(cp["rho"]), rng)
+        if picked is None:
+            picked = list(rng.choice(pool, size=n, replace=True))
         if keep_orphan_share and lk.match < 1.0:
             # REPRODUCE THE ORPHANS, with keys that belong to
             # nobody. Rounding is to the nearest row, and the
