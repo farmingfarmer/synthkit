@@ -471,34 +471,91 @@ def link_order(found: Dict) -> List:
                   key=lambda lk: depth(lk.child))
 
 
+# HOW FAR UP A CHAIN A COUPLING IS LOOKED FOR.
+#
+# One hop was the original behaviour and it meant a child could
+# only be compared against its DIRECT parent. Two hops landed as
+# MT-3. THREE was named as not measured, and the measurement
+# says it is not weakened but UNREACHABLE: on a
+# person -> visit -> order -> result chain with the result
+# riding the PERSON's age, the source reads +0.976, the output
+# +0.010, and the run reports "0 cross-table coupling(s)" -
+# because `with_inherited` climbed exactly one level, so `age`
+# was never a column anything could see.
+#
+# The bound matters. Each level joins its ancestor's frame, so
+# cost grows with the chain, and a deep schema would price a
+# detection pass nobody asked for. Three reaches a
+# great-grandparent, which covers person -> visit -> order ->
+# result; deeper is a setting, not a default.
+VIA_HOPS = 3
+
+
+def _via_name(fk: str, col: str) -> str:
+    """Name an inherited column so the PATH stays readable.
+
+    A column inherited through two keys would otherwise read
+    `__via__visit_id____via__person_id__age`. The path form
+    `__via__visit_id>person_id__age` says the same thing and can
+    be read aloud, which matters because these names appear in
+    the run's own coupling report.
+    """
+    if col.startswith(VIA):
+        return "{}{}>{}".format(VIA, fk, col[len(VIA):])
+    return "{}{}__{}".format(VIA, fk, col)
+
+
 def with_inherited(frames: Dict[str, pd.DataFrame], found: Dict,
-                   name: str) -> pd.DataFrame:
-    """`name`'s frame plus the numeric columns of ITS parent.
+                   name: str, hops: int = VIA_HOPS,
+                   _seen: Optional[frozenset] = None
+                   ) -> pd.DataFrame:
+    """`name`'s frame plus the numeric columns of its ANCESTORS.
 
     Joined through the foreign key that is actually present in
     the frame handed in - so this works on the SOURCE (real keys)
     and on a GENERATED set (invented keys) with no special case,
     which is the only way detection and enforcement can agree
-    about what a two-hop coupling is.
+    about what a multi-hop coupling is.
+
+    RECURSIVE, bounded by `hops`. The parent frame is itself
+    passed through this function before being joined, so a
+    grandparent's column arrives on the parent as a `__via__`
+    column and is then carried one level further down. That is
+    the whole of the three-hop fix: no new solver, and the
+    existing rank-one assignment works unchanged on a column
+    whose name happens to record a longer path.
+
+    `_seen` guards a cycle in the link graph, which the depth
+    bound alone would merely truncate rather than refuse.
     """
     base = frames[name]
+    if hops <= 0:
+        return base
+    seen = (_seen or frozenset()) | frozenset([name])
     for lk in found.get("links", []):
-        if lk.child != name:
+        if lk.child != name or lk.parent in seen:
             continue
-        par = frames.get(lk.parent)
-        if par is None or lk.parent_key not in par.columns:
+        if lk.parent not in frames:
+            continue
+        par = with_inherited(frames, found, lk.parent,
+                             hops=hops - 1, _seen=seen)
+        if lk.parent_key not in par.columns:
             continue
         if lk.column not in base.columns:
             continue
         take = [lk.parent_key]
         ren = {}
         for c in par.columns:
-            if c == lk.parent_key or _is_via(c):
+            if c == lk.parent_key:
                 continue
-            if not _is_quantity(par[c]):
+            # A `__via__` column on the parent is ALREADY a
+            # numeric an ancestor contributed, so it is carried
+            # one level further rather than skipped - which is
+            # exactly what the one-hop version refused to do.
+            if not (_is_via(c) or _is_quantity(par[c])):
                 continue
             take.append(c)
-            ren[c] = "{}{}__{}".format(VIA, lk.column, c)
+            ren[c] = _via_name(lk.column, c)
         if len(take) <= 1:
             continue
         right = par[take].rename(columns=ren)

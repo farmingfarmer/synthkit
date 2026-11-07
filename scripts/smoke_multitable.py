@@ -923,6 +923,157 @@ def main():
                    "labs": pd.read_csv(str(_i3 / "labs.csv"))}))]
               == ["visits", "labs"])
 
+    # ------------------------------ THREE HOPS (MT-4)
+    # `with_inherited` climbed exactly ONE level, so on a
+    # person -> visit -> order -> result chain a result riding
+    # the PERSON's age could not be seen at all: source +0.976,
+    # output +0.010, and the run reporting "0 cross-table
+    # coupling(s)" - unreachable, not weakened. Making the
+    # inheritance RECURSIVE carries a grandparent's column onto
+    # the parent as a `__via__` column and then one level
+    # further down, so the existing rank-one assignment works
+    # unchanged on a column whose name records a longer path.
+    with tempfile.TemporaryDirectory() as _td4:
+        _i4 = Path(_td4) / "in"
+        _i4.mkdir()
+        _r4 = np.random.default_rng(13)
+        _n4 = 200
+        _p4 = ["P{:04d}".format(i) for i in range(_n4)]
+        _age4 = np.round(_r4.uniform(20, 90, _n4), 1)
+        pd.DataFrame({
+            "person_id": _p4, "age": _age4,
+            "weight": np.round(_r4.normal(80, 15, _n4), 1),
+        }).to_csv(str(_i4 / "people.csv"), index=False)
+        _vr4 = []
+        for _p in _p4:
+            for _ in range(int(_r4.integers(2, 4))):
+                _vr4.append(("V{:05d}".format(len(_vr4)), _p,
+                             round(float(_r4.lognormal(1.0, 0.5)),
+                                   2)))
+        _v4 = pd.DataFrame(_vr4, columns=["visit_id",
+                                          "person_id",
+                                          "length_of_stay"])
+        _v4.to_csv(str(_i4 / "visits.csv"), index=False)
+        _or4 = []
+        for _vid in _v4["visit_id"]:
+            for _ in range(int(_r4.integers(1, 3))):
+                _or4.append(("O{:06d}".format(len(_or4)), _vid,
+                             round(float(_r4.normal(3, 1)), 2)))
+        _o4 = pd.DataFrame(_or4, columns=["order_id", "visit_id",
+                                          "priority"])
+        _o4.to_csv(str(_i4 / "orders.csv"), index=False)
+        _am = dict(zip(_p4, _age4))
+        _pv = dict(zip(_v4["visit_id"], _v4["person_id"]))
+        _rr4 = []
+        for _oid, _vid in zip(_o4["order_id"], _o4["visit_id"]):
+            for _ in range(int(_r4.integers(1, 3))):
+                _rr4.append((_oid, round(float(
+                    0.9 * _am[_pv[_vid]] + _r4.normal(0, 4.0)),
+                    3)))
+        _res4 = pd.DataFrame(_rr4, columns=["order_id",
+                                            "creatinine"])
+        _res4.to_csv(str(_i4 / "results.csv"), index=False)
+
+        def _hop3(d):
+            _pe = pd.read_csv(str(Path(d) / "people.csv"))
+            _vi = pd.read_csv(str(Path(d) / "visits.csv"))
+            _oo = pd.read_csv(str(Path(d) / "orders.csv"))
+            _rs = pd.read_csv(str(Path(d) / "results.csv"))
+            _m = _rs.merge(_oo[["order_id", "visit_id"]],
+                           on="order_id", how="inner")
+            _m = _m.merge(_vi[["visit_id", "person_id"]],
+                          on="visit_id", how="inner")
+            _m = _m.merge(_pe[["person_id", "age"]],
+                          on="person_id", how="inner")
+            return float(_m["creatinine"].corr(_m["age"],
+                                               method="spearman"))
+
+        _s4 = _hop3(str(_i4))
+        check("the four-table fixture carries a THREE-HOP "
+              "coupling - a result riding the PERSON's age, "
+              "three links up ({:+.3f}) - which a chain of two "
+              "cannot reach".format(_s4), _s4 > 0.8)
+        _frames4 = dict(
+            (n, pd.read_csv(str(_i4 / (n + ".csv"))))
+            for n in ("people", "visits", "orders", "results"))
+        _f4 = detect(_frames4)
+        check("...and the chain really is three links deep, so "
+              "the recursion has somewhere to go",
+              len(_f4["links"]) == 3)
+        _one = MT.with_inherited(_frames4, _f4, "orders", hops=1)
+        _deep = MT.with_inherited(_frames4, _f4, "orders",
+                                  hops=MT.VIA_HOPS)
+        check("ONE hop puts the parent's columns on `orders` and "
+              "NOT the grandparent's - which is why the three-hop "
+              "coupling was unreachable rather than weakened",
+              any(c.startswith(MT.VIA) for c in _one.columns)
+              and not any(">" in c for c in _one.columns))
+        check("...while the recursive call carries the "
+              "grandparent's column down, named by its PATH so "
+              "the run's own report can be read aloud: {}"
+              .format([c for c in _deep.columns
+                       if ">" in c][:1]),
+              any(c.startswith(MT.VIA) and ">" in c
+                  for c in _deep.columns))
+        _o4a = Path(_td4) / "on"
+        _rc4 = subprocess.run(
+            [sys.executable, "-m", "synthkit.cli", "relate",
+             str(_i4 / "people.csv"), str(_i4 / "visits.csv"),
+             str(_i4 / "orders.csv"), str(_i4 / "results.csv"),
+             "--out", str(_o4a), "--seed", "3"],
+            cwd=_rt, capture_output=True, text=True)
+        _out4 = _rc4.stdout + _rc4.stderr
+        check("`relate` runs on a four-table chain and FINDS the "
+              "three-hop coupling, naming the path it came "
+              "through", _rc4.returncode == 0
+              and "person_id__age" in _out4)
+        _g4 = _hop3(str(_o4a))
+        check("...and it LANDS across three links: {:+.3f} "
+              "against a source {:+.3f}, measured off disk, "
+              "where one-level inheritance gave +0.010"
+              .format(_g4, _s4), abs(_g4 - _s4) < 0.15)
+        _o4b = Path(_td4) / "off"
+        subprocess.run(
+            [sys.executable, "-m", "synthkit.cli", "relate",
+             str(_i4 / "people.csv"), str(_i4 / "visits.csv"),
+             str(_i4 / "orders.csv"), str(_i4 / "results.csv"),
+             "--out", str(_o4b), "--seed", "3", "--no-couple"],
+            cwd=_rt, capture_output=True, text=True)
+        _n4b = _hop3(str(_o4b))
+        check("...and the control arm destroys it ({:+.3f}), so "
+              "three hops landing is the enforcement and not the "
+              "chain preserving it by accident".format(_n4b),
+              abs(_n4b) < 0.2)
+        _leak4 = []
+        for _f in ("people.csv", "visits.csv", "orders.csv",
+                   "results.csv"):
+            _leak4 += [c for c in
+                       pd.read_csv(str(_o4a / _f),
+                                   nrows=1).columns
+                       if c.startswith(MT.VIA)]
+        check("...and no `__via__` column reaches a written file "
+              "at any depth", not _leak4)
+        # A CYCLE MUST BE REFUSED, not merely truncated by the
+        # depth bound - the `_seen` guard is what does that, and
+        # a bound alone would walk a loop until it ran out.
+        class _L(object):
+            def __init__(self, c, col, p, pk):
+                self.child, self.column = c, col
+                self.parent, self.parent_key = p, pk
+                self.match, self.orphans = 1.0, 0
+        _cyc = {"links": [_L("a", "bkey", "b", "bkey"),
+                          _L("b", "akey", "a", "akey")],
+                "tables": {}}
+        _fa = pd.DataFrame({"akey": ["1", "2", "3"],
+                            "bkey": ["1", "2", "3"],
+                            "v": [1.0, 2.0, 3.0]})
+        _cf = {"a": _fa.copy(), "b": _fa.copy()}
+        check("a CYCLE in the link graph terminates rather than "
+              "looping - the depth bound would truncate it, and "
+              "the visited-set guard refuses it",
+              MT.with_inherited(_cf, _cyc, "a",
+                                hops=MT.VIA_HOPS) is not None)
+
     print()
     if FAIL:
         print("{} FAILED".format(FAIL))

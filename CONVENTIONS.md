@@ -3678,7 +3678,46 @@ what follows is what came out wrong anyway.
   leaves the TEAM's older lane unverified. ALL GREEN on both,
   96 suites either way.
 
-- **PRINT THE ITEMS, NOT THE COUNT - AN EMPTY LIST CANNOT BE
+- **THREE HOPS WAS UNREACHABLE, NOT WEAKENED, AND THE FIX WAS
+  RECURSION RATHER THAN A SOLVER (2026-11-07, MT-4).** MT-3
+  made `with_inherited` carry a PARENT's numeric columns down,
+  which reaches a grandparent. It climbed exactly ONE level, so
+  on a person -> visit -> order -> result chain a result riding
+  the PERSON's age - three links up - was never a column
+  anything could see. Measured through the written files on a
+  four-table fixture:
+      source three-hop creatinine ~ age   +0.976
+      before (one level)                  +0.010
+      after (recursive, bounded)          +0.981
+      control arm, --no-couple            +0.010
+  The run's own output said "0 cross-table coupling(s)", which
+  reads as none there rather than none looked for - the same
+  shape of silence MT-3 fixed one level down.
+- **THE PARENT FRAME IS PASSED THROUGH THE SAME FUNCTION BEFORE
+  BEING JOINED.** A grandparent's column arrives on the parent
+  as a `__via__` column and is then carried one level further,
+  so the existing detection and the existing rank-one
+  assignment work unchanged on a column whose NAME happens to
+  record a longer path. The one-hop version SKIPPED `__via__`
+  columns on the parent, which is exactly what made it one-hop;
+  carrying them is the whole change.
+- **AND THE PATH IS IN THE NAME, because these appear in the
+  run's own report.** Naive nesting gives
+  `__via__visit_id____via__person_id__age`; the path form
+  `__via__visit_id>person_id__age` says the same thing and can
+  be read aloud. Collapsing it turns a check red, because two
+  different paths could then produce one name.
+- **BOUNDED AT THREE, AND A CYCLE IS REFUSED RATHER THAN
+  TRUNCATED.** Each level joins an ancestor's frame, so cost
+  grows with the chain and a deep schema would price a
+  detection pass nobody asked for. Three reaches a
+  great-grandparent. The depth bound alone would merely
+  truncate a loop in the link graph, so there is a visited-set
+  guard as well, with its own check. FOUR or more hops are not
+  measured and the rank-one limit compounds along a chain -
+  named, not assumed cheap.
+
+ - AN EMPTY LIST CANNOT BE
   MISREAD WHERE A ZERO CAN (2026-11-06).** Polling a net on the
   data machine, the failure COUNT came back as `8` on one read
   and as `®` on another when the true value was ZERO. This file

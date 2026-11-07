@@ -89,9 +89,22 @@ end-to-end) are where the remaining work lives.**
   enforcement cannot disagree about what a two-hop coupling is.
   The link loop is topological now, and no `__via__` column
   reaches a written file.
-- Three or more hops are not measured. The same mechanism would
-  extend, and the rank-one limit compounds along a chain, so it
-  is named rather than assumed cheap.
+- ~~Three or more hops are not measured.~~ LANDED 2026-11-07
+  (MT-4). Three hops were UNREACHABLE, not weakened — on a
+  person → visit → order → result chain a result riding the
+  PERSON's age read source `+0.976`, output `+0.010`, with the
+  run reporting "0 couplings". `with_inherited` is recursive
+  now, bounded at three, so a grandparent's column arrives on
+  the parent as a `__via__` column and is carried one level
+  further: **`+0.981`**, control arm `+0.010`. The path is in
+  the name (`__via__visit_id>person_id__age`) because it
+  appears in the run's report, and a cycle is refused by a
+  visited-set guard rather than truncated by the depth bound.
+- FOUR or more hops are not measured. The mechanism would
+  extend by raising one bound, but each level joins an
+  ancestor's frame so cost grows with the chain, and the
+  rank-one limit compounds along it — named, not assumed
+  cheap.
 - ~~File formats beyond CSV~~ SHIPPED 2026-11-03:
   `synthkit.intake` reads .csv/.tsv/.txt, .jsonl/.ndjson/.json,
   .xlsx/.xlsm and .parquet, dispatching on the extension, with
