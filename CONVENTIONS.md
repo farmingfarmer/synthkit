@@ -5456,6 +5456,62 @@ exist.
   PLANTED in the suite instead of faked away, so the branch
   that explains it is exercised.
 
+- **THE JOINT CROSS-TABLE SOLVE LANDS TWO COUPLINGS WHERE
+  TAKING THE STRONGEST LANDED ONE - AND ITS REAL FINDING IS
+  THAT SOME TARGETS ARE UNREACHABLE BY ARITHMETIC (2026-11-06,
+  MT-2).** MT-1 enforced ONE coupling per link, the strongest,
+  and the obvious improvement was to solve for all of them at
+  once. Paired on one fixture at one seed, two child columns
+  riding the SAME parent, only the coupling set differing:
+      arm                   lab_value   lab_b   total error
+      source                   +0.898  +0.883
+      MT-1 strongest only      +0.923  +0.738      0.171
+      MT-2 joint               +0.880  +0.872      0.029
+  Six times tighter, and the second column is the whole of it -
+  enforcing one coupling left `lab_b` at +0.738 against its own
+  source +0.883.
+- **BUT A SINGLE FOREIGN KEY IS ONE CHOICE PER ROW, SO THE
+  CORRELATIONS ACROSS A LINK HAVE RANK ONE BY CONSTRUCTION.**
+  Two children riding DIFFERENT parents is a DIAGONAL target,
+  which is rank two, and no assignment can produce it. The
+  first cut fitted rank one to it anyway and the result was
+  worse than MT-1: it landed one pair at **+0.994 against a
+  target of +0.914** - an OVERSHOOT - and lost the other
+  entirely, **+0.043 against +0.898**. A solve that spends its
+  one degree of freedom on whichever direction the singular
+  vector happens to point, and reports success, is exactly the
+  silent-difference fault this house refuses everywhere else.
+- **SO NOT-JOINTLY-REACHABLE IS A VERDICT, NOT A BEST EFFORT.**
+  `carried` - the leading singular value over the whole norm -
+  says in ADVANCE how much of a target one assignment can hold:
+  1.00 for a shared parent, 0.71 for two independent couplings
+  of equal size. Below `JOINT_MIN_CARRIED` the solve enforces
+  the strongest, NAMES every pair that cannot come with it, and
+  states that one foreign key is the reason. Measured on the
+  diagonal fixture: the enforced pair lands +0.911 against
+  +0.914 and the unreachable one is named rather than summed -
+  a count a reader cannot act on was the first version.
+- **AND NO PER-TABLE NUMBER CAN DEGRADE, BY CONSTRUCTION.** The
+  assignment permutes KEYS, so every child column holds the
+  identical multiset it was generated with - asserted in both
+  arms rather than argued. The same property the repairs and
+  the dials rest on.
+- **THE REPORT TRAVELS BY ITS OWN PARAMETER.** The first cut
+  smuggled it back as `out["__couplings__"]`, which would hand
+  a LIST to anything iterating those values as tables -
+  `check_integrity` does - and would have failed somewhere
+  else entirely. `report_into` is explicit, and a check asserts
+  every value in the returned mapping is still a frame.
+- **AND WHICH PATH RAN IS STATED, NOT INFERRED FROM A MISSING
+  KEY.** Only the refusal wrote `joint`, so the joint path was
+  recognisable only by the field's ABSENCE - the
+  empty-versus-missing distinction, in a record. It also made
+  the fail-first CRASH instead of fail: the mutation removed
+  the key and the check's own message indexed it, so the suite
+  raised and printed no `FAIL:` line at all. Both fixed - the
+  field is always written, and a message never indexes what its
+  mutation removes.
+
 - **MULTI-TABLE INTAKE EXISTS, AND THE KEYS COME FROM THE
   VALUES (2026-11-04, `synthkit/multitable.py`).** The fitted
   path has always been single-table, so an operator with

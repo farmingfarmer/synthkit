@@ -378,6 +378,13 @@ CROSS_MIN_RHO = 0.1
 _ID_NAME = re.compile(r"(_id$|^id$|_code$|_concept_id$)",
                       re.IGNORECASE)
 CROSS_MAX_UNIQUE_SHARE = 0.9
+# How much of a target correlation structure a single
+# assignment can hold. One foreign key is one choice per row,
+# so the induced structure has rank one; `carried` is the
+# leading singular value over the whole norm. Two independent
+# couplings of equal size sit at 0.71 and are not jointly
+# reachable at all.
+JOINT_MIN_CARRIED = 0.9
 
 
 def _is_quantity(series) -> bool:
@@ -491,6 +498,149 @@ def cross_couplings(frames: Dict[str, pd.DataFrame],
     return out
 
 
+def _rank_z(series):
+    """Standardised ranks - the units a rank correlation sees."""
+    import pandas as _pd
+    r = _pd.to_numeric(series, errors="coerce").rank(
+        method="average")
+    sd = r.std(ddof=0)
+    return ((r - r.mean()) / (sd if sd else 1.0)).fillna(0.0)
+
+
+def _rank1_weights(target):
+    """The best single pair of score vectors for a target matrix.
+
+    WHY RANK ONE IS THE HONEST CEILING. Attaching a child row to
+    a parent is ONE choice per row. Whatever correlations come
+    out across that link, they all flow through that single
+    decision - so the achievable structure is a child score
+    against a parent score, and the correlation matrix it
+    induces has RANK ONE by construction.
+
+    A target matrix with genuinely independent columns cannot
+    be met by any assignment, and pretending otherwise would
+    land one pair and quietly miss the rest. The leading
+    singular vectors are the best rank-one fit, and the
+    residual is REPORTED so a caller sees what the structure
+    could not carry.
+    """
+    import numpy as np
+    T = np.asarray(target, dtype=float)
+    u, sv, vt = np.linalg.svd(T, full_matrices=False)
+    lead = float(sv[0]) if len(sv) else 0.0
+    total = float((sv ** 2).sum()) ** 0.5 if len(sv) else 0.0
+    carried = (lead / total) if total else 0.0
+    return u[:, 0], vt[0, :], lead, carried
+
+
+def _couple_assign_joint(child, child_cols, pool, parent,
+                         parent_cols, target, rng):
+    """One assignment, several couplings, solved together.
+
+    MT-1 took the strongest coupling per link and left the
+    rest, which is the cap this file has twice recorded as the
+    way a fix misses the pair that matters. This solves them
+    together: both sides are scored by their rank-one weights,
+    the scores are rank-matched, and the noise scale is
+    searched to minimise the error across EVERY target rather
+    than to land one of them.
+
+    Returns (keys, report) - the report carries achieved
+    against target per pair and what the rank-one structure
+    could not carry, because a number that lands one coupling
+    and silently loses another is the failure this replaces.
+    """
+    import numpy as np
+    import pandas as _pd
+    n = len(child)
+    draws = rng.choice(len(pool), size=n, replace=True)
+    cz = np.column_stack([_rank_z(child[c]).to_numpy()
+                          for c in child_cols])
+    pz_all = np.column_stack([_rank_z(parent[c]).to_numpy()
+                              for c in parent_cols])
+    pz = pz_all[draws]
+    u, v, _lead, carried = _rank1_weights(target)
+    # NOT JOINTLY REACHABLE IS A VERDICT, NOT A BEST EFFORT.
+    #
+    # Measured on two INDEPENDENT couplings - a diagonal target
+    # - the rank-one fit landed one pair at +0.994 against a
+    # target of +0.914 and lost the other entirely, +0.043
+    # against +0.898. That is worse than enforcing the
+    # strongest alone, because it also overshoots: the solve
+    # spends the one degree of freedom it has on whichever
+    # direction the singular vector points and calls it done.
+    #
+    # `carried` says in advance how much of the target a
+    # rank-one structure can hold. Below the bar the honest
+    # move is to enforce the STRONGEST pair and name the ones
+    # that cannot come with it - a number that lands one
+    # coupling while silently losing another is the failure
+    # this was meant to replace.
+    if carried < JOINT_MIN_CARRIED:
+        flat = [(abs(target[i][j]), i, j)
+                for i in range(len(child_cols))
+                for j in range(len(parent_cols))]
+        _, bi, bj = max(flat)
+        keys = _couple_assign(
+            child[child_cols[bi]].tolist(), pool,
+            _pd.to_numeric(parent[parent_cols[bj]],
+                           errors="coerce").to_numpy(),
+            float(target[bi][bj]), rng)
+        dropped = [
+            "{} ~ {}".format(child_cols[i], parent_cols[j])
+            for _a, i, j in sorted(flat, reverse=True)[1:]
+            if abs(target[i][j]) >= CROSS_MIN_RHO]
+        return keys, {
+            "carried": round(float(carried), 4),
+            "joint": False,
+            "enforced": "{} ~ {}".format(child_cols[bi],
+                                         parent_cols[bj]),
+            "not_reachable": dropped,
+            "why": "one foreign key is one choice per row, so "
+                   "the correlations across a link have rank "
+                   "one by construction; these targets do not, "
+                   "and a rank-one fit would land one pair and "
+                   "lose the rest",
+            "pairs": []}
+    cs = cz.dot(u)
+    ps = pz.dot(v)
+    order_p = np.argsort(_pd.Series(ps).rank(
+        method="first").to_numpy(), kind="stable")
+    base = _pd.Series(cs).rank(method="first").to_numpy()
+    best, best_err, best_got = None, None, None
+    for scale in (0.0, 0.1, 0.2, 0.35, 0.5, 0.75, 1.1, 1.6,
+                  2.4, 4.0):
+        jit = base + rng.normal(0, scale * n / 6.0, n)
+        order_c = np.argsort(jit, kind="stable")
+        pick = np.empty(n, dtype=int)
+        pick[order_c] = order_p
+        got = np.zeros_like(np.asarray(target, dtype=float))
+        for i in range(len(child_cols)):
+            for j in range(len(parent_cols)):
+                got[i, j] = _pd.Series(cz[:, i]).corr(
+                    _pd.Series(pz[pick][:, j]),
+                    method="spearman")
+        err = float(np.nansum(
+            (got - np.asarray(target, dtype=float)) ** 2))
+        if best_err is None or err < best_err:
+            best, best_err, best_got = pick, err, got
+    if best is None:
+        return [pool[i] for i in draws], {}
+    # WHICH PATH RAN IS STATED, not inferred from a missing
+    # key - absent is not the same fact as known-to-be-false,
+    # and a reader of this record should not have to know that
+    # only the refusal writes the field.
+    rep = {"carried": round(float(carried), 4), "joint": True,
+           "pairs": []}
+    for i, cc in enumerate(child_cols):
+        for j, pc in enumerate(parent_cols):
+            rep["pairs"].append({
+                "child_column": cc, "parent_column": pc,
+                "target": round(float(target[i][j]), 4),
+                "achieved": round(float(best_got[i][j]), 4)})
+    return [pool[draws[i]] for i in best], rep
+
+
 def _couple_assign(child_vals, pool, parent_vals, target, rng):
     """Choose WHICH parent each child row points at.
 
@@ -548,7 +698,8 @@ def _couple_assign(child_vals, pool, parent_vals, target, rng):
 def assign_keys(frames: Dict[str, pd.DataFrame],
                 found: Dict, seed: int = 0,
                 keep_orphan_share: bool = True,
-                couplings: Optional[List[Dict]] = None
+                couplings: Optional[List[Dict]] = None,
+                report_into: Optional[List[Dict]] = None
                 ) -> Dict[str, pd.DataFrame]:
     """Invent each table's key and point the children at them.
 
@@ -584,6 +735,7 @@ def assign_keys(frames: Dict[str, pd.DataFrame],
         pointed[lk.parent] = pointed.get(lk.parent, 0) + 1
     order = sorted(frames, key=lambda n: -pointed.get(n, 0))
 
+    reports: List[Dict] = []
     newkeys: Dict[str, List[str]] = {}
     for name in order:
         t = tables.get(name)
@@ -627,21 +779,39 @@ def assign_keys(frames: Dict[str, pd.DataFrame],
                and cp.get("child_column") in child.columns]
         picked = None
         if use:
-            # One coupling per link for now, the strongest -
-            # two columns pulling on one assignment is a joint
-            # solve, and this file's own record says a cap
-            # that excludes the pair the gate measures is how
-            # a fix misses. Named as the limit rather than
-            # left to be discovered.
-            cp = max(use, key=lambda d: abs(d.get("rho") or 0))
+            # EVERY COUPLING ON THE LINK, SOLVED TOGETHER.
+            #
+            # This took the strongest and left the rest, which
+            # is the cap this file has twice recorded as the
+            # way a fix misses the pair that matters. One
+            # assignment is one choice per row, so the
+            # structure it can induce has rank one - both
+            # sides are scored by their rank-one weights and
+            # matched, and the residual is reported rather
+            # than hidden.
             par = out[lk.parent]
-            pcol = cp.get("parent_column")
-            if pcol in par.columns:
-                pvals = pd.to_numeric(par[pcol],
-                                      errors="coerce").to_numpy()
-                picked = _couple_assign(
-                    child[cp["child_column"]].tolist(),
-                    list(pool), pvals, float(cp["rho"]), rng)
+            ccols, pcols = [], []
+            for cp in use:
+                cc, pc = cp["child_column"], cp["parent_column"]
+                if pc not in par.columns:
+                    continue
+                if cc not in ccols:
+                    ccols.append(cc)
+                if pc not in pcols:
+                    pcols.append(pc)
+            if ccols and pcols:
+                tgt = [[0.0] * len(pcols) for _ in ccols]
+                for cp in use:
+                    cc, pc = (cp["child_column"],
+                              cp["parent_column"])
+                    if cc in ccols and pc in pcols:
+                        tgt[ccols.index(cc)][pcols.index(pc)] \
+                            = float(cp["rho"])
+                picked, rep = _couple_assign_joint(
+                    child, ccols, list(pool), par, pcols,
+                    tgt, rng)
+                reports.append(dict(rep, child=lk.child,
+                                    parent=lk.parent))
         if picked is None:
             picked = list(rng.choice(pool, size=n, replace=True))
         if keep_orphan_share and lk.match < 1.0:
@@ -657,6 +827,14 @@ def assign_keys(frames: Dict[str, pd.DataFrame],
                     picked[i] = ghosts[j]
         child[lk.column] = picked
         out[lk.child] = child
+    # THE REPORT GOES WHERE A CALLER ASKED FOR IT, NEVER INTO
+    # THE FRAMES. Smuggling it into the returned dict under a
+    # magic key would hand a list to anything that iterates
+    # those values as tables - `check_integrity` does - and it
+    # would fail somewhere else entirely. An explicit sink
+    # costs one optional argument and cannot surprise anyone.
+    if report_into is not None:
+        report_into.extend(reports)
     return out
 
 

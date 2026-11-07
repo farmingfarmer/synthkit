@@ -489,6 +489,153 @@ def main():
           abs(_xcorr(_uncoupled["labs"],
                      _uncoupled["visits"]) or 0.0) < 0.25)
 
+    # ------------------------------------------------ MT-2
+    # ONE FOREIGN KEY IS ONE CHOICE PER ROW, so the
+    # correlations a link can carry have RANK ONE. Two child
+    # columns riding the SAME parent are rank one and both
+    # land; two riding DIFFERENT parents are not, and the
+    # honest move is to refuse rather than land one and lose
+    # the other - which is measured below as the thing the
+    # single-coupling version actually did.
+    def _two(shared, seed=7):
+        rng = np.random.default_rng(seed)
+        npat, nv = 250, 4
+        vid = ["V{:05d}".format(i) for i in range(npat * nv)]
+        pid = np.repeat(["P{:04d}".format(i) for i in range(npat)],
+                        nv)
+        los = np.round(rng.lognormal(1.0, 0.6, npat * nv), 2)
+        sev = np.round(rng.normal(5, 1.5, npat * nv), 2)
+        vis = pd.DataFrame({"visit_id": vid, "person_id": pid,
+                            "length_of_stay": los,
+                            "severity": sev})
+        rows = []
+        for i, v in enumerate(vid):
+            for _ in range(int(rng.integers(1, 4))):
+                drv = los[i] if shared else sev[i]
+                rows.append((
+                    v,
+                    round(float(2.0 * los[i] + rng.normal(0, 1.2)), 3),
+                    round(float(1.5 * drv + rng.normal(0, 1.0)), 3)))
+        lab = pd.DataFrame(rows, columns=["visit_id", "lab_value",
+                                          "lab_b"])
+        return vis, lab
+
+    def _xc2(lab, vis, c, pcol):
+        m = lab.merge(vis[["visit_id", pcol]], on="visit_id",
+                      how="inner")
+        a = pd.to_numeric(m[c], errors="coerce")
+        b = pd.to_numeric(m[pcol], errors="coerce")
+        k = a.notna() & b.notna()
+        if k.sum() < 30:
+            return None
+        return float(a[k].corr(b[k], method="spearman"))
+
+    def _fit2(vis, lab):
+        frames = {"visits": vis, "labs": lab}
+        found = detect(frames)
+        cps = cross_couplings(frames, found)
+        gen = {}
+        for nm, fr, gb in (("visits", vis, "person_id"),
+                           ("labs", lab, "visit_id")):
+            bp = _Bx.build(fr, _dx(fr, group_by=gb, seed=1),
+                           group_by=gb)
+            gen[nm] = _gx(bp, n_patients=fr[gb].nunique(),
+                          seed=3)
+        return found, cps, gen
+
+    _v1, _l1 = _two(True)
+    _found1, _cps1, _gen1 = _fit2(_v1, _l1)
+    # A BLOCK ABOUT TWO COUPLINGS NEEDS TWO, or every check
+    # under it passes on a shape it was not written for.
+    check("the rank-one fixture genuinely offers TWO couplings "
+          "on one link, so the joint solve has something to be "
+          "joint about ({} found)".format(len(_cps1)),
+          len(_cps1) >= 2)
+    _rep1 = []
+    _o1 = assign_keys(_gen1, _found1, seed=5, couplings=_cps1,
+                      report_into=_rep1)
+    check("...and both children ride the SAME parent, so the "
+          "target structure has rank one and `carried` says so "
+          "at {:.2f}".format(_rep1[0]["carried"]),
+          _rep1[0]["carried"] >= MT.JOINT_MIN_CARRIED)
+    _a1 = _xc2(_o1["labs"], _o1["visits"], "lab_value",
+               "length_of_stay")
+    _b1 = _xc2(_o1["labs"], _o1["visits"], "lab_b",
+               "length_of_stay")
+    _sa = _xc2(_l1, _v1, "lab_value", "length_of_stay")
+    _sb = _xc2(_l1, _v1, "lab_b", "length_of_stay")
+    check("...and BOTH land: lab_value {:+.3f} against a source "
+          "{:+.3f}, lab_b {:+.3f} against {:+.3f} - one "
+          "assignment carrying two couplings, which is the "
+          "whole of MT-2".format(_a1, _sa, _b1, _sb),
+          abs(_a1 - _sa) < 0.15 and abs(_b1 - _sb) < 0.15)
+
+    # THE PAIRED CONTROL ARM. Same fixture, same seed, only the
+    # coupling set differs - which is the comparison shape two
+    # reverted fidelity tiers lacked.
+    _best1 = max(_cps1, key=lambda c: abs(c["rho"]))
+    _o1b = assign_keys(_gen1, _found1, seed=5,
+                       couplings=[_best1])
+    _a1b = _xc2(_o1b["labs"], _o1b["visits"], "lab_value",
+                "length_of_stay")
+    _b1b = _xc2(_o1b["labs"], _o1b["visits"], "lab_b",
+                "length_of_stay")
+    _err_joint = abs(_a1 - _sa) + abs(_b1 - _sb)
+    _err_one = abs(_a1b - _sa) + abs(_b1b - _sb)
+    check("...and the joint solve BEATS the strongest-only arm "
+          "it replaces, paired at one seed: total error {:.3f} "
+          "against {:.3f}, because enforcing one coupling "
+          "leaves the second at {:+.3f} where its source is "
+          "{:+.3f}".format(_err_joint, _err_one, _b1b, _sb),
+          _err_joint < _err_one / 2.0)
+    check("...and no per-table number can degrade, because the "
+          "assignment is a PERMUTATION of keys: every child "
+          "column holds the identical multiset it was "
+          "generated with",
+          all(sorted(_o1["labs"][c].astype(str).tolist())
+              == sorted(_gen1["labs"][c].astype(str).tolist())
+              for c in ("lab_value", "lab_b")))
+
+    _v2, _l2 = _two(False)
+    _found2, _cps2, _gen2 = _fit2(_v2, _l2)
+    _rep2 = []
+    _o2 = assign_keys(_gen2, _found2, seed=5, couplings=_cps2,
+                      report_into=_rep2)
+    _sa2 = _xc2(_l2, _v2, "lab_value", "length_of_stay")
+    _sb2 = _xc2(_l2, _v2, "lab_b", "severity")
+    check("two couplings on DIFFERENT parents are not jointly "
+          "reachable at all - `carried` reads {:.2f} against a "
+          "bar of {:.2f}, and the solve REFUSES the joint path "
+          "rather than spending its one degree of freedom and "
+          "calling it done"
+          .format(_rep2[0]["carried"], MT.JOINT_MIN_CARRIED),
+          _rep2[0]["carried"] < MT.JOINT_MIN_CARRIED
+          and _rep2[0].get("joint") is False)
+    _b2 = _xc2(_o2["labs"], _o2["visits"], "lab_b", "severity")
+    check("...and it enforces the STRONGEST, which lands: {} at "
+          "{:+.3f} against a source {:+.3f}"
+          .format(_rep2[0].get("enforced", "(none)"), _b2, _sb2),
+          abs(_b2 - _sb2) < 0.15)
+    check("...and it NAMES what cannot come with it, rather "
+          "than reporting a count a reader cannot act on: {}"
+          .format(_rep2[0].get("not_reachable", "(none)")),
+          "lab_value ~ length_of_stay"
+          in _rep2[0].get("not_reachable", []))
+    check("...and it says WHY in the record, naming the one "
+          "foreign key as the reason rather than leaving a "
+          "refusal to be read as a bug",
+          "rank" in _rep2[0].get("why", "")
+          and "one foreign key"
+          in _rep2[0].get("why", ""))
+    # A MAGIC KEY IN THE RETURNED DICT would hand a list to
+    # anything iterating those values as tables, and fail
+    # somewhere else entirely - `check_integrity` does exactly
+    # that. The report has its own channel.
+    check("...and the report travels by its own parameter, so "
+          "every value in the returned mapping is still a "
+          "table",
+          all(isinstance(v, pd.DataFrame) for v in _o2.values()))
+
     print()
     if FAIL:
         print("{} FAILED".format(FAIL))
