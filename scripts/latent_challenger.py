@@ -312,7 +312,26 @@ class LatentGen:
                  release_strength: float = 1.0,
                  suppress_pairs: list = None,
                  suppress_top: int = 0,
-                 poison_pairs: list = None):
+                 poison_pairs: list = None,
+                 dp_epsilon: float = None,
+                 dp_delta: float = 1e-5,
+                 dp_q: float = 0.05,
+                 dp_steps: int = 1500,
+                 dp_clip: float = 1.0):
+        # DP TRAINING IS OFF BY DEFAULT, and that is a measured
+        # choice rather than caution. The price at extract scale
+        # is 1.16x reconstruction MSE at epsilon 8, 1.78x at 3
+        # and 5.0x at 1 - affordable, but it is a cost somebody
+        # has to choose to pay, and the epsilon covers the
+        # WEIGHTS and not the release. `synthkit.dp.scope_note`
+        # prints what it does and does not cover; the run refuses
+        # to call its output differentially private.
+        self.dp_epsilon = dp_epsilon
+        self.dp_delta = float(dp_delta)
+        self.dp_q = float(dp_q)
+        self.dp_steps = int(dp_steps)
+        self.dp_clip = float(dp_clip)
+        self.dp_report = None
         # defaults so the caps exist before fit() chooses them
         self._cap_tok = MAX_TOKENS
         self._cap_lv = MAX_LEVELS
@@ -1274,10 +1293,45 @@ class LatentGen:
             self.b = int(max(8, min(32, self.d // 6)))
         if self.h is None:
             self.h = int(max(64, min(256, 2 * self.d)))
-        self.net = MLPRegressor(
-            hidden_layer_sizes=(self.h, self.b, self.h),
-            activation="relu", max_iter=800, tol=1e-5,
-            random_state=self.seed, early_stopping=False)
+        if self.dp_epsilon is not None:
+            # DP-SGD NEEDS PER-EXAMPLE GRADIENTS, which
+            # MLPRegressor does not expose - so the DP arm uses
+            # the hand-rolled trainer in `synthkit.dp`. It is
+            # sklearn-shaped (`coefs_`, `intercepts_`, same ReLU
+            # rule), so `_encode`, `_decode` and `generate` are
+            # unchanged and the two arms differ in the trainer
+            # and in nothing else.
+            from synthkit import dp as _dp
+            sigma = _dp.sigma_for_epsilon(
+                self.dp_q, self.dp_steps, self.dp_epsilon,
+                self.dp_delta)
+            got, alpha = _dp.dp_epsilon(
+                self.dp_q, sigma, self.dp_steps, self.dp_delta)
+            print("  DP training: sigma {:.3f}, clip {:.2f}, "
+                  "q {:.3f}, {} steps -> eps {:.4f} at delta "
+                  "{:.0e}".format(sigma, self.dp_clip, self.dp_q,
+                                  self.dp_steps, got,
+                                  self.dp_delta))
+            for _line in _dp.scope_note(got, self.dp_delta):
+                print("  " + _line)
+            self.net = _dp.DPAutoencoder(
+                self.d, self.h, self.b, seed=self.seed,
+                lr=0.003, clip=self.dp_clip, sigma=sigma,
+                q=self.dp_q, steps=self.dp_steps)
+            self.dp_report = {
+                "epsilon": got, "delta": self.dp_delta,
+                "sigma": sigma, "clip": self.dp_clip,
+                "q": self.dp_q, "steps": self.dp_steps,
+                "alpha": alpha,
+                "covers": "the autoencoder weights only",
+                "unaccounted_stages": [
+                    n for n, _w in _dp.UNACCOUNTED_STAGES],
+            }
+        else:
+            self.net = MLPRegressor(
+                hidden_layer_sizes=(self.h, self.b, self.h),
+                activation="relu", max_iter=800, tol=1e-5,
+                random_state=self.seed, early_stopping=False)
         if self.denoise > 0:
             # IN PLACE, IN CHUNKS. `X + normal(size=X.shape)`
             # allocates a second frame the size of the first and
@@ -3336,6 +3390,24 @@ def run_csv(argv):
                     help="train as a DENOISING autoencoder with "
                          "this input-noise sd - the defense on "
                          "the weights surface")
+    ap.add_argument("--dp-epsilon", type=float, default=None,
+                    help="train the autoencoder with DP-SGD at "
+                         "this epsilon. MEASURED COST at extract "
+                         "scale: 1.16x reconstruction MSE at "
+                         "eps 8, 1.78x at 3, 5.0x at 1, 9.0x at "
+                         "0.5 - and the cost is dominated by "
+                         "ROW COUNT, 18.8x at 3,200 rows "
+                         "against 4.6x at 51,200. The epsilon "
+                         "covers the WEIGHTS only; five other "
+                         "stages touch the data and the run "
+                         "names them. Off by default.")
+    ap.add_argument("--dp-delta", type=float, default=1e-5)
+    ap.add_argument("--dp-q", type=float, default=0.05,
+                    help="Poisson sampling rate. Swept: steps "
+                         "matter and this barely does")
+    ap.add_argument("--dp-steps", type=int, default=1500,
+                    help="DP training steps - each one spends "
+                         "privacy, and 1500 measured best")
     ap.add_argument("--release-strength", type=float,
                     default=1.0,
                     help="0..1 release dial: how much LEARNED "
@@ -3474,6 +3546,9 @@ def run_csv(argv):
     for seed in seeds:
         tr, ho = _split_patients(df, a.group_by, seed)
         g = LatentGen(seed=seed, k=a.k,
+                      dp_epsilon=a.dp_epsilon,
+                      dp_delta=a.dp_delta,
+                      dp_q=a.dp_q, dp_steps=a.dp_steps,
                       k_blur=not a.no_k_blur,
                       denoise=a.denoise,
                       release_strength=a.release_strength,

@@ -186,10 +186,21 @@ def main():
                   "" if not missing else
                   " - missing {}".format(missing)),
           not missing)
-    check("...and the page still admits rows where WE are the "
-          "one missing something, so the scoreboard is not "
-          "one-sided by construction",
-          body_raw.count("| **no**") >= 3)
+    # A MAGIC COUNT IS NOT THE PROPERTY. This asked for at
+    # least THREE rows marked `**no**`, and went red when
+    # differential privacy moved from a flat no to a measured
+    # partial - a check punishing progress, which is the same
+    # fault the Safe Harbor inventory checks had. What matters
+    # is that the scoreboard still admits rows where WE are
+    # behind, and that a row can say `partial` without that
+    # counting as a win.
+    _behind = (body_raw.count("| **no**")
+               + body_raw.count("| **partial**"))
+    check("the scoreboard still admits rows where WE are behind "
+          "({} of them, counting flat `no` and honest "
+          "`partial`) - a scoreboard with none would be a sales "
+          "deck".format(_behind),
+          body_raw.count("| **no**") >= 2 and _behind >= 3)
     check("...and the closing paragraph names the drift it is "
           "there to catch - a wins section that grows while the "
           "gaps section does not",
@@ -253,7 +264,12 @@ def main():
           "purpose of the comparison is deciding what to do "
           "next rather than keeping score",
           "What I would build next" in text
-          and "1. **Differential privacy" in body_raw)
+          # The leading item may be STRUCK THROUGH once it is
+          # done - which is what happened to differential
+          # privacy - so the check looks for a numbered first
+          # item rather than for one particular subject.
+          and ("\n1. **" in body_raw
+               or "\n1. ~~**" in body_raw))
 
     print()
     if FAIL:

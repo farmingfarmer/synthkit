@@ -126,7 +126,7 @@ holds). Formats: days.
 
 ---
 
-## Goal 2 — Automatic de-identification   **~90%**
+## Goal 2 — Automatic de-identification   **~92%**
 
 **What works, measured**
 - Everything published is k-anonymous over PATIENTS, never rows:
@@ -233,9 +233,25 @@ holds). Formats: days.
 - City and county names (part of category 2) are ordinary short
   strings with no shape to find and no per-patient constancy a
   demographic does not also have.
-- Honest posture, unchanged: k-anonymity on what is published is
-  NOT differential privacy; the attack results are a floor on one
-  cohort shape, not a certificate.
+- ~~No differential privacy at all~~ PARTLY ADDRESSED 2026-11-07
+  (DP-1): `--dp-epsilon` trains the neural path's autoencoder
+  with DP-SGD and an RDP accountant verified four ways against
+  itself. Measured price at 51,200 rows, against a control arm
+  that is the same network with the noise off — **1.16× at ε=8,
+  1.78× at ε=3, 5.02× at ε=1** — and the cost is dominated by
+  ROW COUNT, 18.8× on 3,200 rows against 4.6× on 51,200.
+  **The epsilon covers the WEIGHTS only.** Five stages still
+  touch the data unaccounted (k-screen and vocabulary, the
+  published bounds, the latent mixture, the visit-count and
+  set-size grids, the identity tiers); the module names them and
+  the run REFUSES to describe its output as differentially
+  private. Those remaining stages are mostly counts and
+  quantiles, which have standard mechanisms — the hard part is
+  done and the rest is named.
+- Honest posture: k-anonymity on what is published is NOT
+  differential privacy, and neither is DP on one component; the
+  attack results are a floor on one cohort shape, not a
+  certificate.
 
 **Time**: the real-extract reading is one command on the data
 machine; the free-text decision is governance, not engineering.
@@ -603,8 +619,8 @@ dates:
    ceiling: ongoing and unscheduled, because unknowns move dates
    and these are the genuine unknowns.
 
-Equal-weighting the eight goals: **~92.5% complete** as of
-2026-11-07 — 90, 90, 90, 95, 93, 100, 92, 90. Moved on
+Equal-weighting the eight goals: **~92.8% complete** as of
+2026-11-07 — 90, 92, 90, 95, 93, 100, 92, 90. Moved on
 2026-11-06, each for a measured reason: goal 1 78→90 (the
 cross-table couplings are enforced and REACHABLE —
 `synthkit relate`, with `--no-couple` as the named control arm

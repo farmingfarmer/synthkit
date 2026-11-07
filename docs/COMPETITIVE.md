@@ -46,13 +46,47 @@ either loosened (MOSTLY AI's SDK) or tightened (SDV).
 
 These are the real gaps, in the order I would spend on them.
 
-### 1. Differential privacy — they ship it, we do not
+### 1. Differential privacy — they ship it end to end, we now
+### ship it for the weights and say so
 
 MOSTLY AI documents differentially private synthetic data
-generation. We do not have DP at all, and this file will not
-pretend the difference is cosmetic: **k-anonymity on published
-aggregates is not differential privacy**, which this project
-states in its own privacy posture already.
+generation. **We now have DP-SGD training on the neural path**
+(`--dp-epsilon`, DP-1, 2026-11-07) with a correct RDP
+accountant for the subsampled Gaussian mechanism — but the
+epsilon covers **the autoencoder weights only**, and five other
+stages of the pipeline touch the real data unaccounted. The run
+names them and refuses to call its output differentially
+private, so this is a partial answer stated as one.
+
+The measured price, 51,200 rows, 3 seeds, against a control arm
+that is the same network with the noise and clipping off:
+
+| epsilon | sigma | holdout MSE | × control |
+|---|---|---|---|
+| 8.0 | 1.54 | 0.0226 | **1.16** |
+| 3.0 | 3.41 | 0.0346 | **1.78** |
+| 1.0 | 9.57 | 0.0977 | **5.02** |
+| 0.5 | 18.86 | 0.1745 | **8.96** |
+
+And the cost is **dominated by row count**, not by epsilon — at
+epsilon 1.0 it is 18.8× on 3,200 rows and 4.6× on 51,200,
+because the signal-to-noise of a DP step goes as
+n/(√T·√params). Anyone quoting a ratio must quote the cohort
+size with it.
+
+End to end on the real engine at epsilon 3 on a 4,200-row
+fixture: reconstruction error 0.00462 → 0.02736, train/holdout
+ratio 1.03 → 0.97 (both generalising), and the gate's close,
+sign and inverted criteria **unmoved** — though a five-column
+fixture cannot separate the arms, so that last one is a limit
+of the fixture and not evidence that DP is free.
+
+**What is still missing** is the end-to-end guarantee:
+**k-anonymity on published aggregates is not differential
+privacy**, and neither is DP on one component. The remaining
+stages are mostly counts and quantiles, which have standard DP
+mechanisms — so this is the hard part done and the rest named
+rather than a finished answer.
 
 What we have instead is a k-anonymous publication rule counted
 in PATIENTS rather than rows, plus an attack battery. That is a
@@ -259,7 +293,7 @@ I did not find another tool documenting this.
 
 | capability | synthkit | documented elsewhere |
 |---|---|---|
-| differential privacy | **no** | yes (MOSTLY AI) |
+| differential privacy | **partial** — DP training of the weights, measured; NOT end-to-end | yes (MOSTLY AI) |
 | sequential / longitudinal model | partial (rules engine); neural engine 17/87 | yes (MOSTLY AI; research frontier) |
 | HIPAA Expert Determination | **no** | yes (Tonic) |
 | automatic PHI/PII detection | yes, 18-category inventory | yes (Tonic) |
@@ -278,11 +312,14 @@ I did not find another tool documenting this.
 
 ## What I would build next, in order
 
-1. **Differential privacy as an OPTION on the neural path.**
-   The largest single gap, and the one a compliance office asks
-   for by name. It must be an option with its measured utility
-   cost printed beside it, not a default — and the cost has to
-   be measured on our own fixtures before it is offered.
+1. ~~**Differential privacy as an OPTION on the neural path.**~~
+   **DONE 2026-11-07 (DP-1)** — and done the way this item
+   asked: an option, off by default, with its measured cost
+   printed beside it (1.16× at epsilon 8, 1.78× at 3, 5.0× at
+   1) and its scope stated rather than implied. **What remains
+   is composing the other five stages**, which are mostly
+   counts and quantiles with standard mechanisms available.
+   That is now the differential-privacy item.
 2. **Patient trajectory in the neural engine.** The gate
    already says 17/87. The literature's framing — that
    flattening loses coherence even when marginals survive — is

@@ -3952,6 +3952,109 @@ what follows is what came out wrong anyway.
   BEFORE the next mutation cycle. Knowing a rule and having a
   habit are different things; the habit is to copy first.
 
+- **DIFFERENTIAL PRIVACY IS AN OPTION ON THE NEURAL PATH NOW,
+  AND THE EPSILON COVERS THE WEIGHTS AND NOT THE RELEASE
+  (2026-11-07, DP-1).** `COMPETITIVE.md` named DP as the largest
+  single gap against the other tools. `--dp-epsilon` trains the
+  autoencoder with DP-SGD - per-example gradient clipping,
+  Gaussian noise on the clipped sum, Poisson subsampling - and
+  an RDP accountant for the subsampled Gaussian mechanism. OFF
+  by default, because it costs something and that is somebody
+  else's decision to make.
+- **THE ACCOUNTANT IS VERIFIED AGAINST ITSELF FOUR WAYS, because
+  a wrong epsilon is a privacy claim somebody will act on.** It
+  cannot be checked against a reference implementation here, so:
+  at q -> 1 the subsampled bound must REDUCE to the full-batch
+  closed form alpha/(2 sigma^2), and does to 1.9e-09; the
+  conversion at sigma=1, T=1, delta=1e-5 must hit the
+  hand-solved optimum alpha* = 1 + sqrt(2 ln(1/delta)),
+  eps 5.2985, and reads 5.3026 on the integer grid; it must sit
+  just ABOVE the classical single-shot Gaussian bound
+  sqrt(2 ln(1.25/delta))/sigma and CONVERGE to it as sigma grows
+  (0.6077 against 0.6056 at sigma 8) - below would mean claiming
+  more privacy than the textbook mechanism gives; and the bound
+  must amplify under subsampling and be monotone in q and sigma.
+  Three mutations - dropping the binomial (1-q) factor, dropping
+  the Renyi exponent, a factor of two in the Gaussian RDP - each
+  turn FIVE checks red.
+- **SUBSAMPLING IS NOT AN OPTIMISATION, IT IS WHY DP TRAINING IS
+  POSSIBLE.** Full-batch gradient descent gives
+  eps ~ 4.8 sqrt(T)/sigma, so the 800 steps this architecture
+  trains for would need a noise multiplier near 136 to reach
+  eps 1 - which destroys training. Measured: 800 steps at
+  sigma 4 cost eps 61.5 full-batch against 0.355 subsampled at
+  q=0.01. The subsampled bound is the closed form for INTEGER
+  alpha, used in preference to a tighter bound needing numerical
+  integration, because a loose epsilon is honest and a wrong one
+  is not.
+- **THE TRAINER IS A CONFOUND AND THE CONTROL ARM IS THE SAME
+  NETWORK WITH THE NOISE OFF.** `MLPRegressor` exposes no
+  per-example gradients, so DP-SGD cannot be applied to the
+  shipping trainer at all - it had to be hand-rolled, which
+  means a cost measured against the shipping engine would mix
+  the price of privacy with the price of my optimiser. Plain SGD
+  reached holdout MSE 0.065 where MLPRegressor reached 0.011;
+  with ADAM the trainer's own cost falls to 1.10x, small enough
+  that the control arm is fair. DP's price is measured against
+  THAT arm, and the 1.10x is reported separately.
+- **THE PRICE, 51,200 rows, 3 seeds, against the control:**
+      epsilon   sigma    holdout MSE    x control
+         8.00    1.54         0.0226         1.16
+         3.00    3.41         0.0346         1.78
+         1.00    9.57         0.0977         5.02
+         0.50   18.86         0.1745         8.96
+      control (DP off)        0.0195         1.00
+  An MSE near 1.0 would mean the autoencoder learned NOTHING on
+  a standardised frame, so even eps 0.5 is still learning.
+- **AND THE COST IS DOMINATED BY ROW COUNT, NOT BY EPSILON.** At
+  a fixed epsilon the signal-to-noise of a DP step goes as
+  n/(sqrt(T) sqrt(params)) - independent of the sampling rate,
+  LINEAR in the number of rows. Measured at eps 1.0: **18.8x on
+  3,200 rows, 17.8x on 12,800, 4.6x on 51,200.** DP is expensive
+  on a small cohort and affordable at extract scale, which is
+  the opposite of how a feature list reads, and a ratio quoted
+  without its cohort size means nothing. The operating point was
+  swept too: steps matter and the sampling rate barely does
+  (q=0.05/T=1500 reads 4.55x against q=0.50/T=400 at 6.78x).
+- **END TO END ON THE REAL ENGINE, eps 3 on a 4,200-row
+  fixture**: reconstruction error 0.00462 -> 0.02736, train /
+  holdout ratio 1.03 -> 0.97 so both arms generalise, nn-ratio
+  0.90 -> 0.85, and the gate's close, sign and INVERTED
+  criteria UNMOVED at 6/6, 6/6, 0 on both. **Two arms that agree
+  are one arm**: a five-column fixture cannot separate them, so
+  that is a limit of the fixture and NOT evidence that DP is
+  free - the reconstruction number is the sensitive one and it
+  moved by 5.9x.
+- **THE TRAINER IS SKLEARN-SHAPED, WHICH IS WHY NOTHING ELSE
+  CHANGED.** The engine's `_fwd` reads `net.coefs_` and
+  `net.intercepts_` and applies ReLU to every layer but the
+  last - exactly this network's layout and rule - so exposing
+  those two names makes it a DROP-IN and `_encode`, `_decode`
+  and `generate` are untouched. Verified by running the engine's
+  own forward path against the module's and asserting they
+  agree.
+- **AND PER-EXAMPLE NORMS ARE COMPUTED WITHOUT PER-EXAMPLE
+  GRADIENTS.** Example i's weight gradient for a layer is the
+  outer product of its input activation and its output delta,
+  whose squared Frobenius norm is ||a_i||^2 ||g_i||^2 - so the
+  total is a sum of products of row norms and no
+  batch-by-in-by-out tensor is ever built, which is what makes
+  clipping affordable at this width. Checked against the
+  explicit outer-product construction to 2.8e-14, because an
+  error there would silently change the sensitivity the whole
+  accounting assumes.
+- **WHAT IS STILL NOT DP, NAMED: five stages.** The k-screen and
+  vocabulary selection (which levels get modelled comes from
+  patient counts), the published numeric bounds (k-anonymous,
+  not DP), the latent mixture (fitted on codes of real rows),
+  the visit-count and set-size grids, and the identity tiers
+  (detected from real rows). `UNACCOUNTED_STAGES` names them,
+  `scope_note` prints them, and the run REFUSES to describe its
+  output as differentially private. A half-accounted epsilon is
+  the free-text-redactor fault wearing a privacy guarantee, and
+  false confidence about privacy is the most expensive kind
+  there is.
+
 - **PRINT THE ITEMS, NOT THE COUNT - AN EMPTY LIST CANNOT BE
   MISREAD WHERE A ZERO CAN (2026-11-06).** Polling a net on the
   data machine, the failure COUNT came back as `8` on one read
