@@ -3650,6 +3650,34 @@ what follows is what came out wrong anyway.
   threshold. Reporting them as one number would invite the
   wrong fix, so the note names both with their reasons.
 
+- **THERE ARE NOW THREE CHECK-COUNT DELTAS AND ALL THREE
+  DECOMPOSE WITH NO RESIDUE (2026-11-06).** The rule has always
+  been that a gap between two runs must be a number somebody
+  ACCOUNTED FOR, because that is how a correct run gets read as
+  a failure. Two measurements tonight, and each pair is ONE
+  COMMIT - the first write-up of this entry mixed two commits
+  and quoted a data-machine count against a local count from a
+  later build, which is the wrong-denominator fault in a note
+  about counting:
+      at fa2afb1   dev py3.14  3054   data machine  3042   -12
+      at 53b5cdc   dev py3.14  3060   dev py3.10    3056   - 4
+  The TWELVE is the recorded decomposition - nine in
+  `smoke_buildid` which needs git for the archive path, one for
+  node, two for Chrome, all reporting NOTES and passing rather
+  than failing. The FOUR is new and sits entirely in
+  `smoke_dialmatrix` (36 against 32), which is exactly the
+  `staged()` checks pinned on pandas 3+ because four dial
+  verdicts genuinely differ by library version. Verified by
+  diffing the per-suite counts rather than by assuming: no
+  other suite moves at all.
+- **AND THE WHOLE SESSION'S WORK WAS RE-RUN ON THE OLD LANE FOR
+  THAT REASON.** Everything tonight was developed and measured
+  on 3.14 with pandas 3, which is what the data machine
+  installs - and CI also runs 3.10. The mirror of the recorded
+  wrong-venv lesson: testing only against the newest stack
+  leaves the TEAM's older lane unverified. ALL GREEN on both,
+  96 suites either way.
+
 - **PRINT THE ITEMS, NOT THE COUNT - AN EMPTY LIST CANNOT BE
   MISREAD WHERE A ZERO CAN (2026-11-06).** Polling a net on the
   data machine, the failure COUNT came back as `8` on one read
