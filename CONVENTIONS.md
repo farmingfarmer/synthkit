@@ -3616,6 +3616,55 @@ what follows is what came out wrong anyway.
 
 ## Talking to the data machine
 
+- **THE BENCH'S 11/13 WAS A SEED, NOT A REGRESSION, AND A
+  SWEEP SETTLED A DEBT THAT HAD BEEN CARRIED UNATTRIBUTED
+  (2026-11-06).** The sprint board read "the bench reads 11/13
+  on its default config (het unexplained at discovery) against
+  a recorded 12/13 - still unattributed". Five seeds:
+      seed  FOUND   het source   het found
+       0    11/13     0.182         no
+       1    12/13     0.247        YES
+       2    11/13     0.234         no
+       3    11/13     0.230         no
+       4    11/13     0.184         no
+  **The only kind that moves is `heterogeneous`, and it is
+  missed at 0.234 and found at 0.247** - the same strength
+  either side of discovery's inclusion cut, which is the
+  threshold and not a weak effect. The recorded 12/13 was the
+  lucky seed of five, and `smoke_bench`'s own docstring had
+  stated it as THE result for months.
+- **SO THE INSTRUMENT REPORTS THE RANGE ITSELF.** This file's
+  oldest rule about seeds is to report the range and never a
+  point, and the bench was printing a point - which is exactly
+  how a later reader comes to see 11 as a regression against a
+  recorded 12. The note is now a FUNCTION returning lines,
+  computed from the recorded sweep, so `smoke_bench` can CALL
+  it and check the arithmetic: a content check cannot see a
+  dead code path, and a range typed by hand is not a range
+  derived from a measurement. Three mutations bite - a
+  single-seed sweep, a hardcoded range, and the dropped
+  not-a-regression caveat.
+- **AND A PERMANENT MISS IS NOT A FRAGILE ONE.**
+  `lagged-cross-column` misses on EVERY seed because it needs
+  `--lags`; `heterogeneous` misses on four of five because of a
+  threshold. Reporting them as one number would invite the
+  wrong fix, so the note names both with their reasons.
+
+- **PRINT THE ITEMS, NOT THE COUNT - AN EMPTY LIST CANNOT BE
+  MISREAD WHERE A ZERO CAN (2026-11-06).** Polling a net on the
+  data machine, the failure COUNT came back as `8` on one read
+  and as `®` on another when the true value was ZERO. This file
+  already records zero reading as six and as eight; the fix is
+  not a better digit but a different question. Asking the
+  machine to PRINT each failing line between two literal
+  markers gives `BEGIN-FAIL-LIST` immediately followed by
+  `END-FAIL-LIST`, and nothing between two markers is
+  unambiguous however the OCR mangles characters. Use it for
+  any zero that decides something: a count must be read, a
+  bracketed emptiness only has to be seen. The success marker
+  is still the verdict - this is how to read the absence of
+  failures without trusting a digit.
+
 - **A RAW GITHUB FETCH SERVED THE PRE-PUSH FILE AND REPORTED
   SUCCESS (2026-10-23).** `curl` of
   `raw.githubusercontent.com/OWNER/REPO/main/scripts/x.py` seconds

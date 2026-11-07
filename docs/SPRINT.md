@@ -449,8 +449,20 @@ EXIT: moved or re-parked with this paragraph updated either way.
 
 ## Small debts carried in
 
-- The bench reads 11/13 on its default config (het unexplained
-  at discovery) against a recorded 12/13 - still unattributed.
+- ~~The bench reads 11/13 against a recorded 12/13 - still
+  unattributed.~~ ATTRIBUTED 2026-11-06 by a seed sweep: 11,
+  12, 11, 11, 11 over seeds 0-4. The only moving kind is
+  `heterogeneous`, which sits at discovery's INCLUSION
+  THRESHOLD - its measured source strength ran 0.182 / 0.247 /
+  0.234 / 0.230 / 0.184 and it was found only at 0.247, so a
+  miss at 0.234 and a find at 0.247 are the same effect either
+  side of the cut. **Not a regression; the recorded 12/13 was
+  the lucky seed of five.** The bench now prints the RANGE with
+  the kind named, from the recorded sweep rather than from a
+  typed number, and `smoke_bench` asserts the arithmetic.
+  (`lagged-cross-column` misses on every seed because it needs
+  `--lags`, which exists - a permanent miss, not a fragile
+  one.)
 - `discover.py` SettingWithCopyWarning spam on pandas 2.x -
   cosmetic, gone on the 3.13/3.14 lanes, fix at leisure.
 - The enterprise repo maintenance rule is now written in the

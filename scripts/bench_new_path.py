@@ -241,6 +241,57 @@ def run(out_dir, patients, harder, seed, say,
             "edges_dropped": n_drop}
 
 
+# THE SWEEP THAT ATTRIBUTED THE DEBT, as data rather than prose.
+#
+# seed: (found_of_13, het_source_strength, het_found)
+SEED_SWEEP = (
+    (0, 11, 0.182, False),
+    (1, 12, 0.247, True),
+    (2, 11, 0.234, False),
+    (3, 11, 0.230, False),
+    (4, 11, 0.184, False),
+)
+
+
+def seed_range_note():
+    """What a single run's FOUND count does and does not mean.
+
+    The sprint board carried "the bench reads 11/13 against a
+    recorded 12/13 - still unattributed" as a debt, and a seed
+    sweep attributed it. The only kind that moves is
+    `heterogeneous`, which sits at discovery's inclusion
+    threshold: a MISS at source 0.234 and a FIND at 0.247 are
+    the same effect either side of the cut. Not a regression -
+    the recorded 12/13 was the lucky seed of five.
+
+    Returned as lines rather than printed, so a check can call
+    this and see the real numbers instead of grepping the
+    source for a sentence that may never execute.
+    """
+    counts = [c for _s, c, _v, _f in SEED_SWEEP]
+    hits = [f for _s, _c, _v, f in SEED_SWEEP]
+    strengths = [v for _s, _c, v, _f in SEED_SWEEP]
+    found_at = [v for _s, _c, v, f in SEED_SWEEP if f]
+    return [
+        "THIS IS ONE SEED. Over seeds {}-{} the FOUND count "
+        "runs {}-{} of 13, and the only kind that".format(
+            SEED_SWEEP[0][0], SEED_SWEEP[-1][0],
+            min(counts), max(counts)),
+        "moves is `heterogeneous` - a marginal planted effect "
+        "at discovery's inclusion threshold, found on",
+        "{} of those {} seeds (source strength {}, found only "
+        "at {}). A single run reading {} is".format(
+            sum(1 for h in hits if h), len(SEED_SWEEP),
+            " / ".join("{:.3f}".format(v) for v in strengths),
+            " / ".join("{:.3f}".format(v) for v in found_at),
+            min(counts)),
+        "NOT a regression against a recorded {}. "
+        "`lagged-cross-column` misses on every seed because".format(
+            max(counts)),
+        "it needs --lags, which exists.",
+    ]
+
+
 def main():
     ap = argparse.ArgumentParser(description=__doc__.split("\n")[0])
     ap.add_argument("--patients", type=int, default=600)
@@ -284,6 +335,25 @@ def main():
         "not a search gap.")
     say("A kind that is not found cannot survive, and the two are "
         "fixed in different files.")
+    # THIS IS ONE SEED, AND THE COUNT IS A RANGE.
+    #
+    # The sprint board carried "the bench reads 11/13 against a
+    # recorded 12/13 - still unattributed" as a debt, and a seed
+    # sweep attributed it: 11, 12, 11, 11, 11 over seeds 0-4,
+    # with the ONLY varying kind `heterogeneous`, which sits at
+    # discovery's inclusion threshold. Its own measured source
+    # strength ran 0.182 / 0.247 / 0.234 / 0.230 / 0.184 and it
+    # was found on exactly one of those - the 0.247 - so a miss
+    # at 0.234 and a find at 0.247 are the same effect either
+    # side of the cut. It is not a regression, and the recorded
+    # 12/13 was the lucky seed.
+    #
+    # This project's own rule is to report the range and never a
+    # point, so the bench says so itself rather than leaving the
+    # next reader to re-derive it from a single run.
+    say("")
+    for _line in seed_range_note():
+        say(_line)
 
     if a.out:
         Path(a.out).write_text(json.dumps(res, indent=1),

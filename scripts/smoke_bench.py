@@ -11,11 +11,19 @@ never been scored against planted truth at all.
 
 Pointed at it, the answer was not the expected one:
 
-    FOUND     12/13 planted kinds, 0 noise edges
+    FOUND     11-12/13 planted kinds, 0 noise edges
     SURVIVED  10/10 of the kinds with an honest survival test
 
 including the XOR the fixture itself predicted would be missed. So the
 search is not the weak part.
+
+THE FOUND COUNT IS A RANGE, and this docstring said 12/13 for months
+because that was the seed it was first run on. Over seeds 0-4 it reads
+11, 12, 11, 11, 11 - the only moving kind is `heterogeneous`, which
+sits at discovery's inclusion threshold: missed at source 0.234, found
+at 0.247. A run reading 11 is not a regression against the 12, which
+is what the sprint board carried as an unattributed debt until the
+sweep was run.
 
 WHAT THE FIXTURE COULD NOT CONTAIN was the shape of the real graph.
 Its planted structure is disjoint pairs and triples - a FOREST - so
@@ -166,6 +174,59 @@ def main():
         check("...and scores it, rather than reading zero edges and "
               "reporting a clean sheet",
               "recovered 1" in out or "recall 100%" in out)
+
+    # ---- THE BENCH'S FOUND COUNT IS A RANGE, NOT A POINT
+    #
+    # The sprint board carried "the bench reads 11/13 against a
+    # recorded 12/13 - still unattributed" as a debt. A seed
+    # sweep attributed it: 11, 12, 11, 11, 11 over seeds 0-4,
+    # the only moving kind `heterogeneous`, whose measured
+    # source strength ran 0.182-0.247 and which was found only
+    # at 0.247. A miss at 0.234 and a find at 0.247 are the same
+    # effect either side of discovery's inclusion cut, so a run
+    # reading 11 is not a regression.
+    #
+    # Running the bench takes over ten minutes, so it cannot be
+    # exercised here. What CAN be is the note's own arithmetic,
+    # which is why it is a function returning lines rather than
+    # print statements - a content check cannot see a dead code
+    # path, and this one computes its range from the recorded
+    # sweep.
+    sys.path.insert(0, str(Path(__file__).resolve().parent))
+    from bench_new_path import SEED_SWEEP, seed_range_note
+    _counts = [c for _s, c, _v, _f in SEED_SWEEP]
+    _note = "\n".join(seed_range_note())
+    check("the recorded seed sweep has more than one seed, "
+          "because a range derived from one point is a point",
+          len(SEED_SWEEP) >= 5)
+    check("...and the counts genuinely VARY across it ({}), so "
+          "there is a range to report rather than a constant "
+          "dressed as one".format(sorted(set(_counts))),
+          len(set(_counts)) > 1)
+    check("...and the note states that range computed from the "
+          "sweep - {}-{} of 13 - rather than a number somebody "
+          "typed".format(min(_counts), max(_counts)),
+          "{}-{} of 13".format(min(_counts), max(_counts))
+          in _note)
+    check("...and it NAMES the kind that moves and says a low "
+          "run is NOT a regression, which is the whole point of "
+          "reporting a range",
+          "heterogeneous" in _note
+          and "NOT a regression" in _note)
+    check("...and it names the one kind that misses on EVERY "
+          "seed with the reason, so a permanent miss is not read "
+          "as the same thing as a seed-fragile one",
+          "lagged-cross-column" in _note
+          and "--lags" in _note)
+    _het_found = [v for _s, _c, v, f in SEED_SWEEP if f]
+    _het_missed = [v for _s, _c, v, f in SEED_SWEEP if not f]
+    check("and the sweep shows the THRESHOLD rather than a weak "
+          "effect: the kind was missed at {:.3f} and found at "
+          "{:.3f}, which is the same strength either side of "
+          "discovery's inclusion cut"
+          .format(max(_het_missed), min(_het_found)),
+          _het_found and _het_missed
+          and min(_het_found) - max(_het_missed) < 0.05)
 
     print()
     if FAIL:
