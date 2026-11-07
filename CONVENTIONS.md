@@ -6017,6 +6017,29 @@ exist.
   `Apt 4B` all fail the pattern), so the gate still does the
   one job it has.
 
+- **AND THE GEOGRAPHY RULE READ CLEAN ON THE REAL EXTRACT,
+  WITH THE THREE COLUMNS A LOOSE PATTERN WOULD HAVE DELETED
+  CONFIRMED CLEAR (2026-11-06).** On the 55,428-row, 44-column
+  extract: **GEOFINDINGS NONE**, the four pre-existing findings
+  unchanged (one identifier, two service dates, one age), and
+  **gender / race / ethnicity all CLEAR** - stated as words, not
+  digits. 39 clear plus 1 out of scope plus 4 findings balances
+  against 44 exactly. That is the specific false positive the
+  FIRST name detector committed on this same file, where `apply`
+  would have dropped three covariates, so a clean read here is
+  evidence rather than a formality.
+- **AND `$(git rev-parse HEAD)` INSIDE `cd ~/ai_copilot`
+  RESOLVED ANOTHER REPOSITORY'S HEAD.** The fetch command was
+  built in the bridge directory's shell, which is its own git
+  repo, so it asked the data machine to download
+  `35791b1a...` - a different project's commit - while I had
+  just printed `fa2afb13...` two lines above. Caught only by the
+  two SHAs disagreeing in one screen. This file already says to
+  prefer a LITERAL string on that terminal to anything that has
+  to be substituted first; the new part is that the
+  substitution can be silently correct for the WRONG
+  repository. Compute a sha where the repo is, or type it out.
+
 - **MULTI-TABLE INTAKE EXISTS, AND THE KEYS COME FROM THE
   VALUES (2026-11-04, `synthkit/multitable.py`).** The fitted
   path has always been single-table, so an operator with
