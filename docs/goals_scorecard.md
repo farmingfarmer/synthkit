@@ -70,7 +70,7 @@ holds). Formats: days.
 
 ---
 
-## Goal 2 — Automatic de-identification   **~65%**
+## Goal 2 — Automatic de-identification   **~78%**
 
 **What works, measured**
 - Everything published is k-anonymous over PATIENTS, never rows:
@@ -119,8 +119,39 @@ holds). Formats: days.
   worded ("about one per row"); both dates and active_drugs back
   in the clear count, 42 of 44 clear.
 
+- ~~ZIP codes and the coverage question~~ DONE 2026-11-06
+  (PHI-4). A ZIP is the one kind whose value shape cannot carry
+  the detection — five digits is a visit count, a lab result, a
+  row id — so it requires one of three tells: ZIP+4, a
+  preserved leading zero, or the header. Generalised to the
+  first three digits WITH the half of the rule a plain
+  truncation skips: the 17 sparse three-digit areas go to 000.
+  Remedy is generalise, never drop, because geography carries
+  catchment and travel distance. Web addresses and IP addresses
+  (categories 14 and 15) were missing outright and are now in
+  the value battery. Five mutations each turn the gate red, and
+  the negative controls caught a real bug: `\bzip\b` cannot
+  match `patient_zip`, because `_` is a word character.
+- ~~"what does this actually reach?"~~ ANSWERED 2026-11-06.
+  `scrub --inventory` prints all **18 Safe Harbor categories**
+  with a status and note each — **8 covered, 6 partial, 2 NOT
+  COVERED, 2 not-in-a-table** — counts derived from the rows,
+  gaps NAMED rather than summed, and no CSV required because
+  the question is asked before anybody has a table. A detector
+  that finds nothing reads as a clean bill of health and is
+  not one.
+
 **What remains**
 - Free text PHI is the M6 decision gate.
+- **Vehicle (12) and device (13) serial numbers are NOT
+  covered, and the device case is the one that matters** — OMOP
+  has a `device_exposure` table, and a serial number is
+  indistinguishable from a concept code by shape. Reached only
+  when the column happens to be one per patient. Named in the
+  inventory rather than left to be discovered.
+- City and county names (part of category 2) are ordinary short
+  strings with no shape to find and no per-patient constancy a
+  demographic does not also have.
 - Honest posture, unchanged: k-anonymity on what is published is
   NOT differential privacy; the attack results are a floor on one
   cohort shape, not a certificate.

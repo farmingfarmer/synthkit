@@ -5512,6 +5512,87 @@ exist.
   field is always written, and a message never indexes what its
   mutation removes.
 
+- **A ZIP IS THE ONE PHI KIND WHOSE VALUE SHAPE CANNOT CARRY
+  THE DETECTION, AND THE FIRST HEADER PATTERN WAS SILENTLY
+  DEAD ON THE MOST COMMON NAME THE COLUMN HAS (2026-11-06,
+  PHI-4).** Every other kind in `scrub` has a shape nothing
+  else wears - an SSN is three-two-four, an email has an @.
+  FIVE DIGITS IS A VISIT COUNT, A LAB RESULT, A ROW ID: the
+  most ordinary shape a clinical column can have, so a bare
+  five-digit test would flag half an extract. A ZIP therefore
+  REQUIRES one of three tells, and the module says that is a
+  narrower claim than the others rather than leaving it as a
+  weaker version of them: ZIP+4, a PRESERVED LEADING ZERO
+  (which proves somebody kept the column as text because the
+  digit is part of the code), or the HEADER with five digits
+  under it.
+- **AND `\bzip\b` CANNOT MATCH `patient_zip`, BECAUSE `_` IS A
+  WORD CHARACTER.** There is no boundary before the z, so the
+  header tell was dead for the single most common name this
+  column has - caught by a negative-control probe, NOT by
+  reading the pattern, and `zip_code` matched anyway through a
+  different alternative so the bug was invisible from the
+  obvious test. An underscore separates words everywhere in a
+  database and nowhere in `\b`. The mutation back to the old
+  pattern turns SIX checks red.
+- **THE LEADING-ZERO BAR IS DELIBERATELY NOT A MAJORITY, AND
+  THE FIXTURE HAD TO BE REBUILT TO SHOW IT.** Zero-leading
+  areas are New England and a minority of any national column,
+  so a `MATCH_SHARE` bar would miss every real ZIP column that
+  has them. The first fixture put 2 of 4 values at a leading
+  zero - 50%, exactly AT the bar - so the check asserting the
+  bar is below `MATCH_SHARE` failed on its own fixture. A
+  fixture must carry the thing the check is about, and
+  "has leading zeros" was not specific enough.
+- **TRUNCATING TO THREE DIGITS IS HALF THE RULE.** A
+  three-digit area holding 20,000 people or fewer identifies
+  too narrowly to publish at all, and Safe Harbor names
+  seventeen prefixes that become 000. A plain truncation skips
+  that silently. `RESTRICTED_ZIP3` is encoded rather than
+  computed - a population table is not something this project
+  can carry or keep current, and a list WRONG about which
+  areas are sparse would be worse than no list, so it is the
+  published one and its provenance is stated. A column with
+  none of them SAYS SO, because absent is not the same fact as
+  not-looked-for.
+- **AND THE REMEDY IS GENERALISE, NEVER DROP.** Geography
+  carries catchment and travel distance - things a model is
+  often asked about - and the rule asks for three digits, not
+  for the column to go. Dropping would remove the identifier
+  by destroying the variable, which is the trade the `REMEDY`
+  table exists to refuse. The mutation to `drop` turns three
+  checks red.
+- **A DETECTOR THAT FINDS NOTHING READS AS A CLEAN BILL OF
+  HEALTH, AND IT IS NOT ONE.** It is a clean bill for whatever
+  the detector LOOKS AT, and nobody could tell those apart
+  from the output - a governance reader had to infer coverage
+  from whichever kinds happened to fire on their file.
+  `scrub.inventory()` carries all EIGHTEEN Safe Harbor
+  categories with a status and a note each: 8 covered, 6
+  partial, 2 NOT COVERED, 2 not-in-a-table. The counts are
+  DERIVED from the rows, never written beside them. The gaps
+  are NAMED - vehicle and device serial numbers have no
+  distinctive shape, and the device case is called LIKELY in
+  clinical data (OMOP has a device_exposure table) rather than
+  left as a footnote. `scrub --inventory` needs no CSV,
+  because the question is asked before anybody has a table to
+  point a scan at.
+- **TWO CATEGORIES WERE MISSING OUTRIGHT RATHER THAN
+  CONSIDERED AND REJECTED: web addresses and IP addresses.**
+  Both wear shapes nothing else wears, which is the property
+  that let them join the value battery instead of needing a
+  header. They turn up in audit and device columns rather than
+  clinical ones, which is why nobody had looked.
+- **AND MAKING THE CSV OPTIONAL FOR `--inventory` ATE
+  ARGPARSE'S OWN REFUSAL.** A bare `scrub` fell through to
+  pandas and raised `ValueError: Invalid file path or buffer
+  object type: <class 'NoneType'>` where there had been a
+  clean "required argument" - a traceback instead of a
+  refusal, and the exit code read 0 through a pipeline's
+  `tail`. A feature that arrives by removing an error path has
+  deleted a guard somebody planted on purpose; this file
+  already records that for campaign-run.
+
 - **MULTI-TABLE INTAKE EXISTS, AND THE KEYS COME FROM THE
   VALUES (2026-11-04, `synthkit/multitable.py`).** The fitted
   path has always been single-table, so an operator with

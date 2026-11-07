@@ -44,6 +44,14 @@ _SSN = re.compile(r"^\d{3}-\d{2}-\d{4}$")
 _PHONE = re.compile(
     r"^(\+?1[\s.-]?)?(\(\d{3}\)|\d{3})[\s.-]?\d{3}[\s.-]?\d{4}$")
 _EMAIL = re.compile(r"^[^@\s]+@[^@\s]+\.[A-Za-z]{2,}$")
+# A URL AND AN IP WEAR SHAPES NOTHING ELSE WEARS, which is the
+# property that lets them join the value battery rather than
+# needing a header the way a ZIP does. Safe Harbor names both
+# (categories 14 and 15); they turn up in audit and device
+# columns rather than clinical ones, which is why they were
+# missing rather than considered and rejected.
+_URL = re.compile(r"^(?:https?://|www\.)\S+$", re.IGNORECASE)
+_IPV4 = re.compile(r"^(?:\d{1,3}\.){3}\d{1,3}$")
 _STREET = re.compile(
     r"^\d{1,6}\s+\S.*\b(st|street|ave|avenue|rd|road|dr|drive|ln|"
     r"lane|blvd|boulevard|ct|court|way|pl|place|ter|terrace|cir|"
@@ -86,6 +94,65 @@ _DATEISH = re.compile(
     r"([ T].*)?$")
 _IDENT = re.compile(r"^[A-Za-z]{0,4}[-_]?\d{4,}[A-Za-z0-9-]*$")
 
+# A ZIP IS THE ONE KIND WHOSE VALUE SHAPE CANNOT CARRY THE
+# DETECTION ON ITS OWN.
+#
+# Every other kind here has a shape nothing else wears: an SSN
+# is three-two-four, an email has an @. Five digits is a visit
+# count, a lab result, a row id, a year times ten - the most
+# ordinary shape a clinical column can have. A five-digit test
+# alone would flag half the extract, and this file's own rule
+# is that a detector which flags everything also catches
+# everything.
+#
+# So a ZIP needs a tell that an ordinary number does not have,
+# and there are exactly three:
+#   ZIP+4      `90033-9000` is unambiguous - no quantity is
+#              written that way.
+#   a LEADING ZERO, preserved.  `02134` survives only in a
+#              column somebody kept as TEXT because the zero
+#              is part of the code; a measurement that merely
+#              happens to be 2134 does not carry it.
+#   the HEADER, with a plain five-digit shape underneath.
+# Headers only ASSIST elsewhere in this module; here one of
+# the three is REQUIRED, which is a narrower claim and said
+# out loud rather than left as a weaker version of the others.
+_ZIP5 = re.compile(r"^\d{5}$")
+_ZIP9 = re.compile(r"^\d{5}-\d{4}$")
+_ZIP_LEADING0 = re.compile(r"^0\d{4}(?:-\d{4})?$")
+# `\bzip\b` CANNOT MATCH `patient_zip`, because `_` is a word
+# character and so there is no boundary before the z. That was
+# the first version, and it made the header tell silently dead
+# for the single most common name this column has - caught by
+# the negative-control probe, not by reading the pattern. An
+# underscore separates words everywhere in a database and
+# nowhere in `\b`.
+_ZIP_HINT = re.compile(
+    r"(?:^|[^A-Za-z])zip(?:$|[^A-Za-z])"
+    r"|zip_?code|postal|post_?code",
+    re.IGNORECASE)
+# ALREADY GENERALISED IS CLEAR, not a finding. A column holding
+# `900` or `90000` has had the Safe Harbor truncation applied,
+# and flagging it would send somebody to fix what is already
+# fixed - the same reason a year-only date is clear.
+_ZIP3 = re.compile(r"^\d{3}(?:00)?$")
+
+# THE SEVENTEEN PREFIXES THAT MUST GO TO 000.
+#
+# Truncating to three digits is only half the Safe Harbor rule.
+# A three-digit area holding 20,000 people or fewer identifies
+# too narrowly to publish at all, and the rule names them: they
+# become 000. These are the prefixes from the census the rule
+# was written against. Encoded rather than computed, because a
+# population table is not something this project can carry or
+# keep current - and a list that is WRONG about which areas are
+# sparse would be worse than no list, so it is the published
+# one and its provenance is stated.
+RESTRICTED_ZIP3 = frozenset((
+    "036", "059", "063", "102", "203", "556", "692", "790",
+    "821", "823", "830", "831", "878", "879", "884", "890",
+    "893"))
+
 # Past this average length a string column is prose, not a field,
 # and this module says so instead of guessing at it.
 LONG_TEXT = 80
@@ -100,6 +167,9 @@ KINDS = {
     "identifier": "per-patient identifiers",
     "service_date": "service dates carrying a month and day",
     "age_over_89": "ages over 89",
+    "zip_code": "postal codes finer than the first three digits",
+    "url": "web addresses",
+    "ip_address": "IP addresses",
 }
 
 # WHAT TO DO ABOUT EACH, AND WHY IT IS NOT ONE ANSWER.
@@ -127,6 +197,16 @@ REMEDY = {
     "identifier": "drop",
     "service_date": "generalise",
     "age_over_89": "generalise",
+    # A ZIP IS GENERALISED, NEVER DROPPED. Geography carries
+    # real signal - catchment, travel distance, the
+    # site-of-care differences a model is often asked about -
+    # and Safe Harbor does not ask for it to go, it asks for
+    # the first three digits. Dropping would remove the
+    # identifier by destroying the variable, which is the
+    # trade this REMEDY table exists to refuse.
+    "zip_code": "generalise",
+    "url": "drop",
+    "ip_address": "drop",
 }
 
 _AGE_HINT = re.compile(r"(\bage\b|_age\b|\bage_)", re.IGNORECASE)
@@ -140,6 +220,95 @@ NAME_MAX_WORDS = 3
 # gender/race/ethnicity hold 3/10/7 distinct over 800 patients
 # where a name column holds hundreds.
 NAME_MIN_VARIETY = 0.2
+
+
+# THE EIGHTEEN SAFE HARBOR CATEGORIES, AND WHICH ONES THIS
+# TOOL ACTUALLY REACHES.
+#
+# A detector that finds nothing reads as a clean bill of
+# health. It is not one: it is a clean bill for whatever the
+# detector looks at, and nobody can tell those apart from the
+# output. This project's own rule - when a section is empty,
+# say what you examined - and the scrub had no way to say it,
+# so a governance reader had to infer coverage from the kinds
+# that happened to fire on their file.
+#
+# Each entry is (number, what the rule calls it, status, note).
+# `covered` means a detector exists and is gated both ways in
+# the checks. `partial` means some of the category is reached
+# and the note says which part is not. `not covered` means
+# nothing here looks for it - named, because an unnamed gap is
+# indistinguishable from an absent one. `not in a table` means
+# the identifier cannot appear in a tabular extract at all, so
+# its absence is a property of the input and not of this tool.
+SAFE_HARBOR = (
+    (1, "names", "covered", "`name`, from per-patient "
+     "constancy plus a given-name lexicon"),
+    (2, "geography finer than a state", "partial",
+     "`address` and `zip_code` reach street addresses and "
+     "postal codes; CITY and COUNTY names are NOT - they are "
+     "ordinary short strings with no shape to find and no "
+     "per-patient constancy a demographic does not also have"),
+    (3, "dates except the year, and ages over 89", "covered",
+     "`birth_date`, `service_date` and `age_over_89`, all "
+     "generalised rather than dropped"),
+    (4, "telephone numbers", "covered", "`phone`"),
+    (5, "fax numbers", "covered", "the same `phone` pattern - a "
+     "fax number is a telephone number and is not written "
+     "differently, so there is nothing a second detector would "
+     "match that this one does not"),
+    (6, "email addresses", "covered", "`email`"),
+    (7, "social security numbers", "covered", "`ssn`"),
+    (8, "medical record numbers", "partial",
+     "reached by `identifier` when the column is about one per "
+     "patient, which is what an MRN is; an MRN that repeats "
+     "across a cohort differently would not be"),
+    (9, "health plan beneficiary numbers", "partial",
+     "same rule as an MRN, same limit"),
+    (10, "account numbers", "partial",
+     "same rule as an MRN, same limit"),
+    (11, "certificate and license numbers", "partial",
+     "same rule as an MRN, same limit"),
+    (12, "vehicle identifiers and license plates", "not covered",
+     "no distinctive shape - a VIN is indistinguishable from "
+     "any other alphanumeric code, so a pattern for it would "
+     "fire on ordinary clinical codes. Reached only if the "
+     "column happens to be one per patient"),
+    (13, "device identifiers and serial numbers", "not covered",
+     "same reason as a VIN, and this one is LIKELY in clinical "
+     "data - OMOP has a device_exposure table. The honest "
+     "position is that a serial number looks like a concept "
+     "code and this tool cannot tell them apart"),
+    (14, "web addresses", "covered", "`url`"),
+    (15, "IP addresses", "covered", "`ip_address`"),
+    (16, "biometric identifiers", "not in a table",
+     "a finger or voice print is not a cell in a CSV"),
+    (17, "full-face photographs", "not in a table",
+     "an image is not a cell in a CSV"),
+    (18, "any other unique identifying number or code",
+     "partial", "`identifier` reaches the per-patient case; "
+     "FREE TEXT is reported out of scope by name and is the "
+     "open governance decision, not a detector gap"),
+)
+
+
+def inventory():
+    """The eighteen categories with this tool's coverage status.
+
+    Returns the table and a count by status. The counts are
+    DERIVED from the table rather than written beside it: a
+    hand-written total is the thing a reader checks the rows
+    against, and this file already has a rule about a report
+    whose categories do not add up to its own total.
+    """
+    by: Dict[str, int] = {}
+    for _n, _what, st, _note in SAFE_HARBOR:
+        by[st] = by.get(st, 0) + 1
+    return {"categories": [
+        {"number": n, "what": what, "status": st, "note": note}
+        for n, what, st, note in SAFE_HARBOR],
+        "counts": by,
+        "total": len(SAFE_HARBOR)}
 
 
 def _looks_like_name(vals):
@@ -171,6 +340,7 @@ def _battery(vals):
     on whole values, and on the TOKENS of a set column, where the
     joined string matches no pattern even when every token does."""
     for kind, rx in (("ssn", _SSN), ("email", _EMAIL),
+                     ("url", _URL), ("ip_address", _IPV4),
                      ("phone", _PHONE), ("address", _STREET)):
         sh = _share(vals, rx)
         if sh >= MATCH_SHARE:
@@ -252,6 +422,50 @@ def detect(df, group_by: Optional[str] = None,
         if hit is not None:
             kind, sh, extra = hit
             found(kind, sh, extra)
+            continue
+        # A ZIP CODE, which needs one of three tells and says
+        # which one fired. This sits BEFORE the identifier rule
+        # deliberately: `_IDENT` matches four-or-more digits, so
+        # a postal code would otherwise be reported as a
+        # per-patient identifier and carry remedy DROP - exactly
+        # the wrong remedy for a variable Safe Harbor asks to be
+        # GENERALISED.
+        _zsh5 = _share(vals, _ZIP5)
+        _zsh9 = _share(vals, _ZIP9)
+        _zsh0 = _share(vals, _ZIP_LEADING0)
+        _zsh3 = _share(vals, _ZIP3)
+        _zipish = max(_zsh5, _zsh9)
+        _tell = None
+        if _zsh9 >= MATCH_SHARE:
+            _tell = ("{:.0%} are written ZIP+4, which no "
+                     "quantity is".format(_zsh9))
+        elif _zipish >= MATCH_SHARE and _zsh0 >= 0.01:
+            # ONE PRESERVED LEADING ZERO IS THE TELL, not a
+            # majority of them: the zero-leading areas are New
+            # England and a minority of any national column, so
+            # a MATCH_SHARE bar here would miss every real ZIP
+            # column that has them. What the zero proves is that
+            # somebody kept the column as TEXT because the digit
+            # is part of the code.
+            _tell = ("{:.0%} carry a preserved leading zero, so "
+                     "the column is a code and not a "
+                     "measurement".format(_zsh0))
+        elif _zipish >= MATCH_SHARE and _ZIP_HINT.search(str(c)):
+            _tell = ("the column name says postal code and "
+                     "{:.0%} of values are five digits - a "
+                     "RENAMED zip column with no leading zero "
+                     "and no plus-four is NOT caught by this "
+                     "rule".format(_zipish))
+        if _tell is not None:
+            # ALREADY GENERALISED IS CLEAR. `900` or `90000` has
+            # had the truncation applied; flagging it would send
+            # somebody to fix what is already fixed, which is the
+            # same reason a year-only date never becomes a
+            # finding.
+            if _zsh3 >= MATCH_SHARE:
+                clear.append(c)
+                continue
+            found("zip_code", _zipish, " - " + _tell)
             continue
         # A birth date is a date column whose NAME says birth -
         # nothing in the value says which event it dates, so this
@@ -621,6 +835,39 @@ def generalise(df, report: Dict[str, Any]):
                        "single 90-or-above category the rule "
                        "asks for, and the column stays "
                        "numeric".format(over)})
+        elif f["kind"] == "zip_code":
+            # TRUNCATE TO THREE DIGITS, AND SEND THE SPARSE
+            # AREAS TO 000 - the second half of the rule, which
+            # a plain truncation silently skips.
+            txt = out[c].astype(str).str.strip()
+            first3 = txt.str.replace(r"\D", "", regex=True).str[:3]
+            keep = first3.str.len() == 3
+            restricted = keep & first3.isin(RESTRICTED_ZIP3)
+            n_rest = int(restricted.sum())
+            new3 = first3.where(~restricted, "000")
+            # SAME DTYPE DISCIPLINE as the age cap: a postal
+            # code read as text stays text, and `000` is only
+            # representable as text at all - truncating a
+            # numeric zip column to an integer 0 would lose the
+            # distinction between the restricted areas and a
+            # missing value.
+            if not (_pd.api.types.is_string_dtype(out[c])
+                    or out[c].dtype == object):
+                out[c] = out[c].astype(str)
+            out.loc[keep, c] = new3[keep]
+            note = ("truncated to the first three digits")
+            if n_rest:
+                note += ("; {} value(s) in the {} sparse "
+                         "three-digit areas sent to 000, which "
+                         "plain truncation would have "
+                         "published".format(
+                             n_rest, len(RESTRICTED_ZIP3)))
+            else:
+                note += ("; none of the {} sparse three-digit "
+                         "areas appear in this column"
+                         .format(len(RESTRICTED_ZIP3)))
+            actions.append({"column": c, "kind": f["kind"],
+                            "did": note})
     return out, actions
 
 

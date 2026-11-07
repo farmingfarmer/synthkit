@@ -914,6 +914,38 @@ def cmd_scrub(args) -> int:
     must be usable as a gate."""
     import pandas as pd
     from . import scrub
+    if args.inventory:
+        # THE COVERAGE TABLE IS PRINTABLE WITHOUT A FILE,
+        # because the question "what does this reach" is asked
+        # before anybody has a table to point it at - and a
+        # governance reader should not have to run a scan on
+        # real records to find out what the scanner looks for.
+        inv = scrub.inventory()
+        for c in inv["categories"]:
+            print("{:>2}  {:<14}  {}".format(
+                c["number"], c["status"], c["what"]))
+            print("    {}".format(c["note"]))
+        print()
+        print("{} categories: {}".format(
+            inv["total"], ", ".join(
+                "{} {}".format(v, k)
+                for k, v in sorted(inv["counts"].items()))))
+        print("A category marked `not covered` is a GAP THIS "
+              "TOOL NAMES, not one it has ruled out. A scan "
+              "that reports nothing has reported nothing about "
+              "those.")
+        return 0
+    # MAKING THE CSV OPTIONAL FOR --inventory REMOVED
+    # ARGPARSE'S OWN REFUSAL, so a bare `scrub` fell through to
+    # pandas and raised a ValueError about a NoneType buffer -
+    # a traceback where there had been a clean "required
+    # argument". The convenience ate a guard, which this
+    # project has recorded once already for campaign-run.
+    if not args.csv:
+        print("STOP: scrub needs a CSV. Pass the table to "
+              "scan, or --inventory to print the coverage "
+              "table with no file.", file=sys.stderr)
+        return 2
     df = pd.read_csv(args.csv, dtype=str,
                      keep_default_na=False)
     rep = scrub.detect(df, group_by=args.group_by)
@@ -1383,9 +1415,13 @@ def main(argv=None) -> int:
                        help="detect (and with --apply, drop) "
                             "PHI-shaped columns in a structured "
                             "table before fitting")
-    p.add_argument("csv")
+    p.add_argument("csv", nargs="?")
     p.add_argument("--group-by", default=None)
     p.add_argument("--apply", default=None, metavar="OUT_CSV")
+    p.add_argument("--inventory", action="store_true",
+                   help="print the 18 Safe Harbor categories "
+                        "with this tool's coverage status and "
+                        "exit; needs no CSV")
     p.set_defaults(fn=cmd_scrub)
 
     p = sub.add_parser("exam",

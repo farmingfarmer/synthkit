@@ -48,6 +48,7 @@ M2 is open, and they go RED the day detection lands - which is
 the signal to update the claim, not a regression. Arming them
 is flipping the expected booleans.
 """
+import subprocess
 import sys
 from pathlib import Path
 
@@ -182,6 +183,55 @@ def fixture(n=400, visits=3):
                    for p in pid],
         "race": [("White", "Black", "Asian", "Other")[
             per_person[p] % 4] for p in pid],
+        # --- PHI-4: ZIP, one column per TELL, because a ZIP is
+        #     the one kind whose value shape cannot carry the
+        #     detection alone and each of the three routes in
+        #     is a separate thing to break.
+        # the HEADER tell, with no leading zero and no plus-four
+        # anywhere: `patient_zip` is the single most common name
+        # this column has, and the first pattern could not match
+        # it at all because `\b` does not see an underscore.
+        "patient_zip": [
+            ("90033", "90210", "78701", "60614", "33101")[
+                per_person[p] % 5] for p in pid],
+        # the LEADING-ZERO tell, with NO header hint - so this
+        # column is caught on its values alone or not at all
+        "mail_code": [
+            ("02134", "90033", "60614", "78701", "33101")[
+                per_person[p] % 5] for p in pid],
+        # the ZIP+4 tell, which no quantity is written as
+        "zip_plus_four": ["{}-{:04d}".format(
+            ("90033", "02134", "03601")[per_person[p] % 3],
+            int(rng.integers(0, 9999))) for p in pid],
+        # NEGATIVE: a five-digit QUANTITY. No hint, no leading
+        # zero, and it repeats, so neither the ZIP rule nor the
+        # identifier rule should reach it - this is the column a
+        # bare five-digit test would have flagged, and five
+        # digits is the most ordinary shape a clinical column
+        # has.
+        "charge_cents": [str(v) for v in
+                         rng.choice([10500, 23400, 31200,
+                                     45900], n)],
+        # NEGATIVE: a ZIP already truncated to three digits.
+        # Nothing left to remove, so not a finding - the same
+        # reason `visit_year` is clear.
+        "zip3_reported": [
+            ("900", "787", "606")[per_person[p] % 3]
+            for p in pid],
+        # NEGATIVE: the rule's OWN STATED LIMIT. A renamed zip
+        # with no leading zero and no plus-four is not caught,
+        # and the `why` text says so - so the suite asserts the
+        # limit rather than letting a later reader discover it.
+        "geo_field": [
+            ("90033", "90210", "78701")[per_person[p] % 3]
+            for p in pid],
+        # --- PHI-4: the two categories that were missing
+        #     outright, both with shapes nothing else wears
+        "portal_url": ["https://example.org/p/{}".format(
+            per_person[p]) for p in pid],
+        "client_ip": ["10.{}.{}.{}".format(
+            per_person[p] % 250, per_person[p] % 7,
+            per_person[p] % 199) for p in pid],
     })
     return df.astype(str)
 
@@ -313,8 +363,9 @@ def main():
           "flagged was handled - detected, reported and not "
           "acted on is the worst of both",
           sorted(f["column"] for f in scrub.pending(rep))
-          == ["age_at_visit", "visit_end_date",
-              "visit_start_date"])
+          == ["age_at_visit", "mail_code", "patient_zip",
+              "visit_end_date", "visit_start_date",
+              "zip_plus_four"])
 
     # ---- AND THE REMEDY IS NAMED, so PHI-2 is not built
     #      against the wrong one.
@@ -421,6 +472,192 @@ def main():
           "rest, a FRESH detect finds NOTHING - the property "
           "that says the tool finished the work it reported",
           not _again["findings"])
+
+    # ---------------------------------------------- PHI-4
+    _kind = dict((f["column"], f["kind"])
+                 for f in rep["findings"])
+    _why = dict((f["column"], f["why"]) for f in rep["findings"])
+
+    # THE FIXTURE MUST CARRY EACH TELL SEPARATELY, or a check
+    # about three routes in passes on one.
+    check("the fixture's `mail_code` really has preserved "
+          "leading zeros and NO header hint, so it can only be "
+          "caught on its values",
+          any(v.startswith("0") for v in df["mail_code"])
+          and not scrub._ZIP_HINT.search("mail_code"))
+    check("...and `patient_zip` has NO leading zero and NO "
+          "plus-four, so only the header can catch it",
+          not any(v.startswith("0") for v in df["patient_zip"])
+          and not any("-" in v for v in df["patient_zip"]))
+
+    check("a ZIP with the HEADER tell is detected as "
+          "`zip_code`, and `patient_zip` is the case the first "
+          "pattern could not match at all - `\\bzip\\b` does not "
+          "see an underscore, so the most common name this "
+          "column has was silently uncovered",
+          _kind.get("patient_zip") == "zip_code")
+    check("...and the header tell STATES that it is the header "
+          "deciding, naming its own limit, the way the "
+          "birth-date rule does",
+          "RENAMED zip column" in _why.get("patient_zip", ""))
+    check("a ZIP with a PRESERVED LEADING ZERO is detected with "
+          "no header hint at all - the zero proves somebody "
+          "kept the column as text because the digit is part "
+          "of the code",
+          _kind.get("mail_code") == "zip_code"
+          and "leading zero" in _why.get("mail_code", ""))
+    check("...and the leading-zero bar is NOT a majority - the "
+          "zero-leading areas are a minority of any national "
+          "column, so a MATCH_SHARE bar would have missed every "
+          "real ZIP column that has them ({:.0%} here)"
+          .format(sum(1 for v in df["mail_code"]
+                      if v.startswith("0")) / float(len(df))),
+          sum(1 for v in df["mail_code"]
+              if v.startswith("0")) / float(len(df))
+          < scrub.MATCH_SHARE)
+    check("a ZIP+4 is detected, a shape no quantity is written "
+          "in",
+          _kind.get("zip_plus_four") == "zip_code"
+          and "ZIP+4" in _why.get("zip_plus_four", ""))
+
+    check("NEGATIVE CONTROL: a five-digit QUANTITY is not a ZIP "
+          "- no hint, no leading zero, and it repeats. Five "
+          "digits is the most ordinary shape a clinical column "
+          "has, and a bare five-digit test would have flagged "
+          "this one",
+          "charge_cents" in rep["clear"])
+    check("NEGATIVE CONTROL: a ZIP already truncated to three "
+          "digits is CLEAR - there is nothing left to remove, "
+          "and flagging it would send somebody to fix what is "
+          "already fixed",
+          "zip3_reported" in rep["clear"])
+    check("NEGATIVE CONTROL, and it is the rule's OWN STATED "
+          "LIMIT: a renamed zip with no leading zero and no "
+          "plus-four is NOT caught - asserted here so the limit "
+          "is a measured property rather than something a later "
+          "reader discovers",
+          "geo_field" in rep["clear"])
+
+    # THE REMEDY IS THE SAFETY-CRITICAL PART, AGAIN.
+    check("a ZIP carries remedy GENERALISE, never drop - Safe "
+          "Harbor asks for the first three digits, not for the "
+          "column to go, and geography carries catchment and "
+          "travel-distance signal a model is often asked about",
+          _rem.get("patient_zip") == "generalise"
+          and scrub.REMEDY["zip_code"] == "generalise")
+    check("...and `apply` therefore KEEPS it, so the "
+          "de-identification does not remove the identifier by "
+          "destroying the variable",
+          "patient_zip" in _kept.columns)
+
+    _zacts = dict((a["column"], a["did"]) for a in _acts
+                  if a["kind"] == "zip_code")
+    check("and generalising TRUNCATES to three digits: {} "
+          "distinct values in, {} out"
+          .format(df["patient_zip"].nunique(),
+                  _g["patient_zip"].nunique()),
+          set(len(v) for v in _g["patient_zip"]) == set([3]))
+    check("...and the SPARSE AREAS GO TO 000, which is the half "
+          "of the rule a plain truncation silently skips - a "
+          "three-digit area holding 20,000 people or fewer "
+          "identifies too narrowly to publish at all",
+          "000" in set(_g["zip_plus_four"])
+          and "sent to 000" in _zacts.get("zip_plus_four", ""))
+    check("...and a NON-restricted prefix is KEPT, which is "
+          "what makes the 000 mean something rather than a "
+          "column of zeros",
+          "900" in set(_g["zip_plus_four"]))
+    check("...and a column with none of the {} sparse areas "
+          "SAYS SO rather than staying silent, because absent "
+          "is not the same fact as not-looked-for"
+          .format(len(scrub.RESTRICTED_ZIP3)),
+          "none of the" in _zacts.get("patient_zip", ""))
+    check("...and the restricted list is the published one, 17 "
+          "prefixes - a list that was WRONG about which areas "
+          "are sparse would be worse than no list",
+          len(scrub.RESTRICTED_ZIP3) == 17
+          and "036" in scrub.RESTRICTED_ZIP3
+          and "900" not in scrub.RESTRICTED_ZIP3)
+
+    check("a WEB ADDRESS is detected and dropped - Safe Harbor "
+          "category 14, which was missing outright rather than "
+          "considered and rejected",
+          _kind.get("portal_url") == "url"
+          and _rem.get("portal_url") == "drop")
+    check("an IP ADDRESS is detected and dropped - category 15, "
+          "same story",
+          _kind.get("client_ip") == "ip_address"
+          and _rem.get("client_ip") == "drop")
+
+    # ---- THE INVENTORY: a detector that finds nothing reads
+    #      as a clean bill of health, and it is not one.
+    _inv = scrub.inventory()
+    check("the Safe Harbor inventory carries all EIGHTEEN "
+          "categories, so a governance reader does not have to "
+          "infer coverage from whichever kinds happened to fire "
+          "on their file",
+          _inv["total"] == 18
+          and len(_inv["categories"]) == 18)
+    check("...and the counts are DERIVED from the rows rather "
+          "than written beside them, so they cannot disagree: "
+          "{}".format(", ".join("{} {}".format(v, k)
+                                for k, v in
+                                sorted(_inv["counts"].items()))),
+          sum(_inv["counts"].values()) == 18)
+    check("...and every category carries a NOTE, because a bare "
+          "status word is not something a reader can act on",
+          all(c["note"].strip() for c in _inv["categories"]))
+    check("...and the gaps are NAMED rather than summed - "
+          "vehicle and device identifiers are `not covered`, "
+          "and the device case is called LIKELY in clinical "
+          "data rather than left as a footnote",
+          any(c["status"] == "not covered"
+              and "device" in c["what"]
+              and "device_exposure" in c["note"]
+              for c in _inv["categories"]))
+    check("...and a category that CANNOT appear in a table says "
+          "so distinctly from one nothing looks for - an "
+          "absent biometric is a property of the input, a "
+          "missing device detector is a property of this tool",
+          sorted(set(c["status"]
+                     for c in _inv["categories"]))
+          == ["covered", "not covered", "not in a table",
+              "partial"])
+    check("...and every kind the detector can report appears in "
+          "some category's note, so a kind cannot exist without "
+          "the inventory accounting for it",
+          all(any(k in c["note"] for c in _inv["categories"])
+              for k in scrub.KINDS))
+
+    # ---- AND IT REACHES A READER. A measurement that never
+    #      gets to a page might as well not exist for the
+    #      person deciding, and the coverage question is asked
+    #      BEFORE anybody has a table to point the scan at.
+    _root = str(Path(__file__).resolve().parent.parent)
+    def _cli(*a):
+        r = subprocess.run(
+            [sys.executable, "-m", "synthkit.cli", "scrub"]
+            + list(a), cwd=_root, capture_output=True, text=True)
+        return r.returncode, r.stdout + r.stderr
+    _rc, _o = _cli("--inventory")
+    check("`scrub --inventory` prints the coverage table with "
+          "NO CSV and exits 0 - the question is asked before "
+          "there is a file, and a governance reader should not "
+          "have to scan real records to learn what the scanner "
+          "looks for",
+          _rc == 0 and "18 categories" in _o
+          and "device identifiers" in _o)
+    check("...and it says a `not covered` row is a GAP THIS "
+          "TOOL NAMES rather than one it has ruled out, "
+          "because a scan reporting nothing has reported "
+          "nothing about those",
+          "not one it has ruled out" in _o)
+    _rc2, _o2 = _cli()
+    check("...and making the CSV optional did NOT eat "
+          "argparse's refusal: a bare `scrub` STOPs by name "
+          "instead of falling through to pandas with a "
+          "NoneType buffer, which is what it did first",
+          _rc2 == 2 and "STOP: scrub needs a CSV" in _o2)
 
     print()
     if FAIL:
