@@ -108,14 +108,34 @@ def assess(fid: Dict[str, Any],
             "need {:.1%}, which is the {}/{} the gate was set "
             "at".format(dir_bar, 124, SET_AT),
             own_note))
+    # THE OWN/SCAFFOLDING NOTE BELONGS ON THIS LINE TOO, and it
+    # was only on `direction kept`. It matters MORE here, and
+    # not in the direction a reader would guess: measured on the
+    # real extract, close reads 120/137 = 87.6% over all pairs
+    # and 23/27 = 85.2% over the operator's OWN columns. The 110
+    # set-token scaffolding pairs are FLATTERING the total - a
+    # 0/1 indicator tied to its own set survives better than a
+    # clinical column does - so the headline number is kinder
+    # than the file the operator receives.
+    #
+    # The criterion still judges the TOTAL, deliberately. This
+    # project switched the INVERTED stop to the operator's own
+    # columns because nobody can read a column that is not
+    # there, and the same argument applies here - but switching
+    # close would move a release gate's verdict on a bar that
+    # was SET against the total, which is a product decision and
+    # not a bug fix. So the stricter number is PRINTED beside
+    # the one being judged, and whoever owns the bar can see
+    # both.
     add("close", close >= close_bar,
-        "{}/{} = {:.1%}  ({})".format(
+        "{}/{} = {:.1%}  ({}){}".format(
             s.get("pairs_close"), pairs, close,
             "need {:.1%}, YOUR bar - the recorded default is "
             "{:.1%}".format(close_bar, CLOSE_MIN)
             if close_custom else
             "need {:.1%}, which is {}/{}".format(
-                close_bar, 116, SET_AT)))
+                close_bar, 116, SET_AT),
+            own_note))
     _own_inv = s.get("pairs_own_inverted")
     _inv_judged = inverted if _own_inv is None else int(_own_inv)
     _inv_scaf = max(0, inverted - _inv_judged)

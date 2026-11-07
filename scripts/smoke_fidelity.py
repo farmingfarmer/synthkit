@@ -858,6 +858,37 @@ def main():
     check("...and a run with no scaffolding says nothing extra, "
           "because a note that fires on everything is noise",
           "your own columns" not in _pline)
+    # AND IT BELONGS ON THE CLOSE LINE TOO, where it was missing.
+    #
+    # Measured on the real extract: close reads 120/137 = 87.6%
+    # over all pairs and 23/27 = 85.2% over the operator's OWN
+    # columns, so the 110 scaffolding pairs are FLATTERING the
+    # total - a 0/1 indicator tied to its own set survives better
+    # than a clinical column does. The headline is kinder than
+    # the file the operator receives, and the note was on
+    # `direction kept` and not on the criterion where that
+    # matters most.
+    _cline = [c for c in _mix["criteria"]
+              if c["name"] == "close"][0]["detail"]
+    check("the close criterion carries the own/scaffolding "
+          "breakdown as well, because the total is FLATTERED by "
+          "scaffolding rather than dragged down by it - 87.6% "
+          "over all pairs against 85.2% over the operator's own "
+          "columns on the real extract",
+          "your own columns" in _cline
+          and "21 are your own columns" in _cline
+          and "94 are set-token search scaffolding" in _cline)
+    check("...and the criterion still JUDGES the total, "
+          "deliberately: the bar was set against it, so "
+          "switching the denominator would move a release "
+          "verdict rather than fix a bug. The stricter number is "
+          "printed beside the one being judged",
+          "49/115" in _cline)
+    _cplain = [c for c in _plain["criteria"]
+               if c["name"] == "close"][0]["detail"]
+    check("...and a run with no scaffolding adds nothing to the "
+          "close line either",
+          "your own columns" not in _cplain)
 
     # EVERY TERM ON THE DASHBOARD IS A DOOR - and it has to be
     # one INSIDE the page. The Dashboard is served into a

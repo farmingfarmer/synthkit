@@ -5929,6 +5929,42 @@ exist.
   recorded four times. Both rules in one failure: write after
   each edit, and anchor inside a single line.
 
+- **THE SCAFFOLDING IS FLATTERING THE CLOSE CRITERION, NOT
+  DRAGGING IT DOWN - AND THAT REFUTED THE FIX I WAS ABOUT TO
+  MAKE (2026-11-06).** The INVERTED stop was switched to the
+  operator's own columns because nobody can read a column that
+  is not there; `close` and `direction kept` still judge the
+  scaffolding-inclusive total, and `pairs_own_close` existed
+  and appeared only in a note. The obvious move was to judge
+  close on the operator's columns too, which would also have
+  been a route to Goal 5's named item - the unrepaired engine
+  reaching the bar. Measured on run_deliverable FIRST, read
+  back in words:
+      close,     all pairs   120/137 = 87.6%
+      close,     own columns   23/27  = 85.2%
+      direction, all pairs    134/137 = 97.8%
+      direction, own columns   26/27  = 96.3%
+      set-token scaffolding pairs         110
+  **The own-column number is WORSE.** A 0/1 token indicator
+  tied to its own set survives generation better than a
+  clinical column does, so the headline is KINDER than the file
+  the operator receives - the opposite of what the INVERTED
+  precedent led me to expect. The change would not have cleared
+  the bar, and proposing it would have been the
+  move-the-denominator-to-clear-a-bar mistake while failing on
+  its own terms. One measurement, no code, idea dead.
+- **SO THE CRITERION STILL JUDGES THE TOTAL, DELIBERATELY, AND
+  THE STRICTER NUMBER IS PRINTED BESIDE IT.** The bar was SET
+  against the total, so switching the denominator moves a
+  release verdict rather than fixing a bug - a product decision
+  and not a bug fix, which this file's own rule about printing
+  a chosen bar beside the recorded default exists to keep
+  honest. What WAS a defect: the own/scaffolding breakdown was
+  appended to the `direction kept` line and NOT to `close`,
+  which is the criterion where it matters most and the one that
+  FAILS. Now on both, with a run that has no scaffolding still
+  adding nothing - a note that fires on everything is noise.
+
 - **MULTI-TABLE INTAKE EXISTS, AND THE KEYS COME FROM THE
   VALUES (2026-11-04, `synthkit/multitable.py`).** The fitted
   path has always been single-table, so an operator with
