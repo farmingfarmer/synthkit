@@ -2304,6 +2304,156 @@ def main():
           _d.returncode != 0
           and "not a subcommand" in _d.stdout)
 
+    # ------------------------ A PATIENT'S COURSE OVER TIME
+    #
+    # The engine draws a patient's visit deviations iid and then
+    # PERMUTES them, so within-patient lag-1 comes out at exactly
+    # ZERO - the patient's LEVEL survives and their COURSE is
+    # absent, which is the gate's `dynamics tracked 17/87` in one
+    # number. `trajectory="ar"` walks the deviations as an AR(1)
+    # in latent space instead.
+    #
+    # IT IS OFF BY DEFAULT BECAUSE IT HAS A PRICE, and the checks
+    # pin both halves: the gain on the clinical columns AND the
+    # harm to a within-patient counter.
+    from synthkit import dynamics as _DY
+
+    def _traj_fixture(npat=320, nv=8, rho=0.75, seed=11):
+        rng = np.random.default_rng(seed)
+        rows = []
+        for i in range(npat):
+            centre = rng.normal(0, 1.0)
+            d = rng.normal(0, 1.0)
+            for t in range(nv):
+                d = (rho * d
+                     + np.sqrt(1 - rho ** 2) * rng.normal(0, 1.0))
+                lvl = centre + d
+                rows.append((
+                    "P{:04d}".format(i), t,
+                    round(float(120 + 8 * centre + 5 * d
+                                + rng.normal(0, 1.5)), 1),
+                    round(float(5 + 1.2 * lvl
+                                + rng.normal(0, 0.4)), 2)))
+        return pd.DataFrame(rows, columns=[
+            "person_id", "visit_number", "systolic", "severity"])
+
+    def _dyn(f, cols=("systolic", "severity")):
+        pi, ci = _DY._consecutive(f, "person_id")
+        out = {}
+        for c in cols:
+            v = pd.to_numeric(f[c], errors="coerce"
+                              ).to_numpy(dtype=float)
+            l1 = _DY.pooled_lag1(v, pi, ci)
+            icc = _DY.icc1(v, f["person_id"].to_numpy())
+            out[c] = (l1, icc, _DY.within_from(l1, icc))
+        return out
+
+    _tf = _traj_fixture()
+    _src = _dyn(_tf)
+    check("the trajectory fixture really carries a within-"
+          "patient course - source `within` {:.3f} / {:.3f}, "
+          "which is lag-1 with the patient's LEVEL divided out. "
+          "A fixture without it could not show the gap"
+          .format(_src["systolic"][2], _src["severity"][2]),
+          min(v[2] for v in _src.values()) > 0.2)
+
+    _tdf = _tf.astype(str)
+    _g_off = LatentGen(seed=0, k=10, trajectory=False)
+    _g_off.fit(_tdf, "person_id")
+    _off = _dyn(_g_off.generate(len(_tdf), seed=0))
+    check("WITH IT OFF the course is not degraded but ABSENT: "
+          "within {:.3f} / {:.3f} against a source {:.3f} / "
+          "{:.3f}. The deviations are drawn iid and permuted, so "
+          "zero is guaranteed by construction rather than "
+          "unlucky".format(_off["systolic"][2],
+                           _off["severity"][2],
+                           _src["systolic"][2],
+                           _src["severity"][2]),
+          max(abs(v[2]) for v in _off.values()) < 0.08)
+    check("...while the patient's LEVEL does survive without it "
+          "(icc {:.3f} against {:.3f}) - so the engine has a "
+          "`who` and no `course`, which is the distinction the "
+          "whole criterion rests on"
+          .format(_off["systolic"][1], _src["systolic"][1]),
+          abs(_off["systolic"][1] - _src["systolic"][1]) < 0.15)
+
+    _g_ar = LatentGen(seed=0, k=10, trajectory="ar")
+    _g_ar.fit(_tdf, "person_id")
+    _g_ar.dev_rho_override = 0.7
+    _ar = _dyn(_g_ar.generate(len(_tdf), seed=0))
+    check("and `ar` RECOVERS it: within {:.3f} / {:.3f} against "
+          "a source {:.3f} / {:.3f}, where off reads {:.3f} / "
+          "{:.3f}".format(_ar["systolic"][2], _ar["severity"][2],
+                          _src["systolic"][2], _src["severity"][2],
+                          _off["systolic"][2], _off["severity"][2]),
+          min(v[2] for v in _ar.values()) > 0.15)
+    # AND THE CALIBRATION GAP, PINNED AS A LIMITATION.
+    #
+    # A FIXED rho is not calibrated to a dataset. On the
+    # 600-patient fixture rho 0.7 moved every column's lag-1
+    # toward its source; on THIS 320-patient one it OVERSHOOTS
+    # severity (source 0.848, off 0.797, ar 0.938) while still
+    # improving systolic. So the within-patient recovery is
+    # robust and the column-level landing is not - the rho wants
+    # SOLVING against the source's own lag-1 rather than taking
+    # the latent value or a swept constant, which is the same
+    # lesson as the intercept being solved rather than centred.
+    #
+    # This check asserts the overshoot HAPPENS, so the
+    # limitation cannot be quietly forgotten, and the first
+    # version of it asserted the opposite and went red - which
+    # is how the gap was found.
+    _over = [c for c in ("systolic", "severity")
+             if _ar[c][0] > _src[c][0] + 0.02]
+    _toward = [c for c in ("systolic", "severity")
+               if abs(_ar[c][0] - _src[c][0])
+               < abs(_off[c][0] - _src[c][0])]
+    check("the column-level lag-1 moves toward its source on at "
+          "least one column ({}) AND can OVERSHOOT on another "
+          "({}) at a fixed rho - {:.3f} -> {:.3f} and {:.3f} -> "
+          "{:.3f} against {:.3f} / {:.3f}. The rho wants solving "
+          "against the source rather than fixing, and that is "
+          "named rather than hidden"
+          .format(_toward or "none", _over or "none",
+                  _off["systolic"][0], _ar["systolic"][0],
+                  _off["severity"][0], _ar["severity"][0],
+                  _src["systolic"][0], _src["severity"][0]),
+          len(_toward) >= 1 and len(_over) >= 1)
+
+    # THE PRICE, PINNED. A within-patient COUNTER is harmed,
+    # because making the latent deviations persist makes a
+    # counter look patient-specific. This check exists so the
+    # cost cannot be quietly forgotten when somebody turns the
+    # flag on by default.
+    def _icc(f, col):
+        return _DY.icc1(pd.to_numeric(f[col], errors="coerce")
+                        .to_numpy(dtype=float),
+                        f["person_id"].to_numpy())
+    _f_off = _g_off.generate(len(_tdf), seed=0)
+    _f_ar = _g_ar.generate(len(_tdf), seed=0)
+    _c_src = _icc(_tf, "visit_number")
+    check("THE PRICE: a within-patient COUNTER is harmed - "
+          "`visit_number` icc {:.3f} off against {:.3f} on, for "
+          "a source {:.3f}. Persisting the deviations makes a "
+          "counter look patient-specific, and this is why the "
+          "flag is OFF by default rather than a free win"
+          .format(_icc(_f_off, "visit_number"),
+                  _icc(_f_ar, "visit_number"), _c_src),
+          _icc(_f_ar, "visit_number")
+          > _icc(_f_off, "visit_number") + 0.1)
+    check("...and the engine's own default is OFF, so nobody "
+          "pays that price without choosing to",
+          LatentGen(seed=0, k=10).trajectory is False)
+    check("...and the REARRANGEMENT arm is gone rather than "
+          "left as a second option: it recovered about 5% of "
+          "the gap, and its marginal-preservation argument was "
+          "FALSE because downstream steps rank-map rows onto "
+          "published grids",
+          "argsort(np.argsort(tgt))" not in io.open(
+              str(Path(__file__).resolve().parent
+                  / "latent_challenger.py"),
+              encoding="utf-8").read())
+
     print("All {} checks passed.".format(PASS))
 
 

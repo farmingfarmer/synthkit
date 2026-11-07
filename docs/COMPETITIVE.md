@@ -100,6 +100,25 @@ gap is that we cannot offer the choice.
 
 ### 2. Sequential / longitudinal modelling as a first-class model
 
+**MEASURED AND PARTLY ADDRESSED 2026-11-07 (DYN-1).** The
+mechanism behind `dynamics tracked 17/87` turned out to be one
+line: the neural engine draws a patient's visit deviations iid
+and then PERMUTES them, so within-patient lag-1 is exactly
+**zero** by construction — the patient's level survives and
+their course is absent. `--trajectory ar:RHO` walks the
+deviations as an AR(1) in latent space and recovers it: lag-1
+0.742 → **0.831** on systolic (clearing the 0.15 bar it was
+failing), 0.676 → 0.805, 0.651 → 0.789.
+
+It ships **off by default** because it has a measured price: a
+within-patient COUNTER column is harmed (icc 0.002 → 0.365
+against a source 0.000), since persisting the deviations makes a
+counter look patient-specific. The gate therefore reads 1/4 on
+every arm — one criterion fixed, one broken. And at a fixed rho
+the column-level landing is dataset-dependent and can overshoot,
+so the rho wants SOLVING against the source rather than fixing.
+That is the named residue; the mechanism is no longer a mystery.
+
 MOSTLY AI documents a sequential scenario; the research
 frontier (RawMed, PATH, SynEHR) treats a patient's whole table
 as the unit of synthesis.

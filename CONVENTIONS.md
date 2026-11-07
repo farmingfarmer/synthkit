@@ -4055,6 +4055,92 @@ what follows is what came out wrong anyway.
   false confidence about privacy is the most expensive kind
   there is.
 
+- **A PATIENT'S COURSE OVER TIME WAS ABSENT BY CONSTRUCTION,
+  NOT DEGRADED (2026-11-07, DYN-1).** `COMPETITIVE.md` names
+  sequential modelling as the second-largest gap, and the gate
+  has read `dynamics tracked 17/87` for months. The mechanism
+  is one line: the neural engine draws a patient's visit
+  deviations iid and then PERMUTES them, so consecutive visits
+  are independent by construction. Measured with the project's
+  own instrument on a fixture carrying a planted within-patient
+  AR(1):
+      col          source within   generated within
+      systolic           0.468            0.000
+      severity           0.456            0.000
+      diastolic          0.379            0.001
+  `within` is lag-1 with the between-patient share divided out -
+  the patient's course rather than their level. The LEVEL
+  survives (icc 0.808 -> 0.733); the course is exactly zero.
+- **THE REARRANGEMENT ARM WAS BUILT FIRST, MEASURED, AND
+  REMOVED - AND ITS GUIDING ARGUMENT WAS FALSE.** Reordering
+  each patient's drawn deviation rows to match an AR(1) score
+  recovered within 0.000 -> 0.032 against a source 0.468, about
+  5% of the gap. And the reasoning behind it - a PERMUTATION
+  cannot move a marginal, the instrument the repairs and dials
+  rest on - DOES NOT HOLD HERE: downstream steps rank-map rows
+  onto published grids, so reordering rows changes which row
+  gets which value and the output multiset genuinely moves.
+  Found by measuring the multisets rather than by trusting the
+  argument; they differed. Removed rather than left as a second
+  option.
+- **AND THE FIRST COMPARISON WAS A RESEED WEARING A FLAG.** The
+  AR targets drew from the MAIN rng, so every downstream draw -
+  the k-blur, the set token picks, the identity tiers - shifted,
+  and the with-and-without arms were effectively different
+  seeds. Caught because the output multisets differed when a
+  permutation of deviations cannot change them. A dedicated
+  stream fixes it, and the lesson is the recorded one: a change
+  that consumes randomness is not a change you can A/B against
+  the same seed.
+- **THE AR WALK IN LATENT SPACE RECOVERS IT, AND THE MEASURED
+  LATENT RHO IS THE WRONG CALIBRATION.** Walking the deviations
+  as d_t = rho d_{t-1} + sqrt(1-rho^2) e_t preserves any
+  stationary covariance exactly, so the latent covariance that
+  drives the column correlations is untouched. Swept, mean over
+  three columns against a source within of 0.434 and icc 0.700:
+      rho    mean icc   mean within   icc drift
+      0.00      0.700         0.000      +0.000
+      0.50      0.747         0.261      +0.047
+      0.70      0.800         0.388      +0.100
+      0.85      0.850         0.392      +0.151
+      0.95      0.925         0.314      +0.226
+  The measured latent rho IS 0.95 - and applying it directly is
+  strictly worse than 0.85 on BOTH axes. A high rho turns the
+  deviation into part of the centre, which is the recorded
+  `dev_scale` lesson in reverse: a knob that sounds right does
+  the opposite through the decoder's nonlinearity.
+- **ONE CRITERION FIXED, ONE BROKEN, AND THE BROKEN ONE IS A
+  NAMEABLE COLUMN CLASS.** At rho 0.7, per column against the
+  gate's 0.15 bar: lag-1 systolic 0.742 -> 0.831 (FIXED - it was
+  failing), severity 0.676 -> 0.805, diastolic 0.651 -> 0.789,
+  all better. But `visit_number` - a within-patient COUNTER -
+  went icc 0.002 -> 0.365 against a source 0.000, BROKEN,
+  because persisting the deviations makes a counter look
+  patient-specific. The gate's `dynamics tracked` therefore
+  reads 1/4 on every arm: **three arms that agree are one arm**,
+  and the reason is one column class rather than the mechanism
+  failing.
+- **SO IT SHIPS OFF BY DEFAULT WITH THE PRICE PINNED.** A flag
+  that silently harmed one column class would be worse than no
+  flag. `--trajectory ar:RHO`, with the sweep in its own help
+  text, the counter harm asserted by a check so it cannot be
+  quietly forgotten, and the default asserted to be OFF. Three
+  mutations bite: removing the AR walk (3 red), turning it on by
+  default (1), dropping the variance-preserving factor (1).
+- **AND THE RHO WANTS SOLVING, WHICH IS THE NAMED RESIDUE.** At
+  a FIXED rho the column-level landing is dataset-dependent: on
+  a 600-patient fixture rho 0.7 moved every column toward its
+  source, and on a 320-patient one it OVERSHOOTS severity
+  (source 0.848, off 0.797, on 0.938) while still improving
+  systolic. The within-patient recovery is robust; the
+  column-level calibration is not. The fix is to SOLVE rho
+  against the source's own lag-1 rather than take the latent
+  value or a swept constant - the same lesson as the intercept
+  being solved rather than centred. A check asserts the
+  overshoot HAPPENS so the gap cannot be forgotten, and the
+  first version of that check asserted the opposite and went
+  red, which is how the gap was found.
+
 - **PRINT THE ITEMS, NOT THE COUNT - AN EMPTY LIST CANNOT BE
   MISREAD WHERE A ZERO CAN (2026-11-06).** Polling a net on the
   data machine, the failure COUNT came back as `8` on one read

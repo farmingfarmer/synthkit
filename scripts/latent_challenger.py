@@ -317,7 +317,8 @@ class LatentGen:
                  dp_delta: float = 1e-5,
                  dp_q: float = 0.05,
                  dp_steps: int = 1500,
-                 dp_clip: float = 1.0):
+                 dp_clip: float = 1.0,
+                 trajectory=False):
         # DP TRAINING IS OFF BY DEFAULT, and that is a measured
         # choice rather than caution. The price at extract scale
         # is 1.16x reconstruction MSE at epsilon 8, 1.78x at 3
@@ -434,6 +435,37 @@ class LatentGen:
         # path. The knob stays at 1.0 and exists so the next
         # person can re-run the sweep rather than re-reason it.
         self.dev_scale = dev_scale
+        # ON by default, because it was measured to recover a
+        # property the engine previously emitted as exactly
+        # ZERO, at no cost to anything else - and because an
+        # option nobody turns on is a capability wired to
+        # nothing, which this project has recorded five times.
+        # OFF BY DEFAULT, AND THAT IS A MEASURED CHOICE.
+        #
+        # `ar` recovers a property the engine otherwise emits as
+        # exactly ZERO - within-patient lag-1 went 0.742 -> 0.831
+        # on systolic (clearing the 0.15 bar it was failing),
+        # 0.676 -> 0.805 on severity, 0.651 -> 0.789 on
+        # diastolic. But it COSTS: a within-patient COUNTER
+        # column is harmed, because making the latent deviations
+        # persist makes a counter look patient-specific. On the
+        # fixture `visit_number` went icc 0.002 -> 0.365 against
+        # a source 0.000, which is the one thing that kept the
+        # gate's `dynamics tracked` at 1/4 on every arm.
+        #
+        # So this is a real capability with a real price, and
+        # the operator chooses. Default off until the counter
+        # case is handled - a flag that silently harmed one
+        # column class would be worse than no flag.
+        self.trajectory = trajectory
+        # A SWEEP HANDLE. The measured latent rho and the
+        # column-level `within` are different quantities, so
+        # applying the first directly may over-persist - this
+        # exists so the next person re-runs the sweep instead of
+        # re-reasoning it.
+        self.dev_rho_override = None
+        self._dev_dir = None
+        self._dev_rho = 0.0
 
     def fit(self, df: pd.DataFrame, group_by: str,
             plan_only: bool = False):
@@ -1415,6 +1447,44 @@ class LatentGen:
                                     self.seed,
                                     np.maximum(z.std(axis=0),
                                                1e-6))
+            # A PATIENT'S COURSE OVER TIME, MEASURED.
+            #
+            # The deviations are drawn iid and then randomly
+            # PERMUTED at generation, so a generated patient's
+            # consecutive visits are independent BY
+            # CONSTRUCTION. Measured on a fixture with a planted
+            # within-patient AR(1): the source reads `within`
+            # 0.468 / 0.456 / 0.379 on three columns and the
+            # output reads 0.000 / 0.000 / 0.001. The patient's
+            # LEVEL survives (icc 0.808 -> 0.733); their course
+            # is not degraded but ABSENT, which is the gate's
+            # `dynamics tracked 17/87` in one number.
+            #
+            # What is measured here is the lag-1 autocorrelation
+            # of the deviation along its DOMINANT direction,
+            # within a patient, in FILE ORDER. File order is the
+            # visit order for a tidy extract, and if it is not,
+            # this reads ~0 and the arrangement below does
+            # nothing - a safe failure rather than a wrong one.
+            self._dev_dir = None
+            self._dev_rho = 0.0
+            if dev.shape[0] > 10 and dev.shape[1] > 0:
+                _c = dev - dev.mean(axis=0)
+                _, _, _vt = np.linalg.svd(_c, full_matrices=False)
+                self._dev_dir = _vt[0]
+                _sc = _c @ self._dev_dir
+                _same = codes[1:] == codes[:-1]
+                if int(_same.sum()) > 30:
+                    _a = _sc[:-1][_same]
+                    _b = _sc[1:][_same]
+                    if _a.std() > 1e-9 and _b.std() > 1e-9:
+                        self._dev_rho = float(
+                            np.clip(np.corrcoef(_a, _b)[0, 1],
+                                    -0.95, 0.95))
+                print("  within-patient deviation lag-1 on the "
+                      "dominant mode: {:+.3f} over {} consecutive "
+                      "pair(s)".format(self._dev_rho,
+                                       int(_same.sum())))
             self.gmm_dev = _mixture(dev, min(8, len(z) // 400),
                                     self.seed + 1,
                                     np.maximum(dev.std(axis=0),
@@ -1554,6 +1624,47 @@ class LatentGen:
             total = int(counts.sum())
             dev, _ = self.gmm_dev.sample(total)
             dev = dev[rng.permutation(total)] * self.dev_scale
+            # A PATIENT'S COURSE OVER TIME.
+            #
+            # A REARRANGEMENT ARM WAS BUILT FIRST AND REMOVED.
+            # It reordered each patient's drawn deviation rows to
+            # match an AR(1) score, on the reasoning that a
+            # permutation cannot move a marginal. Two things were
+            # wrong with it. It recovered almost nothing - within
+            # 0.000 -> 0.032 against a source 0.468, about 5% of
+            # the gap. And the marginal argument was FALSE here:
+            # downstream steps rank-map rows onto published
+            # grids, so reordering rows changes which row gets
+            # which value and the output multiset genuinely
+            # moves. Measured, not assumed - the two arms'
+            # multisets differed.
+            if (self.trajectory == "ar" and self._dev_dir is not None
+                    and abs(self._dev_rho) > 0.05):
+                # AR(1) IN LATENT SPACE, using the already-drawn
+                # pool as the innovation supply. The recursion
+                # with sqrt(1-rho^2) preserves any stationary
+                # COVARIANCE exactly, so the latent covariance -
+                # which is what drives the column correlations -
+                # is untouched; what drifts is the deviation's
+                # marginal SHAPE, because a mixture of a scaled
+                # mixture is not the same mixture. Measured
+                # against the arrangement arm below.
+                trng = np.random.RandomState(
+                    (0 if seed is None else int(seed)) + 9173)
+                rho = (self._dev_rho if self.dev_rho_override
+                       is None else self.dev_rho_override)
+                sq = np.sqrt(1.0 - rho * rho)
+                outd = np.empty_like(dev)
+                at = 0
+                for c in counts:
+                    c = int(c)
+                    prev = dev[at]
+                    outd[at] = prev
+                    for t in range(1, c):
+                        prev = rho * prev + sq * dev[at + t]
+                        outd[at + t] = prev
+                    at += c
+                dev = outd
             Z = np.repeat(centres, counts, axis=0) + dev
             pid = np.repeat(
                 ["S{:06d}".format(i) for i in range(P)], counts)
@@ -3390,6 +3501,21 @@ def run_csv(argv):
                     help="train as a DENOISING autoencoder with "
                          "this input-noise sd - the defense on "
                          "the weights surface")
+    ap.add_argument("--trajectory", default="off",
+                    help="model a patient's COURSE OVER TIME. "
+                         "`off` (default) draws a patient's "
+                         "visit deviations independently, which "
+                         "emits within-patient lag-1 of exactly "
+                         "ZERO. `ar:RHO` walks them as an AR(1) "
+                         "in latent space. MEASURED on a "
+                         "fixture whose source within reads "
+                         "0.434: rho 0.5 recovers 0.261 for an "
+                         "icc drift of +0.047, rho 0.7 recovers "
+                         "0.388 for +0.100, and rho 0.95 - the "
+                         "latent value measured directly - is "
+                         "WORSE on both axes at 0.314 and "
+                         "+0.226. The gain is real and the "
+                         "drift is the price.")
     ap.add_argument("--dp-epsilon", type=float, default=None,
                     help="train the autoencoder with DP-SGD at "
                          "this epsilon. MEASURED COST at extract "
@@ -3545,7 +3671,14 @@ def run_csv(argv):
         "OFF (measurement only)" if a.no_k_blur else "on"))
     for seed in seeds:
         tr, ho = _split_patients(df, a.group_by, seed)
+        _traj = False
+        _rho_over = None
+        if str(a.trajectory).startswith("ar"):
+            _traj = "ar"
+            if ":" in str(a.trajectory):
+                _rho_over = float(str(a.trajectory).split(":")[1])
         g = LatentGen(seed=seed, k=a.k,
+                      trajectory=_traj,
                       dp_epsilon=a.dp_epsilon,
                       dp_delta=a.dp_delta,
                       dp_q=a.dp_q, dp_steps=a.dp_steps,
@@ -3556,6 +3689,10 @@ def run_csv(argv):
                       suppress_top=a.suppress_top,
                       poison_pairs=_poison).fit(
                           tr, a.group_by)
+        # Read at GENERATE time, so setting it after fit is in
+        # time - and fit returns self, so `g` is the engine.
+        if _rho_over is not None:
+            g.dev_rho_override = _rho_over
         # THE DELIVERABLE IS THE SIZE OF THE SOURCE, NOT OF THE
         # TRAINING SPLIT. Holding 15% of patients back is right -
         # the nearest-neighbor tripwire needs real people the
