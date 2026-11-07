@@ -296,6 +296,99 @@ def main():
           "sparse column in it ({:.3f} against {:.3f})".format(
               sp_on, sp_off), sp_on > sp_off)
 
+    # ---------------------------- NO RING-ADJACENCY CEILING
+    #
+    # CONVENTIONS carried, for weeks and with a 2-4 week
+    # estimate beside it: "the sweeps deliver ~0.78 adjacent
+    # correlation where a near-identity needs ~0.97 - the
+    # ring-adjacency ceiling, the genuine research item".
+    #
+    # The 0.775 in that sentence is what THIS fixture produces
+    # at ITS OWN skill, which `ring()` hardcodes as
+    # 0.75 - 0.005*i. The 0.97 is what a near-identity NEEDS.
+    # Two different experiments, and comparing them invented a
+    # mechanism that is not there: swept across skill, the
+    # sweeps deliver the skill they were GIVEN.
+    #
+    # These checks are what would catch a real cap if one ever
+    # appeared, which prose cannot - and the fail-first for them
+    # is a genuine 0.78 clamp on the skill the sampler uses.
+    def _ring_at(skill, slope=0.55):
+        bp = ring()
+        _e0 = bp["relationships"][0]["evidence"]["effect"]
+        _grid = list(_e0[list(_e0)[0]]["grid"])
+        for r in bp["relationships"]:
+            r["evidence"]["skill_out_of_sample"] = skill
+            for _p in r["evidence"]["effect"]:
+                r["evidence"]["effect"][_p] = {
+                    "shape": "increasing", "grid": _grid,
+                    "response": [slope * g for g in _grid]}
+        return bp
+
+    def _adj_at(skill, seeds=3):
+        bp = _ring_at(skill)
+        return [float(np.mean(adjacent(
+            generate(bp, n_patients=300, seed=s))))
+            for s in range(seeds)]
+
+    _lo = _adj_at(0.75)
+    _hi = _adj_at(0.97)
+    check("the fixture REPRODUCES the number the record was "
+          "built on: at its own hardcoded skill of 0.75 the "
+          "sweeps deliver {:.3f} - a correction that cannot "
+          "reproduce what it corrects has not earned it"
+          .format(float(np.mean(_lo))),
+          0.70 < float(np.mean(_lo)) < 0.85)
+    check("...and THERE IS NO CEILING: at skill 0.97 the same "
+          "ring delivers {:.3f} ({:.3f}-{:.3f} over {} seeds), "
+          "not 0.78. The sweeps track the skill they were "
+          "given, so the recorded sentence compared this "
+          "fixture at 0.75 against what a near-identity needs "
+          "at 0.97".format(float(np.mean(_hi)), min(_hi),
+                           max(_hi), len(_hi)),
+          float(np.mean(_hi)) > 0.90)
+    check("...and it keeps rising, which is the property a cap "
+          "would break: 0.75 -> {:.3f}, 0.97 -> {:.3f}, and the "
+          "gap between them is {:.3f} rather than zero"
+          .format(float(np.mean(_lo)), float(np.mean(_hi)),
+                  float(np.mean(_hi)) - float(np.mean(_lo))),
+          float(np.mean(_hi)) - float(np.mean(_lo)) > 0.10)
+    check("...and the DELIVERED correlation sits within 0.05 of "
+          "the DECLARED skill at both ends, which is the "
+          "statement worth pinning - the sweeps are faithful, "
+          "not capped",
+          abs(float(np.mean(_hi)) - 0.97) < 0.05
+          and abs(float(np.mean(_lo)) - 0.75) < 0.06)
+
+    # AND THE SHAPE CRITERION AGREES, with its own floor.
+    def _shape_gap(fa, fb, child="t1", parent="t0", bins=6):
+        def _binned(f):
+            a = pd.to_numeric(f[parent], errors="coerce")
+            b = pd.to_numeric(f[child], errors="coerce")
+            k = a.notna() & b.notna()
+            a, b = a[k], b[k]
+            qs = np.quantile(a, np.linspace(0, 1, bins + 1))
+            out = []
+            for i in range(bins):
+                m = (a >= qs[i]) & (a <= qs[i + 1])
+                out.append(float(b[m].mean()) if m.sum() > 5
+                           else np.nan)
+            return np.array(out), float(b.std())
+        ca, sa = _binned(fa)
+        cb, sb = _binned(fb)
+        return float(np.nanmax(np.abs(ca - cb))
+                     / max(sa, sb, 1e-9))
+
+    _bp97 = _ring_at(0.97)
+    _g97 = _shape_gap(generate(_bp97, n_patients=600, seed=0),
+                      generate(_bp97, n_patients=600, seed=1))
+    check("and the SHAPE gap at skill 0.97 is {:.3f} sd - which "
+          "is the floor between two independent draws of the "
+          "SAME blueprint, against the 0.35 DEPARTS bar. "
+          "Without that reference a 0.06 could be read as a "
+          "small loss rather than as noise".format(_g97),
+          _g97 < 0.20)
+
     print()
     if FAIL:
         print("{} FAILED".format(FAIL))

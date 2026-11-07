@@ -3717,7 +3717,242 @@ what follows is what came out wrong anyway.
   measured and the rank-one limit compounds along a chain -
   named, not assumed cheap.
 
- - AN EMPTY LIST CANNOT BE
+- **A VIN IS NOT SHAPELESS - IT CARRIES A CHECK DIGIT, AND THE
+  INVENTORY WAS WRONG ABOUT THAT (2026-11-07, PHI-6).** The
+  Safe Harbor inventory marked categories 12 and 13 NOT COVERED
+  on the reasoning that "a VIN is indistinguishable from any
+  other alphanumeric code". That was my own sentence and it was
+  wrong. A VIN is seventeen characters, EXCLUDES I, O and Q so
+  they cannot be confused with 1 and 0, and position NINE is a
+  check digit computed from the other sixteen - as verifiable as
+  an SSN's three-two-four and far more specific. Measured
+  coincidence floor: random strings from the VIN alphabet clear
+  the checksum 3.1% of the time (1 in 33, the modulus being 11
+  with X absorbing the 10 case) against a column needing 50%.
+  The negative control is the SAME seventeen characters with the
+  check digit moved, so only the arithmetic separates them.
+- **AND A DEVICE UDI HAS TWO HALVES, ONLY ONE OF WHICH
+  IDENTIFIES A UNIT.** `(01)` is the DEVICE identifier - a GTIN,
+  a MODEL code, the clinical fact of which device was implanted.
+  `(21)` serial, `(10)` lot, `(11)` production date and `(17)`
+  expiry are PRODUCTION identifiers: which unit, and when. The
+  detector fires on a production identifier and deliberately
+  does NOT fire on a DI alone, because a bare GTIN identifies
+  nobody and dropping it would remove a covariate to delete
+  something that is not an identifier - exactly the trade the
+  REMEDY table exists to refuse. The finding says which it saw,
+  so a reader making an Expert Determination argument can see
+  the tool did not pre-empt it. The mutation that flags a DI
+  turns THREE checks red.
+- **EVERY SAFE HARBOR CATEGORY IS NOW AT LEAST PARTIALLY
+  REACHED - 8 covered, 8 partial, 2 not-in-a-table, ZERO not
+  covered - WHICH BROKE TWO OF MY OWN CHECKS.** One asserted
+  that vehicle and device identifiers were specifically `not
+  covered`; the other that every status word had an instance.
+  Both went red when the gap was CLOSED, which is a check that
+  punishes progress. Rewritten to pin the PROPERTY instead: any
+  category short of covered must NAME what it does not reach,
+  whichever those turn out to be. That also exposed three notes
+  reading only "same rule as an MRN, same limit" - a
+  cross-reference a governance reader has to chase, which is the
+  count-a-reader-cannot-act-on fault in a coverage table. Each
+  states its own limit now. STILL NOT REACHED, named: license
+  plates (no checksum, state-varying) and free-form serials with
+  no GS1 syntax.
+
+- **A CHECK ON A DOCUMENT CAN BE SATISFIED BY THAT DOCUMENT'S
+  BIBLIOGRAPHY, AND IT TOOK FOUR ATTEMPTS TO MAKE ONE FAIL
+  (2026-11-07, `smoke_competitive`).** The check asserts each
+  named competitive GAP is still named, so closing one has to be
+  a deliberate edit rather than a quiet deletion. Attempt one
+  looked for the phrase ANYWHERE and passed, because "Expert
+  Determination" appears in a source link's title. Attempt two
+  narrowed to the gaps SECTION and passed, because the phrase
+  survives there inside the sentence describing what TONIC
+  documents - a vendor claim, not our gap. Attempt three moved
+  to the scoreboard and the build list and STILL passed,
+  because the build-list slice ran to end-of-file and picked up
+  the bibliography again. **A source list is evidence FOR a
+  page's statements and must never be able to satisfy them**, so
+  the Sources section is cut before any prose match. Only
+  instrumenting what the check actually saw found it; three
+  rounds of reasoning did not.
+- **AND THE NUMBER CHECK WAS SELF-FULFILLING IN THE WAY THIS
+  FILE ALREADY RECORDS.** It held a hardcoded tuple of our
+  figures and asserted each appeared in the record - verifying
+  THE LIST, not THE PAGE. Changing a figure in the document
+  failed nothing. Figures are EXTRACTED from the prose now and
+  checked against the record, which is the oldest rule here
+  pointed at the one page most tempted to break it. The
+  extractor then needed its own negative control: unanchored, it
+  matched `505.01524` as a three-digit suffix inside the arXiv
+  id `2505.01524` and reported a figure nobody measured.
+- **AND WHITESPACE IS NORMALISED BEFORE EVERY PHRASE MATCH,
+  which is the mechanical form of a rule recorded six times.** A
+  phrase a LINE BREAK splits cannot be grepped however correctly
+  the page reads: "Business Source License" landed with a
+  newline inside it and a check went red against a document that
+  said exactly the right thing. Reflowing the prose would fix
+  one instance; collapsing the whitespace closes the class.
+
+- **OUT OF SCOPE MEANT UNINSPECTED, AND THAT IS A CLEAN BILL OF
+  HEALTH FOR WHATEVER NOBODY LOOKED AT (2026-11-07, PHI-7).** A
+  column whose average value ran past `LONG_TEXT` was reported
+  OUT OF SCOPE by name and never read - honest about the
+  DECISION, and it meant nobody knew what was in the most
+  information-dense column in the record. The decision about
+  redacting a clinical note is governance; the MEASUREMENT is
+  ours. The battery runs over the TOKENS now, the same move a
+  set column uses, because the joined prose matches no pattern
+  even when its pieces do. Two faults found on the first probes:
+  an email counted TWICE because only the phone can span a token
+  boundary, and a URL counted NEVER because the tokeniser splits
+  on `:` and cut `https://` in half.
+- **AND THE REPORT MUST NEVER QUOTE WHAT IT FOUND.** Counting is
+  safe; printing the span is not. A PHI detector whose own
+  output carries the identifier it found has MOVED the leak
+  rather than closed it, and this is the one place in the module
+  where the matched text is somebody's note. Counts, kinds and
+  the ROW SHARE only - enough for a reviewer to tell one stray
+  from a systematic field. The check plants a name, a phone and
+  a date as module constants and asserts NONE appears anywhere
+  in the serialised report; adding an `example` field turns it
+  red.
+- **THE REMEDY IS A THIRD CLASS, AND IT HAD TO BE.** Dropping a
+  clinical note destroys the densest column in the record;
+  "generalising" free text is not a defined operation; and
+  REDACTING it is exactly the governance decision this tool does
+  not make for anybody - a redactor that misses one identifier
+  is worse than none, because it hands back false confidence.
+  Proper free-text de-identification needs clinical NER, which
+  this project does not have and does not pretend to. So
+  `review`: the column stays, `pending` keeps saying it is owed,
+  and `apply` needs NO special case because it drops only what
+  is marked drop - which is the argument for the remedy living
+  on the finding rather than in the applier.
+- **A REVIEW ITEM IS NOT A TOOL DEFECT, AND THE EXIT CODE SAYS
+  SO.** `--apply` refused with exit 1 if a fresh detect still
+  found anything - correct while every remedy was drop or
+  generalise, both of which it performs. Folding `review` in
+  would have made `--apply` report a defect FOREVER on any table
+  with a clinical note, which is wrong and is the kind of
+  permanent red that teaches people to ignore an exit code. Exit
+  1 now means the tool failed to do what it claimed; exit 3
+  means a human decision is outstanding, with NOT CERTIFIED and
+  a note that everything automatic WAS applied. Nothing
+  exercised that until a mutation conflating them found no check
+  to break - and the control is a table with NO free-text
+  column, which must still reach 0 or exit 3 is a permanent red
+  wearing a different number.
+- **AND THE IDEMPOTENCE CHECK'S PREMISE CHANGED WITH IT.** It
+  asserted a fresh detect finds NOTHING after apply and
+  generalise. That is a demand that the tool do the thing it
+  refuses to do, so it now asserts nothing with an AUTOMATIC
+  remedy remains, and separately that the review finding
+  deliberately SURVIVES. A check that insists on work the tool
+  declines is worse than no check, because the only way to
+  satisfy it is to start redacting.
+- **AND THE TEAM BUNDLE'S OWN SELF-SCAN CAUGHT THE NEW SUITE,
+  EXACTLY AS IT DID THE LAST TIME.** `smoke_competitive` read
+  `docs/SPRINT.md` to verify figures, and the sprint board is on
+  the bundle's EXCLUSION list, so the scan went DIRTY and
+  refused to finish. The established fix is a `noqa: bundle-scan`
+  marker; the better one here was to stop reading it -
+  CONVENTIONS and the scorecard are the authoritative record,
+  and a suite that cannot run inside the filtered bundle is a
+  suite the team cannot run at all.
+
+- **I USED A REPLACE HELPER FOR A PREPEND AND IT ATE THE ANCHOR,
+  THEN THE NEXT ENTRY VANISHED SILENTLY (2026-11-07).** Several
+  entries above were inserted with a local
+  `edit(path, old, new)` that calls `s.replace(old, new)`. Used
+  with the anchor as `old` and the entry as `new`, that DELETES
+  the anchor - so the heading line `PRINT THE ITEMS, NOT THE
+  COUNT` disappeared, leaving a stray fragment, and the
+  following entry's `assert s.count(anchor) == 1` then failed
+  and threw its whole entry away. **The PHI-6 and COMP-1 entries
+  were lost that way and committed and pushed without anybody
+  noticing**, because that edit ran in a command I had put in
+  the BACKGROUND, so its traceback was never read. Three rules
+  this file already holds, all three broken at once: write after
+  each edit, read the whole output rather than a filtered view,
+  and never background a step whose failure you need to see. The
+  helper is a PREPEND now, it asserts the anchor survives the
+  write, and the repair was verified by grepping for each
+  entry's own title rather than by trusting a print.
+
+- **THE RING-ADJACENCY CEILING DOES NOT EXIST, AND THE RECORDED
+  SENTENCE WAS COMPARING TWO DIFFERENT EXPERIMENTS (2026-11-07,
+  RING-1).** This file carried, for weeks and with a 2-4 week
+  estimate beside it, "the sweeps deliver ~0.78 adjacent
+  correlation where a near-identity needs ~0.97 - the
+  ring-adjacency ceiling, the genuine research item". The 0.775
+  is what `smoke_cycles.ring()` produces AT ITS OWN SKILL, which
+  it hardcodes as `0.75 - 0.005*i`. The 0.97 is what a
+  near-identity NEEDS. Swept across skill, eight seeds a cell:
+      declared skill   adjacent |r| min-mean-max   sweeps OFF
+          0.75         0.789  0.794  0.798           0.591
+          0.90         0.875  0.878  0.880           0.641
+          0.97         0.948  0.949  0.950           0.703
+          0.99         0.979  0.980  0.981           0.760
+  **The sweeps deliver the skill they were GIVEN, to within
+  about 0.02, with no cap anywhere.** The ranges are almost
+  degenerate, so this is not a seed effect.
+- **THE SHAPE CRITERION AGREES, AND IT NEEDED ITS OWN FLOOR.**
+  The binned-conditional-mean gap at skill 0.97 is 0.059 sd
+  against a 0.35 DEPARTS bar - and that figure is measured
+  BETWEEN TWO INDEPENDENT DRAWS OF THE SAME BLUEPRINT, which is
+  the floor any comparison can reach. Without that reference a
+  0.06 reads as a small loss rather than as noise, which is how
+  a non-problem acquires a work item.
+- **AND THE REAL EXTRACT SETTLES IT.** `run_deliverable`'s
+  blueprint declares `visit_start_date <-> visit_end_date` at
+  skill **0.9999 in BOTH directions** - a genuine near-identity
+  inside a cycle, the exact shape the ceiling was supposed to
+  describe. Source rho **1.0000** on 55,428 rows; generated rho
+  **1.0000** on 51,418. A fixture result alone would have been
+  worth less; this is the thing itself.
+- **WHAT IS STILL OPEN IS NARROWER, AND THE OLD SYMPTOM CANNOT
+  BE RE-MEASURED.** The original complaint was
+  `map_cuff <- map_cuff_bmdi` drifting up to 0.68 sd in shape on
+  a September cohort. Those columns are NOT in the current
+  blueprint - the pressure variants appear there only as weak
+  PARENTS at skill 0.07 to 0.36, with no near-identity claim
+  between them at all - so the symptom belongs to a cohort that
+  no longer exists in measurable form. Because the sampler
+  renders whatever skill it is handed, a future shape gap on a
+  near-identical pair comes from DISCOVERY's skill assignment or
+  from the curve, NOT from the sweeps. That is the re-aimed
+  question, and it is a different file.
+- **THE FINDING IS PINNED AS CHECKS, NOT PROSE, AND THE
+  FAIL-FIRST IS A GENUINE CAP.** `smoke_cycles` now asserts the
+  fixture reproduces 0.775 at its own skill (a correction that
+  cannot reproduce what it corrects has not earned it), that
+  skill 0.97 delivers over 0.90, that the delivered value sits
+  within 0.05 of the declared skill at both ends, and that the
+  gap between the two ends is real rather than zero. Clamping
+  the sampler's own `share` at 0.78 - the mechanism the record
+  described - turns THREE of them red.
+- **AND THE FIRST FAIL-FIRST FOUND NOTHING BECAUSE I MUTATED
+  THE WRONG FUNCTION.** `generate.py` reads
+  `skill_out_of_sample` in SEVEN places; I clamped the one in
+  `_informative_sets` and the sweep uses `_apply_numeric`. A
+  mutation that does not apply looks exactly like a check that
+  cannot fail, and this file already says so - the fix is to
+  locate the read by FUNCTION before mutating, which takes one
+  grep.
+- **AND I DESTROYED THE NEW CHECKS WITH `git checkout --` HOURS
+  AFTER RECORDING THAT EXACT TRAP.** The rule above is "restore
+  from a COPY of the working state, never from a commit, when
+  the working state is what you are trying to keep", written
+  this same weekend. I then reverted `smoke_cycles.py` to HEAD
+  to undo a mutation and took the uncommitted RING-1 checks with
+  it. Recovered by re-applying from the same script, verified by
+  asserting the text is IN the file, and a copy kept in /tmp
+  BEFORE the next mutation cycle. Knowing a rule and having a
+  habit are different things; the habit is to copy first.
+
+- **PRINT THE ITEMS, NOT THE COUNT - AN EMPTY LIST CANNOT BE
   MISREAD WHERE A ZERO CAN (2026-11-06).** Polling a net on the
   data machine, the failure COUNT came back as `8` on one read
   and as `®` on another when the true value was ZERO. This file

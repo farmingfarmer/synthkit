@@ -293,6 +293,7 @@ KINDS = {
     "vin": "vehicle identification numbers",
     "device_serial": "device production identifiers "
                      "(serial, lot or expiry)",
+    "free_text": "identifier shapes inside free text",
 }
 
 # WHAT TO DO ABOUT EACH, AND WHY IT IS NOT ONE ANSWER.
@@ -349,6 +350,24 @@ REMEDY = {
     # flagged, so a drop here removes the serial without
     # removing the clinical fact.
     "device_serial": "drop",
+    # A THIRD REMEDY, AND IT IS THE HONEST ONE HERE.
+    #
+    # Dropping a clinical note destroys the most
+    # information-dense column in the record. "Generalising"
+    # free text is not a defined operation. And REDACTING it is
+    # exactly the governance decision this tool does not make
+    # for anybody - a redactor that misses one identifier is
+    # worse than no redactor, because it hands back false
+    # confidence. Proper free-text de-identification needs
+    # clinical NER, which this project does not have and does
+    # not pretend to.
+    #
+    # So the remedy is REVIEW: the column stays, the finding is
+    # reported, `pending` keeps saying it is owed, and a human
+    # decides. `apply` already drops only what is marked drop,
+    # so this needs no special case there - which is the
+    # argument for the remedy living on the finding.
+    "free_text": "review",
 }
 
 _AGE_HINT = re.compile(r"(\bage\b|_age\b|\bage_)", re.IGNORECASE)
@@ -458,9 +477,17 @@ SAFE_HARBOR = (
     (17, "full-face photographs", "not in a table",
      "an image is not a cell in a CSV"),
     (18, "any other unique identifying number or code",
-     "partial", "`identifier` reaches the per-patient case; "
-     "FREE TEXT is reported out of scope by name and is the "
-     "open governance decision, not a detector gap"),
+     "partial", "`identifier` reaches the per-patient case. "
+     "FREE TEXT is now INSPECTED rather than skipped: "
+     "`free_text` runs the identifier battery over a long "
+     "column's tokens and reports COUNTS AND KINDS ONLY, never "
+     "the matched span, because a report carrying what it found "
+     "would move the leak rather than close it. Its remedy is "
+     "REVIEW and this tool does NOT redact - a redactor that "
+     "misses one identifier is worse than none, and proper "
+     "free-text de-identification needs clinical NER that this "
+     "project does not have. So the DECISION remains open and "
+     "the MEASUREMENT no longer is"),
 )
 
 
@@ -481,6 +508,100 @@ def inventory():
         for n, what, st, note in SAFE_HARBOR],
         "counts": by,
         "total": len(SAFE_HARBOR)}
+
+
+# FREE TEXT: INSPECTED, COUNTED, AND NEVER QUOTED.
+#
+# A column whose average value runs past LONG_TEXT has always
+# been reported OUT OF SCOPE by name - honest, and it meant
+# nobody knew what was in it. The governance DECISION about
+# redacting a clinical note is not ours; the MEASUREMENT is, and
+# a column reported out of scope with no inspection at all tells
+# a reviewer nothing they can act on.
+#
+# So the value battery runs over the TOKENS, which is the same
+# move a set column already uses - the joined string matches no
+# pattern even when its pieces do.
+#
+# THE REPORT MUST NOT QUOTE WHAT IT FOUND. Counting is safe;
+# printing the span is not. A PHI detector whose own output
+# carries the identifier it found has moved the leak rather than
+# closed it, and this is the one place in the module where that
+# is a live risk, because the matched text is somebody's note.
+# Counts and kinds only, with the ROW SHARE so a reviewer can
+# tell one stray from a systematic field.
+FREE_TEXT_SAMPLE = 400
+_TOKEN_SPLIT = re.compile(r"[\s,;:()\[\]{}<>\"']+")
+# The anchored `_PHONE` cannot be applied mid-string; this is
+# the same shape without the anchors, used ONLY for the
+# whole-value pass.
+_PHONE_LOOSE = re.compile(
+    r"(?<!\d)(\+?1[\s.-]?)?(\(\d{3}\)|\d{3})[\s.-]?\d{3}"
+    r"[\s.-]?\d{4}(?!\d)")
+_URL_LOOSE = re.compile(r"(?:https?://|www\.)\S+",
+                        re.IGNORECASE)
+
+
+def _free_text_tokens(v):
+    return [t.strip(".!?") for t in _TOKEN_SPLIT.split(str(v))
+            if t.strip(".!?")]
+
+
+def scan_free_text(vals):
+    """What identifier SHAPES appear in a free-text column.
+
+    Returns (counts_by_kind, rows_with_any). Never returns the
+    matched text - see the note above; the whole point is that
+    this can be reported without the report becoming the leak.
+    """
+    counts: Dict[str, int] = {}
+    rows = 0
+    for v in vals:
+        toks = _free_text_tokens(v)
+        hit = False
+        for t in toks:
+            kind = None
+            if _SSN.match(t):
+                kind = "ssn"
+            elif _EMAIL.match(t):
+                kind = "email"
+            # A URL is handled by the whole-value pass too:
+            # the tokeniser splits on `:`, which cuts
+            # `https://example.org` in half, so the token pass
+            # could never see one. Found by a positive control
+            # whose URL went uncounted.
+            elif _IPV4.match(t):
+                kind = "ip_address"
+            # The phone is handled by the whole-value pass
+            # below, because it can span a token boundary -
+            # counting it here as well would double it.
+            elif vin_valid(t):
+                kind = "vin"
+            elif _DATEISH.match(t):
+                kind = "date"
+            elif (len(t) > 2 and t[0].isupper()
+                  and t[1:].islower() and t.isalpha()
+                  and t.lower() in _GIVEN):
+                kind = "given_name"
+            if kind:
+                counts[kind] = counts.get(kind, 0) + 1
+                hit = True
+        # ONLY THE PHONE NEEDS A WHOLE-VALUE PASS, because it
+        # is the one pattern here that can SPAN a token
+        # boundary: "(213) 555-0100" has a space in it. An SSN,
+        # an email, a URL and an IP cannot, so running those
+        # over the whole value as well DOUBLE-COUNTED every one
+        # the token pass had already found - caught on the first
+        # probe, where one email in one note reported as two.
+        for _k, _rx in (("phone", _PHONE_LOOSE),
+                        ("url", _URL_LOOSE)):
+            for m in _rx.finditer(str(v)):
+                if m.group(0):
+                    counts[_k] = counts.get(_k, 0) + 1
+                    hit = True
+        if hit:
+            rows += 1
+    return counts, rows
 
 
 def _looks_like_name(vals):
@@ -573,13 +694,58 @@ def detect(df, group_by: Optional[str] = None,
 
         avg_len = sum(len(v) for v in vals) / float(len(vals))
         if avg_len > LONG_TEXT:
-            out_of_scope.append({
-                "column": c,
-                "why": "average value length {:.0f} characters - "
-                       "free text, which this scrub does NOT read; "
-                       "whether to attempt free-text PHI removal "
-                       "is a governance decision, not a default"
-                       .format(avg_len)})
+            # OUT OF SCOPE NO LONGER MEANS UNINSPECTED.
+            #
+            # This branch used to report the column by name and
+            # stop, so nobody knew what was in it - a clean
+            # bill of health for whatever had not been looked
+            # at, which is the fault the inventory exists to
+            # refuse one level up. The battery runs over the
+            # TOKENS now, the same move a set column uses, and
+            # the result is COUNTS AND KINDS ONLY: printing the
+            # matched span would make this report carry the
+            # identifier it found.
+            _fc, _frows = scan_free_text(vals[:FREE_TEXT_SAMPLE])
+            if _fc:
+                _n = min(len(vals), FREE_TEXT_SAMPLE)
+                findings.append({
+                    "column": c, "kind": "free_text",
+                    "share": round(_frows / float(_n), 4),
+                    "remedy": REMEDY["free_text"],
+                    "counts": dict(sorted(_fc.items())),
+                    "why": "free text ({:.0f} characters on "
+                           "average) carrying identifier SHAPES "
+                           "on {:.0%} of {} sampled rows: {}. "
+                           "COUNTS ONLY - the matched text is "
+                           "deliberately not quoted, because a "
+                           "report that carried it would move "
+                           "the leak rather than close it. The "
+                           "remedy is REVIEW: this tool does "
+                           "not redact free text, and a "
+                           "redactor that misses one identifier "
+                           "is worse than none"
+                           .format(avg_len,
+                                   _frows / float(_n), _n,
+                                   ", ".join(
+                                       "{} x{}".format(k, v) for
+                                       k, v in sorted(
+                                           _fc.items())))})
+            else:
+                out_of_scope.append({
+                    "column": c,
+                    "why": "average value length {:.0f} "
+                           "characters - free text. INSPECTED: "
+                           "the identifier battery was run over "
+                           "its tokens on {} sampled rows and "
+                           "found no identifier shape. That is "
+                           "a weaker statement than clean - it "
+                           "means nothing matched the shapes "
+                           "this tool knows, and free-text PHI "
+                           "removal remains a governance "
+                           "decision"
+                           .format(avg_len,
+                                   min(len(vals),
+                                       FREE_TEXT_SAMPLE))})
             continue
 
         def found(kind, share, extra=""):
@@ -920,10 +1086,18 @@ def detect(df, group_by: Optional[str] = None,
                     "judged by their tokens; calendar dates "
                     "other than birth dates are left to the "
                     "pipeline, which generates invented dates. "
-                    "Free-text columns are reported out of "
-                    "scope, never silently skipped. This is a "
-                    "detector with a planted-PHI catch gate, "
-                    "not a certification."}
+                    "Free-text columns are INSPECTED - the "
+                    "battery runs over their tokens, and the "
+                    "report carries counts and kinds only, "
+                    "never the matched text, because a report "
+                    "carrying what it found would move the leak "
+                    "rather than close it. Those findings carry "
+                    "remedy REVIEW, which this tool does not "
+                    "perform: redacting free text is a "
+                    "governance decision, and a redactor that "
+                    "misses one identifier is worse than none. "
+                    "This is a detector with a planted-PHI "
+                    "catch gate, not a certification."}
 
 
 def apply(df, report: Dict[str, Any]):

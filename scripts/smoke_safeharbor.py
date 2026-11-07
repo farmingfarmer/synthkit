@@ -48,6 +48,7 @@ M2 is open, and they go RED the day detection lands - which is
 the signal to update the claim, not a regression. Arming them
 is flipping the expected booleans.
 """
+import json
 import subprocess
 import sys
 from pathlib import Path
@@ -75,6 +76,24 @@ def check(label, cond):
     else:
         FAIL += 1
         print("FAIL: {}".format(label))
+
+
+# THE SPANS PLANTED IN FREE TEXT, kept as module constants so a
+# check can assert the report does NOT contain them. That is the
+# load-bearing property here: counting is safe, quoting is not.
+_DIRTY_NAME = "Jonathan"
+_DIRTY_PHONE = "213-555-0100"
+_DIRTY_DATE = "3/4/1961"
+_DIRTY_NOTE = (
+    "Pt seen in clinic today. {} accompanied by family. "
+    "DOB {} confirmed on arrival. Call {} with the results "
+    "once they are back from the laboratory later this week."
+    .format(_DIRTY_NAME, _DIRTY_DATE, _DIRTY_PHONE))
+_CLEAN_NOTE = (
+    "Routine follow up. Blood pressure stable on the current "
+    "regimen with no complaints reported at this visit. "
+    "Continue present medications and return in three months "
+    "for reassessment of the ongoing symptoms.")
 
 
 def _mkvin(i):
@@ -281,6 +300,14 @@ def fixture(n=400, visits=3):
         # device was implanted rather than an identifier.
         "device_model_di": ["(01)10614141000415" for _p in pid],
         "product_gtin": ["00844588003288" for _p in pid],
+        # --- PHI-7: free text. One column carrying identifier
+        # shapes, one carrying none. The clean one is the control
+        # that stops "it flagged the note" being the only
+        # possible outcome.
+        "note_dirty": [
+            _DIRTY_NOTE if per_person[p] % 3 == 0
+            else _CLEAN_NOTE for p in pid],
+        "note_clean": [_CLEAN_NOTE for _p in pid],
         # --- PHI-5: geography smaller than a state
         "city": [("Pasadena", "Glendale", "Burbank", "Alhambra",
                   "Monterey Park", "Arcadia", "Whittier",
@@ -448,9 +475,9 @@ def main():
           "flagged was handled - detected, reported and not "
           "acted on is the worst of both",
           sorted(f["column"] for f in scrub.pending(rep))
-          == ["age_at_visit", "mail_code", "patient_zip",
-              "visit_end_date", "visit_start_date",
-              "zip_plus_four"])
+          == ["age_at_visit", "mail_code", "note_dirty",
+              "patient_zip", "visit_end_date",
+              "visit_start_date", "zip_plus_four"])
 
     # ---- AND THE REMEDY IS NAMED, so PHI-2 is not built
     #      against the wrong one.
@@ -553,10 +580,30 @@ def main():
 
     # ---- THE WHOLE POINT: NOTHING IS LEFT
     _again = scrub.detect(_g, group_by="person_id")
+    # IDEMPOTENCE IS ABOUT WHAT THE TOOL CLAIMS TO DO.
+    #
+    # This asserted that a fresh detect finds NOTHING, which was
+    # right while every remedy was drop or generalise - both of
+    # which `apply` and `generalise` perform. A `review` finding
+    # is explicitly NOT performed: free-text redaction is a
+    # governance decision. Folding the two together would make
+    # this check demand that the tool do the thing it refuses
+    # to do, and it would go red forever on any table with a
+    # clinical note.
+    _auto = [f for f in _again["findings"]
+             if f.get("remedy") != "review"]
+    _owed = [f for f in _again["findings"]
+             if f.get("remedy") == "review"]
     check("after dropping what must go and generalising the "
-          "rest, a FRESH detect finds NOTHING - the property "
-          "that says the tool finished the work it reported",
-          not _again["findings"])
+          "rest, a FRESH detect finds nothing with an AUTOMATIC "
+          "remedy left - the property that says the tool "
+          "finished the work it claimed", not _auto)
+    check("...while a REVIEW finding deliberately survives ({} "
+          "of them), because that is a human decision and the "
+          "tool reporting it as done would be the worst outcome "
+          "available".format(len(_owed)),
+          len(_owed) == 1
+          and _owed[0]["kind"] == "free_text")
 
     # ---------------------------------------------- PHI-4
     _kind = dict((f["column"], f["kind"])
@@ -883,6 +930,84 @@ def main():
                                    .items()))),
           scrub.inventory()["counts"].get("not covered", 0) == 0)
 
+    # ---------------------------------------------- PHI-7
+    _ftf = dict((f["column"], f) for f in rep["findings"]
+                if f["kind"] == "free_text")
+    _ofs = dict((o["column"], o) for o in rep["out_of_scope"])
+    check("the fixture's free-text columns really ARE free "
+          "text - past the {}-character bar, or they would go "
+          "down the ordinary value path and none of this would "
+          "be exercised".format(scrub.LONG_TEXT),
+          len(_DIRTY_NOTE) > scrub.LONG_TEXT
+          and len(_CLEAN_NOTE) > scrub.LONG_TEXT)
+    check("a free-text column carrying identifier shapes is a "
+          "FINDING now, not a shrug - it used to be reported "
+          "out of scope by name and never inspected, which is a "
+          "clean bill of health for whatever nobody looked at",
+          "note_dirty" in _ftf)
+    check("...and the battery runs over its TOKENS, the same "
+          "move a set column uses, so it finds the name, the "
+          "date and the phone inside the prose: {}"
+          .format(_ftf.get("note_dirty", {}).get("counts")),
+          set(_ftf.get("note_dirty", {}).get("counts", {}))
+          >= set(["given_name", "date", "phone"]))
+
+    # THE LOAD-BEARING CHECK: the report must not carry what it
+    # found. Counting is safe; quoting is not. A PHI detector
+    # whose own output contains the identifier has moved the
+    # leak rather than closed it, and this is the only place in
+    # the module where the matched text is somebody's note.
+    _blob = json.dumps(rep)
+    check("THE REPORT NEVER QUOTES THE MATCHED TEXT - the "
+          "planted name, phone and date appear NOWHERE in the "
+          "whole report, because a report carrying what it "
+          "found would move the leak rather than close it",
+          _DIRTY_NAME not in _blob
+          and _DIRTY_PHONE not in _blob
+          and _DIRTY_DATE not in _blob)
+    check("...and it still says enough to act on: the KIND, the "
+          "COUNT and the SHARE of rows, so a reviewer can tell "
+          "one stray from a systematic field",
+          "share" in _ftf.get("note_dirty", {})
+          and 0.0 < _ftf["note_dirty"]["share"] < 1.0
+          and all(v > 0 for v in
+                  _ftf["note_dirty"]["counts"].values()))
+
+    check("NEGATIVE CONTROL: a free-text column with no "
+          "identifier shape is NOT a finding - without this, "
+          "flagging every note would pass the check above",
+          "note_clean" not in _ftf
+          and "note_clean" in _ofs)
+    check("...and its out-of-scope note says it was INSPECTED "
+          "rather than unread, while admitting that is weaker "
+          "than clean - nothing matched the shapes this tool "
+          "knows",
+          "INSPECTED" in _ofs.get("note_clean", {}).get("why", "")
+          and "weaker statement than clean"
+          in _ofs.get("note_clean", {}).get("why", ""))
+
+    check("the remedy is REVIEW, a third class - dropping a "
+          "clinical note destroys the most information-dense "
+          "column in the record, generalising free text is not "
+          "defined, and redacting it is the governance decision "
+          "this tool does not make",
+          _ftf.get("note_dirty", {}).get("remedy") == "review"
+          and scrub.REMEDY["free_text"] == "review")
+    check("...so `apply` KEEPS the column, which needs no "
+          "special case because apply drops only what is marked "
+          "drop - the argument for the remedy living on the "
+          "finding", "note_dirty" in _kept.columns)
+    check("...and `pending` keeps saying it is owed, so a "
+          "caller cannot believe the work finished",
+          "note_dirty" in [f["column"] for f in
+                           scrub.pending(rep)])
+    check("...and the module's own note no longer claims free "
+          "text is merely reported out of scope, which was true "
+          "before this and would now be a page describing "
+          "behaviour it does not have",
+          "INSPECTED" in rep["note"]
+          and "never the matched text" in rep["note"])
+
     # ---- AND IT REACHES A READER. A measurement that never
     #      gets to a page might as well not exist for the
     #      person deciding, and the coverage question is asked
@@ -906,6 +1031,57 @@ def main():
           "because a scan reporting nothing has reported "
           "nothing about those",
           "not one it has ruled out" in _o)
+    # ---- THE EXIT STATES, because a REVIEW item is not a
+    #      TOOL DEFECT and reporting it as one would make
+    #      `--apply` red forever on any table with a note.
+    #      Nothing exercised this until a mutation that
+    #      conflated them found no check to break.
+    import tempfile as _tf
+    with _tf.TemporaryDirectory() as _etd:
+        _src = str(Path(_etd) / "s.csv")
+        df.to_csv(_src, index=False)
+        _r3 = subprocess.run(
+            [sys.executable, "-m", "synthkit.cli", "scrub",
+             _src, "--group-by", "person_id", "--apply",
+             str(Path(_etd) / "o.csv")],
+            cwd=_root, capture_output=True, text=True)
+        _all3 = _r3.stdout + _r3.stderr
+        check("`scrub --apply` on a table with a free-text "
+              "finding exits 3, NOT 1 - a human decision "
+              "outstanding is a different state from the tool "
+              "failing to do what it claimed, and folding them "
+              "together teaches people to ignore the code "
+              "(got {})".format(_r3.returncode),
+              _r3.returncode == 3)
+        check("...and it says NOT CERTIFIED while confirming "
+              "that everything with an automatic remedy WAS "
+              "applied, so the operator knows which half is "
+              "outstanding",
+              "NOT CERTIFIED" in _all3
+              and "automatic remedy was applied" in _all3)
+        check("...and the output file still CARRIES the note, "
+              "because the tool refused to redact rather than "
+              "refusing to run",
+              "note_dirty" in pd.read_csv(
+                  str(Path(_etd) / "o.csv"),
+                  nrows=1).columns)
+        # AND A TABLE WITH NO REVIEW ITEM MUST STILL REACH 0,
+        # or the exit-3 path would just be a permanent red
+        # wearing a different number.
+        _clean_src = str(Path(_etd) / "c.csv")
+        df.drop(columns=["note_dirty", "note_clean"]).to_csv(
+            _clean_src, index=False)
+        _r4 = subprocess.run(
+            [sys.executable, "-m", "synthkit.cli", "scrub",
+             _clean_src, "--group-by", "person_id", "--apply",
+             str(Path(_etd) / "o2.csv")],
+            cwd=_root, capture_output=True, text=True)
+        check("...while the SAME table without a free-text "
+              "column exits 0 - the control that proves exit 3 "
+              "is a verdict about review items and not a "
+              "permanent red (got {})".format(_r4.returncode),
+              _r4.returncode == 0)
+
     _rc2, _o2 = _cli()
     check("...and making the CSV optional did NOT eat "
           "argparse's refusal: a bare `scrub` STOPs by name "

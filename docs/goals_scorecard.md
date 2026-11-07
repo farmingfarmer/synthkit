@@ -346,7 +346,7 @@ on this page.
 
 ---
 
-## Goal 5 — High-fidelity generation   **~90%**
+## Goal 5 — High-fidelity generation   **~93%**
 
 **What works, measured — on the real extract**
 
@@ -385,7 +385,18 @@ exactly what they were.
 - **The close gap is no longer the open M0 item** — it clears on
   the repaired artifact and misses by 0.1 points without the
   repair. What remains on this goal is the *unrepaired* engine
-  reaching the bar on its own, plus the ring ceiling below.
+  reaching the bar on its own. **The ring ceiling is REFUTED**
+  (2026-11-07, RING-1): swept across skill over eight seeds the
+  sweeps deliver adjacent correlation equal to the skill they
+  were given — 0.97 → **0.949**, 0.99 → **0.980** — with no cap
+  anywhere, and the shape gap at high skill is 0.059 sd against
+  a 0.35 bar, which is the floor between two draws of the SAME
+  blueprint. The recorded sentence compared this fixture at its
+  own hardcoded skill of 0.75 against what a near-identity
+  needs at 0.97. On the real extract
+  `visit_start_date ↔ visit_end_date` is declared at skill
+  0.9999 in both directions and comes out at rho **1.0000**.
+  Pinned as checks; a genuine 0.78 clamp turns three red.
   Five further close misses sit on TOKEN INDICATORS, which are
   search scaffolding dropped before `generated.csv` is written
   and so unreachable by any rearrangement of the output; going
@@ -408,10 +419,15 @@ exactly what they were.
   prediction was on record, and `peek surfaces` now diagnoses
   from the run directory.
 
-**Time**: ~2–4 weeks on the fixtures, then confirmation on the
-next real refit. The close gap and the ring ceiling are the
-project's two genuine unknowns; everything else on this goal is
-measured.
+**Time**: the RING CEILING is closed — refuted by measurement,
+not solved, and the ~2–4 week estimate it carried is returned.
+What remains is the *unrepaired* engine reaching the close bar,
+plus one re-aimed question: since the sampler renders whatever
+skill it is handed, a shape gap on a near-identical pair comes
+from DISCOVERY's skill assignment or the curve. The September
+`map_cuff` symptom cannot be re-measured — those columns are
+not in the current blueprint, where the pressure variants
+appear only as weak parents at skill 0.07–0.36.
 
 ---
 
@@ -587,8 +603,8 @@ dates:
    ceiling: ongoing and unscheduled, because unknowns move dates
    and these are the genuine unknowns.
 
-Equal-weighting the eight goals: **~92.1% complete** as of
-2026-11-07 — 90, 90, 90, 95, 90, 100, 92, 90. Moved on
+Equal-weighting the eight goals: **~92.5% complete** as of
+2026-11-07 — 90, 90, 90, 95, 93, 100, 92, 90. Moved on
 2026-11-06, each for a measured reason: goal 1 78→90 (the
 cross-table couplings are enforced and REACHABLE —
 `synthkit relate`, with `--no-couple` as the named control arm

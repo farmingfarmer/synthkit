@@ -1193,12 +1193,46 @@ def cmd_scrub(args) -> int:
                 act["column"], act["did"]))
         left = [f for f in scrub.detect(
             out_df, group_by=args.group_by)["findings"]]
-        if left:
+        # A REVIEW ITEM IS NOT A TOOL DEFECT, AND MUST NOT BE
+        # REPORTED AS ONE.
+        #
+        # The refusal below exists because a file that says it
+        # was de-identified while half the work is outstanding
+        # is the worst outcome available - and it was written
+        # when every remedy was drop or generalise, both of
+        # which this command performs. A `review` finding is
+        # explicitly NOT performed: free-text redaction is a
+        # governance decision and this tool does not make it.
+        #
+        # Folding the two together would have made `--apply`
+        # report a defect forever on any table with a clinical
+        # note, which is both wrong and the kind of permanent
+        # red that teaches people to ignore an exit code. They
+        # get separate states: 1 means the tool failed to do
+        # what it claimed, 3 means a human decision is still
+        # outstanding.
+        owed = [f for f in left
+                if f.get("remedy") == "review"]
+        broke = [f for f in left
+                 if f.get("remedy") != "review"]
+        if broke:
             print("STILL FLAGGED after applying: {} - this is "
                   "a defect in the tool, not in your data"
-                  .format(", ".join(f["column"] for f in left)),
+                  .format(", ".join(f["column"] for f in broke)),
                   file=sys.stderr)
             return 1
+        if owed:
+            print("NOT CERTIFIED: {} still carr{} identifier "
+                  "shapes inside FREE TEXT, which this tool "
+                  "reports and does not redact. That is a "
+                  "decision for whoever owns the data, not a "
+                  "default - see the finding's counts above. "
+                  "Everything with an automatic remedy was "
+                  "applied."
+                  .format(", ".join(f["column"] for f in owed),
+                          "ies" if len(owed) == 1 else "y"),
+                  file=sys.stderr)
+            return 3
         return 0
     if rep["findings"]:
         print("PHI-shaped columns present and nothing was "
