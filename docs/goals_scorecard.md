@@ -13,7 +13,7 @@ end-to-end) are where the remaining work lives.**
 
 ---
 
-## Goal 1 — Universal upload with auto schema mapping   **~78%**
+## Goal 1 — Universal upload with auto schema mapping   **~86%**
 
 **What works, measured**
 - Single-table CSV end to end. Types detected in seconds
@@ -44,11 +44,38 @@ end-to-end) are where the remaining work lives.**
   lab value a primary key and would have linked tables on it),
   a two-value column is refused, and unrelated tables produce
   NO links and say so.
-- What remains for M3: FITTING the linked tables, rather than
-  detecting and re-keying them. Each table still goes through
-  the single-table pipeline on its own, so cross-table
-  relationships — a lab value that depends on the visit's
-  length of stay — are not modelled. Named, not claimed.
+- ~~FITTING the linked tables~~ LANDED 2026-11-06 (MT-1, MT-2
+  and `synthkit relate`). Cross-table couplings are measured in
+  the source and enforced through the KEY ASSIGNMENT. Measured
+  through the written files, one seed, one flag apart:
+  source `+0.892`/`+0.875`, enforced `+0.871`/`+0.865`,
+  `--no-couple` **`-0.028`/`-0.066`** — without enforcement the
+  structure is destroyed, not weakened, and `--no-couple` ships
+  as the named control arm. Two couplings on one link land
+  jointly where enforcing the strongest alone left one behind
+  (total error 0.029 against 0.171).
+- **AND THE WHOLE THING HAD NO OPERATOR PATH UNTIL `relate`
+  EXISTED.** `detect`, `cross_couplings` and `assign_keys` were
+  called by nothing but their own suite — `synthkit schema`
+  reported a schema it could not act on. The
+  capability-wired-to-nothing fault, at its largest.
+
+**What remains for M3**
+- **The rank-one ceiling, which is arithmetic rather than a
+  gap to close.** One foreign key is one choice per row, so the
+  correlations a link can carry have rank one. Two children
+  riding DIFFERENT parents is a rank-two target and no
+  assignment produces it; the solve reports `carried` in
+  advance and REFUSES, naming what cannot come with the pair it
+  enforces. Fitting a rank-one approximation anyway was
+  measured WORSE than enforcing the strongest (it landed one
+  pair at +0.994 against a target +0.914 and lost the other
+  entirely).
+- A child's VALUES are never re-drawn from its parent — only
+  which parent it points at. A lab value is attached to a visit
+  whose length of stay fits; it is not generated from it.
+- Multi-hop couplings (grandparent to grandchild) are not
+  measured.
 - ~~File formats beyond CSV~~ SHIPPED 2026-11-03:
   `synthkit.intake` reads .csv/.tsv/.txt, .jsonl/.ndjson/.json,
   .xlsx/.xlsm and .parquet, dispatching on the extension, with

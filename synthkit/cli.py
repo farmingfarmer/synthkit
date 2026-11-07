@@ -574,6 +574,192 @@ def cmd_batch(args) -> int:
     return 0
 
 
+def cmd_relate(args) -> int:
+    """Fit and generate a LINKED set of tables.
+
+    THE CAPABILITY EXISTED AND NOTHING CALLED IT. `detect`,
+    `cross_couplings` and `assign_keys` were reachable only
+    from Python and invoked by nothing but their own suite - so
+    the cross-table fidelity work had no operator path at all,
+    and `synthkit schema` reported a schema it could not act
+    on. That is this project's most-recorded fault, which is
+    why this command exists.
+
+    Each table is still fitted on its OWN, which is the honest
+    limit: what crosses a link is the KEY ASSIGNMENT, chosen so
+    the couplings measured in the source come back. A child's
+    VALUES are not re-drawn from its parent.
+    """
+    import pandas as pd
+    from . import blueprint as _bp
+    from .discover import discover
+    from .generate import generate
+    from .intake import IntakeError, read_table
+    from .multitable import (assign_keys, check_integrity,
+                             cross_couplings, detect, integrity)
+    frames = {}
+    for f in args.files:
+        path = Path(f)
+        try:
+            fr, how = read_table(path)
+        except IntakeError as e:
+            print("STOPPED: {}".format(e), file=sys.stderr)
+            return 2
+        name = path.stem
+        if name in frames:
+            print("STOPPED: two files are both called {!r} - "
+                  "tables are named after their files, so "
+                  "rename one".format(name), file=sys.stderr)
+            return 2
+        frames[name] = fr
+        print("  read {}".format(how))
+    if len(frames) < 2:
+        print("STOPPED: relating needs at least two tables - "
+              "with one there is nothing to link. Use "
+              "`synthkit fit` for a single table.",
+              file=sys.stderr)
+        return 2
+
+    overrides = {}
+    for spec in (args.group_by or []):
+        if "=" not in spec:
+            print("STOPPED: --group-by takes TABLE=COLUMN, got "
+                  "{!r}".format(spec), file=sys.stderr)
+            return 2
+        t, _, c = spec.partition("=")
+        if t not in frames:
+            print("STOPPED: no table called {!r} - the tables "
+                  "here are {}".format(
+                      t, ", ".join(sorted(frames))),
+                  file=sys.stderr)
+            return 2
+        if c not in frames[t].columns:
+            print("STOPPED: {!r} has no column {!r}".format(t, c),
+                  file=sys.stderr)
+            return 2
+        overrides[t] = c
+
+    found = detect(frames)
+    src_integ = integrity(frames, found["links"])
+    cps = [] if args.no_couple else cross_couplings(
+        frames, found, k=args.k)
+    print("")
+    print("{} table(s), {} link(s), {} cross-table "
+          "coupling(s)".format(len(frames), len(found["links"]),
+                               len(cps)))
+
+    # WHICH COLUMN GROUPS A TABLE IS A DECISION, SO IT IS
+    # PRINTED AND OVERRIDABLE. A silently chosen grouping
+    # column is the read-but-not-used fault waiting to happen:
+    # every temporal and per-entity statistic is measured
+    # against it, so guessing wrong changes every number
+    # without changing any message.
+    fk_of = {}
+    for lk in found["links"]:
+        fk_of.setdefault(lk.child, lk.column)
+    gen = {}
+    for name, fr in frames.items():
+        if name in overrides:
+            gb, why = overrides[name], "you asked for it"
+        elif name in fk_of:
+            gb = fk_of[name]
+            why = ("its foreign key - a child's entity is its "
+                   "parent")
+        else:
+            pk = found["tables"][name].primary_key
+            gb = pk
+            why = ("its primary key - no parent, so one row "
+                   "per entity")
+        if gb is None:
+            print("STOPPED: {} has no foreign key and no "
+                  "primary key was found, so there is nothing "
+                  "to group it by. Pass --group-by {}=COLUMN."
+                  .format(name, name), file=sys.stderr)
+            return 2
+        print("  {}: grouped by `{}` ({})".format(name, gb, why))
+        bp = _bp.build(fr, discover(fr, group_by=gb,
+                                    seed=args.seed),
+                       group_by=gb, k=args.k)
+        gen[name] = generate(bp, n_patients=fr[gb].nunique(),
+                             seed=args.seed)
+
+    rep = []
+    out = assign_keys(gen, found, seed=args.seed,
+                      couplings=cps or None, report_into=rep)
+
+    print("")
+    for r in rep:
+        if r.get("joint") is False:
+            # A REFUSAL IS A VERDICT AND MUST BE READ AS ONE.
+            print("  {} -> {}: NOT JOINTLY REACHABLE "
+                  "(rank-one share {:.2f})".format(
+                      r.get("child", "?"), r.get("parent", "?"),
+                      r["carried"]))
+            print("    enforced {}".format(r.get("enforced")))
+            for miss in r.get("not_reachable", []):
+                print("    cannot come with it: {}".format(miss))
+            print("    why: {}".format(r.get("why", "")))
+        else:
+            print("  {} -> {}: joint, rank-one share "
+                  "{:.2f}".format(r.get("child", "?"),
+                                  r.get("parent", "?"),
+                                  r["carried"]))
+            for pr in r.get("pairs", []):
+                print("    {} ~ {}  asked {:+.3f}  landed "
+                      "{:+.3f}".format(
+                          pr["child_column"],
+                          pr["parent_column"],
+                          pr["target"], pr["achieved"]))
+
+    gen_integ = check_integrity(out, found)
+    src_by = dict((d["child"] + "." + d["column"], d)
+                  for d in src_integ)
+    print("")
+    print("referential integrity, source against generated:")
+    for d in gen_integ:
+        key = d["child"] + "." + d["column"]
+        was = src_by.get(key, {}).get("share")
+        print("  {} -> {}: {} source, {:.1%} generated "
+              "({} orphan(s))"
+              .format(key, d["parent"],
+                      "{:.1%}".format(was) if was is not None
+                      else "not measured",
+                      d["share"], d["orphans"]))
+
+    outdir = Path(args.out)
+    outdir.mkdir(parents=True, exist_ok=True)
+    for name, fr in out.items():
+        dest = outdir / (name + ".csv")
+        fr.to_csv(dest, index=False)
+        print("  wrote {} ({} rows)".format(dest, len(fr)))
+    import json as _json
+    with open(str(outdir / "relate.json"), "w") as fh:
+        _json.dump({
+            "tables": dict((n, {"rows": len(f),
+                                "columns": list(f.columns)})
+                           for n, f in out.items()),
+            "links": [{"child": lk.child, "column": lk.column,
+                       "parent": lk.parent,
+                       "parent_key": lk.parent_key}
+                      for lk in found["links"]],
+            "couplings": cps,
+            "coupling_report": rep,
+            "integrity_source": src_integ,
+            "integrity_generated": gen_integ,
+            "k": args.k, "seed": args.seed,
+        }, fh, indent=2, default=str)
+    print("  wrote {}".format(outdir / "relate.json"))
+    print("")
+    print("WHAT CROSSED AND WHAT DID NOT: each table is fitted "
+          "on its own, and what carries a cross-table "
+          "relationship is the KEY ASSIGNMENT - a child is "
+          "attached to a parent whose value fits. A child's "
+          "VALUES are never re-drawn from its parent, and the "
+          "correlations one link can carry have rank one, "
+          "because one foreign key is one choice per row.")
+    return 0
+
+
 def cmd_schema(args) -> int:
     """Find the keys and links across several tables.
 
@@ -1410,6 +1596,25 @@ def main(argv=None) -> int:
     p.add_argument("--json-out", default="",
                    help="write the detected schema as JSON")
     p.set_defaults(fn=cmd_schema)
+
+    p = sub.add_parser("relate",
+                       help="fit and generate a LINKED set of "
+                            "tables, enforcing the cross-table "
+                            "couplings measured in the source")
+    p.add_argument("files", nargs="+")
+    p.add_argument("--out", required=True, metavar="DIR")
+    p.add_argument("--k", type=int, default=10)
+    p.add_argument("--seed", type=int, default=0)
+    p.add_argument("--group-by", action="append",
+                   metavar="TABLE=COLUMN",
+                   help="override the grouping column for one "
+                        "table; repeatable")
+    p.add_argument("--no-couple", action="store_true",
+                   help="assign keys WITHOUT enforcing the "
+                        "cross-table couplings - the control "
+                        "arm, for measuring what the "
+                        "enforcement is worth")
+    p.set_defaults(fn=cmd_relate)
 
     p = sub.add_parser("scrub",
                        help="detect (and with --apply, drop) "

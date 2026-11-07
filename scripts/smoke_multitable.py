@@ -636,6 +636,179 @@ def main():
           "table",
           all(isinstance(v, pd.DataFrame) for v in _o2.values()))
 
+    # ------------------------------- `synthkit relate`
+    # THE CAPABILITY EXISTED AND NOTHING CALLED IT. `detect`,
+    # `cross_couplings` and `assign_keys` were reachable only
+    # from Python and invoked by nothing but this suite - so
+    # every cross-table number measured above had no operator
+    # path at all, and `synthkit schema` reported a schema it
+    # could not act on. These checks go through the COMMAND and
+    # read the WRITTEN FILES, because the reader and the writer
+    # are part of the suspect path and an in-memory fixture
+    # cannot reach them.
+    _rt = str(Path(__file__).resolve().parent.parent)
+
+    def _relate(indir, outdir, *extra):
+        r = subprocess.run(
+            [sys.executable, "-m", "synthkit.cli", "relate",
+             str(Path(indir) / "visits.csv"),
+             str(Path(indir) / "labs.csv"),
+             "--out", str(outdir), "--seed", "3"] + list(extra),
+            cwd=_rt, capture_output=True, text=True)
+        return r.returncode, r.stdout + r.stderr
+
+    def _written_xc(outdir):
+        lab = pd.read_csv(str(Path(outdir) / "labs.csv"))
+        vis = pd.read_csv(str(Path(outdir) / "visits.csv"))
+        m = lab.merge(vis[["visit_id", "length_of_stay"]],
+                      on="visit_id", how="inner")
+        return (float(m["lab_value"].corr(m["length_of_stay"],
+                                          method="spearman")),
+                float(m["lab_b"].corr(m["length_of_stay"],
+                                      method="spearman")))
+
+    with tempfile.TemporaryDirectory() as _td:
+        _in = Path(_td) / "in"
+        _in.mkdir()
+        _rng = np.random.default_rng(7)
+        _npat, _nv = 80, 3
+        _vid = ["V{:05d}".format(i) for i in range(_npat * _nv)]
+        _pid = np.repeat(
+            ["P{:04d}".format(i) for i in range(_npat)], _nv)
+        _los = np.round(_rng.lognormal(1.0, 0.6, _npat * _nv), 2)
+        pd.DataFrame({
+            "visit_id": _vid, "person_id": _pid,
+            "length_of_stay": _los,
+            "severity": np.round(
+                _rng.normal(5, 1.5, _npat * _nv), 2),
+        }).to_csv(str(_in / "visits.csv"), index=False)
+        _rows = []
+        for _i, _v in enumerate(_vid):
+            for _ in range(int(_rng.integers(1, 4))):
+                _rows.append((
+                    _v,
+                    round(float(2.0 * _los[_i]
+                                + _rng.normal(0, 1.2)), 3),
+                    round(float(1.5 * _los[_i]
+                                + _rng.normal(0, 1.0)), 3)))
+        _lab = pd.DataFrame(
+            _rows, columns=["visit_id", "lab_value", "lab_b"])
+        _lab.to_csv(str(_in / "labs.csv"), index=False)
+        _msrc = _lab.merge(
+            pd.read_csv(str(_in / "visits.csv"))[
+                ["visit_id", "length_of_stay"]],
+            on="visit_id", how="inner")
+        _sx = (float(_msrc["lab_value"].corr(
+                   _msrc["length_of_stay"], method="spearman")),
+               float(_msrc["lab_b"].corr(
+                   _msrc["length_of_stay"], method="spearman")))
+        check("the relate fixture really carries a cross-table "
+              "coupling on BOTH child columns ({:+.3f}, {:+.3f})"
+              " - a command about enforcing couplings cannot be "
+              "tested on tables that have none"
+              .format(*_sx),
+              min(abs(_sx[0]), abs(_sx[1])) > 0.5)
+
+        _o1 = Path(_td) / "on"
+        _rc, _out1 = _relate(_in, _o1)
+        check("`synthkit relate` runs end to end and exits 0 - "
+              "the operator path that did not exist for any of "
+              "the cross-table work above",
+              _rc == 0)
+        check("...and it writes one CSV per table plus a "
+              "machine-readable record",
+              (_o1 / "visits.csv").exists()
+              and (_o1 / "labs.csv").exists()
+              and (_o1 / "relate.json").exists())
+        check("...and WHICH COLUMN GROUPS EACH TABLE is printed "
+              "with its reason, for every table - a silently "
+              "chosen grouping column is the read-but-not-used "
+              "fault waiting to happen, because every "
+              "per-entity statistic is measured against it",
+              "visits: grouped by" in _out1
+              and "labs: grouped by" in _out1
+              and "a child's entity is its parent" in _out1)
+        _gx = _written_xc(_o1)
+        check("and the couplings LAND IN THE WRITTEN FILES: "
+              "lab_value {:+.3f} against a source {:+.3f}, "
+              "lab_b {:+.3f} against {:+.3f} - measured off "
+              "disk, not in memory"
+              .format(_gx[0], _sx[0], _gx[1], _sx[1]),
+              abs(_gx[0] - _sx[0]) < 0.15
+              and abs(_gx[1] - _sx[1]) < 0.15)
+
+        # THE CONTROL ARM IS THE WHOLE EVIDENCE. Same seed,
+        # same files, one flag - which is the comparison shape
+        # two reverted fidelity tiers lacked.
+        _o2 = Path(_td) / "off"
+        _rc2, _out2 = _relate(_in, _o2, "--no-couple")
+        _nx = _written_xc(_o2)
+        check("...and WITHOUT the enforcement the cross-table "
+              "structure is DESTROYED, not weakened: "
+              "{:+.3f} and {:+.3f} against sources {:+.3f} and "
+              "{:+.3f}, same seed and same files, one flag "
+              "apart".format(_nx[0], _nx[1], _sx[0], _sx[1]),
+              _rc2 == 0 and abs(_nx[0]) < 0.2
+              and abs(_nx[1]) < 0.2)
+        check("...and the control arm reports ZERO couplings "
+              "rather than silently skipping enforcement, so "
+              "the two runs are distinguishable from their own "
+              "output",
+              "0 cross-table coupling(s)" in _out2)
+
+        _rec = json.loads((_o1 / "relate.json").read_text())
+        check("the record carries BOTH integrity readings, "
+              "because reporting the generated share without "
+              "the source's is flattering the generator with "
+              "somebody else's data cleaning",
+              _rec["integrity_source"]
+              and _rec["integrity_generated"]
+              and all("share" in d
+                      for d in _rec["integrity_generated"]))
+        check("...and referential integrity holds in the "
+              "OUTPUT, read back off disk: every child points "
+              "at a parent that exists",
+              all(d["share"] >= 0.999
+                  for d in _rec["integrity_generated"]))
+        check("...and the coupling report rides in the record, "
+              "with the rank-one share that says how much of "
+              "the target one assignment could carry",
+              _rec["coupling_report"]
+              and "carried" in _rec["coupling_report"][0])
+        check("...and the honest limit is STATED by the "
+              "command: what crosses a link is the KEY "
+              "ASSIGNMENT, a child's values are never re-drawn "
+              "from its parent, and one foreign key is one "
+              "choice per row",
+              "KEY ASSIGNMENT" in _out1
+              and "rank one" in _out1)
+
+        # ---- REFUSALS
+        _r = subprocess.run(
+            [sys.executable, "-m", "synthkit.cli", "relate",
+             str(_in / "visits.csv"), "--out", str(Path(_td) / "x")],
+            cwd=_rt, capture_output=True, text=True)
+        check("ONE table is refused by name - with one there is "
+              "nothing to link, and it names `synthkit fit` as "
+              "the thing to use instead",
+              _r.returncode == 2
+              and "nothing to link" in _r.stdout + _r.stderr)
+        _bad = [("visits", "--group-by", "nocolon"),
+                ("unknown table", "--group-by", "nope=x"),
+                ("unknown column", "--group-by",
+                 "visits=not_a_column")]
+        for _label, _flag, _spec in _bad:
+            _r = subprocess.run(
+                [sys.executable, "-m", "synthkit.cli", "relate",
+                 str(_in / "visits.csv"), str(_in / "labs.csv"),
+                 "--out", str(Path(_td) / "y"), _flag, _spec],
+                cwd=_rt, capture_output=True, text=True)
+            check("a --group-by override that cannot be honored "
+                  "is REFUSED rather than ignored ({}): a flag "
+                  "read and not used is worse than no flag"
+                  .format(_label),
+                  _r.returncode == 2)
+
     print()
     if FAIL:
         print("{} FAILED".format(FAIL))

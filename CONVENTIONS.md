@@ -5593,6 +5593,76 @@ exist.
   deleted a guard somebody planted on purpose; this file
   already records that for campaign-run.
 
+- **THE WHOLE MULTI-TABLE CAPABILITY WAS REACHABLE ONLY FROM
+  PYTHON AND CALLED BY NOTHING BUT ITS OWN SUITE, AND I FOUND
+  THAT OUT BY ASKING AFTER IMPROVING IT (2026-11-06,
+  `synthkit relate`).** `detect`, `cross_couplings` and
+  `assign_keys` had no operator path at all: `cmd_schema`
+  imports `detect, integrity, render` and nothing else, so
+  `synthkit schema` reported a schema it could not act on, and
+  there was no command that generated a linked set. I had just
+  spent a session improving the joint solve that NO SHIPPED
+  COMMAND INVOKED. This file records the
+  capability-wired-to-nothing fault for the holdout, for
+  `plant_frame`, for the parallax layers and for the pattern
+  dial's cipher; this is the largest instance yet, and the
+  check that would have caught it is one line - grep for the
+  function's callers outside its suite.
+- **`relate` MAKES IT REAL, AND ITS CONTROL ARM IS THE
+  EVIDENCE.** `synthkit relate A.csv B.csv --out DIR` reads,
+  detects the keys from the VALUES, measures the cross-table
+  couplings, fits each table, generates, assigns keys to carry
+  the couplings, and writes the set with both integrity
+  readings. Measured through the WRITTEN FILES - the reader and
+  writer are in the suspect path and an in-memory fixture
+  cannot reach them - at one seed, one flag apart:
+      source            lab_value +0.892   lab_b +0.875
+      relate            lab_value +0.871   lab_b +0.865
+      --no-couple       lab_value -0.028   lab_b -0.066
+  Without enforcement the cross-table structure is DESTROYED,
+  not weakened. `--no-couple` ships as the control arm, named
+  as such, because this is the comparison shape two reverted
+  fidelity tiers lacked.
+- **WHICH COLUMN GROUPS A TABLE IS A DECISION, SO IT IS
+  PRINTED AND OVERRIDABLE.** The default is the foreign key
+  where there is one - a child's entity is its parent - and the
+  primary key otherwise, with the reason stated per table.
+  Every per-entity and temporal statistic is measured against
+  that column, so guessing wrong changes every number without
+  changing any message, which is the `--time-col` fault. A
+  `--group-by TABLE=COLUMN` that cannot be honored is REFUSED
+  by name rather than ignored.
+- **AND THE COMMAND STATES WHAT DOES NOT CROSS.** Each table is
+  still fitted on its own; what carries a cross-table
+  relationship is the KEY ASSIGNMENT - a child is attached to a
+  parent whose value fits - and a child's VALUES are never
+  re-drawn from its parent. Printed at the end of every run,
+  because a tool that silently models less than its output
+  implies is the spec-that-looks-complete fault.
+- **AND READING `integrity`'s FIELD AS `match` INSTEAD OF
+  `share` WAS THE SIXTH WRONG-KEY FAULT.** It crashed rather
+  than printing an empty table, which is the lucky version.
+  This file already prescribes the fix - assert the key names
+  against a LIVE call - and the lesson keeps being that the
+  field name which SOUNDS right is not the contract. Read it;
+  do not remember it.
+
+- **ZERO READ AS EIGHT, AND MY OWN PREDICATE MANUFACTURED THE
+  SCARE (2026-11-06).** A net running on the data machine was
+  polled with `f=[x for x in L if x[:4]=="FAIL" or "FAILED" in
+  x]` and came back `FAILCOUNT 8`. Both halves were wrong at
+  once. The `"FAILED" in x` clause is far too broad - it
+  matches check-label text, which is how a PowerShell `^FAIL`
+  mangled to `*FAIL` once produced a confident
+  `VERDICT-FAILED` from PASSING lines. And the count itself was
+  OCR: re-asked two ways, ZERO lines start with `FAIL` and
+  ZERO contain `FAILED`, with the real zero rendering as `@` in
+  one read and as `8` in the other. This file already records
+  zero reading as six; it also reads as eight. The verdict must
+  come from the SUCCESS MARKER - the final `All N checks
+  passed.` line - and a diagnostic predicate must be as narrow
+  as the thing it claims to find.
+
 - **MULTI-TABLE INTAKE EXISTS, AND THE KEYS COME FROM THE
   VALUES (2026-11-04, `synthkit/multitable.py`).** The fitted
   path has always been single-table, so an operator with
