@@ -574,6 +574,36 @@ def cmd_batch(args) -> int:
     return 0
 
 
+def cmd_receipts(args) -> int:
+    """One receipt per published claim, from a run's artifacts.
+
+    Goal 3 is "every pattern found, explained, with receipts" and
+    the receipts were the part that stayed PLANNED. The evidence
+    existed - skill and support in `catalogue.json`, the effect
+    shape and importances in `blueprint.json`, survival in
+    `fidelity.json` - spread across three files, two of them
+    prose, so auditing ONE pattern meant holding all three in
+    your head. This assembles it per claim and recomputes
+    nothing.
+    """
+    import os
+    from . import receipts
+    try:
+        doc = receipts.build(args.rundir)
+    except ValueError as e:
+        print("STOPPED: {}".format(e), file=sys.stderr)
+        return 2
+    print(receipts.render(doc))
+    dest = args.json_out or os.path.join(args.rundir,
+                                         "receipts.json")
+    import json as _json
+    with open(dest, "w") as fh:
+        _json.dump(doc, fh, indent=2, default=str)
+    print("")
+    print("wrote {}".format(dest))
+    return 0
+
+
 def cmd_relate(args) -> int:
     """Fit and generate a LINKED set of tables.
 
@@ -1615,6 +1645,17 @@ def main(argv=None) -> int:
                         "arm, for measuring what the "
                         "enforcement is worth")
     p.set_defaults(fn=cmd_relate)
+
+    p = sub.add_parser("receipts",
+                       help="one receipt per published claim "
+                            "from a run directory: evidence, "
+                            "support, survival, and what each "
+                            "claim does NOT establish")
+    p.add_argument("rundir")
+    p.add_argument("--json-out", default=None, metavar="FILE",
+                   help="where to write receipts.json; defaults "
+                        "to the run directory")
+    p.set_defaults(fn=cmd_receipts)
 
     p = sub.add_parser("scrub",
                        help="detect (and with --apply, drop) "

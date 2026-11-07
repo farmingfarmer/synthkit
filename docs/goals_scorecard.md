@@ -188,7 +188,7 @@ machine; the free-text decision is governance, not engineering.
 
 ---
 
-## Goal 3 — Pattern analysis, explained with receipts   **~82%**
+## Goal 3 — Pattern analysis, explained with receipts   **~90%**
 
 *(2026-09-09: +10 — the dashboard's pattern cards, SHAP attribution
 on both tables with interaction ranking, per-run shape and surface
@@ -210,8 +210,25 @@ fidelity, and the self-explaining gate all landed.)*
   so the map cannot drift, with a plain-English walkthrough for
   every component — the build REFUSES if any narrative is missing.
 
+- ~~Per-claim receipt JSON as a formal artifact~~ SHIPPED
+  2026-11-06 (`synthkit/receipts.py`, `synthkit receipts
+  RUNDIR`). One receipt per published claim, assembled from
+  `catalogue.json` / `blueprint.json` / `fidelity.json` and
+  **recomputing nothing** — asserted to the digit against those
+  artifacts, because a receipt that re-derived its numbers could
+  disagree with the gate reading the same run. Each carries a
+  LIMITS section stating what it does NOT establish: association
+  not causation, one cohort, a skill under 0.30 called weak
+  rather than suppressed, seed-fragile attribution named, a sign
+  that reverses when co-parents are held fixed, the k it was
+  screened at, and that trims are not asserted because the trim
+  record is prose. **A claim whose child is a search column says
+  it cannot be checked in the output at all** — the column is
+  dropped before the file is written. 24 checks, five mutations
+  each red.
+
 **What remains**
-- The M4 bar: per-claim receipt JSON as a formal artifact, and the
+- The M4 bar: the
   cycle-survival gap — on a ring-shaped graph 27/42 relationships
   are dropped to make it sampleable (the real extract drops 16/26).
   The refinement sweeps recover much of this; the ceiling is not
@@ -516,8 +533,20 @@ dates:
    ceiling: ongoing and unscheduled, because unknowns move dates
    and these are the genuine unknowns.
 
-Equal-weighting the eight goals: **~86.5% complete** as of
-2026-11-05 — 78, 65, 82, 95, 90, 100, 92, 90. Moved this week,
+Equal-weighting the eight goals: **~90.1% complete** as of
+2026-11-06 — 86, 78, 90, 95, 90, 100, 92, 90. Moved on
+2026-11-06, each for a measured reason: goal 1 78→86 (the
+cross-table couplings are enforced and REACHABLE —
+`synthkit relate`, with `--no-couple` as the named control arm
+reading −0.028 against a source +0.892, and the rank-one
+ceiling stated as arithmetic rather than a gap); goal 2 65→78
+(ZIP detection with the sparse-ZIP3 half of the rule, web and
+IP addresses, and an inventory naming this tool's coverage
+across all 18 Safe Harbor categories — verified on the real
+extract with ZERO false positives); goal 3 82→90 (per-claim
+receipts as a formal artifact, recomputing nothing, each
+stating what it does NOT establish). Previously 86.5% on
+2026-11-05 — 78, 65, 82, 95, 90, 100, 92, 90. Moved that week,
 each for a measured reason and not a feeling: goal 1 75→78
 (multi-table detection landed on real OMOP tables, and the
 cross-table gap is now a number rather than a caveat); goal 3

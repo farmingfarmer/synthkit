@@ -5753,6 +5753,63 @@ exist.
   fixture could not reach, so a clean read here is evidence
   rather than a formality.
 
+- **THE RECEIPTS EXISTED AS EVIDENCE AND NOT AS AN ARTIFACT,
+  AND THE DIFFERENCE IS WHETHER ONE PATTERN CAN BE AUDITED
+  (2026-11-06, REC-1, `synthkit receipts RUNDIR`).** Goal 3 is
+  "every pattern found, explained, with receipts" and the
+  receipts stayed PLANNED for months - not because the evidence
+  was missing but because it was SPREAD: skill and support in
+  `catalogue.json`, the effect shape and importances in
+  `blueprint.json`, survival in `fidelity.json`, and the trim
+  note in a page of prose. A reader who wanted to know whether
+  ONE pattern was trustworthy had to hold three files in their
+  head. A receipt is that assembly done per claim.
+- **NOTHING IS RECOMPUTED, AND A CHECK ASSERTS THE DIGITS
+  MATCH.** Every number is read from the run's own artifacts,
+  because a second implementation is how the shipped artifact
+  and the report come to disagree - this file says that about
+  token screening, about scaffolding, about the two categorical
+  draw paths and about a whole engine. The suite compares every
+  receipt's skill and support against the catalogue's own
+  values and every survival reading against fidelity.json's,
+  to the digit; rounding one of them to two decimals turns it
+  red.
+- **AND THE LIMITS SECTION IS THE POINT, because a receipt
+  that only carried the evidence would read as a
+  certificate.** Each one states what it does NOT establish,
+  derived per claim from the measured record: ASSOCIATION
+  rather than causation (the arrow was chosen by out-of-sample
+  skill, which says which direction PREDICTS better); ONE
+  COHORT (the holdout is held-out PATIENTS from the same
+  extract); a skill under 0.30 called WEAK rather than
+  suppressed, because a thin finding and no finding are
+  different facts; a seed-fragile attribution NAMED; a sign
+  that reverses when co-parents are held fixed; the k it was
+  screened at, so a short magnitude reads as the privacy rule
+  working; and that TRIMS ARE NOT ASSERTED, because the trim
+  record is prose and not a field. Removing the section turns
+  SEVEN checks red.
+- **THE SHARPEST STATEMENT IS ABOUT A CLAIM NOBODY CAN
+  CHECK.** When the child is a `__has__` indicator the claim
+  cannot be verified in the output AT ALL - the column is
+  search machinery, dropped before the file is written, and
+  nobody can read a column that is not there. The receipt says
+  so, through `sets.is_scaffolding`, the same predicate the
+  pipeline uses. On the fixture 8 of 10 claims are that kind,
+  which is why a fixture without a set column could not have
+  reached it.
+- **AND A CONTENT CHECK CANNOT SEE A DEAD CODE PATH, AGAIN.**
+  The first version of the command raised `NameError: name 'os'
+  is not defined` at the WRITE step - `cli.py` does not import
+  `os` at module level at all - and the printed report looked
+  perfect, because stderr is unbuffered while piped stdout is
+  block-buffered, so the traceback appeared ABOVE the output I
+  was reading through `tail -6`. Found only by checking the
+  real exit code and an EMPTY stderr from a subprocess. Read
+  the whole output, not a filtered view; this file already says
+  that about a mutation and it applies to a feature's first
+  run.
+
 - **MULTI-TABLE INTAKE EXISTS, AND THE KEYS COME FROM THE
   VALUES (2026-11-04, `synthkit/multitable.py`).** The fitted
   path has always been single-table, so an operator with
