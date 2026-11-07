@@ -676,3 +676,130 @@ string, so the slide and the report cannot disagree.
   3-D points, the plots render, the scorecard is conditional on
   a fidelity.json, and the PCA dim guard renders a 3-coordinate
   cloud even when the latent space is thinner than three.
+
+## What landed overnight 2026-11-06 — ten commits, all green
+
+Three sprint items closed, two goals moved, and two ideas
+refuted by measurement before any code changed. Every number
+below is measured; the data machine confirmed ALL GREEN twice,
+with the dev/data delta reading exactly TWELVE both times.
+
+**MT-2 — the joint cross-table solve.** MT-1 enforced one
+coupling per link, the strongest. Paired on one fixture at one
+seed, two children riding the same parent, only the coupling set
+differing: total error **0.171 → 0.029**, and the second column
+is the whole of it (enforcing one left `lab_b` at +0.738 against
+its source +0.883).
+
+But a single foreign key is one choice per row, so the
+correlations a link can carry have **RANK ONE**. Two children on
+DIFFERENT parents is a rank-two target and no assignment
+produces it — the first cut fitted rank one anyway and landed
+one pair at +0.994 against a target +0.914 while losing the
+other entirely. Worse than what it replaced. So unreachable is
+now a VERDICT: `carried` says in advance how much of a target
+one assignment can hold, and below the bar the solve enforces
+the strongest and NAMES what cannot come with it.
+
+**MT-3 — two hops, which were never searched for.**
+`cross_couplings` iterates the links, so it only compared a
+child against its DIRECT parent. A lab value riding the
+PERSON's age spans two links: source +0.976, generated
+**−0.000**, with the run reporting "0 cross-table coupling(s)" —
+absent, not weakened. Fixed with no new solver, because once a
+visit is attached to a person that visit ROW carries the
+person's age: the inherited columns are materialised onto the
+parent frame and a two-hop coupling becomes an ordinary one on a
+`__via__` column. Now **+0.981**, with `--no-couple` still
+reading −0.000. Three or more hops are NOT measured, and the
+rank-one limit compounds along a chain, so that is named rather
+than assumed cheap.
+
+**`synthkit relate` — and the fault underneath it.** After
+improving the joint solve I asked what calls it: **nothing**.
+`detect`, `cross_couplings` and `assign_keys` were reachable
+only from Python and invoked by nothing but their own suite, and
+`synthkit schema` reported a schema it could not act on. The
+capability-wired-to-nothing fault at its largest, and the check
+that finds it is one grep for callers outside the suite.
+`relate` reads several tables, detects keys from the VALUES,
+measures and enforces the couplings, and writes the set with
+BOTH integrity readings. `--no-couple` ships as the named
+control arm.
+
+**PHI-4 / PHI-5 — Safe Harbor coverage, and what it does not
+reach.** ZIP detection (three tells: ZIP+4, a preserved leading
+zero, or the header), generalised to three digits WITH the
+seventeen sparse areas sent to 000 — the half of the rule a
+plain truncation skips. Web and IP addresses, which were missing
+outright. City and county, header-driven and saying so. And
+`scrub --inventory`: all **18 categories** with a status and a
+note each — 8 covered, 6 partial, **2 NOT COVERED**, 2
+not-in-a-table — because a detector that finds nothing reads as
+a clean bill of health and is not one.
+
+Verified on the real 55,428-row extract: **zero false
+positives** from any new detector, with `gender` / `race` /
+`ethnicity` confirmed clear. That is the exact mistake the FIRST
+name detector made on this same file, where `apply` would have
+dropped three covariates.
+
+**REC-1 — receipts.** Goal 3's PLANNED item. The evidence
+existed but was SPREAD across three artifacts, two of them
+prose, so auditing ONE pattern meant holding all three in your
+head. `synthkit receipts RUNDIR` assembles one receipt per
+claim, **recomputing nothing** (asserted to the digit), each
+with a LIMITS section: association not causation, one cohort, a
+weak skill called weak, seed-fragile attribution named, and —
+sharpest — a claim whose child is a search column saying it
+cannot be checked in the output at all.
+
+First real read on `run_deliverable`: **88 claims, 64 of them on
+columns the operator never receives.** Nearly three quarters.
+The project knew that qualitatively; it is countable now.
+
+**Two ideas refuted before any code changed.** The close
+criterion judges the scaffolding-inclusive total while
+`pairs_own_close` existed in a note, so switching it to the
+operator's columns looked like a route to Goal 5's named item.
+Measured first: close reads 87.6% over all pairs and **85.2%
+over the operator's own columns** — the scaffolding is
+FLATTERING the total, not dragging it down, because a 0/1 token
+indicator tied to its own set survives better than a clinical
+column. The change would not have cleared the bar and would
+have been the move-the-denominator mistake. The criterion still
+judges the total; the stricter number is now PRINTED beside it,
+which was a real reporting defect (the breakdown was on
+`direction kept` and not on the criterion that FAILS).
+
+And the recorded presence/count defect does not reproduce —
+0.826 source against 0.814 generated where it was 79.6 against
+97.3. The set rewrite fixed it incidentally. Re-measure a
+recorded open item before working on it.
+
+**One real fidelity fix.** A published coverage was being
+overwritten by the size identity: the identity is DETECTED on
+both-present rows and was ENFORCED wherever the SET is present,
+and a set column cannot be missing at all, so the copy ran on
+every row. `procedure_count` came back present on 100% against
+a published 0.9375 — coverage delta **+0.0625 → −0.0100**,
+FAIL to PASS, with the identity still holding on 100% of
+both-present rows and the output BIT-IDENTICAL where the
+partner has no missingness.
+
+**And the page claiming completeness had no checks on it.**
+`goals_scorecard.md` contradicted itself within the session —
+headings at 90, summary list at 86 — and that shipped.
+`smoke_scorecard` now asserts the headings EQUAL the list, the
+overall is their mean, and every goal under 100% names what
+remains. Its first mutation is literally the inconsistency that
+got committed.
+
+**Goals: 90, 84, 90, 95, 90, 100, 92, 90 — overall ~91.4%**,
+from ~86.5% at the start of the session. 96 suites, 3054 checks.
+
+**Carried, unchanged, and genuinely open:** free-text PHI (the
+M6 governance decision, not engineering); vehicle and device
+serial numbers, which have no distinctive shape and are NAMED as
+uncovered; the ring-adjacency ceiling; the unrepaired engine
+reaching the close bar on its own; three-or-more-hop couplings.
