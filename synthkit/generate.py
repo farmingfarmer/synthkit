@@ -2178,7 +2178,36 @@ def generate(blueprint: Dict[str, Any],
                     (bp["columns"][_setc]["marginal"] or {}).get(
                         "separator", ";")) if x.strip()]))
                 if t is not None and str(t) == str(t) else None)
-            _pres = df[_setc].notna()
+            # THE PARTNER'S OWN COVERAGE IS A PUBLISHED
+            # NUMBER, AND COPYING EVERYWHERE OVERWROTE IT.
+            #
+            # The identity is DETECTED on rows where both
+            # columns are present and was ENFORCED wherever the
+            # SET is present - and a set column cannot be
+            # missing at all (its blanks encode to `sets.EMPTY`,
+            # because an empty set is a fact about the visit).
+            # So the copy ran on every row and wrote a size into
+            # rows whose partner the blueprint says should be
+            # ABSENT. Measured on a procedures-shaped fixture:
+            # the blueprint publishes `procedure_count` coverage
+            # 0.9375, the source holds the identity on 100% of
+            # both-present rows and 93.75% of all rows, and the
+            # output came back present on 100% - coverage delta
+            # +0.0625 against a 0.05 bar, so the gate could see
+            # it.
+            #
+            # That turns "nobody recorded whether there were
+            # procedures" into "there were zero", which is the
+            # empty-versus-missing conflation this file treats
+            # as a first-class fault - committed here by the
+            # enforcement written to fix a different one. The
+            # identity is enforced where the partner is PRESENT,
+            # which reproduces the source's own coverage and
+            # still holds the identity everywhere it is
+            # meaningful. Verified BIT-IDENTICAL on a fixture
+            # whose partner is present on every row, so the
+            # change acts only where its mechanism lives.
+            _pres = df[_setc].notna() & df[_partner].notna()
             df.loc[_pres, _partner] = _sz[_pres]
             if report is not None:
                 report.setdefault("size_identities_enforced",

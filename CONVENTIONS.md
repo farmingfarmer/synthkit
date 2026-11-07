@@ -5663,6 +5663,96 @@ exist.
   passed.` line - and a diagnostic predicate must be as narrow
   as the thing it claims to find.
 
+- **A PUBLISHED COVERAGE WAS OVERWRITTEN BY AN IDENTITY, AND
+  THE GATE COULD SEE IT (2026-11-06).** Looking for the
+  recorded presence/count defect, a procedures-shaped fixture
+  found a different one. The size identity is DETECTED on rows
+  where both columns are present and was ENFORCED wherever the
+  SET is present - and a set column cannot be missing at all,
+  because its blanks encode to `sets.EMPTY` (an empty set is a
+  fact about the visit). So the copy ran on EVERY row and wrote
+  a size into rows whose partner the blueprint says should be
+  ABSENT:
+      procedure_count coverage   source 0.9375
+      identity on both-present rows      1.0000
+      identity on ALL source rows        0.9375
+      generated coverage BEFORE          1.0000   delta +0.0625
+      generated coverage AFTER           0.9275   delta -0.0100
+  That turns "nobody recorded whether there were procedures"
+  into "there were zero" - the empty-versus-missing conflation
+  this file treats as a first-class fault, committed by the
+  enforcement written to fix a different one. A blueprint
+  number that is read and then ignored is the
+  read-but-not-used fault, and the delta was over the 0.05 bar,
+  so the GATE was already reporting it and nothing was asking.
+- **AND THE NEIGHBOURING PROPERTIES WERE ASSERTED IN THE SAME
+  MEASUREMENT.** Paired, same seed, only `generate.py`
+  differing: the identity still holds on 100% of both-present
+  rows; the set's own empty share is BIT-IDENTICAL (-0.0117
+  both arms); and the gate's relationship criteria are
+  unchanged (compared 11, sign_kept 11, close 11, inverted 0 in
+  both). On a control fixture whose partner is present on every
+  row the output is BIT-IDENTICAL, so the change acts only
+  where its mechanism lives.
+- **THE RECORDED PRESENCE/COUNT DEFECT DID NOT REPRODUCE, AND
+  IS CLOSED AS FIXED INCIDENTALLY.** It read "the source is
+  empty on 79.6% of PRESENT rows and generation emits 97.3%".
+  Re-measured on the same shape through the CLI: source 0.826,
+  generated 0.814, a 1.2-point gap. The set rewrite -
+  independent per-token draw, sizes EMERGENT from the picks,
+  one shared empty predicate - fixed it without anybody aiming
+  at it. Re-measure a recorded open item before working on it;
+  this one had been overtaken.
+- **AND THE IDENTITY COPY IS INERT ON EVERY FIXTURE THIS REPO
+  HAS, WHICH THE FAIL-FIRST FOUND AND THE SUITE NOW SAYS OUT
+  LOUD.** Disabling the overwrite ENTIRELY fails nothing - not
+  in `smoke_sets`, and not through the real CLI on the
+  procedures fixture, where identity reads 1.0000 and coverage
+  0.9275 with the copy and without it. When the blueprint
+  DECLARES the identity, each row's set is drawn AT that row's
+  count, so the identity arrives from the DRAW and the copy is
+  belt-and-braces. Two arms agreeing to four decimals are one
+  arm - and here that is the correct reading rather than a
+  measurement bug. The shape that would exercise the copy is
+  the one the original defect had: the count a relationship
+  CHILD of the set's token indicators, drawn AFTER the set. No
+  fixture here carries it. The copy STAYS - removing it would
+  be a change with no measured benefit and real risk on the one
+  shape nothing tests - and the check beside it states that it
+  pins the DRAW rather than implying it tests the copy.
+- **`git checkout HEAD -- PATH` RESTORED AWAY MY OWN
+  UNCOMMITTED FIX.** Mutating `generate.py` to run an
+  old-against-new comparison, the restore was
+  `git checkout HEAD -- synthkit/generate.py` - and HEAD did
+  not contain the fix, which was still uncommitted. The
+  comparison was valid; the fix was gone, and only
+  `git diff --quiet HEAD` printing CLEAN revealed it. This file
+  already records that this command stages as well as writes;
+  the new lesson is narrower and worse: **restore from a COPY
+  of the working state, never from a commit, when the working
+  state is what you are trying to keep.** Re-applied and
+  verified the text is IN the file before believing any further
+  measurement of it.
+- **AND THE DATA MACHINE CONFIRMED THE CHAIN, DELTA EXACTLY
+  TWELVE.** The PHI-4 build ran there off a zipball fetched BY
+  COMMIT SHA (public remote, no token, byte size verified
+  against the local download first): **ALL GREEN, 94 suites,
+  2969 checks, 1357s** on Python 3.14.6 with pandas 3.0.5,
+  numpy 2.5.2. The local checkout read 2981, so the gap is the
+  recorded TWELVE and it still decomposes with no residue. The
+  count was crossed in WORDS - "nine four suites, two nine six
+  nine checks" - because that delta is the number that decides
+  whether a correct run reads as a failure.
+- **AND THE NEW DETECTORS PRODUCED ZERO FALSE POSITIVES ON THE
+  REAL EXTRACT.** `scrub` on the 55,428-row, 44-column extract:
+  **NEWKIND NONE** - no zip_code, url or ip_address finding -
+  with the four pre-existing findings unchanged (one
+  identifier, two service dates, one age) and 39 clear plus 1
+  out of scope, which balances against 44 exactly. The last
+  real-extract read of this detector exposed THREE faults the
+  fixture could not reach, so a clean read here is evidence
+  rather than a formality.
+
 - **MULTI-TABLE INTAKE EXISTS, AND THE KEYS COME FROM THE
   VALUES (2026-11-04, `synthkit/multitable.py`).** The fitted
   path has always been single-table, so an operator with

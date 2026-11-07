@@ -551,6 +551,75 @@ def main():
               "count" for e in (rep_i2.get("set_size_identity")
                                 or [])))
 
+    # ---- AND THE PARTNER'S OWN COVERAGE SURVIVES THE COPY --------
+    #
+    # The identity is DETECTED on rows where both columns are
+    # present and was ENFORCED wherever the SET is present - and a
+    # set column cannot be missing at all, because its blanks encode
+    # to `sets.EMPTY`. So the copy ran on EVERY row and wrote a size
+    # into rows whose partner the blueprint says should be ABSENT,
+    # which turns "nobody recorded whether there were procedures"
+    # into "there were zero". Found on a procedures-shaped fixture
+    # through the CLI: coverage delta +0.0625 against a 0.05 bar, so
+    # the GATE could see it and nothing was asking.
+    #
+    # Its own fixture, because the block above depends on a count
+    # that is present everywhere - and a fixture whose partner never
+    # goes missing cannot reach this at all.
+    def _ident_gap_bp():
+        bp = _ident_bp()
+        bp["columns"]["count"] = dict(bp["columns"]["count"],
+                                      coverage=0.80)
+        return bp
+
+    _gapbp = _ident_gap_bp()
+    check("the partner-coverage fixture really declares a count "
+          "that is ABSENT on a fifth of rows ({:.2f}), and the set "
+          "beside it present on all of them ({:.2f}) - with both at "
+          "1.0 the copy has nowhere to do harm and the check could "
+          "not fail".format(_gapbp["columns"]["count"]["coverage"],
+                            _gapbp["columns"]["drugs"]["coverage"]),
+          _gapbp["columns"]["count"]["coverage"] < 0.9
+          and _gapbp["columns"]["drugs"]["coverage"] > 0.99)
+    _gg = _gen(_gapbp, n_patients=500, seed=3)
+    _cov = float(pd.to_numeric(_gg["count"],
+                               errors="coerce").notna().mean())
+    check("A PUBLISHED COVERAGE IS NOT OVERWRITTEN BY AN IDENTITY: "
+          "the count comes back present on {:.2f} against a declared "
+          "0.80, where copying on every row made it 1.00 - absent is "
+          "not the same fact as zero, and a blueprint number that is "
+          "read and then ignored is the read-but-not-used fault"
+          .format(_cov), abs(_cov - 0.80) < 0.05)
+    _sz2 = _gg["drugs"].fillna("").apply(
+        lambda x: 0 if not x else len(x.split(";")))
+    _ct2 = pd.to_numeric(_gg["count"], errors="coerce")
+    _both = _ct2.notna()
+    # WHAT THIS PINS IS THE DRAW, NOT THE COPY - said plainly,
+    # because the mutation that disables the copy entirely fails
+    # NOTHING here or through the CLI. When the blueprint declares
+    # the identity, each row's set is drawn AT that row's count, so
+    # the identity arrives from the DRAW and the overwrite is
+    # belt-and-braces on every fixture this repo has. Measured both
+    # ways on a procedures-shaped fixture through the real CLI:
+    # identity 1.0000 and count coverage 0.9275 with the copy and
+    # without it. The shape that would exercise the copy is the one
+    # the original defect had - the count a relationship CHILD of the
+    # set's own token indicators, drawn AFTER the set - and no
+    # fixture here carries it. So this guard catches a regression in
+    # the DRAW, which is real, and claims nothing about the copy.
+    check("...and the identity still holds wherever the partner "
+          "exists ({:.1%} of those rows) - this pins the DRAW, which "
+          "is where the identity comes from when the blueprint "
+          "declares it; the copy is inert on every fixture here and "
+          "the check says so rather than implying otherwise"
+          .format(float((_sz2[_both] == _ct2[_both]).mean())),
+          float((_sz2[_both] == _ct2[_both]).mean()) > 0.995)
+    check("...and the SET's own coverage is untouched at {:.2f} - "
+          "an empty set is still a fact about the visit, so the fix "
+          "must not have made the set missing instead"
+          .format(float(_gg["drugs"].notna().mean())),
+          float(_gg["drugs"].notna().mean()) > 0.999)
+
     # ---- SIZE PLACES FIRST, WHATEVER ITS SKILL -------------------
     #
     # The placement freedoms are not symmetric. Token jobs keep most
