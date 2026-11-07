@@ -13,7 +13,7 @@ end-to-end) are where the remaining work lives.**
 
 ---
 
-## Goal 1 — Universal upload with auto schema mapping   **~86%**
+## Goal 1 — Universal upload with auto schema mapping   **~90%**
 
 **What works, measured**
 - Single-table CSV end to end. Types detected in seconds
@@ -74,8 +74,24 @@ end-to-end) are where the remaining work lives.**
 - A child's VALUES are never re-drawn from its parent — only
   which parent it points at. A lab value is attached to a visit
   whose length of stay fits; it is not generated from it.
-- Multi-hop couplings (grandparent to grandchild) are not
-  measured.
+- ~~Multi-hop couplings~~ LANDED 2026-11-06 (MT-3). A lab value
+  riding the PERSON's age spans two links and was never
+  searched for — not weakened, absent, with the run reporting
+  "0 cross-table coupling(s)". Measured through the written
+  files on a three-table chain: source `+0.976`, before
+  `-0.000`, after **`+0.981`**, `--no-couple` control `-0.000`.
+  The fix needs no second solver: once a visit is attached to a
+  person that visit row CARRIES the person's age, so the
+  inherited columns are materialised onto the parent frame and a
+  two-hop coupling becomes an ordinary one-hop coupling on a
+  `__via__` column. One function serves the source (real keys)
+  and the generated set (invented keys), so detection and
+  enforcement cannot disagree about what a two-hop coupling is.
+  The link loop is topological now, and no `__via__` column
+  reaches a written file.
+- Three or more hops are not measured. The same mechanism would
+  extend, and the rank-one limit compounds along a chain, so it
+  is named rather than assumed cheap.
 - ~~File formats beyond CSV~~ SHIPPED 2026-11-03:
   `synthkit.intake` reads .csv/.tsv/.txt, .jsonl/.ndjson/.json,
   .xlsx/.xlsm and .parquet, dispatching on the extension, with

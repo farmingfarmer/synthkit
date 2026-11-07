@@ -417,6 +417,100 @@ def _is_quantity(series) -> bool:
     return True
 
 
+# A COLUMN ONE HOP FURTHER UP IS STILL A COLUMN THE CHILD
+# TRACKS, AND NOTHING WAS LOOKING FOR IT.
+#
+# `cross_couplings` iterates the links, so it only ever compared a
+# child against its DIRECT parent. On a person -> visit -> lab
+# chain a lab value riding the PERSON's age spans two links and was
+# not weakened but NEVER SEARCHED FOR: measured on a three-table
+# fixture, source +0.976, generated -0.000, with the run reporting
+# "0 cross-table coupling(s)" - no coupling found, so none enforced.
+#
+# The fix needs no new solver. Once a visit has been attached to a
+# person, that visit ROW carries its person's age, so materialising
+# the inherited columns onto the parent frame turns a two-hop
+# coupling into an ordinary one-hop coupling on a column named
+# `__via__person_id__age`. The existing detection and the existing
+# rank-one assignment then work unchanged, and the temporary
+# columns never reach a written file.
+VIA = "__via__"
+
+
+def _is_via(name: str) -> bool:
+    return str(name).startswith(VIA)
+
+
+def link_order(found: Dict) -> List:
+    """Links ordered so a parent is assigned before its children.
+
+    THE LINK LOOP WAS IN DETECTION ORDER, which is fine while
+    every coupling is one hop - a child only needs its parent's
+    KEYS to exist, and those are invented for every table up
+    front. It stops being fine the moment a child is scored
+    against a column its parent INHERITED: the parent's own
+    foreign key has to be assigned first, or the inherited column
+    is not there yet. Depth is counted by walking up to the root,
+    which also makes a cycle impossible to loop on.
+    """
+    parent_of = {}
+    for lk in found.get("links", []):
+        parent_of.setdefault(lk.child, lk.parent)
+
+    def depth(name, seen=None):
+        seen = seen or set()
+        d = 0
+        cur = name
+        while cur in parent_of and cur not in seen:
+            seen.add(cur)
+            cur = parent_of[cur]
+            d += 1
+        return d
+
+    return sorted(found.get("links", []),
+                  key=lambda lk: depth(lk.child))
+
+
+def with_inherited(frames: Dict[str, pd.DataFrame], found: Dict,
+                   name: str) -> pd.DataFrame:
+    """`name`'s frame plus the numeric columns of ITS parent.
+
+    Joined through the foreign key that is actually present in
+    the frame handed in - so this works on the SOURCE (real keys)
+    and on a GENERATED set (invented keys) with no special case,
+    which is the only way detection and enforcement can agree
+    about what a two-hop coupling is.
+    """
+    base = frames[name]
+    for lk in found.get("links", []):
+        if lk.child != name:
+            continue
+        par = frames.get(lk.parent)
+        if par is None or lk.parent_key not in par.columns:
+            continue
+        if lk.column not in base.columns:
+            continue
+        take = [lk.parent_key]
+        ren = {}
+        for c in par.columns:
+            if c == lk.parent_key or _is_via(c):
+                continue
+            if not _is_quantity(par[c]):
+                continue
+            take.append(c)
+            ren[c] = "{}{}__{}".format(VIA, lk.column, c)
+        if len(take) <= 1:
+            continue
+        right = par[take].rename(columns=ren)
+        base = base.merge(right, how="left",
+                          left_on=lk.column,
+                          right_on=lk.parent_key)
+        if lk.parent_key != lk.column and \
+                lk.parent_key in base.columns:
+            base = base.drop(columns=[lk.parent_key])
+    return base
+
+
 def cross_couplings(frames: Dict[str, pd.DataFrame],
                     found: Dict, k: int = 10) -> List[Dict]:
     """Relationships that live ACROSS a link, measured.
@@ -440,7 +534,11 @@ def cross_couplings(frames: Dict[str, pd.DataFrame],
     for lk in found["links"]:
         if lk.child not in frames or lk.parent not in frames:
             continue
-        ch, pa = frames[lk.child], frames[lk.parent]
+        # THE PARENT SIDE CARRIES WHAT IT INHERITED, so a
+        # coupling one hop further up is an ordinary coupling on
+        # a `__via__` column and needs no second solver.
+        ch = frames[lk.child]
+        pa = with_inherited(frames, found, lk.parent)
         t = found["tables"].get(lk.parent)
         if t is None or not t.primary_key:
             continue
@@ -749,7 +847,10 @@ def assign_keys(frames: Dict[str, pd.DataFrame],
         out[name][pk] = keys
         newkeys[name] = keys
 
-    for lk in found["links"]:
+    # TOPOLOGICAL, because a child scored against a column its
+    # parent INHERITED needs the parent's own foreign key to be
+    # assigned first.
+    for lk in link_order(found):
         if lk.parent not in newkeys:
             continue
         if lk.column not in out[lk.child].columns:
@@ -789,7 +890,10 @@ def assign_keys(frames: Dict[str, pd.DataFrame],
             # sides are scored by their rank-one weights and
             # matched, and the residual is reported rather
             # than hidden.
-            par = out[lk.parent]
+            # The parent's inherited columns are materialised
+            # from the keys assigned on earlier links, which the
+            # topological order guarantees exist by now.
+            par = with_inherited(out, found, lk.parent)
             ccols, pcols = [], []
             for cp in use:
                 cc, pc = cp["child_column"], cp["parent_column"]

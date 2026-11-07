@@ -809,6 +809,120 @@ def main():
                   .format(_label),
                   _r.returncode == 2)
 
+    # -------------------------------- TWO HOPS (MT-3)
+    # A COLUMN ONE HOP FURTHER UP IS STILL A COLUMN THE CHILD
+    # TRACKS, AND NOTHING WAS LOOKING FOR IT. `cross_couplings`
+    # iterated the links, so it only ever compared a child
+    # against its DIRECT parent - a lab value riding the
+    # PERSON's age spans two links and was not weakened but
+    # never searched for. The run said "0 cross-table
+    # coupling(s)", which reads as "none there".
+    with tempfile.TemporaryDirectory() as _td3:
+        _i3 = Path(_td3) / "in"
+        _i3.mkdir()
+        _r3 = np.random.default_rng(11)
+        _np3 = 220
+        _pids = ["P{:04d}".format(i) for i in range(_np3)]
+        _age = np.round(_r3.uniform(20, 90, _np3), 1)
+        pd.DataFrame({"person_id": _pids, "age": _age,
+                      "sex": _r3.choice(["F", "M"], _np3)}
+                     ).to_csv(str(_i3 / "people.csv"),
+                              index=False)
+        _vr = []
+        for _p in _pids:
+            for _ in range(int(_r3.integers(2, 5))):
+                _vr.append(("V{:05d}".format(len(_vr)), _p,
+                            round(float(_r3.lognormal(1.0, 0.5)),
+                                  2)))
+        _vis = pd.DataFrame(_vr, columns=["visit_id",
+                                          "person_id",
+                                          "length_of_stay"])
+        _vis.to_csv(str(_i3 / "visits.csv"), index=False)
+        _amap = dict(zip(_pids, _age))
+        _lr = []
+        for _, _row in _vis.iterrows():
+            for _ in range(int(_r3.integers(1, 4))):
+                _lr.append((_row["visit_id"],
+                            round(float(
+                                0.9 * _amap[_row["person_id"]]
+                                + _r3.normal(0, 4.0)), 3)))
+        _labs = pd.DataFrame(_lr, columns=["visit_id",
+                                           "creatinine"])
+        _labs.to_csv(str(_i3 / "labs.csv"), index=False)
+
+        def _hop2(d):
+            _pe = pd.read_csv(str(Path(d) / "people.csv"))
+            _vi = pd.read_csv(str(Path(d) / "visits.csv"))
+            _la = pd.read_csv(str(Path(d) / "labs.csv"))
+            _m = _la.merge(_vi[["visit_id", "person_id"]],
+                           on="visit_id", how="inner")
+            _m = _m.merge(_pe[["person_id", "age"]],
+                          on="person_id", how="inner")
+            return float(_m["creatinine"].corr(_m["age"],
+                                               method="spearman"))
+
+        # The source reading uses the SAME helper the generated
+        # one does, so the two cannot differ by how they joined.
+        _s3 = _hop2(str(_i3))
+        check("the chain fixture carries a TWO-HOP coupling: a "
+              "lab value rides the PERSON's age, two links from "
+              "the lab table ({:+.3f}) - with only a one-hop "
+              "relationship the gap cannot be reached"
+              .format(_s3), _s3 > 0.8)
+
+        def _rel3(outdir, *extra):
+            r = subprocess.run(
+                [sys.executable, "-m", "synthkit.cli", "relate",
+                 str(_i3 / "people.csv"), str(_i3 / "visits.csv"),
+                 str(_i3 / "labs.csv"), "--out", str(outdir),
+                 "--seed", "3"] + list(extra),
+                cwd=_rt, capture_output=True, text=True)
+            return r.returncode, r.stdout + r.stderr
+
+        _o3 = Path(_td3) / "on"
+        _rc3, _out3 = _rel3(_o3)
+        check("...and it is FOUND - the parent side carries what "
+              "it inherited, so a two-hop coupling is an ordinary "
+              "coupling on a `__via__` column and needs no second "
+              "solver",
+              _rc3 == 0
+              and "__via__person_id__age" in _out3)
+        _g3 = _hop2(_o3)
+        check("...and it LANDS across two links: {:+.3f} against "
+              "a source {:+.3f}, measured off disk. Before this "
+              "the same fixture read -0.000 - destroyed, because "
+              "it was never searched for"
+              .format(_g3, _s3), abs(_g3 - _s3) < 0.15)
+        _o3b = Path(_td3) / "off"
+        _rc3b, _ = _rel3(_o3b, "--no-couple")
+        _n3 = _hop2(_o3b)
+        check("...and the control arm still destroys it "
+              "({:+.3f}), so the two-hop landing is the "
+              "enforcement and not the chain happening to "
+              "preserve it".format(_n3),
+              _rc3b == 0 and abs(_n3) < 0.2)
+        _leak = []
+        for _f in ("people.csv", "visits.csv", "labs.csv"):
+            _leak += [c for c in
+                      pd.read_csv(str(_o3 / _f), nrows=1).columns
+                      if c.startswith(MT.VIA)]
+        check("...and NO `__via__` column reaches a written "
+              "file - it is scaffolding for the assignment, and "
+              "this project does not put a column in somebody's "
+              "file that they did not give you",
+              not _leak)
+        check("...and the link order is TOPOLOGICAL, so a parent "
+              "has its own foreign key before a child is scored "
+              "against a column it inherited - in detection "
+              "order the inherited column is simply not there "
+              "yet",
+              [lk.child for lk in
+               MT.link_order(MT.detect({
+                   "people": pd.read_csv(str(_i3 / "people.csv")),
+                   "visits": pd.read_csv(str(_i3 / "visits.csv")),
+                   "labs": pd.read_csv(str(_i3 / "labs.csv"))}))]
+              == ["visits", "labs"])
+
     print()
     if FAIL:
         print("{} FAILED".format(FAIL))

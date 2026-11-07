@@ -5810,6 +5810,93 @@ exist.
   that about a mutation and it applies to a feature's first
   run.
 
+- **THE FIRST REAL RECEIPT READ SAYS SIXTY-FOUR OF EIGHTY-EIGHT
+  PUBLISHED CLAIMS ARE ON COLUMNS THE OPERATOR NEVER RECEIVES
+  (2026-11-06, run_deliverable).** Run through the CLI on the
+  data machine, 2,826 lines:
+      claims published                     88
+      claims whose CHILD is a search column 64
+      parent readings                     752
+        kept                              175
+        not measured                      556
+        faded                              16
+        INVERTED                            3
+        overshot                            2
+  Every figure crossed in WORDS - "eight eight", "six four",
+  "one seven five", "five five six" - because they would go in
+  a report and the digits channel off that screen is not
+  trustworthy.
+- **THAT IS A KNOWN THING MADE COUNTABLE, AND IT CHANGES HOW
+  THE CLAIM COUNT SHOULD BE READ.** This file already says
+  scaffolding is not the operator's data - it says it about the
+  constraints section, about the fidelity summary's column
+  counts, and about the gate's absolute stop judging a
+  scaffolding inversion. What was not countable until now is
+  the SHARE: nearly three quarters of the published claims sit
+  on `__has__` indicators and set sizes, which are dropped
+  before `generated.csv` is written. A reader told "88
+  relationships found" and not told that 64 of them cannot be
+  checked in the file they received has been given a number
+  that flatters. The receipts say it per claim and in the
+  header total.
+- **AND THE 556 UNMEASURED PARENT READINGS ARE MOSTLY THE SAME
+  FACT, NOT A SECOND ONE.** A pair is measured on BOTH tables,
+  so a parent that is search machinery cannot be compared in
+  the output however well the source relates it. Reporting the
+  556 as a fidelity gap would be the
+  percentage-whose-denominator-moved fault in a new place; it
+  is reported beside the scaffolding count so the two can be
+  read together. The 3 INVERTED here are parent-pair readings
+  across all claims, which is a DIFFERENT denominator from the
+  gate's `pairs_own_inverted` - say which one is quoted.
+
+- **A COLUMN ONE HOP FURTHER UP IS STILL A COLUMN THE CHILD
+  TRACKS, AND NOTHING WAS LOOKING FOR IT (2026-11-06, MT-3).**
+  `cross_couplings` iterates the LINKS, so it only ever compared
+  a child against its DIRECT parent. On a person -> visit -> lab
+  chain, a lab value riding the PERSON's age spans two links -
+  and it was not weakened, it was NEVER SEARCHED FOR. Measured
+  on a three-table fixture through the written files:
+      source two-hop creatinine ~ age     +0.976
+      before (one-hop detection only)     -0.000
+      after                               +0.981
+      control arm, --no-couple            -0.000
+  The run's own output said "0 cross-table coupling(s)", which
+  reads as none there rather than none looked for. A missing
+  coupling is invisible in exactly the same way a missing
+  category is, and this file already has a rule about reporting
+  a total a reader can check against.
+- **AND THE FIX NEEDED NO SECOND SOLVER, because once a visit
+  is attached to a person that visit ROW carries the person's
+  age.** Materialising the inherited numeric columns onto the
+  parent frame turns a two-hop coupling into an ordinary
+  one-hop coupling on a column named `__via__person_id__age`,
+  and the existing detection and the existing rank-one
+  assignment then work unchanged. `with_inherited` joins
+  through whichever foreign key is actually present in the
+  frame handed to it, so it runs identically on the SOURCE
+  (real keys) and on a GENERATED set (invented keys) - which is
+  the only way detection and enforcement can agree about what a
+  two-hop coupling IS. One function, both halves, for the same
+  reason token screening and the scaffolding predicate each
+  live in one place.
+- **THE LINK LOOP HAD TO BECOME TOPOLOGICAL, and it was in
+  DETECTION order.** That was harmless while every coupling was
+  one hop - a child only needs its parent's KEYS, and those are
+  invented for every table up front. It stops being harmless
+  the moment a child is scored against a column its parent
+  INHERITED: the parent's own foreign key must be assigned
+  first or the inherited column is simply not there yet.
+  Depth is counted by walking up to the root, which also makes
+  a cycle impossible to loop on. Reversing the order turns the
+  check red.
+- **AND NO `__via__` COLUMN REACHES A WRITTEN FILE.** It is
+  scaffolding for the assignment, and this project does not put
+  a column in somebody's file that they did not give you -
+  asserted on every written table, with a mutation that leaks
+  them turning it red. Same rule as the `__has__` indicators
+  and the invented `visit_number`.
+
 - **MULTI-TABLE INTAKE EXISTS, AND THE KEYS COME FROM THE
   VALUES (2026-11-04, `synthkit/multitable.py`).** The fitted
   path has always been single-table, so an operator with
