@@ -463,8 +463,15 @@ EXIT: moved or re-parked with this paragraph updated either way.
   (`lagged-cross-column` misses on every seed because it needs
   `--lags`, which exists - a permanent miss, not a fragile
   one.)
-- `discover.py` SettingWithCopyWarning spam on pandas 2.x -
-  cosmetic, gone on the 3.13/3.14 lanes, fix at leisure.
+- ~~`discover.py` SettingWithCopyWarning spam on pandas 2.x -
+  cosmetic, gone on the 3.13/3.14 lanes, fix at leisure.~~
+  GONE 2026-11-06, and MEASURED rather than assumed: zero
+  occurrences in a full net run on the 3.10 / pandas 2.3 lane,
+  and zero warnings of any kind from a direct `discover()` call
+  there with `simplefilter("always")`. The debt was overtaken by
+  intervening work. Re-measure a recorded open item before
+  working on it - that is twice tonight (the presence/count
+  defect did not reproduce either).
 - The enterprise repo maintenance rule is now written in the
   RUNBOX (push only when a pull brought something the team
   repo should have) - keep it true.
