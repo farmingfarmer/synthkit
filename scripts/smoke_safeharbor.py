@@ -232,6 +232,42 @@ def fixture(n=400, visits=3):
         "client_ip": ["10.{}.{}.{}".format(
             per_person[p] % 250, per_person[p] % 7,
             per_person[p] % 199) for p in pid],
+        # --- PHI-5: geography smaller than a state
+        "city": [("Pasadena", "Glendale", "Burbank", "Alhambra",
+                  "Monterey Park", "Arcadia", "Whittier",
+                  "Downey")[per_person[p] % 8] for p in pid],
+        "patient_county": [("Los Angeles", "Orange",
+                            "Ventura")[per_person[p] % 3]
+                           for p in pid],
+        # NEGATIVE: a STATE is not PHI under Safe Harbor, which
+        # asks for subdivisions SMALLER than a state. This is
+        # the one piece of category 2 that must survive.
+        "state": [("CA", "NV", "AZ")[per_person[p] % 3]
+                  for p in pid],
+        # A COMBINED "Pasadena, CA" FIELD, common in flat
+        # exports, and genuinely PHI because it contains a city.
+        # An explicit state EXCLUSION would have let this
+        # through - the mutation that removed that exclusion
+        # failed no check, which is how the dead guard was
+        # found.
+        "city_state": [
+            "{}, CA".format(
+                ("Pasadena", "Glendale", "Burbank",
+                 "Alhambra")[per_person[p] % 4]) for p in pid],
+        # NEGATIVE, AND THE DANGEROUS ONE: `ethnicity` ENDS in
+        # `city`, and the remedy for geography is DROP - so a
+        # loose header pattern would delete a covariate from a
+        # clinical extract. `capacity` is the same trap with
+        # numbers under it.
+        "ethnicity": [("Hispanic",
+                       "Non-Hispanic")[per_person[p] % 2]
+                      for p in pid],
+        "bed_capacity": [str(int(v)) for v in
+                         rng.integers(10, 400, n)],
+        # NEGATIVE: a city-ish HEADER over numbers. The header
+        # alone must not be enough.
+        "city_code": [str(1000 + (per_person[p] % 9000))
+                      for p in pid],
     })
     return df.astype(str)
 
@@ -628,6 +664,82 @@ def main():
           "the inventory accounting for it",
           all(any(k in c["note"] for c in _inv["categories"])
               for k in scrub.KINDS))
+
+    # ---------------------------------------------- PHI-5
+    check("a CITY is detected as `geography` - Safe Harbor "
+          "category 2 asks for every geographic subdivision "
+          "smaller than a state",
+          _kind.get("city") == "geography")
+    check("...and a COUNTY too, however it is prefixed",
+          _kind.get("patient_county") == "geography")
+    check("...and the finding SAYS it is HEADER-DRIVEN and names "
+          "its own limit, because a city name and a race "
+          "category are the same shape - short, alphabetic, "
+          "constant within a patient - so no test on the VALUES "
+          "separates them",
+          "HEADER-DRIVEN" in _why.get("city", "")
+          and "renamed city column is NOT caught"
+          in _why.get("city", ""))
+    check("NEGATIVE CONTROL, AND THE ONE THAT MATTERS MOST: "
+          "`ethnicity` ENDS in `city`, and the remedy for "
+          "geography is DROP - a loose header pattern would "
+          "delete a covariate from a clinical extract",
+          "ethnicity" in rep["clear"])
+    check("...and `bed_capacity` likewise, which is the same "
+          "trap with numbers under it",
+          "bed_capacity" in rep["clear"])
+    check("NEGATIVE CONTROL: a STATE is NOT flagged - the rule "
+          "asks for subdivisions SMALLER than a state, so this "
+          "is the one piece of category 2 that is supposed to "
+          "survive", "state" in rep["clear"])
+    check("...and that works because `state` is simply NOT IN "
+          "THE TOKEN LIST, not by an exclusion. There WAS an "
+          "explicit state exclusion and it was dead code - the "
+          "mutation removing it failed no check - and it would "
+          "have caused a FALSE NEGATIVE on a combined "
+          "`city_state` field",
+          not scrub._GEO_HINT.search("state")
+          and not scrub._GEO_HINT.search("province")
+          and not hasattr(scrub, "_STATE_HINT"))
+    check("...and a combined `city_state` field IS caught, "
+          "because it contains a city - the case the removed "
+          "exclusion would have let through",
+          _kind.get("city_state") == "geography")
+    check("NEGATIVE CONTROL: a city-ish HEADER over NUMBERS is "
+          "not geography - the header is the only tell there is, "
+          "and it still is not sufficient on its own",
+          _kind.get("city_code") != "geography")
+    check("...and the header pattern is underscore-aware, "
+          "because `\\b` is not: it matches `patient_city` and "
+          "refuses `ethnicity`, `capacity`, `toxicity` and "
+          "`downtown`",
+          all(scrub._GEO_HINT.search(x) for x in
+              ("city", "patient_city", "county_name", "parish"))
+          and not any(scrub._GEO_HINT.search(x) for x in
+                      ("ethnicity", "capacity", "toxicity",
+                       "downtown", "specificity")))
+    check("a city carries remedy DROP, not generalise - Safe "
+          "Harbor names the first three digits of a postal code "
+          "as a publishable unit and names NO equivalent for a "
+          "place name, so the honest options are remove it or "
+          "map it to its state, and a city-to-state table is "
+          "data this project cannot keep correct",
+          _rem.get("city") == "drop"
+          and scrub.REMEDY["geography"] == "drop")
+    check("...and `apply` therefore removes it while leaving the "
+          "state and the demographics in place",
+          "city" not in _kept.columns
+          and "patient_county" not in _kept.columns
+          and "state" in _kept.columns
+          and "ethnicity" in _kept.columns)
+    check("...and the inventory's category 2 note now names "
+          "`geography` and states the header-driven limit, "
+          "rather than still saying city and county are NOT "
+          "reached",
+          any(c["number"] == 2
+              and "`geography`" in c["note"]
+              and "HEADER-DRIVEN" in c["note"]
+              for c in scrub.inventory()["categories"]))
 
     # ---- AND IT REACHES A READER. A measurement that never
     #      gets to a page might as well not exist for the

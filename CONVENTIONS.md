@@ -5965,6 +5965,58 @@ exist.
   FAILS. Now on both, with a run that has no scaffolding still
   adding nothing - a note that fires on everything is noise.
 
+- **A CITY NAME AND A RACE CATEGORY ARE THE SAME SHAPE, SO THE
+  HEADER IS THE ONLY TELL THERE IS (2026-11-06, PHI-5).** Both
+  are short alphabetic strings, both are CONSTANT within a
+  patient, both hold a handful of values across a cohort - every
+  test that separates a person's name from a drug's gives the
+  same answer for `city` and for `race`, which is why the name
+  detector had to be taught not to flag gender, race and
+  ethnicity. So the geography rule is header-driven, the finding
+  SAYS it is header-driven and names its own limit (a renamed
+  city column is not caught), and the value shape is asked only
+  to be CONSISTENT with a place name - its job is to refuse
+  NUMBERS under a city-ish header, not to insist on a single
+  word.
+- **AND THE REMEDY IS DROP, BECAUSE NO DEFINED COARSENING
+  EXISTS.** Safe Harbor names the first three digits of a postal
+  code as a publishable unit and names NO equivalent for a place
+  name, so the honest options are to remove it or to map it to
+  its state - and a city-to-state table is data this project
+  cannot carry or keep correct, so shipping one would be a guess
+  wearing a lookup. Said in the module rather than implied by a
+  silent drop.
+- **`ethnicity` ENDS IN `city`, AND THE REMEDY IS DROP.** So
+  does `capacity`, `toxicity`, `specificity` and `electricity`.
+  A loose header pattern would have DELETED ethnicity from a
+  clinical extract - the same class as the first name detector
+  flagging gender, race and ethnicity, where `apply` would have
+  dropped three covariates. The pattern is underscore-aware
+  (`\b` does not see an underscore - the lesson the ZIP tell
+  taught, and it matters more here), tested against all of them
+  before the detector was written, and the loose version turns
+  three checks red.
+- **AND AN EXPLICIT STATE EXCLUSION WAS DEAD CODE THAT COULD
+  ONLY DO HARM.** A state is not PHI under Safe Harbor, which
+  asks for subdivisions SMALLER than a state - so I wrote a
+  `_STATE_HINT` exclusion. The mutation removing it failed NO
+  check, because `_GEO_HINT` never matched `state` to begin
+  with: the rule is achieved by `state` simply NOT BEING IN THE
+  TOKEN LIST. Worse, the exclusion would have caused a FALSE
+  NEGATIVE on `city_state` - a combined "Pasadena, CA" field,
+  common in flat exports and genuinely PHI because it contains
+  a city. Removed, the real mechanism asserted instead, and
+  restoring the exclusion now turns a check red. A mutation
+  that finds nothing means the check is not load-bearing OR the
+  code is dead; here it was the code.
+- **AND THE FIXTURE CAUGHT MY OWN VALUE PATTERN BEING TOO
+  NARROW.** `_PLACEISH` forbade a comma, so `Pasadena, CA`
+  scored 0.0 and the combined field was missed - a positive
+  control failing on the first run, which is what controls are
+  for. Commas allowed; numbers still refused (`1234`, `90033`,
+  `Apt 4B` all fail the pattern), so the gate still does the
+  one job it has.
+
 - **MULTI-TABLE INTAKE EXISTS, AND THE KEYS COME FROM THE
   VALUES (2026-11-04, `synthkit/multitable.py`).** The fitted
   path has always been single-table, so an operator with

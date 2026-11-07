@@ -113,7 +113,7 @@ holds). Formats: days.
 
 ---
 
-## Goal 2 — Automatic de-identification   **~78%**
+## Goal 2 — Automatic de-identification   **~84%**
 
 **What works, measured**
 - Everything published is k-anonymous over PATIENTS, never rows:
@@ -186,6 +186,19 @@ holds). Formats: days.
 
 **What remains**
 - Free text PHI is the M6 decision gate.
+- ~~City and county names~~ SHIPPED 2026-11-06 (PHI-5,
+  `geography`). Header-driven and the finding says so: a city
+  name and a race category are the same shape, so no test on
+  the VALUES separates them. The value gate refuses numbers
+  under a city-ish header; a combined `city_state` field IS
+  caught; a STATE is left alone because the rule asks for
+  subdivisions SMALLER than a state. Remedy is DROP, because
+  Safe Harbor names no coarsening for a place name and a
+  city-to-state table is data this project cannot keep correct.
+  **`ethnicity` ends in `city`** — a loose pattern would have
+  deleted a covariate, so it was tested against `ethnicity`,
+  `capacity`, `toxicity`, `specificity` and `downtown` before
+  the detector was written. Five mutations each red.
 - **Vehicle (12) and device (13) serial numbers are NOT
   covered, and the device case is the one that matters** — OMOP
   has a `device_exposure` table, and a serial number is
@@ -549,15 +562,15 @@ dates:
    ceiling: ongoing and unscheduled, because unknowns move dates
    and these are the genuine unknowns.
 
-Equal-weighting the eight goals: **~90.6% complete** as of
-2026-11-06 — 90, 78, 90, 95, 90, 100, 92, 90. Moved on
+Equal-weighting the eight goals: **~91.4% complete** as of
+2026-11-06 — 90, 84, 90, 95, 90, 100, 92, 90. Moved on
 2026-11-06, each for a measured reason: goal 1 78→90 (the
 cross-table couplings are enforced and REACHABLE —
 `synthkit relate`, with `--no-couple` as the named control arm
 reading −0.028 against a source +0.892, and the rank-one
 ceiling stated as arithmetic rather than a gap, and TWO-HOP
 couplings that were never searched for — source +0.976,
-before −0.000, after +0.981); goal 2 65→78
+before −0.000, after +0.981); goal 2 65→84
 (ZIP detection with the sparse-ZIP3 half of the rule, web and
 IP addresses, and an inventory naming this tool's coverage
 across all 18 Safe Harbor categories — verified on the real

@@ -137,6 +137,50 @@ _ZIP_HINT = re.compile(
 # fixed - the same reason a year-only date is clear.
 _ZIP3 = re.compile(r"^\d{3}(?:00)?$")
 
+# A CITY NAME AND A RACE CATEGORY ARE THE SAME SHAPE, so the
+# header is the only tell there is.
+#
+# Both are short alphabetic strings, both are CONSTANT within a
+# patient, both hold a handful of values across a cohort. Every
+# test that separates a person's name from a drug's gives the
+# same answer for `city` and for `race` - and the name detector
+# had to be taught not to flag gender, race and ethnicity
+# precisely because they pass all of them. So this is
+# header-driven, the finding SAYS it is header-driven, and the
+# value shape only has to be consistent with a place name rather
+# than prove it.
+#
+# UNDERSCORE-AWARE, because `\b` is not. The lesson the ZIP tell
+# taught, and here it matters more: `ethnicity`, `capacity`,
+# `toxicity`, `specificity` and `electricity` all END in `city`,
+# and the remedy is DROP - so a loose pattern would delete
+# ethnicity from a clinical extract. Tested against all of them.
+_GEO_HINT = re.compile(
+    r"(?:^|[^A-Za-z])(city|town|county|municipality|locality"
+    r"|borough|parish)(?:$|[^A-Za-z])", re.IGNORECASE)
+# A STATE IS NOT PHI UNDER SAFE HARBOR, which asks for
+# geographic subdivisions SMALLER than a state - and the way
+# that is achieved is simply that `state` is NOT IN THE TOKEN
+# LIST above. There was an explicit `_STATE_HINT` exclusion here
+# and it was DEAD CODE that could only do harm: the mutation
+# removing it failed no check, because `_GEO_HINT` never matched
+# `state` to begin with. Worse, it would have caused a FALSE
+# NEGATIVE on `city_state` - a combined "Pasadena, CA" field,
+# which is common in flat exports and genuinely IS PHI, since it
+# contains a city. Removed, and the real mechanism is asserted
+# instead of the redundant guard.
+# A place name is short and alphabetic. `Monterey Park` and
+# `Los Angeles` have a space, `St. Louis` a period,
+# `Winston-Salem` a hyphen - and a COMBINED field holds
+# `Pasadena, CA`, which the first version of this pattern
+# rejected for its comma. That cost the `city_state` case, which
+# the fixture caught: the value gate is there to refuse NUMBERS
+# under a city-ish header, not to insist on a single word.
+# Nothing here has digits, and anything longer than this is
+# free text, which the length rule reports out of scope.
+_PLACEISH = re.compile(r"^[A-Za-z][A-Za-z ,.'-]{1,34}$")
+GEO_MAX_LEVELS = 400
+
 # THE SEVENTEEN PREFIXES THAT MUST GO TO 000.
 #
 # Truncating to three digits is only half the Safe Harbor rule.
@@ -170,6 +214,7 @@ KINDS = {
     "zip_code": "postal codes finer than the first three digits",
     "url": "web addresses",
     "ip_address": "IP addresses",
+    "geography": "places smaller than a state",
 }
 
 # WHAT TO DO ABOUT EACH, AND WHY IT IS NOT ONE ANSWER.
@@ -207,6 +252,16 @@ REMEDY = {
     "zip_code": "generalise",
     "url": "drop",
     "ip_address": "drop",
+    # NO DEFINED COARSENING EXISTS for a city, which is why this
+    # is a drop where a ZIP is a generalise. Safe Harbor names
+    # the first three digits of a postal code as a publishable
+    # unit and names no equivalent for a place name, so the
+    # honest options are to remove it or to map it to its
+    # state - and a city-to-state table is data this project
+    # cannot carry or keep correct, so shipping one would be a
+    # guess wearing a lookup. The run says so rather than
+    # pretending a coarsening happened.
+    "geography": "drop",
 }
 
 _AGE_HINT = re.compile(r"(\bage\b|_age\b|\bage_)", re.IGNORECASE)
@@ -245,10 +300,15 @@ SAFE_HARBOR = (
     (1, "names", "covered", "`name`, from per-patient "
      "constancy plus a given-name lexicon"),
     (2, "geography finer than a state", "partial",
-     "`address` and `zip_code` reach street addresses and "
-     "postal codes; CITY and COUNTY names are NOT - they are "
-     "ordinary short strings with no shape to find and no "
-     "per-patient constancy a demographic does not also have"),
+     "`address`, `zip_code` and `geography` reach street "
+     "addresses, postal codes, and city and county names. The "
+     "remaining limit is that the city rule is HEADER-DRIVEN "
+     "and says so in its own finding: a city name and a race "
+     "category are the same shape - short, alphabetic, constant "
+     "within a patient, a handful of values - so no test on the "
+     "VALUES separates them, and a renamed city column is not "
+     "caught. A STATE is left alone deliberately, because the "
+     "rule asks for subdivisions SMALLER than a state"),
     (3, "dates except the year, and ages over 89", "covered",
      "`birth_date`, `service_date` and `age_over_89`, all "
      "generalised rather than dropped"),
@@ -467,6 +527,24 @@ def detect(df, group_by: Optional[str] = None,
                 continue
             found("zip_code", _zipish, " - " + _tell)
             continue
+        # A PLACE SMALLER THAN A STATE, by header, with the
+        # value shape only asked to be CONSISTENT with a place
+        # name rather than to prove one - because a city and a
+        # race category are the same shape and no test on the
+        # values can separate them.
+        if _GEO_HINT.search(str(c)):
+            _gsh = _share(vals, _PLACEISH)
+            _gdist = len(set(vals))
+            if _gsh >= MATCH_SHARE and _gdist <= GEO_MAX_LEVELS:
+                found("geography", _gsh,
+                      " and the column name says a place smaller "
+                      "than a state ({} distinct value(s)) - this "
+                      "verdict is HEADER-DRIVEN, because a city "
+                      "name and a race category are the same "
+                      "shape and no test on the values separates "
+                      "them. A renamed city column is NOT caught"
+                      .format(_gdist))
+                continue
         # A birth date is a date column whose NAME says birth -
         # nothing in the value says which event it dates, so this
         # is the one verdict where the header decides. Stated in
