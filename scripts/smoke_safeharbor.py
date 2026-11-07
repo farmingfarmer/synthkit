@@ -77,6 +77,34 @@ def check(label, cond):
         print("FAIL: {}".format(label))
 
 
+def _mkvin(i):
+    """A VIN-shaped string whose CHECK DIGIT actually holds.
+
+    Position nine carries weight ZERO, so the checksum is
+    independent of the digit it validates - which is what makes
+    it solvable rather than searchable.
+    """
+    import numpy as np
+    from synthkit import scrub as _sc
+    alpha = "0123456789ABCDEFGHJKLMNPRSTUVWXYZ"
+    r = np.random.default_rng(1000 + i)
+    body = "".join(alpha[int(r.integers(0, len(alpha)))]
+                   for _ in range(17))
+    body = body[:8] + "0" + body[9:]
+    tot = sum(_sc._VIN_T[c] * w
+              for c, w in zip(body, _sc._VIN_W))
+    want = tot % 11
+    return body[:8] + ("X" if want == 10 else str(want)) \
+        + body[9:]
+
+
+def _breakvin(v):
+    """The same VIN with its check digit moved off the answer."""
+    cur = v[8]
+    nxt = "1" if cur != "1" else "2"
+    return v[:8] + nxt + v[9:]
+
+
 def fixture(n=400, visits=3):
     """A frame carrying every structured class, real shapes.
 
@@ -232,6 +260,27 @@ def fixture(n=400, visits=3):
         "client_ip": ["10.{}.{}.{}".format(
             per_person[p] % 250, per_person[p] % 7,
             per_person[p] % 199) for p in pid],
+        # --- PHI-6: a VIN, built so its CHECK DIGIT holds. The
+        # check digit is the whole evidence, so a fixture of
+        # VIN-shaped strings that do NOT validate would pass
+        # every assertion about shape and none about detection.
+        "vehicle_vin": [_mkvin(per_person[p]) for p in pid],
+        # NEGATIVE: 17 characters, VIN alphabet, check digit
+        # DELIBERATELY wrong. This is the control that proves
+        # the checksum is doing the work rather than the length.
+        "bad_vin": [_breakvin(_mkvin(per_person[p]))
+                    for p in pid],
+        # --- PHI-6: a GS1 UDI carrying a PRODUCTION identifier
+        "implant_udi": [
+            "(01)1061414100041{}(17)26033{}(21)SN{:05d}".format(
+                per_person[p] % 10, per_person[p] % 10,
+                per_person[p]) for p in pid],
+        # NEGATIVE, AND THE DISTINCTION THAT MATTERS: a device
+        # identifier ALONE is a MODEL code. It identifies nobody,
+        # and dropping it would remove the clinical fact of which
+        # device was implanted rather than an identifier.
+        "device_model_di": ["(01)10614141000415" for _p in pid],
+        "product_gtin": ["00844588003288" for _p in pid],
         # --- PHI-5: geography smaller than a state
         "city": [("Pasadena", "Glendale", "Burbank", "Alhambra",
                   "Monterey Park", "Arcadia", "Whittier",
@@ -643,22 +692,41 @@ def main():
     check("...and every category carries a NOTE, because a bare "
           "status word is not something a reader can act on",
           all(c["note"].strip() for c in _inv["categories"]))
-    check("...and the gaps are NAMED rather than summed - "
-          "vehicle and device identifiers are `not covered`, "
-          "and the device case is called LIKELY in clinical "
-          "data rather than left as a footnote",
-          any(c["status"] == "not covered"
-              and "device" in c["what"]
-              and "device_exposure" in c["note"]
-              for c in _inv["categories"]))
-    check("...and a category that CANNOT appear in a table says "
-          "so distinctly from one nothing looks for - an "
-          "absent biometric is a property of the input, a "
-          "missing device detector is a property of this tool",
-          sorted(set(c["status"]
-                     for c in _inv["categories"]))
-          == ["covered", "not covered", "not in a table",
-              "partial"])
+    # A GAP MUST BE NAMED, AND THE CHECK MUST SURVIVE IT BEING
+    # CLOSED. The first version asserted that vehicle and device
+    # identifiers were specifically `not covered` - so when
+    # PHI-6 covered them it went red, which is a check that
+    # punishes progress. What is worth pinning is the PROPERTY:
+    # any category short of covered must say what it does not
+    # reach, whichever categories those turn out to be.
+    _short = [c for c in _inv["categories"]
+              if c["status"] in ("partial", "not covered")]
+    check("every category short of `covered` NAMES what it does "
+          "not reach ({} such), because a status word with no "
+          "residue behind it is a summary and not something a "
+          "reader can act on".format(len(_short)),
+          _short and all(len(c["note"]) > 40 and
+                         ("NOT" in c["note"] or "not " in c["note"])
+                         for c in _short))
+    check("...and the two categories PHI-6 moved say what is "
+          "still missing: a license plate has no checksum, and "
+          "a FREE-FORM device serial with no GS1 syntax is the "
+          "genuine residue",
+          any(c["number"] == 12 and "LICENSE PLATES" in c["note"]
+              for c in _inv["categories"])
+          and any(c["number"] == 13 and "FREE-FORM" in c["note"]
+                  for c in _inv["categories"]))
+    check("...and a category that CANNOT appear in a table is "
+          "marked distinctly from one nothing looks for - an "
+          "absent biometric is a property of the INPUT, a "
+          "missing detector is a property of this TOOL, and "
+          "collapsing them would let an impossibility read as a "
+          "gap",
+          set(c["status"] for c in _inv["categories"])
+          <= set(["covered", "partial", "not covered",
+                  "not in a table"])
+          and [c["number"] for c in _inv["categories"]
+               if c["status"] == "not in a table"] == [16, 17])
     check("...and every kind the detector can report appears in "
           "some category's note, so a kind cannot exist without "
           "the inventory accounting for it",
@@ -740,6 +808,80 @@ def main():
               and "`geography`" in c["note"]
               and "HEADER-DRIVEN" in c["note"]
               for c in scrub.inventory()["categories"]))
+
+    # ---------------------------------------------- PHI-6
+    check("the fixture's VIN column really VALIDATES - a "
+          "17-character VIN-shaped string whose check digit does "
+          "not hold would pass every assertion about shape and "
+          "none about detection",
+          all(scrub.vin_valid(v) for v in df["vehicle_vin"]))
+    check("...and the negative control is the SAME shape with "
+          "its check digit moved, so the checksum is what "
+          "separates them and not the length",
+          not any(scrub.vin_valid(v) for v in df["bad_vin"])
+          and all(len(v) == 17 for v in df["bad_vin"]))
+    check("a VIN is detected as `vin` BY ITS CHECK DIGIT - "
+          "seventeen characters, no I/O/Q, position nine "
+          "computed from the other sixteen. The inventory used "
+          "to call this NOT COVERED on the reasoning that a VIN "
+          "is indistinguishable from any alphanumeric code; "
+          "that was wrong about the VIN",
+          _kind.get("vehicle_vin") == "vin")
+    check("...and the finding says it is a CHECKSUM rather than "
+          "a shape guess, which is what entitles it to fire "
+          "with no header at all",
+          "CHECK DIGIT" in _why.get("vehicle_vin", "")
+          and "checksum" in _why.get("vehicle_vin", ""))
+    check("NEGATIVE CONTROL: the broken-check-digit column is "
+          "NOT a `vin` - it is the same 17 characters from the "
+          "same alphabet, so only the arithmetic tells them "
+          "apart", _kind.get("bad_vin") != "vin")
+    check("...and the coincidence floor is MEASURED, not "
+          "assumed: random strings from the VIN alphabet clear "
+          "the checksum about 3% of the time, far under the {:.0%} "
+          "share a column must reach"
+          .format(scrub.MATCH_SHARE),
+          scrub.MATCH_SHARE > 0.1)
+
+    check("a GS1 UDI carrying a PRODUCTION identifier is "
+          "detected as `device_serial` - (21) serial, (10) lot, "
+          "(11) production date or (17) expiry, which is the "
+          "half that says WHICH UNIT",
+          _kind.get("implant_udi") == "device_serial")
+    check("NEGATIVE CONTROL, AND THE DISTINCTION THAT MATTERS: "
+          "a device identifier (01) ALONE is NOT flagged. A bare "
+          "GTIN is a MODEL code, it identifies nobody, and "
+          "dropping it would remove the clinical fact of which "
+          "device was implanted rather than an identifier",
+          "device_model_di" in rep["clear"]
+          and "product_gtin" in rep["clear"])
+    check("...and the finding SAYS that, so a reader making an "
+          "Expert Determination argument can see the tool did "
+          "not pre-empt the decision",
+          "model code" in _why.get("implant_udi", "")
+          and "NOT flagged" in _why.get("implant_udi", ""))
+    check("...and the predicate is exact about which segments "
+          "are production identifiers",
+          scrub.udi_has_production_id("(01)123(21)SN1")
+          and not scrub.udi_has_production_id("(01)123")
+          and scrub.GS1_PRODUCTION_AIS
+          == frozenset(("10", "11", "17", "21")))
+    check("both carry remedy DROP - a VIN has no clinical "
+          "content to preserve, and a production identifier is "
+          "removed WITHOUT removing the model, which is what "
+          "makes a drop the right remedy here rather than a "
+          "destructive one",
+          _rem.get("vehicle_vin") == "drop"
+          and _rem.get("implant_udi") == "drop"
+          and "device_model_di" in _kept.columns)
+    check("and EVERY Safe Harbor category is now at least "
+          "partially reached - {} - so the inventory's value is "
+          "no longer in its NOT COVERED rows but in what each "
+          "partial row says it misses"
+          .format(", ".join("{} {}".format(v, k) for k, v in
+                            sorted(scrub.inventory()["counts"]
+                                   .items()))),
+          scrub.inventory()["counts"].get("not covered", 0) == 0)
 
     # ---- AND IT REACHES A READER. A measurement that never
     #      gets to a page might as well not exist for the

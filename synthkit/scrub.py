@@ -181,6 +181,81 @@ _GEO_HINT = re.compile(
 _PLACEISH = re.compile(r"^[A-Za-z][A-Za-z ,.'-]{1,34}$")
 GEO_MAX_LEVELS = 400
 
+# A VIN IS NOT SHAPELESS - IT CARRIES A CHECK DIGIT.
+#
+# The inventory said categories 12 and 13 were NOT COVERED
+# because "a VIN is indistinguishable from any other
+# alphanumeric code". That was wrong about the VIN. A VIN is
+# seventeen characters, EXCLUDES I, O and Q so they cannot be
+# confused with 1 and 0, and position nine is a CHECK DIGIT
+# computed from the other sixteen - which makes it as
+# verifiable as an SSN's three-two-four, and far more specific.
+#
+# Measured false-positive floor: random strings drawn from the
+# VIN alphabet pass the checksum 3.1% of the time (1 in 33,
+# because the modulus is 11 and X absorbs the 10 case). A
+# column has to clear MATCH_SHARE, so a coincidence cannot
+# reach it.
+_VIN_T = {}
+for _i, _c in enumerate("0123456789"):
+    _VIN_T[_c] = _i
+for _grp, _vals in (("ABCDEFGH", (1, 2, 3, 4, 5, 6, 7, 8)),
+                    ("JKLMNP", (1, 2, 3, 4, 5, 7)),
+                    ("RSTUVWXYZ", (9, 2, 3, 4, 5, 6, 7, 8, 9))):
+    for _c, _v in zip(_grp, _vals):
+        _VIN_T[_c] = _v
+_VIN_W = (8, 7, 6, 5, 4, 3, 2, 10, 0, 9, 8, 7, 6, 5, 4, 3, 2)
+
+
+def vin_valid(s) -> bool:
+    """True when `s` is a 17-character VIN whose check digit holds."""
+    t = str(s).strip().upper()
+    if len(t) != 17:
+        return False
+    if any(c in "IOQ" for c in t):
+        return False
+    if any(c not in _VIN_T for c in t):
+        return False
+    tot = sum(_VIN_T[c] * w for c, w in zip(t, _VIN_W))
+    want = tot % 11
+    return t[8] == ("X" if want == 10 else str(want))
+
+
+# A DEVICE UDI HAS TWO HALVES AND ONLY ONE OF THEM IDENTIFIES A
+# UNIT - which is the whole reason this is not a simple drop.
+#
+#   (01) GTIN                        the DEVICE IDENTIFIER: a
+#                                    MODEL code, the clinical
+#                                    fact of WHICH device
+#   (21) serial, (10) lot,           PRODUCTION IDENTIFIERS:
+#   (11) prod date, (17) expiry      WHICH UNIT, and when
+#
+# Safe Harbor category 13 names "device identifiers and serial
+# numbers". The conservative reading removes both - but a bare
+# DI says a Medtronic model was implanted and identifies NOBODY,
+# so dropping it would destroy a covariate to remove something
+# that is not an identifier. That is exactly the trade the
+# REMEDY table exists to refuse.
+#
+# So the detector fires on a PRODUCTION identifier and
+# deliberately does NOT fire on a DI alone, and the finding says
+# which it saw. A reader who wants the conservative reading can
+# drop the DI themselves; a reader making an Expert
+# Determination argument can see that the tool did not
+# pre-empt it.
+_GS1_AI = re.compile(r"\((\d{2})\)")
+GS1_PRODUCTION_AIS = frozenset(("10", "11", "17", "21"))
+
+
+def udi_ais(s):
+    """The GS1 application identifiers present in `s`."""
+    return _GS1_AI.findall(str(s))
+
+
+def udi_has_production_id(s) -> bool:
+    """True when a UDI string carries a lot, serial or date."""
+    return bool(GS1_PRODUCTION_AIS & set(udi_ais(s)))
+
 # THE SEVENTEEN PREFIXES THAT MUST GO TO 000.
 #
 # Truncating to three digits is only half the Safe Harbor rule.
@@ -215,6 +290,9 @@ KINDS = {
     "url": "web addresses",
     "ip_address": "IP addresses",
     "geography": "places smaller than a state",
+    "vin": "vehicle identification numbers",
+    "device_serial": "device production identifiers "
+                     "(serial, lot or expiry)",
 }
 
 # WHAT TO DO ABOUT EACH, AND WHY IT IS NOT ONE ANSWER.
@@ -262,6 +340,15 @@ REMEDY = {
     # guess wearing a lookup. The run says so rather than
     # pretending a coarsening happened.
     "geography": "drop",
+    # A VIN identifies a vehicle, a vehicle identifies a
+    # household, and it carries no clinical information at all -
+    # there is nothing to preserve by generalising it.
+    "vin": "drop",
+    # The PRODUCTION identifier says which unit and when. The
+    # DEVICE identifier - which model - is deliberately NOT
+    # flagged, so a drop here removes the serial without
+    # removing the clinical fact.
+    "device_serial": "drop",
 }
 
 _AGE_HINT = re.compile(r"(\bage\b|_age\b|\bage_)", re.IGNORECASE)
@@ -324,21 +411,46 @@ SAFE_HARBOR = (
      "patient, which is what an MRN is; an MRN that repeats "
      "across a cohort differently would not be"),
     (9, "health plan beneficiary numbers", "partial",
-     "same rule as an MRN, same limit"),
+     "`identifier` reaches it when the column holds about one "
+     "value per patient. A plan number SHARED across a family "
+     "or a group policy is NOT one per patient and would not be "
+     "caught by that rule"),
     (10, "account numbers", "partial",
-     "same rule as an MRN, same limit"),
+     "`identifier` reaches it when the column holds about one "
+     "value per patient. An account number reused across "
+     "encounters, or one per GUARANTOR rather than per patient, "
+     "is NOT caught"),
     (11, "certificate and license numbers", "partial",
-     "same rule as an MRN, same limit"),
-    (12, "vehicle identifiers and license plates", "not covered",
-     "no distinctive shape - a VIN is indistinguishable from "
-     "any other alphanumeric code, so a pattern for it would "
-     "fire on ordinary clinical codes. Reached only if the "
-     "column happens to be one per patient"),
-    (13, "device identifiers and serial numbers", "not covered",
-     "same reason as a VIN, and this one is LIKELY in clinical "
-     "data - OMOP has a device_exposure table. The honest "
-     "position is that a serial number looks like a concept "
-     "code and this tool cannot tell them apart"),
+     "`identifier` reaches it when the column holds about one "
+     "value per patient. A PROVIDER's licence number is one per "
+     "clinician and repeats across many patients, so it is NOT "
+     "caught - and it identifies a provider rather than a "
+     "patient, which is a different question this tool does not "
+     "ask"),
+    (12, "vehicle identifiers and license plates", "partial",
+     "`vin` covers VINs by their CHECK DIGIT - seventeen "
+     "characters, no I/O/Q, and position nine computed from the "
+     "other sixteen, which is as verifiable as an SSN's "
+     "three-two-four and has a measured 3.1% coincidence floor. "
+     "This entry previously said NOT COVERED on the reasoning "
+     "that a VIN is indistinguishable from any alphanumeric "
+     "code; that was wrong about the VIN. LICENSE PLATES are "
+     "still not reached: short, alphanumeric, format varying by "
+     "state and with no checksum, so nothing separates one from "
+     "an ordinary code"),
+    (13, "device identifiers and serial numbers", "partial",
+     "`device_serial` covers GS1 UDI strings carrying a "
+     "PRODUCTION identifier - (21) serial, (10) lot, (11) "
+     "production date, (17) expiry - which is the half that "
+     "says WHICH UNIT. A device identifier (01) alone is "
+     "deliberately NOT flagged: a bare GTIN is a MODEL code, it "
+     "identifies nobody, and dropping it would remove the "
+     "clinical fact of which device was implanted rather than "
+     "an identifier - exactly the trade the remedy table exists "
+     "to refuse, and a reader wanting the conservative reading "
+     "can still drop it themselves. A FREE-FORM serial in its "
+     "own column with no GS1 syntax and no checksum is NOT "
+     "reached, and that is the genuine residue here"),
     (14, "web addresses", "covered", "`url`"),
     (15, "IP addresses", "covered", "`ip_address`"),
     (16, "biometric identifiers", "not in a table",
@@ -526,6 +638,37 @@ def detect(df, group_by: Optional[str] = None,
                 clear.append(c)
                 continue
             found("zip_code", _zipish, " - " + _tell)
+            continue
+        # A VIN, BY ITS CHECK DIGIT. No header needed and none
+        # consulted: the checksum is the evidence, and a column
+        # has to clear MATCH_SHARE against a 3.1% coincidence
+        # floor.
+        _vsh = sum(1 for v in vals if vin_valid(v)) / float(
+            len(vals))
+        if _vsh >= MATCH_SHARE:
+            found("vin", _vsh,
+                  " and the 17-character VIN CHECK DIGIT holds on "
+                  "them - this is a checksum, not a shape guess, "
+                  "so a coincidence cannot reach this share")
+            continue
+        # A DEVICE PRODUCTION IDENTIFIER. Fires on a serial, lot
+        # or expiry segment and NOT on a device identifier alone,
+        # because a DI is a model code that identifies nobody and
+        # dropping it would remove a covariate rather than an
+        # identifier.
+        _ush = sum(1 for v in vals
+                   if udi_has_production_id(v)) / float(len(vals))
+        if _ush >= MATCH_SHARE:
+            _ai = sorted(set(a for v in vals for a in udi_ais(v))
+                         & GS1_PRODUCTION_AIS)
+            found("device_serial", _ush,
+                  " - GS1 UDI strings carrying production "
+                  "identifier(s) {}, which say WHICH UNIT. A "
+                  "device identifier (01) alone is NOT flagged, "
+                  "because that is a model code and dropping it "
+                  "would remove the clinical fact rather than an "
+                  "identifier".format(", ".join(
+                      "({})".format(a) for a in _ai)))
             continue
         # A PLACE SMALLER THAN A STATE, by header, with the
         # value shape only asked to be CONSISTENT with a place

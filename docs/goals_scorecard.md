@@ -126,7 +126,7 @@ holds). Formats: days.
 
 ---
 
-## Goal 2 — Automatic de-identification   **~84%**
+## Goal 2 — Automatic de-identification   **~90%**
 
 **What works, measured**
 - Everything published is k-anonymous over PATIENTS, never rows:
@@ -212,12 +212,24 @@ holds). Formats: days.
   deleted a covariate, so it was tested against `ethnicity`,
   `capacity`, `toxicity`, `specificity` and `downtown` before
   the detector was written. Five mutations each red.
-- **Vehicle (12) and device (13) serial numbers are NOT
-  covered, and the device case is the one that matters** — OMOP
-  has a `device_exposure` table, and a serial number is
-  indistinguishable from a concept code by shape. Reached only
-  when the column happens to be one per patient. Named in the
-  inventory rather than left to be discovered.
+- ~~Vehicle (12) and device (13) serial numbers are NOT
+  covered~~ BOTH MOVED 2026-11-07 (PHI-6). That entry's
+  reasoning — "a VIN is indistinguishable from any other
+  alphanumeric code" — was wrong about the VIN: it is 17
+  characters, excludes I/O/Q, and position nine is a **check
+  digit** computed from the other sixteen, with a measured
+  3.1% coincidence floor against a 50% share bar. And a device
+  UDI has two halves: `device_serial` fires on a PRODUCTION
+  identifier (serial, lot, expiry) and deliberately NOT on a
+  device identifier alone, because a bare GTIN is a model code
+  that identifies nobody and dropping it would remove the
+  clinical fact rather than an identifier. **Every Safe Harbor
+  category is now at least partially reached: 8 covered, 8
+  partial, 2 not-in-a-table, zero NOT COVERED.**
+- Still not reached, and named in the inventory's own notes:
+  **license plates** (short, alphanumeric, state-varying, no
+  checksum) and **free-form device serials** with no GS1 syntax
+  and no check digit.
 - City and county names (part of category 2) are ordinary short
   strings with no shape to find and no per-patient constancy a
   demographic does not also have.
@@ -575,15 +587,15 @@ dates:
    ceiling: ongoing and unscheduled, because unknowns move dates
    and these are the genuine unknowns.
 
-Equal-weighting the eight goals: **~91.4% complete** as of
-2026-11-06 — 90, 84, 90, 95, 90, 100, 92, 90. Moved on
+Equal-weighting the eight goals: **~92.1% complete** as of
+2026-11-07 — 90, 90, 90, 95, 90, 100, 92, 90. Moved on
 2026-11-06, each for a measured reason: goal 1 78→90 (the
 cross-table couplings are enforced and REACHABLE —
 `synthkit relate`, with `--no-couple` as the named control arm
 reading −0.028 against a source +0.892, and the rank-one
 ceiling stated as arithmetic rather than a gap, and TWO-HOP
 couplings that were never searched for — source +0.976,
-before −0.000, after +0.981); goal 2 65→84
+before −0.000, after +0.981); goal 2 65→90
 (ZIP detection with the sparse-ZIP3 half of the rule, web and
 IP addresses, and an inventory naming this tool's coverage
 across all 18 Safe Harbor categories — verified on the real
