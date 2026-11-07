@@ -5897,6 +5897,38 @@ exist.
   them turning it red. Same rule as the `__has__` indicators
   and the invented `visit_number`.
 
+- **THE PAGE THAT STATES HOW COMPLETE THIS PRODUCT IS HAD NO
+  CHECKS, AND IT CONTRADICTED ITSELF WITHIN AN HOUR
+  (2026-11-06, `smoke_scorecard`).** `docs/goals_scorecard.md`
+  carries eight per-goal percentages, a summary list of the
+  same eight, and a stated overall - three statements of one
+  thing, so they can be checked against each other. Nothing
+  read the file. Its headings said goal 1 was at 90% while its
+  summary list said 86 and its overall said 90.1, and that
+  inconsistency was COMMITTED. Two numbers on one page
+  disagreeing is this project's own alarm, and the page
+  carrying its completeness claim had no alarm on it - the
+  `peek.py had no checks at all` fault, aimed at the progress
+  report. Eight checks now: the headings and the summary list
+  must be EQUAL, the stated overall must be their mean to one
+  decimal, every goal under 100% must carry a named `What
+  remains`, and the page must still say in its own words that
+  the percentages are JUDGMENTS. Three mutations bite, and the
+  first is literally the inconsistency that shipped. It
+  deliberately does not grade the percentages: a check that
+  tried to verify a judgment would be asserting a feeling.
+- **AND THE CAUSE WAS ASSERT-THEN-WRITE-AT-THE-END, AGAIN,
+  COMPOUNDED BY A WRAPPED PHRASE.** The edit script made two
+  replacements and wrote once at the end; the SECOND assertion
+  failed, so the FIRST edit - which had succeeded - was thrown
+  away, and the console showed only a traceback while the
+  commit went through. This file has recorded that trap twice
+  before. The second assertion failed because the phrase I
+  searched for spans a LINE BREAK in the file ("rank-one" /
+  "ceiling stated as..."), which is the wrapped-heading trap
+  recorded four times. Both rules in one failure: write after
+  each edit, and anchor inside a single line.
+
 - **MULTI-TABLE INTAKE EXISTS, AND THE KEYS COME FROM THE
   VALUES (2026-11-04, `synthkit/multitable.py`).** The fitted
   path has always been single-table, so an operator with

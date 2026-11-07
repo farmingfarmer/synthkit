@@ -549,13 +549,15 @@ dates:
    ceiling: ongoing and unscheduled, because unknowns move dates
    and these are the genuine unknowns.
 
-Equal-weighting the eight goals: **~90.1% complete** as of
-2026-11-06 — 86, 78, 90, 95, 90, 100, 92, 90. Moved on
-2026-11-06, each for a measured reason: goal 1 78→86 (the
+Equal-weighting the eight goals: **~90.6% complete** as of
+2026-11-06 — 90, 78, 90, 95, 90, 100, 92, 90. Moved on
+2026-11-06, each for a measured reason: goal 1 78→90 (the
 cross-table couplings are enforced and REACHABLE —
 `synthkit relate`, with `--no-couple` as the named control arm
 reading −0.028 against a source +0.892, and the rank-one
-ceiling stated as arithmetic rather than a gap); goal 2 65→78
+ceiling stated as arithmetic rather than a gap, and TWO-HOP
+couplings that were never searched for — source +0.976,
+before −0.000, after +0.981); goal 2 65→78
 (ZIP detection with the sparse-ZIP3 half of the rule, web and
 IP addresses, and an inventory naming this tool's coverage
 across all 18 Safe Harbor categories — verified on the real
