@@ -287,7 +287,33 @@ def with_control(members: List[Dict], nonmembers: List[Dict],
                and leaky["excess_in_sd"] >= CONTROL_MIN)
     if powered and honest["excess_in_sd"] > 0:
         share = honest["excess_in_sd"] / leaky["excess_in_sd"]
-    if caught is not True:
+    # FOUR WAYS, NOT THREE - AND THE FOURTH TURNED UP ON THE
+    # REAL EXTRACT.
+    #
+    # With fine bands the CONTROL fired cleanly (+0.082, well
+    # over the floor) and the HONEST ARM SCORED NOTHING: no
+    # member's quasi combination had as many as
+    # MIN_SELECTION matching rows in the released file. The
+    # verdict was right - UNREADABLE - and the REASON given was
+    # "the control did not beat the non-member arm", which
+    # would send a reader to fix a control that was working.
+    #
+    # And the fact itself must not be read as safety. A release
+    # holding no row that matches a real person's combination at
+    # this granularity is interesting, but an absent
+    # measurement is an absent measurement.
+    _scored = (honest.get("members") or {}).get("n_scored", 0)
+    if not _scored:
+        verdict, why = "UNREADABLE", (
+            "the HONEST arm scored NO rows: no member's "
+            "quasi-identifier combination has as many as {} "
+            "matching rows in the released file, so there was "
+            "nothing to measure. That is not safety - it is an "
+            "absent measurement. Widen the bands, or accept "
+            "that the release holds no row matching a real "
+            "person's combination at this granularity and say "
+            "so as its own finding.".format(MIN_SELECTION))
+    elif caught is not True:
         verdict, why = "UNREADABLE", (
             "the CONTROL did not beat the non-member arm - a "
             "verbatim republish was not caught, so the honest "

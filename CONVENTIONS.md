@@ -3,6 +3,42 @@
 Synthetic clinical data generator and model-evaluation instrument. Core rule: learn the patterns, never copy the records. Real data teaches parameters; generation never touches a record.
 
 ## Verify before claiming
+- **ONE REAL RUN, EVERY CONSUMER DRIVEN AGAINST IT - AND THE
+  SUITE CAUGHT TWO OF ITS OWN GUESSES IN THE FIRST MINUTE
+  (2026-11-08, AC-1, `smoke_artifact_contract.py`).** The
+  wrong-key fault has happened EIGHT times here and every fix
+  was applied case by case AFTER the failure. The shape is
+  always the same: module A reads module B's dict with names
+  that SOUND right, and the checks cannot see it because they
+  build B's dict BY HAND with the same invented names - the
+  fixture agrees with the reader and both disagree with the only
+  thing that matters. So one suite now writes a REAL run
+  (`write_run_artifacts`, with the reconstruction measurement
+  from the engine's own method) and drives the gate, the
+  determination package, the receipts, the deck, `m0_gate.py`,
+  `signoff.py` and two CLIs against it. Every assertion is "it
+  found SOMETHING", named, because a reader with the wrong key
+  does not crash - it returns an empty table and a reassuring
+  page.
+- **AND ITS OWN FIRST RUN FAILED TWICE, BOTH ON MY GUESSES.** I
+  asked a gate criterion for a `have` field - it carries `name`,
+  `ok` and `detail`, with the measured pair in the detail text -
+  and I called `build_deck(run, src)` when the signature is
+  `(src, run)`. A guessed field name and a guessed argument
+  order, inside the suite written to stop guesses. Read the
+  contract; do not remember it.
+- **AND `build_deck`'s DOCSTRING HAD BEEN WRONG FOR AS LONG AS
+  ITS SECOND RETURN VALUE EXISTED.** It opens "Return the deck
+  HTML as a string" and returns `(html, stats)`. A new caller
+  took the result as html and measured `len(...) == 2` - two
+  bytes by its own reckoning - with no error, because `len`
+  works on a tuple. A stale RETURN contract is the same fault as
+  a wrong field name, and it is worse in one way: the docstring
+  actively asserts the wrong thing. Corrected, and the stats are
+  now checked too - they carry the suppressed-bin count, which a
+  caller must print because a suppression nobody is told about
+  reads as data that was not there.
+
 - **THE EIGHTH WRONG-KEY FAULT, AND MY OWN CHECKS COULD NOT SEE
   IT BECAUSE THE FIXTURE SHARED THE INVENTED NAMES (2026-11-08).**
   `determination.assess` read `fidelity.nn_ratio`,
@@ -246,6 +282,34 @@ the direction that stops work happening.
   lag both dropped
 
 ## What the blueprint may publish
+- **A FIFTH LINKAGE OUTCOME TURNED UP ON THE REAL EXTRACT, AND
+  IT HAD BEEN MISLABELLED IN A FIXTURE ALL ALONG (2026-11-08).**
+  With fine bands on the real extract the CONTROL fired cleanly
+  at **+0.082** - well over the floor - and the HONEST arm
+  scored **ZERO** rows: no member's quasi-identifier combination
+  had as many as five matching rows in the released file. The
+  verdict was right, UNREADABLE, and the REASON was "the control
+  did not beat the non-member arm" - which would send a reader
+  to fix a control that was working perfectly. Adding the branch
+  then RECLASSIFIED this repo's own tiny-release fixture, which
+  had been carrying the wrong reason since it was written.
+- **AND IT IS NOT SAFETY, which the verdict now says.** A
+  release holding no row that matches a real person's
+  combination at that granularity is an interesting finding in
+  itself - but an absent measurement is an absent measurement,
+  and reporting it as clean would be the worst kind of pass.
+- **THE REAL-EXTRACT LINKAGE READING IS THEREFORE: NOT YET
+  MEASURABLE AT THIS COHORT SIZE.** Three arrangements were
+  tried. Coarse bands (36 selections over 56,065 rows, so ~1,500
+  released rows per selection): the control reaches only
+  +0.0108, under the 0.02 floor, so a verbatim republish is
+  undetectable. Fine bands with categorical quasis (1,852
+  selections): the control fires at +0.082 and the honest arm
+  scores nothing. There is a window between those where the
+  measurement would work, and finding it is the next step - the
+  honest statement today is that the linkage element stays OWED
+  on this extract, not that it passed.
+
 - **CORRECTION, SAME NIGHT: THE CAP EFFECT WAS A SINGLE-SEED
   CLAIM AND THE SECOND SEED MOVED THE OTHER WAY.** The entry
   below says the real-extract attack's output-surface adversary

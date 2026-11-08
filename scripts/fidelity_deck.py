@@ -1808,12 +1808,25 @@ def joint_section_html(src, gen, group_by, seed=0):
 
 def build_deck(src_path, run_dir, group_by="person_id",
                compares=None, joint=False):
-    """Return the deck HTML as a string. The CLI writes it to a
-    file; the bench serves it into an iframe - one code path, so the
-    picture the roadshow ships and the picture the UI shows cannot
-    drift. Raises ValueError with a plain message rather than
-    exiting, because inside the bench server sys.exit would take the
-    whole process down."""
+    """Return `(html, stats)`. The CLI writes the html to a
+    file; the bench serves it into an iframe - one code path, so
+    the picture the roadshow ships and the picture the UI shows
+    cannot drift. Raises ValueError with a plain message rather
+    than exiting, because inside the bench server sys.exit would
+    take the whole process down.
+
+    `stats` carries `columns` and `suppressed` - the count of
+    source bins held back for standing behind fewer than k
+    patients, which the caller PRINTS, because a suppression
+    nobody is told about reads as data that was not there.
+
+    THE FIRST LINE OF THIS DOCSTRING USED TO SAY "the deck HTML
+    as a string", and it has returned a TUPLE for as long as the
+    stats existed. A new caller read the docstring, took the
+    result as html, and got `len(...) == 2` - two bytes by its
+    own reckoning - with no error, because `len` works on a
+    tuple. A stale return contract is the same fault as a
+    wrong field name, and this repo has eight of those."""
     a = _A(src_path, run_dir, group_by, compares)
 
     import numpy as np

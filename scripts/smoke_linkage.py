@@ -105,7 +105,18 @@ def main():
           abs(float(_hb[_sex == 0].mean())
               - float(_hb[_sex == 1].mean())) > 0.5)
 
-    # ---- 2. FOUR OUTCOMES, FOUR REASONS
+    # ---- 2. FIVE OUTCOMES, FIVE REASONS
+    #
+    # The fifth turned up on the REAL EXTRACT: at fine banding
+    # the control fired cleanly at +0.082 and the HONEST arm
+    # scored ZERO rows, because no member's quasi combination
+    # had five matching rows in the released file. Before that
+    # branch existed the reason given was "the control did not
+    # beat the non-member arm" - which would send a reader to
+    # fix a control that was working. Adding the branch then
+    # RECLASSIFIED the tiny-release fixture here, which is the
+    # same fault in miniature and had been mislabelled all
+    # along.
     _honest = LK.with_control(mem, non, people(1500, 9), QUASI,
                               "hb", BANDS)
     _leaky = LK.with_control(mem, non, mem + people(100, 77),
@@ -149,12 +160,19 @@ def main():
           and _leaky["share_of_control"]
           > _honest["share_of_control"] * 3)
     check("...a release too small to form selections reads "
-          "UNREADABLE because the CONTROL never beat the "
-          "non-member arm - no control at all, which is the "
-          "shape of the reassuring 0.500 this project recorded "
-          "as worth nothing",
+          "UNREADABLE because the HONEST arm scored {} rows - "
+          "nothing matched, so there was nothing to measure. "
+          "This check used to assert 'the control did not beat "
+          "the non-member arm', which was the wrong reason for "
+          "this fixture all along and was only noticed when the "
+          "real extract produced the same pair: a control "
+          "firing cleanly at +0.082 beside an honest arm that "
+          "scored zero"
+          .format(_tiny["honest"]["members"]["n_scored"]),
           _tiny["verdict"] == "UNREADABLE"
-          and "did not beat" in _tiny["why"])
+          and _tiny["honest"]["members"]["n_scored"] == 0
+          and "scored NO rows" in _tiny["why"]
+          and "not safety" in _tiny["why"])
     check("...a single COARSE quasi-identifier also reads "
           "UNREADABLE, but for a DIFFERENT reason: there the "
           "republish makes the adversary WORSE off ({:+.4f} "
