@@ -194,13 +194,24 @@ def main():
     # is that the scoreboard still admits rows where WE are
     # behind, and that a row can say `partial` without that
     # counting as a win.
-    _behind = (body_raw.count("| **no**")
-               + body_raw.count("| **partial**"))
+    # AND THE MATCHER IS PREFIX-BASED, BECAUSE THE LITERAL ONE
+    # PUNISHED PROGRESS A SECOND TIME. It counted the exact
+    # string `| **partial**`, so qualifying a row as
+    # `| **partial, measured end to end**` - which is MORE
+    # honest, not less - stopped it counting as behind and the
+    # check went red. Same class as a header pattern too literal
+    # for the text it has to match. A verdict cell that STARTS
+    # with `no` or `partial` is a row where we are behind,
+    # however it is qualified.
+    _cells = re.findall(r"\|\s*\*\*(no|partial)[^|]*",
+                         body_raw)
+    _behind = len(_cells)
+    _flat_no = len([c for c in _cells if c == "no"])
     check("the scoreboard still admits rows where WE are behind "
           "({} of them, counting flat `no` and honest "
           "`partial`) - a scoreboard with none would be a sales "
           "deck".format(_behind),
-          body_raw.count("| **no**") >= 2 and _behind >= 3)
+          _flat_no >= 2 and _behind >= 3)
     check("...and the closing paragraph names the drift it is "
           "there to catch - a wins section that grows while the "
           "gaps section does not",

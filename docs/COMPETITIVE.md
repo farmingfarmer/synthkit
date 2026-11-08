@@ -351,7 +351,7 @@ I did not find another tool documenting this.
 
 | capability | synthkit | documented elsewhere |
 |---|---|---|
-| differential privacy | **partial** — DP training of the weights, measured; NOT end-to-end | yes (MOSTLY AI) |
+| differential privacy | **partial, measured end to end** — DP training of the weights ships; the four count/quantile stages have mechanisms and a measured price (a DP vocabulary selection at eps 3 keeps 12% of what the k rule publishes on an 800-patient cohort); the latent mixture remains | yes (MOSTLY AI) |
 | sequential / longitudinal model | **partial, improved** — rules engine models it; neural engine has an AR(1) course with a SOLVED rho, off by default, ceiling ~0.40 within-AR; the recorded 17/87 predates it | yes (MOSTLY AI; research frontier) |
 | HIPAA Expert Determination | **no** | yes (Tonic) |
 | automatic PHI/PII detection | yes, 18-category inventory | yes (Tonic) |
@@ -374,9 +374,38 @@ I did not find another tool documenting this.
    **DONE 2026-11-07 (DP-1)** — and done the way this item
    asked: an option, off by default, with its measured cost
    printed beside it (1.16× at epsilon 8, 1.78× at 3, 5.0× at
-   1) and its scope stated rather than implied. **What remains
-   is composing the other five stages**, which are mostly
-   counts and quantiles with standard mechanisms available.
+   1) and its scope stated rather than implied.
+
+   **AND THE OTHER FIVE STAGES ARE NOW MEASURED TOO (DP-2).**
+   Four of them are patient counts or empirical quantiles, so
+   the gap was never a research problem — the mechanisms are
+   standard and are built: Laplace counts, Laplace and Gaussian
+   histograms, a selection with a raised floor, and quantiles
+   and bounds by the exponential mechanism.
+
+   What the measurement says is the useful part, and it cuts
+   against adding DP everywhere. Releasing *which* items
+   cleared a floor is a different query from releasing their
+   counts — an item held by exactly k patients appears or
+   vanishes on one person — so the floor has to RISE, from 10
+   patients to between 27 and 536 depending on epsilon and
+   tokens per patient. On an 800-patient clinical-shaped
+   vocabulary:
+
+   | floor | tokens kept | share | |
+   |---|---|---|---|
+   | 10 | 320 | 100% | the k rule |
+   | 99 | 39 | **12%** | DP eps 3 |
+   | 196 | 19 | **6%** | DP eps 1 |
+
+   So the k-anonymous aggregate release is not a shortcut taken
+   instead of DP. At this cohort size a DP *selection* at a
+   usable epsilon publishes almost no vocabulary, and a
+   generator with no vocabulary is not more private — it is
+   broken. DP on the **weights** is affordable and ships; DP on
+   the **selection** is affordable at a cohort size we do not
+   have. **What remains is the latent mixture**, the one
+   unaccounted stage that is neither a count nor a quantile.
    That is now the differential-privacy item.
 2. ~~**Patient trajectory in the neural engine.**~~
    **BUILT 2026-11-07 (DYN-1)**, and built the way this item

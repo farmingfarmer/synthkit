@@ -167,6 +167,98 @@ the direction that stops work happening.
   lag both dropped
 
 ## What the blueprint may publish
+- **THE FOUR UNACCOUNTED DP STAGES ARE COUNTS AND QUANTILES, SO
+  THE GAP WAS NEVER A RESEARCH PROBLEM - AND MEASURING THE PRICE
+  SETTLED THE POSTURE (2026-11-07, DP-2).** The weights epsilon
+  covered one stage of five. Four of the rest are patient counts
+  (which levels and tokens get modelled, which identities are
+  detected) or empirical quantiles (the published bounds, the
+  visit-count and set-size grids), and both have standard
+  mechanisms. Built: a Laplace count, a Laplace and a Gaussian
+  histogram, a selection with a RAISED floor, and quantiles and
+  bounds by the exponential mechanism.
+- **SENSITIVITY IS PATIENT-LEVEL, AND THE HISTOGRAM IS THE ONE
+  THAT IS EASY TO GET WRONG.** One patient moves a single
+  token's count by 1 - but they hold MANY tokens, so their
+  removal moves many counts at once and the L1 sensitivity is
+  the number they hold, UNBOUNDED unless it is clipped. The cap
+  is a parameter the caller must IMPOSE and pass, not something
+  measured from the data, because measuring it would itself be a
+  query on the data. A mechanism whose sensitivity claim is
+  wrong does not give a weaker guarantee; it gives none.
+- **A SELECTION NEEDS A RAISED FLOOR, NOT NOISED COUNTS.**
+  Releasing WHICH items cleared a floor is a different query
+  from releasing their counts: an item held by exactly k
+  patients appears or vanishes on one person's presence, so the
+  SELECTED SET is itself a release, and noising the counts while
+  keeping the floor leaves an item at the floor flipping with
+  probability near one half. How far it must rise is the result
+  (tau 1e-6, delta 1e-5, against this project's floor of TEN
+  PATIENTS):
+      eps  tokens/patient |   laplace    gaussian    ratio
+      1.0              10 |     151.2        92.8    1.63x
+      1.0              50 |     716.1       222.8    3.21x
+      1.0             200 |    2834.5       535.7    5.29x
+      3.0              50 |     278.7       114.3    2.44x
+     10.0              50 |     125.6        76.3    1.65x
+- **AND GAUSSIAN BEATS LAPLACE BY sqrt(L), WHICH IS NOT A
+  REFINEMENT AT THESE WIDTHS.** A patient holding L tokens moves
+  the count vector by L in L1 and sqrt(L) in L2; Laplace's
+  scale is set by L1 and the Gaussian's by L2. At a vocabulary
+  of hundreds it is the difference between a usable floor and an
+  unusable one, and the advantage GROWS with width - which is
+  the property a check pins, because a mechanism that happened
+  to be better on one cell proves nothing.
+- **THE POSTURE IS NOW DEFENDED BY A NUMBER RATHER THAN AN
+  ARGUMENT.** `scripts/dp_select.py` on an 800-patient
+  clinical-shaped vocabulary of 892 tokens, 40 per patient at
+  the 95th percentile:
+      floor   tokens   share
+         10      320  100.0%   the k rule
+        196       19    5.9%   DP eps 1
+         99       39   12.2%   DP eps 3
+         65       57   17.8%   DP eps 10
+  **DP selection at epsilon 3 keeps 12% of the publishable
+  vocabulary.** The k-anonymous aggregate release is therefore
+  not a shortcut taken instead of DP: on a cohort this size DP
+  selection at a usable epsilon publishes almost nothing, and a
+  generator with no vocabulary is not more private, it is
+  broken. DP on the WEIGHTS is affordable and ships; DP on the
+  SELECTION is affordable at a cohort size this project does not
+  have.
+- **TWO HALVES COMPUTED THE SAME PRIVACY THRESHOLD SEPARATELY,
+  TWICE, AND ONE OF THEM WAS WRONG.** `select_above` APPLIED the
+  raised floor and `required_floor` REPORTED it - with different
+  Laplace tail bounds, so the number a reader was shown was not
+  the number being used. Found by a check and the implementation
+  disagreeing about the arithmetic; the tight one-sided bound is
+  b times log(0.5/tau) because the failure that matters is an
+  item being INCLUDED when it should not be, while the other
+  direction costs utility and leaks nothing. Then the SAME fault
+  turned up for the Gaussian: `gaussian_histogram` applied one
+  scale and `required_floor` reported another, so a mutation
+  scaling the noise by L1 instead of L2 changed the noise, left
+  the published floor untouched, and broke NO check. One
+  `gaussian_scale` function now, and both are pinned to agree.
+- **AND A CAP OF ZERO WOULD HAVE MEANT NO NOISE AT ALL.**
+  sqrt(0) is 0, so a zero cap makes the Gaussian sigma ZERO and
+  releases the exact counts from a function named for a privacy
+  mechanism - a silent total failure, not a weak guarantee. The
+  guard existed and was NOT in the refusal check list until a
+  mutation removing it broke nothing. It is refused inside
+  `gaussian_scale` rather than at each call site, so a future
+  caller cannot miss it.
+- **AND THE SHELL ATE THE BACKTICKS OUT OF THIS ENTRY ON THE
+  FIRST ATTEMPT.** Passing the text as a `python -c` argument
+  let zsh read every `` `name` `` as command substitution, so a
+  version with every function name STRIPPED was written to the
+  file and the helper's own confirmation line then raised on an
+  unrelated NameError - a mangled write that announced itself as
+  a crash about something else. Reverted and redone by writing
+  the entry to a FILE and reading it, so nothing passes through
+  shell interpretation. Same family as the wrapped-phrase trap:
+  the text that reaches the file is not the text you typed.
+
 
 - **DIFFERENTIAL PRIVACY RAN ON THE REAL EXTRACT, AND IT COSTS
   TWICE WHAT THE FIXTURE PREDICTED (2026-11-07, epsilon 3.00).**

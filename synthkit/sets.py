@@ -189,6 +189,40 @@ def looks_like_set(raw: pd.Series) -> bool:
         >= MIN_MEAN_SIZE
 
 
+def patient_counts(raw: pd.Series, groups
+                   ) -> Optional[Dict[str, Any]]:
+    """Distinct PATIENTS and rows holding each token.
+
+    EXPOSED because a second caller needed it and re-deriving
+    it would be how the two halves come to disagree about which
+    tokens are publishable - this module already exists for that
+    reason, and `looks_like_set` was exposed for the same one.
+    `vocabulary` calls this rather than keeping its own loop.
+
+    Patients, never rows: one person seen two hundred times
+    would otherwise carry a token over the floor alone.
+    """
+    if not looks_like_set(raw):
+        return None
+    present = raw.dropna().astype(str).str.strip()
+    sep = _separator(present[present.str.len() > 0])
+    parts = present.str.split(sep)
+    g = pd.Series(np.asarray(groups)[present.index],
+                  index=present.index)
+    holders: Dict[str, set] = {}
+    rows: Dict[str, int] = {}
+    for idx, toks in parts.items():
+        who = g.loc[idx]
+        for tok in set(x.strip() for x in toks if x.strip()):
+            holders.setdefault(tok, set()).add(who)
+            rows[tok] = rows.get(tok, 0) + 1
+    return {"sep": sep,
+            "patients": dict((t, len(w))
+                             for t, w in holders.items()),
+            "rows": rows,
+            "n_rows": int(len(present))}
+
+
 def vocabulary(raw: pd.Series, groups, k: int = 10,
                cap: int = 0) -> Optional[Dict[str, Any]]:
     """Which tokens this column holds, screened by PATIENTS.
@@ -221,27 +255,22 @@ def vocabulary(raw: pd.Series, groups, k: int = 10,
     # rows are legitimately empty.
     if not looks_like_set(raw):
         return None
+    pc = patient_counts(raw, groups)
     present = raw.dropna().astype(str).str.strip()
-    sep = _separator(present[present.str.len() > 0])
+    sep = pc["sep"]
     txt = present
     parts = txt.str.split(sep)
     sizes = parts.map(
         lambda ts: sum(1 for x in ts if x.strip()))
 
-    g = pd.Series(np.asarray(groups)[txt.index], index=txt.index)
-    holders: Dict[str, set] = {}
-    counts: Dict[str, int] = {}
-    for idx, toks in parts.items():
-        who = g.loc[idx]
-        for tok in set(x.strip() for x in toks if x.strip()):
-            holders.setdefault(tok, set()).add(who)
-            counts[tok] = counts.get(tok, 0) + 1
-    kept = [(tok, counts[tok]) for tok, who in holders.items()
-            if len(who) >= k]
+    counts = pc["rows"]
+    kept = [(tok, counts[tok])
+            for tok, npat in pc["patients"].items()
+            if npat >= k]
     if len(kept) < 2:
         return None
     kept.sort(key=lambda x: (-x[1], x[0]))
-    n_found = len(holders)
+    n_found = len(pc["patients"])
     n_kept = len(kept)
     if cap and len(kept) > cap:
         kept = kept[:cap]

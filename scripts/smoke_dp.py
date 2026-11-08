@@ -43,6 +43,7 @@ import sys
 from pathlib import Path
 
 import numpy as np
+import pandas as pd
 
 ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT))
@@ -291,6 +292,243 @@ def main():
           _DC.CONTROL_MUST_BEAT == 0.5
           and _DC.ratio_or_refuse(0.49, 1.0) is not None
           and _DC.ratio_or_refuse(0.51, 1.0) is None)
+
+    # ---- THE AGGREGATE MECHANISMS (DP-2)
+    #
+    # Four of the five unaccounted stages are COUNTS or
+    # QUANTILES, which have standard mechanisms - the gap was
+    # never a research problem, it was unbuilt. These checks are
+    # on the two things that would silently void the guarantee:
+    # the SENSITIVITY claim, and the fact that a SELECTION needs
+    # a raised floor rather than noised counts.
+    _r = np.random.default_rng(0)
+
+    # A quantile the mechanism should nail, and two it should
+    # not - pinned together, because the extremes being noisy is
+    # CORRECT (the interval is wide out there) and somebody
+    # reading it as a defect would "fix" the mechanism.
+    _vals = _r.normal(100.0, 15.0, 800)
+    def _q(q, eps=1.0, n=60):
+        return np.array([DP.dp_quantile(_vals, q, 20.0, 180.0,
+                                        eps, _r)[0]
+                         for _ in range(n)])
+    _med, _lo, _hi = _q(0.5), _q(0.0), _q(1.0)
+    _tm = float(np.quantile(_vals, 0.5))
+    check("the DP MEDIAN lands on the true median - {:.2f} "
+          "against {:.2f}, sd {:.2f} over 60 draws at epsilon 1 "
+          "- by the exponential mechanism over rank utility, "
+          "whose sensitivity is 1 because adding one value "
+          "moves every rank by at most 1"
+          .format(float(_med.mean()), _tm, float(_med.std())),
+          abs(float(_med.mean()) - _tm) < 1.5
+          and float(_med.std()) < 2.0)
+    check("...and the EXTREMES are much noisier (sd {:.1f} and "
+          "{:.1f} against the median's {:.2f}), which is "
+          "CORRECT rather than a defect: the interval between "
+          "the outermost order statistic and the clamp is wide, "
+          "so a reader must not 'fix' this"
+          .format(float(_lo.std()), float(_hi.std()),
+                  float(_med.std())),
+          float(_lo.std()) > 3.0 * float(_med.std())
+          and float(_hi.std()) > 3.0 * float(_med.std()))
+    check("...and the output may be a value NOBODY HELD, which "
+          "is the property that makes it publishable - the same "
+          "reason this project averages the k most extreme "
+          "patients instead of releasing the true extreme",
+          not set(np.round(_med, 9)) & set(np.round(_vals, 9)))
+
+    # THE THRESHOLD MUST RISE, AND BY MORE AT A LOWER EPSILON.
+    _counts = dict(("t{:03d}".format(i), c) for i, c in
+                   enumerate([2, 5, 9, 10, 11, 14, 40, 200]))
+    _k1, _rep1 = DP.select_above(_counts, 10, 1.0, 4, rng=_r)
+    _k3, _rep3 = DP.select_above(_counts, 10, 3.0, 4, rng=_r)
+    check("a SELECTION raises the floor rather than noising the "
+          "counts and keeping it: 10 becomes {:.1f} at epsilon "
+          "1 and {:.1f} at epsilon 3. Releasing WHICH items "
+          "cleared a floor is a different query from releasing "
+          "their counts - an item held by exactly k patients "
+          "appears or vanishes on one person, so the SET is "
+          "itself a release and noise alone leaves it flipping "
+          "at near one half"
+          .format(_rep1["floor_used"], _rep3["floor_used"]),
+          _rep1["floor_used"] > 10.0 * 3
+          and _rep3["floor_used"] > 10.0
+          and _rep1["floor_used"] > _rep3["floor_used"])
+    check("...and the raised floor includes the one patient's "
+          "OWN possible contribution on top of the noise "
+          "quantile, so the margin is not merely a tail bound - "
+          "floor {} + noise {:.1f} + contribution {} = {:.1f}"
+          .format(10, _rep1["floor_used"] - 10 - 4, 4,
+                  _rep1["floor_used"]),
+          abs(_rep1["floor_used"] - (10.0 + 4.0 + 4.0
+              * math.log(0.5 / 1e-6))) < 0.01)
+
+    # AND THE TWO HALVES MUST AGREE ABOUT THE FLOOR.
+    #
+    # `select_above` APPLIES the raised floor and
+    # `required_floor` REPORTS it, and they were computed
+    # separately - one with ln(1/tau) and the other with
+    # ln(0.5/tau), so the number a reader was shown was not the
+    # number being used. Exactly the two-halves fault this
+    # project records about token screening and scaffolding,
+    # in a privacy threshold.
+    _agree = []
+    for _eps in (1.0, 3.0, 10.0):
+        for _L in (4, 40):
+            _, _ra = DP.select_above(_counts, 10, _eps, _L,
+                                     rng=_r)
+            _rr_ = DP.required_floor(_eps, _L, 1e-6, None, 10)
+            _agree.append(abs(_ra["floor_used"]
+                              - _rr_["laplace"]))
+    check("the floor APPLIED and the floor REPORTED are the "
+          "same number across 6 settings (worst difference "
+          "{:.2e}) - they were computed separately with "
+          "different tail bounds, so a reader was shown a floor "
+          "that was not the one being used"
+          .format(max(_agree)), max(_agree) < 1e-9)
+
+    # GAUSSIAN BEATS LAPLACE BY sqrt(L), AND THAT IS THE
+    # DIFFERENCE BETWEEN A USABLE FLOOR AND AN UNUSABLE ONE.
+    _ratios = []
+    for _L in (10, 50, 200):
+        _f = DP.required_floor(1.0, _L, 1e-6, 1e-5, 10)
+        _ratios.append(_f["laplace"] / _f["gaussian"])
+    _gsc = [DP.gaussian_scale(1.0, 1e-5, L)[1]
+            for L in (10, 50, 200)]
+    _, _grep = DP.gaussian_histogram({"a": 3}, 1.0, 1e-5, 50,
+                                     np.random.default_rng(1))
+    check("the Gaussian scale APPLIED and the one REPORTED in "
+          "the floor table come from ONE function - {:.4f} both "
+          "ways at L=50. They were computed separately, so a "
+          "mutation scaling the histogram by L1 instead of L2 "
+          "changed the noise and left the published floor "
+          "untouched, and no check noticed"
+          .format(_grep["scale"]),
+          abs(_grep["scale"] - DP.gaussian_scale(
+              1.0, 1e-5, 50)[1]) < 1e-12
+          and abs(DP.required_floor(1.0, 50, 1e-6, 1e-5,
+                                    10)["gaussian_scale"]
+                  - _grep["scale"]) < 1e-12)
+    check("...and that scale grows as sqrt(L), not L - {} at "
+          "L=10/50/200, so the ratios are {:.2f} and {:.2f} "
+          "against the sqrt predictions {:.2f} and {:.2f}"
+          .format(", ".join("{:.2f}".format(x) for x in _gsc),
+                  _gsc[1] / _gsc[0], _gsc[2] / _gsc[0],
+                  math.sqrt(5.0), math.sqrt(20.0)),
+          abs(_gsc[1] / _gsc[0] - math.sqrt(5.0)) < 1e-9
+          and abs(_gsc[2] / _gsc[0] - math.sqrt(20.0)) < 1e-9)
+
+    check("the GAUSSIAN histogram beats Laplace by {} at "
+          "tokens-per-patient 10/50/200 - a patient holding L "
+          "items moves the count vector by L in L1 and sqrt(L) "
+          "in L2, and the two mechanisms' scales are set by L1 "
+          "and L2 respectively, so the advantage must GROW with "
+          "width"
+          .format(", ".join("{:.2f}x".format(x)
+                            for x in _ratios)),
+          all(x > 1.0 for x in _ratios)
+          and _ratios[2] > _ratios[0] * 2.0)
+
+    # THE BUDGET SPLITS. A naive version passing the full
+    # epsilon to both queries would understate the cost 2x.
+    _a, _b, _rb = DP.dp_bounds(_vals, 1.0, 20.0, 180.0, rng=_r)
+    check("a published minimum and maximum SPLIT the budget - "
+          "epsilon {:.2f} is two queries at {:.2f} - because "
+          "sequential composition of two eps/2 mechanisms is "
+          "eps, and passing the full epsilon to both would "
+          "report half the true cost"
+          .format(_rb["epsilon"], _rb["each"]),
+          abs(_rb["each"] - 0.5) < 1e-9
+          and len(_rb["parts"]) == 2
+          and all(abs(p["epsilon"] - 0.5) < 1e-9
+                  for p in _rb["parts"])
+          and _a < _b)
+
+    # AN INVALID SENSITIVITY PARAMETER IS REFUSED, NOT ACCEPTED.
+    # A mechanism that silently takes a bad parameter does not
+    # give a weaker guarantee - it gives none.
+    _refused = 0
+    for _fn, _args in (
+            (DP.laplace_count, (5.0, 1.0, 0.0)),
+            (DP.laplace_count, (5.0, 0.0, 1.0)),
+            (DP.dp_histogram, ({"a": 3}, 1.0, 0)),
+            (DP.gaussian_histogram, ({"a": 3}, 1.0, 0.0, 4)),
+            (DP.gaussian_histogram, ({"a": 3}, 1.0, 1.0, 4)),
+            # A CAP OF ZERO ON THE GAUSSIAN IS THE DANGEROUS
+            # ONE: sqrt(0) is 0, so sigma would be ZERO and the
+            # exact counts released by a function named for a
+            # privacy mechanism. A silent total failure, not a
+            # weak guarantee - and it was not in this list until
+            # a mutation removing the guard broke nothing.
+            (DP.gaussian_histogram, ({"a": 3}, 1.0, 1e-5, 0)),
+            (DP.gaussian_scale, (1.0, 1e-5, 0)),
+            (DP.gaussian_scale, (0.0, 1e-5, 4))):
+        try:
+            _fn(*_args)
+        except ValueError:
+            _refused += 1
+    check("an invalid sensitivity or budget is REFUSED by name "
+          "({} of 8 bad calls raise) - a non-positive epsilon, "
+          "a zero sensitivity, a cap below one, a delta of zero "
+          "or one. A mechanism that silently accepts a bad "
+          "parameter does not give a weaker guarantee, it gives "
+          "none".format(_refused), _refused == 8)
+
+    check("...and the inverse error function the Gaussian floor "
+          "rests on is BISECTED to tolerance rather than "
+          "approximated, because a wrong value there sets a "
+          "privacy threshold - round-trips to {:.2e}"
+          .format(max(abs(math.erf(DP._erfinv(y)) - y)
+                      for y in (0.5, 0.9, 0.99, 0.999999))),
+          max(abs(math.erf(DP._erfinv(y)) - y)
+              for y in (0.5, 0.9, 0.99, 0.999999)) < 1e-9)
+
+    # AND THE SELECTION QUESTION IS ASKED THROUGH THE SAME
+    # SCREEN THE GENERATOR USES.
+    from synthkit import sets as _SETS
+    _rr = np.random.default_rng(5)
+    _toks = ["c{:03d}".format(i) for i in range(60)]
+    _w = 1.0 / (np.arange(1, 61) ** 1.1)
+    _w /= _w.sum()
+    _rows = []
+    for _p in range(300):
+        for _v in range(4):
+            _n = int(_rr.integers(1, 5))
+            _rows.append(("P{:03d}".format(_p),
+                          ";".join(sorted(_rr.choice(
+                              _toks, size=_n, replace=False,
+                              p=_w)))))
+    _sdf = pd.DataFrame(_rows, columns=["person_id", "conds"])
+    _pc = _SETS.patient_counts(
+        _sdf["conds"], _sdf["person_id"].to_numpy())
+    _voc = _SETS.vocabulary(
+        _sdf["conds"], _sdf["person_id"].to_numpy(), k=10)
+    _from_counts = set(t for t, n in _pc["patients"].items()
+                       if n >= 10)
+    _published = set(d["value"] for d in _voc["levels"]) \
+        if _voc and "levels" in _voc \
+        else set(d["value"] for d in _voc["tokens"])
+    check("the DP selection question is asked through "
+          "`sets.patient_counts`, the SAME computation the "
+          "generator's own k screen uses - {} tokens clear 10 "
+          "patients by that count and the published vocabulary "
+          "holds exactly those. Two files deciding separately "
+          "which tokens are publishable is how the two halves "
+          "come to disagree, which this module records about "
+          "token screening specifically"
+          .format(len(_from_counts)),
+          len(_from_counts) >= 5
+          and _from_counts == _published)
+    check("...and it counts PATIENTS, not rows - one person "
+          "seen many times must not carry a token over the "
+          "floor alone, so a token's patient count can never "
+          "exceed the cohort ({} patients, max count {})"
+          .format(_sdf["person_id"].nunique(),
+                  max(_pc["patients"].values())),
+          max(_pc["patients"].values())
+          <= _sdf["person_id"].nunique()
+          and max(_pc["rows"].values())
+          > max(_pc["patients"].values()))
 
     print()
     if FAIL:

@@ -201,6 +201,321 @@ def scope_note(eps: Optional[float] = None,
     return out
 
 
+# ---------------------------------------------------------------
+# THE AGGREGATE MECHANISMS (DP-2)
+#
+# The epsilon above covers the autoencoder WEIGHTS. Five other
+# stages touch the real data, and four of them are COUNTS or
+# QUANTILES - which have standard mechanisms, so the gap was
+# never a research problem. It was unbuilt.
+#
+# SENSITIVITY IS THE WHOLE DESIGN, AND IT IS PATIENT-LEVEL. The k
+# rule in this project has always counted PATIENTS, never rows -
+# one person seen 200 times could otherwise set a published bound
+# alone. So the unit of privacy here is the PATIENT, and every
+# mechanism below states what one patient can move:
+#
+#   a single count (patients holding a token)   ->  1
+#   a histogram over many tokens                ->  L, the cap on
+#                                                   tokens per
+#                                                   patient
+#   a quantile over per-patient values          ->  1 rank
+#
+# The histogram case is the one that is easy to get wrong: a
+# patient holds MANY tokens, so their removal moves many counts
+# at once and the L1 sensitivity is the number of tokens they
+# hold - unbounded unless it is CLIPPED. `dp_histogram` clips and
+# says it clipped, because a mechanism whose sensitivity claim is
+# wrong is not a weaker guarantee, it is no guarantee.
+
+# Laplace for counts. Pure epsilon-DP, no delta, and the tail is
+# heavier than Gaussian at the same epsilon - which is the right
+# trade for integer counts where a rare large error is survivable
+# and a delta that has to be explained is not.
+def laplace_count(value: float, sensitivity: float,
+                  epsilon: float, rng=None) -> float:
+    """One count, released under pure epsilon-DP."""
+    if epsilon <= 0:
+        raise ValueError("epsilon must be positive")
+    if sensitivity <= 0:
+        raise ValueError("sensitivity must be positive")
+    rng = rng or np.random.default_rng()
+    return float(value + rng.laplace(0.0,
+                                     sensitivity / float(epsilon)))
+
+
+def dp_histogram(counts: Dict[str, int], epsilon: float,
+                 max_per_patient: int, rng=None
+                 ) -> Tuple[Dict[str, float], Dict[str, object]]:
+    """Noised patient counts for many items at once.
+
+    `max_per_patient` is the CAP on how many of these items one
+    patient can contribute to, and it is the L1 sensitivity. It
+    is a parameter rather than a measurement because measuring
+    it from the data would itself be a query on the data - the
+    caller must impose it (by truncating each patient's token
+    list) and pass what they imposed.
+    """
+    if max_per_patient < 1:
+        raise ValueError("max_per_patient must be at least 1")
+    rng = rng or np.random.default_rng()
+    out = {}
+    for k, v in counts.items():
+        out[k] = laplace_count(float(v), float(max_per_patient),
+                               epsilon, rng)
+    return out, {
+        "mechanism": "laplace histogram",
+        "epsilon": float(epsilon),
+        "l1_sensitivity": float(max_per_patient),
+        "items": len(counts),
+        "scale": float(max_per_patient) / float(epsilon),
+        "note": "one patient can move at most {} of these counts "
+                "by 1 each, so the L1 sensitivity is {} - the "
+                "caller must have TRUNCATED each patient to that "
+                "many items or the claim is void".format(
+                    max_per_patient, max_per_patient)}
+
+
+# The threshold has to RISE, and that is the whole correctness
+# argument for selection.
+#
+# Releasing which items cleared a floor is not the same query as
+# releasing their counts: an item held by exactly k patients
+# appears or vanishes on one person's presence, so the SET itself
+# leaks. Noising the counts and keeping the same floor does not
+# fix it - an item at the floor still flips with probability near
+# one half. The floor is raised by enough noise quantiles that a
+# single patient cannot change the outcome except with
+# probability under `tau_delta`.
+def select_above(counts: Dict[str, int], floor: int,
+                 epsilon: float, max_per_patient: int,
+                 tau_delta: float = 1e-6, rng=None
+                 ) -> Tuple[List[str], Dict[str, object]]:
+    """Which items clear a floor, released privately."""
+    noisy, rep = dp_histogram(counts, epsilon, max_per_patient,
+                              rng)
+    scale = rep["scale"]
+    # THE TAIL IS ONE-SIDED, AND WHICH SIDE IS THE WHOLE POINT.
+    #
+    # For Laplace with scale b, P(X > t) = 0.5 exp(-t/b), so
+    # t = b ln(0.5 / tau) is the tight bound. The failure that
+    # matters is an item being INCLUDED when it should not be -
+    # noise pushing a sub-floor count up - which is one-sided.
+    # The other direction, an item dropped that should have been
+    # kept, costs UTILITY and leaks nothing.
+    #
+    # The first version used ln(1/tau), which is conservative by
+    # b ln 2 and had no reason stated. Conservative in the safe
+    # direction is fine; conservative by accident, in a number
+    # that sets a privacy threshold, is how a bound comes to be
+    # trusted for the wrong reason. Caught by a check and the
+    # implementation disagreeing about the arithmetic.
+    bump = scale * math.log(0.5 / max(tau_delta, 1e-300))
+    raised = float(floor) + bump + float(max_per_patient)
+    kept = sorted(k for k, v in noisy.items() if v >= raised)
+    rep = dict(rep)
+    rep.update({
+        "mechanism": "laplace histogram + raised threshold",
+        "floor_requested": int(floor),
+        "floor_used": raised,
+        "tau_delta": float(tau_delta),
+        "kept": len(kept), "offered": len(counts),
+        "note": "the floor is RAISED from {} to {:.1f}. Keeping "
+                "the requested floor would leak membership: an "
+                "item held by exactly {} patients flips in or "
+                "out on one person, so the SELECTED SET is "
+                "itself a release and noising the counts alone "
+                "does not fix it".format(
+                    floor, raised, floor)})
+    return kept, rep
+
+
+# AND FOR A WIDE HISTOGRAM, GAUSSIAN BEATS LAPLACE BY sqrt(L).
+#
+# A patient holding L tokens moves the count vector by L in L1
+# and only sqrt(L) in L2. Laplace's scale is set by L1, the
+# Gaussian's by L2 - so at the vocabulary widths this project
+# publishes (hundreds of tokens, a patient holding dozens) the
+# Gaussian mechanism is not a refinement, it is the difference
+# between a usable floor and an unusable one. It costs a delta,
+# which the training accounting already carries.
+def gaussian_scale(epsilon: float, delta: float,
+                   max_per_patient: int) -> Tuple[float, float]:
+    """The Gaussian noise scale for a count histogram.
+
+    ONE function, because `gaussian_histogram` APPLIES this and
+    `required_floor` REPORTS it, and computing it twice is how
+    the Laplace floor came to be applied with one tail bound and
+    reported with another. Returns (l2_sensitivity, sigma).
+
+    A cap below one is refused here rather than at each call
+    site: sqrt(0) is 0, which would make sigma ZERO and release
+    the exact counts under a function named for a privacy
+    mechanism. That is a silent total failure, not a weak
+    guarantee.
+    """
+    if max_per_patient < 1:
+        raise ValueError("max_per_patient must be at least 1")
+    if not (0.0 < delta < 1.0):
+        raise ValueError("delta must be in (0, 1)")
+    if epsilon <= 0:
+        raise ValueError("epsilon must be positive")
+    l2 = math.sqrt(float(max_per_patient))
+    # the classical analytic Gaussian bound
+    return l2, l2 * math.sqrt(2.0 * math.log(1.25 / delta)) \
+        / float(epsilon)
+
+
+def gaussian_histogram(counts: Dict[str, int], epsilon: float,
+                       delta: float, max_per_patient: int,
+                       rng=None
+                       ) -> Tuple[Dict[str, float], Dict]:
+    """Noised patient counts, Gaussian, L2 sensitivity."""
+    l2, sigma = gaussian_scale(epsilon, delta, max_per_patient)
+    rng = rng or np.random.default_rng()
+    out = dict((k, float(v + rng.normal(0.0, sigma)))
+               for k, v in counts.items())
+    return out, {
+        "mechanism": "gaussian histogram",
+        "epsilon": float(epsilon), "delta": float(delta),
+        "l2_sensitivity": l2, "scale": sigma,
+        "items": len(counts),
+        "note": "a patient holding {} items moves the count "
+                "vector by {} in L1 and {:.2f} in L2, and the "
+                "Gaussian scale is set by L2 - which is why "
+                "this is the mechanism for a wide vocabulary "
+                "and Laplace is the one for a single "
+                "count".format(max_per_patient,
+                               max_per_patient, l2)}
+
+
+def required_floor(epsilon: float, max_per_patient: int,
+                   tau_delta: float = 1e-6,
+                   delta: Optional[float] = None,
+                   floor: int = 10) -> Dict[str, float]:
+    """How high the k floor must RISE to publish a selection.
+
+    Returns both mechanisms so the choice is made on numbers.
+    This is the quantity that decides whether DP vocabulary
+    selection is usable at all: on the real extract a token held
+    by fewer than the returned floor cannot be published, and
+    the project's own k floor is 10.
+    """
+    lap_scale = float(max_per_patient) / float(epsilon)
+    lap = float(floor) + lap_scale * math.log(
+        0.5 / max(tau_delta, 1e-300)) + float(max_per_patient)
+    out = {"floor": float(floor), "laplace": lap,
+           "laplace_scale": lap_scale}
+    if delta:
+        l2, sig = gaussian_scale(epsilon, delta,
+                                 max_per_patient)
+        # a one-sided Gaussian tail at tau_delta
+        z = math.sqrt(2.0) * _erfinv(1.0 - 2.0 * tau_delta)
+        out["gaussian"] = float(floor) + z * sig \
+            + float(max_per_patient)
+        out["gaussian_scale"] = sig
+        out["z"] = z
+    return out
+
+
+def _erfinv(y: float) -> float:
+    """Inverse error function, bisection.
+
+    Hand-rolled because this module deliberately depends on
+    nothing but numpy - and a wrong value here would set a
+    privacy threshold, so it is bisected to 1e-12 rather than
+    approximated by a series whose error nobody checked.
+    """
+    lo, hi = -6.0, 6.0
+    for _ in range(200):
+        mid = 0.5 * (lo + hi)
+        if math.erf(mid) < y:
+            lo = mid
+        else:
+            hi = mid
+    return 0.5 * (lo + hi)
+
+
+def dp_quantile(values, q: float, lo: float, hi: float,
+                epsilon: float, rng=None) -> Tuple[float, Dict]:
+    """A quantile by the exponential mechanism.
+
+    ONE VALUE PER PATIENT is assumed, and it is the caller's job
+    to have aggregated to that - a patient contributing many
+    rows moves the rank by many, and the sensitivity claim here
+    is 1.
+
+    Utility is -|rank(x) - target|, whose sensitivity is 1
+    because adding or removing one value moves every rank by at
+    most 1. The mechanism samples an INTERVAL between sorted
+    values with probability proportional to its width times
+    exp(epsilon * utility / 2), then samples uniformly inside -
+    the standard construction, which is why the output can be a
+    value nobody held. That property is the point: the published
+    bound must not be an individual's value, which is a rule
+    this project already enforces by averaging the k extremes.
+    """
+    v = np.asarray([x for x in values
+                    if x is not None and np.isfinite(x)],
+                   dtype=float)
+    if v.size == 0:
+        raise ValueError("no finite values")
+    if not (hi > lo):
+        raise ValueError("hi must exceed lo")
+    rng = rng or np.random.default_rng()
+    v = np.clip(v, lo, hi)
+    v.sort()
+    edges = np.concatenate(([lo], v, [hi]))
+    widths = np.diff(edges)
+    target = q * v.size
+    # interval i sits between the i-th and (i+1)-th order
+    # statistic, so every point inside it has rank i
+    ranks = np.arange(v.size + 1, dtype=float)
+    util = -np.abs(ranks - target)
+    logw = np.log(np.maximum(widths, 1e-300)) \
+        + 0.5 * float(epsilon) * util
+    logw -= logw.max()
+    w = np.exp(logw)
+    w /= w.sum()
+    i = int(rng.choice(len(w), p=w))
+    out = float(rng.uniform(edges[i], edges[i + 1]))
+    return out, {
+        "mechanism": "exponential mechanism (quantile)",
+        "epsilon": float(epsilon), "q": float(q),
+        "rank_sensitivity": 1.0, "n": int(v.size),
+        "range": [float(lo), float(hi)],
+        "note": "one value per PATIENT is assumed; the output "
+                "may be a value nobody held, which is the "
+                "property that makes it publishable"}
+
+
+def dp_bounds(values, epsilon: float, lo: float, hi: float,
+              q_lo: float = 0.0, q_hi: float = 1.0, rng=None
+              ) -> Tuple[float, float, Dict]:
+    """A publishable minimum and maximum, split-budget.
+
+    The budget SPLITS across the two queries rather than being
+    spent twice, because sequential composition of two
+    epsilon/2 mechanisms is epsilon - stating it here so nobody
+    later passes the same epsilon to both and reports the sum as
+    epsilon.
+    """
+    half = float(epsilon) / 2.0
+    a, ra = dp_quantile(values, q_lo, lo, hi, half, rng)
+    b, rb = dp_quantile(values, q_hi, lo, hi, half, rng)
+    if a > b:
+        a, b = b, a
+    return a, b, {
+        "mechanism": "two exponential mechanisms, split budget",
+        "epsilon": float(epsilon), "each": half,
+        "parts": [ra, rb],
+        "note": "epsilon SPLITS across the two queries - "
+                "sequential composition of two eps/2 mechanisms "
+                "is eps, so passing the full epsilon to both "
+                "and reporting eps would understate the cost by "
+                "a factor of two"}
+
+
 def _relu(a):
     return np.maximum(a, 0.0)
 
