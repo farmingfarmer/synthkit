@@ -437,6 +437,73 @@ def main():
           '"arm": "nearest_neighbor (output surface)"' in _lcsrc2
           and "blind to the output" in _lcsrc2)
 
+    # ---- THE SCOPE TEMPLATE
+    #
+    # Residual risk is the one element a RUN cannot supply, so
+    # the operator has to write it - and a blank page is why it
+    # stays OWED. The template fills in the MEASURED facts and
+    # marks every JUDGMENT, so the person making the
+    # determination starts from the measurements rather than
+    # from nothing.
+    #
+    # THE LOAD-BEARING CHECK IS THAT IT CANNOT BE MISTAKEN FOR A
+    # DETERMINATION, and that it does not pass `assess` by
+    # length alone - the scope gate is a 200-character floor,
+    # and a template full of unreplaced brackets would clear it
+    # while saying nothing about this release.
+    _tpl_path = ROOT / "docs" / "DETERMINATION_SCOPE.md"
+    _tpl = io.open(str(_tpl_path), encoding="utf-8").read()
+    check("the scope TEMPLATE exists and says in its own first "
+          "lines that it is a template and NOT a determination "
+          "- a scope statement that reads as authoritative is "
+          "the one document here that could be misused",
+          _tpl_path.exists()
+          and "not a determination" in _tpl.split("\n\n")[0]
+          + _tpl[:900]
+          and "template" in _tpl[:400].lower())
+    check("...and every JUDGMENT in it is marked for review ({} "
+          "markers), because the measured facts and the "
+          "conclusions drawn from them are different kinds of "
+          "statement and a reader must be able to tell which is "
+          "which".format(_tpl.count("[REVIEW]")),
+          _tpl.count("[REVIEW]") >= 5
+          and "[REVIEW] — every line here is a judgment" in _tpl)
+    check("...and it carries the controls beside the numbers "
+          "rather than the numbers alone, since a control that "
+          "cannot catch a verbatim republish is a check that "
+          "cannot fail",
+          "control" in _tpl.lower()
+          and "republish" in _tpl
+          and "CAUGHT" in _tpl)
+    check("...and it states the RETAINED information, because "
+          "over-suppression is the trivial way to make risk "
+          "very small and a determination without it has not "
+          "described a trade",
+          "Retained information" in _tpl
+          and "Over-suppression" in _tpl)
+    check("...and it names the FIXTURE and CONFIG scope rules, "
+          "so a reader filling it in knows evidence from "
+          "another dataset or other caps does not count",
+          "FIXTURE" in _tpl and "CONFIG" in _tpl
+          and "understates the risk" in _tpl)
+    # AND IT MUST NOT PASS THE SCOPE GATE WHILE STILL A
+    # TEMPLATE. The gate is a 200-character floor, which an
+    # unfilled template clears on length - so the point of this
+    # check is that `assess` is NOT the thing stopping somebody
+    # shipping a template as a scope. The brackets are, and a
+    # reader has to be told that.
+    _as_scope = DET.assess(scope=_tpl)
+    check("the scope gate is a LENGTH floor, so the unfilled "
+          "template clears it ({} chars) - which is stated here "
+          "rather than pretended otherwise: `assess` cannot "
+          "tell a filled scope from an unfilled one, the "
+          "unreplaced [REVIEW] and [N] markers are what a "
+          "reader checks, and the template says so"
+          .format(_as_scope["scope_chars"]),
+          "residual" not in _as_scope["elements_owed"]
+          and "[N]" in _tpl and "[REVIEW]" in _tpl
+          and "Replace the bracketed items" in _tpl)
+
     print()
     if FAIL:
         print("{} of {} checks failed.".format(FAIL, PASS + FAIL))
