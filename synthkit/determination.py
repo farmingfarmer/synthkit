@@ -386,10 +386,26 @@ def assess(fidelity: Optional[Dict] = None,
     # into one word would be the blocked-versus-unchanged fault,
     # which this project records for the corruption ledger and
     # for route B's two opposite readings of one number.
+    # AND AN EVIDENCE RECORD WITH NO SOURCE COULD NOT BE
+    # CHECKED, WHICH IS A THIRD THING AGAIN.
+    #
+    # The rule above is right - a record predating the `source`
+    # field cannot be judged on it, because absent is not the
+    # same fact as mismatched - but it means an OLD fixture
+    # record passes the scope test silently. A real one turned
+    # up within the hour: the attribute battery's first
+    # real-extract chain ran from a build that predated the
+    # field, so its fixture evidence carried no source and was
+    # not flagged. The rule stands and the SILENCE does not:
+    # these are listed so a determination reader knows which
+    # evidence could not be scope-checked at all.
+    unverifiable = []
     off_cohort = {}
     for key, rec in (("membership", membership),
                      ("attribute", attribute),
                      ("linkage", linkage)):
+        if rec and source_name and not rec.get("source"):
+            unverifiable.append(key)
         why = ("FIXTURE" if _elsewhere(rec)
                else "CONFIG" if _other_config(rec) else None)
         if not why:
@@ -427,6 +443,7 @@ def assess(fidelity: Optional[Dict] = None,
                           if r["status"] == "OWED"],
         "elements_elsewhere": [r["key"] for r in rows
                                if r["measured_elsewhere"]],
+        "scope_unverifiable": unverifiable,
         "ready": n_have == len(rows),
         "scope_chars": len(scope.strip()) if scope else 0,
         "source_name": source_name,
@@ -468,6 +485,18 @@ def plain(report: Dict[str, Any]) -> List[str]:
             "x" if _st == "present" else _st, el["need"]))
         out.append("        evidence: " + el["evidence"])
         out.append("        why it is asked: " + el["why"])
+        out.append("")
+    if report.get("scope_unverifiable"):
+        out.append("SCOPE NOT CHECKABLE: {}".format(
+            ", ".join(report["scope_unverifiable"])))
+        out.append("  These records name no SOURCE, so whether "
+                   "they were measured on this cohort could not "
+                   "be checked at all. A record")
+        out.append("  predating the field cannot be judged on it "
+                   "- absent is not the same fact as mismatched "
+                   "- but neither is it")
+        out.append("  confirmation. Re-run them with a build "
+                   "that records the source.")
         out.append("")
     if report.get("elements_elsewhere"):
         out.append("OUT OF SCOPE: {}".format(
