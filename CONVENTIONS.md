@@ -3,6 +3,42 @@
 Synthetic clinical data generator and model-evaluation instrument. Core rule: learn the patterns, never copy the records. Real data teaches parameters; generation never touches a record.
 
 ## Verify before claiming
+- **THE COMPUTABLE CEILING'S CENTRAL CLAIM IS NOW CHECKED, AND
+  THE METRIC WOULD NOT TAKE A NUMPY ARRAY (2026-11-08).** The
+  claim is that the exam measures the SOLVER and not the
+  particular synthetic file it ran on. Three draws of one
+  blueprint with one planted answer: ceiling 0.6051 / 0.5842 /
+  0.5861, spread **0.0209** on 900 rows - against the real
+  extract's spread of **0.006** across two generated files at
+  56,065 rows. The property is pinned and the MAGNITUDE is
+  named as an n effect, because a tolerance quoted without the
+  row count is the kind of number that gets reused at the wrong
+  scale.
+- **AND `ceiling_auroc` RAISED ON THE OBVIOUS INPUT.**
+  `_check` did `if not scores:` - which on a numpy array raises
+  "The truth value of an array with more than one element is
+  ambiguous" - so a caller asking for an AUROC got a message
+  about truth values from a guard only ever meant to catch an
+  empty input. Every existing caller happened to pass a list.
+  `len(scores) == 0` accepts both and still refuses an empty
+  input by name.
+- **AND THE MUTATION CRASHED THE SUITE INSTEAD OF FAILING IT,
+  in the check written about that very footgun.** The
+  stability check is the FIRST caller to hand the metric an
+  array, so restoring the truthiness guard raised there -
+  before the array check could run - and the suite exited 1
+  with no `FAIL:` line. Guarded; both mutations now give a red
+  check.
+- **AND MY KEEP-FILE PREDATED THE FIX, so the restore put the
+  bug BACK.** I copied `mlmetrics.py` aside before applying the
+  fix and then restored from that copy after each mutation -
+  leaving the broken version in place and reporting IDENTICAL,
+  which was true and useless. This file's own rule is to
+  restore from a COPY OF THE WORKING STATE; the working state
+  is the one AFTER the fix, and taking the copy first is the
+  same mistake as restoring from a commit that does not contain
+  it.
+
 - **ONE REAL RUN, EVERY CONSUMER DRIVEN AGAINST IT - AND THE
   SUITE CAUGHT TWO OF ITS OWN GUESSES IN THE FIRST MINUTE
   (2026-11-08, AC-1, `smoke_artifact_contract.py`).** The

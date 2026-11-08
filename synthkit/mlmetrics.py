@@ -26,7 +26,14 @@ def _check(scores: Sequence[float], labels: Sequence[int]) -> None:
         raise MetricInputError(
             "scores and labels must align: {} vs {}".format(
                 len(scores), len(labels)))
-    if not scores:
+    # LENGTH, NOT TRUTHINESS. `if not scores` raises
+    # "The truth value of an array with more than one element is
+    # ambiguous" on a numpy array - and an array is the natural
+    # thing to hand a metric. The caller then gets a message
+    # about truth values from a function they asked for an
+    # AUROC, which costs an hour to trace to a guard that was
+    # only ever meant to catch an empty input.
+    if len(scores) == 0:
         raise MetricInputError("empty inputs")
     for y in labels:
         if y not in (0, 1, True, False):

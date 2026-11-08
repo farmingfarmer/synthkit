@@ -619,6 +619,114 @@ def main():
               and "STOPPED" in (_rm.stdout + _rm.stderr)
               and "Traceback" not in (_rm.stdout + _rm.stderr))
 
+    # ---- THE CEILING IS STABLE ACROSS DRAWS
+    #
+    # The whole claim of a COMPUTABLE ceiling is that the exam
+    # measures the SOLVER and not the particular synthetic file
+    # it was run on. The real extract now says so - the same
+    # planted answer on two different generated files read
+    # 0.788/0.704/0.630 against 0.786/0.698/0.622, every tier
+    # within 0.006 and every GAP within 0.001 - and nothing
+    # checked it, so a change that made the ceiling draw-
+    # dependent would have gone unnoticed until somebody ran
+    # the exam twice.
+    import numpy as _np
+    import pandas as _pd
+    from synthkit import blueprint as _bpm
+    from synthkit import semisynth as _ss
+    from synthkit.discover import discover as _disc
+    from synthkit.generate import generate as _genf
+
+    _rg = _np.random.default_rng(5)
+    _rws = []
+    for _p in range(300):
+        _lvl = float(_rg.normal(0, 1))
+        for _v in range(3):
+            _rws.append({
+                "person_id": "P{:03d}".format(_p),
+                "age": round(55 + 11 * _lvl
+                             + _rg.normal(0, 3), 1),
+                "bmi": round(27 + 3.2 * _lvl
+                              + _rg.normal(0, 1.1), 1)})
+    _csrc = _pd.DataFrame(_rws).astype(str)
+    _cbp = _bpm.build(_csrc,
+                      _disc(_csrc, group_by="person_id", seed=0),
+                      group_by="person_id", k=10)
+    _ceils, _prevs = [], []
+    for _sd in (0, 1, 2):
+        _gf = _genf(_cbp, n_patients=300, seed=_sd)
+        _fr, _pl = _ss.plant_frame(
+            _gf, _cbp, {"age": 0.8, "bmi": -0.5},
+            prevalence=0.25, seed=777)
+        # the true probability per row, from the planted
+        # coefficients and the SOLVED intercept - the answer
+        # key, which is the only reason a ceiling exists
+        _z = float(_pl["intercept"]) + sum(
+            float(_c) * _pd.to_numeric(_fr[_k],
+                                       errors="coerce").fillna(0.0)
+            for _k, _c in _pl["coefficients"].items())
+        _tp = 1.0 / (1.0 + _np.exp(-_z.to_numpy()))
+        _yy = _fr["outcome"].astype(int).to_numpy()
+        # GUARDED, because this is the FIRST caller to hand the
+        # metric a numpy array and the truthiness guard raises
+        # on one - so a mutation restoring it crashed the suite
+        # here, before the check written about that very
+        # footgun could run. A traceback and no `FAIL:` line is
+        # indistinguishable from a check that never ran.
+        try:
+            _ceils.append(ceiling_auroc(_tp, _yy))
+        except Exception as _ce:                # noqa: BLE001
+            print("    (ceiling_auroc raised {}: {})".format(
+                type(_ce).__name__, str(_ce)[:80]))
+            _ceils.append(None)
+        _prevs.append(float(_yy.mean()))
+    _good = [c for c in _ceils if c is not None]
+    _spread = (max(_good) - min(_good)) if len(_good) > 1 \
+        else float("inf")
+    check("the CEILING is stable across three draws of one "
+          "blueprint with one planted answer: {} , spread "
+          "{:.4f} on 900 rows. That is the computable ceiling's "
+          "whole claim - the exam measures the SOLVER, not the "
+          "draw - and the real extract reads a spread of 0.006 "
+          "across two generated files at 56,065 rows, so the "
+          "MAGNITUDE is an n effect and the property is what is "
+          "pinned here"
+          .format(", ".join("-" if c is None
+                            else "{:.4f}".format(c)
+                            for c in _ceils), _spread),
+          len(_good) == len(_ceils) and _spread < 0.06
+          and min(_good) > 0.5)
+    check("...and the achieved PREVALENCE tracks the request "
+          "across draws ({} against 0.25 asked), because the "
+          "intercept is SOLVED on each frame's own covariates "
+          "rather than centred analytically"
+          .format(", ".join("{:.3f}".format(p) for p in _prevs)),
+          max(abs(p - 0.25) for p in _prevs) < 0.05)
+
+    # AND THE METRIC TAKES A NUMPY ARRAY, which is the natural
+    # thing to hand it.
+    _arr_ok = True
+    try:
+        ceiling_auroc(_np.array([0.9, 0.1, 0.8, 0.2]),
+                      _np.array([1, 0, 1, 0]))
+    except Exception:                           # noqa: BLE001
+        _arr_ok = False
+    check("the metrics accept a NUMPY ARRAY, not only a list - "
+          "`if not scores` raised 'the truth value of an "
+          "array with more than one element is ambiguous' from "
+          "a "
+          "guard only ever meant to catch an empty input, so a "
+          "caller asking for an AUROC got a message about truth "
+          "values", _arr_ok)
+    _empty_refused = False
+    try:
+        ceiling_auroc(_np.array([]), _np.array([]))
+    except Exception as _e:                     # noqa: BLE001
+        _empty_refused = "empty" in str(_e).lower()
+    check("...and an EMPTY input is still refused by name, "
+          "which is what that guard was for",
+          _empty_refused)
+
     print("\nAll {} checks passed.".format(PASS))
 
 
