@@ -464,6 +464,47 @@ def main():
           _allcat.returncode == 2
           and "at least one quasi" in _allcat.stderr
           and "Traceback" not in _allcat.stderr)
+    # AND A SUCCESSFUL SCAN IS ITS OWN RECORD.
+    with tempfile.TemporaryDirectory() as _rd:
+        _s3 = os.path.join(_rd, "src.csv")
+        _r3 = os.path.join(_rd, "rel.csv")
+        _o3 = os.path.join(_rd, "scan.json")
+        _frame(1000, 1).to_csv(_s3, index=False)
+        _frame(1500, 9).to_csv(_r3, index=False)
+        _rec = subprocess.run(
+            [sys.executable,
+             str(ROOT / "scripts" / "linkage_risk.py"),
+             _s3, _r3, "--quasi", "sex,site,age",
+             "--sensitive", "hb", "--scan", "-o", _o3],
+            capture_output=True, text=True, cwd=str(ROOT))
+        _doc = json.load(io.open(_o3)) \
+            if os.path.exists(_o3) else {}
+    from synthkit import determination as _DET2
+    check("a successful scan NAMES the band edges it chose "
+          "({}), because 're-run at that resolution' without "
+          "saying at what edges costs the operator the search "
+          "twice - and each guess on the real extract is a "
+          "round trip to the machine that holds it"
+          .format("--band" in _rec.stdout),
+          "--band" in _rec.stdout
+          and "age=" in _rec.stdout
+          and bool(_doc.get("bands_used")))
+    check("...and the scan FILE is itself the record: it "
+          "carries the chosen arrangement's full result at the "
+          "top level, so `determination --linkage` reads it "
+          "directly rather than the operator running the whole "
+          "measurement again just to produce a consumable file",
+          _doc.get("control_caught") is True
+          and (_doc.get("honest") or {}).get("excess_in_sd")
+          is not None
+          and "linkage" not in _DET2.assess(
+              linkage=_doc, source_name=_s3)["elements_owed"])
+    check("...and each scanned row keeps its own full result "
+          "too, so a reader can see the arrangement that was "
+          "NOT chosen and why",
+          all(r.get("result") for r in _doc.get("scan", []))
+          and len(_doc.get("scan", [])) >= 5)
+
     check("the ladder crosses the MIDDLE rather than jumping "
           "between the two values somebody tried by hand "
           "({}) - the real extract failed at 2-ish bands and at "

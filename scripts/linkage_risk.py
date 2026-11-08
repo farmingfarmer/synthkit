@@ -108,6 +108,20 @@ def scan(mem, non, rel_rows, quasi, sensitive, numeric_quasi,
             "verdict": res.get("verdict"),
             "why": res.get("why"),
             "share_of_control": res.get("share_of_control"),
+            # THE BAND EDGES, so "re-run at that resolution"
+            # names a resolution the operator can actually
+            # type. A tool that tells you to re-run and does
+            # not say with what is a tool that costs you the
+            # search twice.
+            "bands": dict((k, [round(x, 4) for x in v])
+                          for k, v in bands.items()),
+            # ...and the FULL result, so the chosen arrangement
+            # is itself the record. `determination.assess` reads
+            # `control_caught` and `honest.excess_in_sd`, which
+            # the summary row above does not carry - without
+            # this the operator has to run the whole thing again
+            # just to produce a file the package can read.
+            "result": res,
         })
         say("{:>6} {:>12} {:>9} {:>12} {:>12}   {}".format(
             nb, rows[-1]["selections"],
@@ -300,7 +314,16 @@ def main():
             print("arrangement with the LARGEST one is the test "
                   "most able to see a real leak. Re-run without "
                   "--scan at that")
-            print("resolution to get the record.")
+            print("resolution to get the record - or just use "
+                  "this file, which carries the chosen "
+                  "arrangement's full")
+            print("result at its top level in the shape "
+                  "`synthkit determination --linkage` reads.")
+            if win.get("bands"):
+                for _q, _e in sorted(win["bands"].items()):
+                    print("  --band {}={}".format(
+                        _q, ",".join("{:g}".format(x)
+                                     for x in _e)))
         else:
             print("NO ARRANGEMENT IN THIS LADDER IS USABLE. "
                   "That is a finding about this cohort, not a "
@@ -312,14 +335,22 @@ def main():
                   "element stays OWED, and it stays owed for a "
                   "stated reason.".format(LK.MIN_SELECTION))
         if a.out:
+            # THE CHOSEN ARRANGEMENT IS WRITTEN AT THE TOP
+            # LEVEL, in the shape `synthkit determination
+            # --linkage` reads, so a successful scan IS the
+            # record rather than an instruction to go and make
+            # one.
+            doc = {"scan": rows, "usable": win,
+                   "quasi": quasi, "banded": numeric_q,
+                   "sensitive": a.sensitive,
+                   "source": str(a.src),
+                   "released": str(a.released)}
+            if win and win.get("result"):
+                doc.update(win["result"])
+                doc["bands_used"] = win.get("bands")
+                doc["source"] = str(a.src)
             with open(a.out, "w") as fh:
-                fh.write(json.dumps(
-                    {"scan": rows, "usable": win,
-                     "quasi": quasi, "banded": numeric_q,
-                     "sensitive": a.sensitive,
-                     "source": str(a.src),
-                     "released": str(a.released)},
-                    indent=1, default=str))
+                fh.write(json.dumps(doc, indent=1, default=str))
             print("")
             print("wrote {}".format(a.out))
         return 0 if win else 3
