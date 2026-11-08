@@ -207,16 +207,25 @@ holds). Formats: days.
   to call itself a determination; what remains is assembling
   the evidence on a real run and putting it in front of a
   qualified person.
-- **End-to-end differential privacy, for the ONE stage that is
-  neither a count nor a quantile:** the latent mixture, fitted
-  on codes of real rows. The other four unaccounted stages have
-  mechanisms now (DP-2) with a measured price, and the price is
-  the finding — a DP vocabulary **selection** at epsilon 3
-  keeps 12% of what the k rule publishes on an 800-patient
-  cohort, 6% at epsilon 1. So DP on the WEIGHTS ships and DP on
-  the SELECTION is affordable at a cohort size this project
-  does not have. That is a statement about this cohort, not a
-  refusal to measure.
+- **Differential privacy now has a mechanism and a measured
+  price for ALL FIVE stages** (DP-1, DP-2, DP-3), and what
+  remains is a DECISION rather than a build. The prices are the
+  finding. A DP vocabulary **selection** at epsilon 3 keeps 12%
+  of what the k rule publishes on an 800-patient cohort, 6% at
+  epsilon 1 — so DP on the SELECTION is affordable at a cohort
+  size this project does not have, which is why the
+  k-anonymous aggregate release is not a shortcut taken instead
+  of DP. And the latent mixture's cost is a SHAPE cost that
+  more epsilon cannot buy off: 0.391 gap mass against a source
+  0.020 at epsilon 1, 3 and 10 alike, while every moment comes
+  back to three decimals. Only the WEIGHTS epsilon is
+  affordable, and it ships.
+- **What is owed on that is one measurement, not a build:**
+  whether the real latent cloud is lumpy enough for the mixture
+  cost to matter. The fixture was built lumpy on purpose so the
+  cost would be visible at all, and quoting its 20x gap as a
+  statement about the extract would be the
+  measured-at-one-shape fault.
 - Free text PHI is the M6 decision gate.
 - ~~City and county names~~ SHIPPED 2026-11-06 (PHI-5,
   `geography`). Header-driven and the finding says so: a city

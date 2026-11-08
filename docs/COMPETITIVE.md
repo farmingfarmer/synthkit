@@ -351,7 +351,7 @@ I did not find another tool documenting this.
 
 | capability | synthkit | documented elsewhere |
 |---|---|---|
-| differential privacy | **partial, measured end to end** — DP training of the weights ships; the four count/quantile stages have mechanisms and a measured price (a DP vocabulary selection at eps 3 keeps 12% of what the k rule publishes on an 800-patient cohort); the latent mixture remains | yes (MOSTLY AI) |
+| differential privacy | **partial, all five stages measured** — DP training of the weights ships; the other four have mechanisms with measured prices (a DP vocabulary selection at eps 3 keeps 12% of what the k rule publishes on an 800-patient cohort; the latent mixture's cost is a SHAPE cost that more epsilon cannot buy off). Not on by default, and the reason is a number | yes (MOSTLY AI) |
 | sequential / longitudinal model | **partial, improved** — rules engine models it; neural engine has an AR(1) course with a SOLVED rho, off by default, ceiling ~0.40 within-AR; the recorded 17/87 predates it | yes (MOSTLY AI; research frontier) |
 | HIPAA Expert Determination | **partial** — the evidence package is assembled and says what is still OWED (`synthkit determination`); no expert has made a determination, and the tool refuses to imply one | yes (Tonic) |
 | automatic PHI/PII detection | yes, 18-category inventory | yes (Tonic) |
@@ -404,9 +404,31 @@ I did not find another tool documenting this.
    generator with no vocabulary is not more private — it is
    broken. DP on the **weights** is affordable and ships; DP on
    the **selection** is affordable at a cohort size we do not
-   have. **What remains is the latent mixture**, the one
-   unaccounted stage that is neither a count nor a quantile.
-   That is now the differential-privacy item.
+   have.
+
+   **AND THE LATENT MIXTURE IS CLOSED TOO (DP-3)**, the one
+   stage that is neither a count nor a quantile. DP-EM is not
+   the route — every iteration is a release and they compose —
+   so `dp_gaussian_fit` makes a single release instead: clip
+   the codes, publish a noisy mean and covariance, sample a
+   Gaussian, as a drop-in for the engine's own mixture.
+
+   Its cost is the useful finding, and it is **not a budget
+   cost**. On a two-lump latent fixture the gap mass a mixture
+   leaves empty reads 0.020 at the source, 0.022 through the
+   mixture, and **0.391 through the DP Gaussian at epsilon 1, 3
+   and 10 alike** — while the mean and spread come back to
+   three decimals at every epsilon. More budget buys nothing;
+   the loss is the model class a single release forces. We
+   report that rather than quoting the moments, which all pass.
+
+   So all five stages now have mechanisms and a measured price.
+   **What remains is a decision, not a build**: none of these
+   is on by default, because the measured prices say DP is
+   affordable on the weights and expensive on everything else
+   at the cohort sizes we have. Whether the real latent cloud
+   is lumpy enough for the mixture cost to matter is unmeasured
+   and needs a run on the machine that holds the extract.
 2. ~~**Patient trajectory in the neural engine.**~~
    **BUILT 2026-11-07 (DYN-1)**, and built the way this item
    asked — the literature's framing, that flattening loses

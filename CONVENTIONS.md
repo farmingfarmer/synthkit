@@ -167,6 +167,79 @@ the direction that stops work happening.
   lag both dropped
 
 ## What the blueprint may publish
+- **THE LAST UNACCOUNTED DP STAGE IS CLOSED, AND ITS COST IS A
+  SHAPE COST THAT MORE EPSILON CANNOT BUY OFF (2026-11-07,
+  DP-3).** The latent mixture was the one stage that is neither
+  a count nor a quantile - a density estimate fitted on codes of
+  real rows. DP-EM is not the route: every iteration is a
+  release and they compose, so a mixture fitted to convergence
+  spends a budget proportional to the iteration count.
+  `dp_gaussian_fit` is a SINGLE release instead - clip the
+  codes, publish a noisy mean and a noisy covariance, sample a
+  Gaussian - and it is written as a drop-in for the engine's own
+  `_mixture` so the cost can be measured through the real
+  generate path.
+- **THE MOMENTS ARE CHEAP AND THAT IS THE TRAP.** On a two-lump
+  latent fixture, 800 points:
+      arm           gap mass   mean[0]    sd[0]
+      source           0.020    -0.013    3.114
+      mixture          0.022         -        -
+      DP eps 1         0.391    -0.018    3.073
+      DP eps 3         0.391    -0.026    3.069
+      DP eps 10        0.391    -0.029    3.067
+  The mean and the spread come back to three decimals at every
+  epsilon, because they are averages over hundreds of points and
+  the noise falls away. What is lost is the HOLE a mixture exists
+  to leave empty - twenty times the source's gap mass - and no
+  moment can see it. The same lesson as a zero-inflated count
+  whose mean was exact while 7 points of mass sat in the wrong
+  place.
+- **AND THE COST IS EPSILON-INDEPENDENT, WHICH IS THE ACTIONABLE
+  PART.** 0.391 at epsilon 1, 3 and 10 alike: the loss is the
+  MODEL CLASS a single release forces, not the noise. A reader
+  told only that DP costs something here would reasonably try a
+  larger budget and get nothing for it. The mixture arm tracking
+  the source at 0.022 is what makes the attribution safe - a
+  one-armed measurement could not tell the mechanism's gap from
+  the fixture's.
+- **THE EIGENVALUE FLOOR FIRES HARD AT WIDTH, AND REPORTS.** A
+  noised covariance need not be positive semi-definite, and
+  sampling from one that is not either raises or returns
+  nonsense. Measured: 0 eigenvalues floored at 2 dimensions,
+  7-11 at 20, and 29-31 at 60 - barely moving with epsilon, so
+  again structural rather than budget-limited. A large repair
+  means the budget is small for that width and the run says so
+  instead of handing back a plausible cloud.
+- **AND THE NOISE SYMMETRY IS A PRIVACY PROPERTY, NOT A TIDINESS
+  ONE - WHICH THE FIRST CHECK COULD NOT SEE.** The Gram matrix
+  is symmetric, so its free entries are the upper triangle and
+  the noise must be drawn there and MIRRORED. Drawing
+  independent noise on all d-squared entries and symmetrising
+  afterwards AVERAGES two draws into every off-diagonal entry
+  and cuts that noise by sqrt(2) - delivering LESS noise than
+  the sensitivity analysis claims, which is a mechanism
+  overstating its own privacy. The released matrix looks
+  identical either way, so a check on its shape passed on the
+  broken version. The observable is the noise MAGNITUDE across
+  seeds on a fixed input: empirical sd 0.1142 against a
+  predicted 0.1122, where the averaged version gives 0.0793.
+- **AND THE UNIT OF PRIVACY IS A REQUIRED ARGUMENT.** The engine
+  fits THREE mixtures: one over patient CENTRES, where one point
+  is one patient and the sensitivity is patient-level by
+  construction, and two over ROW codes where a patient
+  contributes many points. That difference is the whole content
+  of the guarantee, so `unit` has no default and four
+  near-misses are refused by name. A clip taken from the data is
+  also a query on the data, so defaulting it REPORTS that a
+  release would want the clip fixed in advance.
+- **WHAT IS NOT MEASURED, NAMED: whether the REAL latent cloud
+  is lumpy.** The fixture was built lumpy on purpose so the cost
+  would be visible at all. Whether an 800-patient clinical
+  extract's latent space has holes a mixture is representing is
+  a property of that cohort and needs a run on the machine that
+  holds it. Quoting the 20x gap as a statement about the extract
+  would be the measured-at-one-shape fault.
+
 - **THE EXPERT DETERMINATION EVIDENCE EXISTED AND NOBODY HAD
   ASSEMBLED IT (2026-11-07, ED-1, `synthkit determination`).**
   `docs/COMPETITIVE.md` carried Expert Determination as a flat

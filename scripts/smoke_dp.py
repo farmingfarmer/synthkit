@@ -530,6 +530,181 @@ def main():
           and max(_pc["rows"].values())
           > max(_pc["patients"].values()))
 
+    # ---- THE LATENT MIXTURE (DP-3), THE LAST STAGE
+    #
+    # The one stage that is neither a count nor a quantile. The
+    # load-bearing checks are that the cost is a SHAPE cost and
+    # is EPSILON-INDEPENDENT - because that is the finding, and
+    # a reader who saw only the moments would conclude DP was
+    # free here.
+    import dp_mixture_cost as _DMC               # noqa: E402
+
+    _X = _DMC.two_lumps(800, seed=0)
+    _src_gap = _DMC.gap_mass(_X)
+    _mixg, _ = _DMC.gmm_arm(_X, 0).sample(4000)
+    _mix_gap = _DMC.gap_mass(_mixg)
+    _gaps, _means, _sds = {}, {}, {}
+    for _e in (1.0, 3.0, 10.0):
+        _g = DP.dp_gaussian_fit(_X, _e, 1e-5, unit="patient",
+                                seed=0)
+        _p, _ = _g.sample(4000)
+        _gaps[_e] = _DMC.gap_mass(_p)
+        _means[_e] = float(_p[:, 0].mean())
+        _sds[_e] = float(_p[:, 0].std())
+
+    check("the MIXTURE tracks the source's hole ({:.3f} against "
+          "{:.3f}) while the DP Gaussian FILLS it ({:.3f} at "
+          "epsilon 3) - so the gap belongs to the single-release "
+          "mechanism and not to the fixture, which is the "
+          "distinction a one-armed measurement could not make"
+          .format(_mix_gap, _src_gap, _gaps[3.0]),
+          abs(_mix_gap - _src_gap) < 0.05
+          and _gaps[3.0] > _src_gap + 0.2)
+    check("...and the cost is EPSILON-INDEPENDENT ({:.3f}, "
+          "{:.3f}, {:.3f} at epsilon 1, 3, 10) - raising the "
+          "budget buys NOTHING here, because the loss is the "
+          "model class a single release forces and not the "
+          "noise. A reader told only that DP costs something "
+          "would reasonably try more epsilon"
+          .format(_gaps[1.0], _gaps[3.0], _gaps[10.0]),
+          max(_gaps.values()) - min(_gaps.values()) < 0.05)
+    check("...while the MOMENTS come back at every epsilon "
+          "(mean {:+.3f} against a source {:+.3f}, sd {:.3f} "
+          "against {:.3f}) - which is the trap: every moment "
+          "matches and the shape is wrong, the same lesson as a "
+          "zero-inflated count whose mean was exact while the "
+          "mass sat in the wrong place"
+          .format(_means[1.0], float(_X[:, 0].mean()),
+                  _sds[1.0], float(_X[:, 0].std())),
+          abs(_means[1.0] - float(_X[:, 0].mean())) < 0.2
+          and abs(_sds[1.0] - float(_X[:, 0].std())) < 0.2)
+
+    # THE UNIT IS THE CONTENT OF THE GUARANTEE.
+    _unit_refused = 0
+    for _u in ("rows", "", None, "Patient"):
+        try:
+            DP.dp_gaussian_fit(_X, 1.0, 1e-5, unit=_u)
+        except ValueError:
+            _unit_refused += 1
+    check("`unit` is REQUIRED and refused unless it is exactly "
+          "'patient' or 'row' ({} of 4 near-misses raise) - the "
+          "engine fits one mixture over patient CENTRES, where "
+          "one point is one patient, and two over ROW codes "
+          "where a patient contributes many. That difference IS "
+          "the guarantee, so it cannot be a label with a default"
+          .format(_unit_refused), _unit_refused == 4)
+    _rp = DP.dp_gaussian_fit(_X, 2.0, 1e-5, unit="patient",
+                             seed=0).report
+    check("...and the report states the unit claimed and splits "
+          "the budget across the mean and the covariance "
+          "(epsilon {:.1f} = 2 x {:.1f}), because they are two "
+          "releases and passing the full epsilon to both would "
+          "understate the cost twofold"
+          .format(_rp["epsilon"], _rp["each"]),
+          _rp["unit"] == "patient"
+          and abs(_rp["each"] - 1.0) < 1e-9
+          and "per-patient" in _rp["note"])
+    check("...and a clip taken FROM THE DATA says so, because a "
+          "sensitivity chosen by looking at the data is itself a "
+          "query and makes a published epsilon wrong",
+          _rp["clip_was_data_dependent"] is True
+          and "query" in _rp["note"]
+          and DP.dp_gaussian_fit(
+              _X, 2.0, 1e-5, unit="row", clip=5.0
+          ).report["clip_was_data_dependent"] is False)
+
+    # A NOISED COVARIANCE MUST STILL BE A COVARIANCE.
+    _gg = DP.dp_gaussian_fit(_X, 1.0, 1e-5, unit="patient",
+                             seed=3)
+    check("the released covariance is SYMMETRIC and positive "
+          "semi-definite, so it can be sampled from at all",
+          np.allclose(_gg.cov, _gg.cov.T, atol=1e-12)
+          and float(np.min(np.linalg.eigvalsh(_gg.cov))) > 0)
+
+    # AND THE SYMMETRY IS A PRIVACY PROPERTY, NOT A TIDINESS
+    # ONE - which the first version of the check above could not
+    # see.
+    #
+    # The Gram matrix is symmetric, so its free entries are the
+    # upper triangle and the noise must be drawn there and
+    # MIRRORED. Drawing independent noise on all d^2 entries and
+    # symmetrising afterwards AVERAGES two independent draws
+    # into every off-diagonal entry, which cuts that noise by
+    # sqrt(2) - delivering LESS noise than the sensitivity
+    # analysis claims, which is a mechanism that overstates its
+    # own privacy. The output looks identical either way, so a
+    # check on the matrix's shape passes on the broken version.
+    # The observable is the noise MAGNITUDE, measured across
+    # seeds on a fixed input.
+    _fixedX = np.random.default_rng(0).normal(0, 1, (400, 3))
+    _off = [DP.dp_gaussian_fit(_fixedX, 2.0, 1e-5, unit="row",
+                               clip=3.0, seed=_s).cov[0, 1]
+            for _s in range(400)]
+    _emp = float(np.std(_off))
+    _pred = (9.0 * math.sqrt(2.0 * math.log(1.25 / 5e-6))
+             / 1.0) / 400.0
+    check("...and the off-diagonal noise is the FULL scale the "
+          "sensitivity analysis assumes: empirical sd {:.4f} "
+          "against a predicted {:.4f}, where symmetrising "
+          "independent draws afterwards would give {:.4f} - a "
+          "factor of sqrt(2) LESS noise than the epsilon "
+          "claims, which is a mechanism overstating its own "
+          "privacy while looking identical"
+          .format(_emp, _pred, _pred / math.sqrt(2.0)),
+          abs(_emp - _pred) < 0.15 * _pred
+          and _emp > _pred / math.sqrt(2.0) * 1.15)
+    _wide = np.random.default_rng(4).normal(0, 1, (300, 24))
+    _wg = DP.dp_gaussian_fit(_wide, 1.0, 1e-5, unit="row",
+                             seed=0)
+    check("...and the floor REPORTS when it fires ({} "
+          "eigenvalue(s) at 24 dimensions against 0 at two), "
+          "because a large repair means the budget is small for "
+          "this width and the caller should hear that rather "
+          "than receive a plausible cloud"
+          .format(_wg.report["eigenvalues_floored"]),
+          _wg.report["eigenvalues_floored"] >= 3
+          and _gg.report["eigenvalues_floored"] == 0
+          and "floored" in _wg.report["note"])
+
+    # THE DROP-IN CONTRACT, READ RATHER THAN ASSUMED.
+    _lc = io.open(str(ROOT / "scripts" / "latent_challenger.py"),
+                  encoding="utf-8").read()
+    _sites = [ln for ln in _lc.splitlines()
+              if ".sample(" in ln and "gmm" in ln]
+    check("the sampler is a DROP-IN for the mixture: all {} "
+          "call sites in the engine discard the second element "
+          "({}), so returning (points, None) where "
+          "GaussianMixture returns (points, labels) is safe - "
+          "verified by READING the call sites, and the existing "
+          "_OneCloud stand-in already returns None"
+          .format(len(_sites),
+                  ", ".join(s.strip()[:22] for s in _sites)),
+          len(_sites) == 3
+          and all(", _ = " in s for s in _sites))
+    _pts, _lab = DP.dp_gaussian_fit(_X, 3.0, 1e-5,
+                                    unit="row").sample(50)
+    check("...and it honours that shape: a 2-tuple whose first "
+          "element is (50, {}) and whose second is None",
+          _pts.shape == (50, _X.shape[1]) and _lab is None)
+
+    # AND THE SCRIPT STATES WHAT IT DID NOT MEASURE.
+    _dmc = io.open(str(ROOT / "scripts" / "dp_mixture_cost.py"),
+                   encoding="utf-8").read()
+    check("the cost script says the REAL latent cloud's "
+          "lumpiness is unmeasured and that its fixture was "
+          "built lumpy on purpose - otherwise a 20x gap figure "
+          "reads as a statement about the extract",
+          "NOT measured" in _dmc
+          and "built lumpy on purpose" in _dmc
+          and "property of the cohort" in _dmc)
+    check("...and that DP-EM was rejected with a reason rather "
+          "than omitted - every iteration is a release and they "
+          "compose, which is the same accounting the training "
+          "epsilon already pays per step",
+          "DP-EM IS NOT THE ROUTE" in io.open(
+              str(ROOT / "synthkit" / "dp.py"),
+              encoding="utf-8").read())
+
     print()
     if FAIL:
         print("{} FAILED".format(FAIL))

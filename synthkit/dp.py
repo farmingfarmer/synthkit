@@ -516,6 +516,161 @@ def dp_bounds(values, epsilon: float, lo: float, hi: float,
                 "a factor of two"}
 
 
+# ---------------------------------------------------------------
+# THE LAST UNACCOUNTED STAGE: THE LATENT MIXTURE (DP-3)
+#
+# Four of the five stages are counts or quantiles and have
+# mechanisms above. The fifth is a GaussianMixture fitted on
+# latent codes of real rows, and it is different in kind: not a
+# query with a scalar answer but a density estimate.
+#
+# DP-EM IS NOT THE ROUTE HERE. Every EM iteration is a release
+# and they compose, so a mixture fitted to convergence spends a
+# budget proportional to the iteration count - and this project
+# already measured what a per-step budget does to utility when
+# it accounted the training. What is affordable is a SINGLE
+# release: clip the codes, publish a noisy mean and a noisy
+# covariance, and sample a Gaussian from them. One Gaussian
+# where there was a mixture.
+#
+# THAT COSTS MULTIMODALITY AND THE COST IS THE DELIVERABLE. A
+# mixture exists because the latent cloud is lumpy; replacing it
+# with one Gaussian fills in the gaps between lumps. Whether
+# that matters is a measurement, not an argument, so
+# `dp_mixture_cost.py` makes it and this function is written to
+# be a drop-in for the existing `_mixture` so the two can be
+# compared through the real generate path.
+#
+# AND WHOSE PRIVACY IT IS DEPENDS ENTIRELY ON WHAT IS PASSED IN.
+# The engine fits three mixtures: one over patient CENTRES - one
+# point per patient, so patient-level sensitivity by
+# construction - and two over ROW codes, where one patient
+# contributes many points and the guarantee is per-ROW unless
+# the caller has clipped per patient. That distinction is the
+# whole guarantee, so it is a required argument rather than a
+# default, and the report states which one was claimed.
+class DPGaussian(object):
+    """A Gaussian fitted under DP, with the `_mixture` interface.
+
+    `sample(n)` returns `(points, None)` exactly as
+    `GaussianMixture.sample` does, so this substitutes without
+    the caller knowing - which is what makes the cost
+    measurable through the real path instead of a reimplemented
+    one.
+    """
+
+    def __init__(self, mean, cov, report, seed=0):
+        self.mean = np.asarray(mean, dtype=float)
+        self.cov = np.asarray(cov, dtype=float)
+        self.report = report
+        self._seed = int(seed)
+
+    def sample(self, n):
+        rng = np.random.default_rng(self._seed)
+        pts = rng.multivariate_normal(self.mean, self.cov,
+                                      size=int(n),
+                                      method="eigh")
+        return pts, None
+
+
+def dp_gaussian_fit(X, epsilon: float, delta: float,
+                    unit: str, clip: Optional[float] = None,
+                    seed: int = 0) -> DPGaussian:
+    """Mean and covariance of `X`, released under DP.
+
+    `unit` must be "patient" or "row" and is REQUIRED: it is
+    the whole content of the guarantee. Pass "patient" only
+    when each row of `X` is one patient (the engine's patient
+    centres are exactly that); pass "row" for per-row codes,
+    where one patient contributes many points and the claim is
+    correspondingly weaker.
+
+    `clip` is the L2 norm each point is clipped to, and it is
+    the sensitivity. Default is the 95th percentile of the
+    observed norms, which is itself a query on the data - so
+    when it is defaulted the report SAYS the clip was data-
+    dependent and that a release would want it fixed in
+    advance. A sensitivity chosen from the data is the kind of
+    detail that makes a published epsilon wrong.
+    """
+    if unit not in ("patient", "row"):
+        raise ValueError("unit must be 'patient' or 'row' - it "
+                         "is the content of the guarantee, not "
+                         "a label")
+    X = np.atleast_2d(np.asarray(X, dtype=float))
+    n, d = X.shape
+    if n < 2:
+        raise ValueError("need at least two points")
+    norms = np.sqrt((X * X).sum(axis=1))
+    data_dependent = clip is None
+    if clip is None:
+        clip = float(np.quantile(norms, 0.95))
+    clip = max(float(clip), 1e-9)
+    Xc = X * np.minimum(1.0, clip / np.maximum(norms, 1e-12)
+                        )[:, None]
+
+    # THE BUDGET SPLITS ACROSS MEAN AND COVARIANCE. Two
+    # releases, so eps/2 each - the same arithmetic as
+    # `dp_bounds`, and passing the full epsilon to both would
+    # understate the cost by a factor of two.
+    half_e, half_d = float(epsilon) / 2.0, float(delta) / 2.0
+    rng = np.random.default_rng(seed)
+
+    # A single point moves the SUM by at most `clip` in L2.
+    s_mean = clip * math.sqrt(2.0 * math.log(1.25 / half_d)) \
+        / half_e
+    mean = (Xc.sum(axis=0) + rng.normal(0.0, s_mean, d)) / n
+
+    # ...and the SUM OF OUTER PRODUCTS by at most clip^2 in
+    # Frobenius norm. The noise must be SYMMETRIC or the result
+    # is not a covariance at all, which is why the upper
+    # triangle is drawn and mirrored rather than a full matrix
+    # of independent draws.
+    s_cov = (clip * clip) * math.sqrt(
+        2.0 * math.log(1.25 / half_d)) / half_e
+    gram = Xc.T @ Xc
+    noise = rng.normal(0.0, s_cov, (d, d))
+    noise = np.triu(noise) + np.triu(noise, 1).T
+    cov = (gram + noise) / n - np.outer(mean, mean)
+
+    # A NOISED COVARIANCE NEED NOT BE POSITIVE SEMI-DEFINITE,
+    # and sampling from one that is not either raises or
+    # silently returns nonsense. The eigenvalues are floored at
+    # a small positive value and the repair is REPORTED, because
+    # a large repair means the budget was too small for this
+    # width and the caller should know rather than receive a
+    # plausible cloud.
+    w, V = np.linalg.eigh((cov + cov.T) / 2.0)
+    floor = 1e-6 * max(float(np.max(np.abs(w))), 1.0)
+    n_fixed = int((w < floor).sum())
+    w = np.maximum(w, floor)
+    cov = (V * w) @ V.T
+
+    return DPGaussian(mean, cov, {
+        "mechanism": "DP Gaussian (noisy mean and covariance)",
+        "epsilon": float(epsilon), "delta": float(delta),
+        "each": half_e, "unit": unit, "clip": clip,
+        "points": int(n), "dim": int(d),
+        "clip_was_data_dependent": bool(data_dependent),
+        "eigenvalues_floored": n_fixed,
+        "note": "ONE Gaussian where the engine fits a MIXTURE, "
+                "so multimodality in the latent cloud is lost - "
+                "measured by dp_mixture_cost.py rather than "
+                "argued. The guarantee is per-{} because that "
+                "is what was passed in.{}{}".format(
+                    unit,
+                    " The clip was taken from the data (95th "
+                    "percentile of the norms), which is itself "
+                    "a query - a release would fix it in "
+                    "advance."
+                    if data_dependent else "",
+                    " {} eigenvalue(s) were floored to keep the "
+                    "covariance sampleable, which means the "
+                    "budget is small for this width.".format(
+                        n_fixed) if n_fixed else "")},
+        seed=seed)
+
+
 def _relu(a):
     return np.maximum(a, 0.0)
 
