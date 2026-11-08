@@ -94,6 +94,12 @@ def full_artifacts(td):
     return mem, att, scope, lkg
 
 
+def _h(t):
+    """html-escaped, as the renderer escapes it."""
+    import html as _html
+    return _html.escape("" if t is None else str(t))
+
+
 def main():
     # ---- 1. THE FIELD NAMES, AGAINST A LIVE CALL
     import membership_new_path as MN
@@ -729,6 +735,67 @@ def main():
           "aggregates" not in DET.assess(blueprint={
               "columns": {},
               "bounds_are_k_anonymous": True})["elements_owed"])
+
+    # ---- THE PACKAGE AS A PAGE
+    #
+    # The person deciding whether to seek a determination will
+    # not run a CLI. This project's own lesson: the
+    # reconstruction gap lived in a terminal and a JSON file
+    # until somebody asked why nothing SHOWED it.
+    #
+    # THE LOAD-BEARING CHECK IS THAT THE PAGE AND THE TERMINAL
+    # CANNOT DISAGREE about what is owed - a governance document
+    # whose two renderings say different things is worse than
+    # either alone - and that the refusal is unmissable.
+    _pg = DET.render_html(_bare)
+    _pg_full = DET.render_html(_full)
+    check("the package renders as a self-contained page ({:,} "
+          "bytes, no network) - the person deciding whether to "
+          "seek a determination will not run a CLI"
+          .format(len(_pg)),
+          len(_pg) > 4000
+          and "<!DOCTYPE html>" in _pg
+          and "http://" not in _pg and "https://" not in _pg)
+    # ...and this check uses `find`, not `index`: removing the
+    # refusal altogether made `index` RAISE, so the suite
+    # crashed with a traceback and no `FAIL:` line - the
+    # crashed-suite shape this project records as
+    # indistinguishable from a check that never ran. `find`
+    # returns -1 and the comparison then fails properly.
+    _i_ref = _pg.find("not a determination")
+    _i_tal = _pg.find("elements have evidence")
+    check("...and the REFUSAL comes first, before the tally "
+          "(at {} against {}), so a reader who skims cannot "
+          "mistake it for a determination"
+          .format(_i_ref, _i_tal),
+          _i_ref >= 0 and _i_tal >= 0 and _i_ref < _i_tal)
+    check("...and every NOT_A_DETERMINATION statement is on the "
+          "page, from the same tuple `plain()` uses, so the two "
+          "renderings cannot disagree",
+          all(line in _pg for line in DET.NOT_A_DETERMINATION))
+    check("...and so is every element, with its status, its "
+          "evidence and WHY it is asked - {} rows"
+          .format(len(DET.ELEMENTS)),
+          all(_h(e["need"]) in _pg and _h(e["evidence"]) in _pg
+              for e in DET.ELEMENTS))
+    check("...and the OWED list on the page is the SAME list "
+          "the terminal prints ({}), which is the one thing a "
+          "governance page must not get wrong"
+          .format(", ".join(_bare["elements_owed"])),
+          all(k in _pg for k in _bare["elements_owed"])
+          and "Still owed" in _pg)
+    check("...and a READY package says READINESS on the page "
+          "too, not anything stronger",
+          "readiness" in _pg_full.lower()
+          and "qualified" in _pg_full.lower()
+          and "Still owed" not in _pg_full)
+    _pg_scope = DET.render_html(_r_real)
+    check("...and the two scope faults each get their own FIX "
+          "on the page - FIXTURE says re-run on this cohort, "
+          "CONFIG says re-run at these settings - because they "
+          "take different actions",
+          "Out of scope" in _pg_scope
+          and "re-run it on this cohort" in _pg_scope)
 
     print()
     if FAIL:

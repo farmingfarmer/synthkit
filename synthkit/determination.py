@@ -578,3 +578,175 @@ def plain(report: Dict[str, Any]) -> List[str]:
                    "determination is still")
         out.append("  a qualified person's to make.")
     return out
+
+
+# ---------------------------------------------------------------
+# THE PACKAGE AS A PAGE
+#
+# This project's own lesson: a measurement that never reaches a
+# page might as well not exist for the person deciding. The
+# reconstruction gap lived in a terminal and a JSON file until
+# somebody asked why nothing SHOWS how training and held-out
+# error compare - and this is the most governance-facing
+# artifact here, read by somebody deciding whether to seek a
+# determination, who will not run a CLI.
+#
+# ONE renderer's worth of words is shared with `plain()` through
+# ELEMENTS and NOT_A_DETERMINATION, so the page and the terminal
+# cannot disagree about what is owed. That is the rule the
+# gate's NEXT_STEPS already follow.
+
+INK = "#1d1d1f"
+GRAY = "#6e6e73"
+RED = "#8c1515"
+AMBER = "#8a6100"
+GREEN = "#2e7d55"
+RULE = "#e3e3e6"
+
+_CSS = """
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',
+  Helvetica,Arial,sans-serif;color:%(ink)s;background:#fff;
+  margin:0;font-size:14px;line-height:1.55}
+.wrap{max-width:900px;margin:0 auto;padding:48px 32px}
+h1{font-size:26px;font-weight:700;letter-spacing:-.02em;
+  margin:0}
+h2{font-size:17px;font-weight:700;margin:34px 0 8px;
+  padding-top:18px;border-top:1px solid %(rule)s}
+.sub{color:%(gray)s;margin:6px 0 0}
+.warn{background:#fdf6f6;border-left:3px solid %(red)s;
+  padding:12px 16px;margin:18px 0;font-size:13.5px}
+.warn b{display:block;margin-bottom:4px}
+.tally{font-size:20px;font-weight:750;margin:14px 0 2px}
+table{border-collapse:collapse;width:100%%;font-size:13px;
+  margin:10px 0}
+th{font-weight:600;text-align:left;color:%(gray)s;
+  border-bottom:1px solid %(rule)s;padding:6px 14px 6px 0}
+td{border-bottom:1px solid #f2f2f4;padding:8px 14px 8px 0;
+  vertical-align:top}
+.st{font-weight:700;font-size:11.5px;white-space:nowrap;
+  padding:3px 8px;border-radius:5px}
+.st.ok{background:#eef6f1;color:%(green)s}
+.st.owed{background:#fdeeee;color:%(red)s}
+.st.other{background:#fdf6ea;color:%(amber)s}
+.why{color:%(gray)s;font-size:12.5px;margin-top:5px}
+.ev{font-size:12.5px}
+.note{color:%(gray)s;font-size:12.5px;margin-top:14px}
+code{background:#f5f5f7;padding:1px 4px;border-radius:3px;
+  font-size:12px}
+"""
+
+
+def _esc(t):
+    import html as _h
+    return _h.escape("" if t is None else str(t))
+
+
+def render_html(report, title="HIPAA Expert Determination"):
+    """The package as a self-contained page.
+
+    Takes the SAME report `plain()` takes, so the two cannot
+    disagree about what is present and what is owed - a
+    governance document whose page and whose terminal say
+    different things is worse than either alone.
+    """
+    css = _CSS % {"ink": INK, "gray": GRAY, "red": RED,
+                  "amber": AMBER, "green": GREEN, "rule": RULE}
+    out = ["<!DOCTYPE html><html><head><meta charset='utf-8'>",
+           "<meta name='viewport' content='width=device-width,"
+           "initial-scale=1'>",
+           "<title>", _esc(title), " - evidence package</title>",
+           "<style>", css, "</style></head><body>",
+           "<div class='wrap'>",
+           "<h1>", _esc(title), " &mdash; evidence package</h1>",
+           "<p class='sub'>Assembled from a run's own artifacts. "
+           "Nothing here is recomputed.</p>"]
+
+    # THE REFUSAL FIRST, because a reader who skims must not be
+    # able to mistake this for a determination.
+    out.append("<div class='warn'><b>This is not a "
+               "determination.</b>")
+    out.append("<ul style='margin:6px 0 0;padding-left:18px'>")
+    for line in report.get("not_a_determination", []):
+        out.append("<li>" + _esc(line) + "</li>")
+    out.append("</ul></div>")
+
+    n_have = report.get("elements_present")
+    n_all = report.get("elements_total")
+    out.append("<div class='tally'>{} of {} elements have "
+               "evidence in this run</div>".format(n_have, n_all))
+    if report.get("ready"):
+        out.append("<p class='sub'>That is <b>readiness</b>, not "
+                   "a determination. The determination in "
+                   "164.514(b)(1) is made by a qualified "
+                   "person.</p>")
+    else:
+        out.append("<p class='sub'>An element marked OWED has no "
+                   "evidence in this run &mdash; an expert asked "
+                   "to sign against it would be signing against "
+                   "nothing.</p>")
+
+    out.append("<h2>The statute</h2>")
+    out.append("<p class='ev'>" + _esc(report.get("statute"))
+               + "</p>")
+
+    out.append("<h2>The elements</h2>")
+    out.append("<table><tr><th>status</th><th>what the "
+               "regulation asks</th><th>the evidence, and why "
+               "it is asked</th></tr>")
+    for el in report.get("elements", []):
+        st = el.get("status", "OWED")
+        cls = ("ok" if st == "present"
+               else "owed" if st == "OWED" else "other")
+        out.append("<tr><td><span class='st {}'>{}</span></td>"
+                   .format(cls, _esc(st)))
+        out.append("<td><b>" + _esc(el.get("need")) + "</b></td>")
+        out.append("<td class='ev'>" + _esc(el.get("evidence"))
+                   + "<div class='why'>" + _esc(el.get("why"))
+                   + "</div></td></tr>")
+    out.append("</table>")
+
+    # THE TWO SCOPE FAULTS, each with its own fix, because they
+    # take different actions.
+    if report.get("elements_elsewhere"):
+        out.append("<h2>Out of scope</h2>")
+        out.append("<table><tr><th>element</th><th>status</th>"
+                   "<th>what to do</th></tr>")
+        for el in report["elements"]:
+            if not el.get("measured_elsewhere"):
+                continue
+            st = el.get("status")
+            fix = ("re-run it on this cohort"
+                   if st == "FIXTURE"
+                   else "re-run it at these settings")
+            out.append("<tr><td>" + _esc(el.get("key"))
+                       + "</td><td><span class='st other'>"
+                       + _esc(st) + "</span></td><td>"
+                       + _esc(fix) + "</td></tr>")
+        out.append("</table>")
+        out.append("<p class='note'>FIXTURE means the "
+                   "measurement was made on another dataset; "
+                   "CONFIG means it was made on this data under "
+                   "different caps. A determination is scoped to "
+                   "one release, so neither counts toward "
+                   "readiness.</p>")
+    if report.get("scope_unverifiable"):
+        out.append("<h2>Scope not checkable</h2>")
+        out.append("<p class='ev'>" + _esc(", ".join(
+            report["scope_unverifiable"]))
+            + "</p><p class='note'>These records name no source, "
+              "so whether they were measured on this cohort "
+              "could not be checked at all. A record predating "
+              "the field cannot be judged on it &mdash; absent "
+              "is not the same fact as mismatched &mdash; but "
+              "neither is it confirmation.</p>")
+
+    if report.get("elements_owed"):
+        out.append("<h2>Still owed</h2>")
+        out.append("<p class='ev'><code>"
+                   + _esc(", ".join(report["elements_owed"]))
+                   + "</code></p>")
+        out.append("<p class='note'>Assemble these before "
+                   "seeking a determination.</p>")
+
+    out.append("</div></body></html>")
+    return "".join(out)

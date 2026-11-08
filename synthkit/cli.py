@@ -702,6 +702,16 @@ def cmd_determination(args) -> int:
         _json.dump(rep, fh, indent=2, default=str)
     print("")
     print("wrote {}".format(dest))
+    # AND THE PAGE, because the person deciding whether to seek
+    # a determination will not run a CLI - this project's own
+    # lesson about the reconstruction gap, which lived in a
+    # terminal until somebody asked why nothing SHOWED it.
+    if args.html:
+        html = _det.render_html(rep)
+        with open(args.html, "w") as fh:
+            fh.write(html)
+        print("wrote {} ({:,} bytes)".format(args.html,
+                                             len(html)))
     # A NON-ZERO EXIT ON AN INCOMPLETE PACKAGE. The same
     # reasoning as `scrub --apply` refusing when a fresh detect
     # still finds something: a document that says it is ready
@@ -1808,6 +1818,11 @@ def main(argv=None) -> int:
                    help="a WRITTEN scope and residual-risk "
                         "statement; residual risk is the one "
                         "element a run cannot supply")
+    p.add_argument("--html", default=None, metavar="FILE",
+                   help="also write the package as a "
+                        "self-contained page, for the person "
+                        "deciding whether to seek a "
+                        "determination")
     p.add_argument("--scrubbed", action="store_true",
                    help="the source went through `synthkit "
                         "scrub`, so the Safe Harbor inventory "
