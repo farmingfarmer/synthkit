@@ -364,6 +364,116 @@ def main():
           "units of the sensitive column's own" in out
           and "population structure" in out)
 
+    # ---- THE SCAN: FINDING THE WINDOW IS A SEARCH
+    #
+    # On the real extract the measurement failed at BOTH ends
+    # and for different reasons - coarse bands left a verbatim
+    # republish undetectable (+0.0108, under the floor), fine
+    # bands left the honest arm with nothing scored - and
+    # finding the window between them by hand costs a round trip
+    # per guess to the machine that holds the extract.
+    import linkage_risk as LR
+
+    def _frame(n, seed, rows_per=1):
+        r = np.random.default_rng(seed)
+        m = n * rows_per
+        sex = r.integers(0, 2, m)
+        site = r.integers(0, 4, m)
+        age = r.normal(60, 12, m)
+        hb = (13.5 - 1.2 * sex + 0.02 * (age - 60)
+              + 0.3 * site + r.normal(0, 0.9, m))
+        return pd.DataFrame({
+            "person_id": ["P{:05d}".format(i // rows_per)
+                          for i in range(m)],
+            # sex and site as STRINGS, so the ladder matches
+            # them exactly and only bands what it can cut
+            "sex": np.where(sex == 1, "F", "M"),
+            "site": ["s{}".format(x) for x in site],
+            "age": age.round(1), "hb": hb.round(2)})
+
+    with tempfile.TemporaryDirectory() as _std:
+        _s1 = os.path.join(_std, "src.csv")
+        _r1 = os.path.join(_std, "rel.csv")
+        _frame(1000, 1).to_csv(_s1, index=False)
+        _frame(1500, 9).to_csv(_r1, index=False)
+        _base = [sys.executable,
+                 str(ROOT / "scripts" / "linkage_risk.py")]
+        _found = subprocess.run(
+            _base + [_s1, _r1, "--quasi", "sex,site,age",
+                     "--sensitive", "hb", "--scan"],
+            capture_output=True, text=True, cwd=str(ROOT))
+        # ...and a cohort where NO arrangement works: three
+        # rows per person, every quasi numeric so the ladder
+        # bands them all, which is the shape the real extract
+        # produced.
+        _s2 = os.path.join(_std, "src2.csv")
+        _r2 = os.path.join(_std, "rel2.csv")
+        _f2 = _frame(1500, 1, rows_per=3)
+        _f2["sex"] = (_f2["sex"] == "F").astype(int)
+        _f2["site"] = _f2["site"].str[1:].astype(int)
+        _f2.to_csv(_s2, index=False)
+        _g2 = _frame(1500, 9, rows_per=3)
+        _g2["sex"] = (_g2["sex"] == "F").astype(int)
+        _g2["site"] = _g2["site"].str[1:].astype(int)
+        _g2.to_csv(_r2, index=False)
+        _none = subprocess.run(
+            _base + [_s2, _r2, "--quasi", "sex,site,age",
+                     "--sensitive", "hb", "--scan"],
+            capture_output=True, text=True, cwd=str(ROOT))
+        _allcat = subprocess.run(
+            _base + [_s1, _r1, "--quasi", "sex,site",
+                     "--sensitive", "hb", "--scan"],
+            capture_output=True, text=True, cwd=str(ROOT))
+
+    check("`--scan` walks arrangements coarse to fine and FINDS "
+          "a usable one where the cohort allows it, exit {} - "
+          "which is a search rather than a guess, and each "
+          "guess by hand costs a round trip to the machine that "
+          "holds the extract".format(_found.returncode),
+          _found.returncode == 0
+          and "MOST SENSITIVE USABLE" in _found.stdout
+          and _found.stdout.count("CLEAN") >= 2)
+    check("...and it picks the MOST SENSITIVE one, not the "
+          "first. The control's excess IS the sensitivity - "
+          "what a verbatim republish achieves under those bands "
+          "- so the largest is the test most able to see a real "
+          "leak. The first version returned the coarsest and "
+          "so the weakest available",
+          "16 bands" in _found.stdout
+          and "LARGEST" in _found.stdout)
+    check("...and where NO arrangement is usable it says so as "
+          "a finding about the COHORT, exit {}, rather than "
+          "reporting the least-bad number as clean"
+          .format(_none.returncode),
+          _none.returncode == 3
+          and "NO ARRANGEMENT IN THIS LADDER IS USABLE"
+          in _none.stdout
+          and "not a" in _none.stdout
+          and "stays OWED" in _none.stdout)
+    check("...and both ends of the trade are PRINTED per "
+          "arrangement, so a reader sees why it failed rather "
+          "than a verdict - selections, honest rows scored, the "
+          "control's excess and the honest excess",
+          all(h in _none.stdout for h in
+              ("selections", "scored", "control", "honest"))
+          and _none.stdout.count("UNREADABLE") >= 3)
+    check("...and it REFUSES when nothing can be banded, "
+          "because the ladder only moves numeric columns and "
+          "would otherwise report seven identical rows as a "
+          "search",
+          _allcat.returncode == 2
+          and "at least one quasi" in _allcat.stderr
+          and "Traceback" not in _allcat.stderr)
+    check("the ladder crosses the MIDDLE rather than jumping "
+          "between the two values somebody tried by hand "
+          "({}) - the real extract failed at 2-ish bands and at "
+          "13-ish, and the window is between"
+          .format(", ".join(str(b) for b in LR.BAND_STEPS)),
+          len(LR.BAND_STEPS) >= 5
+          and min(LR.BAND_STEPS) <= 2
+          and max(LR.BAND_STEPS) >= 12
+          and list(LR.BAND_STEPS) == sorted(LR.BAND_STEPS))
+
     print()
     if FAIL:
         print("{} of {} checks failed.".format(FAIL, PASS + FAIL))

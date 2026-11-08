@@ -51,10 +51,101 @@ sys.path.insert(0, ROOT)
 from synthkit import linkage as LK                     # noqa: E402
 from synthkit.intake import read_table                 # noqa: E402
 
+# HOW MANY BANDS EACH NUMERIC QUASI-IDENTIFIER IS CUT INTO, from
+# coarse to fine. The real extract failed at BOTH ends - 2 bands
+# left a republish undetectable, ~13 left the honest arm with
+# nothing scored - so the ladder has to cross the middle rather
+# than jump between the two values somebody tried by hand.
+BAND_STEPS = (2, 3, 4, 6, 8, 12, 16)
+
 
 def _rows(df, cols):
     keep = [c for c in cols if c in df.columns]
     return df[keep].to_dict("records")
+
+
+def scan(mem, non, rel_rows, quasi, sensitive, numeric_quasi,
+         lo, hi, say=print):
+    """Walk bandings coarse to fine, reporting what each does.
+
+    The two failure modes sit at OPPOSITE ends and the window
+    between them is what this looks for:
+
+      too COARSE -> each selection holds so many released rows
+          that a verbatim republish averages the target's own
+          value away. The control excess falls under the floor
+          and the measurement has no power.
+      too FINE -> no member's combination has as many as
+          MIN_SELECTION matching released rows, so the honest
+          arm scores nothing and there is nothing to measure.
+
+    `numeric_quasi` are banded at increasing resolution; the
+    others are matched exactly throughout. Returns one row per
+    arrangement, in order, so a reader sees the trade rather
+    than a single verdict.
+    """
+    rows = []
+    for nb in BAND_STEPS:
+        bands = {}
+        for q in numeric_quasi:
+            if q not in lo or q not in hi or nb < 2:
+                continue
+            step = (hi[q] - lo[q]) / float(nb)
+            if step <= 0:
+                continue
+            bands[q] = [lo[q] + step * i for i in range(1, nb)]
+        res = LK.with_control(mem, non, rel_rows, quasi,
+                              sensitive, bands)
+        h, c = res["honest"], res["control"]
+        rows.append({
+            "bands_per_numeric": nb,
+            "selections": h.get("selections"),
+            "honest_scored": (h.get("members") or {}
+                              ).get("n_scored"),
+            "control_excess": c.get("excess_in_sd"),
+            "honest_excess": h.get("excess_in_sd"),
+            "powered": res.get("powered"),
+            "verdict": res.get("verdict"),
+            "why": res.get("why"),
+            "share_of_control": res.get("share_of_control"),
+        })
+        say("{:>6} {:>12} {:>9} {:>12} {:>12}   {}".format(
+            nb, rows[-1]["selections"],
+            rows[-1]["honest_scored"],
+            "-" if rows[-1]["control_excess"] is None
+            else "{:+.4f}".format(rows[-1]["control_excess"]),
+            "-" if rows[-1]["honest_excess"] is None
+            else "{:+.4f}".format(rows[-1]["honest_excess"]),
+            rows[-1]["verdict"]))
+    return rows
+
+
+def usable(rows):
+    """The MOST SENSITIVE arrangement that is both powered and
+    scores the honest arm - or None, which is a finding about
+    the cohort and not a failure of the tool.
+
+    THE FIRST VERSION TOOK THE FIRST ONE, which is the COARSEST
+    and therefore the LEAST able to detect a leak. On a fixture
+    where every step qualified it returned the arrangement whose
+    control reached +0.0556 and ignored one reaching +0.0883 -
+    choosing the weakest test available, which is the opposite
+    of what a privacy measurement should do when it has a
+    choice.
+
+    The control's excess IS the sensitivity: it is what a
+    verbatim republish - the worst generator there is - achieves
+    under those bands, so a larger one means a smaller real leak
+    would still show. Ties break toward more scored rows,
+    because an arrangement that measures more members is the
+    better of two equally sensitive ones.
+    """
+    ok = [r for r in rows
+          if r["powered"] and (r["honest_scored"] or 0) > 0]
+    if not ok:
+        return None
+    return max(ok, key=lambda r: (r["control_excess"] or 0.0,
+                                  r["honest_scored"] or 0))
 
 
 def main():
@@ -76,6 +167,29 @@ def main():
                          "matches almost nothing, which would "
                          "read as SAFETY")
     ap.add_argument("--seed", type=int, default=0)
+    # FINDING THE WINDOW IS A SEARCH, NOT A GUESS.
+    #
+    # On the real extract the measurement failed at BOTH ends
+    # and for different reasons: coarse bands gave 36
+    # selections of ~1,500 released rows each, where a verbatim
+    # republish averages the target's own value with 1,499
+    # others and the control reached only +0.0108 - under the
+    # floor, so undetectable. Fine bands gave 1,852 selections
+    # and the HONEST arm scored zero, because no member's
+    # combination had five matching released rows.
+    #
+    # There is a window between those, and finding it by hand
+    # costs a round trip per guess to the machine that holds
+    # the extract. `--scan` walks arrangements from coarse to
+    # fine, reports what each one does, and NAMES the first
+    # that is both powered and scores the honest arm - or says
+    # plainly that none is, which is a finding about the cohort
+    # rather than a failure of the tool.
+    ap.add_argument("--scan", action="store_true",
+                    help="try arrangements from coarse to fine "
+                         "and report which (if any) yields a "
+                         "measurement with power AND a scored "
+                         "honest arm")
     ap.add_argument("-o", "--out", default=None, metavar="JSON")
     a = ap.parse_args()
 
@@ -135,6 +249,80 @@ def main():
             ", ".join(sorted(bands)))))
     print("sensitive: {}".format(a.sensitive))
     print("")
+
+    if a.scan:
+        # WHICH quasi-identifiers can be banded at all: a
+        # column that does not coerce to numbers is matched
+        # exactly at every step, so the ladder only moves the
+        # ones it can actually cut.
+        numeric_q, lo, hi = [], {}, {}
+        for q in quasi:
+            v = pd.to_numeric(src[q], errors="coerce")
+            if v.notna().mean() < 0.5:
+                continue
+            numeric_q.append(q)
+            lo[q] = float(v.quantile(0.01))
+            hi[q] = float(v.quantile(0.99))
+        if not numeric_q:
+            print("STOPPED: --scan needs at least one quasi-"
+                  "identifier that coerces to numbers; it bands "
+                  "those and matches the rest exactly. All of "
+                  "{} are categorical.".format(quasi),
+                  file=sys.stderr)
+            return 2
+        print("SCANNING ARRANGEMENTS, coarse to fine")
+        print("banding {} ; matching {} exactly".format(
+            ", ".join(numeric_q),
+            ", ".join(q for q in quasi
+                      if q not in numeric_q) or "(none)"))
+        print("a measurement is usable only when it has POWER "
+              "(a republish is detectable) AND the honest arm "
+              "scores rows.")
+        print()
+        print("{:>6} {:>12} {:>9} {:>12} {:>12}   {}".format(
+            "bands", "selections", "scored", "control", "honest",
+            "verdict"))
+        rows = scan(mem, non, rel_rows, quasi, a.sensitive,
+                    numeric_q, lo, hi)
+        win = usable(rows)
+        print()
+        if win:
+            print("MOST SENSITIVE USABLE arrangement - {} "
+                  "bands per numeric quasi-identifier: {} "
+                  "selections, control {:+.4f}, honest {:+.4f} "
+                  "({})".format(
+                      win["bands_per_numeric"],
+                      win["selections"], win["control_excess"],
+                      win["honest_excess"], win["verdict"]))
+            print("The control's excess IS the sensitivity - "
+                  "it is what a verbatim republish achieves "
+                  "under these bands - so the")
+            print("arrangement with the LARGEST one is the test "
+                  "most able to see a real leak. Re-run without "
+                  "--scan at that")
+            print("resolution to get the record.")
+        else:
+            print("NO ARRANGEMENT IN THIS LADDER IS USABLE. "
+                  "That is a finding about this cohort, not a "
+                  "failure of the")
+            print("tool: at coarse bands a verbatim republish "
+                  "is undetectable, and at fine bands no "
+                  "member's combination")
+            print("has {} matching released rows. The linkage "
+                  "element stays OWED, and it stays owed for a "
+                  "stated reason.".format(LK.MIN_SELECTION))
+        if a.out:
+            with open(a.out, "w") as fh:
+                fh.write(json.dumps(
+                    {"scan": rows, "usable": win,
+                     "quasi": quasi, "banded": numeric_q,
+                     "sensitive": a.sensitive,
+                     "source": str(a.src),
+                     "released": str(a.released)},
+                    indent=1, default=str))
+            print("")
+            print("wrote {}".format(a.out))
+        return 0 if win else 3
 
     res = LK.with_control(mem, non, rel_rows, quasi,
                           a.sensitive, bands)
