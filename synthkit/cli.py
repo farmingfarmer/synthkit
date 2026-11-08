@@ -680,6 +680,8 @@ def cmd_determination(args) -> int:
                     if args.membership else None),
         attribute=(_read_path(args.attribute)
                    if args.attribute else None),
+        linkage=(_read_path(args.linkage)
+                 if args.linkage else None),
         scrub_inventory=inv,
         scope=scope,
         # The run's own source, so evidence measured on a
@@ -1796,6 +1798,12 @@ def main(argv=None) -> int:
     p.add_argument("--attribute", default=None, metavar="JSON",
                    help="output of "
                         "scripts/attribute_disclosure.py -o FILE")
+    p.add_argument("--linkage", default=None, metavar="JSON",
+                   help="output of scripts/linkage_risk.py -o "
+                        "FILE - the statute's 'in COMBINATION "
+                        "with other reasonably available "
+                        "information' half, which the two "
+                        "attack adversaries do not cover")
     p.add_argument("--scope", default=None, metavar="FILE",
                    help="a WRITTEN scope and residual-risk "
                         "statement; residual risk is the one "

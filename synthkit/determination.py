@@ -96,14 +96,35 @@ ELEMENTS: Tuple[Dict[str, Any], ...] = (
             "finds nothing is a clean bill for whatever it "
             "LOOKS AT."},
     {"key": "threat_model",
-     "need": "The anticipated recipient and the information "
-             "reasonably available to them",
+     "need": "The anticipated recipient and what they can see "
+             "of the release itself",
      "evidence": "the attack battery's two adversaries - one "
                  "that sees only GENERATED ROWS, and one that "
-                 "assumes the trained WEIGHTS leaked",
+                 "assumes the trained WEIGHTS leaked. NEITHER "
+                 "holds external data; that is the `linkage` "
+                 "element below",
      "why": "'Very small risk' is meaningless without saying "
             "small against whom. The two adversaries are two "
             "different recipients and their numbers differ."},
+    {"key": "linkage",
+     "need": "...and in COMBINATION with other reasonably "
+             "available information",
+     "evidence": "synthkit.linkage - an adversary who already "
+                 "holds quasi-identifiers for a person they can "
+                 "name, scored as the EXCESS over the same "
+                 "procedure applied to someone never in the "
+                 "cohort, with a verbatim-republish positive "
+                 "control on the same cohort",
+     "why": "The statute asks about information used ALONE OR "
+            "IN COMBINATION with other reasonably available "
+            "information, and this package cited two "
+            "adversaries for it that hold no external data - "
+            "asking the regulation's question and answering a "
+            "narrower one. Against synthetic output a match is "
+            "not an identification by itself, so the question "
+            "that survives is whether the release tells a "
+            "linker more about a MEMBER than about a "
+            "non-member."},
     {"key": "membership",
      "need": "Measured risk of determining that an individual "
              "was in the cohort",
@@ -196,6 +217,7 @@ def assess(fidelity: Optional[Dict] = None,
            scope: Optional[str] = None,
            source_name: Optional[str] = None,
            run_config: Optional[Dict] = None,
+           linkage: Optional[Dict] = None,
            ) -> Dict[str, Any]:
     """Which elements this run has evidence for, and which are
     OWED.
@@ -253,6 +275,16 @@ def assess(fidelity: Optional[Dict] = None,
         (_get(attribute, "seeds", default=None) or [])
         and (_get(attribute, "positive_control", default=None)
              or []))
+
+    # LINKAGE NEEDS ITS CONTROL TO HAVE CAUGHT THE REPUBLISH,
+    # or the honest number says nothing - which is why the
+    # status turns on `control_caught` rather than on the
+    # verdict string.
+    have["linkage"] = bool(
+        linkage
+        and linkage.get("control_caught") is True
+        and (linkage.get("honest") or {}).get("excess_in_sd")
+        is not None)
 
     nn = _get(fidelity, "nn_ratio", default=None)
     rg = _get(fidelity, "reconstruction_gap", default=None)
@@ -328,7 +360,8 @@ def assess(fidelity: Optional[Dict] = None,
     # for route B's two opposite readings of one number.
     off_cohort = {}
     for key, rec in (("membership", membership),
-                     ("attribute", attribute)):
+                     ("attribute", attribute),
+                     ("linkage", linkage)):
         why = ("FIXTURE" if _elsewhere(rec)
                else "CONFIG" if _other_config(rec) else None)
         if not why:

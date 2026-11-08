@@ -72,6 +72,16 @@ def full_artifacts(td):
                      "worst_auc": 0.514, "verdict": "PASS"}]}
     att = {"seeds": [{"excess_over_control": -0.009}],
            "positive_control": [{"excess_over_control": 0.145}]}
+    # AND THE LINKAGE ARM. Adding an eleventh element correctly
+    # broke the three checks that build a COMPLETE package -
+    # they supplied no linkage evidence, so `ready` could never
+    # be true again. That is the checks demanding evidence for a
+    # new element rather than a regression.
+    lkg = {"source": "fixture.csv", "control_caught": True,
+           "verdict": "CLEAN",
+           "honest": {"excess_in_sd": 0.006},
+           "control": {"excess_in_sd": 0.071},
+           "share_of_control": 0.08}
     scope = ("SCOPE. One cohort of 800 patients from one extract "
              "at k=10, output-only release. The determination does "
              "not extend to a different cohort, a different k, or "
@@ -80,7 +90,7 @@ def full_artifacts(td):
              "have not been audited by the attack battery, and "
              "k-anonymity on what is published is not differential "
              "privacy.")
-    return mem, att, scope
+    return mem, att, scope, lkg
 
 
 def main():
@@ -122,7 +132,7 @@ def main():
 
     # ---- 2. BOTH BRANCHES ARE REACHABLE
     with tempfile.TemporaryDirectory() as td:
-        mem, att, scope = full_artifacts(td)
+        mem, att, scope, lkg = full_artifacts(td)
         _bare = DET.assess(
             fidelity=json.load(io.open(os.path.join(
                 td, "fidelity.json"))),
@@ -137,7 +147,7 @@ def main():
                 td, "blueprint.json"))),
             provenance=json.load(io.open(os.path.join(
                 td, "provenance.json"))),
-            membership=mem, attribute=att,
+            membership=mem, attribute=att, linkage=lkg,
             scrub_inventory=[{"category": "names"}],
             scope=scope)
     check("a run WITHOUT the batteries reads {} of {} with {} "
@@ -247,12 +257,14 @@ def main():
 
     # ---- 7. THE CLI, THROUGH THE PROCESS BOUNDARY
     with tempfile.TemporaryDirectory() as td:
-        mem, att, scope = full_artifacts(td)
+        mem, att, scope, lkg = full_artifacts(td)
         mp = os.path.join(td, "mem.json")
         ap = os.path.join(td, "att.json")
+        lp = os.path.join(td, "lkg.json")
         sp = os.path.join(td, "scope.txt")
         json.dump(mem, io.open(mp, "w"))
         json.dump(att, io.open(ap, "w"))
+        json.dump(lkg, io.open(lp, "w"))
         io.open(sp, "w").write(scope)
         _bad = subprocess.run(
             [sys.executable, "-m", "synthkit.cli",
@@ -261,7 +273,8 @@ def main():
         _good = subprocess.run(
             [sys.executable, "-m", "synthkit.cli",
              "determination", td, "--membership", mp,
-             "--attribute", ap, "--scope", sp, "--scrubbed"],
+             "--attribute", ap, "--linkage", lp,
+             "--scope", sp, "--scrubbed"],
             capture_output=True, text=True, cwd=str(ROOT))
         _missing = subprocess.run(
             [sys.executable, "-m", "synthkit.cli",

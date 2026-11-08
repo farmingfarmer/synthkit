@@ -363,7 +363,42 @@ to it and reporting success. Our first cut did fit it anyway
 and landed one pair at +0.994 against a target of +0.914 while
 losing the other entirely.
 
-### 7. The fidelity report suppresses its own bins
+### 7. Linkage risk against information the recipient already
+### holds — with the bar set by its own positive control
+
+45 CFR 164.514(b)(1) asks whether information could identify
+someone "alone **or in combination with other reasonably
+available information**". Our own determination package cited
+two adversaries for that element — one seeing generated rows,
+one assuming the weights leaked — and **neither holds external
+data**. So we were asking the regulation's question and
+measuring something narrower. `synthkit.linkage` closes it.
+
+The translation is the interesting part. Against synthetic
+output a match is not an identification — nobody's record is
+there — so calling one an identification would overstate the
+risk as badly as ignoring it understates it. What survives: an
+adversary holding quasi-identifiers for a person they can *name*
+selects the released rows matching that combination. Does that
+tell them this person's value better than the same procedure
+applied to someone never in the cohort? Only that **excess**
+belongs to the release.
+
+And the bar is a fraction of what a **verbatim republish**
+achieves on the same cohort with the same bands, because an
+absolute one was above its own ceiling: measured over six seeds,
+a republish produces only **0.026–0.104 sd** of excess, since a
+selection of at least five rows averages the target's own value
+with four other people's. A 0.10 absolute bar would have missed
+most republishes. Three distinct ways a clean number is
+worthless — no control, no power, negative excess — get three
+distinct verdicts, because each takes a different action.
+
+I did not find another tool documenting a linkage measurement
+for synthetic data with a positive control, let alone one whose
+threshold is calibrated against that control.
+
+### 8. The fidelity report suppresses its own bins
 
 A histogram of real data is a set of bin counts, and a bin
 holding three patients describes a group small enough to
@@ -385,6 +420,7 @@ I did not find another tool documenting this.
 | membership inference with positive controls | yes, two surfaces | not found as a shipped default |
 | DCR-style distance privacy metric | yes, plus nn-ratio | yes (MOSTLY AI) |
 | aggregates-only release option | yes | not found |
+| linkage risk vs external quasi-identifiers | yes, with a control-calibrated bar | not found |
 | invertible key/released cipher | yes | not found |
 | per-claim receipts with limits | yes | not found |
 | computable ceiling vendor exam | yes | research, not vendor-shipped |

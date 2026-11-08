@@ -199,8 +199,21 @@ holds). Formats: days.
 
 **What remains**
 - **An Expert Determination RUN OF RECORD.** The evidence
-  package is built (ED-1, `synthkit determination`) and it
-  marks every element present or **OWED** — but no run has all
+  package is built (ED-1/ED-2/LK-1, `synthkit determination`)
+  and now covers ELEVEN elements, including the statute's "in
+  COMBINATION with other reasonably available information" half
+  that the two attack adversaries do not reach — `synthkit.
+  linkage` measures what the release tells someone who already
+  knows who you are, as the EXCESS over a non-member arm, with
+  the bar set as a fraction of what a verbatim republish
+  achieves on the same cohort (an absolute 0.10 bar was above
+  its own ceiling: a republish reaches only 0.026–0.104 sd).
+  Evidence from another dataset reads **FIXTURE** and evidence
+  from different caps reads **CONFIG**; neither counts toward
+  readiness, because a larger token cap publishes more
+  vocabulary about members and so a smaller-cap attack
+  understates the risk. It marks every element present or
+  **OWED** — but no run has all
   ten present, because that needs the two attack batteries and
   a WRITTEN scope statement on the machine that holds the
   extract. The tool exits 3 while anything is owed and refuses

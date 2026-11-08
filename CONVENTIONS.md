@@ -167,6 +167,73 @@ the direction that stops work happening.
   lag both dropped
 
 ## What the blueprint may publish
+- **THE STATUTE SAYS "ALONE OR IN COMBINATION WITH OTHER
+  REASONABLY AVAILABLE INFORMATION", AND OUR OWN PACKAGE WAS
+  ANSWERING THE NARROWER HALF (2026-11-07, LK-1,
+  `synthkit/linkage.py`).** The determination package cited two
+  adversaries for that element - one that sees generated rows,
+  one that assumes the weights leaked - and NEITHER holds any
+  external data. So it asked the regulation's question and
+  measured something else, which is the fault class this project
+  refuses everywhere. Linkage is its own element now, and
+  `threat_model` SAYS its adversaries hold nothing external.
+- **A MATCH IS NOT AN IDENTIFICATION AGAINST SYNTHETIC OUTPUT,
+  so the question had to be translated rather than imported.**
+  The classic attack matches a released record to an external
+  one and reads off the sensitive field; against synthetic rows
+  nobody's record is there, and calling a match an
+  identification would overstate the risk as badly as ignoring
+  it understates it. What survives: an adversary holding
+  quasi-identifiers for a person they can NAME selects the
+  released rows matching that combination - does that tell them
+  this person's value better than the same procedure applied to
+  someone never in the cohort? Only that EXCESS belongs to the
+  release, which is the argument the attribute-disclosure
+  measure already makes with the external knowledge made
+  explicit instead of assumed away.
+- **AND MY OWN BAR WAS ABOVE ITS OWN CEILING.** The first cut
+  called it a leak above 0.10 sd of excess. Measured over six
+  seeds, a VERBATIM REPUBLISH - the worst generator there is -
+  produces only **0.026 to 0.104 sd**, because a selection of at
+  least five rows averages the target's own value with four
+  other people's. A 0.10 bar would therefore have missed most
+  republishes: the exact error this project found in a campaign
+  tier demanding 0.700 over a 0.698 ceiling and wrote a rule
+  about. The verdict is a FRACTION of what the republish
+  achieves on the same cohort with the same bands, which
+  self-calibrates - a coarser banding lowers both arms together.
+- **THREE WAYS A CLEAN NUMBER IS WORTHLESS, AND THEY ARE THREE
+  DIFFERENT FAULTS.** The control did not beat the non-member
+  arm (no control at all). The control beat it but only barely -
+  under a 0.02 floor - so a republish is undetectable under
+  those bands and CLEAN would be a pass from a test that cannot
+  fail (no POWER). And the honest excess is NEGATIVE, meaning
+  the adversary did WORSE on members, so there is no advantage
+  to express as a share - the first cut printed "-818%" for that
+  case. Each gets its own verdict and its own sentence, because
+  each takes a different action.
+- **AND `caught` HAD TO REQUIRE A POSITIVE CONTROL EXCESS, not
+  merely a larger one.** Testing only `control > honest` let a
+  NEGATIVE control excess read as caught, and the output then
+  said "the control CAUGHT the republish but only by -0.0310
+  sd" - a verdict contradicting the number in its own sentence.
+  A republish must HELP the adversary; one that makes them worse
+  off has not been caught.
+- **AND THE NO-POWER BRANCH HAD TO BE SEARCHED FOR, because no
+  fixture here reached it.** After the `caught` fix both failing
+  fixtures routed to "did not beat", leaving the power branch
+  unreachable - a dead branch inside a tool built to catch
+  unreachable behaviour. Found by sweeping arrangements: two
+  coarse quasi-identifiers with no banding give a control excess
+  of +0.008, positive but under the floor. Pinned there.
+- **AND A CHECK'S LABEL MUST NOT FORMAT WHAT ITS MUTATION
+  REMOVES.** The banding mutation makes `share_of_control` None,
+  and the check formatted it as a percentage - so the suite
+  CRASHED with a TypeError inside its own label rather than
+  reporting a failure. Exit 1 either way, but no FAIL line for a
+  grep to find, which is the crashed-suite shape this file
+  already records. Guarded, and the same mutation now produces
+  three proper red checks.
 - **EVIDENCE MEASURED ON A DIFFERENT DATASET IS NOT EVIDENCE
   ABOUT THIS ONE, AND THE DETERMINATION PACKAGE NOW SEES IT
   (2026-11-07, ED-2).** The attack batteries default to their own
@@ -4135,6 +4202,20 @@ what follows is what came out wrong anyway.
   nobody will use.
 
 ## Talking to the data machine
+- **A COMPOUND `cmd` LINE CAN DROP ITS POWERSHELL HALF
+  SILENTLY, AND THE NEXT STEP THEN RUNS AGAINST NOTHING
+  (2026-11-07).** `echo MARK & powershell -Command "Expand-Archive
+  ...; Rename-Item ..." & if exist ... & echo MARK` returned both
+  markers and NO error, and the archive was never expanded - so
+  the launch that followed cd'd into a directory that did not
+  exist and produced no log at all. Diagnosed by the recorded
+  rule rather than by a message: a probe said the tree was
+  missing, I ran `Expand-Archive` ALONE, and it printed
+  EXPANDED. One command per line on that terminal, which this
+  file already says for `%USERPROFILE%` and for wrapped pastes -
+  the new part is that the failure is SILENT and the symptom
+  appears one step later as an empty log.
+
 - **A DIFFERENT CONFIGURATION IS DIFFERENT EVIDENCE TOO, AND THE
   MISMATCH IS INVISIBLE WITHOUT COMPARING (2026-11-07).** The
   real-extract attack launched at the SHIPPED token cap of 60
