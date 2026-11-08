@@ -23,6 +23,8 @@ following a different rule.
 """
 import json
 import subprocess
+import io
+import os
 import sys
 import tempfile
 from pathlib import Path
@@ -1075,6 +1077,164 @@ def main():
                                 hops=MT.VIA_HOPS) is not None)
 
     print()
+    # ---- THE SET IS GRADED, NOT JUST GENERATED
+    #
+    # `relate` reported referential integrity and the
+    # cross-table couplings and called NO gate at all - so an
+    # operator got linked tables with no answer to "is each
+    # table faithful?", while `gate.assess` sat there able to
+    # answer it from a fidelity record this command never wrote.
+    # Every single-table path produces one. The
+    # capability-wired-to-nothing fault at the verdict level.
+    _rg = np.random.default_rng(3)
+    _npat = 220
+    _per = pd.DataFrame({
+        "person_id": ["P{:03d}".format(i)
+                      for i in range(_npat)],
+        "age": _rg.normal(55, 13, _npat).round(1)})
+    # EACH TABLE NEEDS A WITHIN-TABLE PAIR or the gate refuses
+    # it, and rightly: the first fixture here had columns
+    # correlated only through the PARENT's age, which is not in
+    # the child at all, so every pair came out near 0.17 and
+    # the blueprint carried no relationships. A fixture must
+    # contain the thing the check is about.
+    _per["bmi"] = (22 + 0.09 * (_per["age"] - 55)
+                   + _rg.normal(0, 1.1, _npat)).round(1)
+    _vrows = []
+    for _, _r in _per.iterrows():
+        for _v in range(int(_rg.integers(2, 6))):
+            _sv = float(_rg.normal(
+                120 + 0.4 * (_r["age"] - 55), 9))
+            _vrows.append({
+                "visit_id": "V{:05d}".format(len(_vrows)),
+                "person_id": _r["person_id"],
+                "sys": round(_sv, 1),
+                "dia": round(0.62 * _sv
+                             + _rg.normal(0, 3.2), 1),
+                "los": round(max(1.0, _rg.normal(4, 1.2)), 1)})
+    _vis = pd.DataFrame(_vrows)
+    with tempfile.TemporaryDirectory() as _gtd:
+        _pp = os.path.join(_gtd, "person.csv")
+        _vv = os.path.join(_gtd, "visit.csv")
+        _outd = os.path.join(_gtd, "set")
+        _per.to_csv(_pp, index=False)
+        _vis.to_csv(_vv, index=False)
+        _rr = subprocess.run(
+            [sys.executable, "-m", "synthkit.cli", "relate",
+             _pp, _vv, "--out", _outd],
+            capture_output=True, text=True, cwd=str(ROOT))
+        _files = sorted(os.listdir(_outd)) \
+            if os.path.isdir(_outd) else []
+        _doc = json.load(io.open(os.path.join(
+            _outd, "relate.json"))) \
+            if "relate.json" in _files else {}
+        # ...and a set where every GRADED table PASSES while
+        # one is ungraded. That pairing is what makes the next
+        # check able to fail: with a graded table that also
+        # fails, excluding the ungraded one changes nothing and
+        # the mutation is invisible. `visit` is the table that
+        # reads MET above, so it is the parent here, and the
+        # child is two columns with nothing between them -
+        # which reaches "this run related no pairs, so the gate
+        # cannot be read - that is a finding in itself, not a
+        # pass".
+        _thin = pd.DataFrame({
+            "thing_id": ["T{:04d}".format(i)
+                         for i in range(240)],
+            "visit_id": [_vis["visit_id"].iloc[i % len(_vis)]
+                         for i in range(240)],
+            "label": ["a", "b"] * 120})
+        _tt = os.path.join(_gtd, "thing.csv")
+        _outd2 = os.path.join(_gtd, "set2")
+        _thin.to_csv(_tt, index=False)
+        _rr2 = subprocess.run(
+            [sys.executable, "-m", "synthkit.cli", "relate",
+             _vv, _tt, "--out", _outd2],
+            capture_output=True, text=True, cwd=str(ROOT))
+        _doc2 = json.load(io.open(os.path.join(
+            _outd2, "relate.json"))) \
+            if os.path.exists(os.path.join(
+                _outd2, "relate.json")) else {}
+
+    check("`relate` GRADES each table now, writing a fidelity "
+          "record per table ({}) and printing a per-table "
+          "verdict - it reported referential integrity and "
+          "couplings and called NO gate at all, so an operator "
+          "got linked tables with no answer to whether any of "
+          "them was faithful"
+          .format(", ".join(f for f in _files
+                            if f.endswith("_fidelity.json"))),
+          _rr.returncode == 0
+          and "person_fidelity.json" in _files
+          and "visit_fidelity.json" in _files
+          and "per-table fidelity" in _rr.stdout)
+    check("...and the SET's verdict is the WORST of its tables "
+          "({}), because a linked release is read as one thing "
+          "and a set whose weakest table fails is not a set "
+          "that passed"
+          .format(_doc.get("set_verdict_met")),
+          _doc.get("set_verdict_met") is not None
+          and "WORST OF ITS TABLES" in _rr.stdout
+          and len(_doc.get("per_table_verdict") or {}) == 2)
+    check("...and each per-table verdict carries its criteria, "
+          "so a reader sees WHICH one failed rather than a bare "
+          "MET or NOT MET",
+          all(len(v.get("criteria") or []) >= 4
+              for v in (_doc.get("per_table_verdict")
+                        or {}).values()))
+
+    check("a table the gate REFUSES is reported as NOT GRADED "
+          "with the refusal's own words, rather than crashing "
+          "the command - 'that is a finding in itself, not a "
+          "pass' is the gate being right about a narrow table",
+          _rr2.returncode == 0
+          and "NOT GRADED" in _rr2.stdout
+          and "finding in itself" in _rr2.stdout
+          and "Traceback" not in _rr2.stderr)
+    # AND THE RULE IS EXERCISED ON PLANTED INPUTS, because
+    # reaching it through the CLI needs a set where every
+    # GRADED table passes while one is ungraded - and which
+    # column groups each table decides its verdict, so
+    # engineering that fixture turned out to be luck. A
+    # mutation dropping the ungraded half was invisible until
+    # the rule became a function.
+    from synthkit.multitable import set_verdict as _sv
+    _ok = {"criteria": [{"ok": True}, {"ok": True}]}
+    _bad = {"criteria": [{"ok": True}, {"ok": False}]}
+    check("the SET verdict is a PURE FUNCTION over the graded "
+          "and ungraded maps, exercised on planted inputs: "
+          "all-met with none ungraded is {}, all-met with ONE "
+          "ungraded is {}, one failing is {}, and nothing to "
+          "judge is {} - because absent is not the same fact as "
+          "failed"
+          .format(_sv({"a": _ok, "b": _ok}, {}),
+                  _sv({"a": _ok}, {"b": "no pairs"}),
+                  _sv({"a": _ok, "b": _bad}, {}),
+                  _sv({}, {})),
+          _sv({"a": _ok, "b": _ok}, {}) is True
+          and _sv({"a": _ok}, {"b": "no pairs"}) is False
+          and _sv({"a": _ok, "b": _bad}, {}) is False
+          and _sv({}, {}) is None
+          and _sv({}, {"b": "no pairs"}) is False)
+    check("...and ONE rule in ONE place serves both the printed "
+          "verdict and the written one - computing it twice is "
+          "how a privacy threshold came to be applied with one "
+          "tail bound and reported with another",
+          io.open(str(ROOT / "synthkit" / "cli.py"),
+                  encoding="utf-8").read().count(
+                      "_set_verdict(verdicts, ungraded)") == 2)
+
+    check("...and an UNGRADED table cannot let the set read MET "
+          "({} ungraded, set {}): taking the minimum over only "
+          "the graded tables would let a table nobody measured "
+          "pass by being absent from the list, which is the "
+          "worst kind of clean"
+          .format(sorted(_doc2.get("tables_not_graded") or {}),
+                  _doc2.get("set_verdict_met")),
+          bool(_doc2.get("tables_not_graded"))
+          and _doc2.get("set_verdict_met") is False
+          and "worst kind of clean" in _rr2.stdout)
+
     if FAIL:
         print("{} FAILED".format(FAIL))
         sys.exit(1)

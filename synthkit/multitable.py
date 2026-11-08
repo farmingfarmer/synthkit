@@ -1011,3 +1011,37 @@ def check_integrity(frames: Dict[str, pd.DataFrame],
     destroyed a key score well by having no link to break.
     """
     return integrity(frames, found["links"])
+
+
+def set_verdict(verdicts, ungraded):
+    """Is the SET met? A PURE FUNCTION over the two maps.
+
+    MET only when every table was GRADED and every one of them
+    met. The rule has two halves and the second is the one that
+    is easy to drop:
+
+      a linked release is read as ONE thing, so a set whose
+      weakest table fails is not a set that passed; and
+      an UNGRADED table is not a passing one either - taking
+      the minimum over only the graded tables would let a table
+      nobody measured pass by being ABSENT from the list, which
+      is the worst kind of clean.
+
+    Returns None when there is nothing to judge, because absent
+    is not the same fact as failed.
+
+    FACTORED OUT so it can be exercised on planted inputs. In
+    the CLI it could only be reached by generating a whole
+    linked set, and engineering a fixture where every graded
+    table PASSES while one is ungraded turned out to depend on
+    which column groups each table - so a mutation dropping the
+    ungraded half was invisible. This project already factored
+    `classify_move` and the trajectory sweep's `verdict` out for
+    the same reason.
+    """
+    if not verdicts and not ungraded:
+        return None
+    if ungraded:
+        return False
+    return all(all(c.get("ok") for c in (v.get("criteria") or []))
+               for v in verdicts.values())

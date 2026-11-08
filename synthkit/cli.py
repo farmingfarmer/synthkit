@@ -803,7 +803,7 @@ def cmd_relate(args) -> int:
     fk_of = {}
     for lk in found["links"]:
         fk_of.setdefault(lk.child, lk.column)
-    gen = {}
+    gen, blueprints, grouped_by = {}, {}, {}
     for name, fr in frames.items():
         if name in overrides:
             gb, why = overrides[name], "you asked for it"
@@ -828,6 +828,13 @@ def cmd_relate(args) -> int:
                        group_by=gb, k=args.k)
         gen[name] = generate(bp, n_patients=fr[gb].nunique(),
                              seed=args.seed)
+        # KEPT, so the table can be GRADED afterwards. The
+        # blueprint and the grouping column were loop-locals
+        # and thrown away, which is why this command could
+        # generate a set and never say whether any table in it
+        # was faithful.
+        blueprints[name] = bp
+        grouped_by[name] = gb
 
     rep = []
     out = assign_keys(gen, found, seed=args.seed,
@@ -878,12 +885,111 @@ def cmd_relate(args) -> int:
         dest = outdir / (name + ".csv")
         fr.to_csv(dest, index=False)
         print("  wrote {} ({} rows)".format(dest, len(fr)))
+    # ---- AND NOW GRADE EACH TABLE, because generating
+    # without a verdict is the capability-wired-to-nothing
+    # fault at the verdict level.
+    #
+    # `relate` reported referential integrity and the
+    # cross-table couplings and called NO gate at all - so an
+    # operator got linked tables with no answer to "is each
+    # table faithful?", while `gate.assess` sat there able to
+    # answer it from a fidelity record this command never
+    # wrote. Every single-table path produces one; the
+    # multi-table path did not.
+    from . import gate as _gate
+    from .pipeline import compare as _compare
+    per_table, verdicts, ungraded = {}, {}, {}
+    print("")
+    print("per-table fidelity, source against generated:")
+    for name, fr in out.items():
+        gb = grouped_by.get(name)
+        src_fr = frames.get(name)
+        if src_fr is None or gb is None or gb not in fr.columns:
+            print("  {}: NOT GRADED - no grouping column in "
+                  "the output".format(name))
+            ungraded[name] = "no grouping column"
+            continue
+        try:
+            fid = _compare(src_fr, fr, blueprints[name], gb,
+                           None)
+        except Exception as e:                  # noqa: BLE001
+            # A TABLE THAT CANNOT BE GRADED SAYS SO BY NAME. A
+            # silent absence would read as a table with nothing
+            # wrong, which is the worst kind of clean.
+            print("  {}: NOT GRADED - {}: {}".format(
+                name, type(e).__name__, str(e)[:70]))
+            ungraded[name] = "{}: {}".format(
+                type(e).__name__, str(e)[:70])
+            continue
+        per_table[name] = fid
+        # THE GATE REFUSES A RUN THAT RELATED NO PAIRS, and it
+        # is right to: "that is a finding in itself, not a
+        # pass". A narrow table - two columns with nothing
+        # between them - reaches that, so the refusal is
+        # REPORTED rather than allowed to crash the command,
+        # and the table counts as ungraded rather than passing.
+        try:
+            res = _gate.assess(fid)
+        except ValueError as e:
+            print("  {}: NOT GRADED - {}".format(
+                name, str(e)[:110]))
+            ungraded[name] = str(e)
+            continue
+        verdicts[name] = res
+        bad = [c["name"] for c in res["criteria"]
+               if not c.get("ok")]
+        print("  {}: {}".format(
+            name,
+            "MET on all {} criteria".format(len(res["criteria"]))
+            if not bad else "NOT MET on {} of {}: {}".format(
+                len(bad), len(res["criteria"]),
+                ", ".join(bad))))
+        with open(str(outdir / (name + "_fidelity.json")),
+                  "w") as fh:
+            __import__("json").dump(fid, fh, indent=1,
+                                    default=str)
+    if verdicts or ungraded:
+        from .multitable import set_verdict as _set_verdict
+        _all_met = _set_verdict(verdicts, ungraded)
+        print("")
+        print("THE SET'S VERDICT IS THE WORST OF ITS TABLES: "
+              "{}".format("MET" if _all_met else "NOT MET"))
+        print("A linked release is read as one thing, so a set "
+              "whose weakest table fails is not a set that "
+              "passed -")
+        if ungraded:
+            print("and an UNGRADED table is not a passing one "
+                  "either: {} was not graded, so the set "
+                  "cannot read MET. Excluding it would be the "
+                  "worst kind of clean."
+                  .format(", ".join(sorted(ungraded))))
+
     import json as _json
     with open(str(outdir / "relate.json"), "w") as fh:
         _json.dump({
             "tables": dict((n, {"rows": len(f),
                                 "columns": list(f.columns)})
                            for n, f in out.items()),
+            # THE VERDICT TRAVELS WITH THE SET, per table and
+            # as the worst of them, so a reader does not have
+            # to open four files and take the minimum by hand.
+            "per_table_verdict": dict(
+                (n, {"met": all(c.get("ok")
+                                for c in v["criteria"]),
+                     "criteria": v["criteria"]})
+                for n, v in verdicts.items()),
+            # AN UNGRADED TABLE CANNOT LET THE SET READ MET.
+            # Taking the minimum over only the GRADED ones
+            # would let a table nobody measured pass by being
+            # absent from the list, which is the worst kind of
+            # clean.
+            # ONE rule, one place. Computing it twice is how
+            # the printed verdict and the written one come to
+            # disagree, which this project records about a
+            # privacy threshold applied with one tail bound and
+            # reported with another.
+            "set_verdict_met": _set_verdict(verdicts, ungraded),
+            "tables_not_graded": ungraded,
             "links": [{"child": lk.child, "column": lk.column,
                        "parent": lk.parent,
                        "parent_key": lk.parent_key}
