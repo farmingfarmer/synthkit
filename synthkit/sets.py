@@ -207,7 +207,26 @@ def patient_counts(raw: pd.Series, groups
     present = raw.dropna().astype(str).str.strip()
     sep = _separator(present[present.str.len() > 0])
     parts = present.str.split(sep)
-    g = pd.Series(np.asarray(groups)[present.index],
+    # GROUPS IS POSITIONAL, SO IT MUST BE INDEXED
+    # POSITIONALLY - and it was being indexed by LABEL, which
+    # is the same thing only when the caller's index happens to
+    # run 0..n-1.
+    #
+    # Every caller did until the attribute battery grew a real
+    # path and passed `df[mask]` - a boolean-filtered subset,
+    # whose labels are the ORIGINAL row numbers. On the real
+    # extract that raised `IndexError: index 29758 is out of
+    # bounds for axis 0 with size 29741`: a latent fault older
+    # than today (the same expression sat in `vocabulary` with
+    # `txt.index`), surfaced the first time a caller filtered.
+    #
+    # `get_indexer` converts labels to positions, which is
+    # correct whether or not the index is contiguous, because
+    # `groups` is aligned to the ROWS of `raw` in order - that
+    # is the contract every caller already honours by passing
+    # `df[col]` and `df[group_by].to_numpy()` together.
+    _pos = raw.index.get_indexer(present.index)
+    g = pd.Series(np.asarray(groups)[_pos],
                   index=present.index)
     holders: Dict[str, set] = {}
     rows: Dict[str, int] = {}

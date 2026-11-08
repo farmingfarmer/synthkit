@@ -3,6 +3,41 @@
 Synthetic clinical data generator and model-evaluation instrument. Core rule: learn the patterns, never copy the records. Real data teaches parameters; generation never touches a record.
 
 ## Verify before claiming
+- **A POSITIONAL ARRAY WAS BEING INDEXED BY LABEL, AND IT ONLY
+  EVER WORKED BECAUSE NOBODY HAD FILTERED (2026-11-08).**
+  `sets.patient_counts` and, before it, `vocabulary` did
+  `np.asarray(groups)[present.index]` - and `groups` is aligned
+  to the ROWS of `raw` while `present.index` holds LABELS. Those
+  are the same thing only when the caller's index runs 0..n-1,
+  which every caller's did. The attribute battery grew a
+  real-extract path, passed `df[mask]` - a boolean-filtered
+  half-cohort whose labels are the original row numbers - and
+  the real extract raised **IndexError: index 29758 is out of
+  bounds for axis 0 with size 29741**. `get_indexer` converts
+  labels to positions and is correct either way.
+- **THE FAULT IS OLDER THAN THE FUNCTION IT WAS FOUND IN, which
+  is worth saying because the function was extracted TODAY.**
+  `git show` at the previous build has the same expression in
+  `vocabulary` with `txt.index`. Extracting the loop did not
+  introduce it; adding a caller that filters is what reached it.
+- **AND NO FIXTURE HERE HAD A NON-CONTIGUOUS INDEX.** Three
+  shapes are pinned now, and only one of them crashes: a HEAD
+  slice's labels happen to stay in range, so it passes on the
+  broken code. The shape that reaches the fault is a TAIL slice,
+  whose labels exceed its own length. A fixture must contain the
+  thing the check is about, and "a filtered frame" was not
+  specific enough.
+- **AND THE CHECK HAD TO BE WRAPPED TWICE BEFORE IT COULD
+  FAIL.** First the call raised, so the mutation crashed the
+  suite - a traceback and no `FAIL:` line, which this file
+  records as indistinguishable from a check that never ran. Then
+  with the call caught, the CONDITION still dereferenced the
+  None before its own guard - Python evaluates `and` left to
+  right - so the suite printed ONE failure and died where three
+  were owed. Every reference guarded, in the condition as well
+  as the label, and the mutation now gives three red checks and
+  exit 1.
+
 
 - **A CHECK SUITE REPORTED SUCCESS WITH A FAILURE IN HAND, AND
   SIXTEEN CHECKS HAD BEEN UNENFORCED FOR AS LONG AS THEY

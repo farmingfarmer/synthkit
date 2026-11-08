@@ -1698,6 +1698,96 @@ def main():
           _s2.get("set_tokens_ok")
           < _s2.get("set_tokens_compared"))
 
+    # ---- A FILTERED FRAME HAS NON-CONTIGUOUS LABELS
+    #
+    # `groups` is POSITIONAL and was being indexed by LABEL,
+    # which is the same thing only when the caller's index runs
+    # 0..n-1. Every caller's did, until the attribute battery
+    # grew a real-extract path and passed `df[mask]` - whose
+    # labels are the original row numbers. On the real extract
+    # that raised `IndexError: index 29758 is out of bounds for
+    # axis 0 with size 29741`. The fault is OLDER than the
+    # function it was found in: the same expression sat in
+    # `vocabulary` with `txt.index` long before.
+    #
+    # No fixture here had a non-contiguous index, which is why
+    # it survived. Three shapes now: contiguous, a head slice,
+    # and a TAIL slice whose labels exceed its own length -
+    # that last one is the shape that crashes, because a head
+    # slice's labels happen to stay in range.
+    _rows2 = []
+    for _p in range(60):
+        for _v in range(4):
+            _rows2.append(("P{:03d}".format(_p),
+                           ";".join(["t{:02d}".format(
+                               (_p + _v) % 12),
+                               "t{:02d}".format(
+                                   (_p * 2 + _v) % 12)])))
+    _fdf = pd.DataFrame(_rows2, columns=["person_id", "conds"])
+    _tail = _fdf.iloc[100:]
+    # AND THE CALL IS WRAPPED, so the fault this check exists
+    # for becomes a RED CHECK rather than a dead suite. The
+    # label-indexing bug raises IndexError, and a crash emits a
+    # traceback and no `FAIL:` line - which this project
+    # records as indistinguishable from a suite that never ran
+    # the check at all.
+    def _voc_tail(mod, frame):
+        try:
+            return mod.vocabulary(
+                frame["conds"],
+                frame["person_id"].to_numpy(), k=3)
+        except Exception as _e:                 # noqa: BLE001
+            print("    (vocabulary raised {}: {})".format(
+                type(_e).__name__, _e))
+            return None
+
+    def _pc(frame, col, grp):
+        try:
+            return S.patient_counts(frame[col],
+                                    frame[grp].to_numpy())
+        except Exception as _e:                 # noqa: BLE001
+            print("    (raised {}: {})".format(
+                type(_e).__name__, _e))
+            return None
+    _full = _pc(_fdf, "conds", "person_id")
+    _part = _pc(_tail, "conds", "person_id")
+    check("`patient_counts` works on a NON-CONTIGUOUS index - a "
+          "tail slice whose labels run {}..{} over {} rows - "
+          "because `groups` is positional and is indexed "
+          "positionally. Indexing it by LABEL is the same thing "
+          "only when the index runs 0..n-1, which every caller's "
+          "did until one filtered, and the real extract then "
+          "raised IndexError out of bounds"
+          .format(_tail.index.min(), _tail.index.max(),
+                  len(_tail)),
+          _part is not None
+          and len(_part["patients"]) >= 5
+          and _full is not None
+          and max(_part["patients"].values())
+          <= _tail["person_id"].nunique())
+    check("...and the counts still count PATIENTS: the tail "
+          "slice holds {} patients and no token claims more, "
+          "where the full frame's busiest token holds {} - so "
+          "the positional fix did not silently align the wrong "
+          "rows to the wrong people"
+          .format(_tail["person_id"].nunique(),
+                  "-" if _full is None
+                  else max(_full["patients"].values())),
+          # EVERY reference guarded, in the condition as
+          # well as the label - Python evaluates `and` left to
+          # right, so a dereference BEFORE the guard still
+          # raises and the suite dies after printing one FAIL
+          # instead of three.
+          _part is not None and _full is not None
+          and max(_part["patients"].values())
+          <= _tail["person_id"].nunique()
+          and max(_full["patients"].values())
+          > max(_part["patients"].values()))
+    check("...and `vocabulary` - which calls it - survives the "
+          "same frame, since that is where the expression "
+          "originally lived",
+          _voc_tail(S, _tail) is not None)
+
     if FAIL:
         print("{} FAILED".format(FAIL))
         sys.exit(1)
