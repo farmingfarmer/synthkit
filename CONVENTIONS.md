@@ -282,6 +282,43 @@ the direction that stops work happening.
   lag both dropped
 
 ## What the blueprint may publish
+- **TEN OF ELEVEN ELEMENTS NOW MEASURED ON THE REAL EXTRACT, AND
+  THE ONE LEFT IS THE ONE A RUN CANNOT SUPPLY (2026-11-08).**
+  The linkage element moved from OWED to CLEAN because the
+  arrangement was SEARCHED FOR rather than guessed. `--scan`
+  walks bandings coarse to fine and reports what each does; on
+  the real extract it found the window at **16 bands per numeric
+  quasi-identifier**:
+      selections                            542
+      honest rows scored                 10,863
+      control (verbatim republish)       +0.0746
+      honest release                     +0.0084
+      share of the republish               11.3%
+      verdict                              CLEAN
+  The control is well over the 0.02 floor, so a verbatim
+  republish IS detectable under those bands - which is what
+  makes the honest 11.3% worth reading. Every figure was read
+  back spelled by the machine.
+- **THE TWO HAND-TRIED ARRANGEMENTS BOTH FAILED, AND AT
+  OPPOSITE ENDS.** Coarse bands gave 36 selections of ~1,500
+  released rows each, where a republish averages the target's
+  own value with 1,499 others and the control reached only
+  +0.0108. Fine bands with five quasi-identifiers gave 1,852
+  selections and the honest arm scored ZERO. The window between
+  them is narrow and was never going to be found by guessing -
+  each guess costs a round trip to the machine that holds the
+  extract, which is the whole argument for the ladder.
+- **AND `residual` STAYS OWED BECAUSE IT SHOULD.** It is a
+  statement about SCOPE that a person writes; a run cannot
+  supply it and deriving one would be inventing the bound on
+  somebody else's determination.
+  `docs/DETERMINATION_SCOPE.md` carries the measured facts with
+  every judgment marked for review. Ten elements of evidence on
+  the real cohort, each with the control that makes it worth
+  reading, is the strongest position this project has been in
+  to ask a qualified person for a determination - and it is
+  still an ask.
+
 - **THE EXPERT DETERMINATION RUN OF RECORD EXISTS: NINE OF
   ELEVEN ELEMENTS MEASURED ON THE REAL EXTRACT, AND THE TWO GAPS
   ARE NAMED (2026-11-08).** `synthkit determination` against the

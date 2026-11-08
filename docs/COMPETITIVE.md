@@ -412,7 +412,7 @@ I did not find another tool documenting this.
 |---|---|---|
 | differential privacy | **partial, all five stages measured** — DP training of the weights ships; the other four have mechanisms with measured prices (a DP vocabulary selection at eps 3 keeps 12% of what the k rule publishes on an 800-patient cohort; the latent mixture's cost is a SHAPE cost that more epsilon cannot buy off). Not on by default, and the reason is a number | yes (MOSTLY AI) |
 | sequential / longitudinal model | **partial, measured on the real extract** — rules engine models it; the neural engine's AR(1) course with a SOLVED rho moves dynamics 21/93 to 28/93 on the extract and costs about two close pairs, so it stays off by default with the price on record | yes (MOSTLY AI; research frontier) |
-| HIPAA Expert Determination | **partial, 9 of 11 elements measured on the real cohort** — membership, attribute and memorization each with their positive control; the two gaps are linkage (not yet measurable at this cohort size) and a written scope. No expert has made a determination and the tool refuses to imply one | yes (Tonic) |
+| HIPAA Expert Determination | **partial, 10 of 11 elements measured on the real cohort** — membership, attribute, memorization and linkage each with their positive control, and every piece of evidence verified as being about THIS cohort at THESE caps. The one gap is a written scope, which a run cannot supply. No expert has made a determination and the tool refuses to imply one | yes (Tonic) |
 | automatic PHI/PII detection | yes, 18-category inventory | yes (Tonic) |
 | referential integrity across tables | yes | yes (MOSTLY AI, SDV) |
 | cross-table RELATIONSHIP enforcement, 3 hops | yes, measured | not found |
@@ -525,14 +525,23 @@ I did not find another tool documenting this.
    attribute result here, every previous figure having been on
    a fixture.
 
-   The two gaps are different in kind and are reported
-   separately. `linkage` is OWED because it is **not yet
-   measurable at this cohort size** — coarse bands leave a
-   verbatim republish undetectable, fine bands leave the honest
-   arm with nothing scored — not because it failed. `residual`
-   is OWED because somebody has to write the scope; the
-   template fills in the measured facts and marks every
-   judgment for review.
+   And linkage has since moved from OWED to **CLEAN**, because
+   the arrangement was searched for rather than guessed. Both
+   arrangements tried by hand failed at opposite ends — coarse
+   bands left a verbatim republish undetectable (+0.0108, under
+   the floor), fine bands left the honest arm with nothing
+   scored — so `--scan` walks bandings coarse to fine and
+   reports what each does. On the real extract it found the
+   window at 16 bands per numeric quasi-identifier: **542
+   selections, 10,863 rows scored, control +0.0746, honest
+   +0.0084 — 11.3% of what a verbatim republish achieves,
+   CLEAN**. The control being well over the floor is what makes
+   the honest number worth reading.
+
+   That leaves **one** element OWED, and it is the one a run
+   cannot supply: `residual` is a statement about scope that a
+   person writes. The template fills in the measured facts and
+   marks every judgment for review.
 
    Readiness is not a determination, and the tool says so in
    three places. Nine elements on the real cohort is the

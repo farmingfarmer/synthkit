@@ -199,24 +199,28 @@ holds). Formats: days.
 
 **What remains**
 - ~~**An Expert Determination RUN OF RECORD.**~~ **IT EXISTS,
-  2026-11-08: NINE OF ELEVEN ELEMENTS MEASURED ON THE REAL
+  2026-11-08: TEN OF ELEVEN ELEMENTS MEASURED ON THE REAL
   EXTRACT**, with the membership, attribute and linkage
-  batteries all pointed at the extract rather than a fixture.
+  batteries all pointed at the extract rather than a fixture,
+  and every piece of evidence verified as being about THIS
+  cohort at THESE caps.
   Membership at the released configuration: worst **0.6253
   MARGINAL** (weights surface, never released) with the
   republish control at **1.000 CAUGHT**. Attribute disclosure:
   excess **−0.0055** with the leaky control at **+0.2289**.
   Memorization: held-out reconstruction **1.1196** of training
   against a 9.7 control on a frame with nothing to learn. The
-  two gaps are different in kind: `linkage` is **not yet
-  measurable at this cohort size** (coarse bands leave a
-  republish undetectable, fine bands leave the honest arm with
-  nothing scored), and `residual` needs a person to write the
-  scope. **Readiness is not a determination** — that is a
+  Linkage reads **CLEAN** at 11.3% of what a verbatim
+  republish achieves (542 selections, control +0.0746, honest
+  +0.0084) — found by SEARCHING the banding ladder, since both
+  arrangements tried by hand failed at opposite ends. The one
+  element still OWED is `residual`, a statement about scope
+  that a person writes. **Readiness is not a determination** — that is a
   qualified person's to make, and the tool refuses to imply
   otherwise.
-- What remains on that: a measurable linkage arrangement, and
-  the scope statement signed off. The evidence package is built
+- What remains on that: the scope statement signed off by a
+  qualified person. That is the only element a RUN cannot
+  supply. The evidence package is built
   (ED-1/ED-2/ED-3/LK-1, `synthkit determination`)
   and now covers ELEVEN elements, including the statute's "in
   COMBINATION with other reasonably available information" half
