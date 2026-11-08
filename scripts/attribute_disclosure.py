@@ -77,29 +77,44 @@ def cohort(seed, npat):
     return pd.DataFrame(rows)
 
 
-def one_seed(seed, npat, say):
-    df = cohort(seed, npat)
-    people = sorted(df["person_id"].unique())
+def one_seed(seed, npat, say, src=None, sensitive=None,
+             quasi=None, group_by="person_id"):
+    """One seed's measurement, on the FIXTURE or on a REAL
+    extract.
+
+    THE REAL PATH EXISTS BECAUSE A DETERMINATION IS SCOPED TO
+    ONE RELEASE. This battery only ever ran on its own cohort
+    fixture, and `synthkit determination` marks fixture evidence
+    FIXTURE precisely because a number about a different dataset
+    is not evidence about this one - so a complete run of record
+    was impossible while the only attribute measurement
+    available was about somebody else's data.
+    """
+    df = cohort(seed, npat) if src is None else src
+    sensitive = sensitive or SENSITIVE
+    quasi = list(quasi or QUASI)
+    people = sorted(df[group_by].astype(str).unique())
     rs = np.random.RandomState(seed + 99)
     rs.shuffle(people)
     half = len(people) // 2
     mem_ids, non_ids = set(people[:half]), set(people[half:])
-    members = df[df["person_id"].isin(mem_ids)]
-    nonmembers = df[df["person_id"].isin(non_ids)]
+    _g = df[group_by].astype(str)
+    members = df[_g.isin(mem_ids)]
+    nonmembers = df[_g.isin(non_ids)]
 
-    cat = discover(members, group_by="person_id", seed=seed + 1)
-    bp = B.build(members, cat, group_by="person_id")
+    cat = discover(members, group_by=group_by, seed=seed + 1)
+    bp = B.build(members, cat, group_by=group_by)
     synth = generate(bp, n_patients=len(mem_ids), seed=seed + 7)
 
     real = attribute_disclosure(
-        SENSITIVE, QUASI,
+        sensitive, quasi,
         members.to_dict("records"), nonmembers.to_dict("records"),
         synth.to_dict("records"), seed=seed)
 
     # THE POSITIVE CONTROL. A generator that publishes the members'
     # own records is the worst case, and the attack must see it.
     leaky = attribute_disclosure(
-        SENSITIVE, QUASI,
+        sensitive, quasi,
         members.to_dict("records"), nonmembers.to_dict("records"),
         members.to_dict("records"), seed=seed)
 
@@ -116,16 +131,79 @@ def main():
     ap.add_argument("--patients", type=int, default=700)
     ap.add_argument("--seeds", type=int, default=3)
     ap.add_argument("-o", "--out", default="")
+    # THE REAL PATH. A determination is scoped to ONE release,
+    # and this battery only ever ran on its own cohort fixture -
+    # so `synthkit determination` correctly marked its evidence
+    # FIXTURE and a complete run of record was impossible.
+    ap.add_argument("--csv", default=None,
+                    help="a REAL extract instead of the cohort "
+                         "fixture; needs --sensitive and "
+                         "--quasi, because which column is "
+                         "sensitive is the operator's "
+                         "judgment and not ours to guess")
+    ap.add_argument("--group-by", default="person_id")
+    ap.add_argument("--sensitive", default=None)
+    ap.add_argument("--quasi", default=None,
+                    help="comma-separated quasi-identifiers the "
+                         "adversary is assumed to hold")
     a = ap.parse_args()
 
     def say(m):
         print(m, flush=True)
 
-    say("attribute disclosure: {} from {}".format(SENSITIVE, QUASI))
+    src = None
+    sensitive, quasi = SENSITIVE, list(QUASI)
+    if a.csv:
+        if not (a.sensitive and a.quasi):
+            print("STOPPED: --csv needs --sensitive and --quasi. "
+                  "Which column is sensitive, and what an "
+                  "adversary is assumed to hold, are the "
+                  "operator's judgments - guessing them would "
+                  "measure an attack nobody is worried about.",
+                  file=sys.stderr)
+            return 2
+        from synthkit.intake import read_table
+        src, how = read_table(a.csv)
+        say("source: {}".format(how))
+        sensitive = a.sensitive
+        quasi = [q.strip() for q in a.quasi.split(",")
+                 if q.strip()]
+        missing = [c for c in quasi + [sensitive, a.group_by]
+                   if c not in src.columns]
+        if missing:
+            print("STOPPED: no column(s) {} in {} - columns are "
+                  "{}".format(missing, a.csv,
+                              list(src.columns)[:12]),
+                  file=sys.stderr)
+            return 2
+        # A QUASI-IDENTIFIER THAT COERCES TO NOTHING WEAKENS THE
+        # ADVERSARY, NOT THE RELEASE. `_encode` runs every quasi
+        # through `_num`, which returns None for a category or a
+        # date, and the lower accuracy then reads as privacy -
+        # this project already records that fault and the fix is
+        # to refuse by name rather than wait for it.
+        bad = []
+        for c in quasi:
+            v = pd.to_numeric(src[c], errors="coerce")
+            if v.notna().mean() < 0.5:
+                bad.append(c)
+        if bad:
+            print("STOPPED: quasi-identifier(s) {} do not coerce "
+                  "to numbers on most rows. A column that "
+                  "coerces to nothing hands the adversary an "
+                  "EMPTY column, and the lower accuracy then "
+                  "reads as privacy - pass integer codes "
+                  "instead.".format(bad), file=sys.stderr)
+            return 2
+
+    say("attribute disclosure: {} from {}".format(sensitive,
+                                                  quasi))
     say("")
     reals, leaks = [], []
     for s in range(a.seeds):
-        r, k = one_seed(s, a.patients, say)
+        r, k = one_seed(s, a.patients, say, src=src,
+                        sensitive=sensitive, quasi=quasi,
+                        group_by=a.group_by)
         reals.append(r)
         leaks.append(k)
 
@@ -138,7 +216,17 @@ def main():
     say("the same attack on a generator that republishes the members: "
         "mean {:+.3f}".format(float(np.mean(lex))))
     say("")
-    if float(np.mean(lex)) < 0.03:
+    # THE BAR LIVES HERE, ONCE, AND IS WRITTEN INTO THE RECORD.
+    # `synthkit.determination` needs to know whether the control
+    # FIRED - an excess with a control that did not fire is the
+    # check-that-cannot-fail shape - and re-deriving the bar
+    # there would be two halves computing one threshold, which
+    # this project has already been bitten by in a privacy
+    # number. The decision is made at this one site and the flag
+    # travels.
+    control_bar = 0.03
+    control_fired = float(np.mean(lex)) >= control_bar
+    if not control_fired:
         say("THE POSITIVE CONTROL DID NOT FIRE. A leaky generator "
             "should be caught by this attack, and it was not - so "
             "neither number above means anything. Do not report them.")
@@ -162,7 +250,14 @@ def main():
 
     if a.out:
         Path(a.out).write_text(json.dumps(
-            {"seeds": reals, "positive_control": leaks},
+            {"source": (str(a.csv) if a.csv
+                        else "cohort fixture"),
+             "sensitive": sensitive, "quasi": quasi,
+             "control_fired": bool(control_fired),
+             "control_bar": control_bar,
+             "control_mean_excess": float(np.mean(lex)),
+             "excess_mean": float(np.mean(exc)),
+             "seeds": reals, "positive_control": leaks},
             indent=1), encoding="utf-8")
         say("wrote {}".format(a.out))
     return rc

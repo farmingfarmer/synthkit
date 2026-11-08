@@ -271,10 +271,29 @@ def assess(fidelity: Optional[Dict] = None,
     # THE EXCESS, AND THE POSITIVE CONTROL THAT MAKES IT WORTH
     # ANYTHING. A clean excess with no leaky-generator arm is
     # the check-that-cannot-fail shape.
+    # AND THE CONTROL MUST HAVE FIRED, not merely existed.
+    #
+    # The first cut required a non-empty `positive_control`
+    # list - which is satisfied by a control that ran and
+    # caught nothing. On a real extract the battery reported
+    # "THE POSITIVE CONTROL DID NOT FIRE" at +0.019 excess, and
+    # this element would still have read present: an excess
+    # whose control cannot catch a verbatim republish is the
+    # check-that-cannot-fail shape, which is exactly what the
+    # linkage element already refuses via `control_caught`.
+    #
+    # The flag is read, never re-derived: the bar lives in the
+    # battery at its decision site, and computing it here too
+    # would be two halves deciding one threshold.
+    _fired = _get(attribute, "control_fired", default=None)
     have["attribute"] = bool(
         (_get(attribute, "seeds", default=None) or [])
         and (_get(attribute, "positive_control", default=None)
-             or []))
+             or [])
+        # A record predating the flag cannot be judged on it -
+        # absent is not the same fact as did-not-fire - so an
+        # old record still counts, and a NEW one must say True.
+        and _fired is not False)
 
     # LINKAGE NEEDS ITS CONTROL TO HAVE CAUGHT THE REPUBLISH,
     # or the honest number says nothing - which is why the

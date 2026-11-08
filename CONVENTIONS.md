@@ -167,6 +167,61 @@ the direction that stops work happening.
   lag both dropped
 
 ## What the blueprint may publish
+- **THE ATTRIBUTE BATTERY HAD NO REAL-EXTRACT PATH, SO A
+  COMPLETE DETERMINATION RUN WAS IMPOSSIBLE (2026-11-07, ED-3).**
+  It only ever ran on its own cohort fixture - and the package
+  correctly marks fixture evidence FIXTURE, because a number
+  about a different dataset is not evidence about this one. So
+  the element could never read present on a real run, by
+  construction. `--csv` with `--sensitive` and `--quasi` closes
+  it, and the two judgments are REQUIRED rather than guessed:
+  which column is sensitive, and what an adversary is assumed to
+  hold, decide which attack is being measured, and guessing them
+  would measure an attack nobody is worried about.
+- **AND IT REFUSES A QUASI-IDENTIFIER THAT COERCES TO NOTHING,
+  rather than waiting for the fault this file already records.**
+  `_encode` runs every quasi through `_num`, which returns None
+  for a category or a date, so naming one hands the adversary an
+  EMPTY column and the lower accuracy then reads as PRIVACY.
+  Refused by name, with exit 2 and no traceback.
+- **AND THE PACKAGE WAS ACCEPTING AN EXCESS WHOSE CONTROL NEVER
+  FIRED.** `assess` required a non-empty `positive_control` list
+  - which a control that ran and caught NOTHING satisfies. The
+  first real-extract run printed "THE POSITIVE CONTROL DID NOT
+  FIRE" at +0.019 excess and the element would still have read
+  present: the check-that-cannot-fail shape, which the linkage
+  element already refuses via `control_caught`. The flag is
+  READ, never re-derived - the bar lives at the battery's own
+  decision site, and computing it in both places is how a
+  privacy threshold came to be applied with one tail bound and
+  reported with another.
+- **AND AN ABSENT FLAG STILL COUNTS, because absent is not the
+  same fact as did-not-fire.** A record predating the flag
+  cannot be judged on it; a new one must say True. Same
+  distinction this file draws for `id_column` and for empty
+  sets, and the mutation that treats absent as failure turns
+  four checks red.
+- **AND THE CAP MISMATCH IS MEASURED, NOT ARGUED.** The
+  real-extract attack was launched twice on the same data, once
+  at the shipped token cap of 60 and once at the 800 the
+  released run used. Seed 0: output-surface adversary **0.498 at
+  cap 60 against 0.561 at cap 800**, with the weights arm
+  0.619 and 0.625. A larger cap publishes more vocabulary about
+  members and the number moves by 0.06 AUC in exactly that
+  direction - so the CONFIG flag is not a theoretical nicety,
+  and an attack measured at a smaller cap understates the risk
+  of a larger-cap release.
+- **AND TWO MUTATIONS LOOKED LIKE WEAK CHECKS AND WERE MY OWN
+  ERRORS, AGAIN.** One changed a message prefix from "STOPPED:"
+  to "note:" while the asserted words lived in the same string
+  either way - and the check deserved the criticism anyway,
+  because it asserted the MESSAGE rather than the decision; it
+  now runs the CLI with a categorical quasi-identifier and
+  requires exit 2. The other named an anchor that did not exist,
+  so the mutation never applied and its zero was a non-result.
+  Assert count==1 before every replacement, which is the oldest
+  editing rule here.
+
 - **THE STATUTE SAYS "ALONE OR IN COMBINATION WITH OTHER
   REASONABLY AVAILABLE INFORMATION", AND OUR OWN PACKAGE WAS
   ANSWERING THE NARROWER HALF (2026-11-07, LK-1,

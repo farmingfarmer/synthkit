@@ -517,6 +517,114 @@ def main():
           and "[N]" in _tpl and "[REVIEW]" in _tpl
           and "Replace the bracketed items" in _tpl)
 
+    # ---- THE ATTRIBUTE CONTROL MUST HAVE FIRED (ED-3)
+    #
+    # The first cut required a non-empty `positive_control`
+    # list, which a control that ran and caught NOTHING
+    # satisfies. On a real extract the battery printed "THE
+    # POSITIVE CONTROL DID NOT FIRE" at +0.019 excess and this
+    # element would still have read present - the
+    # check-that-cannot-fail shape, which the linkage element
+    # already refuses via `control_caught`.
+    _ab = {"seeds": [{"excess_over_control": 0.004}],
+           "positive_control": [{"excess_over_control": 0.019}]}
+    _old = DET.assess(attribute=dict(_ab))
+    _fired = DET.assess(attribute=dict(_ab, control_fired=True))
+    _dead = DET.assess(attribute=dict(_ab, control_fired=False))
+    check("an attribute excess whose POSITIVE CONTROL DID NOT "
+          "FIRE reads OWED, not present - a control that cannot "
+          "catch a verbatim republish makes the clean number "
+          "beside it worth nothing, which this project has "
+          "recorded on this exact surface",
+          "attribute" in _dead["elements_owed"]
+          and "attribute" not in _fired["elements_owed"])
+    check("...and a record PREDATING the flag still counts, "
+          "because absent is not the same fact as did-not-fire "
+          "- the same distinction drawn for `id_column` and for "
+          "empty sets",
+          "attribute" not in _old["elements_owed"])
+    _adsrc = io.open(str(ROOT / "scripts"
+                         / "attribute_disclosure.py"),
+                     encoding="utf-8").read()
+    check("...and the BAR lives at the battery's own decision "
+          "site and travels as a flag, rather than being "
+          "re-derived here - two halves deciding one threshold "
+          "is how a privacy number came to be applied with one "
+          "tail bound and reported with another",
+          "control_bar = 0.03" in _adsrc
+          and '"control_fired": bool(control_fired),' in _adsrc
+          and "control_bar" not in io.open(
+              str(ROOT / "synthkit" / "determination.py"),
+              encoding="utf-8").read())
+
+    # ---- AND THE BATTERY HAS A REAL-EXTRACT PATH AT ALL
+    #
+    # It only ever ran on its own cohort fixture, so
+    # `determination` correctly marked its evidence FIXTURE and
+    # a complete run of record was impossible.
+    check("the attribute battery takes a REAL extract, so its "
+          "evidence can be about the cohort being released "
+          "rather than about somebody else's data",
+          "--csv" in _adsrc and "--sensitive" in _adsrc
+          and "--quasi" in _adsrc
+          and 'src=src' in _adsrc)
+    # AND THAT REFUSAL IS ASSERTED AS A DECISION, THROUGH THE
+    # PROCESS BOUNDARY. A text check on the message passed while
+    # a mutation turned the refusal into a note, because the
+    # asserted words lived in the same string either way -
+    # asserting the message instead of the decision, which this
+    # project records repeatedly.
+    with tempfile.TemporaryDirectory() as _td2:
+        import numpy as _np2
+        import pandas as _pd2
+        _rr = _np2.random.default_rng(3)
+        _n = 600
+        _real = _pd2.DataFrame({
+            "person_id": ["P{:03d}".format(i // 3)
+                          for i in range(_n)],
+            "age": _rr.normal(50, 12, _n).round(1),
+            # a CATEGORY as a quasi-identifier: `_num` returns
+            # None for it, so the adversary gets an empty column
+            "site_name": _rr.choice(["north", "south", "east"],
+                                    _n),
+            "hiv_status": _rr.choice(["positive", "negative"],
+                                     _n)})
+        _csv = os.path.join(_td2, "real.csv")
+        _real.to_csv(_csv, index=False)
+        _cat = subprocess.run(
+            [sys.executable,
+             str(ROOT / "scripts" / "attribute_disclosure.py"),
+             "--csv", _csv, "--sensitive", "hiv_status",
+             "--quasi", "age,site_name", "--seeds", "1"],
+            capture_output=True, text=True, cwd=str(ROOT))
+        _nojudge = subprocess.run(
+            [sys.executable,
+             str(ROOT / "scripts" / "attribute_disclosure.py"),
+             "--csv", _csv, "--seeds", "1"],
+            capture_output=True, text=True, cwd=str(ROOT))
+    check("it REFUSES a quasi-identifier that does not coerce "
+          "to numbers, exit {} with no traceback - `_num` "
+          "returns None for a category, so naming one hands the "
+          "adversary an EMPTY column and the lower accuracy "
+          "then reads as PRIVACY. This project records that "
+          "fault; the fix is to refuse by name rather than wait "
+          "for it".format(_cat.returncode),
+          _cat.returncode == 2
+          and "site_name" in _cat.stderr
+          and "Traceback" not in _cat.stderr)
+    check("...and it REFUSES --csv without the two judgments, "
+          "exit {}, because which column is sensitive and what "
+          "an adversary holds are the operator's calls - "
+          "guessing them would measure an attack nobody is "
+          "worried about".format(_nojudge.returncode),
+          _nojudge.returncode == 2
+          and "--sensitive" in _nojudge.stderr
+          and "Traceback" not in _nojudge.stderr)
+    check("...and it records the SOURCE it measured, so the "
+          "package can tell evidence about this release from "
+          "evidence about a fixture",
+          '"source": (str(a.csv) if a.csv' in _adsrc)
+
     print()
     if FAIL:
         print("{} of {} checks failed.".format(FAIL, PASS + FAIL))
