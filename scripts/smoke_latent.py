@@ -293,6 +293,36 @@ def main():
               and "rows_read" in _prov["source"]
               and "patients" in _prov["source"]
               and isinstance(_prov.get("build"), dict))
+        # THE SEED, WITHOUT WHICH NO TWO RUNS CAN BE PAIRED.
+        #
+        # This project had already recorded the consequence as a
+        # LIMIT rather than fixing it: "the deliverable's seed
+        # is unknown, which is the limit on every comparison
+        # here". Every rule in CONVENTIONS about single-seed
+        # measurements, control arms and same-day baselines
+        # depends on pairing two runs, and it was hit for real -
+        # two runs on one extract differing by three graded
+        # pairs on the SAME denominator, with no way to
+        # attribute the difference to the seed or to anything
+        # else, because the artifact did not carry it.
+        _ctr = _prov.get("contract") or {}
+        check("the contract records the SEED ({}) and the "
+              "trajectory setting ({}), without which two runs "
+              "on one extract cannot be paired - which this "
+              "project recorded as a limit for weeks before "
+              "fixing the one line that caused it"
+              .format(_ctr.get("seed"), _ctr.get("trajectory")),
+              _ctr.get("seed") == int(g5.seed)
+              and "trajectory" in _ctr
+              and "trajectory_rho_solved" in _ctr)
+        check("...and the seed is READ OFF THE FITTED ENGINE "
+              "like every other contract field, so the record "
+              "cannot claim a seed the run did not use",
+              "gen_engine.seed" in io.open(
+                  str(Path(__file__).resolve().parent
+                      / "latent_challenger.py"),
+                  encoding="utf-8").read())
+
         # THE GOVERNANCE CONTRACT: what the run did, as a
         # RECORD. Every field is read off the fitted engine, so
         # the contract cannot claim a tier the run did not

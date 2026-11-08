@@ -3566,6 +3566,38 @@ def write_run_artifacts(src, gen, group_by, outdir,
         # Every field is read off the fitted engine itself, so
         # the contract cannot say something the run did not do.
         "contract": (None if gen_engine is None else {
+            # THE SEED, WHICH THIS PROJECT HAD ALREADY RECORDED
+            # AS A LIMIT RATHER THAN FIXED.
+            #
+            # CONVENTIONS carries the sentence "the deliverable's
+            # seed is unknown, which is the limit on every
+            # comparison here" - and every rule in that file
+            # about single-seed measurements, control arms and
+            # same-day baselines depends on being able to pair
+            # two runs. Without the seed on the artifact they
+            # cannot be paired, so two runs on one extract
+            # differing by three graded pairs could not be
+            # attributed to the seed or to anything else. Read
+            # off the fitted engine, like every other field
+            # here, so the record cannot claim a seed the run
+            # did not use.
+            "seed": (int(gen_engine.seed)
+                     if getattr(gen_engine, "seed", None)
+                     is not None else None),
+            # And the trajectory setting, for the same reason:
+            # it changes generation and is off by default, so a
+            # run that used it must say so or its dynamics
+            # number is unattributable.
+            "trajectory": getattr(gen_engine, "trajectory",
+                                  False),
+            "trajectory_rho": (
+                float(gen_engine.dev_rho_override)
+                if getattr(gen_engine, "dev_rho_override", None)
+                is not None else None),
+            "trajectory_rho_solved": (
+                float(gen_engine.dev_rho_solved)
+                if getattr(gen_engine, "dev_rho_solved", None)
+                is not None else None),
             "k": int(k),
             "k_blur": bool(getattr(gen_engine, "k_blur",
                                    False)),

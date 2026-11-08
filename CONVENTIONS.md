@@ -2129,6 +2129,56 @@ the direction that stops work happening.
   error with did-you-mean; `synthkit dials` lists every edge.
 
 ## Numbers before conclusions
+- **THE TRAJECTORY RAN ON THE REAL EXTRACT AS A PAIRED CONTROL,
+  AND IT IS A TRADE RATHER THAN A WIN - SO IT STAYS OFF
+  (2026-11-07, traj_off / traj_ar, build 21254e9).** Same
+  extract, same seed, same k and token cap, run by the same hand
+  an hour apart; the ONLY difference is the flag. Every figure
+  crossed in words:
+      arm        dynamics    close     sign   INV   own-INV
+      off          21/93   133/148      145     1         0
+      ar           28/93   131/149      146     1         0
+  **Seven more graded dynamics columns on the real extract, at
+  a cost of about two close pairs.** sign kept improved by one;
+  INVERTED and the own-column stop are unchanged. The mechanism
+  transfers - the recorded `dynamics tracked 17/87` was never
+  structural - and it is not free.
+- **THE DENOMINATOR MOVED BY ONE, SO THE PERCENTAGES ARE NOT THE
+  COMPARISON.** close went 148 to 149 related pairs, which this
+  file's own rule says contaminates a percentage; the ABSOLUTE
+  counts are what compare, 133 to 131. And the percentage
+  matters anyway for the gate: 131/149 is **87.92%** against an
+  87.9% bar, passing by two hundredths of a point, where the off
+  arm passed at 89.86%. Trading a comfortably-passing criterion
+  for a marginally-passing one in order to gain a different
+  criterion is a decision for an operator, not a default - and
+  this project has twice shipped a "gain" that a control arm
+  later overturned. **OFF by default, with the price on record.**
+- **THE REAL PATIENT COURSE IS WEAK, AND MY FIXTURES WERE FAR
+  MORE LONGITUDINAL THAN THE DATA.** The extract's latent
+  deviation lag-1 is **+0.351** over 45,608 consecutive pairs,
+  against 0.89 to 0.95 on every fixture the mechanism was
+  developed on. The solver landed 0.300, near it, with 1 of 3
+  graded columns outside the bar. So the measured ~0.40 ceiling
+  is not the binding constraint here - the source simply does
+  not ask for much course - and a fixture built at 0.95 was
+  answering a harder question than the extract poses.
+- **AND NO COUNTER COLUMN WAS DETECTED ON THE EXTRACT, so that
+  fix bought nothing there.** It was load-bearing on the
+  fixtures - `visit_number` IS the within-patient index and was
+  blocking one graded column outright - and the extract has no
+  such column meeting the 99% rule. The fix is right and it
+  repaired a fault of my own fixtures' making, which is worth
+  saying plainly rather than letting it read as a real-data win.
+- **AND THE NINE-ARM SWEEP SAID `close` WAS NEVER WORSE, WHICH
+  THE REAL EXTRACT CONTRADICTS.** `dyn_sweep` read close 3/3 on
+  BOTH arms of every one of nine arms - because its fixtures
+  relate only three pairs, so a two-pair cost is beneath what it
+  can resolve. The measured-at-one-scale fault, in a sweep I
+  built specifically to catch a cost. A control arm that cannot
+  resolve the cost it is watching for is not a control arm, and
+  the sweep now says so in its own docstring.
+
 
 - **THE PATIENT COURSE IS MODELLED NOW, THE RHO IS SOLVED, AND
   THE OBJECTIVE TOOK THREE TRIES TO GET RIGHT (2026-11-07,

@@ -32,6 +32,16 @@ engine was drawing it as an ordinary number, so one graded column
 could never pass however good the trajectory was. It is
 reproduced BY POSITION now: exact, and not modelled at all.
 
+AND THIS SWEEP CANNOT RESOLVE THE COST THE REAL EXTRACT SHOWED.
+It reads `close` 3/3 on BOTH arms of every arm, which was taken
+as "never worse". The paired real-extract run then read close
+133/148 off against 131/149 on - about two pairs - and these
+fixtures relate only THREE pairs, so a two-pair cost is beneath
+what they can see. A control arm that cannot resolve the cost it
+is watching for is not a control arm, said here rather than left
+for the next reader to infer. The gain transfers (dynamics 21/93
+to 28/93 on the extract); the no-cost claim did not.
+
 Run it:
     python scripts/dyn_sweep.py                  # 3 seeds
     python scripts/dyn_sweep.py --seeds 5

@@ -143,9 +143,25 @@ Across two longitudinal shapes and three seeds the graded
 columns go **1.17 → 2.17** on average, worse on **no** arm, with
 `close` and `inverted` identical on every arm and a
 cross-sectional control grading zero columns. It still ships
-**off by default**, because nine fixture arms is not a cohort
-and 17/87 is a real-extract number — the real-extract control
-pair is what decides it.
+**off by default**, and the real-extract control pair has now
+decided that rather than deferring it. Same extract, same seed,
+same settings, one flag apart:
+
+| arm | dynamics | close | sign | INVERTED |
+|---|---|---|---|---|
+| off | 21/93 | 133/148 | 145 | 1 |
+| ar | **28/93** | 131/149 | 146 | 1 |
+
+**Seven more graded dynamics columns, at a cost of about two
+close pairs** — and the close denominator moved by one, so the
+absolute counts are what compare. It lands at 87.92% against an
+87.9% bar where the control passed at 89.86%. Trading a
+comfortably-passing criterion for a marginally passing one to
+gain a different one is an operator's decision, not a default.
+The mechanism transfers; the no-cost claim did not — our own
+nine-arm fixture sweep read "never worse on close" because its
+fixtures relate only three pairs, beneath the resolution of a
+two-pair cost.
 
 The honest ceiling, measured: the achieved within-patient AR is
 **non-monotone in rho**, peaking near 0.70 at about 0.40. Past
@@ -153,6 +169,14 @@ the peak a high rho stops producing a DEVIATION and starts
 producing part of the patient's LEVEL, so a source course
 stronger than about 0.55 cannot be matched. We say so rather
 than quoting the fixtures where it clears.
+
+That ceiling is not what binds on this extract, though: its
+latent deviation lag-1 is **+0.351** over 45,608 consecutive
+pairs, against 0.89–0.95 on every fixture the mechanism was
+developed against, and the solver landed 0.300 near it. The real
+patient course is WEAK, and our fixtures were asking a harder
+question than the data poses — worth knowing before anyone reads
+a longitudinal claim in either direction.
 
 MOSTLY AI documents a sequential scenario; the research
 frontier (RawMed, PATH, SynEHR) treats a patient's whole table
@@ -352,7 +376,7 @@ I did not find another tool documenting this.
 | capability | synthkit | documented elsewhere |
 |---|---|---|
 | differential privacy | **partial, all five stages measured** — DP training of the weights ships; the other four have mechanisms with measured prices (a DP vocabulary selection at eps 3 keeps 12% of what the k rule publishes on an 800-patient cohort; the latent mixture's cost is a SHAPE cost that more epsilon cannot buy off). Not on by default, and the reason is a number | yes (MOSTLY AI) |
-| sequential / longitudinal model | **partial, improved** — rules engine models it; neural engine has an AR(1) course with a SOLVED rho, off by default, ceiling ~0.40 within-AR; the recorded 17/87 predates it | yes (MOSTLY AI; research frontier) |
+| sequential / longitudinal model | **partial, measured on the real extract** — rules engine models it; the neural engine's AR(1) course with a SOLVED rho moves dynamics 21/93 to 28/93 on the extract and costs about two close pairs, so it stays off by default with the price on record | yes (MOSTLY AI; research frontier) |
 | HIPAA Expert Determination | **partial** — the evidence package is assembled and says what is still OWED (`synthkit determination`); no expert has made a determination, and the tool refuses to imply one | yes (Tonic) |
 | automatic PHI/PII detection | yes, 18-category inventory | yes (Tonic) |
 | referential integrity across tables | yes | yes (MOSTLY AI, SDV) |
