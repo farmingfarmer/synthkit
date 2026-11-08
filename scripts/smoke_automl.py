@@ -33,6 +33,7 @@ from synthkit.automl import (                        # noqa: E402
     FAMILIES, LAST_CHOICE, MIN_ROWS_TO_SELECT, _auc, automl,
     describe)
 from synthkit.autosolver import autosolver           # noqa: E402
+from synthkit.mlmetrics import auroc                 # noqa: E402
 
 PASS = FAIL = 0
 
@@ -299,6 +300,69 @@ def main():
           and _tl.index("floor") < _tl.index("competitor"))
 
     print()
+    # ---- DO NOT SWITCH FAMILIES ON A DIFFERENCE YOU CANNOT
+    # RESOLVE
+    #
+    # On the real extract's WEAK tier the competitor chose a
+    # flexible family and scored 0.6082 against the stdlib
+    # floor's 0.6248 - 0.017 WORSE than logistic regression,
+    # against the "never worse than the floor" claim recorded
+    # from these very fixtures. With little signal the selection
+    # slice cannot tell the families apart, so an argmax picks
+    # whichever one the noise favoured.
+    def _weak_arm(strength, seed, n=6000):
+        r = np.random.default_rng(seed)
+        X = r.normal(size=(n, 8))
+        z = -2.3 + strength * (0.9 * X[:, 0] - 0.6 * X[:, 1]
+                               + 0.3 * X[:, 2])
+        y = (r.random(n) < 1 / (1 + np.exp(-z))).astype(int)
+        rows = [{"f{}".format(j): float(X[i, j])
+                 for j in range(8)} for i in range(n)]
+        cut = int(n * 0.7)
+        return (rows[:cut], y[:cut].tolist(),
+                rows[cut:], y[cut:].tolist())
+
+    _worst, _deltas = 0.0, []
+    for _st in (0.20, 0.35):
+        for _sd in (0, 1, 2):
+            _tr, _ytr, _te, _yte = _weak_arm(_st, _sd)
+            from synthkit.autosolver import LogisticBaseline \
+                as _LB
+            _lb = _LB()
+            _lb.fit(_tr, _ytr)
+            _f = auroc(_lb.score(_te), _yte)
+            _a = auroc(automl(seed=_sd)(_tr, _ytr, _te), _yte)
+            _deltas.append(_a - _f)
+            _worst = min(_worst, _a - _f)
+    check("at WEAK signal the competitor does not lose to the "
+          "stdlib floor: worst delta {:+.4f} over six arms. "
+          "Before the margin it chose a flexible family on a "
+          "noise-sized difference and read -0.0123 here, and "
+          "-0.017 against the floor on the real extract's weak "
+          "tier - the fixture claim of 'never worse' was "
+          "measured on arms that never reached that regime"
+          .format(_worst), _worst > -0.005)
+    _lc = LAST_CHOICE.get("automl") or {}
+    check("...and the margin is the slice's own resolution, "
+          "recorded with the choice ({}), not a constant - "
+          "1/sqrt(min(positives, negatives)) on the held-out "
+          "slice, so it tightens as the slice grows"
+          .format(_lc.get("switch_margin")),
+          _lc.get("switch_margin") is not None
+          and 0.0 < float(_lc["switch_margin"]) < 0.5
+          and "incumbent" in _lc)
+    check("...and the INCUMBENT is the simplest family that "
+          "ran ({}), which a flexible one must beat by that "
+          "margin - the first cut decided inside the loop and, "
+          "because FAMILIES is ordered simplest LAST, every "
+          "candidate was simpler than the incumbent so the "
+          "margin branch was UNREACHABLE. With and without it "
+          "the nine weak arms came out byte-identical, and two "
+          "arms that agree are one arm"
+          .format(_lc.get("incumbent")),
+          _lc.get("incumbent") == FAMILIES[-1]
+          and "switched" in _lc)
+
     if FAIL:
         print("{} FAILED".format(FAIL))
         sys.exit(1)

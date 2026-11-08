@@ -120,7 +120,7 @@ def build_card(campaign_dir, planted_path, showdown_path):
     body.append("<h2>Ceiling / floor{} / vendor</h2>".format(
         " / " + esc(str(comp_name)) if have_comp else ""))
     rows = []
-    miscal = []
+    miscal, tight = [], []
     for t in showdown.get("tiers") or []:
         name = t.get("tier")
         m = (measured.get(name) or {}).get("measured") or {}
@@ -138,9 +138,41 @@ def build_card(campaign_dir, planted_path, showdown_path):
                                 .split(")")[0])
                 except ValueError:
                     pass
+        # A BAR ABOVE ITS CEILING IS THE STRICT CASE. A BAR
+        # WHOSE WINDOW IS SMALLER THAN EVERY MEASURED GAP IS THE
+        # SAME PROBLEM IN A MILDER FORM, and the real extract
+        # produced it: the as-specified tier demanded 0.700
+        # where its ceiling was 0.704, so the bar was achievable
+        # by 0.004 - and every solver on that tier, including
+        # our own competitor, left more than 0.004 on the table.
+        # The FAIL was about where the bar sits, not about the
+        # solver, and the strict test could not say so.
         bar_above = bar is not None and bar > ceiling
+        _gaps = [ceiling - v for v in
+                 (base, vend, t.get("competitor"))
+                 if v is not None]
+        window = (ceiling - bar) if bar is not None else None
+        # NO `not ok` HERE, BECAUSE IT WAS REDUNDANT AND A
+        # MUTATION REMOVING IT BROKE NOTHING.
+        #
+        # If any solver cleared the bar, its own gap to the
+        # ceiling is at most the window (value >= bar implies
+        # ceiling - value <= ceiling - bar) - and that solver's
+        # gap is IN this list, so `window < min(gaps)` already
+        # implies nobody cleared it. Checked over 200,000
+        # random (ceiling, bar, three values) triples: zero
+        # cases where the window is under every gap AND
+        # somebody passed. A redundant condition inside a tool
+        # built to catch unreachable behaviour is the recorded
+        # joke at its own expense, so it is gone rather than
+        # left as a comment nobody can test.
+        bar_tight = (bar is not None and not bar_above
+                     and _gaps and window < min(_gaps))
         if bar_above:
-            miscal.append((name, bar, ceiling))
+            miscal.append((name, bar, ceiling, None))
+        elif bar_tight:
+            tight.append((name, bar, ceiling, window,
+                          min(_gaps)))
         gap = m.get("predict.auroc_gap")
         comp = t.get("competitor")
         comp_cell = ('<td class="num">{:.3f}</td>'.format(
@@ -190,7 +222,7 @@ def build_card(campaign_dir, planted_path, showdown_path):
             'two is better than nothing and worse than us.'
             '</p>'.format(esc(str(comp_name))))
 
-    for name, bar, ceiling in miscal:
+    for name, bar, ceiling, _ in miscal:
         body.append(
             '<div class="callout"><b>The {} bar is above its own '
             "ceiling</b> &mdash; {:.2f} demanded where the planted "
@@ -199,6 +231,20 @@ def build_card(campaign_dir, planted_path, showdown_path):
             "solver, and the gap column is the honest reading. "
             "Re-run with the bar beneath the ceiling, or judge on "
             "gap.</div>".format(esc(name), bar, ceiling))
+
+    for name, bar, ceiling, window, best in tight:
+        body.append(
+            '<div class="callout"><b>The {} bar is achievable by '
+            "{:.3f}</b> &mdash; {:.2f} demanded against a ceiling "
+            "of {:.3f}. Every solver measured on this tier, "
+            "including ours, left at least {:.3f} on the table, "
+            "so a bar with a {:.3f} window fails them all for a "
+            "reason that has nothing to do with the solver. This "
+            "is the same problem as a bar above its ceiling, one "
+            "notch milder: the gap column is the honest reading. "
+            "Set the bar beneath the ceiling by more than a "
+            "realistic gap, or judge on gap.</div>".format(
+                esc(name), window, bar, ceiling, best, window))
 
     body.append("<h2>What this measures, and what it does not</h2>")
     body.append(
@@ -222,7 +268,13 @@ def build_card(campaign_dir, planted_path, showdown_path):
            "<title>Vendor evaluation report card</title><style>"
            + CSS + "</style></head><body><div class='wrap'>"
            + "".join(body) + "</div></body></html>")
-    return doc, {"tiers": len(rows), "miscalibrated": len(miscal)}
+    return doc, {"tiers": len(rows),
+                 "miscalibrated": len(miscal),
+                 # REPORTED SEPARATELY, because they take the
+                 # same action for different reasons and a
+                 # single count would hide the milder one
+                 # entirely.
+                 "bar_tighter_than_any_gap": len(tight)}
 
 
 def main():

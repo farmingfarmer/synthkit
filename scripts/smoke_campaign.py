@@ -9,6 +9,10 @@ Run from the repo root:
 """
 from __future__ import annotations
 
+import io
+import json
+import os
+import tempfile
 import sys
 from pathlib import Path
 
@@ -726,6 +730,118 @@ def main():
     check("...and an EMPTY input is still refused by name, "
           "which is what that guard was for",
           _empty_refused)
+
+    # ---- A BAR TIGHTER THAN ANY GAP IS THE MILDER
+    # MISCALIBRATION, AND THE REAL EXTRACT PRODUCED IT
+    #
+    # The card called out a bar ABOVE its own ceiling - the
+    # strict case, which the 2026-09-11 run hit at 0.700 over
+    # 0.698. The 2026-11-08 run hit the milder one: 0.700
+    # demanded against a ceiling of 0.704, so achievable by
+    # 0.004, while every solver on that tier - including our own
+    # competitor - left more than 0.004 on the table. The FAIL
+    # was about where the bar sits and the strict test could not
+    # say so.
+    import report_card as _RC
+
+    def _mkcard(bar, ceiling, base, vend, comp, passed):
+        _td = tempfile.mkdtemp()
+        _cd = os.path.join(_td, "campaign")
+        os.makedirs(_cd)
+        json.dump({"name": "exam",
+                   "tiers": [{"tier": "as-specified"}]},
+                  io.open(os.path.join(_cd, "campaign.json"),
+                          "w"))
+        _ev = ("predict.auroc = {:.3f} (required >= {:.3f}) "
+               "-> {}".format(vend, bar,
+                              "HOLDS" if passed else "FAILS"))
+        json.dump({"tiers": [{
+            "tier": "as-specified", "evidence": _ev,
+            "measured": {"predict.auroc": vend,
+                         "predict.auroc_gap": ceiling - vend}}]},
+            io.open(os.path.join(_cd, "result.json"), "w"))
+        _pl = os.path.join(_td, "planted.json")
+        json.dump({"effects_in_sds": {"age": 0.8},
+                   "requested_prevalence": 0.25,
+                   "achieved_prevalence": 0.26},
+                  io.open(_pl, "w"))
+        _sh = os.path.join(_td, "showdown.json")
+        json.dump({"tiers": [{
+            "tier": "as-specified", "ceiling": ceiling,
+            "baseline": base, "vendor": vend,
+            "competitor": comp, "competitor_name": "automl",
+            "passed": passed}]}, io.open(_sh, "w"))
+        return _RC.build_card(_cd, _pl, _sh)
+
+    _h_tight, _s_tight = _mkcard(0.700, 0.704, 0.6872, 0.6872,
+                                 0.6955, False)
+    _h_above, _s_above = _mkcard(0.700, 0.698, 0.683, 0.683,
+                                 0.690, False)
+    _h_ok, _s_ok = _mkcard(0.600, 0.704, 0.6872, 0.6872,
+                           0.6955, True)
+    check("the card calls out a bar TIGHTER THAN ANY MEASURED "
+          "GAP - the real extract's as-specified tier demanded "
+          "0.700 against a ceiling of 0.704, achievable by "
+          "0.004, while every solver left more than that on the "
+          "table - and it is reported SEPARATELY from a bar "
+          "above its ceiling ({} tight, {} above) because the "
+          "two have the same fix for different reasons"
+          .format(_s_tight["bar_tighter_than_any_gap"],
+                  _s_tight["miscalibrated"]),
+          _s_tight["bar_tighter_than_any_gap"] == 1
+          and _s_tight["miscalibrated"] == 0
+          and "achievable by" in _h_tight)
+    check("...and the STRICT case still reads as a bar above "
+          "its own ceiling ({} above, {} tight), which is the "
+          "2026-09-11 run's shape - 0.700 demanded over a 0.698 "
+          "ceiling, clearable by nobody"
+          .format(_s_above["miscalibrated"],
+                  _s_above["bar_tighter_than_any_gap"]),
+          _s_above["miscalibrated"] == 1
+          and _s_above["bar_tighter_than_any_gap"] == 0
+          and "above its own" in _h_above)
+    check("...and a HEALTHY bar with room triggers neither, so "
+          "the callouts are not decoration that fires on every "
+          "card",
+          _s_ok["miscalibrated"] == 0
+          and _s_ok["bar_tighter_than_any_gap"] == 0
+          and "achievable by" not in _h_ok
+          and "above its own" not in _h_ok)
+    # AND THE REDUNDANCY IS MEASURED, NOT ASSERTED. The
+    # condition carried `not ok` until a mutation removing it
+    # broke nothing - because if any solver cleared the bar its
+    # own gap is at most the window, and that gap is IN the
+    # list the minimum is taken over.
+    import random as _rnd
+    _rnd.seed(0)
+    _counter = 0
+    for _ in range(20000):
+        _ceil = _rnd.uniform(0.55, 0.95)
+        _bar = _rnd.uniform(0.40, _ceil)
+        _vals = [_rnd.uniform(0.40, _ceil) for _ in range(3)]
+        if (_ceil - _bar) < min(_ceil - _v for _v in _vals) \
+                and any(_v >= _bar for _v in _vals):
+            _counter += 1
+    check("the tight-bar condition needs no 'nobody passed' "
+          "guard, and that is MEASURED: over 20,000 random "
+          "(ceiling, bar, three solvers) triples there are {} "
+          "cases where the window is under every gap AND "
+          "somebody cleared the bar. The guard was redundant, a "
+          "mutation removing it broke nothing, and it is gone "
+          "rather than left as an untestable comment"
+          .format(_counter),
+          _counter == 0
+          and "not ok" not in io.open(
+              str(Path(__file__).resolve().parent
+                  / "report_card.py"),
+              encoding="utf-8").read().split(
+                  "bar_tight = ")[1][:120])
+
+    check("...and the tight callout names the WINDOW and the "
+          "best gap, so a reader can act on it rather than "
+          "being told a verdict",
+          "0.004" in _h_tight and "on the table" in _h_tight
+          and "judge on gap" in _h_tight)
 
     print("\nAll {} checks passed.".format(PASS))
 

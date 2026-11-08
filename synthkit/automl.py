@@ -32,6 +32,7 @@ import. The fallback is NOT silent: the recorded choice names
 it, so a report card cannot quietly claim a competitor that
 never ran.
 """
+import math
 from typing import Any, Callable, Dict, List
 
 # What the last call chose, for the report card to read. Keyed
@@ -42,6 +43,10 @@ LAST_CHOICE: Dict[str, Any] = {}
 # The families, in the order they are tried. Kept as data so the
 # record can name one that was tried and lost, not only the
 # winner.
+# ORDERED SIMPLEST LAST, which is how the list was already
+# written - and the order is now LOAD-BEARING rather than
+# cosmetic, because the simplest family is the incumbent a
+# flexible one has to beat by a margin.
 FAMILIES = ("gradient-boosted trees", "random forest",
             "regularized logistic regression")
 
@@ -53,6 +58,22 @@ SELECT_FRACTION = 0.25
 # selection made on forty rows is noise wearing a decision. The
 # floor is used instead, and the record says why.
 MIN_ROWS_TO_SELECT = 120
+
+
+def _simpler(a: str, b: str) -> bool:
+    """Is family `a` simpler than family `b`?
+
+    By position in FAMILIES, which is ordered simplest LAST -
+    so a later entry is simpler. Made explicit because the
+    order became load-bearing the moment the simplest family
+    became the incumbent, and a list whose ORDER carries meaning
+    needs a function saying so rather than a reader inferring
+    it.
+    """
+    try:
+        return FAMILIES.index(a) > FAMILIES.index(b)
+    except ValueError:
+        return False
 
 
 def _have_sklearn():
@@ -281,7 +302,47 @@ def automl(seed: int = 0, tag: str = "automl") -> Callable:
         yho = [y[i] for i in range(n) if i in held]
         note["n_select_holdout"] = len(xho)
 
-        best = None
+        # DO NOT SWITCH FAMILIES ON A DIFFERENCE YOU CANNOT
+        # RESOLVE.
+        #
+        # The selection was a bare argmax over held-out AUC, and
+        # on the real extract's WEAK tier that chose a flexible
+        # family which then scored 0.6082 against the stdlib
+        # floor's 0.6248 - 0.017 WORSE than logistic regression,
+        # against a recorded claim of "never worse than the
+        # floor" measured on fixtures. With little signal the
+        # selection slice cannot tell the families apart, so an
+        # argmax picks whichever one the noise favoured.
+        #
+        # The incumbent is the SIMPLEST family, and a more
+        # flexible one must beat it by more than the slice can
+        # resolve. 1/sqrt(min(n_pos, n_neg)) is the usual
+        # order-of-magnitude standard error of an AUC, which is
+        # the right scale here - the point is not a precise
+        # interval but refusing to act on a difference inside
+        # the noise.
+        _ho_pos = sum(1 for v in yho if v)
+        _ho_neg = len(yho) - _ho_pos
+        margin = (1.0 / math.sqrt(max(1, min(_ho_pos, _ho_neg)))
+                  if _ho_pos and _ho_neg else 1.0)
+        note["switch_margin"] = round(margin, 4)
+        note["margin_why"] = (
+            "a family must beat the SIMPLEST one by more than "
+            "this to be chosen - the approximate standard error "
+            "of the held-out AUC on {} positives and {} "
+            "negatives. Switching on a smaller difference is "
+            "acting on noise, which on the real extract's weak "
+            "tier cost 0.017 against stdlib logistic "
+            "regression.".format(_ho_pos, _ho_neg))
+        # SCORE EVERY FAMILY, THEN CHOOSE. The first cut
+        # decided inside the loop, and because FAMILIES is
+        # ordered simplest LAST every candidate was simpler than
+        # the incumbent - so the margin branch was UNREACHABLE
+        # and the fix changed nothing. Measured: with and
+        # without the margin the nine weak-signal arms came out
+        # byte-identical, including a -0.0123 regression, and
+        # two arms that agree are one arm.
+        scored = {}
         for fam in FAMILIES:
             try:
                 m = _fit_family(fam, xtr, ytr, seed)
@@ -292,8 +353,23 @@ def automl(seed: int = 0, tag: str = "automl") -> Callable:
                 continue
             note["families_tried"].append(
                 {"family": fam, "held_out_auc": round(sc, 4)})
-            if best is None or sc > best[0]:
-                best = (sc, fam)
+            scored[fam] = sc
+
+        best = None
+        if scored:
+            # THE INCUMBENT IS THE SIMPLEST FAMILY THAT RAN, and
+            # a more flexible one has to beat it by more than
+            # the slice can resolve.
+            incumbent = next((f for f in reversed(FAMILIES)
+                              if f in scored), None)
+            best = (scored[incumbent], incumbent)
+            note["incumbent"] = incumbent
+            for fam, sc in scored.items():
+                if fam == incumbent:
+                    continue
+                if sc > best[0] + margin:
+                    best = (sc, fam)
+            note["switched"] = best[1] != incumbent
 
         if best is None:
             from .autosolver import LogisticBaseline

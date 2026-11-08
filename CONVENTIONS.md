@@ -2590,6 +2590,59 @@ the direction that stops work happening.
   error with did-you-mean; `synthkit dials` lists every edge.
 
 ## Numbers before conclusions
+- **THE REPORT CARD OF RECORD EXISTS, AND THE REAL EXTRACT'S
+  FOUR-ARM SHOWDOWN PUT MY OWN COMPETITOR BELOW THE STDLIB FLOOR
+  (2026-11-08).** Goal 8's last named item was "the single
+  report-card artifact from a real run - unrun rather than
+  unbuilt". It is run. The showdown behind it, every figure read
+  back spelled by the machine:
+      tier            ceiling   floor   automl   vendor   bar
+      strong-signal    0.7884  0.7611   0.7841   0.7611  PASS
+      as-specified     0.7040  0.6872   0.6955   0.6872  FAIL
+      weak-signal      0.6301  0.6248   0.6082   0.6248  PASS
+  The competitor comes within **0.0043 of the ceiling** on the
+  strong tier - which is the point of having one - and on the
+  WEAK tier it reads **0.6082 against the floor's 0.6248**:
+  0.017 WORSE than stdlib logistic regression, against the
+  "never worse than the floor" claim I recorded the same week
+  from fixtures that never reached that regime.
+- **THE CAUSE IS SWITCHING ON A DIFFERENCE THE SLICE CANNOT
+  RESOLVE.** With little signal the held-out selection slice
+  cannot tell the families apart, so a bare argmax picks
+  whichever one the noise favoured. The incumbent is the
+  SIMPLEST family now and a flexible one must beat it by
+  `1/sqrt(min(positives, negatives))` on the slice - the
+  approximate standard error of an AUC, so it tightens as the
+  slice grows. Measured on six weak arms: worst delta
+  **-0.0123 -> -0.0000**, with the xor and curved gains intact
+  (floor 0.551/0.542/0.576 against 0.745/0.703/0.716) and the
+  selector still naming different families by mechanism.
+- **AND MY FIRST ATTEMPT AT THAT FIX WAS UNREACHABLE CODE.** It
+  decided inside the loop, and `FAMILIES` is ordered simplest
+  LAST - so every candidate was simpler than the incumbent and
+  the margin branch never ran. With and without it the nine
+  weak arms came out BYTE-IDENTICAL, including the -0.0123, and
+  two arms that agree are one arm. Restructured to score every
+  family and then choose.
+- **AND A BAR TIGHTER THAN EVERY MEASURED GAP IS CALLED OUT
+  NOW, which is the milder form of the miscalibration this
+  project already names.** The card flagged a bar ABOVE its
+  ceiling - September's 0.700 over 0.698. This run hit 0.700
+  against a ceiling of 0.704: achievable by 0.004, while every
+  solver on that tier left more than that on the table, so the
+  FAIL was about where the bar sits. Reported SEPARATELY from
+  the strict case, because they have the same fix for different
+  reasons.
+- **AND THE `nobody passed` GUARD ON THAT TEST WAS REDUNDANT,
+  PROVEN RATHER THAN ARGUED.** If any solver cleared the bar
+  its own gap is at most the window, and that gap is in the
+  list the minimum is taken over - so `window < min(gaps)`
+  already implies nobody cleared it. Checked over 200,000
+  random (ceiling, bar, three solvers) triples: zero
+  counterexamples. Removed rather than left as an untestable
+  comment, and the check carries the sweep so the redundancy is
+  measured and not asserted.
+
 - **THE VENDOR EXAM RAN AGAIN ON THE REAL EXTRACT AND
   REPRODUCED ITSELF ON A DIFFERENT SYNTHETIC DRAW, WHICH IS THE
   PROPERTY THAT MAKES IT AN INSTRUMENT (2026-11-08).** bridge ->
