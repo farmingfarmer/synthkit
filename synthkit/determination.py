@@ -305,12 +305,53 @@ def assess(fidelity: Optional[Dict] = None,
         and (linkage.get("honest") or {}).get("excess_in_sd")
         is not None)
 
-    nn = _get(fidelity, "nn_ratio", default=None)
-    rg = _get(fidelity, "reconstruction_gap", default=None)
-    have["memorization"] = bool(nn is not None or rg is not None)
+    # THE PATHS COME FROM A REAL ARTIFACT, NOT FROM MEMORY -
+    # AND THE FIRST VERSION'S DID NOT, WHICH IS THE EIGHTH
+    # WRONG-KEY FAULT IN THIS REPO.
+    #
+    # It read `fidelity.nn_ratio`, `fidelity.
+    # reconstruction_gap` and `blueprint.
+    # bounds_are_k_anonymous`. A real neural run writes
+    # `fidelity.reconstruction` (train / holdout / ratio /
+    # rows_train / rows_holdout / columns) and a whole
+    # `blueprint.privacy` block (k / counted_in /
+    # numeric_bounds / ... / NOT_a_formal_guarantee), and no
+    # `nn_ratio` at all - that number belongs to the attack and
+    # the challenger, not to this artifact. So both elements
+    # read OWED on a run that HAD the evidence.
+    #
+    # My own checks could not catch it because they built the
+    # artifacts by hand with the names I had invented: the
+    # fixture agreed with the reader and both disagreed with the
+    # only thing that matters. This file records that exact
+    # fault for the relationships page, where twelve rows of
+    # em-dashes shipped. The suite now builds its artifacts
+    # through `write_run_artifacts`, so the keys come from the
+    # real writer.
+    recon = _get(fidelity, "reconstruction", "ratio",
+                 default=None)
+    nn = _get(fidelity, "nn_ratio", default=None)   # rules path
+    have["memorization"] = bool(recon is not None
+                                or nn is not None)
 
-    have["aggregates"] = _get(
-        blueprint, "bounds_are_k_anonymous", default=None) is True
+    # THE K RULE'S OWN RECORD, which is a block rather than a
+    # flag: `k` with `counted_in` saying "patients, never rows",
+    # and `numeric_bounds` describing the mean-of-k-extremes
+    # rule. Checked for the PATIENT wording, because a k counted
+    # in ROWS would let one person seen two hundred times set a
+    # published bound alone - which is the whole reason the rule
+    # is written that way.
+    priv = _get(blueprint, "privacy", default=None) or {}
+    counted = str(priv.get("counted_in") or "")
+    have["aggregates"] = bool(
+        priv.get("k") and "patient" in counted.lower()
+        and priv.get("numeric_bounds"))
+    # ...and an older artifact that carried the flag instead
+    # still counts, because absent is not the same fact as
+    # false.
+    if _get(blueprint, "bounds_are_k_anonymous",
+            default=None) is True:
+        have["aggregates"] = True
     have["utility"] = _get(fidelity, "summary",
                            default=None) is not None
 

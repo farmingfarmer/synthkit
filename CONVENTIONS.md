@@ -3,6 +3,50 @@
 Synthetic clinical data generator and model-evaluation instrument. Core rule: learn the patterns, never copy the records. Real data teaches parameters; generation never touches a record.
 
 ## Verify before claiming
+- **THE EIGHTH WRONG-KEY FAULT, AND MY OWN CHECKS COULD NOT SEE
+  IT BECAUSE THE FIXTURE SHARED THE INVENTED NAMES (2026-11-08).**
+  `determination.assess` read `fidelity.nn_ratio`,
+  `fidelity.reconstruction_gap` and
+  `blueprint.bounds_are_k_anonymous`. A real neural run writes
+  `fidelity.reconstruction` - train / holdout / ratio /
+  rows_train / rows_holdout / columns - and a whole
+  `blueprint.privacy` block (k / counted_in / numeric_bounds /
+  ... / NOT_a_formal_guarantee), and **no `nn_ratio` at all**:
+  that number belongs to the attack and the challenger, not to
+  this artifact. So `memorization` and `aggregates` read OWED on
+  a real run that HELD the evidence, and a determination reader
+  would have been told two measurements this project publishes
+  did not exist.
+  Forty passing checks missed it, because every one built the
+  artifacts BY HAND with the names I had invented: the fixture
+  agreed with the reader and both disagreed with the only thing
+  that matters. This file already records that exact fault for
+  the relationships page, where twelve rows of em-dashes shipped
+  behind forty green checks - and the fix prescribed there is
+  the fix applied here.
+- **THE SUITE NOW DRIVES THE REAL WRITER.** It fits a small
+  cohort, generates, measures the reconstruction gap with the
+  ENGINE'S OWN method, calls `write_run_artifacts`, reads the
+  files back off disk and asserts against those. Restoring
+  either invented path turns it red immediately. A dict
+  assembled in the check would carry whatever shape I guessed,
+  which is how the fault got in.
+- **AND THE K RULE IS CHECKED FOR ITS WORDING, NOT A NUMBER.**
+  `privacy.counted_in` reads "patients, never rows", and a k
+  counted in ROWS is refused - one person seen two hundred times
+  would otherwise set a published bound alone, which is the
+  whole reason the rule is written that way. An older artifact
+  carrying the old flag still counts, because absent is not the
+  same fact as false.
+- **AND IT WAS FOUND BY RUNNING THE TOOL ON REAL ARTIFACTS, not
+  by any check.** `synthkit determination` against the real
+  extract's run read six of eleven elements present with
+  linkage, attribute, memorization, aggregates and residual
+  OWED - and two of those five were my own bad paths rather than
+  missing evidence. A tool whose first real read is also its
+  first honest read is the argument for running it on real
+  artifacts before trusting its verdict.
+
 - **A POSITIONAL ARRAY WAS BEING INDEXED BY LABEL, AND IT ONLY
   EVER WORKED BECAUSE NOBODY HAD FILTERED (2026-11-08).**
   `sets.patient_counts` and, before it, `vocabulary` did

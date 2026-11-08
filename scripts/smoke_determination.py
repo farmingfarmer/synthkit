@@ -34,6 +34,7 @@ import tempfile
 from pathlib import Path
 
 import numpy as np
+import pandas as pd
 
 ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT))
@@ -624,6 +625,110 @@ def main():
           "package can tell evidence about this release from "
           "evidence about a fixture",
           '"source": (str(a.csv) if a.csv' in _adsrc)
+
+    # ---- THE PATHS, AGAINST ARTIFACTS THE REAL WRITER MADE
+    #
+    # THIS IS THE CHECK THAT WOULD HAVE CAUGHT THE EIGHTH
+    # WRONG-KEY FAULT. `assess` read `fidelity.nn_ratio`,
+    # `fidelity.reconstruction_gap` and
+    # `blueprint.bounds_are_k_anonymous`; a real run writes
+    # `fidelity.reconstruction.ratio` and a whole
+    # `blueprint.privacy` block, and no nn_ratio at all. So
+    # `memorization` and `aggregates` read OWED on a run that
+    # HAD the evidence - and every check above missed it,
+    # because they built the artifacts BY HAND with the names I
+    # had invented. The fixture agreed with the reader and both
+    # disagreed with the only thing that matters.
+    #
+    # This project records that exact fault for the
+    # relationships page, where twelve rows of em-dashes
+    # shipped behind forty passing checks. The fix prescribed
+    # there is the fix applied here: drive the REAL writer.
+    sys.path.insert(0, str(ROOT / "scripts"))
+    from latent_challenger import LatentGen, write_run_artifacts
+    _rr3 = np.random.default_rng(5)
+    _rows3 = []
+    for _p in range(90):
+        _lvl = float(_rr3.normal(0, 1))
+        for _v in range(4):
+            _rows3.append({
+                "person_id": "P{:03d}".format(_p),
+                "sys": round(126 + 12 * _lvl
+                             + _rr3.normal(0, 4), 1),
+                "dia": round(78 + 7 * _lvl
+                             + _rr3.normal(0, 3), 1),
+                "grp": "a" if _lvl > 0 else "b"})
+    _rdf = pd.DataFrame(_rows3).astype(str)
+    with tempfile.TemporaryDirectory() as _td3:
+        # THE HOLDOUT SPLIT IS THE ENGINE'S OWN, and the
+        # reconstruction measurement comes from the engine's own
+        # method - NOT hand-built, which is the whole point of
+        # this block. A dict assembled here would carry whatever
+        # shape I guessed, which is how the fault being fixed
+        # got in.
+        _ids3 = sorted(_rdf["person_id"].unique())
+        _hold3 = _rdf[_rdf["person_id"].isin(_ids3[-15:])]
+        _train3 = _rdf[_rdf["person_id"].isin(_ids3[:-15])]
+        _g3 = LatentGen(seed=0, k=5)
+        _g3.fit(_train3, "person_id")
+        _gen3 = _g3.generate(len(_rdf), seed=0)
+        _recon3 = _g3.reconstruction_gap(_hold3)
+        _run3 = os.path.join(_td3, "run")
+        write_run_artifacts(_rdf, _gen3, "person_id", _run3,
+                            source_name="fixture.csv",
+                            reconstruction=_recon3,
+                            gen_engine=_g3, k=5)
+        _rfid = json.load(io.open(os.path.join(
+            _run3, "fidelity.json")))
+        _rbp = json.load(io.open(os.path.join(
+            _run3, "blueprint.json")))
+        _rprov = json.load(io.open(os.path.join(
+            _run3, "provenance.json")))
+    _rreal = DET.assess(fidelity=_rfid, blueprint=_rbp,
+                        provenance=_rprov)
+    _rst = dict((e["key"], e["status"])
+                for e in _rreal["elements"])
+    check("MEMORIZATION and AGGREGATES read present from "
+          "artifacts the REAL WRITER produced - {} and {} - "
+          "which is the check that would have caught the eighth "
+          "wrong-key fault here: the paths were invented, the "
+          "hand-built fixtures used the same invented names, and "
+          "both elements read OWED on a real run that HAD the "
+          "evidence"
+          .format(_rst["memorization"], _rst["aggregates"]),
+          _rst["memorization"] == "present"
+          and _rst["aggregates"] == "present")
+    check("...and the paths are the writer's own: "
+          "fidelity.reconstruction.ratio is {} and "
+          "blueprint.privacy carries k={} counted in {!r} - "
+          "there is no `nn_ratio` in this artifact at all, that "
+          "number belongs to the attack and the challenger"
+          .format(round(float((_rfid.get("reconstruction")
+                               or {}).get("ratio", 0)), 3),
+                  (_rbp.get("privacy") or {}).get("k"),
+                  str((_rbp.get("privacy") or {})
+                      .get("counted_in"))[:22]),
+          (_rfid.get("reconstruction") or {}).get("ratio")
+          is not None
+          and (_rbp.get("privacy") or {}).get("k")
+          and "nn_ratio" not in _rfid)
+    check("...and the k rule's record is checked for the PATIENT "
+          "wording, not merely for a number - a k counted in "
+          "ROWS would let one person seen two hundred times set "
+          "a published bound alone, which is the whole reason "
+          "the rule is written that way",
+          "patient" in str((_rbp.get("privacy") or {})
+                           .get("counted_in", "")).lower()
+          and "aggregates" in DET.assess(blueprint={
+              "columns": {}, "privacy": {
+                  "k": 10, "counted_in": "rows",
+                  "numeric_bounds": "x"}})["elements_owed"])
+    check("...and an OLDER artifact carrying the flag instead "
+          "of the block still counts, because absent is not the "
+          "same fact as false",
+          "aggregates" not in DET.assess(blueprint={
+              "columns": {},
+              "bounds_are_k_anonymous": True})["elements_owed"])
 
     print()
     if FAIL:
