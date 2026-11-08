@@ -101,8 +101,12 @@ flattered by a thinner source.
   settings. `synthkit determination` marks evidence from another
   dataset `FIXTURE` and evidence from different caps `CONFIG`,
   and neither counts toward readiness — a larger token cap
-  publishes more vocabulary about members, so a smaller-cap
-  attack understates the risk.
+  publishes more vocabulary about members, so the two runs
+  measure different things and neither is evidence for the
+  other. `[REVIEW]` — measured on one extract the DIRECTION of
+  the cap's effect was not established (opposite signs on two
+  seeds), so do not assume the smaller-cap number is the
+  conservative one.
 - `[REVIEW]` — any linkage risk from data the anticipated
   recipient holds that this analysis did not consider.
 

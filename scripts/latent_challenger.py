@@ -3229,10 +3229,18 @@ def run_attack(seeds, csv=None, group_by="person_id",
             # THE CONFIGURATION MEASURED, so a package citing
             # this cannot quietly claim it for a DIFFERENT one.
             # A larger token cap publishes more vocabulary about
-            # members, so an attack measured at a smaller cap
-            # UNDERSTATES the risk of a larger-cap release -
-            # which is the wrong direction for a privacy number
-            # to be wrong in.
+            # members, so two runs at different caps measure
+            # DIFFERENT THINGS and neither is evidence for the
+            # other.
+            #
+            # NOT "the smaller cap understates the risk", which
+            # an earlier version of this comment said on the
+            # strength of ONE seed: measured on the real extract
+            # the output-surface adversary read 0.498 at cap 60
+            # against 0.561 at cap 800 on one seed and 0.521
+            # against 0.485 on another - opposite signs. The
+            # direction is unestablished and the guard does not
+            # need it.
             "token_cap": int(MAX_TOKENS),
             "level_cap": int(MAX_LEVELS),
             "worst_auc_mean": round(float(np.mean(worst)), 4),

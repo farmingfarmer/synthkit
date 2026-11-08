@@ -167,6 +167,26 @@ the direction that stops work happening.
   lag both dropped
 
 ## What the blueprint may publish
+- **CORRECTION, SAME NIGHT: THE CAP EFFECT WAS A SINGLE-SEED
+  CLAIM AND THE SECOND SEED MOVED THE OTHER WAY.** The entry
+  below says the real-extract attack's output-surface adversary
+  read 0.498 at cap 60 against 0.561 at cap 800 and called that
+  0.06 AUC "in exactly the predicted direction". Seed 1 then
+  read **0.521 at cap 60 against 0.485 at cap 800** - DOWN by
+  0.036. Two seeds, opposite signs:
+      seed   cap 60   cap 800   move
+         0    0.498     0.561   +0.063
+         1    0.521     0.485   -0.036
+  So the MAGNITUDE and even the SIGN of the cap's effect on this
+  adversary are NOT established. The CONFIG guard still stands
+  on its own reasoning - a larger cap publishes more vocabulary
+  about members, so the two runs measure different things and
+  neither is evidence for the other - but the number I quoted to
+  justify it is withdrawn. This is the single-seed fault, in an
+  entry written minutes after I recorded the same rule for
+  somebody else's benefit, and the only reason it was caught is
+  that the third seed was still running and I kept reading.
+
 - **THE ATTRIBUTE BATTERY HAD NO REAL-EXTRACT PATH, SO A
   COMPLETE DETERMINATION RUN WAS IMPOSSIBLE (2026-11-07, ED-3).**
   It only ever ran on its own cohort fixture - and the package
@@ -201,7 +221,8 @@ the direction that stops work happening.
   distinction this file draws for `id_column` and for empty
   sets, and the mutation that treats absent as failure turns
   four checks red.
-- **AND THE CAP MISMATCH IS MEASURED, NOT ARGUED.** The
+- **AND THE CAP MISMATCH WAS QUOTED FROM ONE SEED - SEE THE
+  CORRECTION ABOVE, WHICH WITHDRAWS THE NUMBER.** The
   real-extract attack was launched twice on the same data, once
   at the shipped token cap of 60 and once at the 800 the
   released run used. Seed 0: output-surface adversary **0.498 at

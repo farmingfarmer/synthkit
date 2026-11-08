@@ -498,7 +498,7 @@ def main():
           "so a reader filling it in knows evidence from "
           "another dataset or other caps does not count",
           "FIXTURE" in _tpl and "CONFIG" in _tpl
-          and "understates the risk" in _tpl)
+          and "measure different things" in _tpl)
     # AND IT MUST NOT PASS THE SCOPE GATE WHILE STILL A
     # TEMPLATE. The gate is a 200-character floor, which an
     # unfilled template clears on length - so the point of this

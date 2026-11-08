@@ -210,9 +210,12 @@ holds). Formats: days.
   its own ceiling: a republish reaches only 0.026–0.104 sd).
   Evidence from another dataset reads **FIXTURE** and evidence
   from different caps reads **CONFIG**; neither counts toward
-  readiness, because a larger token cap publishes more
-  vocabulary about members and so a smaller-cap attack
-  understates the risk. It marks every element present or
+  readiness, because the two runs MEASURE DIFFERENT
+  THINGS - a larger token cap publishes more vocabulary about
+  members - and neither is evidence for the other. (Measured on
+  the real extract, the DIRECTION is not established: the
+  output-surface adversary read 0.498 at cap 60 against 0.561 at
+  cap 800 on one seed and 0.521 against 0.485 on another.) It marks every element present or
   **OWED** — but no run has all
   ten present, because that needs the two attack batteries and
   a WRITTEN scope statement on the machine that holds the

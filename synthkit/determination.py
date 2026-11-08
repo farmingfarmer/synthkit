@@ -354,10 +354,19 @@ def assess(fidelity: Optional[Dict] = None,
     #
     # The attack runs the SHIPPED defaults unless told otherwise,
     # and a release may have overridden them. A larger token cap
-    # publishes more vocabulary about members, so an attack
-    # measured at a smaller cap UNDERSTATES the risk of a
-    # larger-cap release - the wrong direction for a privacy
-    # number to be wrong in, and invisible without comparing.
+    # publishes more vocabulary about members, so the two runs
+    # measure DIFFERENT THINGS and neither is evidence for the
+    # other - which is the whole argument, and it does not
+    # depend on knowing the direction.
+    #
+    # MEASURED, AND THE DIRECTION IS NOT ESTABLISHED: on the
+    # real extract the output-surface adversary read 0.498 at
+    # cap 60 against 0.561 at cap 800 on seed 0, and 0.521
+    # against 0.485 on seed 1 - opposite signs. A first draft of
+    # this comment quoted seed 0 alone as showing the cap
+    # "understates the risk"; that number is withdrawn. The
+    # guard stands because the configurations differ, not
+    # because one of them is known to be safer.
     # Treated exactly like a different dataset, because it is a
     # measurement of something other than what is being
     # certified.
