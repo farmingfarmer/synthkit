@@ -2554,6 +2554,44 @@ the direction that stops work happening.
   error with did-you-mean; `synthkit dials` lists every edge.
 
 ## Numbers before conclusions
+- **THE VENDOR EXAM RAN AGAIN ON THE REAL EXTRACT AND
+  REPRODUCED ITSELF ON A DIFFERENT SYNTHETIC DRAW, WHICH IS THE
+  PROPERTY THAT MAKES IT AN INSTRUMENT (2026-11-08).** bridge ->
+  plant (+0.8 age_at_visit, -0.5 span_days, 25% prevalence) ->
+  three tiers -> campaign-run, on `traj_off` rather than the
+  September run's file:
+      tier             AUROC   ceiling    gap
+      strong-signal    0.761     0.788   0.027
+      as-specified     0.687     0.704   0.017
+      weak-signal      0.625     0.630   0.005
+  Against the 2026-09-11 run on a DIFFERENT generated file:
+  0.758/0.786/0.028, 0.683/0.698/0.016, 0.617/0.622/0.005. Every
+  tier within 0.006 of its earlier reading, and every GAP within
+  0.001. The exam measures the SOLVER, not the draw - which is
+  the whole claim of a computable ceiling, and it had never been
+  tested across two synthetic files of the same cohort.
+- **AND THE MISCALIBRATED BAR TURNED UP AGAIN, with a window
+  this time instead of an impossibility.** The as-specified tier
+  reads `auroc = 0.687 (required >= 0.700) -> FAILS` while its
+  own CEILING is **0.704** - so the bar is achievable by 0.004,
+  and the solver's gap is 0.017, four times the window. In
+  September the same bar sat ABOVE its ceiling (0.700 over
+  0.698) and no solver could clear it. The gap condition HOLDS
+  at 0.017 against 0.150, which is the solver-quality verdict
+  and is the one to read. A bar that leaves less room than any
+  realistic gap is a bar nobody can pass for reasons that have
+  nothing to do with the solver, and this project's own rule
+  from the first occurrence was to set bars beneath the ceiling
+  or judge on gap.
+- **AND `campaign-run` EXITING NON-ZERO ON A FAILING TIER IS THE
+  INSTRUMENT WORKING, which cost me a chained command.** I ran
+  bridge, plant, compile and run joined by `&&`, so the failing
+  as-specified tier short-circuited the chain and the done
+  marker never appeared - which reads at first glance as a
+  crash. It is not: the gate is a floor and it exited to say so.
+  Chain with `&` where a non-zero exit is a VERDICT rather than
+  an error, or run the steps separately.
+
 - **NO TOLERANCE CAN DISCRIMINATE AT THE HALF, AND TIGHTENING
   ONE TWICE IS HOW THAT SURFACED (2026-11-08).** The scorecard
   check compared the page's stated overall against the mean of

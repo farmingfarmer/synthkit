@@ -626,7 +626,19 @@ dashboard, and what-now guidance carries exact commands.)*
   beneath the ceiling or judge on gap. Same class of error, in
   our own gate.
 - What genuinely remains is **the single report-card artifact
-  from a real run** — unrun rather than unbuilt.
+  from a real run** — unrun rather than unbuilt. The exam
+  itself has now run twice on the real extract, on two
+  DIFFERENT synthetic draws of the same cohort, and reproduced
+  itself: 0.761/0.788 (gap 0.027), 0.687/0.704 (0.017),
+  0.625/0.630 (0.005) against September's 0.758/0.786 (0.028),
+  0.683/0.698 (0.016), 0.617/0.622 (0.005) — every tier within
+  0.006 and every GAP within 0.001. That is the computable
+  ceiling's whole claim, and it had never been tested across
+  two synthetic files of one cohort. The miscalibrated bar
+  appeared again too, in its milder form: the as-specified
+  tier's 0.700 bar sits 0.004 under a ceiling of 0.704, so it
+  is achievable by less than any realistic solver gap, where in
+  September it sat ABOVE its ceiling.
 - ~~A competitor beyond the stdlib floor~~ SHIPPED 2026-11-03:
   `synthkit.automl` tries three model families with light
   feature engineering (numerics as numerics, capped one-hots,
