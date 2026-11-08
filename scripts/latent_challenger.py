@@ -3115,7 +3115,7 @@ class ReconstructionAdversary:
 
 
 def run_attack(seeds, csv=None, group_by="person_id",
-               k_blur=True, denoise=0.0):
+               k_blur=True, denoise=0.0, out=None):
     """The SAME membership question the blueprint path answered at
     worst 0.52 - asked of the latent path, with the same bands,
     plus the republish control that makes any PASS worth reading.
@@ -3127,6 +3127,7 @@ def run_attack(seeds, csv=None, group_by="person_id",
     sys.path.insert(0, str(ROOT / "scripts"))
     from membership_new_path import cohort
     from synthkit.attack import membership_audit
+    runs = []
     print("MEMBERSHIP ATTACK ON THE LATENT PATH - two "
           "adversaries, worse one reported; the reconstruction "
           "adversary assumes the WEIGHTS leak.")
@@ -3167,6 +3168,7 @@ def run_attack(seeds, csv=None, group_by="person_id",
                   audit["likelihood"]["auc"],
                   audit["worst_auc"], audit["verdict"]))
         worst.append(audit["worst_auc"])
+        runs.append(audit)
     # THE POSITIVE CONTROL - a "generator" that republishes its
     # members must FAIL, or the numbers above are decoration.
     df = base if base is not None else cohort(600, 6, seeds[0])
@@ -3204,6 +3206,62 @@ def run_attack(seeds, csv=None, group_by="person_id",
           "same cohort fixture, same bands.".format(
               len(seeds), float(np.mean(worst)),
               float(np.max(worst))))
+    # AND IT WRITES THE SUMMARY IN THE SHAPE THE DETERMINATION
+    # PACKAGE ALREADY READS.
+    #
+    # This measurement PRINTED and wrote nothing, so the real
+    # extract's attack evidence could not reach
+    # `synthkit determination` - which needs a FILE - and the
+    # package would have read `membership OWED` on the one run
+    # that had the strongest evidence for it. The shape is the
+    # one `membership_new_path.py` writes, deliberately: a third
+    # shape for the same measurement is how a reader comes to
+    # need three parsers, and this project's determination
+    # module already lost a day to reading field names that
+    # were never written.
+    if out:
+        import json as _json
+        _summary = {
+            "source": str(csv) if csv else "cohort fixture",
+            "seeds": list(seeds),
+            "k_blur": bool(k_blur),
+            "denoise": float(denoise),
+            "worst_auc_mean": round(float(np.mean(worst)), 4),
+            "worst_auc_max": round(float(np.max(worst)), 4),
+            "verdict": ("PASS" if max(worst) < 0.60 else
+                        "MARGINAL" if max(worst) < 0.70
+                        else "FAIL"),
+            # THE CONTROL REPORTS THE ARM IT CONTROLS. Feeding
+            # the members back as "synthetic" can only move the
+            # adversary that READS synthetic rows, so the
+            # control number is the nearest-neighbour one and
+            # the record says which arm it belongs to.
+            "control": {
+                "arm": "nearest_neighbor (output surface)",
+                "auc": round(float(_ctl_nn), 4),
+                "caught": bool(_ctl_nn >= 0.70),
+                "note": "a verbatim republish must be CAUGHT "
+                        "here or the output-surface numbers "
+                        "mean nothing; the reconstruction "
+                        "adversary is blind to the output, so "
+                        "it cannot be controlled this way"},
+            "reading": "0.5 is a coin flip. Two adversaries: "
+                       "one sees only GENERATED ROWS, the other "
+                       "assumes the trained WEIGHTS leaked. One "
+                       "cohort shape at one k - a floor, not a "
+                       "certificate, and not a release decision "
+                       "for a different cohort.",
+            "runs": runs,
+        }
+        # plain `open`, because `io` is not imported at module
+        # level here - the same NameError that let a receipts
+        # command print a perfect report and then die at the
+        # write step, invisible because stderr is unbuffered
+        # while piped stdout is not.
+        with open(out, "w") as fh:
+            fh.write(_json.dumps(_summary, indent=1,
+                                 default=str))
+        print("wrote {}".format(out))
     return worst, leak
 
 
@@ -4371,6 +4429,15 @@ if __name__ == "__main__":
         ap.add_argument("--group-by", default="person_id")
         ap.add_argument("--no-k-blur", action="store_true")
         ap.add_argument("--denoise", type=float, default=0.3)
+        ap.add_argument("-o", "--out", default=None,
+                        metavar="JSON",
+                        help="write the summary where "
+                             "`synthkit determination "
+                             "--membership` can read it; the "
+                             "measurement used to print only, "
+                             "so the real extract's attack "
+                             "evidence could not reach the "
+                             "package that needs it")
         # THE ATTACK MUST RUN THE CONFIGURATION THAT SHIPS. Without
         # these the battery fitted at the DEFAULT cap while the
         # deliverable was generated at 400, so the certified
@@ -4397,7 +4464,8 @@ if __name__ == "__main__":
         run_attack(aa.seeds or [0, 1, 2], csv=aa.csv,
                    group_by=aa.group_by,
                    k_blur=not aa.no_k_blur,
-                   denoise=aa.denoise)
+                   denoise=aa.denoise,
+                   out=getattr(aa, "out", None))
     else:
         seeds = [int(x) for x in sys.argv[2:]] or DEFAULT_SEEDS
         run(which, seeds)

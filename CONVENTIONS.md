@@ -167,6 +167,54 @@ the direction that stops work happening.
   lag both dropped
 
 ## What the blueprint may publish
+- **EVIDENCE MEASURED ON A DIFFERENT DATASET IS NOT EVIDENCE
+  ABOUT THIS ONE, AND THE DETERMINATION PACKAGE NOW SEES IT
+  (2026-11-07, ED-2).** The attack batteries default to their own
+  cohort FIXTURE, and this project's own posture calls a fixture
+  result "a floor, not a certificate, and not a release decision
+  for a different cohort". A determination is scoped to ONE
+  release, so citing a fixture number for it is the strongest
+  form of the measured-at-one-shape fault - not a stale number
+  but a number about somebody else. An element whose evidence
+  names a source that is not the run's reads **FIXTURE**: the
+  measurement is real, so it is not OWED, and it does not count
+  toward readiness either.
+- **AND FIXTURE MUST NOT ALSO READ OWED.** The first cut computed
+  the owed list as "not present", which included the fixture
+  ones - so the output said FIXTURE on one line and OWED on
+  another about the same element. Two statements disagreeing is
+  this file's alarm, and inside a governance document it is
+  worse than elsewhere. Separated, with a check that the two
+  lists cannot intersect.
+- **AND IT DOES NOT FLAG ON A HUNCH.** A run with no recorded
+  source has nothing to compare against, so the evidence reads
+  present rather than suspect - absent is not the same fact as
+  mismatched, the same distinction this file draws for
+  `id_column` and for empty sets.
+- **THE REAL-EXTRACT ATTACK PRINTED AND WROTE NOTHING, so the
+  one run with the strongest membership evidence would have read
+  OWED.** `latent_challenger.py attack --csv` is the measurement
+  at real width - the record's 0.514/0.523/0.551 with the
+  republish control at 1.000 came from it - and it had no `--out`,
+  so nothing could reach a package that needs a FILE. It writes
+  the summary in the shape `membership_new_path.py` already
+  writes, deliberately: a third shape for one measurement is how
+  a reader comes to need three parsers, and this module had
+  already lost a day to reading field names that were never
+  written. The record also names WHICH ARM the positive control
+  controls, because feeding the members back as synthetic can
+  only move the adversary that READS synthetic rows - the
+  reconstruction adversary is blind to the output and cannot be
+  controlled that way.
+- **AND THE WRITE DIED ON A MISSING `io` IMPORT, which is the
+  third instance of that exact shape.** `latent_challenger.py`
+  does not import `io` at module level, so the attack ran to
+  completion, printed its whole measurement, and then raised at
+  the write step - the same fault as a receipts command that
+  printed a perfect report and died at its write, invisible
+  because stderr is unbuffered while piped stdout is not. Plain
+  `open` needs no import.
+
 - **THE LAST UNACCOUNTED DP STAGE IS CLOSED, AND ITS COST IS A
   SHAPE COST THAT MORE EPSILON CANNOT BUY OFF (2026-11-07,
   DP-3).** The latent mixture was the one stage that is neither

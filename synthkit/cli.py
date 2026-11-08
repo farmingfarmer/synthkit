@@ -681,7 +681,11 @@ def cmd_determination(args) -> int:
         attribute=(_read_path(args.attribute)
                    if args.attribute else None),
         scrub_inventory=inv,
-        scope=scope)
+        scope=scope,
+        # The run's own source, so evidence measured on a
+        # different dataset reads FIXTURE rather than present.
+        source_name=((_read("provenance.json") or {})
+                     .get("source", {}) or {}).get("name"))
 
     for line in _det.plain(rep):
         print(line)

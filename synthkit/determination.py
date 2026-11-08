@@ -194,6 +194,7 @@ def assess(fidelity: Optional[Dict] = None,
            attribute: Optional[Dict] = None,
            scrub_inventory: Optional[List] = None,
            scope: Optional[str] = None,
+           source_name: Optional[str] = None,
            ) -> Dict[str, Any]:
     """Which elements this run has evidence for, and which are
     OWED.
@@ -273,9 +274,46 @@ def assess(fidelity: Optional[Dict] = None,
     # tool built to catch exactly that.
     have["residual"] = bool(scope and len(scope.strip()) >= 200)
 
+    # EVIDENCE MEASURED ON A DIFFERENT DATASET IS NOT EVIDENCE
+    # ABOUT THIS ONE, AND THE PACKAGE HAS TO SEE THAT.
+    #
+    # The attack batteries default to their own cohort FIXTURE -
+    # which this project's own posture calls "a floor, not a
+    # certificate, and not a release decision for a different
+    # cohort". A determination is scoped to one release, so
+    # citing a fixture number for it would be the strongest form
+    # of the measured-at-one-shape fault: not a stale number,
+    # but a number about somebody else.
+    #
+    # So an element whose evidence names a source that is not
+    # this run's reads FIXTURE rather than present. It is not
+    # OWED - the measurement was made and is real - and it does
+    # not count toward readiness either.
+    def _elsewhere(rec):
+        if not (rec and source_name):
+            return False
+        src = rec.get("source")
+        if not src:
+            return False
+        return (str(source_name) not in str(src)
+                and str(src) not in str(source_name))
+
+    off_cohort = set()
+    if _elsewhere(membership):
+        off_cohort.update(("membership", "threat_model"))
+    if _elsewhere(attribute):
+        off_cohort.add("attribute")
+
     rows = []
     for el in ELEMENTS:
-        rows.append(dict(el, present=bool(have.get(el["key"]))))
+        k_ = el["key"]
+        got = bool(have.get(k_))
+        rows.append(dict(
+            el,
+            present=got and k_ not in off_cohort,
+            status=("FIXTURE" if got and k_ in off_cohort
+                    else "present" if got else "OWED"),
+            measured_elsewhere=bool(got and k_ in off_cohort)))
     n_have = sum(1 for r in rows if r["present"])
     return {
         "statute": STATUTE,
@@ -284,10 +322,20 @@ def assess(fidelity: Optional[Dict] = None,
         # DERIVED from the rows, never written beside them.
         "elements_total": len(rows),
         "elements_present": n_have,
+        # OWED means NO evidence. An element measured on
+        # another dataset is listed under `elements_elsewhere`
+        # and NOT here - the first cut had it in both, so the
+        # output said FIXTURE on one line and OWED on another
+        # about the same element, which is this project's own
+        # two-numbers-disagreeing alarm in a governance
+        # document.
         "elements_owed": [r["key"] for r in rows
-                          if not r["present"]],
+                          if r["status"] == "OWED"],
+        "elements_elsewhere": [r["key"] for r in rows
+                               if r["measured_elsewhere"]],
         "ready": n_have == len(rows),
         "scope_chars": len(scope.strip()) if scope else 0,
+        "source_name": source_name,
     }
 
 
@@ -309,12 +357,31 @@ def plain(report: Dict[str, Any]) -> List[str]:
     out.append("ELEMENTS: {} of {} have evidence in this run"
                .format(report["elements_present"],
                        report["elements_total"]))
+    if report.get("elements_elsewhere"):
+        out.append("  ({} measured on another dataset - see "
+                   "below)".format(
+                       len(report["elements_elsewhere"])))
     out.append("")
     for el in report["elements"]:
         out.append("  [{}] {}".format(
-            "x" if el["present"] else "OWED", el["need"]))
+            {"present": "x", "FIXTURE": "FIXTURE",
+             "OWED": "OWED"}[el.get("status", "OWED")],
+            el["need"]))
         out.append("        evidence: " + el["evidence"])
         out.append("        why it is asked: " + el["why"])
+        out.append("")
+    if report.get("elements_elsewhere"):
+        out.append("MEASURED ELSEWHERE: {}".format(
+            ", ".join(report["elements_elsewhere"])))
+        out.append("  These measurements were made, and NOT on "
+                   "the cohort being released. A determination "
+                   "is scoped to one")
+        out.append("  release, so a number about a different "
+                   "dataset is not evidence for it - this "
+                   "project's own posture")
+        out.append("  calls a fixture result a floor, not a "
+                   "certificate, and not a release decision "
+                   "for another cohort.")
         out.append("")
     if report["elements_owed"]:
         out.append("OWED: " + ", ".join(report["elements_owed"]))

@@ -294,6 +294,99 @@ def main():
           and "membership" in _bad.stdout
           and "signing against nothing" in _bad.stdout)
 
+    # ---- EVIDENCE MEASURED ON ANOTHER DATASET (ED-2)
+    #
+    # The attack batteries default to their own cohort FIXTURE,
+    # which this project's own posture calls "a floor, not a
+    # certificate, and not a release decision for a different
+    # cohort". A determination is scoped to ONE release, so
+    # citing a fixture number for it is the strongest form of
+    # the measured-at-one-shape fault: not a stale number, but a
+    # number about somebody else.
+    _fix_mem = {"source": "cohort fixture", "seeds": [1, 2],
+                "worst_auc_max": 0.53, "verdict": "PASS",
+                "runs": [{"nearest_neighbor": {"auc": 0.51},
+                          "likelihood": {"auc": 0.49}}]}
+    _r_no_src = DET.assess(membership=_fix_mem)
+    _r_real = DET.assess(membership=_fix_mem,
+                         source_name="tidy_visits.csv")
+    _r_same = DET.assess(
+        membership=dict(_fix_mem, source="tidy_visits.csv"),
+        source_name="tidy_visits.csv")
+    _st = dict((e["key"], e["status"]) for e in
+               _r_real["elements"])
+    check("evidence measured on ANOTHER DATASET reads FIXTURE "
+          "rather than present: a membership summary whose "
+          "source is the cohort fixture, against a run whose "
+          "source is the extract, marks membership {} and "
+          "threat_model {} - and both when the sources MATCH"
+          .format(_st["membership"], _st["threat_model"]),
+          _st["membership"] == "FIXTURE"
+          and _st["threat_model"] == "FIXTURE"
+          and all(e["status"] == "present"
+                  for e in _r_same["elements"]
+                  if e["key"] in ("membership", "threat_model")))
+    check("...and it does not count toward readiness ({} "
+          "present with the fixture evidence against {} when it "
+          "matches the run) - a determination is scoped to one "
+          "release"
+          .format(_r_real["elements_present"],
+                  _r_same["elements_present"]),
+          _r_real["elements_present"]
+          < _r_same["elements_present"]
+          and _r_real["ready"] is False)
+    check("...and FIXTURE is NOT also reported as OWED - the "
+          "first cut listed such an element in both, so the "
+          "output said FIXTURE on one line and OWED on another "
+          "about the same thing, which is this project's own "
+          "two-numbers-disagreeing alarm inside a governance "
+          "document",
+          "membership" not in _r_real["elements_owed"]
+          and "membership" in _r_real["elements_elsewhere"]
+          and not (set(_r_real["elements_owed"])
+                   & set(_r_real["elements_elsewhere"])))
+    check("...and with NO source on the run it does not guess: "
+          "an unknown cohort cannot be compared against, so the "
+          "evidence reads present rather than being flagged on "
+          "a hunch",
+          all(e["status"] == "present"
+              for e in _r_no_src["elements"]
+              if e["key"] in ("membership", "threat_model")))
+    _txt2 = "\n".join(DET.plain(_r_real))
+    check("...and the text NAMES the elsewhere elements and says "
+          "why that matters, rather than only counting them",
+          "MEASURED ELSEWHERE" in _txt2
+          and "membership" in _txt2.split(
+              "MEASURED ELSEWHERE")[1][:200]
+          and "scoped to one" in _txt2)
+
+    # ---- THE ATTACK NOW WRITES WHAT THE PACKAGE READS
+    _lcsrc2 = io.open(str(ROOT / "scripts"
+                          / "latent_challenger.py"),
+                      encoding="utf-8").read()
+    check("the real-extract attack WRITES its summary where the "
+          "package can read it - it printed only, so the one "
+          "run with the strongest membership evidence would have "
+          "read OWED",
+          '"worst_auc_max"' in _lcsrc2
+          and '"runs": runs,' in _lcsrc2
+          and "--out" in _lcsrc2)
+    check("...in the SHAPE membership_new_path already writes, "
+          "deliberately - a third shape for one measurement is "
+          "how a reader comes to need three parsers, and this "
+          "module already lost a day to field names that were "
+          "never written",
+          all(f in _lcsrc2 for f in ('"worst_auc_mean"',
+                                     '"verdict"', '"seeds"',
+                                     '"reading"')))
+    check("...and it records WHICH ARM the positive control "
+          "controls, because feeding the members back as "
+          "synthetic can only move the adversary that READS "
+          "synthetic rows - the reconstruction adversary is "
+          "blind to the output and cannot be controlled that way",
+          '"arm": "nearest_neighbor (output surface)"' in _lcsrc2
+          and "blind to the output" in _lcsrc2)
+
     print()
     if FAIL:
         print("{} of {} checks failed.".format(FAIL, PASS + FAIL))
