@@ -126,7 +126,7 @@ holds). Formats: days.
 
 ---
 
-## Goal 2 — Automatic de-identification   **~92%**
+## Goal 2 — Automatic de-identification   **~94%**
 
 **What works, measured**
 - Everything published is k-anonymous over PATIENTS, never rows:
@@ -198,6 +198,25 @@ holds). Formats: days.
   not one.
 
 **What remains**
+- **An Expert Determination RUN OF RECORD.** The evidence
+  package is built (ED-1, `synthkit determination`) and it
+  marks every element present or **OWED** — but no run has all
+  ten present, because that needs the two attack batteries and
+  a WRITTEN scope statement on the machine that holds the
+  extract. The tool exits 3 while anything is owed and refuses
+  to call itself a determination; what remains is assembling
+  the evidence on a real run and putting it in front of a
+  qualified person.
+- **End-to-end differential privacy, for the ONE stage that is
+  neither a count nor a quantile:** the latent mixture, fitted
+  on codes of real rows. The other four unaccounted stages have
+  mechanisms now (DP-2) with a measured price, and the price is
+  the finding — a DP vocabulary **selection** at epsilon 3
+  keeps 12% of what the k rule publishes on an 800-patient
+  cohort, 6% at epsilon 1. So DP on the WEIGHTS ships and DP on
+  the SELECTION is affordable at a cohort size this project
+  does not have. That is a statement about this cohort, not a
+  refusal to measure.
 - Free text PHI is the M6 decision gate.
 - ~~City and county names~~ SHIPPED 2026-11-06 (PHI-5,
   `geography`). Header-driven and the finding says so: a city
@@ -636,8 +655,20 @@ dates:
    ceiling: ongoing and unscheduled, because unknowns move dates
    and these are the genuine unknowns.
 
-Equal-weighting the eight goals: **~92.8% complete** as of
-2026-11-07 — 90, 92, 90, 95, 93, 100, 92, 90. Moved on
+Equal-weighting the eight goals: **~93.0% complete** as of
+2026-11-07 — 90, 94, 90, 95, 93, 100, 92, 90. Moved on
+2026-11-07: goal 2 92→94 for two measured pieces, both of
+which SAY what they do not cover. The Expert Determination
+EVIDENCE PACKAGE (`synthkit determination`) assembles the ten
+elements 45 CFR 164.514(b)(1) asks for from a run's own
+artifacts, marks each present or **OWED**, exits 3 while
+anything is owed, and refuses to call itself a determination —
+that is a qualified person's to make. And the four unaccounted
+differential-privacy stages now have mechanisms with a measured
+price: a DP vocabulary **selection** at epsilon 3 keeps 12% of
+what the k rule publishes on an 800-patient cohort, which is
+why the k-anonymous aggregate release is not a shortcut taken
+instead of DP. Previously moved on
 2026-11-06, each for a measured reason: goal 1 78→90 (the
 cross-table couplings are enforced and REACHABLE —
 `synthkit relate`, with `--no-couple` as the named control arm

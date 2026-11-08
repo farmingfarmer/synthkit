@@ -206,12 +206,31 @@ def main():
     _cells = re.findall(r"\|\s*\*\*(no|partial)[^|]*",
                          body_raw)
     _behind = len(_cells)
-    _flat_no = len([c for c in _cells if c == "no"])
+    # AND THE FLAT-`no` COUNT WAS A PROXY THAT WENT STALE, which
+    # is the THIRD time this one check punished progress.
+    #
+    # It required at least TWO rows marked a flat `no`. As real
+    # gaps closed, those rows legitimately became `partial` -
+    # differential privacy, then the longitudinal model, then
+    # Expert Determination - and the check went red each time
+    # for the document becoming MORE accurate. Requiring two
+    # capabilities to remain wholly absent is not a property
+    # worth enforcing forever.
+    #
+    # What the check was proxying for is that this page does not
+    # become a sales deck. The direct form of that is the
+    # "what they have that we do not" section still NAMING
+    # specific unmet things, which is independent of how many
+    # table cells happen to read `no`.
+    _gaps = body_raw.split("## What we have that I could not")[0]
+    _gap_items = len(re.findall(r"^### \d+\.", _gaps,
+                                re.MULTILINE))
     check("the scoreboard still admits rows where WE are behind "
           "({} of them, counting flat `no` and honest "
-          "`partial`) - a scoreboard with none would be a sales "
-          "deck".format(_behind),
-          _flat_no >= 2 and _behind >= 3)
+          "`partial`) and NAMES {} specific gaps in its own "
+          "section - a scoreboard with none would be a sales "
+          "deck".format(_behind, _gap_items),
+          _behind >= 3 and _gap_items >= 4)
     check("...and the closing paragraph names the drift it is "
           "there to catch - a wins section that grows while the "
           "gaps section does not",

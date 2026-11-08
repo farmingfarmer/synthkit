@@ -167,6 +167,61 @@ the direction that stops work happening.
   lag both dropped
 
 ## What the blueprint may publish
+- **THE EXPERT DETERMINATION EVIDENCE EXISTED AND NOBODY HAD
+  ASSEMBLED IT (2026-11-07, ED-1, `synthkit determination`).**
+  `docs/COMPETITIVE.md` carried Expert Determination as a flat
+  `no` against a vendor that has one, with the note that it is
+  "not a model change: a documentation and evidence package" -
+  and most of what 45 CFR 164.514(b)(1) asks for has been
+  measured here for months, spread across six files. A reader
+  deciding whether the re-identification risk is very small had
+  to hold all of it at once. That is the same complaint the
+  per-claim receipts answered for patterns, one level up.
+- **IT REFUSES TO CALL ITSELF A DETERMINATION, AND THAT IS IN
+  THE DATA RATHER THAN ONE RENDERER'S PROSE.** The statute puts
+  the determination in a qualified person's hands; a tool
+  claiming one would be the same fault as an output described as
+  differentially private when only the weights are accounted.
+  `NOT_A_DETERMINATION` is a tuple every renderer carries, so
+  none can drop it, and a READY package says READINESS and
+  nothing stronger.
+- **`OWED` IS A FIRST-CLASS ANSWER, AND THREE WAYS IT MUST STILL
+  FIRE ARE PINNED.** A package that looks complete and is not is
+  worse than no package, because an expert signs against
+  evidence that does not exist. One adversary is NOT a threat
+  model (the output surface and the weights surface are
+  different recipients whose recorded numbers differ sharply);
+  one seed is a DRAW, not a measurement (the battery itself
+  refuses fewer than two); and an excess with no positive
+  control is the check-that-cannot-fail shape this project has
+  already been burned by. The CLI exits 3 while anything is
+  owed, the same reasoning as `scrub --apply` refusing while a
+  fresh detect still finds something.
+- **AND THE WRONG-KEY FAULT HAPPENED A SEVENTH TIME, IN THE ONE
+  PLACE IT WOULD HAVE BEEN WORST.** The first cut read `arms`,
+  `membership` and `attribute` out of a single invented
+  `attack.json`. The real batteries write TWO files with
+  different shapes - `membership_new_path.py` writes
+  `worst_auc_max` and a `runs` list whose entries carry
+  `nearest_neighbor` and `likelihood`, while
+  `attribute_disclosure.py` writes `seeds` and
+  `positive_control` - so every element would have read OWED on
+  a run that HAD the evidence, and the package would have told
+  an expert that measurements this project has published for
+  months did not exist. The suite now calls both batteries LIVE
+  (about a second each) and asserts the names, which is the fix
+  this file already prescribes and which was not applied until
+  the fault recurred.
+- **AND `residual` WAS UNCONDITIONALLY FALSE, WHICH MADE THE
+  READY BRANCH DEAD CODE.** Residual risk is the one element a
+  RUN cannot supply - it is a statement about SCOPE that a
+  person writes - and marking it permanently owed meant `ready`
+  could never be true, so the every-element branch was
+  unreachable inside a tool built to catch exactly that. It
+  takes a written scope now and refuses a one-line one, because
+  a scope nobody wrote is not a scope and deriving one would be
+  inventing the bound on somebody else's determination.
+
 - **THE FOUR UNACCOUNTED DP STAGES ARE COUNTS AND QUANTILES, SO
   THE GAP WAS NEVER A RESEARCH PROBLEM - AND MEASURING THE PRICE
   SETTLED THE POSTURE (2026-11-07, DP-2).** The weights epsilon

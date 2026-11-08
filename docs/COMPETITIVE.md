@@ -353,7 +353,7 @@ I did not find another tool documenting this.
 |---|---|---|
 | differential privacy | **partial, measured end to end** — DP training of the weights ships; the four count/quantile stages have mechanisms and a measured price (a DP vocabulary selection at eps 3 keeps 12% of what the k rule publishes on an 800-patient cohort); the latent mixture remains | yes (MOSTLY AI) |
 | sequential / longitudinal model | **partial, improved** — rules engine models it; neural engine has an AR(1) course with a SOLVED rho, off by default, ceiling ~0.40 within-AR; the recorded 17/87 predates it | yes (MOSTLY AI; research frontier) |
-| HIPAA Expert Determination | **no** | yes (Tonic) |
+| HIPAA Expert Determination | **partial** — the evidence package is assembled and says what is still OWED (`synthkit determination`); no expert has made a determination, and the tool refuses to imply one | yes (Tonic) |
 | automatic PHI/PII detection | yes, 18-category inventory | yes (Tonic) |
 | referential integrity across tables | yes | yes (MOSTLY AI, SDV) |
 | cross-table RELATIONSHIP enforcement, 3 hops | yes, measured | not found |
@@ -420,9 +420,20 @@ I did not find another tool documenting this.
    it becomes the default, and the ~0.40 within-AR ceiling for
    sources with a stronger course than that. That is now the
    trajectory item.
-3. **Expert Determination readiness.** Not a model change: a
-   documentation and evidence package. We already have most of
-   the evidence; nobody has assembled it for a determination.
+3. ~~**Expert Determination readiness.**~~ **BUILT 2026-11-07
+   (ED-1)**, and built the way this item described it — not a
+   model change but an evidence package. `synthkit
+   determination RUNDIR` assembles the ten elements 45 CFR
+   164.514(b)(1) asks for from a run's own artifacts plus the
+   attack batteries' outputs, recomputing nothing, and marks
+   each one present or **OWED**. It exits 3 while anything is
+   owed, and it refuses to call itself a determination — that
+   is a qualified person's to make, and a tool claiming one
+   would be the same fault as describing an output as
+   differentially private when only the weights are accounted.
+   **What remains is a run of record with every element
+   present**, which needs the two batteries and a written scope
+   statement on the machine that holds the extract.
 4. **Free-text PHI.** Still the M6 governance gate.
 5. Everything else on the platform list is engineering we know
    how to do and have deliberately not spent on.

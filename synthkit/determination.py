@@ -1,0 +1,330 @@
+"""The evidence package for a HIPAA Expert Determination.
+
+WHAT THIS IS, AND THE FIRST THING IT SAYS ABOUT ITSELF. 45 CFR
+164.514(b)(1) permits a release when a person with appropriate
+knowledge of statistical methods determines that the risk of
+re-identification is very small, AND documents the methods and
+results that justify the determination. This module assembles
+the documentation. It does NOT make the determination: only a
+qualified expert does that, and a tool claiming otherwise would
+be the same fault as an output described as differentially
+private when only the weights are accounted.
+
+WHY IT IS WORTH ASSEMBLING RATHER THAN WRITING FRESH. Most of
+what the regulation asks for has been measured here for months
+and lives in six different files - the attack battery with its
+positive controls, the k rules, the Safe Harbor inventory, the
+bin suppression, the fidelity gate. A reader deciding whether
+the risk is very small had to hold all of it in their head. That
+is the same complaint the per-claim receipts answered for
+patterns, one level up.
+
+EVERY ELEMENT CARRIES A STATUS DERIVED FROM THE ARTIFACTS, AND
+`OWED` IS A FIRST-CLASS ANSWER. A package that looks complete
+and is not is worse than no package, because an expert would
+sign against evidence that does not exist. The counts are
+DERIVED from the rows rather than written beside them, which is
+the rule the Safe Harbor inventory already follows.
+"""
+
+from typing import Any, Dict, List, Optional, Tuple
+
+# The regulation's own two requirements, quoted short, because a
+# package organised around anything else leaves the reader
+# mapping our headings onto theirs.
+STATUTE = (
+    "45 CFR 164.514(b)(1) - a person with appropriate knowledge "
+    "of and experience with generally accepted statistical and "
+    "scientific principles and methods for rendering "
+    "information not individually identifiable (i) determines "
+    "that the risk is very small that the information could be "
+    "used, alone or in combination with other reasonably "
+    "available information, by an anticipated recipient to "
+    "identify an individual who is a subject of the "
+    "information; and (ii) documents the methods and results "
+    "of the analysis that justify such determination.")
+
+# WHAT THIS DOCUMENT IS NOT. Stated as data rather than prose so
+# every renderer carries it and none can drop it.
+NOT_A_DETERMINATION = (
+    "This is an EVIDENCE PACKAGE, not a determination. The "
+    "determination in 164.514(b)(1) is made by a qualified "
+    "person, not by a tool, and nothing here should be read as "
+    "one.",
+    "No source record travels with this package or with the "
+    "release it describes. The measurements were taken on the "
+    "machine that holds the extract and only their results "
+    "crossed.",
+    "Every element below carries a STATUS. An element marked "
+    "OWED has no evidence in this run - an expert asked to sign "
+    "against it would be signing against nothing.",
+)
+
+# Each element: the key, what the regulation needs, and which
+# artifact or measurement answers it. `evidence` names the
+# FUNCTION or FILE so a reader can go and check rather than
+# taking the status on trust.
+ELEMENTS: Tuple[Dict[str, Any], ...] = (
+    {"key": "release_surface",
+     "need": "Exactly what is released, and what is not",
+     "evidence": "provenance.json plus the cloud allow-list "
+                 "(synthkit.cloud.publish refuses anything off "
+                 "it BY NAME, including key.csv and the source "
+                 "extract)",
+     "why": "A risk analysis of the wrong surface is worth "
+            "nothing. The output-only release and a release of "
+            "the trained network are different questions with "
+            "different measured answers."},
+    {"key": "method",
+     "need": "The de-identification method, described",
+     "evidence": "blueprint.json - every published quantity, "
+                 "with k counted in PATIENTS; no published "
+                 "number is an individual's value (the stored "
+                 "minimum and maximum are the MEAN of the k "
+                 "most extreme patients' own extremes)",
+     "why": "The method is what an expert evaluates. A "
+            "generator described only by its outputs cannot be "
+            "evaluated at all."},
+    {"key": "identifiers",
+     "need": "That direct identifiers were addressed",
+     "evidence": "scrub.inventory() - all 18 Safe Harbor "
+                 "categories with a status and a note each, "
+                 "including the ones NOT covered",
+     "why": "Safe Harbor is a different pathway from Expert "
+            "Determination, but an expert will ask what became "
+            "of the direct identifiers, and a detector that "
+            "finds nothing is a clean bill for whatever it "
+            "LOOKS AT."},
+    {"key": "threat_model",
+     "need": "The anticipated recipient and the information "
+             "reasonably available to them",
+     "evidence": "the attack battery's two adversaries - one "
+                 "that sees only GENERATED ROWS, and one that "
+                 "assumes the trained WEIGHTS leaked",
+     "why": "'Very small risk' is meaningless without saying "
+            "small against whom. The two adversaries are two "
+            "different recipients and their numbers differ."},
+    {"key": "membership",
+     "need": "Measured risk of determining that an individual "
+             "was in the cohort",
+     "evidence": "the membership-inference AUC, WITH the "
+                 "republish positive control on the same arm",
+     "why": "A control that cannot catch a verbatim republish "
+            "is a check that cannot fail, and this project has "
+            "recorded a reassuring 0.500 that was worth "
+            "nothing for exactly that reason."},
+    {"key": "attribute",
+     "need": "Measured risk of inferring a sensitive field "
+             "from the ordinary ones",
+     "evidence": "the attribute-disclosure EXCESS over an "
+                 "adversary trained on different real people "
+                 "who were never in the cohort",
+     "why": "Raw accuracy cannot answer this: a generator that "
+            "reproduces relationships faithfully is by "
+            "construction good at predicting one column from "
+            "the others, and a real relationship is revealed "
+            "by any sample of the population. Only the EXCESS "
+            "belongs to the release."},
+    {"key": "memorization",
+     "need": "That the release does not reproduce individual "
+             "records",
+     "evidence": "the nearest-neighbour ratio (generated-to-"
+                 "training over holdout-to-training) and the "
+                 "reconstruction gap between training and "
+                 "held-out PATIENTS, each with a positive "
+                 "control",
+     "why": "A ratio near 1.0 is also what a broken measure "
+            "returns, which is why the control removes the "
+            "thing being generalised to rather than widening "
+            "the model."},
+    {"key": "aggregates",
+     "need": "That the published statistics themselves do not "
+             "disclose",
+     "evidence": "the k-anonymous bound rule, and the fidelity "
+                 "deck suppressing source bins backed by fewer "
+                 "than k patients and PRINTING the count it "
+                 "suppressed",
+     "why": "A fidelity report on real data is itself a "
+            "release: a histogram is a set of bin counts, and "
+            "a bin holding three patients describes a group "
+            "small enough to gossip about."},
+    {"key": "utility",
+     "need": "The information retained, and why the release is "
+             "useful",
+     "evidence": "the fidelity gate and the mined-interaction "
+                 "table; train-on-synthetic-test-on-real scores "
+                 "both arms on the SAME held-out real rows",
+     "why": "Over-suppression is the trivial way to make risk "
+            "very small, so a determination that does not state "
+            "the retained utility has not described a trade at "
+            "all."},
+    {"key": "residual",
+     "need": "Residual risk and the scope of the analysis",
+     "evidence": "the recorded limitations - one cohort shape "
+                 "at one k on one extract, k-anonymity on what "
+                 "is published is NOT differential privacy, and "
+                 "the effect curves, interaction surfaces and "
+                 "dynamics have NOT been audited the same way",
+     "why": "A floor, not a certificate, and not a release "
+            "decision for a different cohort. An expert's "
+            "determination is bounded by the scope of the "
+            "evidence, so the scope has to be written down."},
+)
+
+
+def _get(d: Optional[Dict], *path, **kw):
+    """Walk a dict path, returning the default when absent.
+
+    `absent` and `known to be zero` are different facts, which
+    is why a missing key returns None here and every caller
+    distinguishes it from a measured value.
+    """
+    cur = d
+    for p in path:
+        if not isinstance(cur, dict) or p not in cur:
+            return kw.get("default")
+        cur = cur[p]
+    return cur
+
+
+def assess(fidelity: Optional[Dict] = None,
+           blueprint: Optional[Dict] = None,
+           provenance: Optional[Dict] = None,
+           membership: Optional[Dict] = None,
+           attribute: Optional[Dict] = None,
+           scrub_inventory: Optional[List] = None,
+           scope: Optional[str] = None,
+           ) -> Dict[str, Any]:
+    """Which elements this run has evidence for, and which are
+    OWED.
+
+    Takes the artifacts rather than a directory so the bench,
+    the CLI and the checks all drive one function - a second
+    implementation is how the shipped package and the screen
+    come to disagree.
+
+    THE FIELD NAMES ARE THE CONTRACT AND THEY ARE NOT GUESSED.
+    The first cut of this function read `arms`, `membership` and
+    `attribute` out of one invented `attack.json`. The real
+    batteries write TWO files with different shapes -
+    `membership_new_path.py` writes worst_auc_max and a `runs`
+    list whose entries carry `nearest_neighbor` and
+    `likelihood`; `attribute_disclosure.py` writes `seeds` and
+    `positive_control` - so every element would have read OWED
+    on a run that had the evidence. Seventh instance of the
+    wrong-key fault in this repo, and the suite asserts these
+    names against the batteries' LIVE output rather than
+    remembering them.
+    """
+    have = {}
+
+    have["release_surface"] = bool(provenance)
+    have["method"] = bool(_get(blueprint, "marginals")
+                          or _get(blueprint, "columns"))
+    have["identifiers"] = bool(scrub_inventory)
+
+    # TWO ADVERSARIES, OR IT IS NOT A THREAT MODEL. The output
+    # surface and the weights surface are different recipients
+    # and their recorded numbers differ sharply - one arm
+    # answers a question nobody asked.
+    runs = _get(membership, "runs", default=None) or []
+    both = [r for r in runs
+            if isinstance(r, dict)
+            and _get(r, "nearest_neighbor", "auc") is not None
+            and _get(r, "likelihood", "auc") is not None]
+    have["threat_model"] = len(both) >= 1
+
+    # A MEMBERSHIP NUMBER NEEDS MORE THAN ONE SEED AND A
+    # VERDICT. One attack AUC is a draw from a distribution, not
+    # a measurement - the battery itself refuses fewer than two
+    # seeds, so a summary with fewer did not come from it.
+    seeds = _get(membership, "seeds", default=None) or []
+    have["membership"] = bool(
+        _get(membership, "worst_auc_max") is not None
+        and _get(membership, "verdict")
+        and len(seeds) >= 2)
+
+    # THE EXCESS, AND THE POSITIVE CONTROL THAT MAKES IT WORTH
+    # ANYTHING. A clean excess with no leaky-generator arm is
+    # the check-that-cannot-fail shape.
+    have["attribute"] = bool(
+        (_get(attribute, "seeds", default=None) or [])
+        and (_get(attribute, "positive_control", default=None)
+             or []))
+
+    nn = _get(fidelity, "nn_ratio", default=None)
+    rg = _get(fidelity, "reconstruction_gap", default=None)
+    have["memorization"] = bool(nn is not None or rg is not None)
+
+    have["aggregates"] = _get(
+        blueprint, "bounds_are_k_anonymous", default=None) is True
+    have["utility"] = _get(fidelity, "summary",
+                           default=None) is not None
+
+    # RESIDUAL RISK IS THE ONE ELEMENT A RUN CANNOT SUPPLY: it
+    # is a statement about SCOPE that a person writes. It is
+    # satisfied by a written scope passed in, and OWED
+    # otherwise - never derived, because a scope nobody wrote is
+    # not a scope.
+    #
+    # It is a PARAMETER rather than permanently false, which the
+    # first cut had: that made `ready` unreachable and left the
+    # "every element has evidence" branch as dead code inside a
+    # tool built to catch exactly that.
+    have["residual"] = bool(scope and len(scope.strip()) >= 200)
+
+    rows = []
+    for el in ELEMENTS:
+        rows.append(dict(el, present=bool(have.get(el["key"]))))
+    n_have = sum(1 for r in rows if r["present"])
+    return {
+        "statute": STATUTE,
+        "not_a_determination": list(NOT_A_DETERMINATION),
+        "elements": rows,
+        # DERIVED from the rows, never written beside them.
+        "elements_total": len(rows),
+        "elements_present": n_have,
+        "elements_owed": [r["key"] for r in rows
+                          if not r["present"]],
+        "ready": n_have == len(rows),
+        "scope_chars": len(scope.strip()) if scope else 0,
+    }
+
+
+def plain(report: Dict[str, Any]) -> List[str]:
+    """The package as text, for the CLI.
+
+    ONE renderer's worth of words, shared, for the same reason
+    the gate's NEXT_STEPS live in one module: a package and a
+    page that disagree about what is owed is worse than either
+    alone.
+    """
+    out = ["HIPAA EXPERT DETERMINATION - EVIDENCE PACKAGE", ""]
+    for line in report["not_a_determination"]:
+        out.append("  ! " + line)
+    out.append("")
+    out.append("THE STATUTE")
+    out.append("  " + report["statute"])
+    out.append("")
+    out.append("ELEMENTS: {} of {} have evidence in this run"
+               .format(report["elements_present"],
+                       report["elements_total"]))
+    out.append("")
+    for el in report["elements"]:
+        out.append("  [{}] {}".format(
+            "x" if el["present"] else "OWED", el["need"]))
+        out.append("        evidence: " + el["evidence"])
+        out.append("        why it is asked: " + el["why"])
+        out.append("")
+    if report["elements_owed"]:
+        out.append("OWED: " + ", ".join(report["elements_owed"]))
+        out.append("  An expert asked to sign against an OWED "
+                   "element would be signing against nothing. "
+                   "Assemble these before")
+        out.append("  seeking a determination.")
+    else:
+        out.append("Every element has evidence in this run. That "
+                   "is READINESS, not a determination - the "
+                   "determination is still")
+        out.append("  a qualified person's to make.")
+    return out

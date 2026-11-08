@@ -604,6 +604,102 @@ def cmd_receipts(args) -> int:
     return 0
 
 
+def cmd_determination(args) -> int:
+    """The evidence package for a HIPAA Expert Determination.
+
+    THE EVIDENCE EXISTED AND NOBODY HAD ASSEMBLED IT.
+    `docs/COMPETITIVE.md` lists Expert Determination as a flat
+    `no` against a vendor that has one, and notes it is "not a
+    model change: a documentation and evidence package" - most
+    of which this project has measured for months, spread
+    across six files. A reader deciding whether the
+    re-identification risk is very small had to hold all of it
+    at once.
+
+    IT REFUSES TO CALL ITSELF A DETERMINATION. 164.514(b)(1)
+    puts the determination in a qualified person's hands; a tool
+    claiming one would be the same fault as an output described
+    as differentially private when only the weights are
+    accounted. Exit 3 when any element is OWED, because a
+    package that looks complete and is not would have an expert
+    signing against evidence that does not exist.
+    """
+    import json as _json
+    import os
+    from . import determination as _det
+
+    def _read_path(p):
+        if not os.path.exists(p):
+            print("note: no such file, treated as OWED: {}"
+                  .format(p))
+            return None
+        try:
+            with open(p) as fh:
+                return _json.load(fh)
+        except (ValueError, OSError) as e:
+            print("note: could not read {} ({}), treated as "
+                  "OWED".format(p, e))
+            return None
+
+    def _read(name):
+        return _read_path(os.path.join(args.rundir, name)) \
+            if os.path.exists(os.path.join(args.rundir, name)) \
+            else None
+
+    if not os.path.isdir(args.rundir):
+        print("STOPPED: no such run directory: {}".format(
+            args.rundir), file=sys.stderr)
+        return 2
+
+    inv = None
+    if args.scrubbed:
+        try:
+            from . import scrub as _scrub
+            inv = _scrub.inventory()
+        except Exception as e:                  # noqa: BLE001
+            print("note: could not read the Safe Harbor "
+                  "inventory ({})".format(e))
+
+    scope = None
+    if args.scope:
+        if not os.path.exists(args.scope):
+            print("STOPPED: no such scope file: {}".format(
+                args.scope), file=sys.stderr)
+            return 2
+        with open(args.scope) as fh:
+            scope = fh.read()
+
+    rep = _det.assess(
+        fidelity=_read("fidelity.json"),
+        blueprint=_read("blueprint.json"),
+        provenance=_read("provenance.json"),
+        # The batteries write their own files with their own
+        # shapes; the operator points at what they ran rather
+        # than the tool guessing a filename.
+        membership=(_read_path(args.membership)
+                    if args.membership else None),
+        attribute=(_read_path(args.attribute)
+                   if args.attribute else None),
+        scrub_inventory=inv,
+        scope=scope)
+
+    for line in _det.plain(rep):
+        print(line)
+
+    dest = args.json_out or os.path.join(
+        args.rundir, "determination.json")
+    with open(dest, "w") as fh:
+        _json.dump(rep, fh, indent=2, default=str)
+    print("")
+    print("wrote {}".format(dest))
+    # A NON-ZERO EXIT ON AN INCOMPLETE PACKAGE. The same
+    # reasoning as `scrub --apply` refusing when a fresh detect
+    # still finds something: a document that says it is ready
+    # while half the work is outstanding is the worst outcome
+    # available.
+    return 0 if rep["ready"] else 3
+
+
 def cmd_relate(args) -> int:
     """Fit and generate a LINKED set of tables.
 
@@ -1679,6 +1775,31 @@ def main(argv=None) -> int:
                         "arm, for measuring what the "
                         "enforcement is worth")
     p.set_defaults(fn=cmd_relate)
+
+    p = sub.add_parser("determination",
+                       help="assemble the evidence package for "
+                            "a HIPAA Expert Determination from "
+                            "a run directory - and say what is "
+                            "still OWED")
+    p.add_argument("rundir")
+    p.add_argument("--membership", default=None, metavar="JSON",
+                   help="output of scripts/membership_new_path.py "
+                        "-o FILE")
+    p.add_argument("--attribute", default=None, metavar="JSON",
+                   help="output of "
+                        "scripts/attribute_disclosure.py -o FILE")
+    p.add_argument("--scope", default=None, metavar="FILE",
+                   help="a WRITTEN scope and residual-risk "
+                        "statement; residual risk is the one "
+                        "element a run cannot supply")
+    p.add_argument("--scrubbed", action="store_true",
+                   help="the source went through `synthkit "
+                        "scrub`, so the Safe Harbor inventory "
+                        "is part of the record")
+    p.add_argument("--json-out", default=None, metavar="FILE",
+                   help="where to write determination.json; "
+                        "defaults to the run directory")
+    p.set_defaults(fn=cmd_determination)
 
     p = sub.add_parser("receipts",
                        help="one receipt per published claim "
