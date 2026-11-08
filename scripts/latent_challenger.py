@@ -3226,6 +3226,15 @@ def run_attack(seeds, csv=None, group_by="person_id",
             "seeds": list(seeds),
             "k_blur": bool(k_blur),
             "denoise": float(denoise),
+            # THE CONFIGURATION MEASURED, so a package citing
+            # this cannot quietly claim it for a DIFFERENT one.
+            # A larger token cap publishes more vocabulary about
+            # members, so an attack measured at a smaller cap
+            # UNDERSTATES the risk of a larger-cap release -
+            # which is the wrong direction for a privacy number
+            # to be wrong in.
+            "token_cap": int(MAX_TOKENS),
+            "level_cap": int(MAX_LEVELS),
             "worst_auc_mean": round(float(np.mean(worst)), 4),
             "worst_auc_max": round(float(np.max(worst)), 4),
             "verdict": ("PASS" if max(worst) < 0.60 else

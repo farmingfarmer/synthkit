@@ -195,6 +195,7 @@ def assess(fidelity: Optional[Dict] = None,
            scrub_inventory: Optional[List] = None,
            scope: Optional[str] = None,
            source_name: Optional[str] = None,
+           run_config: Optional[Dict] = None,
            ) -> Dict[str, Any]:
     """Which elements this run has evidence for, and which are
     OWED.
@@ -298,22 +299,54 @@ def assess(fidelity: Optional[Dict] = None,
         return (str(source_name) not in str(src)
                 and str(src) not in str(source_name))
 
-    off_cohort = set()
-    if _elsewhere(membership):
-        off_cohort.update(("membership", "threat_model"))
-    if _elsewhere(attribute):
-        off_cohort.add("attribute")
+    # AND A DIFFERENT CONFIGURATION IS ALSO DIFFERENT EVIDENCE.
+    #
+    # The attack runs the SHIPPED defaults unless told otherwise,
+    # and a release may have overridden them. A larger token cap
+    # publishes more vocabulary about members, so an attack
+    # measured at a smaller cap UNDERSTATES the risk of a
+    # larger-cap release - the wrong direction for a privacy
+    # number to be wrong in, and invisible without comparing.
+    # Treated exactly like a different dataset, because it is a
+    # measurement of something other than what is being
+    # certified.
+    def _other_config(rec):
+        if not (rec and run_config):
+            return False
+        for field in ("token_cap", "level_cap"):
+            a, b = rec.get(field), run_config.get(field)
+            if a is not None and b is not None and int(a) != int(b):
+                return True
+        return False
+
+    # TWO CAUSES, TWO LABELS, BECAUSE THEY TAKE DIFFERENT
+    # ACTIONS. Evidence from another DATASET needs re-running on
+    # this cohort; evidence from the same data under different
+    # CAPS needs re-running at these settings. Collapsing them
+    # into one word would be the blocked-versus-unchanged fault,
+    # which this project records for the corruption ledger and
+    # for route B's two opposite readings of one number.
+    off_cohort = {}
+    for key, rec in (("membership", membership),
+                     ("attribute", attribute)):
+        why = ("FIXTURE" if _elsewhere(rec)
+               else "CONFIG" if _other_config(rec) else None)
+        if not why:
+            continue
+        off_cohort[key] = why
+        if key == "membership":
+            off_cohort["threat_model"] = why
 
     rows = []
     for el in ELEMENTS:
         k_ = el["key"]
         got = bool(have.get(k_))
+        bad = off_cohort.get(k_) if got else None
         rows.append(dict(
             el,
-            present=got and k_ not in off_cohort,
-            status=("FIXTURE" if got and k_ in off_cohort
-                    else "present" if got else "OWED"),
-            measured_elsewhere=bool(got and k_ in off_cohort)))
+            present=got and not bad,
+            status=(bad or ("present" if got else "OWED")),
+            measured_elsewhere=bool(bad)))
     n_have = sum(1 for r in rows if r["present"])
     return {
         "statute": STATUTE,
@@ -363,25 +396,44 @@ def plain(report: Dict[str, Any]) -> List[str]:
                        len(report["elements_elsewhere"])))
     out.append("")
     for el in report["elements"]:
+        # ANY status renders, rather than an enumerated map
+        # that raises on a new one. The first version listed
+        # present/FIXTURE/OWED and crashed with a KeyError the
+        # moment CONFIG was added - a renderer that must be
+        # edited whenever a status is added will be the thing
+        # that breaks when somebody adds one.
+        _st = el.get("status", "OWED")
         out.append("  [{}] {}".format(
-            {"present": "x", "FIXTURE": "FIXTURE",
-             "OWED": "OWED"}[el.get("status", "OWED")],
-            el["need"]))
+            "x" if _st == "present" else _st, el["need"]))
         out.append("        evidence: " + el["evidence"])
         out.append("        why it is asked: " + el["why"])
         out.append("")
     if report.get("elements_elsewhere"):
-        out.append("MEASURED ELSEWHERE: {}".format(
-            ", ".join(report["elements_elsewhere"])))
+        out.append("OUT OF SCOPE: {}".format(
+            ", ".join("{} ({})".format(
+                r["key"], r["status"])
+                for r in report["elements"]
+                if r["measured_elsewhere"])))
+        out.append("  FIXTURE means the measurement was made on "
+                   "ANOTHER DATASET - re-run it on this cohort. "
+                   "CONFIG means it was")
+        out.append("  made on this data under DIFFERENT CAPS - "
+                   "re-run it at these settings. Different "
+                   "causes, different fixes,")
+        out.append("  so they do not share a word.")
         out.append("  These measurements were made, and NOT on "
-                   "the cohort being released. A determination "
-                   "is scoped to one")
-        out.append("  release, so a number about a different "
-                   "dataset is not evidence for it - this "
-                   "project's own posture")
-        out.append("  calls a fixture result a floor, not a "
-                   "certificate, and not a release decision "
-                   "for another cohort.")
+                   "the cohort OR the configuration being "
+                   "released. A determination is")
+        out.append("  scoped to one release, so a number about "
+                   "a different dataset - or about the same "
+                   "data under different")
+        out.append("  caps - is not evidence for it. A larger "
+                   "token cap publishes more vocabulary about "
+                   "members, so an attack")
+        out.append("  measured at a smaller cap UNDERSTATES the "
+                   "risk, which is the wrong direction for a "
+                   "privacy number to be")
+        out.append("  wrong in.")
         out.append("")
     if report["elements_owed"]:
         out.append("OWED: " + ", ".join(report["elements_owed"]))

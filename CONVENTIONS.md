@@ -4135,6 +4135,41 @@ what follows is what came out wrong anyway.
   nobody will use.
 
 ## Talking to the data machine
+- **A DIFFERENT CONFIGURATION IS DIFFERENT EVIDENCE TOO, AND THE
+  MISMATCH IS INVISIBLE WITHOUT COMPARING (2026-11-07).** The
+  real-extract attack launched at the SHIPPED token cap of 60
+  while the run being certified used 800 - caught by reading the
+  attack's own first lines ("5,702 tokens found, 533 clear k, 60
+  modeled") rather than by any check. It matters in the
+  dangerous direction: a larger cap publishes MORE vocabulary
+  about members, so an attack measured at a smaller cap
+  UNDERSTATES the risk of a larger-cap release. The attack now
+  RECORDS its caps and the package compares them against the
+  run's own contract.
+- **AND THE TWO CAUSES KEEP SEPARATE WORDS, because they take
+  different fixes.** FIXTURE means the measurement was made on
+  ANOTHER DATASET - re-run it on this cohort. CONFIG means it
+  was made on this data under DIFFERENT CAPS - re-run it at
+  these settings. Collapsing them into one word would be the
+  blocked-versus-unchanged fault this file already records for
+  the corruption ledger and for route B's two opposite readings
+  of one number.
+- **AND AN ENUMERATED STATUS MAP CRASHED THE MOMENT A STATUS WAS
+  ADDED.** The renderer held `{present, FIXTURE, OWED}` and
+  raised a KeyError on CONFIG - a renderer that must be edited
+  whenever a status is added is the thing that breaks when
+  somebody adds one. It renders any status now.
+- **AND THE STUCK CONSOLE CAME BACK, with the recorded recovery
+  working exactly as written.** Three reads returned a frozen
+  screen with my markers ABSENT while `status` reported
+  reachable, keyboard_online, not busy and awake - the health
+  fields cannot see a console in selection mode, which this file
+  records. `enabled=False` was the recorded red herring again.
+  `key esc` cleared it in one command and the next marker came
+  straight back. The marker discipline is what made the
+  staleness visible: without requiring my own fresh marker back,
+  three stale reads would each have looked like an answer.
+
 
 - **THE BENCH'S 11/13 WAS A SEED, NOT A REGRESSION, AND A
   SWEEP SETTLED A DEBT THAT HAD BEEN CARRIED UNATTRIBUTED

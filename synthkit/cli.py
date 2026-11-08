@@ -685,7 +685,11 @@ def cmd_determination(args) -> int:
         # The run's own source, so evidence measured on a
         # different dataset reads FIXTURE rather than present.
         source_name=((_read("provenance.json") or {})
-                     .get("source", {}) or {}).get("name"))
+                     .get("source", {}) or {}).get("name"),
+        # ...and the run's own CAPS, so evidence measured under
+        # different settings reads CONFIG rather than present.
+        run_config=((_read("provenance.json") or {})
+                    .get("contract") or {}))
 
     for line in _det.plain(rep):
         print(line)

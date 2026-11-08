@@ -352,12 +352,62 @@ def main():
           all(e["status"] == "present"
               for e in _r_no_src["elements"]
               if e["key"] in ("membership", "threat_model")))
+    # TWO CAUSES, TWO LABELS. Different dataset and different
+    # caps take DIFFERENT fixes - re-run on this cohort versus
+    # re-run at these settings - so collapsing them into one
+    # word would be the blocked-versus-unchanged fault.
+    _same = {"source": "tidy_visits.csv", "seeds": [0, 1, 2],
+             "worst_auc_max": 0.55, "verdict": "PASS",
+             "token_cap": 60, "level_cap": 60,
+             "runs": [{"nearest_neighbor": {"auc": 0.51},
+                       "likelihood": {"auc": 0.49}}]}
+    _ok = DET.assess(membership=_same,
+                     source_name="tidy_visits.csv",
+                     run_config={"token_cap": 60,
+                                 "level_cap": 60})
+    _cfg = DET.assess(membership=_same,
+                      source_name="tidy_visits.csv",
+                      run_config={"token_cap": 800,
+                                  "level_cap": 60})
+    _stc = dict((e["key"], e["status"]) for e in
+                _cfg["elements"])
+    check("evidence from the same data under DIFFERENT CAPS "
+          "reads CONFIG, not FIXTURE and not present: a cap-60 "
+          "attack against a cap-800 run marks membership {} "
+          "where matching caps read {}. A larger token cap "
+          "publishes more vocabulary about members, so the "
+          "smaller-cap attack UNDERSTATES the risk - the wrong "
+          "direction for a privacy number to be wrong in, and "
+          "invisible without comparing"
+          .format(_stc["membership"],
+                  dict((e["key"], e["status"])
+                       for e in _ok["elements"])["membership"]),
+          _stc["membership"] == "CONFIG"
+          and _ok["ready"] is False  # scope still owed
+          and "membership" not in _ok["elements_elsewhere"]
+          and "membership" in _cfg["elements_elsewhere"])
+    check("...and the two causes keep SEPARATE words, because "
+          "they take different fixes - re-run on this cohort "
+          "versus re-run at these settings - and the text says "
+          "which is which",
+          _st["membership"] == "FIXTURE"
+          and _stc["membership"] == "CONFIG"
+          and "re-run it on this cohort" in "\n".join(
+              DET.plain(_cfg))
+          and "re-run it at these settings" in "\n".join(
+              DET.plain(_cfg)))
+    check("...and the attack RECORDS the caps it measured, or "
+          "the comparison has nothing to read",
+          '"token_cap": int(MAX_TOKENS),' in io.open(
+              str(ROOT / "scripts" / "latent_challenger.py"),
+              encoding="utf-8").read())
+
     _txt2 = "\n".join(DET.plain(_r_real))
     check("...and the text NAMES the elsewhere elements and says "
           "why that matters, rather than only counting them",
-          "MEASURED ELSEWHERE" in _txt2
+          "OUT OF SCOPE" in _txt2
           and "membership" in _txt2.split(
-              "MEASURED ELSEWHERE")[1][:200]
+              "OUT OF SCOPE")[1][:200]
           and "scoped to one" in _txt2)
 
     # ---- THE ATTACK NOW WRITES WHAT THE PACKAGE READS
