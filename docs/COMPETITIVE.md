@@ -412,7 +412,7 @@ I did not find another tool documenting this.
 |---|---|---|
 | differential privacy | **partial, all five stages measured** — DP training of the weights ships; the other four have mechanisms with measured prices (a DP vocabulary selection at eps 3 keeps 12% of what the k rule publishes on an 800-patient cohort; the latent mixture's cost is a SHAPE cost that more epsilon cannot buy off). Not on by default, and the reason is a number | yes (MOSTLY AI) |
 | sequential / longitudinal model | **partial, measured on the real extract** — rules engine models it; the neural engine's AR(1) course with a SOLVED rho moves dynamics 21/93 to 28/93 on the extract and costs about two close pairs, so it stays off by default with the price on record | yes (MOSTLY AI; research frontier) |
-| HIPAA Expert Determination | **partial** — the evidence package is assembled and says what is still OWED (`synthkit determination`); no expert has made a determination, and the tool refuses to imply one | yes (Tonic) |
+| HIPAA Expert Determination | **partial, 9 of 11 elements measured on the real cohort** — membership, attribute and memorization each with their positive control; the two gaps are linkage (not yet measurable at this cohort size) and a written scope. No expert has made a determination and the tool refuses to imply one | yes (Tonic) |
 | automatic PHI/PII detection | yes, 18-category inventory | yes (Tonic) |
 | referential integrity across tables | yes | yes (MOSTLY AI, SDV) |
 | cross-table RELATIONSHIP enforcement, 3 hops | yes, measured | not found |
@@ -513,9 +513,30 @@ I did not find another tool documenting this.
    is a qualified person's to make, and a tool claiming one
    would be the same fault as describing an output as
    differentially private when only the weights are accounted.
-   **What remains is a run of record with every element
-   present**, which needs the two batteries and a written scope
-   statement on the machine that holds the extract.
+   **The run of record now exists**: nine of eleven elements
+   measured on the real 800-patient extract, with the
+   membership, attribute and linkage batteries all pointed at
+   the extract itself rather than at a fixture. Membership at
+   the released configuration reads worst **0.6253 MARGINAL**
+   (weights surface; the weights are never released) with the
+   republish control at **1.000 CAUGHT**. Attribute disclosure
+   reads excess **−0.0055** with the leaky control firing at
+   **+0.2289** — a fortyfold separation, and the strongest
+   attribute result here, every previous figure having been on
+   a fixture.
+
+   The two gaps are different in kind and are reported
+   separately. `linkage` is OWED because it is **not yet
+   measurable at this cohort size** — coarse bands leave a
+   verbatim republish undetectable, fine bands leave the honest
+   arm with nothing scored — not because it failed. `residual`
+   is OWED because somebody has to write the scope; the
+   template fills in the measured facts and marks every
+   judgment for review.
+
+   Readiness is not a determination, and the tool says so in
+   three places. Nine elements on the real cohort is the
+   strongest position to ask from, and it is still an ask.
 4. **Free-text PHI.** Still the M6 governance gate.
 5. Everything else on the platform list is engineering we know
    how to do and have deliberately not spent on.

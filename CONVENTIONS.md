@@ -282,6 +282,60 @@ the direction that stops work happening.
   lag both dropped
 
 ## What the blueprint may publish
+- **THE EXPERT DETERMINATION RUN OF RECORD EXISTS: NINE OF
+  ELEVEN ELEMENTS MEASURED ON THE REAL EXTRACT, AND THE TWO GAPS
+  ARE NAMED (2026-11-08).** `synthkit determination` against the
+  real 800-patient run with the membership, attribute and
+  linkage batteries all pointed at the extract itself:
+      [x] exactly what is released, and what is not
+      [x] the de-identification method, described
+      [x] that direct identifiers were addressed
+      [x] the anticipated recipient and what they can SEE of
+          the release
+      [ ] ...and in COMBINATION with other reasonably available
+          information                                     OWED
+      [x] measured risk of determining membership
+      [x] measured risk of inferring a sensitive field
+      [x] that the release does not reproduce individual records
+      [x] that the published statistics themselves do not
+          disclose
+      [x] the information retained, and why it is useful
+      [ ] residual risk and the scope of the analysis     OWED
+  Every present element is evidence about THIS cohort at THESE
+  caps - the package marks anything else FIXTURE or CONFIG and
+  refuses to count it.
+- **THE NUMBERS BEHIND IT, each with the control that makes it
+  worth reading.** Membership at the released configuration
+  (token cap 800, three seeds): worst **0.6253 MARGINAL**, mean
+  0.5469, driven by the weights-surface adversary, with the
+  verbatim-republish control at **1.000 CAUGHT**. The weights
+  are never part of any release; the output-surface arm is the
+  release surface. Attribute disclosure on the real extract with
+  a real diagnosis column as the sensitive field: excess
+  **-0.0055** - the adversary does NO better on members than on
+  non-members - with the leaky-generator control firing at
+  **+0.2289**, a forty-fold separation and the strongest
+  attribute result this project has, every previous figure
+  having been on a fixture. Memorization: held-out
+  reconstruction **1.1196** of training, against a 9.7 positive
+  control on a frame with nothing to learn.
+- **AND THE TWO GAPS ARE DIFFERENT IN KIND, which is why they
+  are not one line.** `linkage` is OWED because the measurement
+  is NOT YET MEASURABLE at this cohort size, not because it
+  failed - coarse bands leave a verbatim republish undetectable
+  (control +0.0108, under the floor) and fine bands leave the
+  honest arm with nothing scored (control +0.082, zero rows
+  matched). `residual` is OWED because it is the one element a
+  RUN cannot supply: somebody has to write the scope, and
+  `docs/DETERMINATION_SCOPE.md` is a template with the measured
+  facts filled in and every judgment marked for review, not a
+  scope.
+- **WHAT THIS IS NOT, said here as the tool says it: READINESS
+  IS NOT A DETERMINATION.** The determination in 164.514(b)(1)
+  is made by a qualified person. Nine elements of evidence
+  assembled on the real cohort is the strongest position this
+  project has been in to ask for one, and it is still an ask.
+
 - **A FIFTH LINKAGE OUTCOME TURNED UP ON THE REAL EXTRACT, AND
   IT HAD BEEN MISLABELLED IN A FIXTURE ALL ALONG (2026-11-08).**
   With fine bands on the real extract the CONTROL fired cleanly
@@ -2463,6 +2517,21 @@ the direction that stops work happening.
   error with did-you-mean; `synthkit dials` lists every edge.
 
 ## Numbers before conclusions
+- **NO TOLERANCE CAN DISCRIMINATE AT THE HALF, AND TIGHTENING
+  ONE TWICE IS HOW THAT SURFACED (2026-11-08).** The scorecard
+  check compared the page's stated overall against the mean of
+  its eight goals within 0.1 - so a page stating **93.3** against
+  a computed **93.2** PASSED while the check's own message
+  printed both numbers side by side. Two numbers disagreeing on
+  one line is this project's alarm even when something tolerates
+  it, and a reader of that output would see a mismatch described
+  as ok. Tightening the bar to 0.05 changed NOTHING: the eight
+  goals average exactly 93.25, and float arithmetic puts 93.2
+  and 93.3 each 0.0499999... away, so both still passed. The
+  comparison had to stop being a tolerance - it is now exact
+  against the mean ROUNDED THE WAY THE PAGE ROUNDS IT, and both
+  neighbouring values turn it red.
+
 - **THE TRAJECTORY RAN ON THE REAL EXTRACT AS A PAIRED CONTROL,
   AND IT IS A TRADE RATHER THAN A WIN - SO IT STAYS OFF
   (2026-11-07, traj_off / traj_ar, build 21254e9).** Same

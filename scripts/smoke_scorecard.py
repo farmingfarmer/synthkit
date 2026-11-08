@@ -100,11 +100,27 @@ def main():
           "at the end and threw away the edit that had worked"
           .format(want, listed), want == listed)
     computed = sum(want) / 8.0
-    check("...and the stated overall is the mean of those eight: "
-          "{:.1f} stated against {:.1f} computed - equal "
-          "weighting is what the page claims, so the arithmetic "
-          "is checkable".format(stated, computed),
-          abs(stated - computed) <= 0.1)
+    # EXACT AGAINST THE MEAN ROUNDED THE WAY THE PAGE PRINTS IT,
+    # because no TOLERANCE can discriminate at the half.
+    #
+    # The eight goals average exactly 93.25, and a 0.05 bar
+    # passes BOTH 93.2 and 93.3 - float arithmetic puts each of
+    # them 0.0499999... away. The old bar was 0.1 and passed a
+    # page stating 93.3 against a computed 93.2 while the
+    # check's own message printed both numbers side by side:
+    # two numbers disagreeing on one line, which is this
+    # project's alarm even when something tolerates it.
+    # Tightening it to 0.05 changed nothing, which is how the
+    # real problem surfaced - the comparison had to stop being
+    # a tolerance.
+    rounded = round(computed, 1)
+    check("...and the stated overall EQUALS the mean of those "
+          "eight, rounded as the page rounds it: {:.1f} stated "
+          "against {:.1f} - exact, not within a tolerance, "
+          "because the mean is {:.2f} and no tolerance can tell "
+          "93.2 from 93.3 at a half"
+          .format(stated, rounded, computed),
+          abs(stated - rounded) < 1e-9)
 
     # STRUCTURE, not judgment. A goal that is short of 100 owes a
     # reader the reason, and this page's whole value is that the

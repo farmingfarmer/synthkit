@@ -126,7 +126,7 @@ holds). Formats: days.
 
 ---
 
-## Goal 2 — Automatic de-identification   **~94%**
+## Goal 2 — Automatic de-identification   **~96%**
 
 **What works, measured**
 - Everything published is k-anonymous over PATIENTS, never rows:
@@ -198,8 +198,26 @@ holds). Formats: days.
   not one.
 
 **What remains**
-- **An Expert Determination RUN OF RECORD.** The evidence
-  package is built (ED-1/ED-2/LK-1, `synthkit determination`)
+- ~~**An Expert Determination RUN OF RECORD.**~~ **IT EXISTS,
+  2026-11-08: NINE OF ELEVEN ELEMENTS MEASURED ON THE REAL
+  EXTRACT**, with the membership, attribute and linkage
+  batteries all pointed at the extract rather than a fixture.
+  Membership at the released configuration: worst **0.6253
+  MARGINAL** (weights surface, never released) with the
+  republish control at **1.000 CAUGHT**. Attribute disclosure:
+  excess **−0.0055** with the leaky control at **+0.2289**.
+  Memorization: held-out reconstruction **1.1196** of training
+  against a 9.7 control on a frame with nothing to learn. The
+  two gaps are different in kind: `linkage` is **not yet
+  measurable at this cohort size** (coarse bands leave a
+  republish undetectable, fine bands leave the honest arm with
+  nothing scored), and `residual` needs a person to write the
+  scope. **Readiness is not a determination** — that is a
+  qualified person's to make, and the tool refuses to imply
+  otherwise.
+- What remains on that: a measurable linkage arrangement, and
+  the scope statement signed off. The evidence package is built
+  (ED-1/ED-2/ED-3/LK-1, `synthkit determination`)
   and now covers ELEVEN elements, including the statute's "in
   COMBINATION with other reasonably available information" half
   that the two attack adversaries do not reach — `synthkit.
@@ -703,8 +721,13 @@ dates:
    ceiling: ongoing and unscheduled, because unknowns move dates
    and these are the genuine unknowns.
 
-Equal-weighting the eight goals: **~93.0% complete** as of
-2026-11-07 — 90, 94, 90, 95, 93, 100, 92, 90. Moved on
+Equal-weighting the eight goals: **~93.2% complete** as of
+2026-11-08 — 90, 96, 90, 95, 93, 100, 92, 90. Moved on
+2026-11-08: goal 2 94→96 because the Expert Determination run
+of record now EXISTS — nine of eleven elements measured on the
+real 800-patient extract, each with the positive control that
+makes it worth reading, and the two gaps named rather than
+counted. Previously moved on
 2026-11-07: goal 2 92→94 for two measured pieces, both of
 which SAY what they do not cover. The Expert Determination
 EVIDENCE PACKAGE (`synthkit determination`) assembles the ten
