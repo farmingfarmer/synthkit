@@ -241,11 +241,56 @@ def main():
           "the shipping engine",
           "MLPRegressor, the shipping trainer" in txt
           and "never against A" in txt.replace("arm A", "A"))
-    check("...and it records that the cost is dominated by "
-          "DATASET SIZE, with the row count required beside any "
-          "ratio - 18.8x at 3,200 rows against 4.6x at 51,200",
-          "dominated by dataset size" in txt.lower()
-          and "51,200" in txt)
+    # THIS CHECK USED TO PIN A CLAIM THE MEASUREMENT REFUTED.
+    #
+    # It asserted the script says the cost is "dominated by
+    # dataset size". The real extract then cost 3.54x where this
+    # fixture predicted 1.78x, width was the obvious
+    # explanation, and `--width` REFUTED it - the ratio falls as
+    # width grows. So the honest page states BOTH axes and names
+    # what is still unexplained, and this check pins that rather
+    # than the single-axis story.
+    check("...and it states BOTH axes with the scale required "
+          "beside any ratio - the row sweep (18.8x at 3,200 "
+          "rows against 4.6x at 51,200) AND the width sweep "
+          "that refuted width as the explanation for the real "
+          "extract costing twice the prediction",
+          "51,200" in txt and "3.54" in txt and "1.78" in txt
+          and "REFUSED" in txt
+          and "refut" in txt.lower())
+    check("...and the real-extract numbers are carried with "
+          "their SPLIT, because a reconstruction ratio without "
+          "the held-out count is not a measurement",
+          "9,140" in txt and "46,288" in txt
+          and "1,601" in txt)
+    # THE REFUSAL IS ASSERTED AS A DECISION, NOT AS PROSE. A
+    # text check for `CONTROL_MUST_BEAT` passes while the guard
+    # is bypassed, since the name appears at both the definition
+    # and the use site - so the mutation that mattered went
+    # uncaught.
+    import dp_cost as _DC                            # noqa: E402
+    check("the unlearnable cell is REFUSED rather than ratioed, "
+          "checked on planted inputs: a control of 1.00144 "
+          "returns {} where a control of 0.02 returns {:.2f}. On "
+          "a standardised frame an MSE near 1.0 means the net "
+          "predicted the mean, and the first version of the "
+          "width sweep reported such a cell as 0.94 - BETTER "
+          "than its own control - which reads as DP being free "
+          "at width"
+          .format(_DC.ratio_or_refuse(1.00144, 0.94336),
+                  _DC.ratio_or_refuse(0.02135, 0.10976)),
+          _DC.ratio_or_refuse(1.00144, 0.94336) is None
+          and abs(_DC.ratio_or_refuse(0.02135, 0.10976)
+                  - 5.14) < 0.02
+          and _DC.ratio_or_refuse(None, 0.1) is None)
+    check("...and the floor it refuses at is the SAME one the "
+          "trainer checks are held to ({:.2f}), because two "
+          "numbers deciding the same thing separately is how "
+          "they come to disagree"
+          .format(_DC.CONTROL_MUST_BEAT),
+          _DC.CONTROL_MUST_BEAT == 0.5
+          and _DC.ratio_or_refuse(0.49, 1.0) is not None
+          and _DC.ratio_or_refuse(0.51, 1.0) is None)
 
     print()
     if FAIL:

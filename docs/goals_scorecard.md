@@ -418,6 +418,23 @@ exactly what they were.
   and so unreachable by any rearrangement of the output; going
   after them through their set column was measured HARMFUL
   (close 46/57 -> 32/57) and is off by default.
+- **`dynamics tracked` is NO LONGER STRUCTURAL** (2026-11-07,
+  DYN-1). It read 17/87 with "the engine is row-level and models
+  no patient trajectory" beside it. An AR(1) on the latent
+  deviation gives a patient a course, the rho is SOLVED against
+  the source's own within-patient AR rather than guessed, and a
+  column that IS the within-patient index is reproduced by
+  position. Across two longitudinal shapes and three seeds the
+  graded columns go 1.17 -> 2.17 on average, worse on NO arm,
+  with `close` and `inverted` identical on every arm and a
+  cross-sectional control grading zero columns. **Still OFF by
+  default**: nine fixture arms is not a cohort and 17/87 is a
+  real-extract number, so the real-extract control pair is what
+  decides it. The measured ceiling is about 0.40 of
+  within-patient AR, so a source course stronger than ~0.55
+  cannot be matched - named, with the mechanism (past the peak a
+  high rho produces part of the patient's LEVEL, not a
+  deviation).
 - *Superseded, kept so the trail is readable:* `close` at 76.5%
   against the 87.9% bar —
   and the seed sweep (76.5/80.6/80.2) says the gap is REAL, not

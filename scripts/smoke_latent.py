@@ -2179,9 +2179,18 @@ def main():
     # recorded in CONVENTIONS, and `peek.py RUN sizes SRC.csv`
     # survives as the diagnostic that found the mechanism.
 
-    if FAIL:
-        print("{} of {} checks failed.".format(FAIL, PASS + FAIL))
-        sys.exit(1)
+    # THE VERDICT GOES AT THE END, AND THIS ONE REPORTED
+    # SUCCESS WITH A FAILURE IN HAND.
+    #
+    # `if FAIL: sys.exit(1)` used to sit HERE, with every check
+    # below it unenforced: a failure in those blocks printed
+    # "All N checks passed." and exited 0, and the net judges on
+    # exactly that marker plus the exit code, so both lied. The
+    # earlier two instances of this fault in this repo made
+    # checks VANISH; this one made a red check read as a green
+    # net, which is worse. Caught when a check that pinned a
+    # since-fixed cost went red and the suite announced
+    # success anyway.
     # ---- AN ALL-EMPTY COLUMN MUST NOT SIZE THE FRAME
     #
     # `n` is the REQUESTED row count. Generating patients
@@ -2420,30 +2429,139 @@ def main():
                   _src["systolic"][0], _src["severity"][0]),
           len(_toward) >= 1 and len(_over) >= 1)
 
-    # THE PRICE, PINNED. A within-patient COUNTER is harmed,
-    # because making the latent deviations persist makes a
-    # counter look patient-specific. This check exists so the
-    # cost cannot be quietly forgotten when somebody turns the
-    # flag on by default.
+    # THE PRICE IS PAID OFF, AND THE CHECK THAT PINNED IT HAD
+    # TO MOVE RATHER THAN BE DELETED.
+    #
+    # This block used to assert that a within-patient COUNTER is
+    # HARMED by persisting the deviations - `visit_number` icc
+    # rising well above the off arm - so the cost could not be
+    # quietly forgotten. The cost is gone: a column that IS the
+    # within-patient index is reproduced BY POSITION now, which
+    # is exact and not modelled at all. So the check went red on
+    # the fix, which is a check punishing progress; it is
+    # rewritten to pin the NEW property rather than removed,
+    # because the counter is exactly the kind of column a future
+    # change to the trajectory could break again.
     def _icc(f, col):
         return _DY.icc1(pd.to_numeric(f[col], errors="coerce")
                         .to_numpy(dtype=float),
                         f["person_id"].to_numpy())
+    def _wlag(f, col):
+        _pi, _ci = _DY._consecutive(f, "person_id")
+        _v = pd.to_numeric(f[col], errors="coerce").to_numpy(
+            dtype=float)
+        return _DY.within_from(_DY.pooled_lag1(_v, _pi, _ci),
+                               _icc(f, col))
     _f_off = _g_off.generate(len(_tdf), seed=0)
     _f_ar = _g_ar.generate(len(_tdf), seed=0)
-    _c_src = _icc(_tf, "visit_number")
-    check("THE PRICE: a within-patient COUNTER is harmed - "
-          "`visit_number` icc {:.3f} off against {:.3f} on, for "
-          "a source {:.3f}. Persisting the deviations makes a "
-          "counter look patient-specific, and this is why the "
-          "flag is OFF by default rather than a free win"
-          .format(_icc(_f_off, "visit_number"),
-                  _icc(_f_ar, "visit_number"), _c_src),
-          _icc(_f_ar, "visit_number")
-          > _icc(_f_off, "visit_number") + 0.1)
-    check("...and the engine's own default is OFF, so nobody "
-          "pays that price without choosing to",
+    _c_src = _wlag(_tf, "visit_number")
+    check("A WITHIN-PATIENT COUNTER IS EXACT IN BOTH ARMS: "
+          "`visit_number` within-patient AR {:.3f} off, {:.3f} "
+          "on, source {:.3f}. It used to be the trajectory's "
+          "price - persisting the deviations made a counter look "
+          "patient-specific - and it is reproduced BY POSITION "
+          "now, so the one graded column that could never pass "
+          "is not modelled at all"
+          .format(_wlag(_f_off, "visit_number"),
+                  _wlag(_f_ar, "visit_number"), _c_src),
+          abs(_wlag(_f_off, "visit_number") - _c_src) < 0.02
+          and abs(_wlag(_f_ar, "visit_number") - _c_src) < 0.02)
+    check("...and it is DETECTED from the source rather than "
+          "declared by name: the engine records the counter "
+          "columns it found, so the same thing happens to a "
+          "column called `seq` or `encounter_no`",
+          "visit_number" in getattr(_g_ar, "_counters", {})
+          and "visit_number" in getattr(_g_off, "_counters", {}))
+    check("...and the engine's own default is still OFF, so "
+          "nobody pays the trajectory's runtime without "
+          "choosing to - the rho solve is nine small "
+          "generations",
           LatentGen(seed=0, k=10).trajectory is False)
+
+    # THE RHO IS SOLVED, AND THE OBJECTIVE IS THE GRADED
+    # QUANTITY. Three objectives gave three answers and only one
+    # moved the criterion:
+    #   pooled lag-1            -> 0.520, dynamics 2/4
+    #   pooled lag-1 and icc    -> 0.500, dynamics 2/4
+    #   within_lag1 (graded)    -> 0.900, dynamics 4/4
+    # `(lag1 - icc) / (1 - icc)` amplifies both errors as icc
+    # approaches one, so a solver can drive each measurement to
+    # within 0.03 of source and move the graded number the wrong
+    # way.
+    check("the rho is SOLVED rather than passed: {:.3f}, "
+          "against a measured latent deviation AR of {:+.3f} - "
+          "a fixed constant is dataset-dependent, and the solve "
+          "landing near the latent measurement is what says that "
+          "measurement was right"
+          .format(getattr(_g_ar, "dev_rho_solved", -1.0) or -1.0,
+                  getattr(_g_ar, "_dev_rho", 0.0) or 0.0),
+          getattr(_g_ar, "dev_rho_solved", None) is not None
+          and 0.0 < _g_ar.dev_rho_solved <= 0.95)
+    _lcsrc = io.open(str(Path(__file__).resolve().parent
+                         / "latent_challenger.py"),
+                     encoding="utf-8").read()
+    # AND THE OBJECTIVE IS ASSERTED AT ITS DECISION SITE, ON
+    # PLANTED DATA WHERE THE TWO QUANTITIES DISAGREE.
+    #
+    # The first version of this check searched the SOURCE TEXT
+    # for `within_from`, and the mutation that switched the
+    # objective to pooled lag-1 left that string elsewhere in
+    # the same function - so the check passed on broken code.
+    # Asserting the message, not the decision, which this repo
+    # records repeatedly.
+    #
+    # An OUTCOME check could not cover it either: on the
+    # trajectory fixture both objectives pick the same rho to
+    # three decimals, so the fixture cannot reach the fault.
+    # What separates them is a frame with a LARGE
+    # between-patient spread, where the level dominates the
+    # pooled number: pooled lag-1 0.972 against a true course of
+    # 0.204.
+    _rng_t = np.random.default_rng(3)
+    _tr = []
+    for _p in range(400):
+        _a, _d = _rng_t.normal() * 3.0, _rng_t.normal()
+        for _v in range(6):
+            _d = 0.30 * _d + np.sqrt(1 - 0.09) * _rng_t.normal()
+            _tr.append(("P{:03d}".format(_p), _a + 0.6 * _d))
+    _tfr = pd.DataFrame(_tr, columns=["person_id", "x"])
+    _pit, _cit = _DY._consecutive(_tfr, "person_id")
+    _xv = _tfr["x"].to_numpy(dtype=float)
+    _pl = _DY.pooled_lag1(_xv, _pit, _cit)
+    _ic = _DY.icc1(_xv, _tfr["person_id"].to_numpy())
+    _wi = _DY.within_from(_pl, _ic)
+    from latent_challenger import dev_targets as _dev_targets
+    _got = _dev_targets(_tfr, "person_id", ["x"])["x"]
+    check("the solve's OBJECTIVE is the graded quantity, "
+          "asserted at its decision site on planted data where "
+          "the two disagree: pooled lag-1 {:.3f}, icc {:.3f}, "
+          "true course {:.3f} - and `dev_targets` returns "
+          "{:.3f}. A source-text check for `within_from` passed "
+          "on code optimising the pooled number, and the "
+          "trajectory fixture cannot separate them because both "
+          "objectives pick the same rho there"
+          .format(_pl, _ic, _wi, _got),
+          abs(_got - _wi) < 1e-9 and abs(_got - _pl) > 0.5)
+    check("...and the gap between those two quantities is what "
+          "the two wrong solves were steering into: "
+          "`(lag1 - icc) / (1 - icc)` amplifies both errors as "
+          "icc approaches one, so matching each MEASUREMENT to "
+          "within 0.03 of source moved the DERIVED number the "
+          "wrong way",
+          _pl - _wi > 0.5 and _ic > 0.9)
+    check("...and the grid STRADDLES the peak rather than "
+          "bisecting: the achieved within-patient AR is "
+          "NON-MONOTONE in rho (0.70 -> 0.40, 0.99 -> 0.15 on a "
+          "fixture needing 0.50), because past the peak a high "
+          "rho produces part of the patient's LEVEL instead of a "
+          "deviation and `(lag1 - icc)/(1 - icc)` divides the "
+          "gain back out",
+          "0.7, 0.75" in _lcsrc and "NON-MONOTONE" in _lcsrc)
+    check("...and it is skipped entirely when the caller passes "
+          "a rho, because a solve that overrides an explicit "
+          "setting is the read-but-not-used fault inverted",
+          "self.dev_rho_override is None" in _lcsrc.split(
+              "SOLVE THE RHO")[1][:1600])
     check("...and the REARRANGEMENT arm is gone rather than "
           "left as a second option: it recovered about 5% of "
           "the gap, and its marginal-preservation argument was "
@@ -2454,6 +2572,9 @@ def main():
                   / "latent_challenger.py"),
               encoding="utf-8").read())
 
+    if FAIL:
+        print("{} of {} checks failed.".format(FAIL, PASS + FAIL))
+        sys.exit(1)
     print("All {} checks passed.".format(PASS))
 
 

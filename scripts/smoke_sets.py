@@ -1611,9 +1611,12 @@ def main():
           and not S.is_scaffolding("procedure_count"))
 
     print()
-    if FAIL:
-        print("{} FAILED".format(FAIL))
-        sys.exit(1)
+    # THE VERDICT USED TO SIT HERE, with four checks below it
+    # and an unconditional success print at the end - so a red
+    # check in that block announced "All N checks passed." and
+    # exited 0, which is exactly what the net judges on. Found
+    # by auditing every suite for a REACHABLE success marker
+    # after the same fault turned up in `smoke_latent`.
     # ---- PUBLISHED BUT NEVER EMITTED
     #
     # `set token shares` skips a token absent from the
@@ -1695,6 +1698,9 @@ def main():
           _s2.get("set_tokens_ok")
           < _s2.get("set_tokens_compared"))
 
+    if FAIL:
+        print("{} FAILED".format(FAIL))
+        sys.exit(1)
     print("All {} checks passed.".format(PASS))
 
 

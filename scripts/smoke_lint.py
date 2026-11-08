@@ -11,6 +11,8 @@ Run from the repo root:
 """
 from __future__ import annotations
 
+import io
+import re as _re
 import sys
 from pathlib import Path
 
@@ -231,6 +233,70 @@ def main():
     check("GUI lint endpoint judges over the wire",
           d["ok"] is False and "L1-prevalence" in d["text"])
     shutil.rmtree(tmp)
+
+    # ---- NO SUITE MAY REACH ITS SUCCESS MARKER WITH A FAILURE
+    #
+    # `smoke_latent` carried `if FAIL: sys.exit(1)` MID-FILE,
+    # with sixteen checks below it and an unconditional
+    # "All N checks passed." at the end - so a red check in
+    # those blocks printed the success marker AND exited 0, and
+    # the net judges on exactly that pair. Both lied. This file
+    # already records the shape twice (eleven vanishing checks
+    # in smoke_patterndial, six in smoke_dialmatrix); those made
+    # checks DISAPPEAR, this made a FAILURE read as green.
+    #
+    # The property is narrow on purpose. "No checks after the
+    # exit" is WRONG - `smoke_dials` DEFINES a check function
+    # after its guard and CALLS it before, which no lexical scan
+    # can see. What cannot be excused is a success marker
+    # reachable with FAIL non-zero, and a fail-fast suite whose
+    # `check()` exits by itself can never get there.
+    def _check_exits(src):
+        m = _re.search(r"\ndef check\(.*?(?=\ndef |\nif __name__|\Z)",
+                       src, _re.S)
+        return bool(m and "sys.exit" in m.group(0))
+
+    def _marker_guarded(src):
+        lines = src.splitlines()
+        hits = [j for j, l in enumerate(lines)
+                if "All {} checks passed" in l]
+        if not hits:
+            return True
+        i, seen = hits[-1] - 1, []
+        while i >= 0 and len(seen) < 3:
+            t = lines[i].strip()
+            if t and not t.startswith("#"):
+                seen.append(t)
+            i -= 1
+        j = " ".join(seen)
+        return "sys.exit(1)" in j and "if FAIL" in j
+
+    _suites = sorted(Path(__file__).resolve().parent
+                     .glob("smoke_*.py"))
+    _unguarded, _accum = [], 0
+    for _f in _suites:
+        _src = io.open(str(_f), encoding="utf-8").read()
+        if "All {} checks passed" not in _src or _check_exits(_src):
+            continue
+        _accum += 1
+        if not _marker_guarded(_src):
+            _unguarded.append(_f.name)
+    check("every accumulating suite GUARDS its success marker - "
+          "{} of {} suites accumulate rather than exiting from "
+          "inside check(), and a reachable \"All N checks "
+          "passed.\" is how a red check came to print the "
+          "success line AND exit 0, which is the exact pair the "
+          "net judges on{}"
+          .format(_accum, len(_suites),
+                  "" if not _unguarded
+                  else " - unguarded: {}".format(_unguarded)),
+          _accum >= 20 and not _unguarded)
+    check("...and the audit SKIPS fail-fast suites rather than "
+          "flagging them, because a `check()` that exits on the "
+          "first failure can never reach the marker with FAIL "
+          "set - {} of {} suites are that kind"
+          .format(len(_suites) - _accum, len(_suites)),
+          len(_suites) - _accum >= 10)
 
     print("\nAll {} checks passed.".format(PASS))
 

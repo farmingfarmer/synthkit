@@ -110,14 +110,49 @@ deviations as an AR(1) in latent space and recovers it: lag-1
 0.742 → **0.831** on systolic (clearing the 0.15 bar it was
 failing), 0.676 → 0.805, 0.651 → 0.789.
 
-It ships **off by default** because it has a measured price: a
-within-patient COUNTER column is harmed (icc 0.002 → 0.365
-against a source 0.000), since persisting the deviations makes a
-counter look patient-specific. The gate therefore reads 1/4 on
-every arm — one criterion fixed, one broken. And at a fixed rho
-the column-level landing is dataset-dependent and can overshoot,
-so the rho wants SOLVING against the source rather than fixing.
-That is the named residue; the mechanism is no longer a mystery.
+**BOTH RESIDUES ARE NOW CLOSED.** The first was a measured
+price: a within-patient COUNTER column was harmed (icc 0.002
+→ 0.365 against a source 0.000), because persisting the
+deviations makes a counter look patient-specific — so the gate
+read 1/4 on every arm, one criterion fixed and one broken. A
+column whose value equals its position within the patient plus a
+constant on 99% of rows is now reproduced BY POSITION: exact,
+not modelled, and DETECTED from the source rather than named, so
+the same holds for a column called `seq` or `encounter_no`.
+
+The second was that a FIXED rho is dataset-dependent and can
+overshoot. It is SOLVED now against the source's own
+within-patient AR — and the objective took three tries, which is
+the part worth borrowing. The criterion grades `within_lag1`:
+the pooled lag-1 with the between-patient share divided out.
+Solving for the two measurements it is DERIVED from moves the
+graded number the wrong way, because `(lag1 - icc) / (1 - icc)`
+amplifies both errors as icc approaches one:
+
+| objective | solved rho | dynamics |
+|---|---|---|
+| pooled lag-1 | 0.520 | 2/4 |
+| pooled lag-1 and icc | 0.500 | 2/4 |
+| `within_lag1`, what the gate reads | 0.900 | **4/4** |
+
+The working objective lands essentially on the measured latent
+deviation autocorrelation (0.892), which the two wrong
+objectives were steering away from.
+
+Across two longitudinal shapes and three seeds the graded
+columns go **1.17 → 2.17** on average, worse on **no** arm, with
+`close` and `inverted` identical on every arm and a
+cross-sectional control grading zero columns. It still ships
+**off by default**, because nine fixture arms is not a cohort
+and 17/87 is a real-extract number — the real-extract control
+pair is what decides it.
+
+The honest ceiling, measured: the achieved within-patient AR is
+**non-monotone in rho**, peaking near 0.70 at about 0.40. Past
+the peak a high rho stops producing a DEVIATION and starts
+producing part of the patient's LEVEL, so a source course
+stronger than about 0.55 cannot be matched. We say so rather
+than quoting the fixtures where it clears.
 
 MOSTLY AI documents a sequential scenario; the research
 frontier (RawMed, PATH, SynEHR) treats a patient's whole table
@@ -129,9 +164,13 @@ Our position is split and should be stated that way:
   missing-clustering, and lagged cross-column effects with
   `--lags`. That is more than flattening.
 - The **neural engine** carries patient IDENTITY (invented,
-  person-level columns reproduced at 0.90–0.96) but models no
-  trajectory. Its own gate line reads **dynamics tracked
-  17/87** — structural, and we report it rather than hide it.
+  person-level columns reproduced at 0.90–0.96) and, with
+  `--trajectory ar`, a patient's COURSE as well. Its recorded
+  gate line of **dynamics tracked 17/87** was measured with the
+  mechanism absent; it is an option now rather than a structural
+  limit, bounded by the ~0.40 ceiling above, and the
+  real-extract number has not yet been re-measured with it on.
+  We report the 17/87 as the standing figure until it has.
 
 The literature's framing is the one to borrow: *flattening
 fails to preserve temporal coherence even when it maintains
@@ -313,7 +352,7 @@ I did not find another tool documenting this.
 | capability | synthkit | documented elsewhere |
 |---|---|---|
 | differential privacy | **partial** — DP training of the weights, measured; NOT end-to-end | yes (MOSTLY AI) |
-| sequential / longitudinal model | partial (rules engine); neural engine 17/87 | yes (MOSTLY AI; research frontier) |
+| sequential / longitudinal model | **partial, improved** — rules engine models it; neural engine has an AR(1) course with a SOLVED rho, off by default, ceiling ~0.40 within-AR; the recorded 17/87 predates it | yes (MOSTLY AI; research frontier) |
 | HIPAA Expert Determination | **no** | yes (Tonic) |
 | automatic PHI/PII detection | yes, 18-category inventory | yes (Tonic) |
 | referential integrity across tables | yes | yes (MOSTLY AI, SDV) |
@@ -339,11 +378,19 @@ I did not find another tool documenting this.
    is composing the other five stages**, which are mostly
    counts and quantiles with standard mechanisms available.
    That is now the differential-privacy item.
-2. **Patient trajectory in the neural engine.** The gate
-   already says 17/87. The literature's framing — that
-   flattening loses coherence even when marginals survive — is
-   our own finding stated in their words, and it is the clearest
-   quality gap a clinical buyer would notice.
+2. ~~**Patient trajectory in the neural engine.**~~
+   **BUILT 2026-11-07 (DYN-1)**, and built the way this item
+   asked — the literature's framing, that flattening loses
+   coherence even when marginals survive, was exactly our
+   17/87, and the cause was that the deviations were drawn iid
+   and permuted so within-patient lag-1 was zero BY
+   CONSTRUCTION. An AR(1) in latent space recovers it with the
+   rho SOLVED against the source, worse on no arm across nine,
+   at no cost to `close` or `inverted`. **What remains is the
+   real-extract control pair**, which is what decides whether
+   it becomes the default, and the ~0.40 within-AR ceiling for
+   sources with a stronger course than that. That is now the
+   trajectory item.
 3. **Expert Determination readiness.** Not a model change: a
    documentation and evidence package. We already have most of
    the evidence; nobody has assembled it for a determination.

@@ -670,6 +670,90 @@ def main():
           "dynamics tracked" not in
           [c["name"] for c in _G.assess(_mins2)["criteria"]])
 
+    # ---- THE TRAJECTORY SWEEP'S OWN VERDICT AND FIXTURES
+    #
+    # `dyn_sweep.py` decides whether modelling a patient's
+    # course moved the criterion, and its numbers are quoted in
+    # CONVENTIONS and in the competitive ledger. A measurement
+    # script whose numbers get quoted needs checks - `peek.py`
+    # had none for months and that is recorded as a fault.
+    #
+    # The sweep itself is twenty minutes, so what is checked
+    # here is the two things that can be checked cheaply and
+    # that would silently invalidate every row: the VERDICT, and
+    # whether the fixtures carry what the sweep claims they do.
+    sys.path.insert(0, str(ROOT / "scripts"))
+    import dyn_sweep as _DS
+
+    _base = dict(dyn_ok=2, dyn_cmp=4, close=3, pairs=3, sign=3,
+                 inv=0)
+    check("the sweep's verdict is a PURE FUNCTION over the two "
+          "readings, so it can be exercised on planted inputs - "
+          "the inline version could only be reached by running "
+          "the whole twenty-minute sweep, which is the same "
+          "reason `dial_matrix` factored out `classify_move`",
+          _DS.verdict(_base, dict(_base)) == []
+          and _DS.verdict(_base, dict(_base, dyn_ok=4)) == [])
+    check("...it catches a DYNAMICS regression ({}), a NEW "
+          "INVERSION ({}) and a CRASH ({})"
+          .format(_DS.verdict(_base, dict(_base, dyn_ok=1)),
+                  _DS.verdict(_base, dict(_base, inv=1)),
+                  _DS.verdict(_base, None)),
+          _DS.verdict(_base, dict(_base, dyn_ok=1)) == ["dynamics"]
+          and _DS.verdict(_base, dict(_base, inv=1)) == ["inverted"]
+          and _DS.verdict(_base, None) == ["crash"])
+    check("...and it catches a trajectory that buys its course "
+          "by LOSING RELATIONSHIPS ({}) - the inline version "
+          "checked dynamics and inverted only, so an arm that "
+          "gained a graded column and dropped a pair would have "
+          "passed"
+          .format(_DS.verdict(_base, dict(_base, close=2))),
+          _DS.verdict(_base, dict(_base, close=2)) == ["close"])
+    check("...and a fixture with NOTHING TO GRADE is not worse "
+          "at anything - the criterion is silent on "
+          "cross-sectional data, and reading that silence as "
+          "either a pass or a fail would be wrong",
+          _DS.verdict(dict(_base, dyn_cmp=0, dyn_ok=0, pairs=0,
+                           close=0),
+                      dict(_base, dyn_cmp=0, dyn_ok=0, pairs=0,
+                           close=0)) == [])
+
+    _wide = _DS.fixture("wide", 0)
+    from synthkit.dynamics import _consecutive as _cons
+    _pi, _ci = _cons(_wide, "person_id")
+    def _wn(f, c, pi, ci):
+        v = pd.to_numeric(f[c], errors="coerce").to_numpy(
+            dtype=float)
+        return within_from(pooled_lag1(v, pi, ci),
+                           icc1(v, f["person_id"].to_numpy()))
+    _courses = [_wn(_wide, c, _pi, _ci)
+                for c in ("systolic", "severity", "diastolic")]
+    check("the sweep's longitudinal fixture really carries a "
+          "within-patient COURSE - {} - because a fixture "
+          "without one would show the mechanism gaining nothing "
+          "and read as a refutation"
+          .format(", ".join("{:.3f}".format(x) for x in _courses)),
+          min(_courses) > 0.2)
+    _corr = _wide[["systolic", "severity", "diastolic"]].corr()
+    _off_diag = [abs(_corr.iloc[i, j]) for i in range(3)
+                 for j in range(3) if i != j]
+    check("...and its columns are RELATED (min |r| {:.3f} off "
+          "the diagonal), which the first version was NOT: each "
+          "column had its own independent course, so discovery "
+          "found no relationships and `close` read 0/0 on every "
+          "arm - the sweep could see what the trajectory gained "
+          "and not what it cost"
+          .format(min(_off_diag)), min(_off_diag) > 0.25)
+    _flat = _DS.fixture("flat", 0)
+    check("...and the CONTROL fixture is cross-sectional - {} "
+          "rows for {} patients - so the criterion must grade "
+          "zero columns there, which is what makes the "
+          "never-worse claim mean something rather than being "
+          "measured only where it helps"
+          .format(len(_flat), _flat["person_id"].nunique()),
+          len(_flat) == _flat["person_id"].nunique()
+          and "visit_number" not in _flat.columns)
+
     print()
     if FAIL:
         print("{} FAILED".format(FAIL))

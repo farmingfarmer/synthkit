@@ -4,6 +4,34 @@ Synthetic clinical data generator and model-evaluation instrument. Core rule: le
 
 ## Verify before claiming
 
+- **A CHECK SUITE REPORTED SUCCESS WITH A FAILURE IN HAND, AND
+  SIXTEEN CHECKS HAD BEEN UNENFORCED FOR AS LONG AS THEY
+  EXISTED (2026-11-07).** `smoke_latent` carried
+  `if FAIL: sys.exit(1)` MID-FILE, with sixteen `check()` calls
+  below it and an unconditional
+  `print("All N checks passed.")` at the end - so a red check
+  in those blocks printed the success marker and exited 0, and
+  the net judges on exactly that marker plus the exit code.
+  **Both lied at once.** This file already records the shape
+  twice - eleven checks vanishing in `smoke_patterndial`, six
+  in `smoke_dialmatrix` - and this is the worse form: those
+  made checks DISAPPEAR, this made a FAILURE read as a green
+  net. Found only because a check pinning a since-fixed cost
+  went red and the suite announced success anyway. The verdict
+  is at the END now, and the fail-first confirmed it: with the
+  red check still in place the suite reports
+  `1 of 136 checks failed.` where it used to report
+  `All 135 checks passed.`
+- **AND THE RED CHECK WAS ONE PUNISHING PROGRESS, THE FOURTH
+  THIS MONTH.** It asserted that a within-patient COUNTER is
+  HARMED by the trajectory flag - pinned deliberately so the
+  cost could not be forgotten - and the counter fix removed the
+  cost, so the check went red on an improvement. Rewritten to
+  pin the NEW property (the counter is exact in BOTH arms, and
+  the engine DETECTED it rather than being told its name)
+  rather than deleted, because a counter is exactly the column
+  a future change to the trajectory could break again.
+
 - Run `python scripts/run_all_smokes.py` before claiming anything works. Expect **90 suites, 2784 checks**, ALL GREEN **on a checkout** (measured 2026-11-03). Off a zipball extract - which is what the data machine runs - the total is TWELVE LOWER, and the gap is now MEASURED rather than estimated (2026-11-02: 2480 on a checkout against **2468** on the data machine at the same commit, ALL GREEN both ways). It decomposes exactly, with no residue: nine in `smoke_buildid`, which needs git to test the archive path; one for `node`, absent, so the full JS parse cannot run; two for Chrome, absent, so the in-browser load check cannot run. All three report NOTES and pass rather than failing - that is the design, and it is why the count moves. This entry previously said NINE LOWER and warned that a total nobody ran is not a number to quote; somebody has now run it. CONFIRMED AT A SECOND COMMIT the same day: 2483 against **2471**, the same delta of twelve - and that pair is the stronger evidence, because the commit between them ADDED THREE checks on the dev side and all three appeared on BOTH machines. That is `gated()` doing exactly what its docstring promises: a skipped check still emits a line, so the count stays one number across both places and only the genuinely unavailable tooling moves it. Do not quote the checkout number to the data machine; that is how a correct run gets read as a failure.
 - **THE DEVELOPMENT MACHINE WAS BEHIND THE DATA MACHINE, and that is
   how a green suite here failed there.** Dev was on Python 3.10 with
@@ -139,6 +167,80 @@ the direction that stops work happening.
   lag both dropped
 
 ## What the blueprint may publish
+
+- **DIFFERENTIAL PRIVACY RAN ON THE REAL EXTRACT, AND IT COSTS
+  TWICE WHAT THE FIXTURE PREDICTED (2026-11-07, epsilon 3.00).**
+  Two arms on the 800-patient extract, same split, 46,288
+  training rows and 9,140 held-out people, 1,601 encoded
+  dimensions. Every figure below was crossed in WORDS before
+  being written down, because the digits channel off that screen
+  turns a zero into an at-sign:
+      arm                 holdout   train   ratio   x plain
+      plain               0.00625  0.00559   1.12      1.00
+      epsilon 3.00        0.02213  0.02022   1.09      3.54
+  The fixture sweep predicted **1.78x** at epsilon 3. And the
+  epsilon itself had to be recovered from a second fact: the log
+  rendered `eps 3.9000` where `sigma 3.413` is what
+  `sigma_for_epsilon(0.05, 1500, 3.0)` returns to the digit
+  while 3.90 returns 2.713 - so the filename and the sigma agree
+  on 3.00 and the OCR did not.
+- **THE HOLDOUT RATIO IS THE REASSURING HALF, AND IT IS WORTH
+  STATING BESIDE THE COST.** 1.09 under DP against 1.12 plain on
+  the same held-out people: DP generalises marginally BETTER,
+  which is what the theory says, measured rather than assumed.
+- **WIDTH WAS THE OBVIOUS EXPLANATION AND IT IS REFUTED.** The
+  cost expression carries `sqrt(params)` and the sweep varied
+  only ROWS, so every recorded number was measured at ONE width
+  - 30 dimensions against the extract's 1,601, and
+  sqrt(1601/30) = 7.3 looked like more than enough. `--width`
+  was built to confirm it and says the opposite:
+      width    control       dp    x control
+         30    0.02135  0.10976       5.14
+        120    0.15821  0.63698       4.03
+        480    1.00144  0.94336    REFUSED
+  The ratio FALLS as width grows. Hypothesis dead, and recorded
+  as dead in the script rather than quietly rewritten.
+- **AND THE 480 CELL WAS NEVER MEASURABLE, REPORTED AS 0.94 -
+  BETTER THAN THE CONTROL.** On a standardised frame an MSE of
+  1.0 means the net predicted the mean, and 1.00144 is what the
+  CONTROL reads there: both arms learned nothing and the ratio
+  was noise over noise, which is the same fault as a recovery
+  ratio between two noise numbers reading as a result. Not
+  under-training either - 1500, 6000 and 20000 steps give
+  1.00154, 1.00148, 1.00144, identical to four decimals. A cell
+  whose control does not learn is REFUSED by name now, which is
+  the guard `smoke_dp` already applies to the trainer and the
+  sweep was missing.
+- **AND A CHECK PINNED THE CLAIM THE MEASUREMENT REFUTED - THE
+  FIFTH SUCH CHECK THIS MONTH.** `smoke_dp` asserted that the
+  cost script says the price is "dominated by DATASET SIZE", so
+  correcting that sentence to name BOTH axes turned the suite
+  red. A check written around a HYPOTHESIS goes red when the
+  hypothesis is refuted, which is backwards: it now pins that
+  both sweeps are stated, that the real-extract numbers carry
+  their split, and that the unlearnable cell is refused. The
+  refusal is asserted as a DECISION on planted inputs rather
+  than as prose - a text check for `CONTROL_MUST_BEAT` passes
+  while the guard is bypassed, because the name appears at both
+  the definition and the use site, so the one mutation that
+  mattered went uncaught until the function was made pure.
+- **WHAT IS STILL UNEXPLAINED, NAMED RATHER THAN GUESSED.** The
+  extract's plain reconstruction is 0.00625 against the
+  fixture's 0.0195 - the real frame is three times EASIER to
+  rebuild, being mostly sparse one-hot token indicators - so a
+  fixed noise budget may cost relatively more against a smaller
+  error. A candidate, not a measurement, and the third guess
+  does not get made: it earns a measurement or it stays named.
+- **AND THE SCOPE NOTE LANDED ON REAL DATA, WHICH IS THE POINT
+  OF IT.** The run printed, on the machine that holds the
+  extract, that this is NOT an end-to-end guarantee, that the
+  output must not be described as differentially private, and
+  that five other stages touch the real data unaccounted - the
+  published numeric bounds, the latent mixture fitted on real
+  codes, and the k-screened visit-count and set-size grids among
+  them. An epsilon that covers the WEIGHTS is evidence about the
+  surface the weights-leak adversary reads, and not a release
+  certificate.
 
 - **k counts PATIENTS, never rows.** One person seen 200 times can
   supply the ten most extreme rows alone; a row-counted rule would let
@@ -1807,6 +1909,106 @@ the direction that stops work happening.
   error with did-you-mean; `synthkit dials` lists every edge.
 
 ## Numbers before conclusions
+
+- **THE PATIENT COURSE IS MODELLED NOW, THE RHO IS SOLVED, AND
+  THE OBJECTIVE TOOK THREE TRIES TO GET RIGHT (2026-11-07,
+  DYN-1).** `dynamics tracked 17/87` sat on the sign-off page
+  with "structural - the engine is row-level and models no
+  patient trajectory" beside it. It is no longer structural: an
+  AR(1) on the latent deviation gives a patient a course, and
+  `d_t = rho*d_(t-1) + sqrt(1-rho^2)*e_t` preserves any
+  stationary covariance exactly, so the marginal is untouched by
+  construction.
+- **THE GATE GRADES `within_lag1`, NOT THE TWO MEASUREMENTS IT
+  IS DERIVED FROM, AND SOLVING FOR THE WRONG ONE MOVES IT
+  BACKWARDS.** Measured on one fixture, one seed, same code
+  except the solver objective:
+      objective                        solved rho   dynamics
+      pooled lag-1                        0.520        2/4
+      pooled lag-1 and icc                0.500        2/4
+      within_lag1, what the gate reads    0.900        4/4
+  The first arm drove pooled lag-1 error to 0.026 - BETTER than
+  a fixed 0.7 on every column - and scored worse. The second
+  landed 0 of 3 columns outside its own bar and still read 2/4.
+  `(lag1 - icc) / (1 - icc)` amplifies both errors as icc
+  approaches one, so a solver can match each MEASUREMENT to
+  within 0.03 of source and move the DERIVED number the wrong
+  way. Optimise what the criterion reads.
+- **AND THE WORKING OBJECTIVE LANDS ON THE LATENT MEASUREMENT,
+  WHICH RETROACTIVELY SAYS THAT MEASUREMENT WAS RIGHT.** It
+  solves 0.900 against a measured latent deviation
+  autocorrelation of 0.892 - the two wrong objectives were
+  steering AWAY from a number the engine already knew. That is
+  the internal-agreement signal this file treats as evidence,
+  arrived at from the opposite direction.
+- **THE ACHIEVED COURSE IS NON-MONOTONE IN RHO, SO A BISECTION
+  IS WRONG IN PRINCIPLE HERE.** Measured by fitting ONCE and
+  varying rho at generate, on a fixture whose source needs
+  0.47-0.54:
+      rho    achieved (systolic / severity / diastolic)
+      0.30     0.177  0.187  0.172
+      0.50     0.278  0.299  0.302
+      0.70     0.395  0.402  0.433   <- the peak
+      0.85     0.344  0.439  0.395
+      0.99     0.062  0.220  0.147
+  Past the peak a high rho stops producing a DEVIATION and
+  starts producing part of the patient's LEVEL: the
+  between-patient share rises and `(lag1 - icc)/(1 - icc)`
+  divides the gain back out. Same inversion the dev_scale sweep
+  found - and it explains why a FIXED 0.7 beat both wrong
+  solves, since 0.7 IS the peak. The grid is dense through
+  0.6-0.8 where the turn is.
+- **THE CEILING IS ABOUT 0.40 OF WITHIN-PATIENT AR, MEASURED,
+  AND IT IS WHY THE GAIN VARIES BY FIXTURE.** The off arm reads
+  EXACTLY 0.000 on every column - the course is absent, not
+  degraded - and the ar arm reaches 0.27-0.43 whatever rho is
+  set to. A source needing 0.16-0.40 clears the 0.15 bar on
+  every column; one needing 0.47-0.54 does not. So the varying
+  gain across fixtures is the SOURCE REQUIREMENT varying against
+  a fixed ceiling, not the mechanism being unreliable - a
+  distinction that would otherwise read as seed noise.
+- **AND A WITHIN-PATIENT COUNTER WAS BLOCKING THE CRITERION
+  OUTRIGHT.** `visit_number` IS the within-patient index -
+  within-AR 0.98 by construction - and the engine drew it as an
+  ordinary number, so one graded column could never pass however
+  good the trajectory was. A column whose value equals its
+  position within the patient plus a constant on 99% of rows is
+  reproduced BY POSITION now: exact, not modelled at all, and
+  DETECTED from the source rather than named, so the same thing
+  happens to a column called `seq` or `encounter_no`. It also
+  removes the trajectory's one recorded price, which was that
+  persisting the deviations made a counter look
+  patient-specific.
+- **THE SWEEP IS NEVER WORSE ON NINE ARMS, AND IT COSTS NOTHING
+  ON THE RELATIONSHIP CRITERIA.** `dyn_sweep.py`: two
+  longitudinal shapes plus a cross-sectional control, three
+  seeds each, off against ar.
+      fixture  seed | dyn off  dyn ar | close off  close ar | inv
+      wide        0 |    1/4     2/4  |     3/3       3/3   |  0
+      wide        1 |    1/4     1/4  |     3/3       3/3   |  0
+      wide        2 |    1/4     1/4  |     3/3       3/3   |  0
+      narrow      0 |    2/4     3/4  |     3/3       3/3   |  0
+      narrow      1 |    1/4     4/4  |     3/3       3/3   |  0
+      narrow      2 |    1/4     3/4  |     3/3       3/3   |  0
+      flat      0-2 |    0/0     0/0  |     0/0       0/0   |  0
+  Mean 1.17 to 2.17 graded columns, worse on NO arm, `close`
+  and `inverted` identical everywhere, and the flat fixture
+  grades zero columns - the criterion staying silent on data
+  with no course to lose rather than failing on absence.
+- **THE DEFAULT STAYS OFF UNTIL THE REAL EXTRACT SAYS
+  OTHERWISE.** Nine fixture arms is not a cohort, and the number
+  this exists to move - 17/87 - is a real-extract number. The
+  solve also costs eight small generations at fit. Turning it on
+  is a decision for the real-extract run, not for a fixture
+  result, which is this file's own rule about a gain a control
+  arm later overturned.
+- **AND THE FIRST SWEEP FIXTURE HAD AN EMPTY CONTROL COLUMN.**
+  Each column carried its own independent AR, so discovery found
+  no relationships at all and `close` read 0/0 on every arm -
+  the sweep could see what the trajectory GAINED and not what it
+  COST, which is the half that matters. The columns share a
+  factor now, so the criteria that must not move have something
+  to move.
 
 - **Recall on the fixture varies 71%-86% across seeds with nothing
   changed but the seed.** A single-seed comparison cannot detect any
