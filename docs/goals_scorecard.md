@@ -371,7 +371,7 @@ machine; the free-text decision is governance, not engineering.
 
 ---
 
-## Goal 3 — Pattern analysis, explained with receipts   **~90%**
+## Goal 3 — Pattern analysis, explained with receipts   **~95%**
 
 *(2026-09-09: +10 — the dashboard's pattern cards, SHAP attribution
 on both tables with interaction ranking, per-run shape and surface
@@ -422,15 +422,19 @@ fidelity, and the self-explaining gate all landed.)*
   **12/13/12/12/12 with**, adding exactly one kind on every seed
   (asserted as a property, so a future change cannot report a
   broad gain through this door).
-- **AND THE FLAG IS A TRADE, WHICH IS NOW THE OPEN ITEM RATHER
-  THAN THE COUNT.** On the same runs the output acquires a
-  SAME-VISIT correlation of **0.97** on a pair the source
-  relates at 0.00, where without the flag it correctly reads
-  0.00 — and the lagged relationship still does not survive
-  (lag recomputed from each table's own ordering: source
-  **+0.98**, output **−0.002**). An invented relationship is
-  worse than a missing one, so the kind now FAILS survival
-  rather than scoring the point.
+- **AND THE FLAG WAS A TRADE UNTIL IT WAS FIXED.** On those
+  same runs the output acquired a SAME-VISIT correlation of
+  **0.97** on a pair the source relates at 0.00, where without
+  the flag it correctly reads 0.00 — and the lagged relationship
+  did not survive either (lag recomputed from each table's own
+  ordering: source **+0.98**, output **−0.002**). An invented
+  relationship is worse than a missing one, so the kind FAILED
+  survival rather than scoring the point. Re-measured on five
+  seeds after the fix: FOUND and SURVIVING on all five, source
+  **0.944–0.947** against generated **0.969–0.973**, and
+  SURVIVED went 9/11 → 10/11 on the paired seed with every other
+  row byte-identical. Seed 1 reads 13/13 found and **11/11
+  surviving**.
 - **AND THE INVENTED HALF IS FIXED, same day.** The cause was
   `discover._source` folding `x__prev` to `x` so the catalogue
   reads in the operator's own names — right, and it also erases
@@ -507,12 +511,23 @@ fidelity, and the self-explaining gate all landed.)*
   already orders the generated frame by `visit_number`. Running
   the gate rather than reasoning about it is the only reason that
   did not ship.
-- What remains on dynamics is a modelling limitation, named: a
-  generated patient's visit dates are drawn from the GLOBAL
-  marginal, so they spread across the whole cohort range instead
-  of clustering into a care episode. Their own within-patient
-  autocorrelation reads **0.74 against a source 0.98**; ordering
-  them moved that from 0.70, which is not the gap.
+- What remains on dynamics is named and NOT yet measurable here.
+  A generated patient's visit dates are drawn from the GLOBAL
+  marginal, so they spread across the cohort rather than
+  clustering into a care episode — the within-patient
+  autocorrelation read **0.74 against a source 0.98**. That 0.98
+  came from a fixture built with cumulative gaps, where patients
+  are episodes by construction; the repo's own extract-shaped
+  fixture has `visit_start_date` at **icc 0.0062** with a mean
+  within-patient span HALF the cohort's, so its patients are not
+  episodes and an output that spreads them is faithful there.
+  Whether a real patient's visits cluster is a property of the
+  real extract and neither fixture can answer it. The route is
+  written down — a patient-level anchor plus a k-screened
+  within-patient GAP distribution, drawn as a cumulative sum —
+  with its price named in advance: the date column's global
+  marginal becomes a convolution rather than the published
+  quantiles, which the gate measures.
 - The search cap: only 24 tokens per set column can carry a
   relationship; on the extract the excluded tokens hold 72% of
   `conditions` mass. Measured, reported by `peek cap`, unresolved —
@@ -910,9 +925,19 @@ dates:
    ceiling: ongoing and unscheduled, because unknowns move dates
    and these are the genuine unknowns.
 
-Equal-weighting the eight goals: **~95.0% complete** as of
-2026-11-08 — 95, 97, 90, 95, 93, 100, 92, 98. Moved on
-2026-11-08: goal 1 90→95 because FOUR-hop cross-table couplings
+Equal-weighting the eight goals: **~95.6% complete** as of
+2026-11-08 — 95, 97, 95, 95, 93, 100, 92, 98. Moved on
+2026-11-08: goal 3 90→95 because M4's bar — twelve of thirteen
+planted kinds FOUND including the lagged one — is met on all five
+seeds, and the reason it had not been was the instrument rather
+than the engine: the bench never built the lag features the
+pipeline builds, so the one kind needing them could not be found
+by construction. Turning them on then exposed a real defect it
+had been hiding — a lag parent folded to its base column and
+applied at the SAME visit, inventing a 0.97 correlation on a pair
+the source relates at 0.00 — and with that fixed the lagged
+relationship is FOUND and SURVIVES on five seeds of five. Also
+goal 1 90→95 because FOUR-hop cross-table couplings
 are measured and the two things left named on M3 both turned out
 not to be the gap — a chain composes, so a four-hop correlation
 lands at 93% of source with ONLY the direct couplings enforced,

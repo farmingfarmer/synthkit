@@ -2661,14 +2661,33 @@ the direction that stops work happening.
   Twice in one fix, the same lesson: a fixture must contain the
   thing the check is about, and "two entities with dates" was not
   specific enough.
-- **A PATIENT'S VISITS ARE NOT A CARE EPISODE, named as the
-  residue.** With the dates ordered, their own within-patient
-  autocorrelation reads **0.74 against a source 0.98** - because
-  the engine draws each visit date from the GLOBAL marginal, so a
-  generated patient's dates are spread across the whole cohort
-  range instead of clustered into an episode. Ordering them
-  improved that figure from 0.70, which is not the gap. That is a
-  modelling limitation and it is open.
+- **A PATIENT'S VISITS MAY NOT BE A CARE EPISODE, AND NO FIXTURE
+  HERE CAN SAY - WHICH I FOUND BY CHECKING MY OWN NUMBER.** With
+  the dates ordered, their within-patient autocorrelation read
+  **0.74 against a source 0.98**, and the obvious account was
+  that the engine draws each visit date from the GLOBAL marginal
+  so a generated patient's dates spread across the cohort instead
+  of clustering. That 0.98 came from a fixture I BUILT with
+  cumulative 3-40 day gaps, where every patient starts on the
+  same date - so its patients are episodes by construction.
+  Measured on the repo's own extract-shaped fixture instead:
+  `visit_start_date` has **icc 0.0062**, with a mean
+  within-patient span of 53,383 days against a cohort span of
+  106,780 - **half the total range**. That fixture's patients are
+  not episodes at all, so an output that spreads their dates is
+  FAITHFUL there, and the 0.98 describes my construction rather
+  than this data.
+  Whether a real patient's visits cluster in time is therefore a
+  property of the real extract and NEITHER fixture here can
+  answer it. The modelling option - publish a patient-level
+  anchor plus a k-screened within-patient GAP distribution and
+  draw the dates as a cumulative sum - is written down as the
+  route, with its price named in advance: the date column's
+  global marginal would become the convolution of anchor and
+  gaps rather than the published quantiles, which the gate
+  measures. Quoting the 0.74 as a general limitation would be
+  the measured-at-one-shape fault, and it was one sentence away
+  from being quoted.
 
 - **THE LAGGED RELATIONSHIP SURVIVES NOW, AND THE CURVE WAS RIGHT
   ALL ALONG - ONLY THE COLUMN IT WAS READ FROM WAS WRONG
