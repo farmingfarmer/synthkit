@@ -396,6 +396,62 @@ Synthetic clinical data generator and model-evaluation instrument. Core rule: le
 - Never state a number as measured unless you actually ran it.
 
 ## Fixing what the real extract found
+- **THE FRESH RULES RUN ON THE REAL EXTRACT: THE PREDICTION SCORED
+  3 OF 3, AND THE MECHANISM IS VERIFIED AS FIRING (2026-11-09,
+  run_rules_nov9, build 2a8149c).** A paired arm against run_n9g -
+  same source, same seed 20260731, same settings, no `--lags`, and
+  BOTH confirmed as the rules engine by the guard built the same
+  day, so this is one engine against itself rather than the
+  cross-engine comparison that wasted a night:
+      criterion            run_n9g        run_rules_nov9
+      direction kept   118/125 = 94.4% P  118/125 = 94.4% P
+      close            100/125 = 80.0% F  102/125 = 81.6% F
+      inverted             0 PASS             0 PASS
+      shapes tracked        6/7                6/7
+      interaction surfaces  2/5                2/5
+      dynamics tracked     35/89              35/89
+  **close +2 pairs and NOTHING ELSE MOVES.** Re-measured on the
+  shared surface with today's code on both sides, 136 pairs: 108
+  against 109, so +1 there. Two surfaces, both small, both
+  positive.
+- **AND THE MECHANISM IS CONFIRMED RATHER THAN INFERRED FROM THE
+  OUTCOME.** `peek curves` on each run, which is the observable the
+  grid fix acts on:
+      indicator parent slots        82        82
+      of those WITHOUT a curve   11 (13%)   0 (0%)
+      parents with no curve, all     13         2
+  The blueprint's surface is IDENTICAL - 82 indicator parent slots
+  either way - and every one of the eleven curveless ones now
+  carries a published curve. A +2 close with the mechanism
+  unverified would have been a seed story; this is the fix doing
+  the thing it was built to do.
+- **THE PREDICTION, SCORED AGAINST WHAT IT ACTUALLY SAID.** It
+  claimed the close drift on sparse-token-PARENT pairs would move,
+  and explicitly did NOT claim `shapes tracked`, `interaction
+  surfaces` or `dynamics tracked`. close moved; those three are
+  byte-identical at 6/7, 2/5 and 35/89. It also named the RISK -
+  that a parent which previously applied no push now applies one,
+  so close could move either way - and the measured answer is that
+  it moved up and cost nothing.
+- **AND MY OWN EARLIER EXTRAPOLATION WAS WRONG BY A LARGE FACTOR,
+  which the same run settles.** The prediction reasoned that "most
+  token-indicator PARENTS have been carrying no curve", from 91-92%
+  of the fixture's publishable vocabulary sitting under a 2% share.
+  The real extract says **11 of 82**, which is 13%. The modelled
+  parents come from the frequency top-24 per set column and skew
+  dense; the publishable VOCABULARY does not. Those are different
+  populations and I read one as the other.
+- **WHAT THIS DOES NOT DO: clear the bar.** close reads 81.6%
+  against 87.9%, so the rules engine fails that criterion on this
+  extract too - as does the neural deliverable at 87.6%. Neither
+  engine passes close here, and +2 pairs is a real gain on a gap
+  that is about eight pairs wide. The fresh run DOES clear the
+  absolute stop unrepaired (inverted 0, where the deliverable needs
+  a one-column repair) and carries two interaction surfaces and
+  twice the graded dynamics - but those are the ENGINE's
+  properties, not this fix's, and comparing them across engines is
+  what this file now has a guard against.
+
 - **THE CURVE `close` CANNOT SEE NOW HAS A REPAIR, AND ON THE REAL
   EXTRACT IT REFUSES - WHICH IS THE ANSWER (2026-11-09).** The
   deliverable's one departed shape is `condition_count <-
