@@ -396,6 +396,78 @@ Synthetic clinical data generator and model-evaluation instrument. Core rule: le
 - Never state a number as measured unless you actually ran it.
 
 ## Fixing what the real extract found
+- **TOKEN CO-OCCURRENCE IS MODELLED NOW, AND IT CLOSES THE LARGEST
+  STRUCTURAL GAP THIS ENGINE HAD (2026-11-09).** About **110 of the
+  135 pairs** the real extract's gate relates are set-token pairs -
+  roughly four fifths of everything graded - and the rules engine's
+  draw modelled NONE of it. `_token_weights` solved weights so each
+  token's MARGINAL share measured back and there was nothing in it
+  about which tokens co-occur, so tokens were drawn independently
+  and "a drug implies its route" survived by chance. That is not a
+  tuning gap; there was no mechanism to tune.
+- **THE APPROACH IS THE STATE OF THE ART, APPLIED TO SET
+  MEMBERSHIP.** Auto-regressive tabular generators (TabularARGN,
+  which is MOSTLY AI's engine) approximate the joint as a product
+  of CONDITIONALS over discretised columns rather than a product of
+  marginals. `_pick_row` does that for a row's tokens: each pick
+  reweights the remaining candidates by the published structure of
+  what the row already holds, including tokens drawn in EARLIER set
+  columns - which is where `drug -> route` lives.
+- **AND THE CONDITIONAL IS SOLVED, NOT NUDGED.** A published LIFT
+  is a multiplier; measured on a planted deterministic pair the
+  lift alone reached **+0.18** against a source +1.000. What has to
+  LAND is `P(b | a)`, so the detector publishes it and the solve
+  feeds it back by the same draw-measure-adjust loop the marginals
+  use, with the same damping and for the same reason. **The SOLVE
+  AND THE DRAW CALL ONE PICK FUNCTION** - measuring an independent
+  draw while generation drew conditionally would leave the
+  marginals unlanded and the two halves disagreeing about the
+  column's contents, which is the fault this project records more
+  than any other.
+      pair                     source   no cooc   with cooc
+      heparin <-> Flush        +1.000    -0.003      +0.419
+      albuterol <-> Neb        +1.000    -0.001      +0.508
+      worst token share miss                          0.016
+  From ABSENT to carried, with the marginals still landing.
+- **THE JOINT IS WHAT CLEARS k, NOT THE TWO TOKENS SEPARATELY.**
+  Each token has already passed the vocabulary's own patient floor;
+  a PAIR held by three patients describes those three people
+  however common each token is alone. The first check for this
+  could not separate the mechanism - a mutation screening per token
+  broke nothing, because every pair on the fixture cleared both
+  ways - so the fixture now plants two tokens held by ~790 patients
+  each whose JOINT is held by fewer than ten, and the mutation
+  turns it red.
+- **AND REPULSION IS PUBLISHED TOO**, closing a gap this file has
+  carried for months as "negative token associations are not
+  modeled": a lift below 1 is structure, and the draw handles it
+  with no special case.
+- **THE REMAINING CEILING IS THE SIZE DRAW, MEASURED RATHER THAN
+  GUESSED.** The conditional solve plateaus near **0.44** on a
+  deterministic pair - 14 passes reach 0.393, 30 reach 0.430 - so
+  it is not the solve running out of road. A row's set SIZE is
+  still drawn from the published size distribution INDEPENDENTLY of
+  context, so a row that needs a route can draw none. Making the
+  size conditional is the next layer and it is named here rather
+  than left to be rediscovered.
+- **WHAT THE VENDORS DO, AND WHERE WE SIT.** SDV's quality report
+  is Column Shapes plus Column Pair Trends (correlation similarity
+  for numerics, CONTINGENCY similarity for categoricals), and since
+  0.27.0 it DISCARDS pairs with no strong pattern in the real data
+  - the same rule as our "the source relates it at 0.1 or more".
+  MOSTLY AI reports accuracy as the mean of univariate and
+  bivariate (and trivariate) **total variation distance on
+  discretised distributions**, over ALL pairs rather than only
+  related ones. So their headline is a DISTANCE and ours is a
+  pass/fail on a correlation delta.
+  What we carry that they do not: published bounds that are the
+  mean of the k most extreme patients, so no released number is an
+  individual's value; INVERTED as an absolute stop; a positive
+  control on every privacy measurement; the determination evidence
+  package; and the key/cipher arrangement. What they carried that
+  we did not is exactly this - conditional modelling of
+  co-occurrence - and it is now built.
+
 - **THE FRESH RULES RUN ON THE REAL EXTRACT: THE PREDICTION SCORED
   3 OF 3, AND THE MECHANISM IS VERIFIED AS FIRING (2026-11-09,
   run_rules_nov9, build 2a8149c).** A paired arm against run_n9g -
