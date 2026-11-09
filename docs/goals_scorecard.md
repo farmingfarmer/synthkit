@@ -669,15 +669,27 @@ exactly what they were.
   it. Surfaces go from NONE to two of five — the pressure family
   sitting on the enforced arithmetic, exactly where the identity
   tier was predicted to land. Dynamics double.
-- **AND `close` HAS NO COMPARABLE BASELINE, which is the honest
-  answer rather than a regression.** Tonight reads 101/125 =
-  80.8% against a recorded 120/137 = 87.6%, and the pair SETS
-  differ: diffed by name against the deliverable's own
-  fidelity.json, 160 pairs are in both, 36 are deliverable-only
-  and **34 of those 36 are token or set-size scaffolding**. Two
-  percentages over different surfaces are not a comparison. What
-  IS paired — the same source, settings and seed, one code change
-  apart — moved close by ONE pair.
+- **AND `close` DID REGRESS — measured, after one more tool.**
+  The percentages are not comparable: each run's pair surface
+  comes from its OWN blueprint vocabulary, so tonight's 101/125 =
+  80.8% and the recorded 120/137 = 87.6% are over different sets,
+  and regating the deliverable's own output with today's code on
+  the same source still gives 148 against 125. `scripts/regate.py`
+  therefore reports `close` on the pairs BOTH runs relate, which
+  is the only comparable form:
+
+      shared related pairs   135
+      run_deliverable        119 close
+      tonight                107 close
+
+  **Twelve pairs worse.** "No comparable baseline" was true of
+  the percentages and became an excuse once the comparable number
+  existed. The identity detector is NOT the cause — two arms
+  differing only in it moved close by one pair — and the
+  candidate is the date work, which until tonight could not be
+  switched off. `--no-reorder-dates` is that control arm now,
+  because a cost nobody can turn off is a cost nobody can
+  measure.
 - **AND THE REAL EXTRACT FOUND A DEFECT IN THE TIER THE DAY IT
   SHIPPED.** The first run published FOUR identities; two claimed
   a child that IS one other column, with dropped set scaffolding

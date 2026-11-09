@@ -1570,7 +1570,8 @@ def generate(blueprint: Dict[str, Any],
              report: Optional[Dict[str, Any]] = None,
              enforce_constraints: bool = False,
              refine_sweeps: int = 2,
-             reorder_dates: bool = True
+             reorder_dates: bool = True,
+             enforce_identities: bool = True
              ) -> pd.DataFrame:
     """Build a table from a blueprint. Nothing else is consulted."""
     bp = resolve(blueprint)
@@ -2399,7 +2400,18 @@ def generate(blueprint: Dict[str, Any],
     # this cannot overwrite the order the file numbers its visits
     # by. Two repairs that each own one of the same columns is
     # how `a <= b` and `b <= a` came to undo each other.
-    _ids = bp.get("arithmetic_identities") or []
+    # THE OTHER HALF OF THE SAME ARGUMENT. Enforcement OVERWRITES
+    # a column - on the real extract `visit_start_date`, computed
+    # from the end date minus the span - so it moves that column's
+    # values against every other one, exactly as the reorder does,
+    # and it survives `--no-reorder-dates` because it is a
+    # separate step. Tonight's output lost twelve close pairs of
+    # 135 against the deliverable; the identity DETECTOR cost one
+    # and the reorder cost ZERO, both measured on paired arms, so
+    # this is the remaining untested change and it needs its own
+    # off switch to be measurable at all.
+    _ids = (bp.get("arithmetic_identities") or []
+            if enforce_identities else [])
     if _ids:
         _idrep = []
         df = _identities.apply(

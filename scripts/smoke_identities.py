@@ -458,6 +458,45 @@ def main():
           and _got.get("age") == {"yob", "yr"}
           and _got.get("start") == {"end", "span"})
 
+    # ---- ENFORCEMENT CAN BE TURNED OFF, AND THAT IS WHY --------
+    #
+    # A COST NOBODY CAN TURN OFF IS A COST NOBODY CAN MEASURE.
+    # Tonight's real-extract output lost TWELVE close pairs of 135
+    # against the deliverable. Paired arms refuted the identity
+    # DETECTOR (one pair) and the date reorder (ZERO), and the
+    # sparse-slice drop never fired on that extract - so
+    # enforcement is the remaining untested change, and it
+    # OVERWRITES a column, which moves it against every other one.
+    # It needs its own off switch to be attributable at all.
+    _rp2 = {}
+    _gen2 = generate(bp, n_patients=320, seed=5, report=_rp2,
+                     enforce_identities=False)
+    check("with enforcement OFF the blueprint still PUBLISHES the "
+          "identity ({}) - the detector and the enforcement are "
+          "separate things, and a flag that hid the finding would "
+          "be a different change"
+          .format(len(bp.get("arithmetic_identities") or [])),
+          bool(bp.get("arithmetic_identities")))
+    check("...and the run reports enforcing NOTHING ({}), so the "
+          "flag switches the mechanism rather than being read and "
+          "ignored"
+          .format(_rp2.get("arithmetic_identities_enforced")),
+          not _rp2.get("arithmetic_identities_enforced"))
+    check("...and the identity then holds on {:.4f} of rows "
+          "against {:.4f} with it on - which is the cost "
+          "enforcement buys, measurable now"
+          .format(stay_held(_gen2), stay_held(gen)),
+          stay_held(_gen2) < 0.5 and stay_held(gen) > 0.99)
+    _ptxt = io.open(str(ROOT / "synthkit" / "pipeline.py"),
+                    encoding="utf-8").read()
+    check("...and the flag's help calls it a CONTROL ARM rather "
+          "than a recommended setting, and its literal percent is "
+          "DOUBLED - argparse %-formats help text and Python 3.14 "
+          "validates it eagerly, so a bare one killed every "
+          "invocation of this script the moment it was added",
+          "CONTROL ARM for" in _ptxt
+          and "11.9%% of rows" in _ptxt)
+
     print()
     if FAIL:
         print("{} FAILED".format(FAIL))

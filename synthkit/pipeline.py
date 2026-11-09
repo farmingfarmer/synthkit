@@ -77,6 +77,17 @@ def build_parser(prog=None, add_help=True):
                     help="the patient id column")
     ap.add_argument("--time-col", default="",
                     help="visit ordering column; detected if omitted")
+    ap.add_argument("--no-identities", action="store_true",
+                    help="do NOT enforce the arithmetic "
+                         "identities the blueprint published. "
+                         "Enforcement makes a length of stay "
+                         "agree with its own two dates - the "
+                         "alternative held on 11.9%% of rows on "
+                         "a "
+                         "fixture - and it OVERWRITES a column, "
+                         "so it moves that column against every "
+                         "other one. This is the CONTROL ARM for "
+                         "that cost, not a recommended setting")
     ap.add_argument("--no-reorder-dates", action="store_true",
                     help="do NOT put each entity's dates in visit "
                          "order. The reorder makes the file "
@@ -696,7 +707,8 @@ def main(argv=None, args=None):
                  report=rep,
                  enforce_constraints=a.enforce_constraints,
                  refine_sweeps=a.refine_sweeps,
-                 reorder_dates=not a.no_reorder_dates)
+                 reorder_dates=not a.no_reorder_dates,
+                 enforce_identities=not a.no_identities)
     g.to_csv(out / "generated.csv", index=False, encoding="utf-8")
     say("{} rows for {} patients -> generated.csv".format(
         rep["rows"], rep["patients"]))
