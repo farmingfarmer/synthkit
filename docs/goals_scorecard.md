@@ -391,7 +391,7 @@ machine; the free-text decision is governance, not engineering.
 
 ---
 
-## Goal 3 — Pattern analysis, explained with receipts   **~95%**
+## Goal 3 — Pattern analysis, explained with receipts   **~97%**
 
 *(2026-09-09: +10 — the dashboard's pattern cards, SHAP attribution
 on both tables with interaction ranking, per-run shape and surface
@@ -607,7 +607,7 @@ on this page.
 
 ---
 
-## Goal 5 — High-fidelity generation   **~95%**
+## Goal 5 — High-fidelity generation   **~96%**
 
 **What works, measured — on the real extract**
 
@@ -1052,9 +1052,59 @@ dates:
    ceiling: ongoing and unscheduled, because unknowns move dates
    and these are the genuine unknowns.
 
-Equal-weighting the eight goals: **~95.9% complete** as of
-2026-11-08 — 95, 97, 95, 95, 95, 100, 92, 98. Moved on
-2026-11-08: goal 5 93→95 because the engine that SHIPS now
+Equal-weighting the eight goals: **~96.2% complete** as of
+2026-11-09 — 95, 97, 97, 95, 96, 100, 92, 98. The mean is
+exactly 96.25, which rounds to 96.2.
+
+Moved on 2026-11-09: goal 3 95→97 and goal 5 95→96, both for
+the same finding. A planted relationship of the kind that
+DOMINATES the real extract - a set token driving a numeric,
+about 110 of the 135 pairs its gate relates - was in neither
+the answer key nor the noise list, so the instrument that
+scores recall could neither credit nor penalise it, and
+`bench_new_path.py` had no `--set-vocab` flag so it could not
+build the column at all. The same shape as the `--lags`
+finding the day before. Measured at 300 patients: the driver
+is on 0.81% of 22,910 rows and lifts its child by 7.2 sd, and
+the output carried **1.4%** of it.
+
+The obvious cause was the search cap, and a paired arm at cap
+60 REFUTED it: there the driver is expanded, published as a
+parent by name, and the output still carries 1.4% - for 3.8x
+the wall clock and one lost close pair. Reading the published
+evidence instead of guessing found the real cause: the claim's
+`effect` dict held only two noise parents. `_grid_for` sweeps
+the 2nd to 98th percentile, so a binary indicator that is 1 on
+under 2% of rows has every quantile at 0, the grid collapses
+to one point, `effect_curve` returns None and the curve is
+skipped with a bare `continue` - so the contract named the
+driver as a parent and published no evidence for it, and
+generation had nothing to apply. A binary column has two
+values by construction.
+
+With the grid fix, paired at cap 60 on one seed with one code
+change: **1.4% → 83.9%** of the source relationship, curve
+range +2.46 against a planted lift of 2.50, and **close 42 of
+45 on BOTH arms with not one pair lost**. The fix is ADDITIVE
+- above a 2% share the quantile grid already returned [0, 1] -
+which is why a one-line change inside every effect curve in
+the project reads ALL GREEN across 103 suites. On the
+fixture's own vocabulary 91-92% of the tokens that clear k sit
+under a 2% share, and 36 of the 72 MODELLED indicators do.
+Goal 3 also gains `peek curves`, which lists every parent the
+contract names and publishes no curve for - a parent
+generation cannot apply was the read-but-not-used fault in the
+one artifact generation reads, and nothing listed them.
+
+NOT counted as more than this: the fix is INERT at the shipped
+cap on that fixture, because ZERO relationships in either
+blueprint there have an indicator PARENT - two arms that agree
+are one arm, and that is a statement about the fixture. What
+it buys on the real extract turns on how many sparse indicator
+parents that blueprint has, which is a one-minute read of an
+artifact already on disk and is not yet run.
+
+Moved on 2026-11-08: goal 5 93→95 because the engine that SHIPS now
 enforces arithmetic identities — it had only MEASURED them, while
 the neural path has enforced them since September, and a length
 of stay agreed with its own two dates on 11.9% of generated rows
