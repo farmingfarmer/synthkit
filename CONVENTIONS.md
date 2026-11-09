@@ -396,6 +396,179 @@ Synthetic clinical data generator and model-evaluation instrument. Core rule: le
 - Never state a number as measured unless you actually ran it.
 
 ## Fixing what the real extract found
+- **PREDICTION FOR THE `--time-col visit_start_date` ARM, ON
+  RECORD BEFORE IT LANDS (2026-11-08 night, run_n9s).** Detection
+  picks the date with the most distinct values and chose
+  `visit_end_date`, which this file already records as misordering
+  overlapping stays. That choice now has two further
+  consequences, so the override tests three things at once.
+- **WHAT IS CLAIMED.** (1) `visit_start_date in row order` goes
+  from **0.8888** to essentially 1.0, because the reorder will
+  sort by the start date itself rather than carrying it along
+  behind the end date - the 11% are the patients whose stays
+  overlap, where start and end are not co-monotone. (2) The
+  blueprint's `time_column` reads `visit_start_date`, since an
+  explicit override must actually be used - a flag that is read
+  and ignored is the `--time-col` failure this file names. (3)
+  The identity tier then protects the START date instead, so the
+  computed child of `start / end / span_days` changes - the END
+  date becomes the child, which is the arrangement this project
+  measured as the right one on a fixture, because `los` keeps its
+  published marginal and the end date is computed from the
+  ordered start plus it.
+- **WHAT IS NOT CLAIMED: that any gate criterion moves.** The
+  dynamics are MEASURED along the axis too, so changing it
+  changes both the source figures and the generated ones, and
+  `dynamics tracked 35/89` could go either way for reasons that
+  are about the measurement rather than the engine. `close` has
+  no comparable baseline tonight in any case. If a criterion
+  moves, the next question is whether the SOURCE side of it moved
+  with the axis - which is a different fact from the output
+  improving.
+
+- **THE PAIRED ARM REFUTED MY OWN DIAGNOSIS: THE TWO SPURIOUS
+  IDENTITIES COST ONE PAIR, NOT TWENTY (2026-11-08 night, run_n9g
+  against run_n8g).** Same source, same settings, same seed, one
+  code change - the float-noise floor on the identity detector.
+  Every figure crossed in words:
+      criterion          run_n8g (4 ids)   run_n9g (2 ids)
+      identities published      4                 2
+      close             100/125 = 80.0%   101/125 = 80.8%
+      inverted              0 PASS            0 PASS
+      coverage             42/42             42/42
+      shapes tracked         6/7               6/7
+      interaction surfaces   2/5               2/5
+      dynamics tracked      35/89             35/89
+  The fix removes exactly the two spurious identities and moves
+  **one close pair**. I had written down that two hub columns
+  overwritten from scaffolding was "the obvious candidate for 20
+  lost close pairs". It was not.
+- **AND THE REASON IS THAT THE SPURIOUS IDENTITY WAS VALUE-NEUTRAL
+  BY LUCK.** `procedure_count` IS `procedure_quantity` in the
+  source, and the fitted weights are `1.0 * procedure_quantity +
+  ~0 * an indicator + ~0` - so computing it wrote back
+  approximately the number the column already held. The defect
+  was real and nearly inert HERE; a spurious pair whose second
+  weight was not ~0 would have done damage. Being harmless by
+  arithmetic coincidence is not a reason to keep it.
+- **AND THE DELIVERABLE'S `close` IS NOT COMPARABLE TO TONIGHT'S,
+  WHICH IS THE HONEST ANSWER TO "DID IT REGRESS".** The recorded
+  87.6% (120/137) against tonight's 80.8% (101/125) looks like a
+  fall and the pair SETS are different. Diffed by name against
+  `run_deliverable`'s own fidelity.json, still on the machine:
+      pairs the deliverable recorded      196
+      pairs run_n9g recorded              172
+      in BOTH                             160
+      deliverable only                     36
+      run_n9g only                         12
+      of the 36, token or set-size          34
+  Thirty-four of the thirty-six that dropped out are set
+  scaffolding, so the two percentages are measured over
+  substantially different surfaces. This run's own prediction
+  said to read the ABSOLUTE counts and warned the denominator
+  might move; it moved, and the right conclusion is that close
+  has no comparable baseline here rather than that it fell.
+- **WHAT IS COMPARABLE AND DID IMPROVE, stated separately for
+  that reason:** `inverted` goes from 1 FAIL - the one criterion
+  this project calls an absolute stop, which the deliverable
+  needed a reordered column to clear - to **0 PASS with no
+  repair**; `interaction surfaces` from **0/5 to 2/5**, the
+  pressure family sitting on the enforced arithmetic; and
+  `dynamics tracked` from **17/87 to 35/89**. Those three are
+  measured on published surfaces and graded columns rather than
+  on the pair set, which is why they survive the denominator
+  problem.
+
+- **AND THE CARE-EPISODE MODELLING ITEM IS RETIRED BY A CLEAN
+  NEGATIVE: THE ENGINE ALREADY REPRODUCES THE REAL SPREAD.** The
+  open item was to publish a patient-level anchor plus a
+  k-screened within-patient GAP distribution, because a date
+  drawn from the GLOBAL marginal should spread a patient's visits
+  across the whole cohort. Measured on the run and its own
+  source, both crossed in words:
+      visit_start_date span ratio, source     0.2994
+      visit_start_date span ratio, generated  0.3053
+  Within six thousandths. **There is nothing to model here** -
+  the engine's date dynamics (a patient-level level with an icc)
+  already carry it - so the anchor-and-gaps route is not a
+  fidelity gap on this extract and the price it would have cost
+  the date column's published marginal is a price for nothing.
+  Written down as REFUTED rather than quietly dropped, and
+  measured on the extract rather than on either fixture, which
+  disagreed with each other and with the data.
+- **AND THE END-DATE TIME AXIS HAS A SECOND CONSEQUENCE NOW,
+  measured at 0.8888.** Detection picks the date with the most
+  distinct values and chose `visit_end_date`, which this file
+  already records as misordering overlapping stays. The
+  within-patient date reorder therefore sorts by the END date and
+  moves the start dates with it, so `visit_start_date` comes out
+  in row order on **88.9%** of patients rather than all of them -
+  the 11% are the patients whose stays overlap, where start and
+  end are not co-monotone. The same choice also decides WHICH
+  member of a date identity gets computed, since the tier
+  protects the axis: here it made `visit_start_date` the child of
+  `visit_end_date - span_days`. A `--time-col visit_start_date`
+  arm would test both at once and is the obvious next run.
+
+- **THE FIRST REAL-EXTRACT RUN WITH THE IDENTITY TIER: THE
+  ABSOLUTE STOP CLEARS ON ITS OWN, SURFACES GO FROM ZERO, AND
+  `close` FALLS - AND THE FALL IS A DEFECT I HAD ALREADY FIXED
+  (2026-11-08 night, run_n8g).** Same source as the deliverable
+  (`phase2_800\tidy_visits.csv`, 55,428 rows confirmed by a count
+  whose verdict crossed as a WORD), same settings, no `--lags`.
+  Every figure below read back spelled by the machine:
+      criterion          deliverable        run_n8g
+      direction kept  134/137 = 97.8% P  118/125 = 94.4% P
+      close           120/137 = 87.6% F  100/125 = 80.0% F
+      inverted            1 FAIL             0 PASS
+      coverage           42/42 P            42/42 P
+      shapes tracked      7/8 F              6/7 F
+      interaction surfaces 0/5 F             2/5 F
+      dynamics tracked   17/87              35/89
+  **`inverted` clears without any repair** - the one criterion
+  this project calls an absolute stop, which the deliverable
+  needed a reordered column to pass. **Interaction surfaces go
+  from NONE to two of five**, which is the pressure family
+  sitting on the arithmetic exactly as predicted. **Dynamics
+  double.**
+- **AND THE `close` FALL IS THE TWO SPURIOUS IDENTITIES, WHICH IS
+  WHY THIS RUN IS THE BEFORE ARM RATHER THAN A RESULT.** The
+  blueprint published FOUR identities and two of them claim a
+  child that IS one other column, with dropped set scaffolding as
+  the second parent - the float-noise ratio defect recorded
+  above, found by this very run and fixed before it finished.
+  Both children, `procedure_count` and `active_drug_count`, are
+  HUB columns that appear in many token pairs, and overwriting
+  them from columns the reader never receives is the obvious
+  candidate for 20 lost close pairs. A paired arm on the fixed
+  detector is the test; quoting 80.0% as the engine's number
+  would be quoting a defect.
+- **THE DENOMINATOR MOVED 137 TO 125, so the percentages are not
+  the comparison** - which this run's own prediction said to
+  expect. In absolute terms close went 120 to 100 and the related
+  count 137 to 125.
+- **THE IDENTITIES, ASKED OF THE WRITTEN FILE RATHER THAN OF THE
+  ENGINE'S REPORT:**
+      visit_start_date == span_days + visit_end_date    1.0000
+      age_at_visit == f(year_of_birth, visit_end_date)  0.6267
+      procedure_count == f(quantity, a drug indicator)    None
+      active_drug_count == f(a procedure, active_drugs__n) None
+  The first is exact. The two `None`s are the confirmation from
+  the output side: their PARENTS are scaffolding dropped before
+  the file is written, so the identity cannot be checked in the
+  deliverable at all - published, enforced, and unverifiable.
+- **AND `age_at_visit` AT 0.6267 IS THE HONEST NUMBER FOR A
+  NEAR-IDENTITY, NOT A FAILURE.** The record measures that
+  identity holding on **21.4%** of generated rows before any
+  enforcement, so this is a large improvement - and it is not
+  1.0, because age is the visit YEAR minus the year of birth and
+  the visit year is not a column. In ordinal-day space the
+  relation is linear only to within a year boundary, so a
+  whole-number child rounds to the wrong integer on part of the
+  rows. The 2% residual bar admits that, and the right thing is
+  to SAY 0.6267 rather than to let "identities enforced" imply
+  they all hold.
+
 - **THE REAL EXTRACT FOUND A DEFECT IN THE IDENTITY TIER THE SAME
   DAY IT SHIPPED, AND NO FIXTURE HERE COULD REACH IT (2026-11-08
   night).** The first real-extract fit with the tier published

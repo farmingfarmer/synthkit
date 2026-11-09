@@ -643,6 +643,42 @@ exactly what they were.
   repaired by swapping, dates rendered after arithmetic.
 
 **What remains**
+- **THE ABSOLUTE STOP CLEARS ON THE REAL EXTRACT WITH NO REPAIR,
+  AND SURFACES GO FROM NONE (2026-11-08 night).** Two runs on
+  `phase2_800\tidy_visits.csv` (55,428 rows, confirmed by a count
+  whose verdict crossed as a word), same settings as the
+  deliverable, every figure read back spelled:
+
+      criterion             deliverable      tonight
+      inverted               1 FAIL          0 PASS
+      interaction surfaces   0/5 FAIL        2/5 FAIL
+      dynamics tracked      17/87           35/89
+      coverage              42/42 PASS      42/42 PASS
+
+  `inverted` is the one criterion this project calls an absolute
+  stop, and the deliverable needed a reordered column to clear
+  it. Surfaces go from NONE to two of five — the pressure family
+  sitting on the enforced arithmetic, exactly where the identity
+  tier was predicted to land. Dynamics double.
+- **AND `close` HAS NO COMPARABLE BASELINE, which is the honest
+  answer rather than a regression.** Tonight reads 101/125 =
+  80.8% against a recorded 120/137 = 87.6%, and the pair SETS
+  differ: diffed by name against the deliverable's own
+  fidelity.json, 160 pairs are in both, 36 are deliverable-only
+  and **34 of those 36 are token or set-size scaffolding**. Two
+  percentages over different surfaces are not a comparison. What
+  IS paired — the same source, settings and seed, one code change
+  apart — moved close by ONE pair.
+- **AND THE REAL EXTRACT FOUND A DEFECT IN THE TIER THE DAY IT
+  SHIPPED.** The first run published FOUR identities; two claimed
+  a child that IS one other column, with dropped set scaffolding
+  as the second parent. `PAIR_GAIN` is a RATIO and both sides of
+  it were float noise — 7.9e-15 and 8.7e-15 — and the ratio is a
+  coin flip there (0.0125 at one seed, 0.267 at another on the
+  same frame). Every fixture here used integer counts, where both
+  residuals are exactly zero and the guard works. Fixed with a
+  floor under the denominator, and the rule is now a pure
+  function checked on the extract's own four pairs.
 - ~~The rules engine enforces no arithmetic identity.~~ FIXED
   2026-11-08 (`synthkit/identities.py`). `mean_arterial_pressure`
   IS `(systolic + 2*diastolic)/3` and a length of stay IS the end

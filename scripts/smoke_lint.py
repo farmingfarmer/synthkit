@@ -415,11 +415,29 @@ def main():
           "machine say the same thing portably ({})"
           .format(_pinned or "none"),
           not _pinned)
-    check("...and the scanner is not matching nothing: it still "
-          "finds the full 40-char SHAs two suites use on purpose "
-          "({}), which is how a pattern that stopped matching "
-          "would announce itself".format(_legit),
-          len(_legit) >= 2)
+    # NON-VACUITY IS ASSERTED ON A PLANTED STRING, NOT ON A FILE
+    # COUNT. The first version required TWO suites carrying a
+    # 40-char SHA - and the TEAM BUNDLE excludes
+    # `smoke_no_personal.py`, which is one of them, because it
+    # contains the scan patterns themselves. So a check written
+    # to prove the scanner still matches went red inside the
+    # filtered tree, which is the second time tonight a premise
+    # rested on a file that does not travel. Planting the input
+    # makes the check mean the same thing in both trees.
+    _probe_banned = 'X = "' + "a" * 16 + '"'
+    _probe_ok = 'X = "' + "b" * 40 + '"'
+    check("the scanner matches a planted TRUNCATED digest and "
+          "does NOT match a planted 40-char SHA, so a pattern "
+          "that stopped matching would announce itself here "
+          "rather than by counting files",
+          bool(_pin.search(_probe_banned))
+          and not _pin.search(_probe_ok)
+          and bool(_sha40.search(_probe_ok)))
+    check("...and it reports which suites carry a real 40-char "
+          "SHA on purpose ({}) as information rather than as a "
+          "threshold - the bundle ships one fewer of them by "
+          "design".format(_legit),
+          isinstance(_legit, list))
 
     print("\nAll {} checks passed.".format(PASS))
 
