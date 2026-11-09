@@ -310,7 +310,40 @@ def _one(name, fn):
     return "{:<26} {}".format(name, "  |  ".join(flags) or "ok")
 
 
+# WHAT THIS SCRIPT ACCEPTS, so an unknown argument is refused
+# rather than silently running the default.
+_FLAGS = ("--neural",)
+
+
 def main():
+    # `--help` USED TO RUN THE WHOLE SWEEP AND PRINT A RESULT.
+    #
+    # Argument handling here was `if "--neural" in sys.argv`, so
+    # ANY other argument - `--help` included - fell through to the
+    # rules-engine sweep and printed twenty-three lines that read
+    # as an answer to whatever was asked. This project already
+    # records that exact fault in `latent_challenger.py`, where
+    # `--help` spent minutes fitting a planted fixture and then
+    # printed numbers: a command that does something plausible
+    # instead of refusing is the oldest failure shape here.
+    _args = [a for a in sys.argv[1:]]
+    if any(a in ("-h", "--help") for a in _args):
+        print(__doc__.strip())
+        print()
+        print("usage: shape_sweep.py [--neural]")
+        print("  (no flag)   sweep the RULES engine")
+        print("  --neural    sweep the neural engine instead")
+        return 0
+    _bad = [a for a in _args if a not in _FLAGS]
+    if _bad:
+        print("STOPPED: unknown argument(s) {} - this script "
+              "accepts {} or nothing at all. It does NOT fall "
+              "through to the default sweep, because a command "
+              "that does something plausible instead of refusing "
+              "is worse than one that crashes."
+              .format(", ".join(repr(a) for a in _bad),
+                      " / ".join(_FLAGS)))
+        return 2
     if "--neural" in sys.argv:
         print("{} shapes, NEURAL engine\n".format(len(SHAPES)))
         for nm, fn in SHAPES.items():

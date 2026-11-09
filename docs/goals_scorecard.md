@@ -31,6 +31,26 @@ end-to-end) are where the remaining work lives.**
   repeat, and is named in the run.
 
 **What remains**
+- ~~The 23-shape sweep is clean.~~ RE-RUN 2026-11-08 and it
+  CRASHED — `wide + 92% sparse` raised `ValueError: window shape
+  cannot be larger than input array shape`. Not from any of this
+  project's changes (the same crash is there at the previous
+  commit) and not ours: **scikit-learn 1.9.0 refuses ANY all-NaN
+  feature column**, at any row count, where earlier versions
+  handled it. The sweep was last re-run on the older stack, so
+  the recorded claim went stale the day the data machine's
+  libraries moved. Discovery splits on the rows where the TARGET
+  is observed, so a column present on 8% of the frame can be
+  entirely absent from that slice — the fit that died was 56 rows
+  by 39 columns with one column wholly empty. Such a feature is
+  dropped now (version-independently right: it carries no
+  information about the rows being fitted), and discovery's whole
+  catalogue is BYTE-IDENTICAL with and without the drop on a
+  frame with real relationships. The sweep reads **23 of 23
+  complete, 22 `ok`**, with the 23rd being the designed privacy
+  effect — `imbalanced groups rows −27%`, one entity holding half
+  the rows — which the old "23 of 23 clean" glossed.
+
 - Multi-table intake, M3's gate, DONE 2026-11-04
   (`synthkit/multitable.py`, `synthkit schema`): three
   fixtures — a star, a chain and one whose headers lie — with

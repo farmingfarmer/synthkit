@@ -245,6 +245,12 @@ def run_triangle(seeds):
 
 
 def main():
+    # `--help` IS A QUESTION, NOT A MISTAKE - see peek.py. Here it
+    # would otherwise land in `what` and reach the unknown-command
+    # branch, so a help request came back as an error.
+    if any(a in ("-h", "--help") for a in sys.argv[1:]):
+        print(__doc__)
+        return 0
     if len(sys.argv) < 2:
         print(__doc__)
         return 2

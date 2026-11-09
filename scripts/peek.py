@@ -638,6 +638,15 @@ def flat_view(run):
 
 
 def main():
+    # `--help` IS A QUESTION, NOT A MISTAKE. This printed the
+    # docstring and exited 2 for it, which is the code a shell
+    # script reads as failure - and a help request that reports
+    # failure is the sort of thing that makes a wrapper abort.
+    # Asking is answered with exit 0; an incomplete command still
+    # exits 2.
+    if any(a in ("-h", "--help") for a in sys.argv[1:]):
+        print(__doc__)
+        return 0
     if len(sys.argv) < 3:
         print(__doc__)
         return 2

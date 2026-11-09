@@ -16,7 +16,8 @@ import re as _re
 import sys
 from pathlib import Path
 
-sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+ROOT = Path(__file__).resolve().parent.parent
+sys.path.insert(0, str(ROOT))
 
 from synthkit.examples import reference_table
 from synthkit.lint import lint_table
@@ -297,6 +298,79 @@ def main():
           "set - {} of {} suites are that kind"
           .format(len(_suites) - _accum, len(_suites)),
           len(_suites) - _accum >= 10)
+
+    # ---- A SCRIPT MUST REFUSE AN ARGUMENT IT DOES NOT KNOW -----
+    #
+    # TWICE NOW A COMMAND HAS DONE SOMETHING PLAUSIBLE INSTEAD OF
+    # REFUSING. `latent_challenger.py` picked its subcommand from
+    # `sys.argv[1]` and let anything unmatched fall through to the
+    # default, so `--help` spent minutes fitting a planted fixture
+    # and then printed numbers that read as an answer to whatever
+    # was asked. `shape_sweep.py` dispatched on
+    # `"--neural" in sys.argv`, so `--help` ran the whole 23-shape
+    # sweep. Both cost real time before anyone noticed.
+    #
+    # A STANDING AUDIT, not a list: any script that dispatches by
+    # testing MEMBERSHIP in `sys.argv` has no parser to refuse for
+    # it, so it must refuse for itself. argparse-based scripts are
+    # exempt because argparse already does.
+    # ASSERT THE DECISION, NOT THE MESSAGE. The first version of
+    # this audit searched each script's TEXT for the word
+    # "STOPPED" or "unknown", which is a check on wording: a
+    # script that refuses perfectly well without using either
+    # word failed it. What matters is the exit code a caller
+    # reads - non-zero for an argument the script does not know,
+    # ZERO for a help request - and that the help request returns
+    # without DOING the work, which is the whole fault.
+    import subprocess as _sp
+    import time as _tm
+    _scripts = sorted((ROOT / "scripts").glob("*.py"))
+    _hand, _unguarded = [], []
+    for f in _scripts:
+        if f.name.startswith("smoke_"):
+            continue
+        t = io.open(str(f), encoding="utf-8").read()
+        if "argparse" in t:
+            continue
+        if "in sys.argv" not in t and "sys.argv[1]" not in t:
+            continue
+        _hand.append(f.name)
+        _t0 = _tm.time()
+        try:
+            _h = _sp.run([sys.executable, str(f), "--help"],
+                         capture_output=True, text=True,
+                         timeout=30)
+            _b = _sp.run([sys.executable, str(f), "--definitely-not"],
+                         capture_output=True, text=True,
+                         timeout=30)
+        except _sp.TimeoutExpired:
+            # A HELP REQUEST THAT TAKES THIRTY SECONDS IS DOING
+            # THE WORK, which is exactly the fault: both
+            # `latent_challenger.py` and `shape_sweep.py` ran
+            # their whole job for `--help`.
+            _unguarded.append("{} (timed out)".format(f.name))
+            continue
+        _why = []
+        if _h.returncode != 0:
+            _why.append("--help exits {}".format(_h.returncode))
+        if _b.returncode == 0:
+            _why.append("unknown argument exits 0")
+        if _tm.time() - _t0 > 20:
+            _why.append("--help is slow enough to be working")
+        if _why:
+            _unguarded.append("{} ({})".format(f.name,
+                                               "; ".join(_why)))
+    check("every script that dispatches on `sys.argv` without a "
+          "parser ANSWERS --help with exit 0 and REFUSES an "
+          "argument it does not know with a non-zero one - {} "
+          "such script(s), unguarded: {}"
+          .format(len(_hand), _unguarded or "none"),
+          not _unguarded)
+    check("...and the audit actually FOUND scripts of that kind "
+          "({}), because an audit that matches nothing passes "
+          "trivially - which is the worst kind of clean"
+          .format(_hand),
+          len(_hand) >= 2)
 
     print("\nAll {} checks passed.".format(PASS))
 

@@ -4128,6 +4128,68 @@ the direction that stops work happening.
   not.
 
 ## What breaks on a dataset that is not this one
+- **THE 23-SHAPE SWEEP CRASHED, AGAINST A RECORDED "23 OF 23
+  CLEAN", AND THE TRIGGER WAS A LIBRARY VERSION (2026-11-08).**
+  `wide + 92% sparse` came back
+  `CRASH ValueError: window shape cannot be larger than input
+  array shape`. It is NOT today's work - the same crash is there
+  at the previous commit - and it is not ours either:
+  **scikit-learn 1.9.0 raises on ANY all-NaN feature column, at
+  any row count**, where earlier versions handled it. The sweep
+  was last re-run on the older stack, so the recorded claim went
+  stale the day the data machine's libraries moved. That is this
+  file's own rule about testing against what the DATA machine
+  installs, caught by re-running a sweep rather than by trusting
+  a sentence.
+- **AND THE ALL-NaN COLUMN IS PRODUCED BY THE SPLIT, NOT BY THE
+  FRAME.** Discovery takes its train/holdout split on the rows
+  where the TARGET is observed, so a column present on 8% of the
+  frame can be entirely absent from that slice. The fit that
+  died was **56 rows by 39 columns, 25 of them under five present
+  values and one with none at all** - captured by wrapping the
+  estimator's `fit` rather than inferred, because a traceback
+  through joblib names the library and not the input.
+- **THE FIX IS VERSION-INDEPENDENT: a feature with no values in
+  the rows being fitted carries no information about them.** It
+  is dropped, and if every candidate is empty the column is
+  SKIPPED with that reason rather than crashing. Verified not to
+  move the engine's answer anywhere else: on a planted frame with
+  three real relationships, discovery's whole catalogue is
+  BYTE-IDENTICAL with and without the drop, and a frame with no
+  sparse column hashes to the same digest - pinned, because a
+  change inside discovery could quietly move every number
+  downstream of it.
+- **THE SWEEP NOW READS 23 OF 23 COMPLETE, 22 `ok`, and the 23rd
+  is the DESIGNED privacy effect rather than a failure** -
+  `imbalanced groups  rows -27%  |  1 blueprint contradiction`,
+  which is the recorded case where one entity holds half the rows
+  and the count's mean lives in the entities the k rule will not
+  publish. The old "23 of 23 clean" glossed that line; the honest
+  form names it.
+- **AND `--help` RAN THE WHOLE SWEEP, which is the third
+  instance of that fault here.** `shape_sweep.py` dispatched on
+  `"--neural" in sys.argv`, so any other argument fell through to
+  the default and `--help` printed twenty-three lines that read
+  as an answer to whatever was asked. `latent_challenger.py` did
+  the same with a five-seed fixture demo. A command that does
+  something plausible instead of refusing is the oldest failure
+  shape in this file.
+- **SO IT IS A STANDING AUDIT NOW, AND IT FOUND TWO MORE.** Any
+  script that dispatches by testing membership in `sys.argv` has
+  no parser to refuse for it, so it must refuse for itself:
+  `peek.py` and `repro_mechanisms.py` both answered a help
+  request with exit **2**, which a wrapper reads as failure.
+  argparse-based scripts are exempt because argparse already
+  does it.
+- **AND THE AUDIT'S FIRST VERSION CHECKED THE WORDING.** It
+  searched each script's text for "STOPPED" or "unknown", so a
+  script that refuses perfectly well without either word failed
+  it - `peek.py` did. It RUNS them now and reads the exit code: 0
+  for a help request, non-zero for an argument the script does
+  not know, and a timeout counts as unguarded because a help
+  request that takes thirty seconds is doing the work, which is
+  the whole fault. Assert the decision, not the message.
+
 
 The rigour above is aimed at ONE extract. Everything in this section
 was found by running the whole pipeline across 23 dataset shapes a

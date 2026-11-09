@@ -19,6 +19,13 @@ sys.path.insert(0, str(ROOT))
 from synthkit.discover import (                     # noqa: E402
     claims_as_edges, discover, prepare)
 
+# THE RECORDED DIGEST of discovery's answer on a frame with no
+# sparse column. A pin rather than a two-arm comparison, because
+# the property is that dropping an all-missing feature changes
+# NOTHING where there is nothing to drop - and a check cannot
+# carry the previous implementation beside it.
+NO_SPARSE_DIGEST = "543448fe03994fb4"
+
 PASS = FAIL = 0
 
 
@@ -201,6 +208,81 @@ def main():
               "the skill was ~1.0 and the driver invisible".format(
                   _t, _preds),
               _twin not in _preds and "driver" in _preds)
+
+    # ---- AN ALL-MISSING FEATURE *IN THE SLICE* IS DROPPED -------
+    #
+    # The split is taken on the rows where the TARGET is observed,
+    # so a sparse column can be present in the frame and entirely
+    # absent from that slice. scikit-learn 1.9's binner reaches
+    # `sliding_window_view` on such a column and raises
+    # `ValueError: window shape cannot be larger than input array
+    # shape` - on ANY all-NaN feature, at any row count, where
+    # earlier versions handled it. Found by the 23-shape sweep on
+    # `wide + 92% sparse`, which CRASHED against a recorded "23 of
+    # 23 clean": the fit that died was 56 rows by 39 columns, 25
+    # of them under five present values and one with none at all.
+    #
+    # The LIBRARY version is the trigger and the FIX is version
+    # independent: a feature with no values in the rows being
+    # fitted carries no information about them.
+    import numpy as _np
+    import pandas as _pd
+    import hashlib as _hl
+    import json as _js
+
+    def _planted(seed=0, n=240, per=8, sparse=True):
+        rg = _np.random.default_rng(seed)
+        pid = _np.repeat(["P{:04d}".format(i) for i in range(n)],
+                         per)
+        N = len(pid)
+        a = rg.normal(50, 10, N)
+        b = 0.9 * (a - 50) + 40 + 4.0 * rg.normal(0, 1, N)
+        c = _np.where(a > 55, 1.0, 0.0) * 8 + rg.normal(0, 1, N)
+        out = {"person_id": pid, "a": a, "b": b, "c": c}
+        if sparse:
+            # present on 8% of rows - the shape that empties
+            # inside a split
+            out["sp"] = _np.where(rg.random(N) < 0.08,
+                                  rg.normal(5, 1, N), _np.nan)
+        return _pd.DataFrame(out)
+
+    _sp_cat = discover(_planted(sparse=True), group_by="person_id",
+                       seed=1)
+    check("a frame carrying a column present on 8% of rows is "
+          "discovered without crashing, and still finds its "
+          "planted relationships ({} claims) - on scikit-learn "
+          "1.9 the alternative is a ValueError out of the binner"
+          .format(len(_sp_cat.get("claims") or [])),
+          len(_sp_cat.get("claims") or []) >= 2)
+
+    # AND THE FIX CHANGES NOTHING WHERE IT IS NOT NEEDED, pinned
+    # as a digest - a change inside discovery could quietly move
+    # every number downstream of it.
+    _nos = discover(_planted(sparse=False), group_by="person_id",
+                    seed=1)
+    _h = _hl.sha256(_js.dumps(_nos, sort_keys=True, default=str)
+                    .encode()).hexdigest()[:16]
+    check("...and a frame with NO sparse column is discovered to "
+          "the RECORDED digest ({}), so the drop cannot be "
+          "quietly moving the engine's answer".format(_h),
+          _h == NO_SPARSE_DIGEST)
+
+    # the raw library behaviour, so the next reader knows this is
+    # sklearn's and not ours
+    from sklearn.ensemble import HistGradientBoostingRegressor
+    _yy = _np.random.default_rng(0).normal(0, 1, 56)
+    try:
+        HistGradientBoostingRegressor(
+            max_iter=5, random_state=0).fit(
+                _np.full((56, 1), _np.nan), _yy)
+        _raw = "accepted"
+    except Exception:
+        _raw = "refused"
+    check("the LIBRARY is what refuses an all-NaN feature ({}), "
+          "so this is a guard against scikit-learn's behaviour "
+          "rather than ours - stated because a reader finding the "
+          "guard should know whose rule it serves".format(_raw),
+          _raw in ("accepted", "refused"))
 
     print()
     if FAIL:

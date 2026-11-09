@@ -693,6 +693,40 @@ def discover(df: pd.DataFrame,
                             "why": "too few observed rows to train "
                                    "and hold out"})
             continue
+        # A FEATURE THAT IS ENTIRELY MISSING *IN THIS SLICE* IS
+        # DROPPED, and on scikit-learn 1.9 the alternative is a
+        # CRASH.
+        #
+        # The split is taken on the rows where the TARGET is
+        # observed, so a sparse column can be present in the frame
+        # and absent from this particular slice. sklearn 1.9's
+        # binner reaches `sliding_window_view` on such a column
+        # and raises `ValueError: window shape cannot be larger
+        # than input array shape` - on any all-NaN feature, at any
+        # row count, where earlier versions handled it. Found by
+        # the 23-shape sweep on `wide + 92% sparse`, which
+        # CRASHED against a recorded "23 of 23 clean": the fit
+        # that died was 56 rows by 39 columns with 25 columns
+        # under five present values and one with none at all.
+        #
+        # Dropping is right independently of the library: a
+        # feature with no values in the rows being fitted carries
+        # no information about them, and the screen below would
+        # measure its importance as zero anyway. The engine's own
+        # answer is unchanged on every shape that did not crash -
+        # asserted as a digest, because a fix inside discovery
+        # could quietly move every number.
+        _live = [c for c in feats
+                 if bool(X_all.loc[tr, c].notna().any())]
+        if len(_live) != len(feats):
+            feats = _live
+            if not feats:
+                skipped.append({
+                    "column": target,
+                    "why": "every candidate predictor is entirely "
+                           "missing on the rows where this column "
+                           "is observed"})
+                continue
         Xtr, Xte = X_all.loc[tr, feats], X_all.loc[te, feats]
         ytr, yte = y_full[tr], y_full[te]
         # A cap on TRAINING rows only. Measured on this fixture: fit
