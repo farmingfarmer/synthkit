@@ -124,8 +124,25 @@ def identity_hold(frame, rec, bp_cols=None):
     k = got.notna() & want.notna()
     if int(k.sum()) < 10:
         return None
+    # A WHOLE-NUMBER CHILD IS COMPARED AT HALF A UNIT, because
+    # that is what rounding can move it by.
+    #
+    # This used 2% of the child's spread for everything, and on
+    # the real extract that read `age_at_visit` as holding on
+    # 0.6267 of rows while the engine's own report said the
+    # column had been computed on all of them. Two measurements
+    # of one thing disagreeing is this project's alarm: for an
+    # integral child the tier ROUNDS, so a row whose un-rounded
+    # error was 0.4 is written 0.4 away from the prediction and
+    # is correct, while 2% of a nineteen-year spread is 0.38 and
+    # calls it broken. The tolerance was the artifact, not the
+    # file.
+    _diff = (got[k] - want[k]).abs()
+    _whole = bool((got[k] % 1 == 0).all())
+    if _whole:
+        return float((_diff <= 0.5).mean())
     sd = float(got[k].std()) or 1.0
-    return float(((got[k] - want[k]).abs() <= 0.02 * sd).mean())
+    return float((_diff <= 0.02 * sd).mean())
 
 
 def main():

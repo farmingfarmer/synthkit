@@ -396,6 +396,48 @@ Synthetic clinical data generator and model-evaluation instrument. Core rule: le
 - Never state a number as measured unless you actually ran it.
 
 ## Fixing what the real extract found
+- **THE TIME-AXIS OVERRIDE SCORED 3 OF 3 ON ITS CLAIMS AND THEN
+  ARGUED AGAINST ITSELF (2026-11-08 night, run_n9s).** Three arms
+  on the same source and settings, one flag or one code change
+  apart. Every figure crossed in words:
+      criterion            end axis    end axis    start axis
+                           4 ids       2 ids       2 ids
+      close              100/125     101/125      100/125
+      inverted             0 PASS      0 PASS       0 PASS
+      shapes tracked         6/7         6/7          6/8
+      interaction surfaces   2/5         2/5          0/4
+      dynamics tracked     35/89       35/89        35/90
+      start in row order  0.8888          -          1.0000
+      identity child      start=1.0   start=1.0    end=1.0
+- **THE CLAIMS HELD.** `visit_start_date in row order` went
+  **0.8888 to 1.0000**, and `visit_end_date` took its place at
+  0.8875 - the mirror image, because start and end are not
+  co-monotone on the 11% of patients whose stays overlap. The
+  override reached the blueprint rather than being read and
+  ignored. And the identity's computed child FLIPPED from the
+  start date to the END date, which is the arrangement a fixture
+  measured as the right one: `span_days` keeps its published
+  marginal and the end date is computed from the ordered start
+  plus it, holding on **1.0** of rows.
+- **AND THE PRICE IS THE TWO INTERACTION SURFACES THE IDENTITY
+  TIER HAD JUST WON: 2/5 BECOMES 0/4.** The denominator moved as
+  well, so the axis changes WHICH surfaces discovery publishes as
+  well as whether they survive - the dynamics are measured along
+  the axis, so every column with persistence is generated
+  differently, the pressure family included. The prediction's
+  not-claimed clause covered exactly this and it is the half that
+  decided the outcome.
+- **SO THE DEFAULT STAYS: DETECTION'S CHOICE OF `visit_end_date`
+  IS THE ONE THAT SCORES BETTER.** This file records the end date
+  as misordering overlapping stays, and that is still true - 11%
+  of patients come out with their start dates out of order. But
+  the obvious-looking fix costs the only two interaction surfaces
+  this engine has ever carried on the real extract, and trading a
+  criterion that FAILS either way for one that moved from zero is
+  not a trade anybody asked for. The override stays available,
+  the trade is on record, and nothing is changed on the strength
+  of one seed.
+
 - **PREDICTION FOR THE `--time-col visit_start_date` ARM, ON
   RECORD BEFORE IT LANDS (2026-11-08 night, run_n9s).** Detection
   picks the date with the most distinct values and chose
@@ -488,7 +530,11 @@ Synthetic clinical data generator and model-evaluation instrument. Core rule: le
   source, both crossed in words:
       visit_start_date span ratio, source     0.2994
       visit_start_date span ratio, generated  0.3053
-  Within six thousandths. **There is nothing to model here** -
+  Within six thousandths - and CONFIRMED ON A SECOND ARM, the
+  `--time-col visit_start_date` run, which reads **0.3144** on
+  both of its date columns against the same source 0.2994. Two
+  arms with different time axes landing within 0.015 of the
+  source is what makes this a measurement rather than one draw. **There is nothing to model here** -
   the engine's date dynamics (a patient-level level with an icc)
   already carry it - so the anchor-and-gaps route is not a
   fidelity gap on this extract and the price it would have cost

@@ -237,8 +237,35 @@ def main():
           bool(np.allclose(g["strong"].to_numpy(), _other)))
     check("...and it SAYS what it did, with the row count, "
           "because a column rewritten silently is a change made "
-          "behind the operator's back ({})".format(_rep),
+          "behind the operator's back ({})"
+          .format([(r["child"], r["rows_computed"],
+                    round(r["held_before"], 4)) for r in _rep]),
           bool(_rep) and _rep[0]["rows_computed"] == len(g))
+    # AND IT REPORTS HOW BROKEN THE IDENTITY WAS BEFORE, which is
+    # the question that is NOT a tautology.
+    #
+    # The first version asked "does it hold afterwards" - and
+    # after enforcement the child IS the computed value, so any
+    # tolerance answers yes. It reported 1.0 on a near-identity
+    # whose written column disagrees with its own parents on a
+    # third of rows, and TWO mutations that hardcoded the answer
+    # broke no check. Asking what the DRAWN value did cannot be
+    # satisfied by the enforcement itself, and it is the number an
+    # operator wants beside "enforced": the record measures
+    # `age_at_visit` holding on 21.4% of generated rows with none.
+    check("...and it reports how broken the identity was BEFORE "
+          "enforcement ({:.4f} on a frame where it was deliberately "
+          "broken), which the enforcement itself cannot satisfy"
+          .format(_rep[0]["held_before"]),
+          _rep[0]["held_before"] < 0.2)
+    _f_ok = pressure(seed=1)
+    _rep_ok = []
+    ID.apply(_f_ok, recs, _rep_ok)
+    check("...and it reads 1.0 on a frame where the identity was "
+          "already intact ({:.4f}), so the two cases are "
+          "distinguishable - a hardcoded answer fails one of them"
+          .format(_rep_ok[0]["held_before"]),
+          abs(_rep_ok[0]["held_before"] - 1.0) < 1e-9)
 
     # a row whose parent is absent says nothing about the identity
     g2 = pressure(seed=3)

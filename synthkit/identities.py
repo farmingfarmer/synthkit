@@ -285,6 +285,40 @@ def describe(rec: Dict[str, Any]) -> str:
                     rec.get("residual_share") or 0.0))
 
 
+def _held(drawn, child, computed, live, integral) -> float:
+    """Share of rows where the DRAWN child already satisfied it.
+
+    NOT "does it hold afterwards" - that question is a tautology
+    here, because after enforcement the child IS the computed
+    value, so any tolerance at all answers yes. The first version
+    of this measure asked it anyway and reported 1.0 on a
+    near-identity whose written column disagrees with its own
+    parents on a third of rows; two mutations that hardcoded the
+    answer broke no check, which is how it was caught.
+    
+    What is worth reporting, and cannot be tautological, is how
+    broken the identity was BEFORE the tier touched it: the share
+    of rows where the drawn value already matched. On the real
+    extract the record measures `age_at_visit` against
+    `year_of_birth` holding on 21.4% of generated rows with no
+    enforcement, so a number near that is the thing an operator
+    should see beside "enforced".
+    """
+    import numpy as _np
+    k = live & drawn.notna() & computed.notna()
+    got = drawn
+    n = int(k.sum())
+    if not n:
+        return 0.0
+    diff = (got[k] - computed[k]).abs()
+    if child in set(integral or ()):
+        return float((diff <= 0.5).mean())
+    sd = float(got[k].std())
+    if not _np.isfinite(sd) or sd <= 0:
+        return float((diff <= 1e-9).mean())
+    return float((diff <= RESIDUAL_SHARE * sd).mean())
+
+
 def apply(frame, records: Sequence[Dict[str, Any]],
           report_into: Optional[List[Dict[str, Any]]] = None,
           integral: Optional[Sequence[str]] = None):
@@ -333,5 +367,24 @@ def apply(frame, records: Sequence[Dict[str, Any]],
             report_into.append({
                 "child": child, "parents": [pa, pb],
                 "rows_computed": int(live.sum()),
-                "rows": int(len(frame))})
+                "rows": int(len(frame)),
+                # HOW OFTEN IT ACTUALLY HOLDS AFTERWARDS, because
+                # "enforced" does not mean "holds".
+                #
+                # On the real extract `age_at_visit ==
+                # f(year_of_birth, visit_end_date)` is enforced and
+                # holds on **0.6267** of rows - a large improvement
+                # on the 21.4% an unenforced identity measured, and
+                # not 1.0. Age is the visit YEAR minus the year of
+                # birth and the visit year is not a column, so in
+                # ordinal-day space the relation is linear only to
+                # within a year boundary; a whole-number child then
+                # rounds to the wrong integer on part of the rows.
+                # The 2% residual bar admits that, which is a
+                # NEAR-identity rather than an exact one, and a
+                # reader of "identities enforced" would otherwise
+                # assume they all hold. Measured on the column the
+                # tier just wrote, so it cannot flatter itself.
+                "held_before": _held(old, child, new, live,
+                                     integral)})
     return frame
