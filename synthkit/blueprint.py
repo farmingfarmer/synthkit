@@ -55,6 +55,8 @@ from typing import Any, Dict, List, Optional
 import numpy as np
 import pandas as pd
 
+from . import identities as _identities
+
 from . import sets as _sets
 
 BLUEPRINT_VERSION = 1
@@ -1114,8 +1116,58 @@ def build(df: pd.DataFrame,
             "dials": {"count": None, "visits_scale": None},
         })
 
+    # ARITHMETIC IDENTITIES, PUBLISHED SO GENERATION CAN ENFORCE
+    # THEM.
+    #
+    # `tightness` has MEASURED these for months and the engine
+    # never acted on one: a length of stay that IS the end date
+    # minus the start held on 100% of source rows and **11.9%**
+    # of generated ones, and `age_at_visit` against
+    # `year_of_birth` is the same class. The neural path has
+    # detected and enforced them since 2026-09-29 - so the
+    # capability existed in the half that does NOT ship and was
+    # absent from the half that does, which is this project's most
+    # repeated fault. One module both engines call rather than two
+    # implementations.
+    #
+    # A DATE IS NUMERIC HERE, which is the whole reason a
+    # length-of-stay identity is reachable at all: `X` carries
+    # dates as ordinals and they wear their format again on the
+    # way out.
+    _idnum = [(c, X[c]) for c in X.columns
+              if c in columns
+              and columns[c]["kind"] == "numeric"
+              and pd.api.types.is_numeric_dtype(X[c])]
+    # ONLY THE TIME AXIS IS PROTECTED, and which member of an
+    # identity is computed turned out to matter a great deal.
+    #
+    # Avoiding EVERY date made `los` the child of
+    # `visit_end_date - visit_start_date`, and the identity then
+    # held on 100% of rows while `los` itself came out with
+    # **mean 5.49 against a source 4.45 and sd 4.92 against
+    # 2.28** - because the generated dates are not the source's
+    # paired dates, so their difference is not distributed like a
+    # length of stay. The arithmetic was true and the column was
+    # wrong.
+    #
+    # Avoiding only the TIME AXIS makes the END DATE the child
+    # instead: `los` keeps its own published marginal, the end
+    # date is computed from the ordered start plus it, and all
+    # three agree. The time axis still cannot be a child, because
+    # the within-patient reordering owns it and two repairs that
+    # each own one of the same columns undo each other.
+    _ident = _identities.detect(
+        _idnum, avoid_children=([time_col] if time_col else None))
+    # A CHILD THAT IS ALSO A SET-SIZE PARTNER IS ALREADY COPIED
+    # from the set's own length, and two rules computing one
+    # column is how they come to chase each other.
+    _ident = [r for r in _ident
+              if not (columns.get(r["child"]) or {}).get(
+                  "derived_from")]
+
     return {
         "blueprint_version": BLUEPRINT_VERSION,
+        "arithmetic_identities": _ident,
         "constraints": _constraints(X, k),
         "correlations": correlations,
         "columns": columns,

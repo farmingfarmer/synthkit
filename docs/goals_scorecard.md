@@ -587,7 +587,7 @@ on this page.
 
 ---
 
-## Goal 5 — High-fidelity generation   **~93%**
+## Goal 5 — High-fidelity generation   **~95%**
 
 **What works, measured — on the real extract**
 
@@ -623,6 +623,46 @@ exactly what they were.
   repaired by swapping, dates rendered after arithmetic.
 
 **What remains**
+- ~~The rules engine enforces no arithmetic identity.~~ FIXED
+  2026-11-08 (`synthkit/identities.py`). `mean_arterial_pressure`
+  IS `(systolic + 2*diastolic)/3` and a length of stay IS the end
+  date minus the start — and the engine that SHIPS only ever
+  MEASURED those, through `tightness`, while the neural path has
+  enforced them since 2026-09-29. Measured: `end − start == los`
+  held on 100% of source rows and **11.9%** of generated ones.
+  One module both halves now call; paired on one fixture, one
+  file apart:
+
+      measure                     source   before    after
+      end − start == los          1.0000   0.1185   1.0000
+      interaction surfaces           -      1/2      2/2
+      shapes tracked                 -      4/9      5/9
+
+  Two criteria improve, one to a PASS — the pressure-family
+  surfaces sit exactly on this — with `los`'s own marginal
+  untouched and direction / close / inverted / coverage
+  unchanged. WHICH member is computed decides whether the column
+  is right: protecting every date made `los` the child and it
+  came out at sd 4.92 against a source 2.28, because the
+  generated dates are not the source's PAIRED dates; protecting
+  only the time axis makes the end date the child and all three
+  agree. The time axis must stay protected because the
+  within-patient date reordering owns it, and two repairs that
+  each own one of the same columns undo each other.
+  And the residual bar ALONE was not enough: a child that is one
+  other column plus a small difference cleared it — a fixture's
+  `visit_end = visit_start + span` has a residual of 0.8% of the
+  start's spread — so the end date was computed as the start plus
+  a constant and the length of stay VANISHED, which four
+  constraint-repair checks caught by no longer having a violation
+  to reproduce. The pair must beat its best SINGLE parent by a
+  factor of four; measured, that ratio reads **1.000** for a
+  noise second parent and **5.6e-14** for a real identity. A
+  whole-number child is rounded, because least squares returns
+  weights of 0.9999999999 and the `age_at_visit` identity was
+  then false on every row by exact comparison while a tolerance
+  said it held — the canonical fixture went from 21.4% to
+  **100.0%**.
 - **The close gap is no longer the open M0 item** — it clears on
   the repaired artifact and misses by 0.1 points without the
   repair. What remains on this goal is the *unrepaired* engine
@@ -925,9 +965,16 @@ dates:
    ceiling: ongoing and unscheduled, because unknowns move dates
    and these are the genuine unknowns.
 
-Equal-weighting the eight goals: **~95.6% complete** as of
-2026-11-08 — 95, 97, 95, 95, 93, 100, 92, 98. Moved on
-2026-11-08: goal 3 90→95 because M4's bar — twelve of thirteen
+Equal-weighting the eight goals: **~95.9% complete** as of
+2026-11-08 — 95, 97, 95, 95, 95, 100, 92, 98. Moved on
+2026-11-08: goal 5 93→95 because the engine that SHIPS now
+enforces arithmetic identities — it had only MEASURED them, while
+the neural path has enforced them since September, and a length
+of stay agreed with its own two dates on 11.9% of generated rows
+against 100% in source. One module both halves call;
+`interaction surfaces` goes 1/2 → 2/2 PASS and `shapes tracked`
+4/9 → 5/9 with every other criterion unchanged. Also goal 3
+90→95 because M4's bar — twelve of thirteen
 planted kinds FOUND including the lagged one — is met on all five
 seeds, and the reason it had not been was the instrument rather
 than the engine: the bench never built the lag features the

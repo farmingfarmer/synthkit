@@ -271,20 +271,58 @@ def main():
     gv = (pd.to_numeric(g3out["visit_year"], errors="coerce")
           - pd.to_numeric(g3out["year_of_birth"], errors="coerce"))
     held = float((ga == gv).mean())
-    check("THE FIXTURE BREAKS THE IDENTITY: age equals visit year "
-          "minus year of birth on 100% of source rows and {:.1%} of "
-          "generated ones".format(held), held < 0.6)
+    # THIS FIXTURE USED TO BREAK THE IDENTITY AND NO LONGER DOES,
+    # which is the point of `synthkit.identities`: the engine
+    # that SHIPS only ever MEASURED these, and the age held on
+    # 21.4% of generated rows while every other number in the
+    # report read fine. It is enforced now - computed from its
+    # generated parents rather than drawn again - so the check
+    # pins the ENFORCEMENT instead of the breakage. Rewritten
+    # rather than deleted, because the measure below still has to
+    # be able to catch a break from any cause.
+    check("THE IDENTITY IS ENFORCED: age equals visit year minus "
+          "year of birth on 100% of source rows and {:.1%} of "
+          "generated ones, where an unenforced identity measured "
+          "21.4%".format(held), held > 0.99)
+    check("...and it is EXACT rather than within a tolerance - "
+          "least squares returns weights of 0.9999999999, so a "
+          "whole-number child has to be rounded or every row is "
+          "false by exact comparison while a tolerance says it "
+          "holds",
+          bool((ga.dropna() % 1 == 0).all()))
     check("...and every OTHER check still passes on it, which is why "
-          "this one had to exist - center {}/{} and spread {}/{}"
+          "the tightness measure had to exist - center {}/{} and "
+          "spread {}/{}"
           .format(s3["centre_ok"], s3["numeric"],
                   s3["spread_ok"], s3["numeric"]),
           s3["centre_ok"] == s3["numeric"])
-    check("the near-deterministic check CATCHES it: {}/{} identities "
-          "held".format(s3["deterministic_kept"],
-                        s3["deterministic_compared"]),
-          s3["deterministic_compared"] > 0
-          and s3["deterministic_kept"] < s3["deterministic_compared"])
-    loose = fid3["relationships"]["deterministic_loosened"]
+    check("the near-deterministic measure RAN on it ({} identities "
+          "compared) - an identity nobody measures is one nobody "
+          "can report broken".format(s3["deterministic_compared"]),
+          s3["deterministic_compared"] > 0)
+    check("...and all of them are reported HELD now ({}/{}), which "
+          "is the enforcement showing up in the report rather than "
+          "only in the file".format(s3["deterministic_kept"],
+                                    s3["deterministic_compared"]),
+          s3["deterministic_kept"] == s3["deterministic_compared"])
+    # AND THE MEASURE MUST STILL CATCH A BREAK, tested on a frame
+    # where the break is PLANTED rather than on whatever the
+    # engine happens to produce. That is the stronger test: the
+    # measure exists to catch breakage from ANY cause, including
+    # a future change that stops enforcing.
+    g3broke = g3out.copy()
+    g3broke["age_at_visit"] = (
+        pd.to_numeric(g3broke["age_at_visit"], errors="coerce")
+        .sample(frac=1.0, random_state=11).to_numpy())
+    fid3b = _compare(df3, g3broke, bp3, "person_id", None)
+    s3b = fid3b["summary"]
+    check("the measure CATCHES a planted break: {}/{} identities "
+          "held on a frame whose child was shuffled"
+          .format(s3b["deterministic_kept"],
+                  s3b["deterministic_compared"]),
+          s3b["deterministic_compared"] > 0
+          and s3b["deterministic_kept"] < s3b["deterministic_compared"])
+    loose = fid3b["relationships"]["deterministic_loosened"]
     check("...and names which one, with how far it slipped - {}"
           .format(", ".join("{} <- {} {:.2f}->{:.2f}".format(
               x["child"], x["parent"], x["tightness_source"],

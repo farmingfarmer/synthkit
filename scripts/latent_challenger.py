@@ -77,6 +77,7 @@ _sys.path.insert(0, _os.path.dirname(_os.path.dirname(
     _os.path.abspath(__file__))))
 
 from synthkit import dates, sets    # noqa: E402
+from synthkit import identities as _identities  # noqa: E402
 
 
 def _read_source(path):
@@ -897,57 +898,27 @@ class LatentGen:
                       dates.to_ordinal(df[it[1]],
                                        it[4][5]["parsed_format"]))
                      for it in self.plan if it[0] == "num"]
-        # detection runs on a bounded sample - it is a property
-        # of the columns, not of every row
-        _det = df.index if len(df) <= 4000 else \
-            np.random.RandomState(self.seed).choice(
-                df.index, 4000, replace=False)
-        num_s = [(c, v.loc[_det]) for c, v in num_items]
+        # DETECTION LIVES IN `synthkit.identities` NOW, and both
+        # engines CALL it. The rules engine - which is the one
+        # that ships - only ever MEASURED these, through
+        # `tightness`, and a length-of-stay identity came out of
+        # it holding on 11.9% of generated rows against 100% in
+        # source. A capability present in the half that does not
+        # ship and absent from the half that does is this
+        # project's most repeated fault, and the fix it
+        # prescribes is one implementation both halves call
+        # rather than each rebuilding. The bounded sample, the
+        # 2%-of-spread bar, the pair search and first-claim-wins
+        # are all the same arithmetic, moved rather than
+        # reimplemented.
         _claimed = set()
-        for ci, (child, cv) in enumerate(num_s):
-            csd = float(cv.std()) or 0.0
-            if csd <= 0 or child in _claimed:
-                continue
-            best = None
-            for pi, (pa, pv) in enumerate(num_s):
-                if pi == ci or pa in _claimed:
-                    continue
-                for qi in range(pi + 1, len(num_s)):
-                    if qi == ci:
-                        continue
-                    pb, qv = num_s[qi]
-                    if pb in _claimed:
-                        continue
-                    d = pd.DataFrame({"c": cv, "a": pv,
-                                      "b": qv}).dropna()
-                    if len(d) < 200:
-                        continue
-                    A = np.column_stack(
-                        [d["a"], d["b"], np.ones(len(d))])
-                    try:
-                        w, *_ = np.linalg.lstsq(
-                            A, d["c"].to_numpy(), rcond=None)
-                    except np.linalg.LinAlgError:
-                        continue
-                    resid = d["c"].to_numpy() - A @ w
-                    rs = float(resid.std())
-                    if rs < 0.02 * csd and (
-                            best is None or rs < best[0]):
-                        best = (rs, pa, pb,
-                                [float(x) for x in w])
-            if best is not None:
-                _, pa, pb, w = best
-                self._linear_identities.append(
-                    (child, pa, pb, w))
-                # a child computed from parents must not also
-                # BE a parent someone else is computed from -
-                # first claim wins, deterministic by column
-                # order
-                _claimed.add(child)
-                print("  {} == {:.4g}*{} + {:.4g}*{} + {:.4g} "
-                      "on the source: computed from its "
-                      "generated parents, not drawn again"
-                      .format(child, w[0], pa, w[1], pb, w[2]))
+        for _rec in _identities.detect(num_items, seed=self.seed):
+            _claimed.add(_rec["child"])
+            self._linear_identities.append(
+                (_rec["child"], _rec["parents"][0],
+                 _rec["parents"][1],
+                 list(_rec["weights"]) + [_rec["intercept"]]))
+            print("  " + _identities.describe(_rec))
         # A NEAR-IDENTITY IS AN IDENTITY ONE NOTCH RELAXED, and
         # the network cannot carry it. mean_arterial_pressure_
         # cuff_bmdi IS map_cuff measured by a second device -

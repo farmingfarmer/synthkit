@@ -2590,6 +2590,125 @@ the direction that stops work happening.
   error with did-you-mean; `synthkit dials` lists every edge.
 
 ## Numbers before conclusions
+- **AND THE 2% BAR ALONE CLAIMED A ONE-PARENT NEAR-IDENTITY AND
+  DESTROYED THE COLUMN THE DIFFERENCE IS.** Four checks that had
+  been reproducing a constraint violation for months went red the
+  moment the tier shipped, and they were right. A fixture here
+  has `visit_end = visit_start + span` with span 0 on 88% of rows
+  and 1-20 on the rest: against a start spread of 430 days the
+  residual is 3.6, which is **0.8% of the spread** and clears a
+  2% bar - so `visit_end == visit_start + 0*anything + c`
+  qualified, generation COMPUTED the end date as the start plus a
+  constant, and the length of stay vanished. There was no
+  violation left for the constraint-repair checks to reproduce,
+  which is how a fix that destroys information can read as a fix.
+- **THE PAIR MUST EARN ITS SECOND PARENT, AND THE SEPARATION IS
+  ORDERS OF MAGNITUDE RATHER THAN A TUNING QUESTION.** Residual
+  of the pair over residual of the best SINGLE parent:
+      end ~ start + age   (age is noise)        1.000
+      end ~ start + los   (the real identity)   5.6e-14
+      map ~ systolic + diastolic                1.9e-15
+  A pair that does not beat its best single parent by a factor of
+  four is a one-parent relationship wearing two, and the record
+  carries `best_single_residual_sd` so a reader can see the
+  second parent earned its place rather than taking the word
+  `pair` on trust.
+- **AND A WHOLE-NUMBER CHILD HAS TO BE ROUNDED OR THE IDENTITY IS
+  FALSE ON EVERY ROW WHILE A TOLERANCE SAYS IT HOLDS.**
+  `age_at_visit` is the visit year minus the year of birth and
+  both are integers, so the age is one too - and least squares
+  returns weights of 0.9999999999 with a tiny intercept, so the
+  computed value came out at 54.99999999. The near-deterministic
+  measure, which uses a tolerance, reported 3 of 3 identities
+  HELD; exact comparison reported 0%. Two measurements of one
+  thing disagreeing is this project's alarm, and here the
+  tolerant one was the flattering one.
+- **AND THREE CHECKS WERE REWRITTEN RATHER THAN DELETED.** The
+  `age_at_visit` fixture existed to BREAK the identity - it held
+  on 21.4% of generated rows while every other number in the
+  report read fine - and it now holds on **100.0%**. The checks
+  pin the enforcement instead, and the tightness MEASURE is
+  tested separately on a frame where the break is PLANTED rather
+  than on whatever the engine happens to produce. That is the
+  stronger arrangement: the measure exists to catch breakage from
+  any cause, including a future change that stops enforcing.
+- **AND MY OWN BAR CHECK WAS WRONG THREE TIMES RUNNING.** First
+  it loosened the residual bar on the full frame and expected the
+  strong relationship to be claimed - first-claim-wins had
+  already consumed its parent. Then it loosened the bar on a
+  single-parent relationship, which `PAIR_GAIN` refuses first.
+  Then it used `3a + 2b + 1.2n`, whose pair-over-best-single
+  reads 0.52 and fails `PAIR_GAIN` too. Only a fixture where the
+  second parent DOMINATES (ratio 0.15) leaves the residual bar as
+  the one thing refusing it. Each red was a premise of mine, not
+  a defect, and each took a measurement to see.
+
+- **THE RULES ENGINE HAD NEVER ENFORCED AN ARITHMETIC IDENTITY -
+  ONLY MEASURED ONE - AND IT IS THE ENGINE THAT SHIPS
+  (2026-11-08, `synthkit/identities.py`).** `mean_arterial_
+  pressure` IS `(systolic + 2*diastolic)/3`; a length of stay IS
+  the end date minus the start. A generator that draws the child
+  as an ordinary number makes a SECOND independent draw of a
+  quantity the data already determines, so the identity holds by
+  chance. The neural path has detected and enforced these since
+  2026-09-29; the rules path had `tightness`, which MEASURES the
+  breakage and reports it, and acted on none of it. Measured on a
+  length-of-stay fixture: `end - start == los` held on 100% of
+  source rows and **11.9%** of generated ones. A capability
+  present in the half that does not ship and absent from the half
+  that does is this project's most repeated fault, and the fix it
+  prescribes is one module both halves CALL - applied here, with
+  the neural engine's own inline loop replaced by the call and
+  its 144 checks green.
+- **THE RESULT, paired on one fixture, one file apart:**
+      measure                        source   before    after
+      end - start == los             1.0000   0.1185   1.0000
+      interaction surfaces              -      1/2      2/2
+      shapes tracked                    -      4/9      5/9
+      los mean (sd)                4.45 (2.28)  4.45 (2.36)  4.45 (2.36)
+  Two gate criteria improve, one of them to a PASS, with `los`'s
+  own marginal untouched and direction / close / inverted /
+  coverage unchanged. The pressure-family interaction surfaces
+  sit exactly on this, which the neural engine's own entry
+  predicted.
+- **WHICH MEMBER OF THE IDENTITY IS COMPUTED DECIDES WHETHER THE
+  COLUMN IS RIGHT, AND IT COST TWO MEASUREMENTS TO LEARN.** Any
+  rearrangement of an exact identity is the same constraint, so
+  the choice looks arbitrary. It is not. Protecting EVERY date
+  made `los` the child of `end - start`: the identity then held
+  on 100% of rows while `los` came out with **mean 5.49 against a
+  source 4.45 and sd 4.92 against 2.28** - the arithmetic was
+  true and the column was wrong, because the generated dates are
+  not the source's PAIRED dates so their difference is not
+  distributed like a length of stay. Protecting only the TIME
+  AXIS makes the END DATE the child instead, and then all three
+  agree: `los` keeps its published marginal, the end date is
+  computed from the ordered start plus it.
+- **AND THE TIME AXIS MUST STILL BE PROTECTED, because two
+  repairs that each own one of the same columns undo each
+  other.** The first detection claimed
+  `visit_start_date == visit_end_date - los`, which would
+  overwrite the dates the within-patient reordering had just put
+  in visit order - and whichever ran last would win. This file
+  already records that shape: `a <= b` and `b <= a` both
+  enforced, 258 rows swapped one way and 10,328 the other, the
+  first repair reported broken on 99.8% of rows.
+- **THE LOAD-BEARING CHECK IS THE REFUSAL.** A detector that
+  called every strong relationship an identity would replace its
+  curve and its noise with a straight line, which is a worse
+  output than a broken identity. The bar is a residual under 2%
+  of the child's own spread - a rule the source nearly satisfies
+  is not a rule - and the check proves the bar does the
+  separating rather than the fixture: on a frame carrying only
+  the strong relationship, nothing is claimed at 2% and `strong`
+  IS claimed at 90%. Loosening the bar turns FIVE checks red.
+- **AND THAT CHECK'S FIRST VERSION HAD A WRONG PREMISE.** It
+  loosened the bar on the FULL frame and expected `strong` to be
+  claimed - but first-claim-wins had already consumed `systolic`,
+  so `strong` had no parent pair left and the loosened bar
+  changed nothing about it. Red against correct code. The frame
+  carrying only the strong relationship isolates the bar.
+
 - **A PATIENT'S DATES GO IN VISIT ORDER NOW, AND MY FIRST READING
   OF WHY IT MATTERED WAS WRONG (2026-11-08).** `visit_number` is
   emitted as 1..n in ROW order, which ASSERTS a sequence; a date

@@ -59,6 +59,7 @@ import pandas as pd
 
 from .blueprint import resolve
 from . import sets as _sets
+from . import identities as _identities
 from .dates import DATE_ORIGIN, from_ordinal
 from .quantities import from_number
 from .dynamics import (clustered_presence, persistent_uniform,
@@ -2377,6 +2378,26 @@ def generate(blueprint: Dict[str, Any],
         df = _dates_in_visit_order(
             df, _real_gid, _dcols,
             (bp.get("patients") or {}).get("time_column"), report)
+
+    # ARITHMETIC IDENTITIES ARE ENFORCED BY COMPUTING, which is
+    # the copy-not-redraw rule the size identity already follows.
+    # AFTER the date reorder, because the reorder moves the dates
+    # TOGETHER so their per-row difference is untouched and a
+    # child computed from them is then correct - and the
+    # blueprint deliberately never makes a DATE the child, so
+    # this cannot overwrite the order the file numbers its visits
+    # by. Two repairs that each own one of the same columns is
+    # how `a <= b` and `b <= a` came to undo each other.
+    _ids = bp.get("arithmetic_identities") or []
+    if _ids:
+        _idrep = []
+        df = _identities.apply(
+            df, _ids, _idrep,
+            integral=[c for c in cols
+                      if ((cols.get(c) or {}).get("marginal")
+                          or {}).get("integral")])
+        if report is not None and _idrep:
+            report["arithmetic_identities_enforced"] = _idrep
 
     for c in order:
         qspec = (cols[c] or {}).get("quantity")
