@@ -2590,6 +2590,86 @@ the direction that stops work happening.
   error with did-you-mean; `synthkit dials` lists every edge.
 
 ## Numbers before conclusions
+- **A PATIENT'S DATES GO IN VISIT ORDER NOW, AND MY FIRST READING
+  OF WHY IT MATTERED WAS WRONG (2026-11-08).** `visit_number` is
+  emitted as 1..n in ROW order, which ASSERTS a sequence; a date
+  column is drawn from its marginal, which does not. Measured on
+  a two-date fixture, the generated start dates came out in row
+  order on **0.2% of patients**. Two columns in one file
+  disagreeing about the order of a patient's visits is this
+  project's own alarm.
+- **THE GATE WAS NEVER THE VICTIM, AND I NEARLY RECORDED THAT IT
+  WAS.** The first measurement read the output's within-patient
+  course by DATE and found 0.4026 against a source 0.6456, where
+  reading it by ROW order gives 0.6647 - and I was one step from
+  writing up that the gate had been understating the engine's
+  dynamics and that `dynamics tracked 17/87` was substantially a
+  measurement artifact. It is not: `pipeline.compare` already
+  sets `gt = "visit_number" if "visit_number" in g.columns`, so
+  it has been reading the output in the right order all along.
+  **The whole gate is IDENTICAL on both arms of this change -
+  seven criteria unmoved, including `dynamics tracked 1/4`.**
+  What saved it was running the gate rather than reasoning about
+  it, which is the only reason the claim did not ship.
+- **WHAT IT FIXES IS THE FILE, for whoever reads it next** - and
+  that includes the lagged-parent path, which applies its curve
+  in ROW order, so without this the two readings of one file
+  disagree about whether a lagged relationship is there at all.
+  Start dates in row order: **0.2% -> 100%**.
+- **THE VALUES MOVE, NOT THE ROWS, and that is the whole design.**
+  Reordering rows would preserve every within-row relationship
+  exactly - and the persistence lives in the ROW layout, so it
+  would destroy the thing this repairs. Sorting the date VALUES
+  keeps the layout.
+- **AND ONE PERMUTATION SERVES EVERY DATE COLUMN, which is what
+  makes a date-to-date identity survive.** The real extract
+  declares `visit_start_date <-> visit_end_date` at skill 0.9999;
+  permuting the start dates while the end dates stayed would
+  destroy it. Measured: start~end **+0.9988 in BOTH arms**,
+  bit-identical, and with constraint enforcement on `end >=
+  start` holds on **100.00%** of rows after the reorder because
+  each row keeps its own pair.
+- **THE PRICE IS ONE NUMBER AND IT IS STATED.** A relationship
+  between a date and a NON-date does change: a planted
+  date-driven numeric read +0.9730 in source, +0.9643 before and
+  **+0.9029** after. The `end - start == los` identity was
+  already broken at 11.9% before this and reads 9.3% after -
+  a pre-existing defect that a date-difference identity is not
+  enforced, named here rather than attributed to the reorder.
+- **AND THE TIME AXIS IS RECORDED IN THE BLUEPRINT, because the
+  dynamics were MEASURED along it.** Without it the sampler would
+  need its own detection rule, and two halves deciding separately
+  what the time axis is is how they come to disagree - this file
+  says that about token screening, the scaffolding predicate and
+  the two categorical draw paths. `patients.time_column` is None
+  when the source had no axis, and then nothing is reordered.
+- **AND MY OWN CHECKS FAILED TWICE FOR BEING WRONG RATHER THAN
+  FINDING ANYTHING.** One asserted `end >= start` unconditionally
+  and went red against correct code - it holds on 92.7% of rows
+  in BOTH arms without enforcement, so the property to assert is
+  that the reorder PRESERVES it, with enforcement on. The other
+  claimed to check "a permutation within each patient" and
+  actually compared only the column's LENGTH, which cannot fail:
+  a mutation replacing the grouped `lexsort` with a GLOBAL
+  `argsort` - which moves dates between patients and changes
+  every patient's multiset - passed all 45 checks. It is a unit
+  check on the function with planted input now.
+- **AND THAT FIXTURE THEN COULDN'T REACH THE FAULT EITHER.** Its
+  two entities had A's dates entirely BELOW B's, so a global sort
+  gives the same answer as a grouped one and the mutation still
+  passed. With the ranges OVERLAPPING it turns three checks red.
+  Twice in one fix, the same lesson: a fixture must contain the
+  thing the check is about, and "two entities with dates" was not
+  specific enough.
+- **A PATIENT'S VISITS ARE NOT A CARE EPISODE, named as the
+  residue.** With the dates ordered, their own within-patient
+  autocorrelation reads **0.74 against a source 0.98** - because
+  the engine draws each visit date from the GLOBAL marginal, so a
+  generated patient's dates are spread across the whole cohort
+  range instead of clustered into an episode. Ordering them
+  improved that figure from 0.70, which is not the gap. That is a
+  modelling limitation and it is open.
+
 - **THE LAGGED RELATIONSHIP SURVIVES NOW, AND THE CURVE WAS RIGHT
   ALL ALONG - ONLY THE COLUMN IT WAS READ FROM WAS WRONG
   (2026-11-08).** The fold's victim was never the SHAPE.
@@ -2637,6 +2717,9 @@ the direction that stops work happening.
       visit_start_date in row order        0.8% of patients
       lagged pair read by ROW order     +0.8614 (source +0.8898)
       lagged pair read by DATE order    +0.3109
+  **FIXED the same day, and the reading below that the GATE was
+  affected is WITHDRAWN - `pipeline.compare` already orders the
+  generated frame by `visit_number`.** See the entry above.
   `visit_number` is emitted as 1..n in row order, which ASSERTS a
   sequence; the date column is drawn from its marginal, which does
   not. A consumer sorting by date and a consumer sorting by the

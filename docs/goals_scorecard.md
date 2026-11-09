@@ -483,8 +483,36 @@ fidelity, and the self-explaining gate all landed.)*
   `visit_number` follow the generated dates, and it is not free:
   the real extract declares `visit_start_date <-> visit_end_date`
   at skill 0.9999, so permuting one date column within a patient
-  while the other stays would destroy a near-identity. Next step,
-  measured rather than assumed cheap.
+  while the other stays would destroy a near-identity.
+- ~~Next step, measured rather than assumed cheap.~~ DONE the
+  same day. A patient's dates go in visit order now — **0.2% →
+  100% of patients** — and the near-identity survives because ONE
+  permutation serves every date column, so each row keeps its own
+  pair: start~end reads **+0.9988 in both arms**, bit-identical,
+  and with constraint enforcement on `end >= start` holds on 100%
+  of rows after the reorder. The VALUES move, not the rows,
+  because the persistence lives in the row layout and reordering
+  rows would destroy the thing this repairs. The time axis is
+  recorded in `patients.time_column` so the sampler does not need
+  a second detection rule.
+  The price is one number and it is stated: a planted date-driven
+  NUMERIC reads +0.9730 in source, +0.9643 before and **+0.9029**
+  after. The whole gate is IDENTICAL on both arms — seven
+  criteria unmoved.
+- **AND THE CLAIM THAT THE GATE WAS AFFECTED IS WITHDRAWN.** The
+  first measurement read the output's course by DATE (0.4026
+  against a source 0.6456, where row order gives 0.6647) and I
+  was one step from recording that `dynamics tracked` had been
+  understated by a measurement artifact. `pipeline.compare`
+  already orders the generated frame by `visit_number`. Running
+  the gate rather than reasoning about it is the only reason that
+  did not ship.
+- What remains on dynamics is a modelling limitation, named: a
+  generated patient's visit dates are drawn from the GLOBAL
+  marginal, so they spread across the whole cohort range instead
+  of clustering into a care episode. Their own within-patient
+  autocorrelation reads **0.74 against a source 0.98**; ordering
+  them moved that from 0.70, which is not the gap.
 - The search cap: only 24 tokens per set column can carry a
   relationship; on the extract the excluded tokens hold 72% of
   `conditions` mass. Measured, reported by `peek cap`, unresolved —

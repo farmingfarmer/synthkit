@@ -512,6 +512,154 @@ def main():
           "here, and an old blueprint must still load",
           _h1 == _h2)
 
+    # ---- A PATIENT'S DATES GO IN VISIT ORDER --------------------
+    #
+    # `visit_number` is emitted as 1..n in ROW order, which
+    # ASSERTS a sequence; a date column is drawn from its marginal,
+    # which does not - measured on a two-date fixture, the start
+    # dates came out in row order on 0.2% of patients. Two columns
+    # in one file disagreeing about the order of a patient's
+    # visits is this project's own alarm, and the lagged-parent
+    # path applies its curve in ROW order, so without this the
+    # two readings of one file disagree about whether a lagged
+    # relationship is there.
+    #
+    # THE GATE WAS NEVER THE VICTIM: `pipeline.compare` already
+    # orders the generated frame by `visit_number`, and all seven
+    # criteria are identical on both arms. This fixes the FILE.
+    def _dates_fixture(seed=0, n=300, per=8):
+        rg = _np.random.default_rng(seed)
+        pid = _np.repeat(["D{:04d}".format(i) for i in range(n)],
+                         per)
+        N = len(pid)
+        gaps = rg.integers(3, 40, (n, per)).cumsum(axis=1)
+        start = gaps.reshape(-1)
+        los = rg.integers(1, 9, N)
+        return _pd.DataFrame({
+            "person_id": pid,
+            "visit_start_date": (_pd.to_datetime("2019-01-01")
+                                 + _pd.to_timedelta(start, "D")),
+            "visit_end_date": (_pd.to_datetime("2019-01-01")
+                               + _pd.to_timedelta(start + los, "D")),
+            "val": rg.normal(20, 4, N)}).astype(str)
+
+    def _row_order_share(f, col):
+        d = _pd.to_datetime(f[col], errors="coerce")
+        return float(d.groupby(f["person_id"])
+                     .apply(lambda ss: ss.is_monotonic_increasing)
+                     .mean())
+
+    _dsrc = _dates_fixture()
+    _dbp = _B.build(_dsrc, _disc(_dsrc, group_by="person_id",
+                                 seed=1),
+                    group_by="person_id",
+                    time_col="visit_start_date")
+    check("the blueprint RECORDS the time axis it measured the "
+          "dynamics along ({!r}), so the sampler does not need a "
+          "second detection rule - two halves deciding separately "
+          "what the time axis is is how they come to disagree"
+          .format((_dbp.get("patients") or {}).get("time_column")),
+          (_dbp.get("patients") or {}).get("time_column")
+          == "visit_start_date")
+    _drep = {}
+    _dg = _gen(_dbp, n_patients=300, seed=5, report=_drep)
+    _share = _row_order_share(_dg, "visit_start_date")
+    check("...and every patient's dates come out in the order the "
+          "file numbers them ({:.1%} of patients), where a "
+          "marginal draw agrees on almost none"
+          .format(_share),
+          _share >= 0.99)
+    _rec = _drep.get("dates_put_in_visit_order") or {}
+    check("...and the run SAYS it did it, naming the axis and the "
+          "columns ({}), because a rearrangement nobody is told "
+          "about is a change made behind the operator's back"
+          .format(sorted(_rec.get("columns") or [])),
+          _rec.get("time_column") == "visit_start_date"
+          and "visit_end_date" in (_rec.get("columns") or []))
+
+    def _dsp(f, a, b):
+        def num(col):
+            v = _pd.to_datetime(f[col], errors="coerce")
+            return (_pd.to_numeric(v, errors="coerce")
+                    if v.notna().any()
+                    else _pd.to_numeric(f[col], errors="coerce"))
+        u, w = num(a), num(b)
+        kk = u.notna() & w.notna()
+        return float(u[kk].rank().corr(w[kk].rank()))
+
+    _dd = _dsp(_dg, "visit_start_date", "visit_end_date")
+    check("ONE permutation serves every date column, so a "
+          "date-to-date near-identity survives (start~end "
+          "{:+.4f} against a source {:+.4f}) - the real extract "
+          "declares that pair at skill 0.9999, and permuting one "
+          "while the other stayed would destroy it"
+          .format(_dd, _dsp(_dsrc, "visit_start_date",
+                            "visit_end_date")),
+          abs(_dd) >= 0.95)
+    # AND THE STRONGER FORM: each row keeps its OWN pair, so a
+    # per-row constraint the repair enforced is still enforced
+    # afterwards. Asserted with enforcement ON, because without
+    # it `end >= start` holds on 92.7% of rows in BOTH arms - the
+    # first version of this check asserted it unconditionally and
+    # went red against code that was behaving correctly, which is
+    # a check whose premise was wrong rather than a defect.
+    _dge = _gen(_dbp, n_patients=300, seed=5,
+                enforce_constraints=True)
+    _es = _pd.to_datetime(_dge["visit_start_date"],
+                          errors="coerce")
+    _ee = _pd.to_datetime(_dge["visit_end_date"], errors="coerce")
+    check("...and each row keeps its OWN pair, so a per-row "
+          "constraint survives the rearrangement: with "
+          "enforcement on, end >= start on {:.2%} of rows AFTER "
+          "the dates were reordered"
+          .format(float((_ee >= _es).mean())),
+          bool((_ee >= _es).all())
+          and _row_order_share(_dge, "visit_start_date") >= 0.99)
+
+    # AND IT IS A PERMUTATION WITHIN EACH PATIENT, asserted on
+    # the function itself with planted input rather than on a
+    # generated frame. The first version of this check compared
+    # only the LENGTH of the date column, which cannot fail - and
+    # a mutation replacing the grouped `lexsort` with a GLOBAL
+    # `argsort`, which moves dates between patients and changes
+    # every patient's multiset, broke nothing.
+    from synthkit.generate import _dates_in_visit_order as _div
+    # THE TWO ENTITIES' DATE RANGES MUST OVERLAP, or a GLOBAL
+    # sort gives the same answer as a grouped one and the fixture
+    # cannot tell them apart - the first version had A entirely
+    # below B, and a mutation replacing the grouped `lexsort`
+    # with a plain `argsort` passed all 45 checks.
+    _pf = _pd.DataFrame({
+        "pid": ["A", "A", "A", "B", "B", "B"],
+        "d1": [50.0, 10.0, 30.0, 60.0, 20.0, 40.0],
+        "d2": [51.0, 11.0, 31.0, 61.0, 21.0, 41.0],
+        "other": [1.0, 2.0, 3.0, 4.0, 5.0, 6.0]})
+    _before = dict((k, sorted(v)) for k, v in
+                   _pf.groupby("pid")["d1"].apply(list).items())
+    _pfo = _div(_pf.copy(), "pid", ["d1", "d2"], "d1")
+    _after = dict((k, sorted(v)) for k, v in
+                  _pfo.groupby("pid")["d1"].apply(list).items())
+    check("the reorder is a permutation WITHIN each entity - every "
+          "entity's own date multiset is unchanged ({} vs {}) - so "
+          "a global sort that moved dates between patients could "
+          "not pass".format(_before, _after),
+          _before == _after)
+    check("...and it actually ORDERS them, which a no-op would "
+          "also satisfy the line above: {}"
+          .format(list(_pfo["d1"])),
+          list(_pfo["d1"]) == [10.0, 30.0, 50.0, 20.0, 40.0,
+                               60.0])
+    check("...and the SECOND date column follows the SAME "
+          "permutation rather than being sorted on its own, which "
+          "is what keeps each row's pair together: {}"
+          .format(list(_pfo["d2"])),
+          list(_pfo["d2"]) == [11.0, 31.0, 51.0, 21.0, 41.0,
+                               61.0])
+    check("...and a NON-date column does not move - that is the "
+          "stated price, and silently moving it would be a "
+          "different change: {}".format(list(_pfo["other"])),
+          list(_pfo["other"]) == [1.0, 2.0, 3.0, 4.0, 5.0, 6.0])
+
     print()
     if FAIL:
         print("{} FAILED".format(FAIL))

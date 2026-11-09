@@ -186,7 +186,21 @@ Our position is split and should be stated that way:
 
 - The **rules engine** models within-patient persistence,
   missing-clustering, and lagged cross-column effects with
-  `--lags`. That is more than flattening.
+  `--lags`. That is more than flattening — and until 2026-11-08
+  the lagged half of it did not reach the output at all, which we
+  found by pointing our own bench at the flag for the first time.
+  `discover` folds `x__prev` to `x` so the catalogue reads in the
+  operator's column names, and the blueprint was applying that
+  curve at the SAME visit: the output acquired a same-visit
+  correlation of **0.97** on a pair the source relates at 0.00,
+  on every seed. The lag parent is marked rather than folded now
+  and the sampler reads it from the patient's previous row:
+  source **0.94–0.95** against generated **0.97**, found and
+  surviving on five seeds of five, where it previously read
+  −0.002. A patient's dates also go in visit order now (0.2% →
+  100% of patients), because a file whose `visit_number` and
+  whose dates disagree about the sequence cannot be read
+  temporally at all.
 - The **neural engine** carries patient IDENTITY (invented,
   person-level columns reproduced at 0.90–0.96) and, with
   `--trajectory ar`, a patient's COURSE as well. Its recorded

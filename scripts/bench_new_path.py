@@ -446,12 +446,26 @@ SEED_SWEEP = (
 # bench could build the lag features at all. seed: found_of_13.
 LAG_SWEEP = ((0, 12), (1, 13), (2, 12), (3, 12), (4, 12))
 
-# AND WHAT THE EXTRA KIND COSTS, on the same runs. The lagged
-# relationship becomes findable and the OUTPUT acquires a
-# same-visit correlation the source does not have:
+# WHAT THE EXTRA KIND COST BEFORE IT WAS FIXED, kept because the
+# guard that stops it coming back is still the thing being
+# tested. `discover._source` folded `x__prev` to `x`, so the
+# LAG's curve was applied at the SAME visit and the output
+# acquired a correlation the source does not have:
 #   seed: (source same-visit, generated same-visit)
 LAG_COST = ((0, 0.003, 0.971), (1, 0.000, 0.969),
             (2, -0.001, 0.973), (4, -0.004, 0.971))
+
+# AND WHAT IT DOES NOW, same five seeds, after the parent is
+# MARKED as read from the previous visit and the sampler reads it
+# from the patient's previous row. The lagged relationship is
+# FOUND and SURVIVES on every seed, landing within 0.03 of source
+# - it was absent (-0.002) rather than degraded before.
+#   seed: (source lagged, generated lagged, survived_of_scored)
+LAG_SURVIVES = ((0, 0.944, 0.971, (9, 11)),
+                (1, 0.944, 0.969, (11, 11)),
+                (2, 0.946, 0.973, (10, 11)),
+                (3, 0.947, 0.970, (9, 11)),
+                (4, 0.945, 0.972, (10, 11)))
 
 
 def seed_range_note():
@@ -492,20 +506,24 @@ def seed_range_note():
         "--lags, and is found on every seed WITH it: {} of 13 "
         "over the same five seeds.".format(
             " / ".join(str(c) for _s, c in LAG_SWEEP)),
-        "AND IT IS NOT A FREE POINT. The lagged relationship is "
-        "then FOUND and still does not survive -",
-        "the lag recomputed from each table's own ordering reads "
-        "+0.98 in the source against -0.00 in the",
-        "output - while the output acquires a SAME-VISIT "
-        "correlation of {:.2f}-{:.2f} on a pair the source".format(
+        "AND IT WAS NOT A FREE POINT UNTIL 2026-11-08. The "
+        "output used to acquire a SAME-VISIT correlation of",
+        "{:.2f}-{:.2f} on a pair the source relates at "
+        "{:+.3f}-{:+.3f}, because the fold applied the LAG's".format(
             min(g for _s, _f, g in LAG_COST),
-            max(g for _s, _f, g in LAG_COST)),
-        "relates at {:+.3f}-{:+.3f}. Without --lags that same "
-        "pair correctly reads 0.00. An invented".format(
+            max(g for _s, _f, g in LAG_COST),
             min(f for _s, f, _g in LAG_COST),
             max(f for _s, f, _g in LAG_COST)),
-        "relationship is worse than a missing one, so this kind "
-        "FAILS survival rather than scoring the point.",
+        "curve at the current visit - an invented relationship, "
+        "which is worse than a missing one.",
+        "NOW THE LAGGED RELATIONSHIP SURVIVES on every seed: "
+        "source {:.2f}-{:.2f} against generated".format(
+            min(x for _s, x, _g, _v in LAG_SURVIVES),
+            max(x for _s, x, _g, _v in LAG_SURVIVES)),
+        "{:.2f}-{:.2f}, and the invented pattern is refused by "
+        "name so it cannot come back unnoticed.".format(
+            min(g for _s, _x, g, _v in LAG_SURVIVES),
+            max(g for _s, _x, g, _v in LAG_SURVIVES)),
     ]
 
 

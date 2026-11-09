@@ -1044,7 +1044,18 @@ def build(df: pd.DataFrame,
     # the old default and are right to. `None` present means "there
     # was no grouping column"; the key absent means "this blueprint
     # predates the question".
-    patients: Dict[str, Any] = {"rows": int(n_rows), "id_column": None}
+    # THE TIME AXIS IS RECORDED, because the dynamics were
+    # MEASURED along it and generation has to be able to put its
+    # output in the same order. Without this the sampler would
+    # need its own detection rule, and two halves deciding
+    # separately what the time axis is is how they come to
+    # disagree - this project says that about token screening, the
+    # scaffolding predicate and the two categorical draw paths.
+    # None means the source had no time axis and the file's own
+    # order is all there is.
+    patients: Dict[str, Any] = {"rows": int(n_rows),
+                                "id_column": None,
+                                "time_column": time_col}
     if group_by and group_by in df.columns:
         per = df.groupby(group_by).size()
         # HOW OFTEN SOMEONE WAS SEEN IS ITSELF IDENTIFYING, and this

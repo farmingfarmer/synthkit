@@ -290,6 +290,88 @@ def _draw_categorical(m: Dict[str, Any], n: int, rng) -> np.ndarray:
     return rng.choice(vals, size=n, p=p)
 
 
+def _dates_in_visit_order(df, gid_col, date_cols, time_col,
+                          report=None):
+    """Put each entity's DATES in ascending order down its rows.
+
+    TWO COLUMNS IN ONE FILE DISAGREED ABOUT THE ORDER OF A
+    PATIENT'S VISITS. `visit_number` is emitted as 1..n in ROW
+    order, which asserts a sequence; a date column is drawn from
+    its marginal, which does not - measured on a two-date fixture,
+    the start dates came out in row order on 0.2% of patients.
+    Any consumer computing a temporal statistic by date was
+    reading a scrambled sequence, and the lagged-parent path
+    applies its curve in ROW order, so without this the two
+    readings of one file disagree about whether a lagged
+    relationship is there at all.
+
+    THE GATE WAS NOT THE VICTIM, and the first version of this
+    docstring said it was. `pipeline.compare` already orders the
+    generated frame by `visit_number` rather than by the date, so
+    it was reading the output correctly all along - and the whole
+    gate is IDENTICAL on both arms of this change, seven criteria
+    unmoved. The claim that a scrambled date was costing the
+    engine a dynamics criterion was mine and it was wrong; what
+    this fixes is the FILE, for whoever reads it next.
+
+    THE VALUES MOVE, NOT THE ROWS. Reordering rows would preserve
+    every within-row relationship exactly - but the persistence
+    lives in the ROW layout, so it would destroy the very thing
+    this repairs. Sorting the date VALUES keeps the layout.
+
+    AND ONE PERMUTATION SERVES EVERY DATE COLUMN, which is what
+    makes a date-to-date identity survive: the real extract
+    declares `visit_start_date <-> visit_end_date` at skill
+    0.9999, and permuting the start dates while the end dates
+    stayed would destroy it. Applying the SAME permutation keeps
+    each row's (start, end) pair together. A relationship between
+    a date and a NON-date does change, and that is the price -
+    reported rather than hidden.
+    """
+    if not time_col or time_col not in df.columns:
+        return df
+    if gid_col not in df.columns:
+        return df
+    movable = [c for c in date_cols if c in df.columns]
+    if time_col not in movable or len(df) < 2:
+        return df
+    key = pd.to_numeric(df[time_col], errors="coerce").to_numpy(
+        dtype=float)
+    g = df[gid_col].astype(str).to_numpy()
+    # Entities are contiguous by construction, so one lexsort over
+    # (key, group) gives each entity's rows in time order while
+    # leaving the entity blocks where they are.
+    perm = np.lexsort((key, g))
+    if np.array_equal(perm, np.arange(len(df))):
+        return df
+    moved = 0
+    for c in movable:
+        before = df[c].to_numpy(copy=True)
+        after = before[perm]
+        if not np.array_equal(
+                np.nan_to_num(np.asarray(before, dtype=float), nan=-1e18),
+                np.nan_to_num(np.asarray(after, dtype=float), nan=-1e18)):
+            moved += 1
+        df[c] = after
+    if report is not None:
+        report["dates_put_in_visit_order"] = {
+            "time_column": time_col,
+            "columns": list(movable),
+            "columns_changed": moved,
+            "why": "a patient's visits happen in time order, and "
+                   "the file numbers them in ROW order - a date "
+                   "column drawn from its marginal agrees with "
+                   "that on a minority of patients, so every "
+                   "temporal statistic read off the output by "
+                   "date was read off a scrambled sequence",
+            "note": "one permutation for every date column, so a "
+                    "date-to-date identity survives; a "
+                    "relationship between a date and a non-date "
+                    "does not",
+        }
+    return df
+
+
 def _prev_within(v, pidx) -> np.ndarray:
     """Each row's value at that patient's PREVIOUS visit, else NaN.
 
@@ -2283,6 +2365,18 @@ def generate(blueprint: Dict[str, Any],
                 again[k] = again.get(k, 0) + v
             if report is not None:
                 report["bounds_pinned_after_repair"] = again
+
+    # A PATIENT'S DATES GO IN VISIT ORDER - see
+    # `_dates_in_visit_order`. After constraint repair, because a
+    # swap moves values between columns, and BEFORE rendering,
+    # because the sort is numeric.
+    _dcols = [c for c in order
+              if (cols.get(c) or {}).get("date")
+              and (cols.get(c) or {}).get("kind") == "numeric"]
+    if _real_gid and _repeated and _dcols:
+        df = _dates_in_visit_order(
+            df, _real_gid, _dcols,
+            (bp.get("patients") or {}).get("time_column"), report)
 
     for c in order:
         qspec = (cols[c] or {}).get("quantity")

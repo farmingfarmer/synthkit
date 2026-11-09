@@ -261,7 +261,7 @@ def main():
                    for k in sorted(_lag)]),
           all(_lag[k] - _base[k] == 1 for k in _lag))
     _cost = BN.LAG_COST
-    check("the recorded COST is an invented same-visit pattern - "
+    check("the recorded COST was an invented same-visit pattern - "
           "source {:+.3f}..{:+.3f} against generated "
           "{:.3f}..{:.3f} - and not a rounding difference"
           .format(min(f for _s, f, _g in _cost),
@@ -269,13 +269,38 @@ def main():
                   min(g for _s, _f, g in _cost),
                   max(g for _s, _f, g in _cost)),
           all(abs(f) < 0.1 and g >= 0.3 for _s, f, g in _cost))
+    # AND THE POST-FIX SWEEP, which is what the extra point now
+    # buys. A check pinning only the OLD cost would punish the
+    # fix; a check pinning only the new result would lose the
+    # record of what the fix was for. Both.
+    _surv = BN.LAG_SURVIVES
+    check("...and the post-fix sweep covers the SAME seeds ({}), "
+          "because a result measured on other seeds is not a "
+          "comparison".format(sorted(sd for sd, _a, _b, _v in _surv)),
+          sorted(sd for sd, _a, _b, _v in _surv) == sorted(_base))
+    check("...and on every one of them the lagged relationship "
+          "SURVIVES - source {:.2f}..{:.2f} against generated "
+          "{:.2f}..{:.2f}, where it read -0.002 before"
+          .format(min(x for _s, x, _g, _v in _surv),
+                  max(x for _s, x, _g, _v in _surv),
+                  min(g for _s, _x, g, _v in _surv),
+                  max(g for _s, _x, g, _v in _surv)),
+          all(abs(g) >= 0.5 * abs(x) and g * x > 0
+              for _s, x, g, _v in _surv))
+    check("...and the recorded survival counts are the SCORED "
+          "denominator, not the kind count ({}), so a kind that "
+          "becomes scorable cannot look like a regression"
+          .format([v for _s, _x, _g, v in _surv]),
+          all(0 < ok <= n == 11 for _s, _x, _g, (ok, n) in _surv))
     _note = "\n".join(BN.seed_range_note())
     check("...and the note states BOTH halves in its own words, "
-          "computed from those tables rather than typed, so the "
-          "extra point cannot be reported without its price",
-          "--lags" in _note and "not a free point" in _note.lower()
+          "computed from those tables rather than typed: what the "
+          "flag cost BEFORE and what it delivers now",
+          "--lags" in _note
+          and "not a free point" in _note.lower()
           and "same-visit" in _note.lower()
-          and "invented" in _note.lower())
+          and "invented" in _note.lower()
+          and "survives on every seed" in _note.lower())
     # ---- THE BLUEPRINT'S OWN FIELD NAMES, READ LIVE ------------
     #
     # The lag diagnostic printed `blueprint planted_lag_y <- []`
