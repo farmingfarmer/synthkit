@@ -346,6 +346,199 @@ def _gate_rows(fid):
             for c in v["criteria"]], bool(v["met"])
 
 
+def _departed_shapes(fid, gen_cols, limit=0):
+    """Published curves whose SHAPE departs, worst first.
+
+    WHY THIS IS A SEPARATE REPAIR FROM THE CORRELATION ONE. Rank
+    correlation is monotone, so a U-shaped or threshold relationship
+    is invisible to `close` - which is the whole reason the
+    `shapes tracked` criterion exists. Measured on the real extract:
+    `condition_count <- visit_start_date` has a source rank
+    correlation of +0.2964 against a generated +0.3223, so `close`
+    passes it comfortably, while its curve departs at 0.4955 sd
+    against a 0.35 bar and its published shape is `non-monotone`.
+    No arrangement aimed at a correlation can fix that, because the
+    correlation is already right.
+    """
+    out = []
+    for r in ((fid.get("shapes") or {}).get("claims") or []):
+        if r.get("tracks"):
+            continue
+        c, p = r.get("child"), r.get("parent")
+        if not c or not p or c not in gen_cols or p not in gen_cols:
+            continue
+        out.append((c, p, float(r.get("gap_sd") or 0.0)))
+    out.sort(key=lambda t: -t[2])
+    return out[:limit] if limit else out
+
+
+def shape_scores(vs_p, vs_c, vg_p, gid_series, k):
+    """The child value the SOURCE's curve implies at each GENERATED
+    row's parent value.
+
+    Read through `curvecheck.cond_curve`, which is the function the
+    GATE measures with - a second binning here would be a second
+    implementation, and this project has watched two halves disagree
+    every time one was written.
+    """
+    import numpy as np
+    from synthkit.curvecheck import cond_curve
+    sp = cond_curve(vs_p, vs_c, gid_series, k)
+    if len(sp) < 3:
+        return None
+    xs = [q[0] for q in sp]
+    ys = [q[1] for q in sp]
+    x = vg_p.to_numpy(dtype=float)
+    out = np.full(len(x), np.nan, dtype=float)
+    ok = np.isfinite(x)
+    out[ok] = np.interp(x[ok], xs, ys)
+    return out
+
+
+def pick_arrangement(cands, bar=0.35, drift_bar=0.10):
+    """Choose among measured arrangements: CLEAR THE BAR FIRST,
+    then do the least damage.
+
+    A PURE FUNCTION over (alpha, gap, drift) triples, because a
+    selection rule buried in a loop cannot be tested. A mutation
+    turning this into a pure gap-minimiser broke NO check while the
+    rule lived inline - twice - and this project has already
+    recorded that a guard only became testable once the function
+    was made pure.
+
+    A pure gap-minimiser picks the arrangement that lands the curve
+    best and hands back a column whose every other relationship is
+    noise. Measured on a child with a strong partner: sorting
+    purely by the target lands the gap at 0.187 and moves that
+    partner by 0.552, where this rule takes 0.239 and 0.221.
+    """
+    best = None
+    for c in cands:
+        gap, drift = float(c["gap"]), float(c["drift"])
+        key = (0 if gap <= bar else 1,
+               0 if drift <= drift_bar else 1, drift, gap)
+        if best is None or key < best[0]:
+            best = (key, c)
+    return None if best is None else best[1]
+
+
+def repair_one_shape(src, gen, child, parent, k=10, gid=None,
+                     alphas=None, bar=0.35, drift_bar=0.10,
+                     record=None):
+    """Rearrange `child` so its curve against `parent` follows the
+    SOURCE's, and report what it cost the child's other pairs.
+
+    A PERMUTATION, like every other repair here: the values moved
+    are the ones the child already held on the rows where both it
+    and the parent are present, so the column keeps its exact
+    multiset and no published bound or marginal can move.
+
+    `alpha` blends the source curve's target with the arrangement
+    the file ALREADY has. At alpha 0 the child is sorted purely by
+    the target, which lands the shape and randomises every other
+    relationship the column has; as alpha rises the existing order
+    is preserved and the shape moves less. The search takes the
+    arrangements that clear the shape bar and, among those, the one
+    that moves the child's OTHER couplings least - the
+    two-objective shape the interaction dial already uses, because
+    a repair that lands one criterion by wrecking three is what two
+    reverted fidelity tiers did.
+    """
+    import numpy as np
+    import pandas as pd
+    from synthkit.curvecheck import shape_gap
+
+    if alphas is None:
+        alphas = [0.0, 0.15, 0.3, 0.5, 0.75, 1.0, 1.5, 2.0, 3.0]
+
+    def num(frame, c):
+        return pd.to_numeric(frame[c], errors="coerce")
+
+    vs_p, vs_c = num(src, parent), num(src, child)
+    vg_p, vg_c = num(gen, parent), num(gen, child)
+    gid_s = src[gid] if (gid and gid in src.columns) else None
+
+    tgt = shape_scores(vs_p, vs_c, vg_p, gid_s, k)
+    if tgt is None:
+        return None, {"why": "the source curve has too few "
+                             "publishable bins to aim at"}
+
+    live = np.isfinite(tgt) & vg_c.notna().to_numpy()
+    if int(live.sum()) < 60:
+        return None, {"why": "too few rows where both the child "
+                             "and the parent are present"}
+
+    # The child's OTHER numeric partners, so the cost is measured
+    # rather than hoped for.
+    others = []
+    for c in gen.columns:
+        if c == child or c == parent:
+            continue
+        v = num(gen, c)
+        if v.notna().mean() < 0.3:
+            continue
+        both = v.notna() & vg_c.notna()
+        if int(both.sum()) < 60:
+            continue
+        rho = pd.Series(vg_c[both]).corr(
+            pd.Series(v[both]), method="spearman")
+        if rho is not None and abs(float(rho)) >= 0.1:
+            others.append((c, float(rho)))
+    others = sorted(others, key=lambda t: -abs(t[1]))[:8]
+
+    base_gap = shape_gap(vs_p, vs_c, vg_p, vg_c, gid_s, k)
+    base_gap = None if base_gap is None else base_gap[0]
+
+    vals = np.sort(vg_c.to_numpy(dtype=float)[live])
+    cur_rank = pd.Series(vg_c[live]).rank(pct=True).to_numpy()
+    t_z = tgt[live]
+    t_z = (t_z - t_z.mean()) / (t_z.std() or 1.0)
+    c_z = (cur_rank - cur_rank.mean()) / (cur_rank.std() or 1.0)
+
+    cands = []
+    for alpha in alphas:
+        score = t_z + alpha * c_z
+        order = np.argsort(np.argsort(score))
+        trial = vg_c.to_numpy(dtype=float).copy()
+        trial[live] = vals[order]
+        tser = pd.Series(trial, index=gen.index)
+        g = shape_gap(vs_p, vs_c, vg_p, tser, gid_s, k)
+        if g is None:
+            continue
+        gap = g[0]
+        drift = 0.0
+        for c, rho0 in others:
+            v = num(gen, c)
+            both = v.notna() & tser.notna()
+            r = pd.Series(tser[both]).corr(
+                pd.Series(v[both]), method="spearman")
+            if r is not None:
+                drift = max(drift, abs(float(r) - rho0))
+        cands.append({"alpha": alpha, "gap": float(gap),
+                      "drift": float(drift), "values": trial})
+    cand = pick_arrangement(cands, bar=bar,
+                            drift_bar=drift_bar)
+    if cand is None:
+        return None, {"why": "no arrangement could be measured"}
+
+    out = gen.copy()
+    # Write back in the column's own rendering, so a round trip
+    # through the file does not change what a reader sees.
+    newcol = out[child].to_numpy(dtype=object).copy()
+    for pos in np.where(live)[0]:
+        newcol[pos] = cand["values"][pos]
+    out[child] = newcol
+    if record is not None:
+        record[child] = {"by": parent, "alpha": cand["alpha"]}
+    return out, {"child": child, "parent": parent,
+                 "gap_before": base_gap, "gap_after": cand["gap"],
+                 "alpha": cand["alpha"], "worst_other_drift":
+                     cand["drift"], "bar": bar,
+                 "partners_watched": [c for c, _ in others],
+                 "cleared": cand["gap"] <= bar,
+                 "held_others": cand["drift"] <= drift_bar}
+
+
 def main(argv=None):
     ap = argparse.ArgumentParser(
         description="repair INVERTED pairs and re-measure the gate")
@@ -363,6 +556,22 @@ def main(argv=None):
                          "cost others - which is not a "
                          "hypothesis, it is what two reverted "
                          "fidelity tiers did.")
+    ap.add_argument("--shapes", action="store_true",
+                    help="repair the published CURVES that "
+                         "DEPART instead of the pairs. A "
+                         "different repair, because rank "
+                         "correlation is monotone: on the "
+                         "real extract `condition_count <- "
+                         "visit_start_date` has a source "
+                         "rank correlation of +0.2964 "
+                         "against a generated +0.3223, so "
+                         "`close` passes it comfortably, "
+                         "while its NON-MONOTONE curve "
+                         "departs at 0.4955 sd against a "
+                         "0.35 bar. No arrangement aimed at "
+                         "a correlation can fix that, "
+                         "because the correlation is "
+                         "already right.")
     ap.add_argument("--via-sets", action="store_true",
                     help="also repair close misses on TOKEN "
                          "INDICATORS by rearranging the set "
@@ -493,6 +702,19 @@ def main(argv=None):
             return 0
         pairs = [(c, p) for c, p, _w, _d in drifted]
         targets = dict(((c, p), w) for c, p, w, _d in drifted)
+    elif a.shapes:
+        pairs = []
+        shp = _departed_shapes(fid, set(gen.columns),
+                               limit=a.max)
+        print("published curves whose SHAPE departs "
+              "(bar 0.35 sd): {}".format(len(shp)))
+        for c, p, g in shp:
+            print("  {:<28} <- {:<28} gap {:.4f}"
+                  .format(c[:28], p[:28], g))
+        if not shp:
+            print("nothing to repair - every published "
+                  "curve tracks")
+            return 0
     else:
         pairs = _inverted_pairs(fid)
         print("inverted pairs recorded by this run: {}"
@@ -506,6 +728,26 @@ def main(argv=None):
     rep, notes = repair(src, gen, pairs, seed=a.seed,
                         targets=targets) if pairs \
         else (gen.copy(), [])
+
+    # THE SHAPE REPAIRS, each aimed at the SOURCE's own
+    # curve and each reporting what it cost the child's
+    # other couplings. Applied one at a time so a second
+    # repair sees the first one's arrangement rather than
+    # the original - two repairs solved independently and
+    # applied together is how they undo each other.
+    _shape_notes = []
+    if a.shapes:
+        _k = ((bp.get('privacy') or {}).get('k')) or 10
+        for c, p, _g in locals().get('shp', []):
+            got, note = repair_one_shape(
+                src, rep, c, p, k=_k, gid=a.group_by)
+            if got is None:
+                _shape_notes.append(
+                    {'child': c, 'parent': p,
+                     'why': note.get('why')})
+                continue
+            rep = got
+            _shape_notes.append(note)
 
     # THE SET REARRANGEMENTS, APPLIED AFTER. Each moves one
     # whole set column so a token of it recovers its tie; the
@@ -534,6 +776,23 @@ def main(argv=None):
         print("  {:<30} {:<24} {:<12} rows {:>6}  "
               "pair {:+.3f} -> {:+.3f}".format(
                   child[:30], parent[:24], what, n, before, after))
+
+    for sn in _shape_notes:
+        if sn.get("why"):
+            print("  {:<30} <- {:<22} NOT REPAIRED: {}"
+                  .format(str(sn.get("child"))[:30],
+                          str(sn.get("parent"))[:22],
+                          sn["why"]))
+            continue
+        print("  {:<30} <- {:<22} shape {:.4f} -> {:.4f}  "
+              "{}  | other pairs moved at most {:.3f} {}"
+              .format(sn["child"][:30], sn["parent"][:22],
+                      sn["gap_before"] or float("nan"),
+                      sn["gap_after"],
+                      "CLEARS" if sn["cleared"] else "SHORT",
+                      sn["worst_other_drift"],
+                      "(held)" if sn["held_others"]
+                      else "<- OVER the 0.10 drift bar"))
 
     time_col = bp.get("time_column") or None
     ordinals = bp.get("ordinals") or None

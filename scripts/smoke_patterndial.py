@@ -620,6 +620,175 @@ def main():
               "list",
               "with nc" in _o3)
 
+    # SHAPE REPAIR: THE CRITERION `close` CANNOT SEE.
+    #
+    # Rank correlation is monotone, so a U-shape is invisible to it.
+    # Measured on the real extract: `condition_count <-
+    # visit_start_date` has a source rank correlation of +0.2964
+    # against a generated +0.3223 - `close` passes it comfortably -
+    # while its NON-MONOTONE curve departs at 0.4955 sd against a
+    # 0.35 bar. No arrangement aimed at a correlation can fix that,
+    # because the correlation is already right.
+    from repair_inversions import (repair_one_shape,      # noqa: E402
+                                   _departed_shapes,
+                                   pick_arrangement)
+    from synthkit.curvecheck import shape_gap             # noqa: E402
+
+    _rg = np.random.default_rng(7)
+    _n = 4000
+    _pid = ["P%04d" % (i // 4) for i in range(_n)]
+    _xs = _rg.uniform(0, 1, _n)
+    _ys = 4.0 * (_xs - 0.5) ** 2 + _rg.normal(0, 0.08, _n)
+    _src = pd.DataFrame({"person_id": _pid, "x": _xs, "y": _ys,
+                         "w": 0.3 * _ys + _rg.normal(0, 0.9, _n)})
+    # The generated table keeps the MARGINALS and loses the U: `y`
+    # is drawn independently of `x`, so the curve is flat.
+    _yg = np.random.default_rng(8).permutation(_ys)
+    _gen = pd.DataFrame({"person_id": _pid,
+                         "x": _rg.uniform(0, 1, _n), "y": _yg,
+                         "w": 0.3 * _yg + _rg.normal(0, 0.9, _n)})
+
+    _rho = float(_src["x"].corr(_src["y"], method="spearman"))
+    check("the fixture carries the thing this repair is about: a "
+          "planted U-shape whose RANK CORRELATION is {:+.3f}, so "
+          "`close` cannot see it and a correlation-targeting "
+          "repair has nothing to aim at".format(_rho),
+          abs(_rho) < 0.1)
+
+    _g0 = shape_gap(_src["x"], _src["y"], _gen["x"],
+                    pd.to_numeric(_gen["y"]), _src["person_id"], 10)
+    check("...and the generated table DEPARTS on it before any "
+          "repair ({:.3f} sd against a 0.35 bar) - a repair "
+          "measured on a table that already tracks proves "
+          "nothing".format(_g0[0]),
+          _g0 is not None and _g0[0] > 0.35)
+
+    _out, _note = repair_one_shape(_src, _gen, "y", "x", k=10,
+                                   gid="person_id")
+    check("...and the repair LANDS the curve: {:.4f} -> {:.4f}, "
+          "inside the bar".format(_note["gap_before"],
+                                  _note["gap_after"]),
+          _out is not None and _note["cleared"]
+          and _note["gap_after"] <= 0.35)
+
+    # A PERMUTATION, OR THE PRIVACY POSTURE MOVES. The column must
+    # hold the identical multiset: the published bounds, the point
+    # masses and every marginal are what the generator produced.
+    _a = np.sort(pd.to_numeric(_gen["y"]).to_numpy())
+    _b = np.sort(pd.to_numeric(_out["y"]).to_numpy())
+    check("...and it is a PERMUTATION - the column holds the "
+          "identical multiset, so no published bound or marginal "
+          "can move and the change is invertible",
+          np.array_equal(_a, _b)
+          and not np.array_equal(
+              pd.to_numeric(_gen["y"]).to_numpy(),
+              pd.to_numeric(_out["y"]).to_numpy()))
+
+    check("...and every OTHER column is untouched - a repair that "
+          "quietly moved a second column would be a different "
+          "change wearing this one's name",
+          _out["w"].equals(_gen["w"])
+          and _out["x"].equals(_gen["x"]))
+
+    # THE COST IS REPORTED, NOT HOPED FOR. A rearrangement aimed at
+    # one curve moves every other relationship the child has, and
+    # this project has reverted two fidelity tiers that landed one
+    # criterion by damaging others.
+    check("...and the cost to the child's OTHER couplings is "
+          "MEASURED and named ({:.3f}, bar 0.10) rather than left "
+          "for the whole-gate re-measure to discover"
+          .format(_note["worst_other_drift"]),
+          "worst_other_drift" in _note and "held_others" in _note
+          and isinstance(_note["partners_watched"], list))
+
+    # THE SEARCH MUST NOT BE A PURE GAP-MINIMISER, AND SAYING SO
+    # NEEDS A FIXTURE WHERE THE TWO OBJECTIVES DISAGREE.
+    #
+    # The first version of this check asserted `alpha > 0` on the
+    # fixture above - and a mutation making the search a pure
+    # gap-minimiser broke NOTHING, because there the smallest gap
+    # happens to sit at the same alpha. A check that cannot
+    # separate a mechanism from its absence is not testing it.
+    #
+    # Here the child has a STRONG other partner, so sorting it
+    # purely by the target lands the gap and wrecks that partner.
+    _ys2 = 4.0 * (_xs - 0.5) ** 2 + _rg.normal(0, 0.08, _n)
+    _src2 = pd.DataFrame({"person_id": _pid, "x": _xs, "y": _ys2,
+                          "w": 0.7 * _ys2 + _rg.normal(0, 0.3, _n)})
+    _yg2 = np.random.default_rng(8).permutation(_ys2)
+    _gen2 = pd.DataFrame({"person_id": _pid,
+                          "x": _rg.uniform(0, 1, _n), "y": _yg2,
+                          "w": 0.7 * _yg2 + _rg.normal(0, 0.3, _n)})
+    _, _free = repair_one_shape(_src2, _gen2, "y", "x", k=10,
+                                gid="person_id")
+    _, _pure = repair_one_shape(_src2, _gen2, "y", "x", k=10,
+                                gid="person_id", alphas=[0.0])
+
+    check("the fixture for this one carries a STRONG other "
+          "partner, so the two objectives genuinely disagree: "
+          "sorting purely by the target lands the gap at {:.3f} "
+          "and moves that partner by {:.3f}"
+          .format(_pure["gap_after"], _pure["worst_other_drift"]),
+          _pure["worst_other_drift"] > 0.25)
+
+    check("...and the search TRADES gap for damage rather than "
+          "minimising gap alone - it moves the child's other "
+          "couplings by {:.3f} where the pure gap-minimiser moves "
+          "them {:.3f}".format(_free["worst_other_drift"],
+                               _pure["worst_other_drift"]),
+          _free["worst_other_drift"] < _pure["worst_other_drift"]
+          - 0.05)
+
+    # THE RULE ITSELF, ON PLANTED ARRANGEMENTS. Twice a mutation
+    # turning the search into a pure gap-minimiser broke NO check,
+    # because the comparison arms differed in the GRID rather than
+    # in the RULE. A selection rule buried in a loop cannot be
+    # tested; this is the same fix this project applied when a
+    # control guard only became testable once it was pure.
+    _c = [{"alpha": 0.0, "gap": 0.05, "drift": 0.90},
+          {"alpha": 1.0, "gap": 0.30, "drift": 0.02}]
+    check("the selection rule CLEARS THE BAR FIRST, THEN DOES THE "
+          "LEAST DAMAGE: offered a 0.05-gap arrangement that moves "
+          "other pairs by 0.90 and a 0.30-gap one that moves them "
+          "0.02, it takes the second - a pure gap-minimiser takes "
+          "the first and hands back a column whose every other "
+          "relationship is noise",
+          pick_arrangement(_c)["alpha"] == 1.0)
+
+    check("...and where NOTHING clears the bar it still takes the "
+          "least damaging, rather than refusing to choose",
+          pick_arrangement([{"alpha": 0.0, "gap": 0.8, "drift": 0.5},
+                            {"alpha": 2.0, "gap": 0.9, "drift": 0.1}]
+                           )["alpha"] == 2.0)
+
+    check("...and among arrangements that ALL clear both bars it "
+          "takes the least damaging, so a tie on the criterion is "
+          "broken by what it costs",
+          pick_arrangement([{"alpha": 0.0, "gap": 0.1, "drift": 0.08},
+                            {"alpha": 1.0, "gap": 0.2, "drift": 0.01}]
+                           )["alpha"] == 1.0)
+
+    check("...and it still clears the shape bar while doing so "
+          "({:.4f} against 0.35), so the trade is not simply "
+          "declining to repair".format(_free["gap_after"]),
+          _free["cleared"])
+
+    # AND IT READS THE GATE'S OWN RECORD. A departed shape is found
+    # from fidelity.json, and one that TRACKS must not be offered.
+    _fid = {"shapes": {"claims": [
+        {"child": "y", "parent": "x", "gap_sd": 0.9,
+         "tracks": False},
+        {"child": "y", "parent": "w", "gap_sd": 0.1,
+         "tracks": True},
+        {"child": "y", "parent": "gone", "gap_sd": 2.0,
+         "tracks": False}]}}
+    _dep = _departed_shapes(_fid, {"y", "x", "w"})
+    check("departed curves are read from the run's own record, "
+          "worst first - a curve that TRACKS is not offered, and "
+          "one on a column absent from generated.csv is dropped "
+          "because no rearrangement can reach it",
+          _dep == [("y", "x", 0.9)])
+
     print()
     if FAIL:
         print("{} FAILED".format(FAIL))
