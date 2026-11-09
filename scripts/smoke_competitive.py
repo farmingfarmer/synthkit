@@ -91,6 +91,41 @@ def check(label, cond):
         print("FAIL: {}".format(label))
 
 
+# HOW THE SHIPPED STUB ANNOUNCES ITSELF. The team bundle
+# deliberately replaces CONVENTIONS.md with a seven-line note
+# saying where the real one lives, because ten code comments
+# reference it by name. That is right - the lab notebook does not
+# travel - and it means the figure check below has no record to
+# verify against INSIDE the bundle.
+_STUB_MARKER = "It lives in the internal development repo"
+
+
+def record_is_stub(text):
+    """Is this the shipped placeholder rather than the record?
+
+    Read from the stub's OWN SENTENCE rather than inferred from
+    its size or its heading count: a proxy would start lying the
+    day somebody writes a short record or a long stub.
+    """
+    return _STUB_MARKER in text
+
+
+def conventions_text():
+    """The lab notebook ALONE, which is the file that can be a stub.
+
+    `record_text` concatenates the notebook and the scorecard, and
+    the SCORECARD travels - so the combined text carries real `##`
+    sections even in the bundle, and a premise written against it
+    ("this record has sections, so it must not look like a stub")
+    is true there and wrong. Found by running the suite in the
+    filtered tree, which is the only place that distinction
+    exists.
+    """
+    f = ROOT / "CONVENTIONS.md"
+    return (io.open(str(f), encoding="utf-8").read()
+            if f.exists() else "")
+
+
 def record_text():
     """Everything this project has written down about itself."""
     out = []
@@ -245,21 +280,87 @@ def main():
 
     # ---- THE LOAD-BEARING ONE: our numbers are OUR numbers
     rec = record_text()
+    _conv = conventions_text()
+    _stub = record_is_stub(_conv)
     nums = doc_numbers(body_raw)
     check("the page actually states figures to check ({} "
           "found) - an extractor that matched nothing would "
           "make the next check pass on an empty set"
           .format(len(nums)), len(nums) >= 15)
+    # THE STUB DETECTOR, ON PLANTED INPUTS. A pure function
+    # exercised both ways, because the branch it controls SKIPS a
+    # check - and a detector that said `stub` on the real record
+    # would silently turn the load-bearing figure check off here
+    # as well as in the bundle.
+    # ON PLANTED INPUTS, BOTH DIRECTIONS, so the check means the
+    # same thing in the dev tree and in the filtered bundle. The
+    # first version asserted `not record_is_stub(rec)` against
+    # the LIVE record and asserted that this tree is not the stub
+    # - both true here and both FALSE in the bundle, so a suite
+    # written to survive the bundle went red there for a second
+    # reason of my own making.
+    check("the stub detector reads the placeholder's OWN "
+          "sentence, both ways: a shipped stub is recognised and "
+          "a record carrying real sections is not",
+          record_is_stub("# Lab notebook\n\nIt lives in the "
+                         "internal development repo.\n")
+          and not record_is_stub("## Numbers before conclusions"
+                                 "\n\nsomething measured.\n"))
+    # AND A MARKER TOO BROAD TURNS THE FIGURE CHECK OFF
+    # EVERYWHERE AND NOTHING NOTICES - the hole a mutation found.
+    # Replacing the stub's own sentence with, say, "CONVENTIONS"
+    # would match the REAL record too, the gate would skip in the
+    # development tree as well, and the suite would stay green
+    # having stopped checking the thing it exists for. So a
+    # record that carries real SECTIONS must not look like a
+    # stub: that is checkable in the tree where it matters and
+    # skips itself by its own premise in the bundle, where the
+    # stub genuinely has none.
+    if "## " in _conv:
+        check("a NOTEBOOK carrying real sections must NOT match "
+              "the stub marker - a marker broad enough to match "
+              "both would skip the figure check in every tree "
+              "and leave the suite green",
+              not record_is_stub(_conv))
+    if _stub:
+        print("     NOTE: this tree carries the shipped stub, so "
+              "the figure check is skipped below - it is applied "
+              "in the development tree, where the record lives")
+    else:
+        check("...and THIS tree carries the real record, so the "
+              "figure check below actually runs here - a gate "
+              "that skipped everywhere would be a check nobody "
+              "ever applies",
+              not _stub)
     strays = [n for n in nums if n not in rec]
-    check("EVERY figure the page states appears in this "
-          "project's own record ({} checked) - the oldest rule "
-          "here is never to state a number as measured unless "
-          "somebody ran it, and a comparison page is the one "
-          "most tempted to break it{}"
-          .format(len(nums),
-                  "" if not strays else
-                  " - NOT in the record: {}".format(strays)),
-          not strays)
+    _figlabel = ("EVERY figure the page states appears in this "
+                 "project's own record ({} checked) - the oldest "
+                 "rule here is never to state a number as "
+                 "measured unless somebody ran it, and a "
+                 "comparison page is the one most tempted to "
+                 "break it{}"
+                 .format(len(nums),
+                         "" if not strays else
+                         " - NOT in the record: {}".format(strays)))
+    if _stub:
+        # THE RECORD DOES NOT TRAVEL, SO THIS CHECK CANNOT RUN IN
+        # THE BUNDLE - and it ran anyway, reporting every figure
+        # as unrecorded. The team bundle ships a seven-line stub
+        # in place of CONVENTIONS.md, deliberately: the lab
+        # notebook stays in the internal repo. So inside the
+        # bundle the suite failed on 44 figures that are all
+        # perfectly well recorded - a red check about nothing,
+        # on the one tree a teammate actually runs.
+        #
+        # SKIPPED WITH A PRINTED NOTE, never silently: a skipped
+        # check that says nothing reads as a check that passed,
+        # which is the rule `smoke_buildid` follows for git and
+        # `smoke_gui` for node and Chrome.
+        print("     NOTE: {} - SKIPPED, the record is the shipped "
+              "stub rather than the lab notebook, which does not "
+              "travel".format(_figlabel[:60]))
+    else:
+        check(_figlabel, not strays)
 
     # ---- SOURCES, BECAUSE A CLAIM ABOUT SOMEBODY ELSE NEEDS ONE
     links = re.findall(r"\[([^\]]+)\]\((https?://[^)]+)\)", raw)

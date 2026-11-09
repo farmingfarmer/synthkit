@@ -663,6 +663,7 @@ def discover(df: pd.DataFrame,
                     _num_src[_j], set()).add(_num_src[_i])
 
     claims, unexplained, skipped = [], [], []
+    empty_feats = []
 
     for idx, target in enumerate(want):
         if progress:
@@ -719,6 +720,21 @@ def discover(df: pd.DataFrame,
         _live = [c for c in feats
                  if bool(X_all.loc[tr, c].notna().any())]
         if len(_live) != len(feats):
+            # REPORTED, because a frame with columns empty inside
+            # a target's own rows is a fact about the DATA that an
+            # operator would want to know - and because a check
+            # can then assert the DECISION rather than a digest of
+            # the output. A digest pin is library-version
+            # dependent: the one written for this changed between
+            # pandas 2.3 and pandas 3 and failed the team's own
+            # 3.10 lane while the engine was behaving identically.
+            empty_feats.append({
+                "column": target,
+                "dropped": sorted(set(feats) - set(_live)),
+                "why": "entirely missing on the rows where this "
+                       "column is observed, so they carry no "
+                       "information about it - and scikit-learn "
+                       "1.9 refuses an all-NaN feature outright"})
             feats = _live
             if not feats:
                 skipped.append({
@@ -1159,6 +1175,10 @@ def discover(df: pd.DataFrame,
         "claims": claims,
         "unexplained": sorted(unexplained),
         "skipped": skipped,
+        # Columns that were empty INSIDE a target's own rows. A
+        # fact about the data, and the decision a check can
+        # assert instead of a digest of the output.
+        "empty_in_slice": empty_feats,
         "identifiers_dropped": identifiers,
         "columns_considered": len(want),
         "holdout": {"patients": n_te_g, "train_patients": n_tr_g,

@@ -3,6 +3,68 @@
 Synthetic clinical data generator and model-evaluation instrument. Core rule: learn the patterns, never copy the records. Real data teaches parameters; generation never touches a record.
 
 ## Verify before claiming
+- **A SUITE WRITTEN TO SURVIVE THE TEAM BUNDLE FAILED IN IT, AND
+  THE RECORD IT VERIFIES IS THE THING THAT DOES NOT TRAVEL
+  (2026-11-08).** `smoke_competitive` checks that every figure
+  the comparison page states appears in this project's own
+  record - and the bundle ships a SEVEN-LINE STUB in place of
+  CONVENTIONS.md, deliberately, because the lab notebook stays in
+  the internal repo. So inside the bundle the suite reported
+  **44 figures as unrecorded** and went red about nothing, on the
+  one tree a teammate actually runs. This file already records
+  the lesson for this exact suite - "a suite that cannot run
+  inside the filtered bundle is a suite the team cannot run at
+  all" - and the previous fix was to stop reading the sprint
+  board; the notebook itself being a stub was the half left.
+  SKIPPED with a printed NOTE now, the `gated()` pattern: dev
+  tree 19 checks, bundle 16 plus two notes, and the delta
+  decomposes.
+- **THE STUB IS DETECTED FROM ITS OWN SENTENCE, not from its size
+  or its heading count** - a proxy would start lying the day
+  somebody writes a short record or a long stub.
+- **AND A MARKER TOO BROAD WOULD TURN THE CHECK OFF EVERYWHERE
+  AND NOTHING WOULD NOTICE**, which a mutation found: replacing
+  the stub's sentence with "CONVENTIONS" matches the REAL record
+  too, so the gate skips in the development tree as well and the
+  suite stays green having stopped checking the thing it exists
+  for. A notebook carrying real `##` sections must NOT match the
+  marker, and that turns two checks red.
+- **AND MY FIRST GUARD HAD ITS PREMISE ON THE WRONG FILE.**
+  `record_text()` concatenates the notebook AND the scorecard,
+  and the SCORECARD TRAVELS - so the combined text carries real
+  sections even in the bundle, and "this record has sections so
+  it must not look like a stub" was true here and wrong there.
+  Only running the suite in the filtered tree shows that
+  distinction; it is now gated on the notebook alone.
+- **AND A DIGEST PIN IS LIBRARY-VERSION DEPENDENT, WHICH BROKE
+  THE TEAM'S OWN 3.10 LANE.** The sparse-slice fix was checked by
+  pinning a sha of discovery's whole catalogue on a frame with
+  nothing to drop - proving the change moves nothing. That digest
+  reads `543448fe03994fb4` on pandas 3 and `14465360208811da` on
+  pandas 2.3, so the check failed on 3.10 while the engine
+  behaved identically. **Assert the DECISION, not a digest of the
+  output**: discovery now REPORTS which columns were empty inside
+  a target's own rows - a fact about the data an operator would
+  want - and the check asserts that the drop fires on the sparse
+  frame, names the column, and does NOT fire where there is
+  nothing to drop. Version-independent, and green on both lanes.
+- **AND THE FIXTURE FOR IT WAS SPARSE-AND-HOPEFUL.** It planted a
+  column present on 8% of rows and expected it to empty inside
+  some target's slice; at 1,920 rows it never did and the check
+  went red reporting zero. The condition is that a predictor is
+  absent on exactly the rows where the TARGET is observed, so the
+  fixture makes it DISJOINT BY CONSTRUCTION - the two columns
+  never co-occur. A fixture must contain the thing the check is
+  about, and "sparse" was not specific enough.
+- **AND THE MUTATION READ `0 FAIL LINES` ON THE NEWER LANE, WHICH
+  IS THE CRASHED-SUITE TRAP.** Removing the drop makes the suite
+  CRASH on scikit-learn 1.9 - traceback, exit 1, and no `FAIL:`
+  line for a grep to count - while on 3.10, where the library
+  tolerates an all-NaN feature, a check goes red on the missing
+  report. Both detect it; reading the filtered count alone said
+  one of them did not. The verdict comes from the SUCCESS MARKER,
+  which is absent in both.
+
 - **THE COMPUTABLE CEILING'S CENTRAL CLAIM IS NOW CHECKED, AND
   THE METRIC WOULD NOT TAKE A NUMPY ARRAY (2026-11-08).** The
   claim is that the exam measures the SOLVER and not the

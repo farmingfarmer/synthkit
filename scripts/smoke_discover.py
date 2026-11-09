@@ -19,12 +19,6 @@ sys.path.insert(0, str(ROOT))
 from synthkit.discover import (                     # noqa: E402
     claims_as_edges, discover, prepare)
 
-# THE RECORDED DIGEST of discovery's answer on a frame with no
-# sparse column. A pin rather than a two-arm comparison, because
-# the property is that dropping an all-missing feature changes
-# NOTHING where there is nothing to drop - and a check cannot
-# carry the previous implementation beside it.
-NO_SPARSE_DIGEST = "543448fe03994fb4"
 
 PASS = FAIL = 0
 
@@ -240,10 +234,18 @@ def main():
         c = _np.where(a > 55, 1.0, 0.0) * 8 + rg.normal(0, 1, N)
         out = {"person_id": pid, "a": a, "b": b, "c": c}
         if sparse:
-            # present on 8% of rows - the shape that empties
-            # inside a split
-            out["sp"] = _np.where(rg.random(N) < 0.08,
-                                  rg.normal(5, 1, N), _np.nan)
+            # DISJOINT BY CONSTRUCTION, not sparse-and-hopeful.
+            # The first version planted a column present on 8% of
+            # rows and expected it to empty inside some target's
+            # slice - at 1,920 rows it never did, and the check
+            # went red reporting zero. The condition is that a
+            # predictor is absent on exactly the rows where the
+            # TARGET is observed, so the fixture makes that true:
+            # `tgt` and `sp` never co-occur.
+            half = rg.random(N) < 0.5
+            out["tgt"] = _np.where(half, a * 0.8 + 3.0, _np.nan)
+            out["sp"] = _np.where(half, _np.nan,
+                                  rg.normal(5, 1, N))
         return _pd.DataFrame(out)
 
     _sp_cat = discover(_planted(sparse=True), group_by="person_id",
@@ -255,17 +257,36 @@ def main():
           .format(len(_sp_cat.get("claims") or [])),
           len(_sp_cat.get("claims") or []) >= 2)
 
-    # AND THE FIX CHANGES NOTHING WHERE IT IS NOT NEEDED, pinned
-    # as a digest - a change inside discovery could quietly move
-    # every number downstream of it.
+    # AND THE CHECK IS THE DECISION, NOT A DIGEST OF THE OUTPUT.
+    #
+    # The first version pinned a sha of discovery's whole
+    # catalogue on a frame with no sparse column, to prove the
+    # drop moves nothing where there is nothing to drop. That
+    # digest is LIBRARY-VERSION DEPENDENT: it differed between
+    # pandas 2.3 and pandas 3 and failed the team's own 3.10 lane
+    # while the engine behaved identically on both. The decision
+    # itself does not move - the drop either fired or it did not -
+    # and discovery REPORTS it now, which is also a fact about
+    # the data an operator would want.
     _nos = discover(_planted(sparse=False), group_by="person_id",
                     seed=1)
-    _h = _hl.sha256(_js.dumps(_nos, sort_keys=True, default=str)
-                    .encode()).hexdigest()[:16]
-    check("...and a frame with NO sparse column is discovered to "
-          "the RECORDED digest ({}), so the drop cannot be "
-          "quietly moving the engine's answer".format(_h),
-          _h == NO_SPARSE_DIGEST)
+    check("the drop FIRES on the sparse frame and is REPORTED - "
+          "{} target(s) had a feature empty inside their own "
+          "rows".format(len(_sp_cat.get("empty_in_slice") or [])),
+          bool(_sp_cat.get("empty_in_slice")))
+    check("...and the report NAMES the column, because a "
+          "predictor silently removed is a change made behind "
+          "the operator's back ({})"
+          .format([(e["column"], e["dropped"])
+                   for e in (_sp_cat.get("empty_in_slice")
+                             or [])][:2]),
+          all(e.get("dropped")
+              for e in (_sp_cat.get("empty_in_slice") or [])))
+    check("...and it does NOT fire on a frame with no sparse "
+          "column ({}), so the drop cannot be quietly removing "
+          "predictors where there is nothing to remove"
+          .format(_nos.get("empty_in_slice")),
+          not _nos.get("empty_in_slice"))
 
     # the raw library behaviour, so the next reader knows this is
     # sklearn's and not ours
