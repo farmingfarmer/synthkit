@@ -396,6 +396,65 @@ Synthetic clinical data generator and model-evaluation instrument. Core rule: le
 - Never state a number as measured unless you actually ran it.
 
 ## Fixing what the real extract found
+- **THE CURVE `close` CANNOT SEE NOW HAS A REPAIR, AND ON THE REAL
+  EXTRACT IT REFUSES - WHICH IS THE ANSWER (2026-11-09).** The
+  deliverable's one departed shape is `condition_count <-
+  visit_start_date`, and it is the case the criterion exists for:
+  source rank correlation **+0.2964** against a generated
+  **+0.3223**, so `close` passes it comfortably, while the curve
+  departs at **0.4955 sd** against a 0.35 bar and the published
+  shape is `non-monotone`. No arrangement aimed at a CORRELATION
+  can fix that, because the correlation is already right.
+  `repair_inversions --shapes` aims at the SOURCE's own curve
+  instead. On a planted U-shape whose rank correlation is +0.013 it
+  takes the gap from **1.6205 to 0.0414** as a permutation, with
+  zero drift on the child's other couplings.
+  On the real extract it reports **0.4955 -> 0.5060, SHORT**, with
+  the best arrangement available moving other pairs by **0.171**
+  against a 0.10 bar - and the whole gate reads SAME on every
+  criterion. `condition_count` is a HUB (it is a set-size partner),
+  so every arrangement that follows the date curve fights its other
+  relationships, and the joint constraint binds before the bar is
+  reached. **A measured refusal, not a failure to try.**
+- **AND THE FIRST REAL RUN DECLINED FOR THE WRONG REASON, ON THE
+  WRONG-TYPE FAULT.** It reported "the source curve has too few
+  publishable bins to aim at" about a pair the gate had just
+  measured at 0.4955. `compare` runs both tables through `prepare`
+  before `measure_shapes` sees them, so a DATE parent is numeric
+  THERE; the repair read the raw CSV, `pd.to_numeric` returned
+  all-NaN for `visit_start_date`, and the curve came back with too
+  few bins. A column read as the wrong type fails SILENTLY, and
+  every fixture here had a NUMERIC parent so none could reach it.
+  Measured on the frame the gate measures on now, with a
+  date-parent fixture pinned: 1.7012 -> 0.3166, the date column
+  itself untouched, and the mutation back to the raw frame turns
+  four checks red.
+- **AND THE SELECTION RULE TOOK THREE ATTEMPTS TO MAKE TESTABLE.**
+  A mutation turning the search into a pure gap-minimiser broke NO
+  check twice: the first comparison asserted `alpha > 0` on a
+  fixture where the smallest gap sits at the same alpha, and the
+  second compared arms that differed in the GRID rather than in the
+  RULE. `pick_arrangement` is a PURE function over (alpha, gap,
+  drift) triples now, asserted on planted arrangements - offered a
+  0.05-gap arrangement that moves other pairs by 0.90 and a
+  0.30-gap one that moves them 0.02 it must take the second - and
+  the same mutation turns three checks red. This project already
+  recorded that a guard only became testable once the function was
+  made pure; it is the same fix.
+- **WHAT THIS SETTLES ABOUT PASSING THE WHOLE GATE.** The repair
+  loop reaches the PAIR criteria - `close`, `inverted`, `direction`
+  - and it works: the deliverable goes from four of nine to six of
+  nine. It does NOT reach `shapes tracked` on this file, for a
+  measured reason rather than a missing feature. And it cannot
+  reach `interaction surfaces` (0/5, gaps 0.70 to 1.38 against a
+  0.35 bar, and **54 of the 61 published surfaces cannot even be
+  MEASURED** because they involve token indicators the written file
+  does not carry) or `dynamics tracked` (17/87, a row-level engine
+  with no trajectory model). Those three are FULL-MARKS criteria on
+  large denominators. Six of nine is the honest ceiling for
+  rearrangement on this artifact, and saying so is worth more than
+  a plan to reach nine.
+
 - **THE TWELVE PAIRS WERE NEVER A REGRESSION: THE DELIVERABLE AND
   EVERY ARM MEASURED AGAINST IT WERE BUILT BY DIFFERENT ENGINES
   (2026-11-09, read off the artifacts).** `run_deliverable`'s
