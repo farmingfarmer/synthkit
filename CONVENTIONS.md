@@ -396,6 +396,168 @@ Synthetic clinical data generator and model-evaluation instrument. Core rule: le
 - Never state a number as measured unless you actually ran it.
 
 ## Fixing what the real extract found
+- **THE SEARCH AND THE CONTRACT DISAGREE ABOUT WHICH SET TOKENS
+  EXIST, SO A RELATIONSHIP FOUND CORRECTLY CANNOT BE PUBLISHED -
+  AND THE CLAIM SURVIVES NAMING A PARENT THAT DOES NOT DRIVE IT
+  (2026-11-09).** `--expand-by signal` expands the tokens that
+  MEASURE as related to a numeric column; the blueprint's
+  modelled indicator columns are the first `EXPAND_CAP` by
+  FREQUENCY. On a 300-patient fixture with a 120-token middle
+  band, every figure from one paired run:
+      the planted driver, found    importance 0.633, skill 0.281
+      blueprint parents published  ['drug_routes'] at 0.004
+      the driver in `excluded`     NOWHERE - a bare `continue`
+      source lift of the driver            +2.530
+      generated lift                       +0.046
+  The blueprint models exactly **72** indicators, which is
+  `24 x 3` and is provably the frequency top-24 per set column -
+  asserted as a subset, not inferred from the count. So the
+  search spent its budget finding a relationship on a token the
+  contract has no column for, the driver was dropped in silence,
+  and a co-predictor at **one hundred and fifty times less
+  importance** became the published parent.
+- **AND THIS IS A CANDIDATE MECHANICAL CAUSE FOR A RECORDED
+  MYSTERY, which is why it is worth more than the one pair it
+  cost here.** This file records that `--expand-by signal` LOSES
+  on the real extract - 115 published relationships against
+  frequency's 87, "a quarter of them gone" - with the cause
+  never established and the mass argument predicting the
+  opposite. A signal-expanded token having no modelled column to
+  be published on would produce exactly that: relationships
+  found and then dropped at blueprint time. NOT CLAIMED as the
+  cause - the magnitude here is ONE pair, because this fixture
+  has one token-driven relationship where the extract's surface
+  is dominated by them. It is a mechanism confirmed on a fixture
+  and a hypothesis about the extract, and the two are different
+  things.
+- **THE DROP IS REPORTED NOW, WITH THE IMPORTANCE IT CARRIED.**
+  `excluded.unmodelled_parents` names the child, the parent and
+  its importance, so a reader comparing it against the parents
+  that WERE kept can see whether the published claim still means
+  what the search found. The importance is the load-bearing
+  field: without it the section would say a column was dropped
+  and not that the DRIVER was. Restoring the bare `continue`
+  turns two checks red; the third pins the claim surviving with
+  the weaker parent, which is true either way and is the
+  behaviour that makes the report necessary.
+- **AND IT IS ASSERTED ON PLANTED INPUT, because no fixture here
+  can reach the condition.** It needs the two halves to
+  DISAGREE, and a run that expands by frequency has them agree
+  by construction - so a fixture-driven check would pass without
+  exercising anything, which is the cap-no-fixture-reaches fault
+  this file already records. A catalogue naming a ghost
+  indicator is handed to `build` directly.
+
+- **A PLANTED RELATIONSHIP OF THE EXTRACT'S LARGEST KIND WAS IN
+  NEITHER THE ANSWER KEY NOR THE NOISE LIST, AND THE INSTRUMENT
+  THAT GRADES RECALL COULD NOT BUILD IT AT ALL (2026-11-09).**
+  `set_driven_y` has been planted for as long as `--set-vocab`
+  has existed and appeared in neither list, so the recall score
+  could neither credit finding it nor penalise missing it.
+  Token-driven relationships are about **110 of the 135 pairs**
+  the real extract's gate relates, so the score had no coverage
+  of its dominant kind. And `bench_new_path.py` has no
+  `--set-vocab` flag, so it could never build a fixture
+  containing the column - the kind was unscoreable BY
+  CONSTRUCTION. That is the same shape as the `--lags` finding
+  recorded the day before, where the capability was in the
+  PIPELINE and the instrument that grades recall never built the
+  features. Both fixed: the kind is in the key as
+  `set-token-driven` (only when a middle band is planted, so the
+  DEFAULT fixture's key is untouched and every other suite reads
+  it unchanged), and the flag is wired through.
+- **AND THE MISS IS THE CAP, NOT DETECTABILITY, WHICH IS A
+  DIFFERENT FINDING FROM THE ONE ON FILE.** This file records a
+  cap experiment whose conclusion was "nothing on 22 rows is
+  detectable at any cap", with an explicit warning not to read
+  "raising the cap changed nothing" as "the cap is free".
+  Measured here at 300 patients: the driver is on **185 of
+  22,910 rows (0.81%)** and lifts the child by **2.53 against a
+  planted noise sd of 0.35 - about 7.2 sd** - plentiful and
+  strong. It clears the k floor at published rank **57 of 132**
+  while `EXPAND_CAP` keeps 24, so no indicator column exists and
+  the relationship cannot be examined at all. Which midband
+  token survives is a frequency coin flip among ~120 near
+  equals: `cond_m47` and `cond_m29` were expanded and `cond_m40`
+  was not.
+- **AND THE CHECK FOR IT FAILED FIRST ON MY OWN SCALE, TWICE IN
+  ONE PROPERTY.** Written at 120 patients and 10 visits - 1,043
+  rows - only 65 of 120 midband tokens clear k and the driver
+  lands at rank **23, INSIDE the cap**, so that scale cannot
+  exercise the thing the check is about and both assertions went
+  red against correct code. Four scales were measured rather
+  than guessed; 250 patients at 40 visits reaches it in under a
+  second (6,388 rows, 132 clear k, driver at rank 61 on 52
+  rows). A fixture must contain the thing the check is about,
+  and "has a middle band" was not specific enough.
+- **AND THE CAP CHECK GOES RED IF THE CAP RISES PAST THE DRIVER,
+  WHICH IS THE RIGHT BEHAVIOUR AND ITS MESSAGE SAYS SO.** A
+  check that pins "the driver is outside the cap" would
+  otherwise read as punishing progress. Red there means the
+  fixture needs a DEEPER driver because it has stopped
+  exercising the cap - an action, not a verdict on the cap - and
+  the failure text states it.
+
+- **THE TWELVE PAIRS DO NOT REPRODUCE ON A FIXTURE, AND THE TWO
+  SUSPECTED MECHANISMS ARE ACQUITTED A SECOND TIME ON A
+  DIFFERENT SHAPE (2026-11-09).** The deliverable's build
+  `203c4ae` was put in a WORKTREE - not a checkout, because a
+  checkout is what left HEAD detached and silently pushed
+  nothing last night - and both builds were run on ONE
+  byte-identical fixture at one seed, 300 patients, 22,910 rows,
+  86 columns, a ring of 8 and a 120-token set vocabulary, 156
+  columns after expansion in BOTH arms:
+      old (203c4ae) related   43     close on shared   41
+      new (b64bcb3) related   43     close on shared   41
+      shared pairs            43     DELTA              0
+      pairs the old holds and the new loses              0
+- **AND IT IS NOT A VACUOUS ARM, which is the only thing that
+  makes a zero worth reading.** The two generated files have
+  DIFFERENT md5s, and the mechanisms are verified as firing
+  rather than assumed: the new blueprint publishes the
+  `age_at_visit` arithmetic identity and records
+  `patients.time_column = visit_start_date`, where the old
+  publishes NO identity and has no time column at all - so both
+  the enforcement and the within-patient date reorder engage in
+  one arm and are absent in the other. The old tree's
+  `generate()` has no `reorder_dates` parameter, read off its
+  own code object, which is the observable confirming the
+  worktree is the pre-date-work build instead of trusting a sha.
+- **WHAT THE NEGATIVE DOES AND DOES NOT ESTABLISH.** It is a
+  second, independent acquittal of the two mechanisms the four
+  real-extract control arms already cleared, on a shape they
+  were not measured on, with the firing verified. It does NOT
+  locate the twelve: this fixture relates 43 pairs where the
+  extract relates 135, and the extract's surface is dominated by
+  about 110 set-token pairs that this fixture does not relate at
+  all - its tokens carry no structure against the numerics, so
+  the one place the recorded drift CONCENTRATES is missing from
+  the measurement. Close also sits at 41/43 here, so there is
+  little room to lose pairs. A control arm that cannot resolve
+  the cost it is watching for is not a control arm, and that is
+  said about this one rather than left for somebody to assume.
+- **THE BISECTION IS NARROWED FROM EIGHT RUNS TO FIVE, BY
+  READING WHICH FILES MOVED.** 184 commits separate the
+  deliverable from tonight and 71 touch the package, but a
+  single-table fit-and-generate cannot be changed by cli, gui,
+  determination, scrub, dp, linkage, automl, multitable, intake
+  or jointcheck. Filtering to generate / blueprint / discover /
+  sets / pipeline / identities / temporal / dates / tableplan
+  leaves **TWENTY**, which is five runs rather than eight -
+  about 2.2 hours of machine time instead of 3.5. FOUR MORE
+  touch `gate.py` and change the MEASUREMENT rather than the
+  output; they are listed separately because re-gating both runs
+  with today's code already controls for them, and conflating
+  the two sets would send a bisection after the wrong thing.
+- **AND THE CHEAPEST READ IS STILL UNRUN AND IS NOT A FIT.**
+  Naming WHICH twelve pairs flipped is one `regate.py`
+  invocation against two existing run directories - about a
+  minute, no fit, no generate - and their shape would name the
+  mechanism without any bisection at all. It is queued behind an
+  IT security-restart dialog on the data machine, whose two
+  buttons are the operator's to press: deferring a security
+  update is not a decision a tool makes on somebody's managed
+  laptop.
 - **ALL FOUR CANDIDATES FOR THE TWELVE PAIRS ARE REFUTED, AND THE
   GAP IS 182 COMMITS WIDE RATHER THAN ONE NIGHT'S WORK
   (2026-11-08 night).** Every arm paired on the same source and

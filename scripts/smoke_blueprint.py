@@ -151,6 +151,64 @@ def main():
           "document to be edited in an editor, not an object",
           json.loads(json.dumps(sp)) == sp)
 
+    # A PARENT THE BLUEPRINT DOES NOT MODEL WAS DROPPED IN SILENCE,
+    # AND THE CLAIM COULD SURVIVE NAMING A PARENT THAT DOES NOT
+    # DRIVE IT.
+    #
+    # The search and the contract can disagree about which set tokens
+    # EXIST: `--expand-by signal` expands the tokens that MEASURE as
+    # related, while the modelled columns are the first EXPAND_CAP by
+    # FREQUENCY. Found 2026-11-09 on a 300-patient fixture whose
+    # planted token-driven relationship was discovered correctly - the
+    # driver at importance 0.633, skill 0.281 - then dropped here,
+    # leaving a co-predictor at importance 0.004 as the published
+    # parent. In the output the relationship is lost: a source lift of
+    # +2.530 arrives as +0.046.
+    #
+    # Asserted on PLANTED input, because the condition needs the two
+    # halves to disagree and a fixture that expands by frequency
+    # cannot produce it.
+    _rng = np.random.default_rng(5)
+    _n = 900
+    _x = _rng.normal(0, 1, _n)
+    _df = pd.DataFrame({
+        "person_id": ["P%03d" % (i // 3) for i in range(_n)],
+        "x": np.round(_x, 4),
+        "y": np.round(2.0 * _x + _rng.normal(0, 0.2, _n), 4)})
+    _cat = {"claims": [{
+        "child": "y", "skill": 0.41,
+        "predictors": [
+            {"column": "conditions__has__ghost_token",
+             "importance": 0.633, "sd": 0.02, "via": None},
+            {"column": "x", "importance": 0.004, "sd": 0.001,
+             "via": None}]}],
+        "unexplained": [], "skipped": [], "identifiers_dropped": []}
+    _bp = S.build(_df, _cat, group_by="person_id")
+    _un = (_bp.get("excluded") or {}).get("unmodelled_parents")
+    _ys = [r for r in _bp["relationships"] if r["child"] == "y"]
+
+    check("a predictor the blueprint does not model is REPORTED, not "
+          "dropped by a bare continue - the search and the contract "
+          "can disagree about which set tokens exist, and an omitted "
+          "category is invisible in any other way",
+          _un is not None
+          and any(e["parent"] == "conditions__has__ghost_token"
+                  and e["child"] == "y" for e in _un))
+
+    check("...and it carries the IMPORTANCE it had, so a reader can "
+          "see the dropped parent was the driver (0.633) and the "
+          "published one was not (0.004) - a claim can survive "
+          "naming a parent that does not drive it",
+          bool(_un)
+          and abs(float(_un[0].get("importance") or 0) - 0.633) < 1e-6)
+
+    check("...and that is exactly what happens here: the claim "
+          "SURVIVES with the weaker parent ({}) rather than being "
+          "dropped with its driver, which is why the report has to "
+          "name the importance and not only the column".format(
+              _ys[0]["parents"] if _ys else None),
+          bool(_ys) and _ys[0]["parents"] == ["x"])
+
     print()
     if FAIL:
         print("{} FAILED".format(FAIL))

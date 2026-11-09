@@ -593,6 +593,91 @@ def main():
               "nothing about the bundles it blessed",
               any("planted.md" in h[0] for h in _hits))
 
+    # THE EXTRACT'S DOMINANT RELATIONSHIP KIND IS IN THE ANSWER KEY
+    # NOW, AND THE REASON IT IS MISSED IS THE CAP AND NOT THE SEARCH.
+    #
+    # `set_driven_y` was planted for as long as --set-vocab existed
+    # and named in NEITHER the answer key nor the noise list, so the
+    # instrument that scores recall could neither credit nor penalise
+    # it. Token-driven relationships are about 110 of the 135 pairs
+    # the real extract's gate relates, so the recall score had no
+    # coverage of its largest group.
+    with tempfile.TemporaryDirectory() as _td:
+        _dd = Path(_td) / "plain"
+        _dm = Path(_td) / "mid"
+        run("scripts/make_tidy_fixture.py", "-o", str(_dd),
+            "--patients", "120", "--max-visits", "10", "--seed", "5")
+        # 250 patients x 40 visits, MEASURED as the cheapest shape
+        # that reaches the cap condition: at 120 patients and 10
+        # visits only 65 of 120 midband tokens clear k and the
+        # driver lands at rank 23, INSIDE the cap of 24, so that
+        # scale cannot exercise the thing these checks are about.
+        # Builds in under a second either way.
+        run("scripts/make_tidy_fixture.py", "-o", str(_dm),
+            "--patients", "250", "--max-visits", "40", "--seed", "5",
+            "--set-vocab", "120")
+        _tp = json.loads((_dd / "ground_truth.json").read_text())
+        _tm = json.loads((_dm / "ground_truth.json").read_text())
+        _kp = {r["kind"] for r in _tp["relationships"]}
+        _km = {r["kind"] for r in _tm["relationships"]}
+
+        # The DEFAULT fixture must be untouched - every other suite
+        # reads it, and this file's own rule is not to add a thing to
+        # a fixture other checks depend on.
+        check("the default fixture's answer key does NOT gain the "
+              "token kind ({} kinds, unchanged) - `set_driven_y` "
+              "only exists when --set-vocab plants a middle band, "
+              "and every other suite reads the default".format(
+                  len(_kp)),
+              "set-token-driven" not in _kp
+              and not any(r["child"] == "set_driven_y"
+                          for r in _tp["relationships"]))
+
+        check("...and a --set-vocab fixture's key DOES name it, with "
+              "its parent - a planted relationship the answer key "
+              "does not name is a relationship the recall score "
+              "silently ignores",
+              "set-token-driven" in _km
+              and any(r["child"] == "set_driven_y"
+                      and r["parents"] == ["conditions"]
+                      for r in _tm["relationships"]))
+
+        # A FIXTURE MUST CONTAIN THE THING THE CHECK IS ABOUT. The
+        # effect has to be in the DATA, not only in the key.
+        _dfm = _pd.read_csv(_dm / "tidy_visits_labeled.csv",
+                            encoding="utf-8-sig", low_memory=False,
+                            dtype=str, keep_default_na=False)
+        _drv = "cond_m{}".format(120 // 3)
+        _hit = _dfm["conditions"].astype(str).str.contains(
+            _drv, regex=False)
+        _y = _pd.to_numeric(_dfm["set_driven_y"], errors="coerce")
+        _lift = (float(_y[_hit].mean()) - float(_y[~_hit].mean())
+                 if int(_hit.sum()) > 10 else 0.0)
+        check("...and the effect is in the DATA: `{}` is on {} of "
+              "{} rows and lifts the child by {:+.2f} against a "
+              "planted noise sd of 0.35 - plentiful and strong, so a "
+              "miss is not a detectability limit".format(
+                  _drv, int(_hit.sum()), len(_dfm), _lift),
+              int(_hit.sum()) > 30 and _lift > 1.5)
+
+        # THE LOAD-BEARING ONE. What makes this a CAP finding is that
+        # the driver clears the k floor comfortably and still sits
+        # outside EXPAND_CAP by frequency. If this goes red because
+        # the cap rose past the driver, the fixture needs a DEEPER
+        # driver - it would no longer be exercising the cap at all,
+        # which is this file's cap-no-fixture-reaches fault.
+        _vv = _S.vocabulary(_dfm["conditions"],
+                            _dfm["person_id"].values, k=10, cap=0)
+        _toks = [t["value"] for t in (_vv["tokens"] if _vv else [])]
+        _rank = _toks.index(_drv) if _drv in _toks else -1
+        check("...and the driver CLEARS k at published rank {} of {} "
+              "while EXPAND_CAP keeps {} - so no indicator column "
+              "exists and the relationship cannot be examined at "
+              "all. Red here means the cap rose past the driver and "
+              "the fixture needs a deeper one, not that the cap is "
+              "fixed".format(_rank, len(_toks), _S.EXPAND_CAP),
+              _rank >= 0 and _rank >= _S.EXPAND_CAP)
+
     print()
     if FAIL:
         print("{} FAILED".format(FAIL))

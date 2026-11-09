@@ -268,7 +268,7 @@ def survives(kind, truth, src, gen):
 
 
 def run(out_dir, patients, harder, seed, say,
-        tangled=0, skew=0.0, lags=False):
+        tangled=0, skew=0.0, lags=False, set_vocab=0):
     fx = out_dir / "fixture"
     fx.mkdir(parents=True, exist_ok=True)
     r = subprocess.run(
@@ -276,6 +276,7 @@ def run(out_dir, patients, harder, seed, say,
          "-o", str(fx), "--patients", str(patients),
          "--harder", str(harder), "--seed", str(seed),
          "--tangled", str(tangled),
+         "--set-vocab", str(set_vocab),
          "--skew-planted", str(skew)],
         capture_output=True, text=True)
     if r.returncode != 0:
@@ -533,6 +534,8 @@ def main():
     ap.add_argument("--harder", default="1.0")
     ap.add_argument("--tangled", type=int, default=0)
     ap.add_argument("--skew-planted", type=float, default=0.0)
+    ap.add_argument("--set-vocab", type=int, default=0,
+                    help="plant the MIDDLE band of set tokens the fixture needs for `set-token-driven` to exist at all. Without it that kind is not in the answer key and this bench cannot score it - the same shape as --lags, where the capability was in the PIPELINE and the instrument that grades recall never built it. Token-driven relationships are the LARGEST group on the real extract, so with 0 this bench has no coverage of its dominant kind")
     ap.add_argument("--seed", type=int, default=5)
     ap.add_argument("--lags", action="store_true",
                     help="build the per-patient lag features that "
@@ -547,7 +550,7 @@ def main():
 
     with tempfile.TemporaryDirectory() as td:
         res = run(Path(td), a.patients, a.harder, a.seed, say,
-                  a.tangled, a.skew_planted, a.lags)
+                  a.tangled, a.skew_planted, a.lags, a.set_vocab)
 
     say("")
     say("PATTERN KIND                        FOUND   SURVIVES  "

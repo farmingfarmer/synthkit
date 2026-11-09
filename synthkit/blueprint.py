@@ -828,13 +828,50 @@ def build(df: pd.DataFrame,
 
     rels: List[Dict[str, Any]] = []
     lag_only_dropped: List[Dict[str, Any]] = []
+    unmodelled_dropped: List[Dict[str, Any]] = []
     for cl in catalogue.get("claims", []):
         if cl["child"] not in columns:
             continue
         parents = []
         lag_parents: List[str] = []
         for p in cl["predictors"][:max_predictors]:
-            if p["column"] not in columns or p["column"] == cl["child"]:
+            if p["column"] == cl["child"]:
+                continue
+            # A PREDICTOR THE BLUEPRINT DOES NOT MODEL WAS
+            # DROPPED BY A BARE `continue`, AND THE CLAIM COULD
+            # SURVIVE NAMING A PARENT THAT DOES NOT DRIVE IT.
+            #
+            # The search and the contract can disagree about
+            # which set tokens EXIST: `--expand-by signal`
+            # expands the tokens that measure as related, while
+            # the modelled columns are the first EXPAND_CAP by
+            # FREQUENCY. So a relationship discovered on a
+            # signal-picked token has no column to be published
+            # on, and this loop skipped it in silence.
+            #
+            # Measured 2026-11-09 on a 300-patient fixture with
+            # a 120-token middle band: the planted token-driven
+            # relationship was FOUND with its driver at
+            # importance 0.633 and skill 0.281, the driver was
+            # dropped here, a co-predictor at importance 0.004
+            # was kept, and the published claim named THAT as
+            # the parent. In the output the relationship is
+            # lost - a source lift of +2.530 arrives as +0.046.
+            # An omitted category is invisible in any other
+            # way, and this one could also rename a driver.
+            if p["column"] not in columns:
+                unmodelled_dropped.append({
+                    "child": cl["child"],
+                    "parent": p["column"],
+                    "importance": p.get("importance"),
+                    "why": "the search measured this column and "
+                           "the blueprint does not model it, so "
+                           "there is nothing to publish the "
+                           "relationship on. A set token is "
+                           "expanded for the SEARCH by the "
+                           "--expand-by rule and modelled by "
+                           "FREQUENCY, so the two can disagree "
+                           "about which tokens exist"})
                 continue
             # A LAG PARENT MUST NOT BECOME A SAME-VISIT PARENT.
             #
@@ -1187,6 +1224,13 @@ def build(df: pd.DataFrame,
             # contract cannot express - the operator should be able
             # to see that rather than wonder where it went.
             "lag_only_parents": lag_only_dropped,
+            # AND A DROPPED DRIVER CAN LEAVE THE CLAIM STANDING
+            # WITH A WEAKER PARENT IN ITS PLACE, so this names
+            # the importance it carried - a reader comparing it
+            # against the parents that WERE kept can see
+            # whether the published claim still means what the
+            # search found.
+            "unmodelled_parents": unmodelled_dropped,
         },
         "privacy": {
             "k": k,

@@ -357,6 +357,51 @@ def main():
                     "extract and what a forest-shaped fixture can "
                     "never exercise".format(len(TANGLE))})
 
+    # THE ONE TOKEN-DRIVEN RELATIONSHIP, IN THE ANSWER KEY AT LAST.
+    # `set_driven_y` has been planted for as long as --set-vocab has
+    # existed and appeared in NEITHER this answer key nor the noise
+    # list, so the one instrument that scores whether the search
+    # works could neither credit finding it nor penalise missing it.
+    # Token-driven relationships are the LARGEST group on the real
+    # extract - about 110 of the 135 pairs its gate relates - so the
+    # recall score had no coverage of the extract's dominant kind and
+    # nothing said so. Same shape as `lagged-cross-column`, which was
+    # scored a permanent miss by a bench that never built the lag
+    # features.
+    #
+    # MEASURED 2026-11-09 at 300 patients / 120 midband tokens: the
+    # driver is on 185 of 22,910 rows (0.81%) and moves the child by
+    # 2.53 against a noise sd of 0.35 - about 7.2 sd, so plentiful
+    # and strong. It is NOT found, and the reason is the cap and not
+    # detectability: the token clears the k floor at published rank
+    # 57 of 132 while EXPAND_CAP keeps 24, so no indicator column
+    # exists and the relationship cannot be examined at all. Which
+    # midband token survives is a frequency coin flip among ~120
+    # near-equals - cond_m47 and cond_m29 were expanded and cond_m40
+    # was not.
+    #
+    # It is recorded as a miss WITH ITS REASON rather than left out,
+    # because a permanent miss and a fragile one invite different
+    # fixes - the distinction this file already draws between
+    # `lagged-cross-column` (needs a flag) and `heterogeneous` (sits
+    # on a threshold).
+    if MIDBAND:
+        truth["relationships"].append({
+            "child": "set_driven_y",
+            "parents": ["conditions"],
+            "kind": "set-token-driven",
+            "note": "driven by ONE token of the `conditions` set, "
+                    "chosen from the MIDDLE band so it clears the k "
+                    "floor comfortably and still sits outside the "
+                    "top EXPAND_CAP by frequency - the population a "
+                    "frequency-ranked cap discards. Only an expanded "
+                    "token can carry a relationship, so at the "
+                    "default cap this is EXPECTED to be missed, and "
+                    "missing it is a statement about the cap rather "
+                    "than about the search. `--expand-by signal` "
+                    "spends the same budget on tokens that measure "
+                    "as related, which is the arm that can find it."})
+
     header = (["person_id", "visit_id", "visit_start_date",
                "visit_end_date", "span_days"]
               + [c for c, _n in CATEGORICALS]
