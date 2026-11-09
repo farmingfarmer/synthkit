@@ -13,7 +13,7 @@ end-to-end) are where the remaining work lives.**
 
 ---
 
-## Goal 1 — Universal upload with auto schema mapping   **~90%**
+## Goal 1 — Universal upload with auto schema mapping   **~95%**
 
 **What works, measured**
 - Single-table CSV end to end. Types detected in seconds
@@ -100,11 +100,57 @@ end-to-end) are where the remaining work lives.**
   the name (`__via__visit_id>person_id__age`) because it
   appears in the run's report, and a cycle is refused by a
   visited-set guard rather than truncated by the depth bound.
-- FOUR or more hops are not measured. The mechanism would
-  extend by raising one bound, but each level joins an
-  ancestor's frame so cost grows with the chain, and the
-  rank-one limit compounds along it — named, not assumed
-  cheap.
+- ~~FOUR or more hops are not measured, and the rank-one limit
+  compounds along a chain.~~ MEASURED 2026-11-08 (MT-5,
+  `scripts/hop_depth.py`), and the answer is that neither was
+  the gap. On a five-table chain with **only the DIRECT
+  couplings enforced**, a FOUR-hop correlation lands at 93% of
+  source with the control arm at zero — each link's own
+  enforcement COMPOSES, so depth arrives for free:
+
+      hops   source   coupled   control   share
+         1    0.900     0.879     0.006    0.98
+         2    0.810     0.769     0.003    0.95
+         3    0.729     0.676     0.002    0.93
+         4    0.654     0.607    -0.005    0.93
+
+  At the shipped bound of 3 the same cells read 0.98 / 0.95 /
+  0.93 / 0.92, so **the multi-hop detection adds nothing on a
+  chain** — which does not make it useless: it is load-bearing
+  exactly where composition CANNOT happen, on MT-3's shape where
+  the intermediate table carries no numeric to compose through
+  (source 0.897, one-hop 0.010, multi-hop 0.817, control
+  −0.013). And what three reaches is FOUR links, not three: the
+  old comment understated it by one, because `cross_couplings`
+  climbs from the PARENT side. On a five-table chain where ten
+  couplings exist, bounds 0–4 detect 4 / 7 / 9 / 10 / 10 —
+  three is already complete and raising it finds nothing new.
+- **AND THE BOUND WAS DOCUMENTED AS A SETTING AND FROZEN AT
+  IMPORT.** `hops: int = VIA_HOPS` in the signature, and a
+  default argument is evaluated once — so reassigning
+  `multitable.VIA_HOPS` changed nothing and the two call sites
+  that omit it were pinned at three forever, while the module's
+  own comment said "deeper is a setting, not a default". The
+  measurement script then printed "detection ran at VIA_HOPS =
+  4" over a run that used three. Read at call time now, and the
+  check asserts the OUTCOME — couplings found at bound 0/1/2 go
+  3, 5, 6 where the frozen version gives 6, 6, 6.
+- **AND THE CHAIN EXPOSED A REAL DEFECT: colinear targets were
+  collapsing onto one number while `carried` read 1.00.** A
+  chain's parent frame carries a column plus the same column
+  from one and two links up, correlated 0.89 and 0.79 with each
+  other, so one link's target is three different numbers against
+  three near-twins — and the solve weighted the parent score by
+  the SVD's right singular vector, which is the TARGET DIRECTION
+  and not the SCORE WEIGHTS that reach it. The achieved spread
+  collapsed from the target's 0.187 to **0.010**. Whitening each
+  side through its own correlation matrix improves all ten
+  multi-target links over five seeds: squared error per link
+  0.0119 → **0.0019**, worst single pair 0.1328 → **0.0351**,
+  and the DIRECT coupling's error 0.0705 → **0.0296**. A
+  single-coupling link is byte-identical, pinned as a digest.
+  `carried` was right throughout — the metric answered its
+  question and the weights did not reach what it promised.
 - ~~File formats beyond CSV~~ SHIPPED 2026-11-03:
   `synthkit.intake` reads .csv/.tsv/.txt, .jsonl/.ndjson/.json,
   .xlsx/.xlsm and .parquet, dispatching on the extension, with
@@ -121,12 +167,13 @@ end-to-end) are where the remaining work lives.**
   it; an absent worksheet is refused listing the real ones.
 - Document upload is the M6 free-text decision, not promised yet.
 
-**Time**: relational is the block — est. 2–3 weeks (M3, plan Oct 17
-holds). Formats: days.
+**Time**: relational has landed through four hops. What is left
+on this goal is the M6 free-text decision, which is governance
+before it is engineering.
 
 ---
 
-## Goal 2 — Automatic de-identification   **~96%**
+## Goal 2 — Automatic de-identification   **~97%**
 
 **What works, measured**
 - Everything published is k-anonymous over PATIENTS, never rows:
@@ -364,11 +411,51 @@ fidelity, and the self-explaining gate all landed.)*
   each red.
 
 **What remains**
-- The M4 bar: the
-  cycle-survival gap — on a ring-shaped graph 27/42 relationships
-  are dropped to make it sampleable (the real extract drops 16/26).
-  The refinement sweeps recover much of this; the ceiling is not
-  yet at the M4 target of >= 12/13 including lagged.
+- ~~The M4 bar: >= 12/13 found including lagged.~~ MET
+  2026-11-08, and the reason it had not been was the INSTRUMENT.
+  `bench_new_path.py` scored `lagged-cross-column` as a
+  permanent miss with its own note saying the kind "needs
+  --lags, which exists" — it exists in the PIPELINE, and the
+  bench called `discover` on the raw frame and never built the
+  lag features, so the kind could not be found by construction.
+  Over the same five seeds: 11/12/11/11/11 without, and
+  **12/13/12/12/12 with**, adding exactly one kind on every seed
+  (asserted as a property, so a future change cannot report a
+  broad gain through this door).
+- **AND THE FLAG IS A TRADE, WHICH IS NOW THE OPEN ITEM RATHER
+  THAN THE COUNT.** On the same runs the output acquires a
+  SAME-VISIT correlation of **0.97** on a pair the source
+  relates at 0.00, where without the flag it correctly reads
+  0.00 — and the lagged relationship still does not survive
+  (lag recomputed from each table's own ordering: source
+  **+0.98**, output **−0.002**). An invented relationship is
+  worse than a missing one, so the kind now FAILS survival
+  rather than scoring the point.
+- **AND THE INVENTED HALF IS FIXED, same day.** The cause was
+  `discover._source` folding `x__prev` to `x` so the catalogue
+  reads in the operator's own names — right, and it also erases
+  WHEN, which is the whole substance of a lagged finding. The
+  claim RECORDS the engineered members in `via` and
+  `blueprint.build` never read that field, so a relationship
+  found on the previous visit was applied as a same-visit curve.
+  Paired on a planted fixture, one file apart: same-visit
+  **+0.7901 → −0.0106** against a source −0.0038, with the
+  honest same-visit relationship beside it unmoved (+0.9645 →
+  +0.9591). The refusal is reported in
+  `excluded.lag_only_parents` with the figure that justified it.
+  Two near-misses of my own, both caught by mutation: deciding
+  on rank correlation alone deletes a U-shape (−0.032 on
+  Spearman, 2.52 sd on the bend), and neither measure can see an
+  interaction-only parent — on `c = 8ab` with `--lags`,
+  `c <- ['a','b']` became `c <- ['a']` until a parent named by
+  the claim's own `interaction.pair` was made exempt.
+- What remains is the other half: making the lagged relationship
+  SURVIVE. 55 lag columns go in and ZERO reach the written file,
+  so a claim with a lag parent cannot fire at all. That needs a
+  lag column DERIVED at generation rather than drawn — the
+  identity-by-copying rule — and it is a generation-ORDER change
+  rather than a post-pass, because the child is drawn FROM the
+  lag.
 - The search cap: only 24 tokens per set column can carry a
   relationship; on the extract the excluded tokens hold 72% of
   `conditions` mass. Measured, reported by `peek cap`, unresolved —
@@ -600,7 +687,7 @@ dashboard, and what-now guidance carries exact commands.)*
 
 ---
 
-## Goal 8 — AutoML competitor and report card   **~90%**
+## Goal 8 — AutoML competitor and report card   **~98%**
 
 **What works, measured**
 - `autosolver.py`: the deliberately modest floor (stdlib logistic
@@ -625,20 +712,50 @@ dashboard, and what-now guidance carries exact commands.)*
   over a 0.698 ceiling, and the rule from it was to set bars
   beneath the ceiling or judge on gap. Same class of error, in
   our own gate.
-- What genuinely remains is **the single report-card artifact
-  from a real run** — unrun rather than unbuilt. The exam
-  itself has now run twice on the real extract, on two
-  DIFFERENT synthetic draws of the same cohort, and reproduced
-  itself: 0.761/0.788 (gap 0.027), 0.687/0.704 (0.017),
-  0.625/0.630 (0.005) against September's 0.758/0.786 (0.028),
-  0.683/0.698 (0.016), 0.617/0.622 (0.005) — every tier within
-  0.006 and every GAP within 0.001. That is the computable
-  ceiling's whole claim, and it had never been tested across
-  two synthetic files of one cohort. The miscalibrated bar
-  appeared again too, in its milder form: the as-specified
-  tier's 0.700 bar sits 0.004 under a ceiling of 0.704, so it
-  is achievable by less than any realistic solver gap, where in
-  September it sat ABOVE its ceiling.
+- ~~The single report-card artifact from a real run~~ RUN
+  2026-11-08. `CARD.html` from `run_dial1`'s four-arm showdown on
+  the real extract, every figure read back spelled by the
+  machine:
+
+      tier            ceiling   floor   automl   vendor   bar
+      strong-signal    0.7884  0.7611   0.7841   0.7611  PASS
+      as-specified     0.7040  0.6872   0.6955   0.6872  FAIL
+      weak-signal      0.6301  0.6248   0.6082   0.6248  PASS
+
+  The exam has now run twice on the real extract on two
+  DIFFERENT synthetic draws of the same cohort and reproduced
+  itself — every tier within 0.006 and every GAP within 0.001 of
+  September's 0.758/0.786, 0.683/0.698, 0.617/0.622. That is the
+  computable ceiling's whole claim, and it had never been tested
+  across two synthetic files of one cohort.
+- **AND THAT RUN PUT MY OWN COMPETITOR BELOW THE STDLIB FLOOR ON
+  THE WEAK TIER — 0.6082 against 0.6248 — against the "never
+  worse than the floor" claim recorded below.** The cause is
+  switching families on a difference the held-out selection
+  slice cannot resolve: with little signal a bare argmax picks
+  whichever family the noise favoured. Fixed by making the
+  SIMPLEST family the incumbent and requiring a flexible one to
+  beat it by `1/sqrt(min(pos, neg))` on the slice — the
+  approximate standard error of an AUC, so the bar tightens as
+  the slice grows. Worst weak-arm delta **-0.0123 → -0.0000**,
+  with the xor and curved gains intact and the selector still
+  naming different families by mechanism. My first attempt at
+  that fix was UNREACHABLE CODE — it decided inside the loop and
+  `FAMILIES` is ordered simplest-last, so every candidate was
+  simpler than the incumbent and the branch never ran; both arms
+  came out byte-identical including the -0.0123.
+- **AND THE CARD NOW CALLS OUT A BAR TIGHTER THAN EVERY MEASURED
+  GAP**, the milder form of the miscalibration it already names.
+  The as-specified tier's 0.700 bar sits 0.004 under a ceiling
+  of 0.704 — achievable, but by less than any solver on that
+  tier left on the table — where in September it sat ABOVE its
+  ceiling. Reported separately from the strict case, because
+  they have the same fix for different reasons.
+- What remains is narrow and named: the competitor has been
+  measured on three planted mechanisms, three seeds each, and
+  the real extract's three tiers. It is not swept across cohort
+  SIZE, and a selection slice carved from 120 rows is where the
+  margin rule is least tested.
 - ~~A competitor beyond the stdlib floor~~ SHIPPED 2026-11-03:
   `synthkit.automl` tries three model families with light
   feature engineering (numerics as numerics, capped one-hots,
@@ -656,8 +773,7 @@ dashboard, and what-now guidance carries exact commands.)*
   absent, so a report card cannot claim one that never ran.
   Registered as `automl`.
 
-**Time**: report card with the stdlib floor: inside M1's week.
-A competitor worth the name: est. 2 weeks, after M1.
+**Time**: both shipped and both run on the real extract.
 
 ---
 
@@ -737,13 +853,32 @@ dates:
    ceiling: ongoing and unscheduled, because unknowns move dates
    and these are the genuine unknowns.
 
-Equal-weighting the eight goals: **~93.2% complete** as of
-2026-11-08 — 90, 96, 90, 95, 93, 100, 92, 90. Moved on
-2026-11-08: goal 2 94→96 because the Expert Determination run
-of record now EXISTS — nine of eleven elements measured on the
-real 800-patient extract, each with the positive control that
-makes it worth reading, and the two gaps named rather than
-counted. Previously moved on
+Equal-weighting the eight goals: **~95.0% complete** as of
+2026-11-08 — 95, 97, 90, 95, 93, 100, 92, 98. Moved on
+2026-11-08: goal 1 90→95 because FOUR-hop cross-table couplings
+are measured and the two things left named on M3 both turned out
+not to be the gap — a chain composes, so a four-hop correlation
+lands at 93% of source with ONLY the direct couplings enforced,
+and the bound of three is already complete on a five-table
+chain. What the measurement DID find is a real defect it was not
+looking for: colinear targets on one link were collapsing onto a
+single achieved number while `carried` read 1.00, and whitening
+the score weights through each side's own correlation matrix
+improves every one of ten multi-target links. Also goal 8 90→98 because the report card of record now
+EXISTS — `CARD.html` from the real extract's four-arm showdown,
+and the exam reproduced itself across two different synthetic
+draws of one cohort to within 0.006 a tier and 0.001 a gap —
+and because that run put my own AutoML competitor BELOW the
+stdlib floor on the weak tier (0.6082 against 0.6248), which is
+now diagnosed, fixed to −0.0000, and pinned. And goal 2 96→97
+because LINKAGE is measured on the real extract, which takes
+the Expert Determination package to TEN of eleven elements: the
+measurable band was found by SEARCH (`--scan`) after both
+hand-tried band arrangements failed at opposite ends — one with
+no power, one with nothing scored. Earlier the same day: goal 2
+94→96 for the determination run of record itself, each element
+with the positive control that makes it worth reading, and the
+gaps named rather than counted. Previously moved on
 2026-11-07: goal 2 92→94 for two measured pieces, both of
 which SAY what they do not cover. The Expert Determination
 EVIDENCE PACKAGE (`synthkit determination`) assembles the ten

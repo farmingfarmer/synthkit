@@ -185,6 +185,253 @@ def main():
           and abs(corr([a for a, _ in same],
                        [b for _, b in same])) < 0.15)
 
+    # ---- the report's SHAPE does not move between branches -------
+    #
+    # `added` read `[]` on the no-rows branch and a COUNT on the
+    # main one, for as long as both existed. A caller writing
+    # `len(added)` worked on an empty frame and raised on a real
+    # one; a caller writing `added > 0` did the reverse. Neither
+    # fails at the branch that is wrong, which is what makes a type
+    # that moves between branches worse than a type that is wrong -
+    # and the bench's --lags path raised a TypeError on the real
+    # frame rather than on the fixture that was tested.
+    _, empty = add_lag_features([], "person_id", "when", "date-like")
+    check("the no-rows report carries the SAME KEYS as a real one, "
+          "so a caller cannot be written against one branch and "
+          "crash on the other",
+          sorted(empty) == sorted(rep))
+    check("...and `added` is a COUNT on both branches, never a list "
+          "on one and an int on the other",
+          isinstance(empty["added"], int)
+          and isinstance(rep["added"], int))
+    check("a real frame's `added` counts the columns it names, which "
+          "is what makes the count checkable at all",
+          rep["added"] == len(rep["lagged_columns"]))
+
+    # ---- A LAG PARENT MUST NOT BECOME A SAME-VISIT PARENT -------
+    #
+    # `discover._source` folds `x__prev` to `x` so the catalogue
+    # reads in the operator's own column names - "x moved this",
+    # which is what a reader needs. It also erases WHEN, which is
+    # the whole substance of a lagged finding, and the claim's own
+    # `via` field recorded that and nothing read it. So a
+    # relationship discovered on the PREVIOUS visit's value
+    # arrived at the blueprint as a predictor named `x` and was
+    # applied as a same-visit curve.
+    #
+    # Measured on the bench with `--lags`, four seeds: the output
+    # came back with a same-visit rank correlation of 0.97 on a
+    # pair the SOURCE relates at 0.00, where without the flag it
+    # correctly reads 0.00. An invented relationship is worse than
+    # a missing one, because it reads as a finding.
+    #
+    # THE FIXTURE CARRIES BOTH KINDS, because a fix that removed
+    # the invented pattern by also removing the honest one would
+    # pass a check that only looked at the lagged pair.
+    import numpy as _np
+    import pandas as _pd
+    from synthkit.discover import discover as _disc
+    from synthkit import blueprint as _B
+    from synthkit.generate import generate as _gen
+
+    def _lagfix_fixture(seed=0, n=260, per=8):
+        rg = _np.random.default_rng(seed)
+        pid = _np.repeat(["P{:04d}".format(i) for i in range(n)],
+                         per)
+        N = len(pid)
+        day = _np.tile(_np.arange(per), n)
+        x = rg.normal(50, 10, N)
+        xs = x.reshape(n, per)
+        sh = _np.concatenate(
+            [_np.full((n, 1), _np.nan), xs[:, :-1]], axis=1)
+        y = 0.9 * (sh - 50) + 50 + 4.4 * rg.normal(0, 1, (n, per))
+        y = _np.where(_np.isnan(y), rg.normal(50, 10, (n, per)), y)
+        u = rg.normal(20, 5, N)
+        w = 0.9 * (u - 20) * 2 + 40 + 2.2 * rg.normal(0, 1, N)
+        return _pd.DataFrame({
+            "person_id": pid,
+            "visit_start_date": (_pd.to_datetime("2020-01-01")
+                                 + _pd.to_timedelta(day, "D")),
+            "x": x, "y": y.reshape(-1),
+            "u": u, "w": w}).astype(str)
+
+    def _sp(f, a, b):
+        pp = _pd.to_numeric(f[a], errors="coerce")
+        qq = _pd.to_numeric(f[b], errors="coerce")
+        kk = pp.notna() & qq.notna()
+        return float(pp[kk].rank().corr(qq[kk].rank()))
+
+    _raw = _lagfix_fixture()
+    _rws, _inf = add_lag_features(_raw.to_dict("records"),
+                                  "person_id", "visit_start_date",
+                                  "date-like")
+    _lf = _pd.DataFrame(_rws)
+    _s_same = _sp(_lf, "x", "y")
+    _s_lag = _sp(_lf, "x__prev", "y")
+    _s_honest = _sp(_lf, "u", "w")
+    check("the fixture plants a genuinely LAGGED pair - x~y at the "
+          "same visit {:+.3f}, x__prev~y {:+.3f} - which is the "
+          "shape the fold is wrong about; a pair related at both "
+          "offsets could not reach it"
+          .format(_s_same, _s_lag),
+          abs(_s_same) < 0.1 and abs(_s_lag) >= 0.5)
+    check("...and an HONEST same-visit pair beside it (u~w "
+          "{:+.3f}), because a fix that removed the invented "
+          "pattern by also removing the real one would pass a "
+          "check that looked only at the lagged pair"
+          .format(_s_honest),
+          abs(_s_honest) >= 0.5)
+
+    _cat = _disc(_lf, group_by="person_id", seed=1)
+    _bp = _B.build(_lf, _cat, group_by="person_id")
+    _rel = dict((r["child"], list(r["parents"]))
+                for r in (_bp.get("relationships") or []))
+    _drop = _bp["excluded"].get("lag_only_parents") or []
+    check("the catalogue DOES find it, reported under the base "
+          "name with the lag recorded in `via` - the fold is not "
+          "the bug, reading it as same-visit is",
+          any(c["child"] == "y"
+              and any(p["column"] == "x"
+                      and (p.get("via") or []) == ["x__prev"]
+                      for p in c["predictors"])
+              for c in _cat["claims"]))
+    check("...and the blueprint REFUSES it as a same-visit parent "
+          "(y's parents are {}), so no same-visit curve is "
+          "published for a pair the source relates at {:+.3f}"
+          .format(_rel.get("y"), _s_same),
+          "x" not in (_rel.get("y") or []))
+    check("...and the refusal is REPORTED with the measured "
+          "same-visit correlation that justified it ({} entr"
+          "y/ies), because a category with no section is "
+          "invisible in any other way".format(len(_drop)),
+          any(d["child"] == "y" and d["parent"] == "x"
+              and d["via"] == ["x__prev"]
+              and abs(d["same_visit_rho"]) < 0.1
+              for d in _drop))
+    check("...and the HONEST pair is KEPT ({} <- {}): the fold is "
+          "only wrong when it changes what the claim is about, so "
+          "a lag-carried parent whose base column DOES relate at "
+          "the same visit still counts"
+          .format("w", _rel.get("w")),
+          ("u" in (_rel.get("w") or []))
+          or ("w" in (_rel.get("u") or [])))
+
+    _g = _gen(_bp, n_patients=260, seed=5)
+    _g_same = _sp(_g, "x", "y")
+    _g_honest = _sp(_g, "u", "w")
+    check("THE OBSERVABLE: the generated same-visit correlation "
+          "is {:+.3f} against a source {:+.3f}, where applying "
+          "the folded claim produced +0.79 - an invented "
+          "relationship reads as a finding, which is worse than "
+          "a missing one".format(_g_same, _s_same),
+          abs(_g_same) < 0.15)
+    check("...and the honest relationship still lands ({:+.3f} "
+          "against {:+.3f}), so the change acts only where its "
+          "mechanism lives".format(_g_honest, _s_honest),
+          abs(_g_honest) >= 0.5 * abs(_s_honest))
+
+    # ---- AND A U-SHAPE AT THE SAME VISIT MUST SURVIVE IT --------
+    #
+    # RANK CORRELATION CANNOT SEE A U-SHAPE - this project already
+    # has that rule for the gate's `close` criterion - so deciding
+    # a lag-carried parent on Spearman alone would delete exactly
+    # the non-monotone same-visit relationships the fixtures plant
+    # on purpose. Found because a mutation making `_lag_carried`
+    # fire on EVERY predictor broke no check: the guard that saved
+    # it was `bool(via)`, which is not a statement about the
+    # source at all.
+    def _ushape_fixture(seed=0, n=300, per=6):
+        rg = _np.random.default_rng(seed)
+        pid = _np.repeat(["Q{:04d}".format(i) for i in range(n)],
+                         per)
+        N = len(pid)
+        day = _np.tile(_np.arange(per), n)
+        z = rg.normal(0, 1, N)
+        # a genuine SAME-VISIT U-shape: no linear component
+        v = 6.0 * (z ** 2) + 0.9 * rg.normal(0, 1, N)
+        return _pd.DataFrame({
+            "person_id": pid,
+            "visit_start_date": (_pd.to_datetime("2021-01-01")
+                                 + _pd.to_timedelta(day, "D")),
+            "z": z, "v": v}).astype(str)
+
+    _uraw = _ushape_fixture()
+    _urws, _ = add_lag_features(_uraw.to_dict("records"),
+                                "person_id", "visit_start_date",
+                                "date-like")
+    _ulf = _pd.DataFrame(_urws)
+    _u_rho = _sp(_ulf, "z", "v")
+    from synthkit.blueprint import _same_visit_bend as _bend
+    _u_bend = _bend(_ulf.apply(_pd.to_numeric, errors="coerce"),
+                    "z", "v", _ulf["person_id"].to_numpy(), 10)
+    check("the U-shape fixture is INVISIBLE to rank correlation "
+          "({:+.3f}) and plain on the bend measure ({:.2f} sd) - "
+          "a fixture whose U-shape had a linear component could "
+          "not reach this"
+          .format(_u_rho, _u_bend or -1.0),
+          abs(_u_rho) < 0.15
+          and _u_bend is not None and _u_bend >= 0.35)
+    _ucat = _disc(_ulf, group_by="person_id", seed=1)
+    _ubp = _B.build(_ulf, _ucat, group_by="person_id")
+    _urel = dict((r["child"], list(r["parents"]))
+                 for r in (_ubp.get("relationships") or []))
+    check("...and the lag-carried U-shaped parent is KEPT ({}), "
+          "because the bend says the source relates the pair at "
+          "the same visit even though Spearman reads zero"
+          .format(_urel),
+          ("z" in (_urel.get("v") or []))
+          or ("v" in (_urel.get("z") or [])))
+
+    # ---- AND AN INTERACTION-ONLY PARENT MUST SURVIVE IT ---------
+    #
+    # An interaction with NO main effect has near-zero rank
+    # correlation AND near-zero bend in each parent ALONE - that
+    # is the definition of it, and this project plants exactly
+    # that shape on purpose. So neither of the two measures above
+    # can keep it, and the first version of this drop deleted one:
+    # on a pure-product fixture with `--lags` on,
+    # `c <- ['a', 'b']` became `c <- ['a']` at rho +0.014 and
+    # bend 0.33 against a 0.35 bar. Half an interaction pair
+    # cannot fire at generation, so that is the same fault class
+    # the drop exists to prevent, and it would have shipped.
+    def _xor_fixture(seed=0, n=300, per=6):
+        rg = _np.random.default_rng(seed)
+        pid = _np.repeat(["X{:04d}".format(i) for i in range(n)],
+                         per)
+        N = len(pid)
+        day = _np.tile(_np.arange(per), n)
+        a = rg.normal(0, 1, N)
+        b = rg.normal(0, 1, N)
+        c = 8.0 * a * b + 0.8 * rg.normal(0, 1, N)
+        return _pd.DataFrame({
+            "person_id": pid,
+            "visit_start_date": (_pd.to_datetime("2022-01-01")
+                                 + _pd.to_timedelta(day, "D")),
+            "a": a, "b": b, "c": c}).astype(str)
+
+    _xraw = _xor_fixture()
+    _x_rho_a = _sp(_xraw, "a", "c")
+    _x_rho_b = _sp(_xraw, "b", "c")
+    check("the XOR fixture has NO main effect in either parent "
+          "(a~c {:+.3f}, b~c {:+.3f}), which is what makes both "
+          "same-visit measures blind to it"
+          .format(_x_rho_a, _x_rho_b),
+          abs(_x_rho_a) < 0.15 and abs(_x_rho_b) < 0.15)
+    _xrws, _ = add_lag_features(_xraw.to_dict("records"),
+                                "person_id", "visit_start_date",
+                                "date-like")
+    _xlf = _pd.DataFrame(_xrws)
+    _xbp = _B.build(_xlf, _disc(_xlf, group_by="person_id", seed=1),
+                    group_by="person_id")
+    _xrel = dict((r["child"], list(r["parents"]))
+                 for r in (_xbp.get("relationships") or []))
+    check("...and BOTH members of the pair survive with --lags on "
+          "(c <- {}), because a parent the claim's own "
+          "`interaction.pair` names is kept whatever either "
+          "measure says - half a pair cannot fire at generation"
+          .format(_xrel.get("c")),
+          set(_xrel.get("c") or []) >= {"a", "b"})
+
     print()
     if FAIL:
         print("{} FAILED".format(FAIL))

@@ -206,7 +206,19 @@ def add_lag_features(rows: List[Dict[str, Any]],
     tautology the search would then rediscover and report as a
     finding."""
     if not rows:
-        return rows, {"added": [], "note": "no rows"}
+        # `added` IS A COUNT ON THE MAIN PATH, so it is a count
+        # here too. It read `[]` on this branch for as long as
+        # both existed - so a caller writing `len(added)` worked
+        # on an empty frame and raised on a real one, and a
+        # caller writing `added > 0` did the reverse. Neither
+        # fails at the branch that is wrong, which is what makes
+        # a type that moves between branches worse than a wrong
+        # one.
+        return rows, {"time_column": time_col,
+                      "time_kind": time_kind,
+                      "lagged_columns": [],
+                      "added": 0, "suffix": LAG_SUFFIX,
+                      "note": "no rows"}
     by = defaultdict(list)
     for r in rows:
         by[r.get(group_by)].append(r)

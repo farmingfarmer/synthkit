@@ -2590,6 +2590,289 @@ the direction that stops work happening.
   error with did-you-mean; `synthkit dials` lists every edge.
 
 ## Numbers before conclusions
+- **THE 0.97 HAS ITS CAUSE: A LAG PARENT WAS BEING REPLACED BY ITS
+  BASE COLUMN, SO AN ACROSS-VISIT RELATIONSHIP WAS APPLIED AT THE
+  SAME VISIT (2026-11-08).** The run's own diagnostic printed
+  `blueprint planted_lag_y <- ['planted_lag_x']` - the SAME-VISIT
+  column, where the finding was on `planted_lag_x__prev`.
+  `discover._source` folds `x__prev` to `x` so the catalogue reads
+  in the operator's own column names, which is right and which its
+  docstring defends on exactly those grounds. It also erases WHEN,
+  and that is the whole substance of a lagged finding. The claim
+  RECORDS the engineered members it stood for in `via`, and
+  `blueprint.build` never read that field - the read-but-not-used
+  fault, with a measured consequence. Paired on a planted fixture,
+  one file apart:
+      pair                 source     old      new
+      x~y (same visit)    -0.0038  +0.7901  -0.0106
+      u~w (honest)        +0.9698  +0.9645  +0.9591
+  The invented pattern is gone and the honest same-visit
+  relationship is unmoved. The refusal is REPORTED in
+  `excluded.lag_only_parents` with the measured same-visit figure
+  that justified it, because a category with no section is
+  invisible in any other way.
+- **THE TEST IS ASKED OF THE SOURCE, NOT ASSUMED, which is why the
+  fold is kept.** A lag-carried parent whose BASE column genuinely
+  relates to the child at the same visit still counts - the fold
+  is only wrong when it changes what the claim is about. On the
+  same fixture `w <- u` is lag-carried too (`via: ['u__prev']`)
+  and is kept at a source +0.9698.
+- **AND MY FIRST VERSION'S OWN JUSTIFICATION WAS FALSE.** The
+  `_lag_carried` docstring said a lag-only `via` means "the base
+  column itself was not in the feature set". It is not: the base
+  column is a member of its own group whenever it is a feature,
+  and `via` merely excludes it. So the flag says the importance
+  MIGHT be the lag's and nothing more - which would have been the
+  only justification for dropping on the flag alone, and is why
+  the decision has to be a measurement.
+- **AND RANK CORRELATION CANNOT SEE A U-SHAPE, so deciding on it
+  alone deletes the non-monotone same-visit relationships this
+  project plants on purpose.** Found because a mutation making
+  `_lag_carried` fire on EVERY predictor broke no check: the thing
+  saving it was `bool(via)`, which is not a statement about the
+  source at all. A k-screened binned conditional mean is the
+  second measure - the same definition of a bend the deck and the
+  shape criterion already use, so there is one in this codebase
+  rather than two - and either may keep a parent. Pinned on a
+  fixture whose U-shape has NO linear component: rank correlation
+  **-0.032**, bend **2.52 sd**, parent kept.
+- **AND AN INTERACTION-ONLY PARENT HAS NEITHER, so the first fix
+  deleted an XOR parent and would have shipped.** An interaction
+  with no main effect has near-zero rank correlation AND near-zero
+  bend in each parent alone - that is the definition of it.
+  Measured on a pure-product fixture (`c = 8ab`) with `--lags` on:
+  `c <- ['a', 'b']` became **`c <- ['a']`**, dropping `b` at rho
+  +0.014 and bend 0.33 against a 0.35 bar. Half an interaction
+  pair cannot fire at generation, so that is the same fault class
+  the drop exists to prevent, committed by the drop. A parent the
+  claim's own `interaction.pair` names is kept whatever either
+  measure says, and with the escape the blueprint matches the
+  no-lags one exactly.
+- **THREE ESCAPES, THREE MUTATIONS, ALL LOAD-BEARING.** Removing
+  the pair escape turns the XOR check red, removing the bend turns
+  the U-shape check red, and disabling the drop turns three red
+  with the invented correlation printed in the message. The
+  ordinary same-visit path is untouched: with no lag features
+  there is no lag member in any group, so the branch cannot fire.
+
+- **THE BENCH SCORED A KIND AS A PERMANENT MISS FOR MONTHS AND
+  THE REASON WAS THE INSTRUMENT, NOT THE ENGINE - AND TURNING IT
+  ON MAKES THE OUTPUT WORSE (2026-11-08, M4).**
+  `bench_new_path.py` is the instrument that scores the fitted
+  path against planted truth, and its one PERMANENT miss was
+  `lagged-cross-column`, with its own note saying the kind
+  "needs --lags, which exists". It exists in the PIPELINE. The
+  bench called `discover` on the raw frame and never built the
+  lag features at all, so the kind could not be found by
+  construction - a capability present in one half and wired to
+  nothing in the half that grades it, which is this project's
+  most repeated fault, here inside the measuring instrument.
+  With the same construction `synthkit fit --lags` uses - called,
+  not rebuilt - over the SAME five seeds:
+      seed   without --lags   with --lags
+         0        11/13          12/13
+         1        12/13          13/13
+         2        11/13          12/13
+         3        11/13          12/13
+         4        11/13          12/13
+  **Exactly one kind on every seed**, which is the lagged one and
+  not a general improvement - asserted as a property so a future
+  change cannot report a broad gain through this door. M4's gate
+  asked for >= 12/13 including lagged, and that is met on all
+  five seeds.
+- **AND IT IS NOT A FREE POINT: THE OUTPUT ACQUIRES A SAME-VISIT
+  RELATIONSHIP THE SOURCE DOES NOT HAVE.** On the same runs, the
+  pair the fixture relates only ACROSS visits:
+      seed   source same-visit   generated, --lags   without
+         0        +0.003               0.971          0.001
+         1        +0.000               0.969         -0.003
+         2        -0.001               0.973          0.003
+         4        -0.004               0.971         -0.002
+  Without the flag the generated same-visit correlation is
+  correctly ZERO; with it the output reads **0.97** on every
+  seed. An INVENTED relationship is worse than a missing one
+  because it reads as a finding - this project's own rule about
+  inversions - so the kind now FAILS survival rather than
+  scoring the point, and the verdict names the two numbers.
+- **AND THE LAG ITSELF STILL DOES NOT SURVIVE, which took a
+  different measurement to see.** The old survival test for this
+  kind compared the SAME-VISIT pair, which the fixture plants at
+  zero by design, so it correctly declined to score and the row
+  read `--` for as long as it existed. Rebuilding the lag from
+  each table's OWN ordering gives source **+0.98** against a
+  generated **-0.002**: the temporal structure is absent, not
+  degraded, which is what a row-level engine should be expected
+  to do and had never been stated as a number.
+- **AND THE EMITTED `__prev` COLUMN MUST NOT BE TRUSTED FOR THAT
+  TEST.** With `--lags` the search sees `x__prev` and the
+  blueprint then models it as an ordinary numeric, so generation
+  would DRAW it rather than carry the previous row's `x` - and a
+  test reading `y ~ x__prev` off the output would pass on a file
+  whose lag column contradicts its own previous visit. That is
+  the broken-identity class this file already records for
+  `age_at_visit` against `year_of_birth`, where the pair
+  correlation stayed strong while the identity held on 21% of
+  rows. The lag is recomputed on both tables; a mutation that
+  reads the column instead turns the check red.
+- **AND THE RUN SAYS 55 LAG COLUMNS IN, ZERO OUT - ABSENT IS A
+  FINDING, NOT A BLANK.** The first version of the lag
+  diagnostic printed its header and NO ROWS, because it required
+  the column in both frames and not one reaches the written
+  file. A header with nothing under it reads as a broken
+  diagnostic where the emptiness IS the answer: a blueprint
+  claim whose parent is not in the output cannot fire however
+  well the search found it.
+- **AND MY OWN DIAGNOSTIC THEN COMMITTED THE NINTH WRONG-KEY
+  FAULT, ON ITS FIRST READ.** It printed `blueprint
+  planted_lag_y <- []` and I spent a measurement hunting an
+  empty-predictor bug - building a fixture, planting such a
+  record, and finding generation unaffected. The record is
+  unaffected because it does not exist: a BLUEPRINT relationship
+  carries **`parents`, a list of NAMES**, where
+  `predictors[].column` is the CATALOGUE's shape. This file
+  already records that exact pair of names being read backwards,
+  and the prescribed fix - assert the key against a LIVE built
+  blueprint - is applied here: `smoke_bench` builds one, asserts
+  `parents` is a list of strings, asserts `predictors` is ABSENT,
+  asserts at least one record is NON-EMPTY so a wrong key cannot
+  print an empty list and be believed, and asserts the
+  diagnostic reads that key. Restoring the wrong key turns it
+  red.
+- **WHAT IS NOT CLAIMED: the mechanism behind the 0.97.** The
+  lag parent is absent from the output and the claim cannot
+  fire, so the invented same-visit correlation comes from
+  something else, and the empty-predictor hypothesis is dead by
+  measurement. Per this file's no-third-guess rule it earns the
+  run's own diagnostic rather than a fourth story, and that
+  diagnostic now prints the child's real parents.
+  **SUPERSEDED THE SAME DAY: the mechanism is the fold, and it is
+  fixed - see the entry above.** The invented pattern came from
+  `discover._source` replacing a lag parent with its base column
+  so the claim was applied at the SAME visit. What remains open
+  is the other half: making the lagged relationship SURVIVE,
+  which needs a lag column DERIVED at generation rather than
+  drawn - the identity-by-copying rule - and that is a
+  generation-ORDER change rather than a post-pass, because the
+  child is drawn FROM the lag.
+
+- **A CHAIN CARRIES ITSELF BY COMPOSITION, SO THE REACH BOUND WAS
+  NEVER THE GAP - AND THE REAL DEFECT WAS A WEIGHT VECTOR
+  (2026-11-08, MT-5, `scripts/hop_depth.py`).** The scorecard
+  left two things NAMED rather than measured: four or more hops,
+  and whether "the rank-one limit compounds along a chain". Only
+  one of those is about depth, and neither is what the
+  measurement found.
+      hops   source   coupled   control   share
+         1    0.900     0.879     0.006    0.98
+         2    0.810     0.769     0.003    0.95
+         3    0.729     0.676     0.002    0.93
+         4    0.654     0.607    -0.005    0.93
+  on a five-table chain with **only the DIRECT couplings
+  enforced** (`VIA_HOPS = 1`). The deepest cell is the one worth
+  quoting: a FOUR-hop correlation of **+0.607** against a source
+  **+0.654**, with the control arm at -0.005. A four-hop coupling lands at 93%
+  of source without anything detecting it, because each link's
+  own enforcement COMPOSES, and the control arm reads zero at
+  every hop. At the shipped bound of 3 the same cells read 0.98
+  / 0.95 / 0.93 / 0.92 - **the multi-hop detection adds nothing
+  on a chain.**
+- **WHICH DOES NOT MAKE IT USELESS: IT IS LOAD-BEARING WHERE
+  COMPOSITION CANNOT HAPPEN.** On MT-3's shape - an intermediate
+  table carrying no numeric to compose THROUGH - there is no
+  direct coupling at all and the deep one is the only carrier:
+  source **+0.897**, one-hop detection 0.010, multi-hop
+  **+0.817**, control -0.013. So the two shapes need opposite things, and
+  neither measurement is a statement about the other.
+- **THE DEFECT THE CHAIN EXPOSED IS THAT COLINEAR TARGETS WERE
+  COLLAPSING ONTO ONE NUMBER WHILE `carried` READ 1.00.** A
+  chain builds colinear parent columns by construction: the
+  order frame carries `q2`, plus `q1` from one link up and `q0`
+  from two, correlated 0.89 and 0.79 WITH EACH OTHER - so one
+  link's target is three different numbers against three
+  near-twins. The joint solve weighted the parent score by the
+  SVD's right singular vector, which is the TARGET DIRECTION and
+  not the SCORE WEIGHTS that reach it. Achieved is approximately
+  `lambda a b'` with `b = R v / sqrt(v' R v)` for the columns'
+  OWN correlation matrix R, so `v = R^-1 q` and setting `v = q`
+  is correct only when the columns are uncorrelated. A plain
+  weighted sum over near-twins correlates nearly EQUALLY with
+  all of them.
+      result link, targets 0.891 / 0.795 / 0.704
+      svd weights   0.807  0.832  0.795    sq err 0.0166
+      whitened      0.923  0.824  0.731    sq err 0.0025
+  The achieved SPREAD collapsed from the target's 0.187 to
+  **0.010** - three different targets delivered as one number.
+  Over five seeds and ten multi-target links whitening improves
+  EVERY ONE: mean squared error per link 0.0119 -> 0.0019, worst
+  single pair 0.1328 -> 0.0351, and the error on the DIRECT
+  coupling - the adjacency a schema declares, rather than one
+  derived through it - 0.0705 -> 0.0296.
+- **AND `carried` WAS RIGHT THE WHOLE TIME, which is why the
+  metric is not being changed.** It reads 1.00 because the
+  direction IS reachable: with one child column the achievable
+  target vector is `R v` over all v, which spans the space. The
+  metric answered its question correctly and the weights did not
+  reach what it promised. A 1x3 target matrix also has rank one
+  by construction, so `carried` is structurally 1.00 for any
+  single-child-column link - true, and worth knowing before
+  reading it as reassurance.
+- **AND A SINGLE-COUPLING LINK IS BYTE-IDENTICAL, pinned as a
+  digest.** With one column there is no correlation matrix to
+  solve through, so the change acts only where its mechanism
+  lives - and a digest is the only form of that claim a check
+  can hold without carrying the previous implementation beside
+  it. Reverting the two whitened lines turns three checks red
+  with the collapsed spread printed in the failure message.
+- **THE RIDGE WAS ADDED, A FIXTURE WAS BUILT TO JUSTIFY IT, AND
+  THE FIXTURE REFUTED IT.** By analogy with the within-table
+  conditional tier a ridge went into the solve, and on the
+  WEIGHTS ALONE it looks necessary: at a parent correlation of
+  0.9995 with targets 0.90 / 0.88 the unridged direction gives a
+  parent score correlating 0.823 / 0.805 with its own parents
+  against the ridged 0.977 / 0.969, because `R^-1 q` points
+  along the near-null direction, which is the DIFFERENCE of two
+  twins. The ordinary chain's 0.89 cannot reach that, so
+  removing the ridge broke no check - and a near-twin fixture
+  was built so it would.
+      parent |r|    ridged   unridged
+        0.9500      0.0332     0.0334
+        0.9990      0.0328     0.0327
+        0.99999     0.0330     0.0330
+        0.9999999   0.0329     0.0329
+        1.0000      0.0329     0.0329
+  **Identical to four decimals at every colinearity including
+  EXACT**, and at 0.9995 the unridged arm is BETTER on two of
+  three seeds. The solve searches ten noise scales, so a weaker
+  direction is re-absorbed by choosing less noise. Removed, with
+  the sweep recorded at the site so nobody re-adds it on the
+  weights-level reasoning - the same outcome as the dead
+  `_STATE_HINT` exclusion. The fixture is kept for the property
+  that survived: a coupling must still land on near-twin
+  parents.
+- **AND THE REACH BOUND WAS DOCUMENTED AS A SETTING AND FROZEN
+  AT IMPORT - THE READ-BUT-NOT-USED FAULT IN ITS MOST LITERAL
+  FORM.** `hops: int = VIA_HOPS` in the signature, and a default
+  argument is evaluated ONCE, so reassigning
+  `multitable.VIA_HOPS` changed nothing and the two call sites
+  that omit the argument were pinned at three forever. The
+  module's own comment said "deeper is a setting, not a
+  default". My measurement script then printed **"detection ran
+  at VIA_HOPS = 4" over a run that used three** - a label that
+  does not follow its flag, which this file already has a rule
+  about. Read at CALL time now, the label reads the value BACK
+  from the module rather than from argv, and the check asserts
+  the OUTCOME - couplings found at bound 0/1/2 go 3, 5, 6 where
+  the frozen version gives 6, 6, 6.
+- **AND WHAT THREE REACHES IS FOUR LINKS, which the old comment
+  understated by one.** `with_inherited(name, 3)` climbs three
+  levels of PARENTS, but `cross_couplings` calls it on the
+  PARENT side, so a child reaches its parent plus three above
+  it. Measured on a five-table chain where ten couplings exist:
+  4 / 7 / 9 / 10 / 10 detected at bounds 0 through 4. Three is
+  already complete there and raising it detects NOTHING new - so
+  "four or more hops are not measured" was answered by
+  measurement rather than by a feature.
+
 - **THE REPORT CARD OF RECORD EXISTS, AND THE REAL EXTRACT'S
   FOUR-ARM SHOWDOWN PUT MY OWN COMPETITOR BELOW THE STDLIB FLOOR
   (2026-11-08).** Goal 8's last named item was "the single

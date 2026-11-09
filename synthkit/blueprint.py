@@ -612,6 +612,100 @@ def _constraints(X: pd.DataFrame, k: int = 10) -> List[Dict[str, Any]]:
     return merged
 
 
+# WHEN A LAG-CARRIED PARENT MAY STILL BE A SAME-VISIT PARENT.
+# The gate's own floor for calling a pair related is 0.1, so this
+# is the same bar: below it there is no same-visit relationship to
+# express, and the fold has changed what the claim is about.
+LAG_SAME_VISIT_MIN = 0.1
+
+# AND HOW BIG A BEND COUNTS, in sd of the child. The deck calls a
+# published curve DEPARTED at 0.35 sd of gap, so a same-visit
+# conditional mean that MOVES by that much is a relationship worth
+# expressing whatever its rank correlation says.
+LAG_SAME_VISIT_BEND = 0.35
+
+
+def _lag_carried(pred: Dict[str, Any]) -> bool:
+    """Does a LAG of this column sit in the group that earned it?
+
+    `discover` groups a column with its engineered features and
+    permutes them TOGETHER - deliberately, because permuting one
+    while its twin stays destroys their joint link to the target
+    while preserving their link to each other. So the importance
+    belongs to the FAMILY, and `via` names the engineered members
+    the family stood for.
+
+    SO THIS DOES NOT SAY THE LAG CARRIED IT. The base column is a
+    member of its own group whenever it is a feature, and `via`
+    merely excludes it - a first draft of this docstring claimed
+    the base column "was not in the feature set", which is false
+    and would have been the only justification for dropping on
+    this flag alone. It says the importance MIGHT be the lag's,
+    and which it is has to be asked of the SOURCE.
+    """
+    from .discover import LAG_SUFFIXES
+    via = pred.get("via") or []
+    return bool(via) and all(
+        any(str(v).endswith(suf) for suf in LAG_SUFFIXES)
+        for v in via)
+
+
+def _same_visit_rho(X, a: str, b: str):
+    """Rank correlation of two columns on the SAME row, or None.
+
+    None means unanswerable - a non-numeric column or too few
+    both-present rows - which is a different fact from zero, and
+    the caller treats it as such.
+    """
+    if a not in X.columns or b not in X.columns:
+        return None
+    if not (pd.api.types.is_numeric_dtype(X[a])
+            and pd.api.types.is_numeric_dtype(X[b])):
+        return None
+    u, v = X[a], X[b]
+    m = u.notna() & v.notna()
+    if int(m.sum()) < 50:
+        return None
+    r = u[m].corr(v[m], method="spearman")
+    return None if not np.isfinite(r) else float(r)
+
+
+def _same_visit_bend(X, a: str, b: str, gvals, k: int):
+    """How much the child's mean MOVES across the parent's range.
+
+    RANK CORRELATION CANNOT SEE A U-SHAPE, and this project
+    already has that rule for the gate's `close` criterion. A
+    U-shaped or threshold relationship at the SAME visit reads
+    near zero on Spearman, so deciding a lag-carried parent on
+    rank correlation alone would delete exactly the non-monotone
+    same-visit relationships the fixtures plant on purpose.
+    Found because a mutation making `_lag_carried` fire on every
+    predictor broke NO check - the guard that saved it was
+    `bool(via)`, not the measurement, and `bool(via)` is not a
+    statement about the source at all.
+
+    Measured in sd of the child, on the same k-screened binned
+    conditional mean the deck and the shape criterion use, so
+    there is one definition of a bend in this codebase rather
+    than two. None means unanswerable.
+    """
+    if a not in X.columns or b not in X.columns:
+        return None
+    if not (pd.api.types.is_numeric_dtype(X[a])
+            and pd.api.types.is_numeric_dtype(X[b])):
+        return None
+    from .curvecheck import cond_curve
+    gs = None if gvals is None else pd.Series(gvals)
+    pts = cond_curve(X[a], X[b], gs, k)
+    if len(pts) < 3:
+        return None
+    ys = [y for _x, y in pts]
+    sd = float(X[b].std())
+    if not np.isfinite(sd) or sd <= 0:
+        return None
+    return float((max(ys) - min(ys)) / sd)
+
+
 def build(df: pd.DataFrame,
           catalogue: Dict[str, Any],
           group_by: Optional[str] = None,
@@ -731,13 +825,91 @@ def build(df: pd.DataFrame,
                 columns[c]["dynamics"] = dyn[c]
 
     rels: List[Dict[str, Any]] = []
+    lag_only_dropped: List[Dict[str, Any]] = []
     for cl in catalogue.get("claims", []):
         if cl["child"] not in columns:
             continue
         parents = []
         for p in cl["predictors"][:max_predictors]:
-            if p["column"] in columns and p["column"] != cl["child"]:
-                parents.append(p)
+            if p["column"] not in columns or p["column"] == cl["child"]:
+                continue
+            # A LAG PARENT MUST NOT BECOME A SAME-VISIT PARENT.
+            #
+            # `discover._source` folds `x__prev` to `x` so the
+            # catalogue reads in the operator's own column names -
+            # "x moved this", which is what a reader needs. It
+            # also erases WHEN, and that is the whole substance of
+            # a lagged finding. The claim records the engineered
+            # members it stood for in `via`, and this function
+            # IGNORED that field: a relationship discovered on the
+            # PREVIOUS visit's value arrived here as a predictor
+            # named `x` and was applied as a same-visit curve.
+            #
+            # Measured on the bench with `--lags`, four seeds: the
+            # output came back with a same-visit rank correlation
+            # of 0.97 on a pair the SOURCE relates at 0.00, where
+            # without the flag it correctly reads 0.00. An
+            # invented relationship is worse than a missing one,
+            # because it reads as a finding.
+            #
+            # The test is asked of the SOURCE rather than assumed:
+            # when the importance came ONLY through lag members
+            # and the source does not relate the pair at the same
+            # visit, there is no same-visit curve the evidence
+            # supports. A parent whose base column DOES relate at
+            # the same visit is kept - the fold is only wrong when
+            # it changes what the claim is about.
+            if _lag_carried(p):
+                rho = _same_visit_rho(X, p["column"], cl["child"])
+                bend = _same_visit_bend(X, p["column"], cl["child"],
+                                        gvals, k)
+                # EITHER measure may support a same-visit curve. A
+                # monotone relationship shows on the rank
+                # correlation and a U-shape or a threshold does
+                # not, so requiring the rank correlation alone
+                # would delete the non-monotone same-visit
+                # relationships this project plants on purpose.
+                # AND A PARENT THE CLAIM'S INTERACTION PAIR
+                # NAMES IS KEPT WHATEVER EITHER MEASURE SAYS.
+                #
+                # An interaction with NO main effect has near-zero
+                # rank correlation AND near-zero bend in each
+                # parent alone - that is the definition of it, and
+                # this project plants exactly that shape on
+                # purpose. Measured on a pure-product fixture
+                # (c = 8ab, no main effects) with `--lags` on:
+                # without this escape `c <- ['a', 'b']` became
+                # `c <- ['a']`, dropping `b` at rho +0.014 and
+                # bend 0.33 against a 0.35 bar. Half an
+                # interaction pair cannot fire at generation, so
+                # that is the same fault class this drop exists to
+                # prevent - deleting a relationship the data has -
+                # and it would have shipped.
+                _pair = ((cl.get("interaction") or {}).get("pair")
+                         or [])
+                keep = (p["column"] in _pair
+                        or (rho is not None
+                            and abs(rho) >= LAG_SAME_VISIT_MIN)
+                        or (bend is not None
+                            and bend >= LAG_SAME_VISIT_BEND))
+                if not keep:
+                    lag_only_dropped.append({
+                        "child": cl["child"],
+                        "parent": p["column"],
+                        "via": list(p.get("via") or []),
+                        "same_visit_rho": (None if rho is None
+                                           else round(rho, 4)),
+                        "same_visit_bend_sd": (None if bend is None
+                                               else round(bend, 4)),
+                        "why": "the importance came only through a "
+                               "LAG of this column and the source "
+                               "does not relate the pair at the "
+                               "same visit, so applying it as a "
+                               "same-visit curve would invent a "
+                               "relationship the data does not "
+                               "have"})
+                    continue
+            parents.append(p)
         if not parents:
             continue
         rels.append({
@@ -915,6 +1087,14 @@ def build(df: pd.DataFrame,
                    "generating one would either collide or leak",
             "unexplained": catalogue.get("unexplained", []),
             "skipped": catalogue.get("skipped", []),
+            # A CATEGORY WITH NO SECTION IS INVISIBLE IN ANY OTHER
+            # WAY, which this project learned when ten dropped
+            # relationships had no heading and no reader was told.
+            # A lag-carried parent that cannot become a same-visit
+            # parent is a relationship the search FOUND and the
+            # contract cannot express - the operator should be able
+            # to see that rather than wonder where it went.
+            "lag_only_parents": lag_only_dropped,
         },
         "privacy": {
             "k": k,

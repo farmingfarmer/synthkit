@@ -37,6 +37,7 @@ child. Measured: 27 of 42 relationships dropped, 64%, against the real
 extract's 62% - and `heterogeneous`, which was found and survived on
 the forest, disappeared entirely.
 """
+import io
 import json
 import subprocess
 import sys
@@ -48,7 +49,9 @@ import pandas as pd
 
 ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT))
+from synthkit import blueprint as BB                   # noqa: E402
 from synthkit.blueprint import resolve                 # noqa: E402
+from synthkit.discover import discover as DISC         # noqa: E402
 from synthkit.generate import _order                   # noqa: E402
 
 PASS = FAIL = 0
@@ -227,6 +230,102 @@ def main():
           .format(max(_het_missed), min(_het_found)),
           _het_found and _het_missed
           and min(_het_found) - max(_het_missed) < 0.05)
+
+    # ---- `--lags` IS A TRADE, AND THE NOTE MUST SAY BOTH HALVES
+    #
+    # The bench scored `lagged-cross-column` as a permanent miss
+    # for months, and the reason was not the engine: the bench
+    # never built the lag features `synthkit fit --lags` builds,
+    # so the one kind that needs them could not be found by
+    # construction. That is a capability present in the pipeline
+    # and wired to nothing in the instrument that grades it.
+    #
+    # With them it is found on EVERY seed - and the output then
+    # carries a SAME-VISIT correlation of ~0.97 on a pair the
+    # source relates at 0.00, where without them that pair
+    # correctly reads 0.00. A note that reported only the extra
+    # point would be advertising a regression.
+    import bench_new_path as BN
+    _TEXT = io.open(str(ROOT / "scripts" / "bench_new_path.py"),
+                    encoding="utf-8").read()
+    _lag = dict(BN.LAG_SWEEP)
+    _base = {sd: c for sd, c, _v, _f in BN.SEED_SWEEP}
+    check("the recorded `--lags` sweep covers the SAME seeds as "
+          "the base sweep ({} against {}), because a count "
+          "measured on other seeds is not a comparison"
+          .format(sorted(_lag), sorted(_base)),
+          sorted(_lag) == sorted(_base))
+    check("...and it adds EXACTLY ONE kind on every seed ({}), "
+          "which is the lagged one and not a general improvement"
+          .format(["{}->{}".format(_base[k], _lag[k])
+                   for k in sorted(_lag)]),
+          all(_lag[k] - _base[k] == 1 for k in _lag))
+    _cost = BN.LAG_COST
+    check("the recorded COST is an invented same-visit pattern - "
+          "source {:+.3f}..{:+.3f} against generated "
+          "{:.3f}..{:.3f} - and not a rounding difference"
+          .format(min(f for _s, f, _g in _cost),
+                  max(f for _s, f, _g in _cost),
+                  min(g for _s, _f, g in _cost),
+                  max(g for _s, _f, g in _cost)),
+          all(abs(f) < 0.1 and g >= 0.3 for _s, f, g in _cost))
+    _note = "\n".join(BN.seed_range_note())
+    check("...and the note states BOTH halves in its own words, "
+          "computed from those tables rather than typed, so the "
+          "extra point cannot be reported without its price",
+          "--lags" in _note and "not a free point" in _note.lower()
+          and "same-visit" in _note.lower()
+          and "invented" in _note.lower())
+    # ---- THE BLUEPRINT'S OWN FIELD NAMES, READ LIVE ------------
+    #
+    # The lag diagnostic printed `blueprint planted_lag_y <- []`
+    # for every record, on a blueprint whose relationships plainly
+    # work - because it read `predictors[].column`, which is the
+    # CATALOGUE's shape, where a blueprint record carries
+    # `parents` as a list of NAMES. The ninth wrong-key fault
+    # here, and it sent me hunting an empty-predictor bug that
+    # does not exist. Asserted against a LIVE build so a rename
+    # breaks this suite rather than somebody's diagnostic.
+    _rng = np.random.default_rng(0)
+    _n, _per = 200, 6
+    _pid = np.repeat(["P{:04d}".format(i) for i in range(_n)], _per)
+    _N = len(_pid)
+    _a = _rng.normal(50, 10, _N)
+    _b = 0.9 * (_a - 50) + 50 + 4.4 * _rng.normal(0, 1, _N)
+    _bp = BB.build(
+        pd.DataFrame({"person_id": _pid, "a": _a,
+                      "b": _b}).astype(str),
+        DISC(pd.DataFrame({"person_id": _pid, "a": _a,
+                           "b": _b}).astype(str),
+             group_by="person_id", seed=1),
+        group_by="person_id")
+    _recs = _bp.get("relationships") or []
+    check("a blueprint relationship record carries `parents` as a "
+          "list of NAMES ({} record(s), keys {}) - and NOT "
+          "`predictors`, which is the catalogue's shape"
+          .format(len(_recs),
+                  sorted(_recs[0]) if _recs else []),
+          bool(_recs)
+          and all(isinstance(r.get("parents"), list) for r in _recs)
+          and all(all(isinstance(x, str) for x in r["parents"])
+                  for r in _recs)
+          and not any("predictors" in r for r in _recs))
+    check("...and at least one of them is NON-EMPTY, so a "
+          "diagnostic reading the wrong key cannot print an empty "
+          "list and be believed",
+          any(r.get("parents") for r in _recs))
+    check("...and the diagnostic reads that key rather than the "
+          "catalogue's",
+          'r.get("parents")' in _TEXT
+          and '[p_["column"]\n' not in _TEXT)
+
+    check("the lagged survival test RECOMPUTES the lag from each "
+          "table's own ordering rather than reading the emitted "
+          "__prev column, which generation draws rather than "
+          "carries - so a file whose lag column contradicts its "
+          "own previous visit cannot pass",
+          "def lag_corr" in _TEXT
+          and "groupby(group, sort=False)[parent].shift(1)" in _TEXT)
 
     print()
     if FAIL:

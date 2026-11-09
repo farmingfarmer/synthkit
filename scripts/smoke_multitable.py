@@ -21,6 +21,7 @@ because this project's rule for PHI is that values decide and
 headers only assist, and a key detector has no business
 following a different rule.
 """
+import hashlib
 import json
 import subprocess
 import io
@@ -41,7 +42,105 @@ from synthkit.multitable import (                     # noqa: E402
     assign_keys, check_integrity, cross_couplings, detect,
     integrity, render)
 
+# THE RECORDED DIGEST of a single-coupling link's output. It is
+# a pin rather than a comparison against a reference run,
+# because the property is that the WEIGHTS fix changed nothing
+# where one target gives it nothing to change - and a digest is
+# the only form of that claim a check can hold without carrying
+# the previous implementation beside it.
+SINGLE_TARGET_DIGEST = "e57222a542a0f7da"
+
 PASS = FAIL = 0
+
+
+def _chain_frames(n_tables, per_parent, roots, seed, plant=0.90):
+    """person -> visit -> order -> result, one coupling per link.
+
+    A CHAIN IS THE SHAPE THAT BUILDS COLINEAR PARENT COLUMNS.
+    `with_inherited` puts a parent's own numeric and the same
+    numeric from one and two links further up on ONE frame, and
+    those are correlated with each other by construction - which
+    is exactly the structure a target-direction weighting cannot
+    tell apart. Every fixture above this one couples INDEPENDENT
+    columns, so none of them could reach it.
+    """
+    names = ("person", "visit", "order", "result")
+    rng = np.random.default_rng(seed)
+    frames, keys, prev = {}, {}, None
+    for i in range(n_tables):
+        name = names[i]
+        if prev is None:
+            ids = ["P{:05d}".format(j) for j in range(roots)]
+            v = rng.normal(0, 1, roots)
+            frames[name] = pd.DataFrame({"person_id": ids,
+                                         "q0": v})
+            keys[name] = ("person_id", ids, v)
+            prev = name
+            continue
+        pk, pids, pv = keys[prev]
+        n = len(pids) * per_parent
+        q = (plant * np.repeat(pv, per_parent)
+             + np.sqrt(1 - plant ** 2) * rng.normal(0, 1, n))
+        own = "{}_id".format(name)
+        ids = ["{}{:06d}".format(name[0].upper(), j)
+               for j in range(n)]
+        frames[name] = pd.DataFrame(
+            {own: ids, pk: np.repeat(pids, per_parent),
+             "q{}".format(i): q})
+        keys[name] = (own, ids, q)
+        prev = name
+    return frames
+
+
+def _twin_chain(seed=0, n=500, per=4, rho=0.9995):
+    """A chain whose PARENT FRAME carries two NEAR-TWIN numerics.
+
+    THIS FIXTURE WAS BUILT TO JUSTIFY A RIDGE AND IT REFUTED
+    ONE. A ridge was written into `_whiten` by analogy with the
+    within-table conditional tier, and on the WEIGHTS ALONE it
+    looks necessary - at a parent correlation of 0.9995 with
+    targets 0.90 / 0.88 the unridged direction gives a parent
+    score correlating 0.823 / 0.805 with its own parents where
+    the ridged one gives 0.977 / 0.969, because `R^-1 q` points
+    along the near-null direction, which is the DIFFERENCE of
+    two twins. The ordinary chain's 0.89 cannot reach that, so
+    removing the ridge broke no check and this shape was built
+    to make it fail.
+
+    IT STILL DID NOT FAIL, and that settled it: end to end the
+    two arms agree to FOUR DECIMALS at every colinearity up to
+    and including exact, because the solve searches ten noise
+    scales and a weaker direction is re-absorbed by choosing
+    less noise. The ridge is gone, with the sweep recorded in
+    `multitable._whiten` so nobody re-adds it on the
+    weights-level reasoning.
+
+    What the fixture is kept FOR is the surviving property: a
+    coupling must still land when the parents are near-twins,
+    which is the shape the whole weights question lives on.
+    """
+    rng = np.random.default_rng(seed)
+    pid = ["P{:05d}".format(i) for i in range(n)]
+    q0 = rng.normal(0, 1, n)
+    person = pd.DataFrame({"person_id": pid, "q0": q0})
+    vid = ["V{:05d}".format(i) for i in range(n)]
+    q1 = (rho * q0
+          + np.sqrt(1 - rho ** 2) * rng.normal(0, 1, n))
+    visit = pd.DataFrame({"visit_id": vid, "person_id": pid,
+                          "q1": q1})
+    fk = np.repeat(vid, per)
+    pv = np.repeat(q1, per)
+    q2 = 0.9 * pv + np.sqrt(0.19) * rng.normal(0, 1, len(fk))
+    order = pd.DataFrame(
+        {"order_id": ["O{:06d}".format(i)
+                      for i in range(len(fk))],
+         "visit_id": fk, "q2": q2})
+    return {"person": person, "visit": visit, "order": order}
+
+
+def _ch_copy(frames):
+    return {k: v.copy() for k, v in frames.items()}
+
 
 
 def check(label, cond):
@@ -1234,6 +1333,156 @@ def main():
           bool(_doc2.get("tables_not_graded"))
           and _doc2.get("set_verdict_met") is False
           and "worst kind of clean" in _rr2.stdout)
+
+    # ---- COLINEAR TARGETS ON ONE LINK --------------------------
+    #
+    # A CHAIN BUILDS COLINEAR PARENT COLUMNS BY CONSTRUCTION, and
+    # that is what exposed the weights. On person -> visit ->
+    # order -> result the order frame carries `q2`, plus `q1`
+    # inherited one link up and `q0` two - correlated 0.89 and
+    # 0.79 with each other - so one link's target vector is three
+    # different numbers against three near-twins.
+    #
+    # The SVD's right singular vector is the TARGET direction,
+    # not the SCORE WEIGHTS that reach it: achieved ~= lambda a b'
+    # with `b = R v / sqrt(v' R v)`, so `v = R^-1 q` and setting
+    # `v = q` is correct only when the columns are uncorrelated.
+    # A plain weighted sum over near-twins correlates nearly
+    # EQUALLY with all of them, so the achieved values collapsed
+    # onto one number while `carried` read 1.00 - correctly,
+    # because the direction IS reachable. The metric was right
+    # and the weights were wrong.
+    _ch = _chain_frames(4, 4, 300, 0)
+    _cf = MT.detect(_ch)
+    _cc = MT.cross_couplings(_ch, _cf)
+    _rep3 = []
+    _g3 = {k: v.copy() for k, v in _ch.items()}
+    _o3 = MT.assign_keys(_ch_copy(_g3), _cf, seed=0,
+                         couplings=_cc, report_into=_rep3)
+    _multi = [r for r in _rep3 if len(r.get("pairs") or []) > 1]
+    check("the chain fixture genuinely puts SEVERAL colinear "
+          "targets on one link ({} such link(s)), which is the "
+          "shape the weights are about - a fixture of "
+          "independent couplings cannot reach it"
+          .format(len(_multi)),
+          len(_multi) >= 2)
+
+    def _spread(key):
+        out = []
+        for r in _multi:
+            v = [p[key] for p in r["pairs"]]
+            out.append(max(v) - min(v))
+        return out
+
+    _ts, _as = _spread("target"), _spread("achieved")
+    check("the ACHIEVED spread tracks the TARGET spread on every "
+          "such link (targets {} against achieved {}): the "
+          "defect was not a small miss, it was three different "
+          "targets delivered as one number"
+          .format(["{:.3f}".format(x) for x in _ts],
+                  ["{:.3f}".format(x) for x in _as]),
+          all(a >= 0.5 * t for t, a in zip(_ts, _as)))
+
+    _worst = max(abs(p["target"] - p["achieved"])
+                 for r in _multi for p in r["pairs"])
+    check("...and no single pair on those links misses by more "
+          "than {:.2f} (worst {:.4f}), where weighting by the "
+          "target direction alone missed by 0.13"
+          .format(0.06, _worst),
+          _worst <= 0.06)
+
+    _dir = [p for r in _multi for p in r["pairs"]
+            if MT.VIA not in p["parent_column"]]
+    _derr = max(abs(p["target"] - p["achieved"]) for p in _dir)
+    check("the DIRECT coupling - the adjacency the schema itself "
+          "declares, rather than one derived through it - lands "
+          "within {:.2f} (worst {:.4f})".format(0.06, _derr),
+          _derr <= 0.06)
+
+    # AND IT ACTS ONLY WHERE ITS MECHANISM LIVES. With one
+    # column there is no correlation matrix to whiten through,
+    # so a single-coupling link must come out BIT-IDENTICAL -
+    # otherwise this is a sampler change wearing a fix.
+    _one = _chain_frames(2, 4, 300, 0)
+    _of = MT.detect(_one)
+    _oc = MT.cross_couplings(_one, _of)
+    check("a link with ONE coupling has no colinearity to solve "
+          "through, so the fixture offers exactly one there ({})"
+          .format(len(_oc)),
+          len(_oc) == 1)
+    _od = MT.assign_keys(_ch_copy(_one), _of, seed=0,
+                         couplings=_oc)["visit"].to_csv(index=False)
+    check("...and its output is the RECORDED digest, so the "
+          "weights changed nothing where a single target gives "
+          "them nothing to change",
+          hashlib.sha256(_od.encode()).hexdigest()[:16]
+          == SINGLE_TARGET_DIGEST)
+
+    # ---- THE RIDGE, ON A SHAPE THAT REACHES IT -----------------
+    _tw = _twin_chain()
+    _tf = MT.detect(_tw)
+    _tpar = MT.with_inherited(_tw, _tf, "visit", hops=3)
+    _tn = [c for c in _tpar.columns
+           if c == "q1" or c.startswith(MT.VIA)]
+    _tcorr = (abs(float(np.corrcoef(
+        _tpar[_tn[0]].astype(float),
+        _tpar[_tn[1]].astype(float))[0, 1]))
+        if len(_tn) == 2 else 0.0)
+    check("the twin fixture genuinely puts NEAR-TWIN parents on "
+          "one link ({} columns at |r| {:.4f}), which the "
+          "ordinary chain's 0.89 cannot reach"
+          .format(len(_tn), _tcorr),
+          len(_tn) == 2 and _tcorr >= 0.99)
+
+    _trep = []
+    _tcc = MT.cross_couplings(_tw, _tf)
+    MT.assign_keys(_ch_copy(_tw), _tf, seed=0, couplings=_tcc,
+                   report_into=_trep)
+    _tp = [p for r in _trep if len(r.get("pairs") or []) > 1
+           for p in r["pairs"]]
+    check("...and the coupling still LANDS there ({} pair(s), "
+          "worst miss {:.4f}), which is the property that "
+          "survived: a ridge was added for this shape and the "
+          "sweep found it inert to four decimals at every "
+          "colinearity up to exact, so it was removed"
+          .format(len(_tp),
+                  max((abs(p["target"] - p["achieved"])
+                       for p in _tp), default=9.0)),
+          bool(_tp)
+          and max(abs(p["target"] - p["achieved"])
+                  for p in _tp) <= 0.08)
+
+    # ---- THE REACH BOUND IS A SETTING ---------------------------
+    #
+    # It was `hops: int = VIA_HOPS` in the signature, and a
+    # default argument is evaluated ONCE at import - so the
+    # module's own comment called the depth "a setting, not a
+    # default" while reassigning `multitable.VIA_HOPS` changed
+    # nothing, and the two call sites that omit the argument were
+    # frozen at three forever. A measurement script printed
+    # "detection ran at VIA_HOPS = 4" over a run that used three.
+    # Asserted by OUTCOME - how many couplings detection finds -
+    # not by reading the constant back, because reading it back
+    # is what looked fine while nothing used it.
+    _ch5 = _chain_frames(4, 3, 300, 0)
+    _f5 = MT.detect(_ch5)
+    _saved_hops = MT.VIA_HOPS
+    try:
+        _counts = []
+        for _h in (0, 1, 2):
+            MT.VIA_HOPS = _h
+            _counts.append(len(MT.cross_couplings(_ch5, _f5)))
+    finally:
+        MT.VIA_HOPS = _saved_hops
+    check("the reach bound REACHES the detection pass: couplings "
+          "found at VIA_HOPS 0/1/2 are {} - strictly increasing, "
+          "where a bound frozen in a default argument gives the "
+          "same number three times".format(_counts),
+          _counts[0] < _counts[1] < _counts[2])
+
+    check("...and the bound is RESTORED, so one suite cannot "
+          "leave a global that changes another's numbers",
+          MT.VIA_HOPS == _saved_hops)
 
     if FAIL:
         print("{} FAILED".format(FAIL))

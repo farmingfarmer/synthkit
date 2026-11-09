@@ -485,9 +485,27 @@ def link_order(found: Dict) -> List:
 #
 # The bound matters. Each level joins its ancestor's frame, so
 # cost grows with the chain, and a deep schema would price a
-# detection pass nobody asked for. Three reaches a
-# great-grandparent, which covers person -> visit -> order ->
-# result; deeper is a setting, not a default.
+# detection pass nobody asked for.
+#
+# WHAT THREE ACTUALLY REACHES IS FOUR LINKS, and the old comment
+# here understated it by one. `with_inherited(name, 3)` climbs
+# three levels of PARENTS, so `result` sees `person` on a
+# person -> visit -> order -> result chain. But `cross_couplings`
+# calls it on the PARENT side, so a child reaches its parent plus
+# three above it - four links. Measured on a five-table chain
+# where ten couplings exist (1 + 2 + 3 + 4):
+#
+#     VIA_HOPS   couplings detected
+#         0              4
+#         1              7
+#         2              9
+#         3             10
+#         4             10
+#
+# Three is already complete there, and raising it detects
+# nothing new. Deeper IS a setting now - it was not one before,
+# because this constant was a DEFAULT ARGUMENT and so frozen at
+# import; see `with_inherited`.
 VIA_HOPS = 3
 
 
@@ -506,7 +524,7 @@ def _via_name(fk: str, col: str) -> str:
 
 
 def with_inherited(frames: Dict[str, pd.DataFrame], found: Dict,
-                   name: str, hops: int = VIA_HOPS,
+                   name: str, hops: Optional[int] = None,
                    _seen: Optional[frozenset] = None
                    ) -> pd.DataFrame:
     """`name`'s frame plus the numeric columns of its ANCESTORS.
@@ -528,6 +546,17 @@ def with_inherited(frames: Dict[str, pd.DataFrame], found: Dict,
     `_seen` guards a cycle in the link graph, which the depth
     bound alone would merely truncate rather than refuse.
     """
+    # THE BOUND IS READ AT CALL TIME, NOT BAKED INTO THE
+    # SIGNATURE. It was `hops: int = VIA_HOPS`, and a default
+    # argument is evaluated ONCE at import - so the module's own
+    # comment called the depth "a setting, not a default" while
+    # reassigning `multitable.VIA_HOPS` changed nothing at all,
+    # and the two call sites that omit the argument were frozen
+    # at three forever. A measurement script then printed
+    # "detection ran at VIA_HOPS = 4" over a run that used three,
+    # which is the read-but-not-used flag this project already
+    # has a rule about, in its most literal form.
+    hops = VIA_HOPS if hops is None else hops
     base = frames[name]
     if hops <= 0:
         return base
@@ -688,6 +717,84 @@ def _rank1_weights(target):
     return u[:, 0], vt[0, :], lead, carried
 
 
+# NO RIDGE, AND THAT IS A MEASUREMENT RATHER THAN AN OVERSIGHT.
+#
+# A ridge was written here first, by analogy with the
+# within-table conditional tier, which needs one on the colinear
+# pressure family. On the WEIGHTS ALONE it looks necessary: at a
+# parent correlation of 0.9995 with targets 0.90 and 0.88, the
+# unridged direction gives a parent score correlating 0.823 and
+# 0.805 with its own parents where the ridged one gives 0.977
+# and 0.969 - the unridged weights point along the near-null
+# direction, which is the DIFFERENCE of two twins.
+#
+# END TO END IT CHANGES NOTHING, because the solve then SEARCHES
+# ten noise scales to minimise error across every target, and a
+# weaker score direction is re-absorbed by choosing less noise.
+# Swept on a near-twin chain, worst pair error:
+#
+#     parent |r|    ridged   unridged
+#       0.9500      0.0332     0.0334
+#       0.9990      0.0328     0.0327
+#       0.99999     0.0330     0.0330
+#       0.9999999   0.0329     0.0329
+#       1.0000      0.0329     0.0329
+#
+# Identical to four decimals at every colinearity including
+# EXACT, and at 0.9995 the unridged arm is better on two of
+# three seeds (0.0261 against 0.0331, 0.0135 against 0.0354).
+# Two arms that agree to four decimals are one arm - and here
+# that is the correct reading rather than a measurement bug. The
+# exactly-singular case is handled by the LinAlgError fallback
+# below, which returns the unwhitened direction, and that is the
+# right answer there: identical columns have identical rank
+# correlations with the child, so their targets are equal and
+# the unwhitened direction already meets them.
+
+
+def _whiten(cols_z, w):
+    """Turn a TARGET direction into the SCORE WEIGHTS that reach it.
+
+    WHY THE SVD VECTOR IS THE WRONG WEIGHT. After the assignment
+    the achieved matrix is approximately `lambda * a b'`, where
+    `a_i = corr(child_i, child_score)` and
+    `b_j = corr(parent_score, parent_j)`. The SVD gives the best
+    rank-one pair (p, q) with `T ~= lead * p q'`, so what must
+    hold is `a ∝ p` and `b ∝ q` - and `a = R u / sqrt(u' R u)`
+    for the columns' OWN correlation matrix R. Therefore
+    `u = R^-1 p`, not `u = p`.
+
+    Setting `u = p` is correct only when the columns are
+    uncorrelated. On a chain the parent frame carries a column
+    and the SAME column inherited from one and two links further
+    up - correlations of 0.89 and 0.79 between the parent
+    columns themselves - and a plain weighted sum then
+    correlates nearly EQUALLY with all of them. Measured on the
+    result link of a four-table chain, targets
+    0.891 / 0.795 / 0.704:
+
+        svd weights  0.807  0.832  0.795   sq err 0.0166
+        whitened     0.923  0.824  0.731   sq err 0.0025
+
+    The spread collapsed to 0.037 where the target spans 0.187,
+    and `carried` read 1.00 throughout - correctly, because the
+    direction IS reachable. The metric was right and the weights
+    were wrong.
+    """
+    import numpy as np
+    if cols_z.shape[1] <= 1:
+        return w
+    R = np.corrcoef(cols_z.T)
+    if not np.all(np.isfinite(R)):
+        return w
+    try:
+        out = np.linalg.solve(R, w)
+    except np.linalg.LinAlgError:
+        return w
+    nrm = float(np.linalg.norm(out))
+    return out / nrm if nrm else w
+
+
 def _couple_assign_joint(child, child_cols, pool, parent,
                          parent_cols, target, rng):
     """One assignment, several couplings, solved together.
@@ -757,8 +864,13 @@ def _couple_assign_joint(child, child_cols, pool, parent,
                    "and a rank-one fit would land one pair and "
                    "lose the rest",
             "pairs": []}
-    cs = cz.dot(u)
-    ps = pz.dot(v)
+    # THE WEIGHTS ARE WHITENED THROUGH EACH SIDE'S OWN
+    # CORRELATION MATRIX - see `_whiten`. Without it a chain's
+    # inherited columns, which are correlated with each other by
+    # construction, collapse three different targets onto one
+    # achieved value while `carried` reads 1.00.
+    cs = cz.dot(_whiten(cz, u))
+    ps = pz.dot(_whiten(pz_all, v))
     order_p = np.argsort(_pd.Series(ps).rank(
         method="first").to_numpy(), kind="stable")
     base = _pd.Series(cs).rank(method="first").to_numpy()

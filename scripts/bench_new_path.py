@@ -88,6 +88,36 @@ def curve_gap(frame, x, y):
     return float(((lo + hi) / 2.0 - mid) / sd)
 
 
+def lag_corr(frame, parent, child, group="person_id",
+             order="visit_start_date"):
+    """`child_t` against `parent_(t-1)`, with the lag RECOMPUTED.
+
+    THE EMITTED `x__prev` COLUMN MUST NOT BE TRUSTED HERE. With
+    `--lags` the search sees `x__prev` and the blueprint then
+    models it as an ordinary numeric, so generation DRAWS it
+    rather than carrying the previous row's `x`. A test that read
+    `y ~ x__prev` off the output would therefore pass on a file
+    whose lag column contradicts its own `x` on the previous
+    visit - the broken-identity class this project already
+    records for `age_at_visit` against `year_of_birth`, where the
+    pair correlation stayed strong while the identity held on 21%
+    of rows.
+
+    So the lag is rebuilt from the frame's OWN ordering, on both
+    tables, which is the only form of the question that asks
+    whether the TEMPORAL structure survived rather than whether a
+    column with a suggestive name did.
+    """
+    if group not in frame.columns or order not in frame.columns:
+        return float("nan")
+    f = frame[[group, order, parent, child]].copy()
+    f[parent] = pd.to_numeric(f[parent], errors="coerce")
+    f[child] = pd.to_numeric(f[child], errors="coerce")
+    f = f.sort_values([group, order], kind="stable")
+    f["_prev"] = f.groupby(group, sort=False)[parent].shift(1)
+    return spearman(f["_prev"], f[child])
+
+
 def survives(kind, truth, src, gen):
     """Is the planted pattern still measurable after generation?
 
@@ -104,8 +134,49 @@ def survives(kind, truth, src, gen):
         return (False, None, None, "the parent column is not in the "
                                    "generated table")
 
+    if kind == "lagged-cross-column":
+        # THE SAME-VISIT PAIR CARRIES NO SIGNAL BY DESIGN, which
+        # is what made this row unscored: the fixture plants
+        # `y_t ~ x_(t-1)`, so `spearman(x_t, y_t)` reads 0.003 in
+        # the SOURCE and the monotone branch correctly declined to
+        # score it. The lag has to be rebuilt to ask the question
+        # at all.
+        s_ = lag_corr(src, p0, child)
+        g_ = lag_corr(gen, p0, child)
+        # AND THE SAME-VISIT PAIR IS NOW A FINDING RATHER THAN A
+        # BLANK. With `--lags` the generated file came back
+        # carrying a same-visit correlation of 0.97 between a
+        # pair the SOURCE relates at 0.00, on every seed, where
+        # WITHOUT `--lags` it correctly reads 0.00. A
+        # relationship the data does not have is worse than a
+        # missing one, because it reads as a finding - so an
+        # INVENTED same-visit pattern fails this kind outright,
+        # whatever the lag does.
+        sv_s = spearman(num(src, p0), num(src, child))
+        sv_g = spearman(num(gen, p0), num(gen, child))
+        invented = (np.isfinite(sv_s) and np.isfinite(sv_g)
+                    and abs(sv_s) < 0.1 and abs(sv_g) >= 0.3)
+        if invented:
+            return (False, round(sv_s, 3), round(sv_g, 3),
+                    "INVENTED SAME-VISIT PATTERN: the source "
+                    "relates this pair at {:+.3f} at the SAME "
+                    "visit and the output at {:+.3f}. A "
+                    "relationship the data does not have is "
+                    "worse than a missing one".format(sv_s, sv_g))
+        if not np.isfinite(s_) or abs(s_) < 0.05:
+            return (None, s_, g_, "no LAGGED signal in the SOURCE "
+                                  "to carry (the same-visit pair "
+                                  "is near zero by design)")
+        return (bool(np.isfinite(g_) and abs(g_) >= 0.5 * abs(s_)
+                     and np.sign(g_) == np.sign(s_)),
+                round(s_, 3), round(g_, 3),
+                "the lag is RECOMPUTED from each table's own "
+                "ordering, never read off the emitted __prev "
+                "column, which generation draws rather than "
+                "carries")
+
     if kind in ("linear", "saturating", "threshold",
-                "lagged-cross-column", "heterogeneous",
+                "heterogeneous",
                 "subgroup-conditional", "three-way",
                 "interaction-with-main-effect"):
         s = spearman(num(src, p0), num(src, child))
@@ -163,7 +234,7 @@ def survives(kind, truth, src, gen):
 
 
 def run(out_dir, patients, harder, seed, say,
-        tangled=0, skew=0.0):
+        tangled=0, skew=0.0, lags=False):
     fx = out_dir / "fixture"
     fx.mkdir(parents=True, exist_ok=True)
     r = subprocess.run(
@@ -187,6 +258,26 @@ def run(out_dir, patients, harder, seed, say,
         "{} noise columns".format(
             len(src), src.shape[1], len(truth["relationships"]),
             len(truth["noise_columns"])))
+
+    lag_note = ""
+    if lags:
+        # THE SAME CONSTRUCTION `synthkit fit --lags` USES, called
+        # rather than rebuilt - this instrument scores the FITTED
+        # path, and a bench that built its own lag features would be
+        # scoring a path nobody runs. `lagged-cross-column` is the
+        # one kind that misses on EVERY seed, and the reason was that
+        # the bench never built lags at all: a capability present in
+        # the pipeline and wired to nothing in the instrument that
+        # grades it.
+        from synthkit.temporal import (add_lag_features,
+                                       detect_time_column)
+        rows = src.to_dict("records")
+        tc, tk, _ev = detect_time_column(rows, "person_id")
+        rows, info = add_lag_features(rows, "person_id", tc, tk)
+        src = pd.DataFrame(rows)
+        lag_note = "{} lag column(s) on time axis {}".format(
+            info["added"], tc or "file order")
+        say("--lags: " + lag_note)
 
     say("discovering (this is the slow part)")
     cat = discover(src, group_by="person_id", seed=seed + 1)
@@ -223,6 +314,71 @@ def run(out_dir, patients, harder, seed, say,
                    report=rep)
     n_rel = len(bp.get("relationships") or [])
     n_drop = len(rep.get("edges_dropped") or [])
+
+    # THE LAG DIAGNOSTIC, printed from the run rather than
+    # guessed at. A lag column is a PERMUTATION of its own
+    # column within each patient, so in the source `x` and
+    # `x__prev` are related only as much as the column is
+    # patient-stable - on this fixture, not at all. If the
+    # OUTPUT relates them, every relationship drawn from
+    # `x__prev` acquires a same-visit correlation with `x`
+    # that the source does not have, which is the shape of
+    # the fault rather than a story about it.
+    if lags:
+        from synthkit.temporal import LAG_SUFFIX
+        say("")
+        say("lag columns: a lag is a PERMUTATION of its own "
+            "column, so x ~ x__prev measures how much the")
+        say("engine invented between them. Anything drawn from "
+            "x__prev inherits that against x.")
+        # ABSENT IS A FINDING, NOT A BLANK. The first version
+        # of this block printed its header and NO ROWS, because
+        # not one lag column reaches the written file - which is
+        # the whole answer and read as a broken diagnostic. A
+        # blueprint claim whose parent is not in the output
+        # cannot fire, so the kind is FOUND by the search and
+        # unreachable by the sampler.
+        _lag_src = [c for c in sorted(src.columns)
+                    if c.endswith(LAG_SUFFIX)]
+        _lag_gen = [c for c in _lag_src if c in gen.columns]
+        say("  {} lag column(s) in the source frame, {} of them "
+            "in the OUTPUT".format(len(_lag_src), len(_lag_gen)))
+        if not _lag_gen:
+            say("  NO lag column reaches the written file, so a "
+                "claim with a lag parent cannot fire at")
+            say("  generation however well the search found it.")
+            for tr in truth["relationships"]:
+                if tr["kind"] != "lagged-cross-column":
+                    continue
+                for r in (bp.get("relationships") or []):
+                    if r["child"] != tr["child"]:
+                        continue
+                    # THE BLUEPRINT'S FIELD IS `parents`, A LIST
+                    # OF NAMES. `predictors[].column` is the
+                    # CATALOGUE's shape, and reading it here
+                    # printed `<- []` for every record on a
+                    # blueprint whose relationships plainly work -
+                    # the ninth wrong-key fault in this project,
+                    # in a diagnostic written the same day. It
+                    # sent me looking for an empty-predictor bug
+                    # that does not exist. The key is asserted
+                    # against a LIVE built blueprint in
+                    # smoke_bench, not remembered.
+                    say("  blueprint {} <- {}".format(
+                        r["child"], list(r.get("parents") or [])))
+        for c in _lag_gen:
+            base = c[:-len(LAG_SUFFIX)]
+            if base not in src.columns:
+                continue
+            ss = spearman(num(src, base), num(src, c))
+            gg = spearman(num(gen, base), num(gen, c))
+            if not (np.isfinite(ss) and np.isfinite(gg)):
+                continue
+            flag = ("  INVENTED" if abs(ss) < 0.1
+                    and abs(gg) >= 0.3 else "")
+            say("  {:<34} source {:+.3f}  generated {:+.3f}{}"
+                .format("{} ~ __prev".format(base[:24]),
+                        ss, gg, flag))
     say("relationships in the blueprint {}, DROPPED to make the "
         "graph sampleable {} ({:.0%}) - the real extract drops 16 of "
         "26".format(n_rel, n_drop,
@@ -238,7 +394,7 @@ def run(out_dir, patients, harder, seed, say,
                      "how": how})
     return {"rows": rows, "seed": seed, "harder": harder,
             "patients": patients, "relationships": n_rel,
-            "edges_dropped": n_drop}
+            "edges_dropped": n_drop, "lags": lag_note}
 
 
 # THE SWEEP THAT ATTRIBUTED THE DEBT, as data rather than prose.
@@ -251,6 +407,17 @@ SEED_SWEEP = (
     (3, 11, 0.230, False),
     (4, 11, 0.184, False),
 )
+
+# THE SAME FIVE SEEDS WITH `--lags`, measured 2026-11-08 once the
+# bench could build the lag features at all. seed: found_of_13.
+LAG_SWEEP = ((0, 12), (1, 13), (2, 12), (3, 12), (4, 12))
+
+# AND WHAT THE EXTRA KIND COSTS, on the same runs. The lagged
+# relationship becomes findable and the OUTPUT acquires a
+# same-visit correlation the source does not have:
+#   seed: (source same-visit, generated same-visit)
+LAG_COST = ((0, 0.003, 0.971), (1, 0.000, 0.969),
+            (2, -0.001, 0.973), (4, -0.004, 0.971))
 
 
 def seed_range_note():
@@ -286,9 +453,25 @@ def seed_range_note():
             " / ".join("{:.3f}".format(v) for v in found_at),
             min(counts)),
         "NOT a regression against a recorded {}. "
-        "`lagged-cross-column` misses on every seed because".format(
+        "`lagged-cross-column` misses on every seed without".format(
             max(counts)),
-        "it needs --lags, which exists.",
+        "--lags, and is found on every seed WITH it: {} of 13 "
+        "over the same five seeds.".format(
+            " / ".join(str(c) for _s, c in LAG_SWEEP)),
+        "AND IT IS NOT A FREE POINT. The lagged relationship is "
+        "then FOUND and still does not survive -",
+        "the lag recomputed from each table's own ordering reads "
+        "+0.98 in the source against -0.00 in the",
+        "output - while the output acquires a SAME-VISIT "
+        "correlation of {:.2f}-{:.2f} on a pair the source".format(
+            min(g for _s, _f, g in LAG_COST),
+            max(g for _s, _f, g in LAG_COST)),
+        "relates at {:+.3f}-{:+.3f}. Without --lags that same "
+        "pair correctly reads 0.00. An invented".format(
+            min(f for _s, f, _g in LAG_COST),
+            max(f for _s, f, _g in LAG_COST)),
+        "relationship is worse than a missing one, so this kind "
+        "FAILS survival rather than scoring the point.",
     ]
 
 
@@ -299,6 +482,11 @@ def main():
     ap.add_argument("--tangled", type=int, default=0)
     ap.add_argument("--skew-planted", type=float, default=0.0)
     ap.add_argument("--seed", type=int, default=5)
+    ap.add_argument("--lags", action="store_true",
+                    help="build the per-patient lag features that "
+                         "`synthkit fit --lags` builds, which is "
+                         "what `lagged-cross-column` needs to be "
+                         "findable at all")
     ap.add_argument("-o", "--out", default="")
     a = ap.parse_args()
 
@@ -307,7 +495,7 @@ def main():
 
     with tempfile.TemporaryDirectory() as td:
         res = run(Path(td), a.patients, a.harder, a.seed, say,
-                  a.tangled, a.skew_planted)
+                  a.tangled, a.skew_planted, a.lags)
 
     say("")
     say("PATTERN KIND                        FOUND   SURVIVES  "

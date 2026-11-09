@@ -345,14 +345,24 @@ Referential integrity across tables is table stakes — MOSTLY AI
 documents a referential integrity scenario and SDV handles
 relational schemas. What we add is enforcing the measured
 cross-table RELATIONSHIPS through the key assignment, out to
-three hops, with the limit stated as arithmetic:
+FOUR links, with the limit stated as arithmetic:
 
 | | measured |
 |---|---|
 | one-hop coupling, enforced vs control | +0.917 vs −0.023 |
 | two-hop, before / after | −0.000 / +0.981 |
 | three-hop, before / after | +0.010 / +0.981 |
+| four-hop on a chain, coupled vs control | +0.607 vs −0.005 (source +0.654) |
 | rank-one refusal | named, with what cannot come with it |
+
+Depth is cheaper than it looks and we say so rather than
+selling it: on a CHAIN each link's own enforcement composes, so
+a four-hop correlation lands at 93% of source with only the
+DIRECT couplings enforced. The multi-hop detection earns its
+place on the other shape — an intermediate table with no
+numeric to compose through, where the deep coupling is the only
+carrier (source +0.897, one-hop detection +0.010, multi-hop
++0.817, control −0.013).
 
 The refusal is the unusual part: a single foreign key is one
 choice per row, so a link carries only rank-one correlation
@@ -415,7 +425,7 @@ I did not find another tool documenting this.
 | HIPAA Expert Determination | **partial, 10 of 11 elements measured on the real cohort** — membership, attribute, memorization and linkage each with their positive control, and every piece of evidence verified as being about THIS cohort at THESE caps. The one gap is a written scope, which a run cannot supply. No expert has made a determination and the tool refuses to imply one | yes (Tonic) |
 | automatic PHI/PII detection | yes, 18-category inventory | yes (Tonic) |
 | referential integrity across tables | yes | yes (MOSTLY AI, SDV) |
-| cross-table RELATIONSHIP enforcement, 3 hops | yes, measured | not found |
+| cross-table RELATIONSHIP enforcement, 4 links | yes, measured | not found |
 | TSTR utility evaluation | yes | yes (most) |
 | membership inference with positive controls | yes, two surfaces | not found as a shipped default |
 | DCR-style distance privacy metric | yes, plus nn-ratio | yes (MOSTLY AI) |
@@ -513,7 +523,7 @@ I did not find another tool documenting this.
    is a qualified person's to make, and a tool claiming one
    would be the same fault as describing an output as
    differentially private when only the weights are accounted.
-   **The run of record now exists**: nine of eleven elements
+   **The run of record now exists**: TEN of eleven elements
    measured on the real 800-patient extract, with the
    membership, attribute and linkage batteries all pointed at
    the extract itself rather than at a fixture. Membership at
