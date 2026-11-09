@@ -830,6 +830,7 @@ def build(df: pd.DataFrame,
         if cl["child"] not in columns:
             continue
         parents = []
+        lag_parents: List[str] = []
         for p in cl["predictors"][:max_predictors]:
             if p["column"] not in columns or p["column"] == cl["child"]:
                 continue
@@ -892,6 +893,25 @@ def build(df: pd.DataFrame,
                             and abs(rho) >= LAG_SAME_VISIT_MIN)
                         or (bend is not None
                             and bend >= LAG_SAME_VISIT_BEND))
+                # AND IF THERE IS NO SAME-VISIT EVIDENCE, THE CURVE
+                # IS NOT WRONG - ONLY THE COLUMN IT IS READ FROM IS.
+                #
+                # `discover` measures the curve on the group, and on
+                # a lagged finding that curve is the LAG's: on a
+                # planted fixture whose same-visit pair reads 0.00,
+                # the published curve for `x` comes back
+                # `increasing` with a response range of 37 over a
+                # child whose sd is 10. A same-visit curve there
+                # would be flat. So the shape is already the right
+                # one and applying it to the PREVIOUS visit's value
+                # is what the evidence supports - which needs a
+                # patient to shift within, and without a grouping
+                # column a lag means nothing and the parent is
+                # dropped as before.
+                if not keep and group_by and group_by in df.columns:
+                    lag_parents.append(p["column"])
+                    parents.append(p)
+                    continue
                 if not keep:
                     lag_only_dropped.append({
                         "child": cl["child"],
@@ -917,6 +937,15 @@ def build(df: pd.DataFrame,
             "parents": [p["column"] for p in parents],
             "evidence": {
                 "skill_out_of_sample": cl["skill"],
+                # WHICH PARENTS ARE READ FROM THE PREVIOUS VISIT.
+                # Absent or empty means every parent is same-visit,
+                # which is every blueprint built before this field
+                # existed - so the sampler's lag path cannot fire on
+                # one of them and an older artifact still loads.
+                "lag_parents": ([pp for pp in lag_parents
+                                 if pp in [q["column"]
+                                           for q in parents]]
+                                or None),
                 # HOW THE LEFTOVER SPREAD MOVES WITH THE PREDICTION.
                 # Without it generation shrinks by one number for the
                 # whole column, and a heteroscedastic column comes

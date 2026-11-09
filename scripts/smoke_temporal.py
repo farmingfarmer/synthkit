@@ -295,19 +295,27 @@ def main():
                       and (p.get("via") or []) == ["x__prev"]
                       for p in c["predictors"])
               for c in _cat["claims"]))
-    check("...and the blueprint REFUSES it as a same-visit parent "
-          "(y's parents are {}), so no same-visit curve is "
-          "published for a pair the source relates at {:+.3f}"
-          .format(_rel.get("y"), _s_same),
-          "x" not in (_rel.get("y") or []))
-    check("...and the refusal is REPORTED with the measured "
-          "same-visit correlation that justified it ({} entr"
-          "y/ies), because a category with no section is "
-          "invisible in any other way".format(len(_drop)),
-          any(d["child"] == "y" and d["parent"] == "x"
-              and d["via"] == ["x__prev"]
-              and abs(d["same_visit_rho"]) < 0.1
-              for d in _drop))
+    _lagp = dict((r["child"], (r["evidence"].get("lag_parents")
+                               or []))
+                 for r in (_bp.get("relationships") or []))
+    check("...and the blueprint MARKS it as read from the "
+          "PREVIOUS visit rather than publishing a same-visit "
+          "curve (y's lag parents are {}): the curve discovery "
+          "measured IS the lag's, so only the column it is read "
+          "from was wrong"
+          .format(_lagp.get("y")),
+          "x" in (_lagp.get("y") or []))
+    check("...and it is still a PARENT ({}), because dropping it "
+          "would lose a relationship the data has - the first "
+          "version of this fix dropped it, which removed the "
+          "invented pattern by removing the finding too"
+          .format(_rel.get("y")),
+          "x" in (_rel.get("y") or []))
+    check("...and the HONEST same-visit parent is NOT marked, so "
+          "the marker is a statement about the evidence rather "
+          "than about every lag-carried parent (w's lag parents "
+          "{})".format(_lagp.get("w")),
+          "u" not in (_lagp.get("w") or []))
     check("...and the HONEST pair is KEPT ({} <- {}): the fold is "
           "only wrong when it changes what the claim is about, so "
           "a lag-carried parent whose base column DOES relate at "
@@ -319,6 +327,44 @@ def main():
     _g = _gen(_bp, n_patients=260, seed=5)
     _g_same = _sp(_g, "x", "y")
     _g_honest = _sp(_g, "u", "w")
+
+    # THE POINT OF THE WHOLE CHANGE: the lagged relationship is
+    # CARRIED now, where it was absent rather than degraded.
+    #
+    # Read by the order each file DECLARES. A source extract has
+    # no visit index, so its dates are its only sequence; the
+    # generated file emits `visit_number` as 1..n in row order,
+    # which asserts one. Measured on this engine, only 0.8% of
+    # generated patients have their DATES in row order while
+    # `visit_number` is in row order on 100% of them - so reading
+    # the output by its date gives +0.31 where reading it by the
+    # column the file itself numbers gives +0.86. That gap is a
+    # separate defect IN THE OUTPUT, present with or without
+    # `--lags`: two columns in one file disagreeing about the
+    # order of a patient's visits.
+    def _lagc(f, parent, child):
+        ordc = ("visit_number" if "visit_number" in f.columns
+                else "visit_start_date")
+        q = f[["person_id", ordc, parent, child]].copy()
+        q[parent] = _pd.to_numeric(q[parent], errors="coerce")
+        q[child] = _pd.to_numeric(q[child], errors="coerce")
+        o = _pd.to_numeric(q[ordc], errors="coerce")
+        q["_o"] = (o if o.notna().all()
+                   else _pd.to_datetime(q[ordc], errors="coerce"))
+        q = q.sort_values(["person_id", "_o"], kind="stable")
+        q["_p"] = q.groupby("person_id", sort=False)[parent].shift(1)
+        kk = q["_p"].notna() & q[child].notna()
+        return float(q["_p"][kk].rank().corr(q[child][kk].rank()))
+
+    _lag_s = _lagc(_lf, "x", "y")
+    _lag_g = _lagc(_g, "x", "y")
+    check("THE LAGGED RELATIONSHIP IS CARRIED: source {:+.3f}, "
+          "generated {:+.3f}, each read by the order its own file "
+          "declares - it was absent rather than degraded before "
+          "(-0.002), because the curve was applied to the current "
+          "visit".format(_lag_s, _lag_g),
+          abs(_lag_g) >= 0.4 * abs(_lag_s)
+          and _np.sign(_lag_g) == _np.sign(_lag_s))
     check("THE OBSERVABLE: the generated same-visit correlation "
           "is {:+.3f} against a source {:+.3f}, where applying "
           "the folded claim produced +0.79 - an invented "
@@ -431,6 +477,40 @@ def main():
           "measure says - half a pair cannot fire at generation"
           .format(_xrel.get("c")),
           set(_xrel.get("c") or []) >= {"a", "b"})
+
+    # ---- AND IT IS INERT WITHOUT `--lags` -----------------------
+    #
+    # The whole lag path hangs off `evidence.lag_parents`, which
+    # only a run that BUILT lag features can produce - so on every
+    # blueprint this project has ever written the branch cannot
+    # fire, and the output must be byte-identical. That is the
+    # property that makes a change to the sampler core safe to
+    # ship, and it is asserted rather than argued: the same
+    # fixture with no lag features, generated twice, against a
+    # blueprint whose lag field is forced empty.
+    import copy as _copy
+    import hashlib as _hl
+    _nolag_bp = _B.build(_raw, _disc(_raw, group_by="person_id",
+                                     seed=1),
+                         group_by="person_id")
+    _marks = [r["evidence"].get("lag_parents")
+              for r in (_nolag_bp.get("relationships") or [])]
+    check("a blueprint built with NO lag features marks no parent "
+          "as lagged ({}), so the sampler's lag path cannot fire "
+          "on one".format(_marks),
+          all(not mk for mk in _marks))
+    _stripped = _copy.deepcopy(_nolag_bp)
+    for _r in (_stripped.get("relationships") or []):
+        _r["evidence"].pop("lag_parents", None)
+    _h1 = _hl.sha256(_gen(_nolag_bp, n_patients=200, seed=7)
+                     .to_csv(index=False).encode()).hexdigest()
+    _h2 = _hl.sha256(_gen(_stripped, n_patients=200, seed=7)
+                     .to_csv(index=False).encode()).hexdigest()
+    check("...and an OLDER artifact that predates the field "
+          "entirely generates byte-identically to one carrying it "
+          "empty - absent is not a different fact from empty "
+          "here, and an old blueprint must still load",
+          _h1 == _h2)
 
     print()
     if FAIL:

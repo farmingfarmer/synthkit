@@ -88,8 +88,36 @@ def curve_gap(frame, x, y):
     return float(((lo + hi) / 2.0 - mid) / sd)
 
 
+def visit_order(frame):
+    """The column THIS file declares its visit sequence by.
+
+    THE TWO TABLES DECLARE IT DIFFERENTLY AND BOTH MUST BE READ
+    AS THEY ARE WRITTEN. A source extract has no visit index, so
+    its dates are the only sequence it carries. The generated file
+    emits `visit_number` as 1..n in row order, which ASSERTS a
+    sequence - and draws its date column from a marginal, which
+    does not: measured on this fixture, only 0.8% of generated
+    patients have their dates in row order while `visit_number` is
+    in row order on 100% of them. So sorting the output by its
+    date reads a lagged relationship at +0.31 where reading it by
+    the column the file itself numbers reads +0.86.
+
+    Which is a DEFECT IN THE OUTPUT and not a measurement choice -
+    two columns in one file disagreeing about the order of a
+    patient's visits is this project's own alarm - and it is a
+    separate one from the lag: it is there with or without
+    `--lags`, and a consumer sorting by date gets a different
+    sequence from one sorting by the index. Named here, measured,
+    and read the way each file writes it rather than papered over
+    by picking whichever ordering flatters the number.
+    """
+    if "visit_number" in frame.columns:
+        return "visit_number"
+    return "visit_start_date"
+
+
 def lag_corr(frame, parent, child, group="person_id",
-             order="visit_start_date"):
+             order=None):
     """`child_t` against `parent_(t-1)`, with the lag RECOMPUTED.
 
     THE EMITTED `x__prev` COLUMN MUST NOT BE TRUSTED HERE. With
@@ -108,12 +136,18 @@ def lag_corr(frame, parent, child, group="person_id",
     whether the TEMPORAL structure survived rather than whether a
     column with a suggestive name did.
     """
+    order = order or visit_order(frame)
     if group not in frame.columns or order not in frame.columns:
         return float("nan")
     f = frame[[group, order, parent, child]].copy()
     f[parent] = pd.to_numeric(f[parent], errors="coerce")
     f[child] = pd.to_numeric(f[child], errors="coerce")
-    f = f.sort_values([group, order], kind="stable")
+    _ord = pd.to_numeric(f[order], errors="coerce")
+    if _ord.notna().all():
+        f["_ord"] = _ord
+    else:
+        f["_ord"] = pd.to_datetime(f[order], errors="coerce")
+    f = f.sort_values([group, "_ord"], kind="stable")
     f["_prev"] = f.groupby(group, sort=False)[parent].shift(1)
     return spearman(f["_prev"], f[child])
 

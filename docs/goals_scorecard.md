@@ -449,13 +449,42 @@ fidelity, and the self-explaining gate all landed.)*
   interaction-only parent — on `c = 8ab` with `--lags`,
   `c <- ['a','b']` became `c <- ['a']` until a parent named by
   the claim's own `interaction.pair` was made exempt.
-- What remains is the other half: making the lagged relationship
-  SURVIVE. 55 lag columns go in and ZERO reach the written file,
-  so a claim with a lag parent cannot fire at all. That needs a
-  lag column DERIVED at generation rather than drawn — the
-  identity-by-copying rule — and it is a generation-ORDER change
-  rather than a post-pass, because the child is drawn FROM the
-  lag.
+- **AND THE OTHER HALF LANDED THE SAME DAY: the lagged
+  relationship SURVIVES.** No lag column needed to reach the
+  written file at all — the curve `discover` publishes under the
+  base name IS the lag's (on a fixture whose same-visit pair reads
+  0.00, that curve comes back `increasing` with a response range
+  of 37 over a child of sd 10), so the shape was right and only
+  the column it was read from was wrong. The parent is MARKED in
+  `evidence.lag_parents` rather than dropped, and the sampler
+  reads it from the patient's previous row:
+
+      pair                      source    before     after
+      x~y (same visit)         −0.0038   +0.7901   +0.0149
+      x_(t−1) ~ y (lagged)     +0.8871   −0.0020   +0.7870
+      u~w (honest same-visit)  +0.9698   +0.9645   +0.9645
+
+  An absent temporal relationship carried at **89% of source**,
+  the invented pattern gone, the honest one bit-identical. And it
+  is INERT where its mechanism is absent, asserted as a digest: a
+  blueprint predating the field generates byte-identically to one
+  carrying it empty, which is what makes a four-call-site change
+  to the sampler core safe to ship.
+- **WHAT THE MEASUREMENT EXPOSED INSTEAD is a separate defect in
+  the output: `visit_number` is in row order on 100% of generated
+  patients and `visit_start_date` on 0.8%.** Reading the lagged
+  pair by the index gives +0.86 and by the date +0.31. Two columns
+  in one file disagreeing about the order of a patient's visits is
+  this project's own alarm, it is there with or without `--lags`,
+  and the obvious fix was checked against the source first — the
+  tidy fixture's own rows are monotone within a patient on only
+  47.5% of patients, so the source does not encode visit order in
+  its rows either. The direction is therefore to make
+  `visit_number` follow the generated dates, and it is not free:
+  the real extract declares `visit_start_date <-> visit_end_date`
+  at skill 0.9999, so permuting one date column within a patient
+  while the other stays would destroy a near-identity. Next step,
+  measured rather than assumed cheap.
 - The search cap: only 24 tokens per set column can carry a
   relationship; on the extract the excluded tokens hold 72% of
   `conditions` mass. Measured, reported by `peek cap`, unresolved —

@@ -2590,6 +2590,78 @@ the direction that stops work happening.
   error with did-you-mean; `synthkit dials` lists every edge.
 
 ## Numbers before conclusions
+- **THE LAGGED RELATIONSHIP SURVIVES NOW, AND THE CURVE WAS RIGHT
+  ALL ALONG - ONLY THE COLUMN IT WAS READ FROM WAS WRONG
+  (2026-11-08).** The fold's victim was never the SHAPE.
+  `discover` measures the curve on the whole group, so on a lagged
+  finding that curve IS the lag's: on a planted fixture whose
+  same-visit pair reads **0.00**, the published curve for `x` comes
+  back `increasing` with a response range of **37** over a child of
+  sd 10, which no same-visit curve could be. So the evidence
+  already described `y` against the PREVIOUS visit's `x`, and
+  generation was applying it to the current one.
+  `blueprint.build` marks such a parent in
+  `evidence.lag_parents` - it is still a PARENT, because dropping
+  it removes the invented pattern by removing the finding too,
+  which is what my first version did - and `_apply_numeric` reads
+  that parent's value from the patient's previous row.
+      pair                      source    before     after
+      x~y (same visit)         -0.0038   +0.7901   +0.0149
+      x_(t-1) ~ y (lagged)     +0.8871   -0.0020   +0.7870
+      u~w (honest same-visit)  +0.9698   +0.9645   +0.9645
+  **An absent temporal relationship is now carried at 89% of
+  source**, with the invented same-visit pattern gone and the
+  honest same-visit relationship bit-identical.
+- **AND IT IS INERT WHERE ITS MECHANISM IS ABSENT, ASSERTED AS A
+  DIGEST.** The whole path hangs off `evidence.lag_parents`, which
+  only a run that BUILT lag features can produce - so on every
+  blueprint this project has ever written the branch cannot fire.
+  A blueprint predating the field generates BYTE-IDENTICALLY to
+  one carrying it empty: absent is not a different fact from empty
+  here, and an old artifact must still load. That is the property
+  that makes a four-call-site change to the sampler core safe to
+  ship, and it is a check rather than an argument.
+- **AND A PATIENT'S VISIT ROWS ARE CONTIGUOUS AND IN ORDER, WHICH
+  IS WHY NO NEW MACHINERY WAS NEEDED.** `pidx = repeat(arange(
+  n_pat), counts)`, so the previous visit is the previous ROW as
+  long as it belongs to the same patient. A first visit has no
+  previous value and gets NaN, which `_curve_delta` already turns
+  into no push at all - the same thing it does for a missing
+  parent, which is what a patient's first visit genuinely is.
+- **AND THE MEASUREMENT EXPOSED A SEPARATE DEFECT IN THE OUTPUT:
+  TWO COLUMNS DISAGREE ABOUT THE ORDER OF A PATIENT'S VISITS.**
+  The first reading of the fix said the lag transferred at only
+  +0.31, and the reason was the ordering the measurement used.
+  Measured on the generated file:
+      visit_number in row order          100.0% of patients
+      visit_start_date in row order        0.8% of patients
+      lagged pair read by ROW order     +0.8614 (source +0.8898)
+      lagged pair read by DATE order    +0.3109
+  `visit_number` is emitted as 1..n in row order, which ASSERTS a
+  sequence; the date column is drawn from its marginal, which does
+  not. A consumer sorting by date and a consumer sorting by the
+  index get different sequences, and 99.2% of patients carry at
+  least one inversion. **That is present with or without `--lags`**
+  and is this project's own alarm - two numbers in one file
+  disagreeing - so it is named as its own open item rather than
+  folded into the lag work. The instrument now reads each table by
+  the order ITS OWN FILE declares (the index where there is one,
+  the dates otherwise) rather than picking whichever ordering
+  flatters the number.
+- **AND THE SOURCE'S ROW ORDER IS NOT THE ANSWER EITHER.** The
+  obvious fix - sort each patient's dates so row order and date
+  order agree - was checked against the source first, and the
+  tidy fixture's own rows are monotone within a patient on only
+  **47.5%** of patients. The source file does not encode visit
+  order in its rows, and it has no visit index at all; the DATES
+  are its only sequence. So the fix is the other direction -
+  `visit_number` should follow the generated dates rather than the
+  row layout - and it is not free: the real extract declares
+  `visit_start_date <-> visit_end_date` at skill 0.9999, so
+  permuting one date column within a patient while the other
+  stays would destroy a near-identity. Measured first, not
+  assumed, and left as the next step.
+
 - **THE 0.97 HAS ITS CAUSE: A LAG PARENT WAS BEING REPLACED BY ITS
   BASE COLUMN, SO AN ACROSS-VISIT RELATIONSHIP WAS APPLIED AT THE
   SAME VISIT (2026-11-08).** The run's own diagnostic printed

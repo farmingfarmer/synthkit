@@ -290,6 +290,41 @@ def _draw_categorical(m: Dict[str, Any], n: int, rng) -> np.ndarray:
     return rng.choice(vals, size=n, p=p)
 
 
+def _prev_within(v, pidx) -> np.ndarray:
+    """Each row's value at that patient's PREVIOUS visit, else NaN.
+
+    WHY THIS EXISTS. `discover._source` folds `x__prev` to `x` so
+    the catalogue reads in the operator's own column names, and the
+    curve it publishes under that name is the LAG's curve - on a
+    planted fixture whose same-visit pair reads 0.00, the published
+    curve for `x` comes back `increasing` with a response range of
+    37 over a child of sd 10, which no same-visit curve could be.
+    So the shape was already right and the COLUMN it was read from
+    was wrong: applying it to the current visit produced a
+    same-visit correlation of +0.79 where the source has -0.004.
+
+    Generation lays a patient's rows out contiguously and in visit
+    order (`pidx = repeat(arange(n_pat), counts)`), so the previous
+    visit is the previous ROW as long as it belongs to the same
+    patient. A first visit has no previous value and gets NaN,
+    which `_curve_delta` already turns into no push at all - the
+    same thing it does for a missing parent, which is what a
+    patient's first visit genuinely is.
+    """
+    v = np.asarray(v, dtype=float)
+    out = np.full(len(v), np.nan, dtype=float)
+    if len(v) < 2:
+        return out
+    out[1:] = v[:-1]
+    pidx = np.asarray(pidx)
+    if len(pidx) == len(v):
+        first = np.concatenate(([True], pidx[1:] != pidx[:-1]))
+        out[first] = np.nan
+    else:
+        out[0] = np.nan
+    return out
+
+
 def _curve_delta(eff: Dict[str, Any], parent_vals,
                  present=None) -> np.ndarray:
     """How far this parent pushes the child from its average.
@@ -1603,7 +1638,8 @@ def generate(blueprint: Dict[str, Any],
                         b = _draw_numeric(_m, uu)
                         return np.asarray(
                             _apply_numeric(_c, _spec, _m, b, _rels,
-                                           out, masks), dtype=float)
+                                           out, masks, pidx),
+                            dtype=float)
 
                     inject, got = _solve_within(
                         tgt, icc, within, counts, build,
@@ -1689,7 +1725,7 @@ def generate(blueprint: Dict[str, Any],
             if numeric:
                 _pre = np.asarray(base, dtype=float).copy()
                 base = _apply_numeric(c, spec, m, base, rels,
-                                      out, masks)
+                                      out, masks, pidx)
                 # EVERY NUMERIC CHILD IS RE-RANKED ONTO ITS OWN
                 # MARGINAL DRAW - the device the cyclic refinement
                 # has always used, now for the acyclic children too.
@@ -1934,7 +1970,7 @@ def generate(blueprint: Dict[str, Any],
                     continue
                 draw = marg_draw[c]
                 got = _apply_numeric(c, spec, m, draw, usable,
-                                     out, masks)
+                                     out, masks, pidx)
                 got = np.asarray(got, dtype=float)
                 # A REFINED ROW MUST STILL BE A ROW THE COLUMN WAS
                 # MEASURED ON. `draw` is the marginal draw taken
@@ -2008,7 +2044,7 @@ def generate(blueprint: Dict[str, Any],
                 continue
             draw = marg_draw[c]
             got = np.asarray(_apply_numeric(
-                c, spec, m, draw, usable, snap, masks),
+                c, spec, m, draw, usable, snap, masks, pidx),
                 dtype=float)
             held = np.isfinite(np.asarray(out[c], dtype=float))
             pending = masks.get(c)
@@ -2292,7 +2328,8 @@ def generate(blueprint: Dict[str, Any],
     return df
 
 
-def _apply_numeric(c, spec, m, base, rels, out, masks=None):
+def _apply_numeric(c, spec, m, base, rels, out, masks=None,
+                   pidx=None):
     """mean + strength*(curve - curve_mean) + shrink*(draw - mean)."""
     mean = float(m.get("mean", 0.0))
     systematic = np.zeros(len(base), dtype=float)
@@ -2346,6 +2383,12 @@ def _apply_numeric(c, spec, m, base, rels, out, masks=None):
         full = len(r["parents"]) >= len(
             (r.get("_original_parents") or r["parents"]))
         used_sk = None
+        # A PARENT READ FROM THE PREVIOUS VISIT. Absent or empty
+        # means every parent is same-visit, which is every
+        # blueprint built before the field existed - so this
+        # cannot fire on one of them and an older artifact
+        # generates byte-identically.
+        _lagp = set(ev.get("lag_parents") or ())
         for p in r["parents"]:
             if p in done or p not in out or p not in eff:
                 continue
@@ -2356,8 +2399,11 @@ def _apply_numeric(c, spec, m, base, rels, out, masks=None):
                 # of the claim it came from
                 if e.get("skill") is not None:
                     used_sk = max(used_sk or 0.0, float(e["skill"]))
+            _pv = (_prev_within(out[p], pidx)
+                   if (p in _lagp and pidx is not None)
+                   else out[p])
             systematic += s * float(es.get(p, 1.0)) \
-                * _curve_delta(e, out[p], (masks or {}).get(p))
+                * _curve_delta(e, _pv, (masks or {}).get(p))
         sk = (used_sk if used_sk is not None
               else float(ev.get("skill_out_of_sample") or 0.0))
         share = min(max(sk, 0.0), 0.99) * min(s, 1.0)
