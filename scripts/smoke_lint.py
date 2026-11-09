@@ -372,6 +372,55 @@ def main():
           .format(_hand),
           len(_hand) >= 2)
 
+    # ---- NO SUITE MAY PIN A DIGEST OF FLOATING-POINT OUTPUT ----
+    #
+    # TWICE IN ONE DAY A RECORDED SHA FAILED SOMEBODY ELSE'S
+    # MACHINE while the engine behaved identically. A catalogue
+    # digest differed between pandas 2.3 and pandas 3 and broke
+    # the team's own 3.10 lane; a generated-CSV digest differed
+    # between Python 3.14.6 and 3.14.8 - IDENTICAL pandas, numpy
+    # and scikit-learn - and broke the data machine. The first
+    # time I diagnosed it as a class and then fixed only the
+    # instance in front of me, which is why there was a second.
+    #
+    # Comparing two digests computed in the SAME run is fine and
+    # is how both surviving uses work: it is a statement about
+    # two arms on one machine. What is banned is a hex literal
+    # standing in for an expected value.
+    # LENGTH IS WHAT SEPARATES THE TWO, and the scanner must look
+    # at EVERY suite rather than only the ones that hash
+    # something. The first version of this audit skipped any file
+    # without `hexdigest` - and a mutation putting the pinned
+    # digest back went unnoticed, because removing the comparison
+    # had removed the word too. The hole was in the audit's own
+    # premise.
+    #
+    # A full 40-char git SHA is a legitimate identifier and two
+    # suites use one on purpose (a planted folder name, and the
+    # commit a personal-data scan is grandfathered through). A
+    # TRUNCATED hex literal is what `hexdigest()[:16]` produces,
+    # so 12 to 32 characters is the banned shape.
+    _pin = _re.compile(r"=\s*[\"']([0-9a-f]{12,32})[\"']")
+    _sha40 = _re.compile(r"[\"']([0-9a-f]{40})[\"']")
+    _pinned, _legit = [], []
+    for f in sorted((ROOT / "scripts").glob("smoke_*.py")):
+        t = io.open(str(f), encoding="utf-8").read()
+        for m in _pin.finditer(t):
+            _pinned.append("{}:{}".format(f.name, m.group(1)[:10]))
+        if _sha40.search(t):
+            _legit.append(f.name)
+    check("no suite pins a TRUNCATED digest as an expected value "
+          "- a recorded sha is not portable across a library or "
+          "even a Python PATCH release, and two arms on one "
+          "machine say the same thing portably ({})"
+          .format(_pinned or "none"),
+          not _pinned)
+    check("...and the scanner is not matching nothing: it still "
+          "finds the full 40-char SHAs two suites use on purpose "
+          "({}), which is how a pattern that stopped matching "
+          "would announce itself".format(_legit),
+          len(_legit) >= 2)
+
     print("\nAll {} checks passed.".format(PASS))
 
 

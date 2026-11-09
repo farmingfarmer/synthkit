@@ -3,6 +3,90 @@
 Synthetic clinical data generator and model-evaluation instrument. Core rule: learn the patterns, never copy the records. Real data teaches parameters; generation never touches a record.
 
 ## Verify before claiming
+- **THE SAME DIGEST FAULT TWICE IN ONE DAY, AND THE SECOND TIME
+  WAS BECAUSE I DIAGNOSED A CLASS AND FIXED AN INSTANCE
+  (2026-11-08 night).** The data machine's net came back with one
+  red suite - `smoke_multitable` - on the pinned digest of a
+  single-coupling link's output. The libraries were IDENTICAL to
+  the development machine's: pandas 3.0.5, numpy 2.5.2,
+  scikit-learn 1.9.0. The only difference was **Python 3.14.6
+  against 3.14.8**. A digest of a CSV of floats is not portable
+  across a PATCH release, let alone across stacks - and hours
+  earlier I had written up exactly that lesson for a catalogue
+  digest that broke the team's 3.10 lane, then left this one
+  standing.
+- **THE CLAIM IS NOW MADE WITH TWO ARMS ON ONE MACHINE.** The
+  property was never the bytes; it is that `_whiten` is a NO-OP
+  where a link has one column. So the check runs the SAME seed
+  twice with the whitening replaced by the identity and requires
+  the outputs to be byte-identical - both arms here, now, with
+  whatever is installed. And it asserts the substitution DOES
+  change the output on a link with several colinear targets, so
+  the identity is a statement about that link rather than about a
+  function that does nothing anywhere. Removing the whitening
+  turns four checks red.
+- **AND THE AUDIT'S FIRST VERSION HAD THE HOLE IN ITS OWN
+  PREMISE.** It scanned only suites containing `hexdigest` - and
+  the mutation that put the pinned digest back went UNNOTICED,
+  because removing the comparison had removed the word too. It
+  scans every suite now. What separates a ban from a false
+  positive is LENGTH: a full 40-character git SHA is a
+  legitimate identifier and two suites use one on purpose, while
+  `hexdigest()[:16]` is the shape of an expected-output pin, so
+  12 to 32 characters is the banned form. The scanner also
+  asserts it still finds those two 40-char SHAs, which is how a
+  pattern that stopped matching would announce itself.
+- **AND MY POLL PATTERN SAID NO FAILURE WHILE ONE SAT IN THE
+  LOG.** Waiting on the remote net I grepped
+  `suite..s.. FAILED` - two characters between "suite" and "s" -
+  against a line reading `1 suite(s) FAILED`, which has ONE. So
+  the poll reported NO-SUITE-FAIL for as long as I asked it, and
+  the failure only surfaced when I read the log's tail instead.
+  A diagnostic predicate that does not match the thing it claims
+  to find is the same fault as a check that cannot fail, and this
+  file already records a PowerShell `^FAIL` mangled to `*FAIL`
+  producing a confident wrong verdict from passing lines. Read
+  the tail; do not trust a pattern you have not seen match.
+
+- **THREE PUSHES REPORTED SUCCESS AND PUSHED NOTHING, BECAUSE
+  `git checkout <sha>` LEAVES A DETACHED HEAD (2026-11-08).**
+  Running a control arm meant checking out the previous build:
+  `git checkout -q 5466e76`, measure, `git checkout -q 58acc67`.
+  That second checkout attaches HEAD to a COMMIT, not to `main` -
+  so the next three commits landed on a detached HEAD, `main`
+  stayed where it was, and `git push origin main` dutifully
+  pushed the unchanged branch and said **"Everything
+  up-to-date"**. `git push -q ... && echo PUSHED` printed PUSHED
+  every time, truthfully: the push succeeded in pushing nothing.
+  `git log --oneline -1` showed my commits throughout, because
+  they exist - just not where the remote was being asked to look.
+- **FOUND ONLY BECAUSE THE DATA MACHINE COULD NOT FETCH THE
+  SHA.** The zipball 404'd on all three archive URLs while the
+  API reported the repo present, and `git ls-remote origin main`
+  then named a commit three behind. Nothing local would have
+  shown it: the working tree was clean, the log was right, and
+  the exit code was zero. This file already records the
+  file-level version of this trap - `git checkout COMMIT -- PATH`
+  stages the file, so the plain restore puts the old one back,
+  and "a matching SHA is not a matching TREE". This is the
+  branch-level form and it is worse, because the thing that
+  silently did nothing was the PUBLISH step.
+- **TWO GUARDS, AND NEITHER IS AN EXIT CODE.** Before committing,
+  `git branch --show-current` must be NON-EMPTY - an empty answer
+  is a detached HEAD and any commit made there is invisible to a
+  push. And after pushing, verify against the REMOTE with
+  `git ls-remote origin main`, not against the exit status: a
+  push that has nothing to do exits 0, which is the
+  check-that-cannot-fail shape in the one place it costs a day of
+  somebody else's work. Recovered by `git branch -f main <sha>`
+  after confirming `main` was an ancestor, so the fast-forward
+  could not lose anything.
+- **AND THE CONTROL ARM WAS STILL THE RIGHT MOVE** - it is what
+  established that the sklearn crash predated today's work. The
+  lesson is not to stop checking out old commits; it is to
+  `git checkout main` rather than `git checkout <sha>` on the way
+  back, and to read the branch name before trusting a commit.
+
 - **A SUITE WRITTEN TO SURVIVE THE TEAM BUNDLE FAILED IN IT, AND
   THE RECORD IT VERIFIES IS THE THING THAT DOES NOT TRAVEL
   (2026-11-08).** `smoke_competitive` checks that every figure
@@ -312,6 +396,82 @@ Synthetic clinical data generator and model-evaluation instrument. Core rule: le
 - Never state a number as measured unless you actually ran it.
 
 ## Fixing what the real extract found
+- **THE CARE-EPISODE QUESTION IS ANSWERED ON THE REAL EXTRACT: A
+  PATIENT'S VISITS SPAN THIRTY PERCENT OF THE COHORT'S RANGE
+  (2026-11-08 night).** Earlier today I named this as a property
+  of the real extract that NEITHER fixture here could answer, and
+  wrote down the route rather than guessing. Measured on
+  `phase2_800\tidy_visits.csv`, every figure crossed in WORDS
+  through `sayn.py` because the digits channel off that screen
+  turns a leading zero into a nine:
+      parsed rows                      55,428
+      distinct visit_start_date values  4,692
+      mean within-patient span          2,371 days
+      cohort span                       7,919 days
+      ratio                             0.2994
+  Two of those - the row count and the 4,692 distinct dates -
+  match this file's own earlier readings of the same extract
+  exactly, which is what makes the other two worth quoting:
+  reading the right file and parsing it soundly are both
+  confirmed before anything is concluded.
+- **SO A PATIENT IS NEITHER AN EPISODE NOR THE WHOLE COHORT, AND
+  BOTH OF MY FIXTURES WERE WRONG IN OPPOSITE DIRECTIONS.** The
+  fixture I built with cumulative gaps makes every patient a
+  tight episode (ratio near zero); the repo's extract-shaped
+  tidy fixture reads **0.500**; the real extract reads **0.299**
+  - about six and a half years per patient inside a
+  twenty-two-year cohort. An engine that draws each visit date
+  from the GLOBAL marginal tends toward a ratio near 1.0, so the
+  gap is real and now has a TARGET rather than a guess: 0.30,
+  not the 0.05 one fixture implies nor the 1.0 the other does.
+- **AND IT RETIRES THE CORRECTION I MADE THIS MORNING WITHOUT
+  OVERTURNING IT.** The withdrawn claim was a 0.74-against-0.98
+  within-patient autocorrelation quoted from a fixture of my own
+  construction; withdrawing it was right. What was missing was
+  the real number, and this is it. The modelling route stands as
+  written - a patient-level anchor plus a k-screened within-
+  patient GAP distribution, drawn as a cumulative sum - with its
+  price unchanged: the date column's global marginal becomes a
+  convolution rather than the published quantiles, which the
+  gate measures.
+
+- **PREDICTION FOR THE FIRST REAL-EXTRACT RUN WITH THE IDENTITY
+  TIER, ON RECORD BEFORE IT RUNS (2026-11-08 night).** Source
+  `phase2_800\tidy_visits.csv`, confirmed at **55,428 rows** by a
+  count whose verdict crossed as a WORD, which is the file the
+  deliverable run was built from. Same settings as that run - no
+  `--lags` - so the gate numbers are comparable to its close
+  **87.8%** (121/137 after a one-column repair, 120/137 without).
+  What is new in this tree: arithmetic identities ENFORCED by the
+  rules engine, a patient's dates put in visit order, a lag
+  parent no longer folded onto the same visit, and the
+  sklearn-1.9 sparse-slice fix.
+- **WHAT IS CLAIMED.** (1) The run completes - the sparse fix
+  matters here, because this stack is scikit-learn 1.9 and a
+  wide frame with sparse columns is exactly what crashed the
+  shape sweep. (2) The narration names at least one arithmetic
+  identity on this extract, and `age_at_visit` against
+  `year_of_birth` is the one to look for, since the record
+  measures that identity holding on **21.4%** of generated rows.
+  (3) Every patient's `visit_start_date` comes out in the order
+  the file numbers its visits, where the engine previously
+  agreed on a minority of patients.
+- **WHAT IS NOT CLAIMED: that `close` clears 87.9%.** On a
+  fixture the identity tier moved `interaction surfaces` 1/2 ->
+  2/2 and `shapes tracked` 4/9 -> 5/9 and left close untouched,
+  and the real extract's close gap is dominated by CROSS-set-token
+  pairs that no identity touches. The pressure family sits on the
+  arithmetic, so `interaction surfaces` (0/5 on the record) and
+  `shapes tracked` (7/8) are where movement is expected - and
+  "expected" is not "claimed", which is the distinction three
+  previous predictions here got wrong by stating a magnitude.
+- **AND THE DENOMINATOR MAY MOVE, which would make a percentage
+  not a comparison.** Enforcing an identity changes a column's
+  values, so a pair that was related at 0.1 may cross the floor
+  either way. Read the ABSOLUTE counts first; this file has twice
+  recorded a conclusion drawn from a percentage whose
+  denominator moved.
+
 
 The DATA MACHINE has the extract; the DEVELOPMENT MACHINE has only its
 statistics. Every rule here exists because a fix passed on the

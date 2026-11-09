@@ -42,13 +42,14 @@ from synthkit.multitable import (                     # noqa: E402
     assign_keys, check_integrity, cross_couplings, detect,
     integrity, render)
 
-# THE RECORDED DIGEST of a single-coupling link's output. It is
-# a pin rather than a comparison against a reference run,
-# because the property is that the WEIGHTS fix changed nothing
-# where one target gives it nothing to change - and a digest is
-# the only form of that claim a check can hold without carrying
-# the previous implementation beside it.
-SINGLE_TARGET_DIGEST = "e57222a542a0f7da"
+# NO RECORDED DIGEST HERE ANY MORE. There was one - a sha of a
+# single-coupling link's output, pinned to prove the whitening
+# changes nothing where one target gives it nothing to change -
+# and the DATA MACHINE failed it on identical libraries (pandas
+# 3.0.5, numpy 2.5.2, scikit-learn 1.9.0) with only Python 3.14.6
+# against 3.14.8. A digest of a CSV of floats is not portable
+# across a patch release. The claim is made with two arms on the
+# same machine instead; see the check itself.
 
 PASS = FAIL = 0
 
@@ -1410,13 +1411,60 @@ def main():
           "through, so the fixture offers exactly one there ({})"
           .format(len(_oc)),
           len(_oc) == 1)
+    # TWO ARMS ON THE SAME MACHINE, NOT A RECORDED DIGEST.
+    #
+    # This was a pinned sha of the link's output, and the DATA
+    # MACHINE failed it while running pandas 3.0.5, numpy 2.5.2
+    # and scikit-learn 1.9.0 - the SAME libraries as here. The
+    # only difference was Python 3.14.6 against 3.14.8. A digest
+    # of a CSV of floats is not portable across a PATCH release,
+    # let alone across stacks, and this project had already
+    # recorded that lesson hours earlier for a digest in
+    # `smoke_discover` - diagnosed as a class and then fixed in
+    # only the one place it had bitten.
+    #
+    # The property is that `_whiten` is a NO-OP where there is one
+    # column, so the honest test runs the SAME seed twice with the
+    # whitening replaced by the identity and requires the two
+    # outputs to be byte-identical. Both arms run here, now, with
+    # whatever libraries are installed.
     _od = MT.assign_keys(_ch_copy(_one), _of, seed=0,
                          couplings=_oc)["visit"].to_csv(index=False)
-    check("...and its output is the RECORDED digest, so the "
+    _real_whiten = MT._whiten
+    try:
+        MT._whiten = lambda cols_z, w: w
+        _ob = MT.assign_keys(_ch_copy(_one), _of, seed=0,
+                             couplings=_oc)["visit"].to_csv(
+                                 index=False)
+    finally:
+        MT._whiten = _real_whiten
+    check("...and its output is BYTE-IDENTICAL to the same seed "
+          "with the whitening replaced by the identity, so the "
           "weights changed nothing where a single target gives "
           "them nothing to change",
-          hashlib.sha256(_od.encode()).hexdigest()[:16]
-          == SINGLE_TARGET_DIGEST)
+          _od == _ob and len(_od) > 100)
+    check("...and the whitening really is restored afterwards, so "
+          "one check cannot leave a patched module behind for the "
+          "next",
+          MT._whiten is _real_whiten)
+    # AND THE SAME SUBSTITUTION MUST MATTER WHERE IT HAS SOMETHING
+    # TO DO - otherwise the identity above would pass on a
+    # `_whiten` that did nothing anywhere.
+    _mc = MT.cross_couplings(_ch, _cf)
+    _wa = MT.assign_keys(_ch_copy(_ch), _cf, seed=0,
+                         couplings=_mc)["result"].to_csv(index=False)
+    try:
+        MT._whiten = lambda cols_z, w: w
+        _wb = MT.assign_keys(_ch_copy(_ch), _cf, seed=0,
+                             couplings=_mc)["result"].to_csv(
+                                 index=False)
+    finally:
+        MT._whiten = _real_whiten
+    check("...while on a link with SEVERAL colinear targets the "
+          "same substitution DOES change the output - so the "
+          "identity above is a statement about that link and not "
+          "about a function that does nothing",
+          _wa != _wb)
 
     # ---- THE RIDGE, ON A SHAPE THAT REACHES IT -----------------
     _tw = _twin_chain()
