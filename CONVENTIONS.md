@@ -4128,6 +4128,39 @@ the direction that stops work happening.
   not.
 
 ## What breaks on a dataset that is not this one
+- **THE NEURAL ENGINE'S OWN 23-SHAPE CLAIM HOLDS ON THE SAME
+  STACK, WHICH IS WHAT MAKES THE RULES FINDING ATTRIBUTABLE.**
+  `shape_sweep.py --neural` reads **23 of 23 clean** on
+  scikit-learn 1.9 - it trains an `MLPRegressor` and never puts a
+  frame through the histogram binner, so the crash belongs to the
+  rules path's estimator rather than to the stack generally. A
+  one-armed re-run could not have said that.
+- **AND CI RUNS THE NET BUT NOT THE SWEEP, so "it should handle
+  your data" was verified only when somebody remembered.** CI
+  installs unpinned (`pip install -e .`), so it HAD the newest
+  scikit-learn and still could not see this: no suite in the net
+  put a wide, sparse frame through discovery.
+  `smoke_dataset_shapes.py` now runs the EIGHT shapes that have
+  each found a real defect here - about 35 seconds - and says in
+  its own docstring that it is a subset, with the count asserted
+  so a reader can see how much of the twenty-three it covers.
+- **AND A CRASH-ONLY CHECK WOULD PASS ON A USELESS FILE**, so
+  each shape must also return every column the operator gave us
+  and no column the SOURCE varies arriving as a single value -
+  which is the fault class this sweep found on the neural engine,
+  where a code, a note and a date all folded into `__other__`.
+- **AND I DESTROYED AN EXISTING SUITE FINDING THAT OUT.**
+  `smoke_shapes.py` was taken - it is about EFFECT CURVE shapes,
+  rising / U-shaped / threshold / saturating - and I overwrote
+  its 259 lines. This file already carries the rule: read a file
+  before writing over it, or pick a name the repo does not
+  already use. **I RAN `ls` ON THE TARGET AND IT PRINTED EXISTS**
+  - and the heredoc that destroyed it was queued in the SAME
+  command, so the check ran and its answer could not stop
+  anything. A guard whose result arrives too late to act on is
+  not a guard. Recovered from git, and the new suite is
+  `smoke_dataset_shapes.py`.
+
 - **THE 23-SHAPE SWEEP CRASHED, AGAINST A RECORDED "23 OF 23
   CLEAN", AND THE TRIGGER WAS A LIBRARY VERSION (2026-11-08).**
   `wide + 92% sparse` came back
