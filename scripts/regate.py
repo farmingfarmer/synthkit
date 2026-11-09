@@ -125,9 +125,20 @@ def shared_close(fa, fb, tol=0.2):
         return None
     def ok(x):
         return abs(float(x["source"]) - float(x["generated"])) <= tol
+    # AND WHICH PAIRS FLIPPED, because a count cannot answer a
+    # question about WHICH - this project's own lesson, and the
+    # reason a twelve-pair difference was guessed at four times
+    # before anybody looked at the names.
+    flips = []
+    for k in keys:
+        if ok(a[k]) and not ok(b[k]):
+            flips.append((k, float(a[k]["source"]),
+                          float(a[k]["generated"]),
+                          float(b[k]["generated"])))
     return {"shared": len(keys),
             "a_close": sum(1 for k in keys if ok(a[k])),
-            "b_close": sum(1 for k in keys if ok(b[k]))}
+            "b_close": sum(1 for k in keys if ok(b[k])),
+            "lost": flips}
 
 
 def main():
@@ -178,6 +189,19 @@ def main():
                 _labels[_names[0]][:22], _sh["a_close"]))
             print("  {:<22} {} close".format(
                 _labels[_names[1]][:22], _sh["b_close"]))
+            _lost = _sh.get("lost") or []
+            if _lost:
+                print("  pairs the FIRST holds and the second "
+                      "loses ({}):".format(len(_lost)))
+                for (c, pp), sv, av, bv in _lost[:20]:
+                    print("    {:<46} src {:+.3f}  "
+                          "{:+.3f} -> {:+.3f}".format(
+                              "{} <- {}".format(str(c)[:22],
+                                                str(pp)[:22]),
+                              sv, av, bv))
+                if len(_lost) > 20:
+                    print("    ... and {} more".format(
+                        len(_lost) - 20))
             print("  Each run's own percentage is over its OWN "
                   "blueprint vocabulary, so the")
             print("  denominators differ by construction. This is "
