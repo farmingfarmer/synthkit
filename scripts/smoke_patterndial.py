@@ -789,6 +789,70 @@ def main():
           "because no rearrangement can reach it",
           _dep == [("y", "x", 0.9)])
 
+    # A DATE PARENT, WHICH IS WHAT THE FIRST REAL RUN TRIPPED ON.
+    #
+    # The gate measures shapes on the frame `prepare` produces,
+    # where a date is numeric. The repair read the RAW csv instead,
+    # `pd.to_numeric` returned all-NaN for the date column, the
+    # source curve came back with too few bins and the repair
+    # DECLINED a curve it could have fixed - reporting "too few
+    # publishable bins" about a pair the gate had just measured at
+    # 0.4955 sd. Every fixture here had a numeric parent, so none
+    # could reach it.
+    _d0 = np.datetime64("2019-01-01")
+    _off = _rg.integers(0, 1500, _n)
+    _dates = [str(_d0 + np.timedelta64(int(o), "D")) for o in _off]
+    _u = (_off - _off.mean()) / (_off.std() or 1.0)
+    _yd = 4.0 * (_u ** 2) + _rg.normal(0, 0.3, _n)
+    _srcd = pd.DataFrame({"person_id": _pid, "visit_date": _dates,
+                          "cnt": _yd,
+                          "other": 0.3 * _yd + _rg.normal(0, 0.9, _n)})
+    _ygd = np.random.default_rng(9).permutation(_yd)
+    _gend = pd.DataFrame({"person_id": _pid, "visit_date": _dates,
+                          "cnt": _ygd,
+                          "other": 0.3 * _ygd
+                          + _rg.normal(0, 0.9, _n)})
+
+    _outd, _noted = repair_one_shape(_srcd, _gend, "cnt",
+                                     "visit_date", k=10,
+                                     gid="person_id")
+    check("a DATE parent is measured the way the GATE measures it "
+          "- through `prepare`, where a date is numeric. Reading "
+          "the raw csv makes `to_numeric` return all-NaN and the "
+          "repair declines a curve it could have fixed, which is "
+          "what the first real run did",
+          _outd is not None and not _noted.get("why"))
+
+    check("...and the curve LANDS on a date parent: {} -> {:.4f}"
+          .format("{:.4f}".format(_noted["gap_before"])
+                  if _noted.get("gap_before") is not None
+                  else "n/a", _noted["gap_after"])
+          if _outd is not None else "...and the curve lands",
+          _outd is not None and _noted["gap_after"] < 0.35)
+
+    check("...and the DATE COLUMN ITSELF is untouched and the "
+          "child keeps its own rendering - the permutation is over "
+          "ROWS, so writing prepared values back would put a date "
+          "ordinal into a date column",
+          _outd is not None
+          and _outd["visit_date"].equals(_gend["visit_date"])
+          and np.array_equal(
+              np.sort(pd.to_numeric(_gend["cnt"]).to_numpy()),
+              np.sort(pd.to_numeric(_outd["cnt"]).to_numpy())))
+
+    # THE ARRANGEMENT IS WRITTEN DOWN, or the change is invertible
+    # in principle and by nobody.
+    _rec = {}
+    repair_one_shape(_srcd, _gend, "cnt", "visit_date", k=10,
+                     gid="person_id", record=_rec)
+    check("...and the arrangement is RECORDED - {child: taken_from} "
+          "- so the cipher can describe the change and undo it, "
+          "which is the difference between a rearrangement the key "
+          "can reverse and one nobody can",
+          "cnt" in _rec and isinstance(
+              _rec["cnt"].get("taken_from"), dict)
+          and len(_rec["cnt"]["taken_from"]) > 100)
+
     print()
     if FAIL:
         print("{} FAILED".format(FAIL))

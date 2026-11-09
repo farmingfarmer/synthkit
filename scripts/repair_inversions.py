@@ -424,7 +424,8 @@ def pick_arrangement(cands, bar=0.35, drift_bar=0.10):
 
 def repair_one_shape(src, gen, child, parent, k=10, gid=None,
                      alphas=None, bar=0.35, drift_bar=0.10,
-                     record=None):
+                     record=None, Xs=None, Xg=None,
+                     ordinals=None):
     """Rearrange `child` so its curve against `parent` follows the
     SOURCE's, and report what it cost the child's other pairs.
 
@@ -451,12 +452,34 @@ def repair_one_shape(src, gen, child, parent, k=10, gid=None,
     if alphas is None:
         alphas = [0.0, 0.15, 0.3, 0.5, 0.75, 1.0, 1.5, 2.0, 3.0]
 
+    # MEASURE ON THE FRAME THE GATE MEASURES ON.
+    #
+    # `compare` runs both tables through `prepare` before
+    # `measure_shapes` sees them, so a DATE parent is numeric
+    # there. Reading the raw CSV instead makes
+    # `pd.to_numeric` return all-NaN for it, the source curve
+    # comes back with too few bins, and the repair declines a
+    # curve it could have fixed - which is exactly what the
+    # first real run did on `condition_count <-
+    # visit_start_date`. A column read as the wrong type
+    # fails SILENTLY, and no fixture with a numeric parent
+    # can reach it.
+    from synthkit.discover import prepare
+    if Xs is None:
+        Xs = prepare(src, gid, ordinals=ordinals)[0]
+    if Xg is None:
+        Xg = prepare(gen, gid, ordinals=ordinals)[0]
+
     def num(frame, c):
         return pd.to_numeric(frame[c], errors="coerce")
 
-    vs_p, vs_c = num(src, parent), num(src, child)
-    vg_p, vg_c = num(gen, parent), num(gen, child)
-    gid_s = src[gid] if (gid and gid in src.columns) else None
+    for _f, _c in ((Xs, parent), (Xs, child),
+                   (Xg, parent), (Xg, child)):
+        if _c not in _f.columns:
+            return None, {"why": "{} is not in the prepared frame".format(_c)}
+    vs_p, vs_c = num(Xs, parent), num(Xs, child)
+    vg_p, vg_c = num(Xg, parent), num(Xg, child)
+    gid_s = Xs[gid] if (gid and gid in Xs.columns) else None
 
     tgt = shape_scores(vs_p, vs_c, vg_p, gid_s, k)
     if tgt is None:
@@ -471,10 +494,10 @@ def repair_one_shape(src, gen, child, parent, k=10, gid=None,
     # The child's OTHER numeric partners, so the cost is measured
     # rather than hoped for.
     others = []
-    for c in gen.columns:
+    for c in Xg.columns:
         if c == child or c == parent:
             continue
-        v = num(gen, c)
+        v = num(Xg, c)
         if v.notna().mean() < 0.3:
             continue
         both = v.notna() & vg_c.notna()
@@ -489,6 +512,12 @@ def repair_one_shape(src, gen, child, parent, k=10, gid=None,
     base_gap = shape_gap(vs_p, vs_c, vg_p, vg_c, gid_s, k)
     base_gap = None if base_gap is None else base_gap[0]
 
+    # THE PERMUTATION IS OVER ROWS, NOT VALUES, so it can be
+    # applied to the RAW column. Writing the PREPARED values
+    # back would put a date ordinal into a date column.
+    live_idx = np.where(live)[0]
+    by_value = live_idx[np.argsort(
+        vg_c.to_numpy(dtype=float)[live], kind="stable")]
     vals = np.sort(vg_c.to_numpy(dtype=float)[live])
     cur_rank = pd.Series(vg_c[live]).rank(pct=True).to_numpy()
     t_z = tgt[live]
@@ -508,28 +537,40 @@ def repair_one_shape(src, gen, child, parent, k=10, gid=None,
         gap = g[0]
         drift = 0.0
         for c, rho0 in others:
-            v = num(gen, c)
+            v = num(Xg, c)
             both = v.notna() & tser.notna()
             r = pd.Series(tser[both]).corr(
                 pd.Series(v[both]), method="spearman")
             if r is not None:
                 drift = max(drift, abs(float(r) - rho0))
         cands.append({"alpha": alpha, "gap": float(gap),
-                      "drift": float(drift), "values": trial})
+                      "drift": float(drift), "values": trial,
+                      "order": order})
     cand = pick_arrangement(cands, bar=bar,
                             drift_bar=drift_bar)
     if cand is None:
         return None, {"why": "no arrangement could be measured"}
 
     out = gen.copy()
-    # Write back in the column's own rendering, so a round trip
-    # through the file does not change what a reader sees.
-    newcol = out[child].to_numpy(dtype=object).copy()
-    for pos in np.where(live)[0]:
-        newcol[pos] = cand["values"][pos]
+    # The column keeps its OWN rendering: row p takes the value
+    # row `taken_from[p]` already held, so nothing is
+    # reformatted and a round trip through the file changes
+    # nothing a reader sees.
+    raw = out[child].to_numpy(dtype=object)
+    newcol = raw.copy()
+    taken = {}
+    for i, pos in enumerate(live_idx):
+        srcrow = int(by_value[cand["order"][i]])
+        newcol[pos] = raw[srcrow]
+        taken[int(pos)] = srcrow
     out[child] = newcol
     if record is not None:
-        record[child] = {"by": parent, "alpha": cand["alpha"]}
+        # THE ARRANGEMENT, so the change is undoable. Without
+        # it the rearrangement is invertible in principle and
+        # by nobody - the difference between a change the
+        # cipher can describe and one it cannot.
+        record[child] = {"by": parent, "alpha": cand["alpha"],
+                         "taken_from": taken}
     return out, {"child": child, "parent": parent,
                  "gap_before": base_gap, "gap_after": cand["gap"],
                  "alpha": cand["alpha"], "worst_other_drift":
