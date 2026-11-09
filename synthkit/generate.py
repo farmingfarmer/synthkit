@@ -1569,7 +1569,8 @@ def generate(blueprint: Dict[str, Any],
              seed: int = 20260731,
              report: Optional[Dict[str, Any]] = None,
              enforce_constraints: bool = False,
-             refine_sweeps: int = 2
+             refine_sweeps: int = 2,
+             reorder_dates: bool = True
              ) -> pd.DataFrame:
     """Build a table from a blueprint. Nothing else is consulted."""
     bp = resolve(blueprint)
@@ -2374,7 +2375,17 @@ def generate(blueprint: Dict[str, Any],
     _dcols = [c for c in order
               if (cols.get(c) or {}).get("date")
               and (cols.get(c) or {}).get("kind") == "numeric"]
-    if _real_gid and _repeated and _dcols:
+    # A COST NOBODY CAN TURN OFF IS A COST NOBODY CAN MEASURE.
+    #
+    # The within-patient date reorder moves a date column's values
+    # against every non-date column, measured on a fixture as
+    # 0.061 of rank correlation on a date-driven numeric. On the
+    # real extract tonight's output lost TWELVE close pairs of
+    # 135 against the deliverable, and the reorder could not be
+    # attributed because it could not be switched off. It can
+    # now, which makes a paired control arm possible - the only
+    # thing that has ever overturned a fidelity claim here.
+    if reorder_dates and _real_gid and _repeated and _dcols:
         df = _dates_in_visit_order(
             df, _real_gid, _dcols,
             (bp.get("patients") or {}).get("time_column"), report)

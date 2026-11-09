@@ -396,6 +396,52 @@ Synthetic clinical data generator and model-evaluation instrument. Core rule: le
 - Never state a number as measured unless you actually ran it.
 
 ## Fixing what the real extract found
+- **`close` DID REGRESS, AND IT TOOK A SHARED-PAIR MEASUREMENT TO
+  SAY SO HONESTLY: 119 AGAINST 107 ON THE 135 PAIRS BOTH RUNS
+  RELATE (2026-11-08 night).** Each run's pair surface comes from
+  its OWN blueprint's token vocabulary, so the recorded 87.6%
+  and tonight's 80.8% are over different sets and no
+  re-measurement makes the denominators equal - regated with
+  today's code on the same source they still read 148 against
+  125. On the INTERSECTION, both measured the same way:
+      shared related pairs            135
+      run_deliverable          119 close
+      run_n9g                  107 close
+  **Tonight's output is worse by twelve pairs.** That is a
+  regression I introduced today, it is not a denominator
+  artifact, and the earlier reading - "close has no comparable
+  baseline" - was true of the percentages and became an excuse
+  once the comparable number was available. It took one more
+  tool to get it.
+- **AND THE IDENTITY DETECTOR IS NOT THE CAUSE, which the paired
+  arms already settled.** run_n8g (four identities, two spurious)
+  against run_n9g (two) differed by ONE close pair on an
+  identical surface. Both arms carry the date work, so does the
+  start-axis arm, and all three land in the same place. What the
+  twelve have in common is still to be established.
+- **THE CANDIDATE IS THE DATE WORK, AND IT IS NAMED RATHER THAN
+  ASSUMED.** Two things landed today that move a date column's
+  values against every non-date column: the within-patient
+  reorder, measured on a fixture as costing 0.061 of rank
+  correlation on a date-driven numeric, and the identity
+  enforcement, which computes one date member from the other two.
+  Neither can be switched off, which is exactly why the twelve
+  cannot be attributed yet - a cost nobody can turn off is a cost
+  nobody can measure. The test is a flag that disables the
+  reorder, run paired on the same seed; that is the next step and
+  it is a CONTROL ARM, which this file records as the only thing
+  that has ever overturned a fidelity claim here.
+- **WHAT THE TWELVE DO NOT BUY BACK, said plainly so the trade is
+  visible: `inverted` 1 to 0 with no repair, `interaction
+  surfaces` 0/5 to 2/5, `dynamics tracked` 17/87 to 35/89, and
+  both arithmetic identities holding on 1.0 of rows where the
+  record measured one of them at 21.4%.** Whether twelve close
+  pairs is worth those four is a decision for an operator and not
+  a default, and this file's own rule is that a gain a control arm
+  has not checked is not a gain. The four are measured on
+  published surfaces and graded columns; the twelve are measured
+  on the shared pair set. Both numbers are real.
+
 - **THE TIME-AXIS OVERRIDE SCORED 3 OF 3 ON ITS CLAIMS AND THEN
   ARGUED AGAINST ITSELF (2026-11-08 night, run_n9s).** Three arms
   on the same source and settings, one flag or one code change

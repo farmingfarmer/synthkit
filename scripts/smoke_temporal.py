@@ -6,6 +6,7 @@ the detection is tested against a date, against a bare sequence
 number, and against a table with neither - where the honest answer is
 to say file order was assumed rather than to pretend.
 """
+import io
 import random
 import sys
 from pathlib import Path
@@ -659,6 +660,36 @@ def main():
           "stated price, and silently moving it would be a "
           "different change: {}".format(list(_pfo["other"])),
           list(_pfo["other"]) == [1.0, 2.0, 3.0, 4.0, 5.0, 6.0])
+
+    # ---- AND THE REORDER CAN BE TURNED OFF, WHICH IS WHY -------
+    #
+    # A COST NOBODY CAN TURN OFF IS A COST NOBODY CAN MEASURE. The
+    # reorder moves a date column's values against every non-date
+    # column - 0.061 of rank correlation on a date-driven numeric
+    # here - and on the real extract tonight's output lost TWELVE
+    # close pairs of 135 against the deliverable, with the reorder
+    # un-attributable because there was no arm without it.
+    # `--no-reorder-dates` is the CONTROL ARM, not a recommended
+    # setting, and its help text says so.
+    _off = _gen(_dbp, n_patients=300, seed=5, reorder_dates=False)
+    _share_off = _row_order_share(_off, "visit_start_date")
+    check("with the reorder OFF a patient's dates are in row "
+          "order on almost no patients ({:.4f}) - which is the "
+          "state the file was in before, and the arm a cost can "
+          "be measured against".format(_share_off),
+          _share_off < 0.1)
+    check("...and ON it is essentially all of them ({:.4f}), so "
+          "the flag genuinely switches the mechanism rather than "
+          "being read and ignored".format(_share),
+          _share >= 0.99 and _share - _share_off > 0.8)
+    _txt = io.open(str(ROOT / "synthkit" / "pipeline.py"),
+                   encoding="utf-8").read()
+    check("...and the flag's own help calls it a CONTROL ARM "
+          "rather than a recommended setting, because a reader "
+          "finding it should know it makes the file disagree with "
+          "its own visit numbers",
+          "CONTROL ARM for" in _txt
+          and "not a recommended setting" in _txt)
 
     print()
     if FAIL:

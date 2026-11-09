@@ -77,6 +77,16 @@ def build_parser(prog=None, add_help=True):
                     help="the patient id column")
     ap.add_argument("--time-col", default="",
                     help="visit ordering column; detected if omitted")
+    ap.add_argument("--no-reorder-dates", action="store_true",
+                    help="do NOT put each entity's dates in visit "
+                         "order. The reorder makes the file "
+                         "self-consistent - `visit_number` and the "
+                         "dates agree - and it moves a date "
+                         "column's values against every non-date "
+                         "column, which on a fixture costs 0.061 "
+                         "of rank correlation on a date-driven "
+                         "numeric. This is the CONTROL ARM for "
+                         "that cost, not a recommended setting")
     ap.add_argument("--lags", action="store_true",
                     help="add col__prev features so a LAGGED "
                          "cross-column effect can be found at all")
@@ -685,7 +695,8 @@ def main(argv=None, args=None):
     g = generate(bp, n_patients=(a.patients or None), seed=a.seed,
                  report=rep,
                  enforce_constraints=a.enforce_constraints,
-                 refine_sweeps=a.refine_sweeps)
+                 refine_sweeps=a.refine_sweeps,
+                 reorder_dates=not a.no_reorder_dates)
     g.to_csv(out / "generated.csv", index=False, encoding="utf-8")
     say("{} rows for {} patients -> generated.csv".format(
         rep["rows"], rep["patients"]))
