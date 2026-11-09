@@ -396,6 +396,84 @@ Synthetic clinical data generator and model-evaluation instrument. Core rule: le
 - Never state a number as measured unless you actually ran it.
 
 ## Fixing what the real extract found
+- **ALL FOUR CANDIDATES FOR THE TWELVE PAIRS ARE REFUTED, AND THE
+  GAP IS 182 COMMITS WIDE RATHER THAN ONE NIGHT'S WORK
+  (2026-11-08 night).** Every arm paired on the same source and
+  seed, one thing apart, measured on the pairs both arms relate:
+      the identity DETECTOR    107 against 108     1 pair
+      the DATE REORDER         108 against 108     ZERO
+      identity ENFORCEMENT     108 against 108     ZERO
+      the sparse-slice drop    fired on 0 targets of this extract
+  The reorder and the enforcement were both suspected on the same
+  mechanism - each OVERWRITES or moves a date column against
+  every other one - and each costs nothing here. The enforcement
+  arm was needed precisely because it survives
+  `--no-reorder-dates`, which is why the reorder arm coming back
+  identical did not settle it; now both are settled and both are
+  innocent.
+- **AND THE DELIVERABLE IS TWO WEEKS AND 182 COMMITS OLD, which
+  is the fact that reframes the whole question.** Its
+  `provenance.json` names build `203c4ae`, dated **2026-10-26**.
+  So the honest statement is: `close` on the shared pair set
+  reads **119 for the deliverable against 107-108 for every arm
+  tonight**, the difference is real, and it is NOT attributable
+  to any change made tonight - all four mechanisms were measured
+  and acquitted. Where in those 182 commits it lies is unknown.
+- **AND NARROWING IT HAS A PRICE WORTH STATING BEFORE ANYBODY
+  STARTS.** Each arm is a full fit and generate on the real
+  extract, about 26 minutes on the data machine, so a bisection
+  over 182 commits is roughly eight runs and three and a half
+  hours of machine time - feasible, unattended, and the only
+  honest route, because every cheap guess tonight was wrong. A
+  linear sweep would be eighty hours and is not the way.
+- **WHAT THE FOUR ARMS DID BUY, measured on the same runs:**
+  `inverted` 1 to 0 with no repair, `interaction surfaces` 0/5 to
+  2/5, `dynamics tracked` 17/87 to 35/89, both arithmetic
+  identities holding on **1.0** of rows, and a patient's dates
+  agreeing with the order the file numbers them by. Those are
+  measured on published surfaces and graded columns, so they
+  survive the pair-surface problem that makes `close` percentages
+  incomparable. The twelve pairs and these four are both real and
+  neither cancels the other.
+
+- **TWO OF THE THREE CANDIDATES FOR THE TWELVE PAIRS ARE DEAD, AND
+  THE THIRD NEVER RAN (2026-11-08 night).** Paired arms, same
+  source and seed, one thing apart each time, all measured on the
+  pairs both arms relate:
+      the identity DETECTOR   run_n8g 107  run_n9g 108   (1 pair)
+      the DATE REORDER        reorder on 108  off 108    (ZERO)
+      the sparse-slice drop   fired on 0 targets of this extract
+  The reorder was my named candidate and it costs **nothing** on
+  this extract - 108 close on 136 shared pairs with it on and 108
+  with it off, which is a control arm answering a question rather
+  than a story explaining one. And the discovery-side drop, which
+  would have changed the blueprint and could have explained the
+  surface difference, reports `targets_with_empty_features` of
+  **zero** here: the fix that stopped a crash on `wide + 92%
+  sparse` never engages on the real extract at all.
+- **SO THE REMAINING UNTESTED CHANGE IS THE IDENTITY ENFORCEMENT
+  ITSELF, and it needed an off switch before it could be
+  accused.** It OVERWRITES a column - on this extract
+  `visit_start_date`, computed from the end date minus the span -
+  which moves that column against every other one by exactly the
+  mechanism the reorder was suspected of, and it SURVIVES
+  `--no-reorder-dates` because it is a separate step. That is why
+  the reorder arm came back identical: it never disabled the
+  thing doing the overwriting. `--no-identities` is the arm for
+  it, with the same reasoning written into its help text, and the
+  blueprint still PUBLISHES the identity either way - hiding the
+  finding would be a different change.
+- **AND ADDING THAT FLAG KILLED EVERY INVOCATION OF THE SCRIPT FOR
+  ONE COMMIT, ON THE OLDEST ARGPARSE FAULT THIS FILE RECORDS.**
+  The help text said `11.9% of rows`, argparse %-formats help
+  strings, and Python 3.14 validates them EAGERLY at
+  `add_argument` - so `run_discovery.py` raised
+  `ValueError: badly formed help string` before doing anything at
+  all, on every call. This file already records the identical
+  fault in `m0_gate`'s bar flag, where it took down all eight
+  gate checks on the one machine that matters. Doubled, and the
+  check now asserts the doubling rather than only the wording.
+
 - **`close` DID REGRESS, AND IT TOOK A SHARED-PAIR MEASUREMENT TO
   SAY SO HONESTLY: 119 AGAINST 107 ON THE 135 PAIRS BOTH RUNS
   RELATE (2026-11-08 night).** Each run's pair surface comes from
@@ -407,12 +485,17 @@ Synthetic clinical data generator and model-evaluation instrument. Core rule: le
       shared related pairs            135
       run_deliverable          119 close
       run_n9g                  107 close
-  **Tonight's output is worse by twelve pairs.** That is a
-  regression I introduced today, it is not a denominator
-  artifact, and the earlier reading - "close has no comparable
-  baseline" - was true of the percentages and became an excuse
-  once the comparable number was available. It took one more
-  tool to get it.
+  **Tonight's output is worse by twelve pairs**, and it is not a
+  denominator artifact - the earlier reading, "close has no
+  comparable baseline", was true of the percentages and became an
+  excuse once the comparable number existed.
+  **CORRECTED THE SAME NIGHT: it is NOT a regression I introduced
+  today.** I wrote that sentence and then built four control arms,
+  and every one of them came back at zero or one pair. The
+  deliverable was built at commit `203c4ae` on **2026-10-26** -
+  **182 commits** before tonight - so the twelve span two weeks
+  of changes, and attributing them to the night's work was a
+  story about the most recent thing I had touched.
 - **AND THE IDENTITY DETECTOR IS NOT THE CAUSE, which the paired
   arms already settled.** run_n8g (four identities, two spurious)
   against run_n9g (two) differed by ONE close pair on an

@@ -682,14 +682,24 @@ exactly what they were.
       run_deliverable        119 close
       tonight                107 close
 
-  **Twelve pairs worse.** "No comparable baseline" was true of
-  the percentages and became an excuse once the comparable number
-  existed. The identity detector is NOT the cause — two arms
-  differing only in it moved close by one pair — and the
-  candidate is the date work, which until tonight could not be
-  switched off. `--no-reorder-dates` is that control arm now,
-  because a cost nobody can turn off is a cost nobody can
-  measure.
+  **Twelve pairs worse** — and NOT from tonight's work. Four
+  control arms, each paired on the same source and seed:
+
+      the identity detector   107 vs 108    1 pair
+      the date reorder        108 vs 108    ZERO
+      identity enforcement    108 vs 108    ZERO
+      the sparse-slice drop   fired on 0 targets here
+
+  Two flags were added so the last two could be measured at all
+  (`--no-reorder-dates`, `--no-identities`), because a cost
+  nobody can turn off is a cost nobody can measure. All four are
+  acquitted. The deliverable's `provenance.json` names build
+  `203c4ae` dated 2026-10-26 — **182 commits** before tonight —
+  so the gap spans two weeks, and narrowing it means bisecting:
+  about eight runs at 26 minutes each, roughly three and a half
+  hours of unattended machine time. Every cheap guess tonight was
+  wrong, which is the argument for paying that rather than
+  guessing a fifth time.
 - **AND THE REAL EXTRACT FOUND A DEFECT IN THE TIER THE DAY IT
   SHIPPED.** The first run published FOUR identities; two claimed
   a child that IS one other column, with dropped set scaffolding
