@@ -1242,6 +1242,54 @@ def main():
           and "SURFACE PAIR MEMBER LOST: q" in _rv.stdout
           and "gap 1.2 sd, tracks False" in _rv.stdout)
 
+    # peek curves - A PARENT THE CONTRACT NAMES AND PUBLISHES NO
+    # CURVE FOR. `discover` skips a curve whose grid collapses with
+    # a bare `continue` and `blueprint` lists the parent anyway, so
+    # the sampler is handed a parent it cannot use and nothing
+    # listed them. Measured 2026-11-09: a set-token parent on 0.81%
+    # of rows, driving its child by 7.2 sd, found at importance
+    # 0.633 and published BY NAME at search cap 60, carried no curve
+    # - and the output held 1.4% of the relationship. Raising the
+    # cap did not help; a QUANTILE grid on a binary column was the
+    # cause.
+    with tempfile.TemporaryDirectory() as _cv:
+        _cr = Path(_cv)
+        (_cr / "blueprint.json").write_text(json.dumps({
+            "relationships": [
+                # a named parent WITH a curve, and an indicator
+                # parent WITHOUT one - the fault, beside its control
+                {"child": "y", "parents": ["plain", "s__has__tok"],
+                 "evidence": {"effect": {"plain": {
+                     "grid": [0, 1], "response": [1.0, 2.0]}}}},
+                # and a relationship where every parent is covered,
+                # so the view cannot just always report trouble
+                {"child": "z", "parents": ["other"],
+                 "evidence": {"effect": {"other": {
+                     "grid": [0, 1], "response": [0.0, 1.0]}}}}]}),
+            encoding="utf-8")
+        _cvr = subprocess.run(
+            [sys.executable, "scripts/peek.py", str(_cr), "curves"],
+            capture_output=True, text=True, cwd=str(ROOT))
+
+    check("peek.py curves NAMES every parent the contract publishes "
+          "without a curve, and counts the indicator ones apart - a "
+          "parent generation cannot apply is the read-but-not-used "
+          "fault in the one artifact generation reads",
+          _cvr.returncode == 0
+          and "y                                  <- s__has__tok"
+              in _cvr.stdout
+          and "with NO curve                        1" in _cvr.stdout
+          and "of those, set-token indicators       1" in _cvr.stdout)
+
+    check("...and it does not report trouble where there is none: "
+          "the covered parents are counted as covered, so a clean "
+          "blueprint reads clean rather than every run looking "
+          "broken",
+          "parent slots across them             3" in _cvr.stdout
+          and "WITH a curve                         2" in _cvr.stdout
+          and "plain" not in _cvr.stdout.split(
+              "every parent named without a curve")[-1])
+
     # peek flat - THE COLUMN THE CONTRACT SAYS VARIES AND THE FILE
     # EMITS CONSTANT. Found because a real run printed scipy's
     # ConstantInputWarning twice from inside spearmanr: a constant

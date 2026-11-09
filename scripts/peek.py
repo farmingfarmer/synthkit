@@ -11,6 +11,7 @@
     python scripts/peek.py RUNDIR surfaces
     python scripts/peek.py RUNDIR flat
     python scripts/peek.py RUNDIR sizes SRC.csv
+    python scripts/peek.py RUNDIR curves
 
 WHY THIS EXISTS. Seven diagnoses in a row were fetched with pasted
 python -c one-liners a hundred characters wide, on a terminal that
@@ -637,6 +638,71 @@ def flat_view(run):
                   "" if total == len(cols) else "  <-- MISMATCH"))
 
 
+def curves_view(run):
+    """Which parents the contract names and publishes no curve for.
+
+    WHY THIS EXISTS. A relationship can be published with a parent
+    the sampler cannot use: `discover` skips a curve whose grid
+    collapses, with a bare `continue`, and `blueprint` lists the
+    parent anyway. Measured 2026-11-09 on a fixture, a set-token
+    parent on 0.81% of rows drove its child by 7.2 sd, was found at
+    importance 0.633, was published BY NAME at search cap 60 - and
+    carried no curve, so the output held 1.4% of the relationship.
+    Raising the cap did not help; a binary column taking a QUANTILE
+    grid was the cause.
+
+    A parent with no curve is the read-but-not-used fault in the one
+    artifact generation reads, and nothing listed them.
+    """
+    bp = _load(run, "blueprint.json")
+    if not bp:
+        return
+    rels = bp.get("relationships") or []
+    rows = []
+    for r in rels:
+        eff = (r.get("evidence") or {}).get("effect") or {}
+        for par in (r.get("parents") or []):
+            rows.append((r.get("child"), par, par in eff,
+                         "__has__" in str(par)))
+    if not rows:
+        print("this blueprint publishes no relationships, so there "
+              "are no parents to ask about - that is a finding in "
+              "itself, not an empty report")
+        return
+    miss = [x for x in rows if not x[2]]
+    ind = [x for x in rows if x[3]]
+    ind_miss = [x for x in rows if x[3] and not x[2]]
+    print("PARENTS THE CONTRACT NAMES, AND WHETHER IT PUBLISHES A "
+          "CURVE FOR THEM")
+    print()
+    print("  relationships published          {:>5}".format(len(rels)))
+    print("  parent slots across them         {:>5}".format(len(rows)))
+    print("  WITH a curve                     {:>5}".format(
+        len(rows) - len(miss)))
+    print("  with NO curve                    {:>5}".format(len(miss)))
+    print("  of those, set-token indicators   {:>5}".format(
+        len(ind_miss)))
+    print()
+    print("  indicator parent slots           {:>5}".format(len(ind)))
+    if ind:
+        print("  of those WITHOUT a curve         {:>5}  ({:.0f}%)".format(
+            len(ind_miss), 100.0 * len(ind_miss) / len(ind)))
+    else:
+        print("  of those WITHOUT a curve           n/a - this "
+              "blueprint has no indicator parent at all, so a "
+              "curve fix for them cannot reach anything here")
+    print()
+    if miss:
+        print("  every parent named without a curve "
+              "(child <- parent):")
+        for child, par, _h, _i in miss[:40]:
+            print("    {:<34} <- {}".format(str(child)[:34], par))
+        if len(miss) > 40:
+            print("    ... and {} more".format(len(miss) - 40))
+    else:
+        print("  every published parent carries a curve")
+
+
 def main():
     # `--help` IS A QUESTION, NOT A MISTAKE. This printed the
     # docstring and exited 2 for it, which is the code a shell
@@ -676,6 +742,8 @@ def main():
         flat_view(run)
     elif what == "sizes":
         sizes_view(run, arg)
+    elif what == "curves":
+        curves_view(run)
     else:
         print(__doc__)
         return 2

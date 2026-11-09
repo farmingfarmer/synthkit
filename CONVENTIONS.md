@@ -396,6 +396,78 @@ Synthetic clinical data generator and model-evaluation instrument. Core rule: le
 - Never state a number as measured unless you actually ran it.
 
 ## Fixing what the real extract found
+- **THE SPARSE-TOKEN RELATIONSHIP GOES FROM ABSENT TO CARRIED AT
+  ZERO MEASURED COST, AND THE CAP WAS NEVER WHAT BOUND IT
+  (2026-11-09).** Three paired arms on one fixture at one seed,
+  each differing from its partner by one thing:
+      arm                      gen lift   % of source   driver curve
+      cap 24                     +0.030        1.2%     not claimed
+      cap 60                     +0.035        1.4%     NO CURVE
+      cap 60 + grid fix          +2.124       83.9%     range +2.46
+      source                     +2.530         ---
+  The price, on the pairs both arms relate: cap 60 against cap 60
+  plus the fix is **close 42 of 45 on BOTH arms, 45 relationships
+  on both, not one pair lost**. A 7.2 sd relationship of the
+  extract's largest kind goes from absent to 84% carried and
+  nothing else moves.
+- **AND IT REFUTED THE FIX I HAD JUST SPENT AN HOUR MEASURING.**
+  The obvious reading of the miss was the search cap, and the cap
+  arm settles it: at cap 60 the driver IS expanded and IS
+  published as a parent BY NAME - `['conditions__has__cond_m40',
+  'drug_routes', 'noise_02']` - and the output still carries
+  **1.4%** of the relationship, for **3.8x the wall clock** (3586s
+  against 933s) and one lost close pair. Raising the cap buys 0.2
+  percentage points of a relationship it correctly publishes. The
+  cap decides whether a relationship is FOUND; it has nothing to
+  do with whether it is CARRIED.
+- **THE MECHANISM IS A QUANTILE GRID ON A BINARY COLUMN, AND IT
+  WAS FOUND BY READING THE PUBLISHED EVIDENCE RATHER THAN
+  GUESSING.** The cap-60 blueprint names the driver in `parents`
+  and its `effect` dict holds ONLY `drug_routes` (range 0.075) and
+  `noise_02` (range 0.009) - both noise. `_grid_for` sweeps the
+  2nd to 98th percentile, so an indicator that is 1 on 0.81% of
+  rows has EVERY quantile at 0, `np.unique` collapses the grid to
+  one point, `effect_curve` returns None and `discover` skips the
+  curve with a bare `continue`. So the contract listed the driver
+  as a parent and published no evidence for it, and generation had
+  nothing to apply. A binary column has two values by
+  construction; quantiles are the wrong tool for it.
+- **THE FIX IS ADDITIVE, WHICH IS WHY A ONE-LINE CHANGE INSIDE
+  EVERY EFFECT CURVE IN THE PROJECT WAS SAFE TO SHIP.** Above a 2%
+  share the quantile grid ALREADY returns [0, 1], so the only
+  behaviour that changes is the case that produced no curve at
+  all. Checked rather than argued: a three-value column keeps the
+  quantile path, a continuous column still gets its eleven points,
+  and the whole net reads ALL GREEN at 103 suites and 3,447
+  checks. Two mutations bite, and the dense-token check stays
+  green under both - which is the additivity as a measurement
+  instead of a claim.
+- **AND HALF THE MODELLED VOCABULARY WAS IN THAT STATE.** On the
+  fixture's own publishable vocabulary **91-92% of the tokens that
+  clear k sit under a 2% share** - conditions 120 of 132,
+  active_drugs 132 of 144, procedures 120 of 132 - and **36 of the
+  72 MODELLED indicators** are under it even though the frequency
+  top-24 skews dense by construction. So for as long as the search
+  has expanded tokens, roughly half of the ones it models could
+  not carry a curve as a parent.
+- **WHAT IS NOT ESTABLISHED, AND THE FIXTURE SAYS SO ITSELF: the
+  fix is INERT at the shipped default here.** A fourth paired arm
+  at cap 24 with the fix reads 43 relationships and **41 close on
+  both arms with not one pair lost** - identical - and the reason
+  is in the artifact: **ZERO relationships in either blueprint
+  have an indicator as a PARENT**. This fixture's tokens carry no
+  structure except the one planted driver, and at cap 24 that one
+  is not expanded, so there is nothing for the fix to act on. Two
+  arms that agree are one arm, and here that is a statement about
+  the fixture rather than about the fix.
+  Whether the REAL extract has sparse indicator PARENTS is
+  therefore the question that decides what this buys there - and
+  it is a ONE-MINUTE READ of `run_deliverable/blueprint.json`,
+  which is already on disk: count the relationships whose parents
+  include a `__has__` column, and how many of those parents have
+  no entry in their claim's own `effect`. No fit, no generate. It
+  is queued behind the restart dialog with the regate read.
+
 - **PREDICTION FOR THE NEXT REAL RUN, ON RECORD BEFORE IT RUNS AND
   BEFORE THE FIXTURE ARM REPORTED (2026-11-09).** `_grid_for` now
   gives a binary column its two values instead of its quantiles, so
