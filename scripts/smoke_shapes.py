@@ -248,6 +248,81 @@ def main():
           "the surface is not offered for everything with two parents",
           lin and lin[0].get("interaction") is None)
 
+    # A SPARSE BINARY PARENT HAD NO CURVE AT ALL, SO A RELATIONSHIP
+    # THE SEARCH FOUND COULD NOT BE APPLIED AT GENERATION.
+    #
+    # `_grid_for` sweeps the 2nd to 98th percentile, so an indicator
+    # that is 1 on under 2% of rows has EVERY quantile at 0, the grid
+    # collapses to one point and `effect_curve` returns None. The
+    # parent is then kept with no curve and generation has nothing to
+    # apply. Measured 2026-11-09: a set token on 0.81% of 22,910 rows
+    # driving its child by 7.2 sd was found at importance 0.633,
+    # published as a parent by name, and arrived in the output at
+    # 1.4% of its source strength. An arm at search cap 60 published
+    # it correctly and still delivered 1.4% for 3.8x the wall clock -
+    # so the cap was never what bound this.
+    from synthkit.shapes import _grid_for, N_GRID    # noqa: E402
+
+    _n = 20000
+    _rng2 = np.random.default_rng(11)
+    for _share, _label in ((0.008, "0.8%"), (0.13, "13%")):
+        _b = (_rng2.random(_n) < _share).astype(float)
+        _g, _k = _grid_for(pd.Series(_b), N_GRID)
+        check("a binary parent at {} gets a TWO-point grid - a column "
+              "with two values by construction is not a thing to take "
+              "quantiles of, and below a 2% share every quantile is 0 "
+              "so the curve came back None".format(_label),
+              _k == "numeric" and len(_g) == 2
+              and sorted(float(x) for x in _g) == [0.0, 1.0])
+
+    # AND IT IS ADDITIVE, WHICH IS WHAT MAKES IT SAFE TO SHIP. Above a
+    # 2% share the quantile grid ALREADY returned [0, 1], so the only
+    # behaviour that changes is the case that produced no curve at
+    # all. A continuous column must be untouched.
+    _cont = pd.Series(_rng2.normal(120, 18, _n))
+    _gc, _kc = _grid_for(_cont, N_GRID)
+    check("...while a CONTINUOUS column still gets its quantile grid "
+          "({} points, not 2) - the fix must not turn every numeric "
+          "curve into two points, which would flatten every shape "
+          "this module exists to measure".format(len(_gc)),
+          _kc == "numeric" and len(_gc) == N_GRID)
+
+    # A THREE-VALUE column is not binary and keeps the quantile path,
+    # so the branch cannot be read as "few distinct values".
+    _three = pd.Series(np.repeat([0.0, 1.0, 2.0], _n // 3))
+    _g3, _ = _grid_for(_three, N_GRID)
+    check("...and a THREE-value column is not binary: it keeps the "
+          "quantile path, so the branch is about a column having two "
+          "values and not about having few",
+          len(_g3) == 3)
+
+    # THE CONSEQUENCE, end to end through the real curve function: a
+    # sparse binary parent now HAS a curve, and it is not flat.
+    _x = (_rng2.random(_n) < 0.008).astype(float)
+    _z = _rng2.normal(0, 1, _n)
+    _y = 3.0 + 2.5 * _x + 0.1 * _z + _rng2.normal(0, 0.35, _n)
+    _df2 = pd.DataFrame({"person_id": ["P%04d" % (i // 4)
+                                       for i in range(_n)],
+                         "tok": _x, "z": np.round(_z, 4),
+                         "y": np.round(_y, 4)})
+    _cat2 = discover(_df2, group_by="person_id", targets=["y"])
+    _cl = [c for c in _cat2["claims"] if c["child"] == "y"]
+    _tp = None
+    if _cl:
+        _tp = next((p for p in _cl[0]["predictors"]
+                    if p["column"] == "tok"), None)
+    _rng_resp = 0.0
+    if _tp and _tp.get("effect"):
+        _r = _tp["effect"].get("response") or []
+        _rng_resp = (max(_r) - min(_r)) if _r else 0.0
+    check("...so a sparse binary driver now carries a PUBLISHED CURVE "
+          "through the real search: response range {:+.2f} against a "
+          "planted lift of 2.50. Without the grid fix this predictor "
+          "is kept with no `effect` key at all, which is a parent "
+          "generation cannot apply".format(_rng_resp),
+          _tp is not None and _tp.get("effect") is not None
+          and _rng_resp > 1.0)
+
     print()
     if FAIL:
         print("{} FAILED".format(FAIL))

@@ -66,6 +66,29 @@ def _grid_for(s: pd.Series, n_grid: int = N_GRID):
         v = s.dropna().to_numpy(dtype=float)
         if v.size == 0:
             return [], "numeric"
+        # A BINARY COLUMN HAS TWO VALUES BY CONSTRUCTION, AND
+        # QUANTILES ARE THE WRONG TOOL FOR IT.
+        #
+        # The grid runs to the 98th percentile, so an indicator
+        # that is 1 on under 2% of rows has EVERY quantile at 0,
+        # `np.unique` collapses it to a single point, and
+        # `effect_curve` returns None - so the parent is kept
+        # with NO CURVE and generation has nothing to apply.
+        # Measured 2026-11-09: a set token on 0.81% of 22,910
+        # rows driving its child by 7.2 sd was found at
+        # importance 0.633, published as a parent, and arrived
+        # in the output at 1.4% of its source strength. Raising
+        # the search cap does NOT fix it - an arm at cap 60
+        # published the parent by name and still delivered 1.4%,
+        # for 3.8x the wall clock.
+        #
+        # This is ADDITIVE, which is what makes it safe: above a
+        # 2% share the quantile grid already returns [0, 1], so
+        # the only behaviour that changes is the case that
+        # currently produces no curve at all.
+        u = np.unique(v)
+        if u.size == 2:
+            return [float(x) for x in u], "numeric"
         qs = np.linspace(0.02, 0.98, n_grid)
         g = np.unique(np.quantile(v, qs))
         return [float(x) for x in g], "numeric"
