@@ -396,6 +396,74 @@ Synthetic clinical data generator and model-evaluation instrument. Core rule: le
 - Never state a number as measured unless you actually ran it.
 
 ## Fixing what the real extract found
+- **THE TWELVE PAIRS WERE NEVER A REGRESSION: THE DELIVERABLE AND
+  EVERY ARM MEASURED AGAINST IT WERE BUILT BY DIFFERENT ENGINES
+  (2026-11-09, read off the artifacts).** `run_deliverable`'s
+  `provenance.json` carries `settings.engine = "neural"`, and that
+  field is written by `latent_challenger.py` and by nothing else -
+  `"engine"` does not appear anywhere in the package. `run_n9g`
+  carries no engine field and its settings are
+  `{generate, seed, holdout, excluded}`, which is exactly what
+  `pipeline.py` writes. A SECOND, INDEPENDENT observable agrees:
+  the deliverable's top level is
+  `blueprint_version, source, settings, contract` where `contract`
+  is the neural writer's, and run_n9g's is
+  `made_at, code_fingerprint, build, blueprint_version, source,
+  settings, privacy, note` where `privacy` and `note` are the rules
+  writer's. **So `close` 119 against 107 on 135 shared pairs is the
+  NEURAL engine against the RULES engine, not one build against
+  another.**
+- **WHAT IS WITHDRAWN.** "close DID regress - tonight's output is
+  worse by twelve pairs"; "the gap is 182 commits wide"; and the
+  reading that four control arms had acquitted every candidate.
+  Those arms could not have found anything: every mechanism they
+  switched off - the identity detector, the date reorder, identity
+  enforcement, the sparse-slice drop - is a RULES-engine mechanism,
+  and the baseline they were compared against was a NEURAL file. An
+  arm that cannot reach the thing it is testing returns zero and
+  means nothing, which this file already says about a cap no fixture
+  reaches. **The five-run bisection is cancelled** - there is no
+  commit to find, and running it would have spent two hours
+  confirming a difference no change causes.
+- **AND THE RECORDED CLAIM THAT SET IT UP WAS FALSE.** The run_n8g
+  entry says "same source as the deliverable ... same settings as
+  that run". The source matched; the ENGINE did not, and nothing
+  checked. Two artifacts differing in more ways than the comparison
+  assumed is the oldest fault in this file wearing a provenance
+  field, and the fix is one line: read `settings.engine` on both
+  sides before quoting a cross-run number.
+- **THE FLIP NAMES SAY THE SAME THING FROM THE OTHER END, AND THEY
+  ARE WHY THE DIFFERENCE IS EXPECTED RATHER THAN MYSTERIOUS.** The
+  comparison names **21** pairs the deliverable holds close and the
+  rules run loses - not twelve; the net is twelve because the rules
+  run also gains some. Of the twenty listed, **FIFTEEN involve a
+  `__has__` set-token indicator** and five are plain clinical
+  columns. The neural engine has an independent per-token draw, an
+  implication tier and conditional token quotas, all built
+  specifically for cross-set token pairs; the rules engine has none
+  of them. A neural file holding more drug-implies-route pairs close
+  is the designed behaviour of that engine, not a defect in the
+  other.
+- **WHAT STILL STANDS, said separately so the withdrawal does not
+  take it with it.** The deliverable's own gate numbers are measured
+  on the deliverable and are unaffected: 134/137 direction, 120/137
+  close, 1 inverted, 42/42 coverage, and six of nine after the
+  one-column repair. The real-extract attack battery that certifies
+  the release surface - output adversary 0.514/0.523/0.551 with the
+  republish control at 1.000 CAUGHT - is `latent_challenger attack`,
+  so it is the NEURAL battery and it is the right evidence for this
+  file. What is withdrawn is only the cross-run comparison.
+- **AND A CROSS-ENGINE GATE COMPARISON IS WORSE THAN
+  INCOMPARABLE ON THREE CRITERIA IN PARTICULAR.**
+  `interaction surfaces` grades whether PUBLISHED surfaces survive,
+  and the neural engine never consults them - this file already
+  records that it fails that criterion BY CONSTRUCTION - so
+  "0/5 to 2/5" is not an improvement, it is one engine being graded
+  on a contract the other one has. The same applies to
+  `shapes tracked`, and `dynamics tracked` is measured along an axis
+  the two engines treat differently. Quote those three within one
+  engine or not at all.
+
 - **THE SPARSE-TOKEN RELATIONSHIP GOES FROM ABSENT TO CARRIED AT
   ZERO MEASURED COST, AND THE CAP WAS NEVER WHAT BOUND IT
   (2026-11-09).** Three paired arms on one fixture at one seed,

@@ -51,9 +51,53 @@ def provenance_rows(run):
             return p[key]
     src = p.get("source")
     if isinstance(src, dict):
-        for key in ("rows", "n_rows"):
+        # `rows_read` FIRST, because it is the name BOTH
+        # writers actually use - `pipeline.py` and
+        # `latent_challenger.py` both emit
+        # `source.rows_read`, and this list used to hold only
+        # `rows` and `n_rows`. So the refusal that exists to
+        # stop a run being measured against an extract that
+        # never produced it had NEVER FIRED on a real run: a
+        # guard that cannot fire, in the one place a whole
+        # session was already lost. The others are kept for
+        # older artifacts.
+        for key in ("rows_read", "rows", "n_rows"):
             if isinstance(src.get(key), int):
                 return src[key]
+    return None
+
+
+def engine_of(run):
+    """Which ENGINE built this run, read off its own provenance.
+
+    WHY THIS EXISTS. A whole night went into a "twelve-pair
+    regression" that was two different engines: `run_deliverable`
+    carries `settings.engine = "neural"` and `run_n9g` carries no
+    engine field at all, because `pipeline.py` - the rules path -
+    does not write one. Four control arms were then built to find
+    the cause and every one came back innocent, which they had to:
+    each switched off a RULES mechanism while the baseline was a
+    NEURAL file. A five-run bisection was queued against a
+    difference no commit causes.
+
+    `neural` is positive evidence. Absent is reported as `rules`
+    ONLY when the provenance looks like the rules writer's - it
+    writes `privacy` and `note` at the top level - because absent
+    on its own is not the same fact as rules, which is the
+    distinction this project draws everywhere else.
+    """
+    f = Path(run) / "provenance.json"
+    if not f.exists():
+        return None
+    try:
+        p = json.loads(f.read_text(encoding="utf-8"))
+    except Exception:
+        return None
+    eng = (p.get("settings") or {}).get("engine")
+    if isinstance(eng, str) and eng.strip():
+        return eng.strip()
+    if "privacy" in p and "note" in p:
+        return "rules"
     return None
 
 
@@ -178,7 +222,37 @@ def main():
     if len(_fids) == 2:
         _names = list(_fids)
         _sh = shared_close(_fids[_names[0]], _fids[_names[1]])
+        # Look the paths up BY NAME rather than by position:
+        # a skipped run leaves `_fids` and `a.runs` misaligned,
+        # and an engine label attached to the wrong run is the
+        # exact fault this guard exists to prevent.
+        _bypath = dict((Path(r).name, r) for r in a.runs)
+        _e0 = engine_of(_bypath.get(_names[0], _names[0]))
+        _e1 = engine_of(_bypath.get(_names[1], _names[1]))
         print("=== `close` ON THE PAIRS BOTH RUNS RELATE ===")
+        print("  engine: {} = {} | {} = {}".format(
+            _names[0], _e0 or "(not recorded)",
+            _names[1], _e1 or "(not recorded)"))
+        if _e0 and _e1 and _e0 != _e1:
+            # NOT A WARNING UNDER THE NUMBER. A cross-engine close
+            # figure is not a weaker comparison, it is a different
+            # question - and this project already published one as
+            # a regression. The numbers are still printed, because
+            # suppressing them would hide what was measured, but
+            # the verdict above them says what they are.
+            print("  THESE RUNS WERE BUILT BY DIFFERENT ENGINES, so "
+                  "a difference below is NOT a regression and NOT")
+            print("  attributable to any commit - it is one engine "
+                  "against another. `interaction surfaces`,")
+            print("  `shapes tracked` and `dynamics tracked` are "
+                  "worse than incomparable across engines: the")
+            print("  neural path never consults published surfaces, "
+                  "so it fails that criterion by construction.")
+        elif not (_e0 and _e1):
+            print("  AT LEAST ONE RUN DOES NOT RECORD ITS ENGINE, so "
+                  "whether this is a like-for-like comparison")
+            print("  cannot be established from the artifacts. "
+                  "Absent is not the same fact as matching.")
         if _sh is None:
             print("  the two runs share no related pair, so there "
                   "is nothing comparable to report")
