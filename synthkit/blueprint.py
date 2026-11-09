@@ -1202,8 +1202,27 @@ def build(df: pd.DataFrame,
               if not (columns.get(r["child"]) or {}).get(
                   "derived_from")]
 
+    # WHICH TOKENS TRAVEL TOGETHER.
+    #
+    # About 110 of the 135 pairs the real extract's gate
+    # relates are set-token pairs - roughly four fifths of
+    # everything graded - and nothing in this contract said
+    # which tokens co-occur, so generation drew them
+    # independently and "a drug implies its route" survived
+    # by chance. Published as k-screened LIFTS, with the
+    # JOINT clearing the patient floor rather than the two
+    # tokens separately: a pair held by three patients
+    # describes those three people however common each
+    # token is alone.
+    _setcols = [c for c in df.columns
+                if (columns.get(c) or {}).get("marginal", {})
+                .get("type") == "list"]
+    _cooc = _sets.cooccurrence(df, _setcols, gvals, k=k) \
+        if _setcols else []
+
     return {
         "blueprint_version": BLUEPRINT_VERSION,
+        "token_cooccurrence": _cooc,
         "arithmetic_identities": _ident,
         "constraints": _constraints(X, k),
         "correlations": correlations,

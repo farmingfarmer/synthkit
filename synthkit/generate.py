@@ -159,7 +159,8 @@ def _to_integers(out, m):
     return np.floor(out + (lo + hi) / 2.0)
 
 
-def _draw_list(m: Dict[str, Any], n: int, rng) -> np.ndarray:
+def _draw_list(m: Dict[str, Any], n: int, rng, cooc=None,
+               col=None, ctx_fn=None) -> np.ndarray:
     """Draw a SET per row and join it back into one field.
 
     The size comes from its own observed distribution and the tokens
@@ -167,7 +168,8 @@ def _draw_list(m: Dict[str, Any], n: int, rng) -> np.ndarray:
     not a sampling weight, and feeding it in raw skewed 44 of 96
     shares past tolerance on the real extract. Co-occurrence is not
     modeled - the blueprint says so on the marginal itself."""
-    return _draw_list_sized(m, [None] * n, rng)
+    return _draw_list_sized(m, [None] * n, rng, cooc=cooc,
+                            col=col, ctx_fn=ctx_fn)
 
 
 def _invented_labels(inv: Dict[str, Any], n: int, rng):
@@ -871,7 +873,193 @@ def _collapse_to_patient(rows, pat_draw, pidx, n_pat, numeric):
     return np.asarray(rows, dtype=object)[first][pidx]
 
 
-def _token_weights(m, sizes_per_row, seed):
+def _cooc_ctx(cooc, col, m, out, bp=None):
+    """The multiplier a row already carries from EARLIER set
+    columns, as a function of row index.
+
+    This is where `drug -> route` lives. The within-column chain
+    handles a column's own cluster; a route is implied by a drug in
+    a DIFFERENT column, and that column has already been drawn, so
+    its tokens are context rather than something to solve jointly.
+
+    Returns None when nothing published applies, so the ordinary
+    independent draw is reached unchanged - the change acts only
+    where its mechanism lives.
+    """
+    import numpy as np
+    from . import sets as _sets
+    toks = [t["value"] for t in (m.get("tokens") or [])]
+    if not cooc or not toks:
+        return None
+    _w, cross = _cooc_index(cooc, col, toks)
+    if not cross:
+        return None
+    # Which ALREADY-DRAWN columns can supply a context token.
+    want = {}
+    for name in cross:
+        src = _sets.source_of(name)
+        if src and src in out and src != col:
+            want.setdefault(src, []).append(name)
+    if not want:
+        return None
+    seps = {}
+    arrs = {}
+    _cols = (bp or {}).get("columns") or {}
+    for src in want:
+        arrs[src] = np.asarray(out[src], dtype=object)
+        # THE SOURCE COLUMN'S OWN SEPARATOR, not this one's.
+        # They are usually both ';' and that is exactly how a
+        # wrong one would go unnoticed.
+        _sm = ((_cols.get(src) or {}).get("marginal") or {})
+        seps[src] = _sm.get("separator") or ";"
+    cache = {}
+
+    def ctx(i):
+        """The context NAMES a row carries, not a multiplier.
+
+        Returning the names rather than a baked multiplier is what
+        lets the solve ADJUST those multipliers: a published lift
+        is where the solve starts, not where it ends."""
+        hit = cache.get(i)
+        if hit is not None:
+            return hit
+        active = []
+        for src, names in want.items():
+            try:
+                cell = arrs[src][i]
+            except (IndexError, TypeError):
+                continue
+            if cell is None or not isinstance(cell, str) or not cell:
+                continue
+            held = set(x.strip() for x in cell.split(seps[src])
+                       if x.strip())
+            if not held:
+                continue
+            for name in names:
+                if name.split(_sets.HAS, 1)[-1] in held:
+                    active.append(name)
+        if len(cache) < 400000:
+            cache[i] = active
+        return active
+    return ctx
+
+
+def _cooc_index(cooc, col, toks):
+    """Published lifts, arranged for the draw.
+
+    Returns (within, cross):
+      within[i] = (idx array, mult array) - what picking token i
+                  does to the other candidates in THIS column
+      cross[name] = (idx array, mult array) - what holding the
+                  indicator `name` from an EARLIER column does
+    """
+    import numpy as np
+    from . import sets as _sets
+    if not cooc:
+        return {}, {}
+    pos = dict((t, i) for i, t in enumerate(toks))
+    mine = _sets.indicator_name(col, "")
+    w_tmp, c_tmp = {}, {}
+    for rec in cooc:
+        b = rec.get("b") or ""
+        if not b.startswith(mine):
+            continue
+        bt = b[len(mine):]
+        j = pos.get(bt)
+        if j is None:
+            continue
+        a = rec.get("a") or ""
+        try:
+            lift = float(rec.get("lift"))
+        except (TypeError, ValueError):
+            continue
+        if not np.isfinite(lift) or lift <= 0:
+            continue
+        try:
+            want = float(rec.get("cond"))
+        except (TypeError, ValueError):
+            want = float("nan")
+        if a.startswith(mine):
+            i = pos.get(a[len(mine):])
+            if i is None or i == j:
+                continue
+            w_tmp.setdefault(i, []).append((j, lift, want))
+        else:
+            c_tmp.setdefault(a, []).append((j, lift, want))
+
+    def pack(d):
+        out = {}
+        for key, items in d.items():
+            out[key] = {
+                "idx": np.asarray([x[0] for x in items], dtype=int),
+                # The multiplier STARTS at the published lift and is
+                # then solved, the same draw-measure-adjust loop
+                # every other fed-back statistic here uses.
+                "mu": np.asarray([x[1] for x in items],
+                                 dtype=float),
+                "want": np.asarray([x[2] for x in items],
+                                   dtype=float)}
+        return out
+    return pack(w_tmp), pack(c_tmp)
+
+
+def _pick_row(n_tok, k_, w, rng, within=None, ctx=None,
+              cross=None):
+    """One row's tokens, drawn AUTO-REGRESSIVELY.
+
+    WHY THIS EXISTS AND WHAT IT REPLACES. The draw was
+    `rng.choice(T, size=k_, replace=False, p=w)` - every token
+    independent of every other, with `_token_weights` solving w so
+    each token's MARGINAL share measures back. Nothing in it said
+    which tokens travel together, and on the real extract about 110
+    of the 135 pairs the gate relates are set-token pairs. So on
+    roughly four fifths of the graded surface the engine had no
+    mechanism at all, and "a drug implies its route" survived by
+    chance.
+
+    This is the state of the art applied to set membership: the
+    joint is approximated as a chain of CONDITIONALS rather than a
+    product of marginals, which is what auto-regressive tabular
+    generators do over discretised columns. Each pick reweights the
+    remaining candidates by the published lift of what is already
+    in the row - including tokens drawn in EARLIER set columns,
+    which is where `drug -> route` lives.
+
+    THE SOLVE CALLS THIS TOO. If the weight solve measured an
+    independent draw while generation drew conditionally, the
+    marginals would not land and the two halves would disagree
+    about the column's contents - which is the fault this project
+    has recorded more than any other. One draw function, both
+    callers.
+    """
+    import numpy as np
+    if k_ <= 0:
+        return []
+    mult = np.ones(n_tok, dtype=float)
+    if ctx:
+        for name in ctx:
+            hit = (cross or {}).get(name)
+            if hit is not None:
+                mult[hit["idx"]] *= hit["mu"]
+    avail = np.ones(n_tok, dtype=bool)
+    picks = []
+    for _ in range(int(k_)):
+        p = w * mult * avail
+        s = float(p.sum())
+        if not np.isfinite(s) or s <= 0:
+            break
+        j = int(rng.choice(n_tok, p=p / s))
+        picks.append(j)
+        avail[j] = False
+        if within:
+            hit = within.get(j)
+            if hit is not None:
+                mult[hit["idx"]] *= hit["mu"]
+    return picks
+
+
+def _token_weights(m, sizes_per_row, seed, within=None,
+                   ctx_fn=None, cross=None):
     """Sampling weights SOLVED so the drawn shares measure back.
 
     The published token `p` is a SHARE - the fraction of rows whose
@@ -910,16 +1098,91 @@ def _token_weights(m, sizes_per_row, seed):
     samp = (np.arange(n) if n <= 4000 else
             np.random.RandomState(seed % (2 ** 31)).choice(
                 n, 4000, replace=False))
-    for it in range(12):
+    # THE CONDITIONALS ARE SOLVED TOO, NOT ONLY THE MARGINALS.
+    #
+    # A published lift is a nudge: multiplying a weight by 3.4
+    # moves a token a little and leaves a near-deterministic
+    # implication at a fraction of its strength - measured, on a
+    # planted `drug -> route` pair whose source association is
+    # +1.000, the lift alone reached +0.18. What has to LAND is
+    # the conditional P(b | a) the source published, so it is fed
+    # back by the same draw-measure-adjust loop the marginals use,
+    # with the same damping and for the same reason: an undamped
+    # multiplicative update diverges once the vocabulary is large.
+    # 24 rather than 12: the conditional starts far from its
+    # target where the marginal starts close, and it is still
+    # climbing at 14. Measured on a planted deterministic
+    # pair: 14 passes reach +0.393, 30 reach +0.430, and it
+    # plateaus there - the rest of the gap is the SIZE draw,
+    # which is still independent of context, not the solve
+    # running out of road.
+    for it in range(24):
         r2 = np.random.RandomState((seed + 977 * it) % (2 ** 31))
         got = np.zeros(len(toks))
         ww = w / w.sum()
+        wtrig = {}
+        whit = {}
+        ctrig = {}
+        chit = {}
         for i in samp:
             k_ = ks[i]
             if k_ <= 0:
                 continue
-            got[r2.choice(len(toks), size=k_, replace=False,
-                          p=ww)] += 1.0
+            names = () if ctx_fn is None else ctx_fn(int(i))
+            # THE SAME DRAW THE REAL ONE USES. Measuring an
+            # independent draw while generation draws
+            # conditionally would leave the marginals
+            # unlanded and the two halves disagreeing about
+            # the column's contents.
+            picks = _pick_row(len(toks), k_, ww, r2, within,
+                              names, cross)
+            got[picks] += 1.0
+            if not picks:
+                continue
+            ps = set(picks)
+            for name in (names or ()):
+                hit = cross.get(name) if cross else None
+                if hit is None:
+                    continue
+                ctrig[name] = ctrig.get(name, 0) + 1
+                acc = chit.get(name)
+                if acc is None:
+                    acc = chit[name] = np.zeros(len(hit["idx"]))
+                acc += np.fromiter(
+                    (1.0 if int(x) in ps else 0.0 for x in hit["idx"]),
+                    dtype=float, count=len(hit["idx"]))
+            if within:
+                for j in picks:
+                    hit = within.get(j)
+                    if hit is None:
+                        continue
+                    wtrig[j] = wtrig.get(j, 0) + 1
+                    acc = whit.get(j)
+                    if acc is None:
+                        acc = whit[j] = np.zeros(len(hit["idx"]))
+                    acc += np.fromiter(
+                        (1.0 if int(x) in ps else 0.0
+                         for x in hit["idx"]),
+                        dtype=float, count=len(hit["idx"]))
+        for store, trig, acc in ((within, wtrig, whit),
+                                 (cross, ctrig, chit)):
+            if not store:
+                continue
+            for key, nt in trig.items():
+                if nt < 20:
+                    continue
+                hit = store.get(key)
+                if hit is None:
+                    continue
+                want = hit["want"]
+                ok = np.isfinite(want) & (want > 0)
+                if not ok.any():
+                    continue
+                ach = np.clip(acc[key] / float(nt), 1e-4, 1.0)
+                adj = np.ones_like(hit["mu"])
+                adj[ok] = (np.clip(want[ok], 1e-4, 0.999)
+                           / ach[ok]) ** 0.5
+                hit["mu"] = np.clip(hit["mu"] * adj, 1e-6, 1e6)
         ach = np.clip(got / len(samp), 1e-6, None)
         # DAMPED, because an undamped multiplicative update DIVERGES
         # once the vocabulary is large. At eight tokens the raw ratio
@@ -941,7 +1204,8 @@ def _token_weights(m, sizes_per_row, seed):
     return toks, w / w.sum()
 
 
-def _draw_list_sized(m, ks, rng):
+def _draw_list_sized(m, ks, rng, cooc=None, col=None,
+                     ctx_fn=None):
     """A set per row whose SIZE is handed in, not drawn.
 
     `active_drug_count == active_drugs__n` holds on every source row
@@ -985,7 +1249,11 @@ def _draw_list_sized(m, ks, rng):
             ks2.append(max(0, min(k_, len(toks))))
         else:
             ks2.append(min(max(int(round(float(k))), 0), len(toks)))
-    _t, w = _token_weights(m, ks2, int(rng.randint(0, 2 ** 31)))
+    within, cross = ({}, {}) if not (cooc and col) \
+        else _cooc_index(cooc, col, toks)
+    _t, w = _token_weights(m, ks2, int(rng.randint(0, 2 ** 31)),
+                           within=within, ctx_fn=ctx_fn,
+                           cross=cross)
     sep = m.get("separator", ";")
     out = []
     for k_ in ks2:
@@ -1001,7 +1269,9 @@ def _draw_list_sized(m, ks, rng):
             # the row is MISSING remains the presence mask's job.
             out.append("")
             continue
-        picked = rng.choice(len(toks), size=k_, replace=False, p=w)
+        picked = _pick_row(len(toks), k_, w, rng, within,
+                           () if ctx_fn is None
+                           else ctx_fn(len(out)), cross)
         out.append(sep.join(sorted(toks[i] for i in picked)))
     return np.asarray(out, dtype=object)
 
@@ -1575,6 +1845,12 @@ def generate(blueprint: Dict[str, Any],
              ) -> pd.DataFrame:
     """Build a table from a blueprint. Nothing else is consulted."""
     bp = resolve(blueprint)
+    # THE PUBLISHED TOKEN STRUCTURE. Absent on every blueprint
+    # written before it existed, and an empty list reaches the
+    # ordinary independent draw unchanged - an old artifact
+    # must still generate, and absent is not a different fact
+    # from empty here.
+    _cooc = bp.get("token_cooccurrence") or []
     rng = np.random.RandomState(seed)
     cols = bp.get("columns") or {}
     pat = bp.get("patients") or {}
@@ -1765,13 +2041,17 @@ def generate(blueprint: Dict[str, Any],
                                    errors="coerce")
                 sized = [None if not np.isfinite(x) else x
                          for x in pv.to_numpy(dtype=float)]
-                base = _draw_list_sized(m, sized, rng)
+                base = _draw_list_sized(
+                    m, sized, rng, cooc=_cooc, col=c,
+                    ctx_fn=_cooc_ctx(_cooc, c, m, out, bp))
                 if report is not None:
                     report.setdefault("set_size_identity",
                                       []).append(
                         {"column": c, "partner": partner})
             else:
-                base = _draw_list(m, n_draw, rng)
+                base = _draw_list(
+                    m, n_draw, rng, cooc=_cooc, col=c,
+                    ctx_fn=_cooc_ctx(_cooc, c, m, out, bp))
             # TOKENS LAND WHERE THEIR PARENTS SAY. Relationships whose
             # child is a derived indicator were dropped for weeks -
             # the whole worst-pairs list on the real extract - and are

@@ -584,3 +584,119 @@ def collisions(columns) -> List[str]:
     silently drops a real column - the failure mode this repository
     exists to refuse. Detected and reported rather than risked."""
     return [str(c) for c in columns if source_of(str(c)) is not None]
+
+
+# ---------------------------------------------------------------
+# WHICH TOKENS TRAVEL TOGETHER
+# ---------------------------------------------------------------
+# A drug implies its route. A diagnosis travels with its own
+# cluster. On the real extract about 110 of the 135 pairs the gate
+# relates are set-token pairs - roughly FOUR FIFTHS of everything
+# being graded - and the rules engine's draw modelled none of it:
+# `_token_weights` solves weights so each token's MARGINAL share
+# measures back, and there is nothing in it about which tokens
+# co-occur. Tokens were drawn independently, so "a drug implies its
+# route" survived only by chance.
+#
+# This is the shared half. The neural engine has its own
+# implication tier and conditional quotas, built into its own draw
+# and not portable; the DETECTION is engine-independent and belongs
+# here, where both halves can call it rather than each keeping a
+# loop - which is how two halves come to disagree, the fault this
+# module was created to close.
+COOC_MIN_LIFT = 1.5        # a pair must show a real association
+COOC_MAX_PER_TOKEN = 12    # bound what a blueprint carries
+COOC_MIN_ROWS = 30         # and a lift from a handful of rows is noise
+
+
+def cooccurrence(frame, cols, groups, k: int = 10,
+                 vocab=None, cap: int = COOC_MAX_PER_TOKEN,
+                 min_lift: float = COOC_MIN_LIFT):
+    """Published, k-screened LIFT between set tokens.
+
+    Returns a list of {"a", "b", "lift", "patients"} where `a` and
+    `b` are indicator names (`conditions__has__X`), and
+
+        lift = P(b | a) / P(b)
+
+    so 1.0 is independence, above is attraction and below is
+    repulsion. BOTH directions are published: a token that is
+    *less* likely in the presence of another is structure too, and
+    "negative token associations are not modeled" has been a named
+    gap in this project for months.
+
+    THE JOINT IS WHAT CLEARS k, NOT THE TWO TOKENS SEPARATELY.
+    Each token has already passed the vocabulary's own patient
+    floor; a PAIR held by three patients describes those three
+    people however often each token appears alone, so the count of
+    distinct patients holding BOTH is what gates publication. That
+    is the same rule the bounds follow - patients, never rows.
+    """
+    out = []
+    if not cols:
+        return out
+    gid = np.asarray(groups)
+    mats, names = [], []
+    for col in cols:
+        if col not in frame.columns:
+            continue
+        raw = frame[col]
+        v = (vocab or {}).get(col) if vocab else None
+        if v is None:
+            v = vocabulary(raw, gid, k=k)
+        if not v or not v.get("tokens"):
+            continue
+        sep = v.get("separator") or ";"
+        for t in v["tokens"]:
+            tok = t.get("value")
+            if not tok:
+                continue
+            mats.append(has_token(raw, sep, tok)
+                        .fillna(False).to_numpy(dtype=bool))
+            names.append(indicator_name(col, tok))
+    if len(names) < 2:
+        return out
+
+    M = np.vstack(mats)                     # tokens x rows
+    n_rows = M.shape[1]
+    if n_rows < COOC_MIN_ROWS:
+        return out
+    counts = M.sum(axis=1).astype(float)
+    base = counts / float(n_rows)
+
+    for i in range(len(names)):
+        if counts[i] < COOC_MIN_ROWS:
+            continue
+        rows_a = M[i]
+        joint = M[:, rows_a].sum(axis=1).astype(float)
+        with np.errstate(divide="ignore", invalid="ignore"):
+            cond = joint / counts[i]
+            lift = np.where(base > 0, cond / base, 1.0)
+        cands = []
+        for j in range(len(names)):
+            if j == i or joint[j] < 1:
+                continue
+            L = float(lift[j])
+            if not np.isfinite(L):
+                continue
+            if min_lift > 1 and (1.0 / min_lift) < L < min_lift:
+                continue
+            # THE JOINT'S OWN PATIENT COUNT, which is the whole
+            # privacy question for a pair.
+            pats = int(len(np.unique(gid[rows_a & M[j]])))
+            if pats < k:
+                continue
+            cands.append((abs(np.log(max(L, 1e-9))), j, L, pats))
+        cands.sort(key=lambda t: -t[0])
+        for _, j, L, pats in cands[:cap]:
+            # THE CONDITIONAL ITSELF, not only the lift. A
+            # lift is a nudge; `P(b | a)` is the thing the
+            # draw has to LAND, and a near-deterministic
+            # implication cannot be reached by multiplying a
+            # weight - it has to be solved against.
+            out.append({"a": names[i], "b": names[j],
+                        "lift": round(float(L), 5),
+                        "cond": round(float(cond[j]), 5),
+                        "base": round(float(base[j]), 5),
+                        "patients": pats})
+    return out
