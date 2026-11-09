@@ -396,6 +396,57 @@ Synthetic clinical data generator and model-evaluation instrument. Core rule: le
 - Never state a number as measured unless you actually ran it.
 
 ## Fixing what the real extract found
+- **THE REAL EXTRACT FOUND A DEFECT IN THE IDENTITY TIER THE SAME
+  DAY IT SHIPPED, AND NO FIXTURE HERE COULD REACH IT (2026-11-08
+  night).** The first real-extract fit with the tier published
+  **FOUR** arithmetic identities, and only two are identities:
+      child              parents                  best single
+      visit_start_date   span_days, visit_end_date      0.9019
+      age_at_visit       year_of_birth, visit_end_date  3.7358
+      procedure_count    procedure_quantity, a drug     7.9e-15
+      active_drug_count  a procedure, active_drugs__n   8.7e-15
+  The bottom two children ARE their first parent, exactly:
+  `procedure_count == procedure_quantity` and
+  `active_drug_count == active_drugs__n`. The second parent in
+  each is dropped SET SCAFFOLDING - a `__has__` indicator that is
+  not even in the written file - and it earns nothing.
+- **THE CAUSE IS THAT `PAIR_GAIN` IS A RATIO, AND BOTH SIDES OF
+  IT WERE FLOAT NOISE.** The rule requires the pair to beat the
+  best single parent by a factor of four, which separates a real
+  identity from a one-parent one by orders of magnitude when the
+  single residual is a MEASUREMENT - 0.90 and 3.74 above. When
+  the child is an exact copy of one parent, both residuals are
+  numerically zero, a least-squares fit with three free
+  parameters lands below one with two, and the ratio passes.
+- **AND IT IS A COIN FLIP, which is why one fixture would have
+  lied either way.** On the same copy-of-a-column frame at float
+  magnitude the pair-over-single ratio reads **0.0125 at one seed
+  and 0.267 at another** - so `PAIR_GAIN` refuses it SOMETIMES.
+  Every fixture here used integer counts, where both residuals
+  are exactly 0.0 and `0 >= 0` refuses correctly; it takes float
+  values for the noise to separate at all.
+- **THE FIX IS A FLOOR UNDER THE DENOMINATOR, and the rule is now
+  a PURE FUNCTION checked on planted numbers.** The single
+  parent's residual must be a measurement rather than noise -
+  above `1e-9` of the child's own spread - before the ratio is
+  trusted. Checked on the real extract's own four pairs: 0.90 and
+  3.74 pass, 7.9e-15 and 8.7e-15 are refused whichever way their
+  ratio happens to fall, a genuine one-parent relationship is
+  still refused by the ratio, and a candidate with no
+  single-parent fit is refused rather than treated as a perfect
+  one. Three mutations - dropping the floor, dropping the ratio,
+  treating a missing single fit as success - each turn checks
+  red.
+- **AND REFUSING IS THE RIGHT ANSWER, not computing it elsewhere.**
+  A child that IS one other column is an EQUALITY, and this
+  project already repairs an equality by COPYING rather than
+  drawing twice; a count that is a set's length belongs to the
+  size identity, which also copies. Had the spurious pair been
+  enforced, `procedure_count` would have been computed from
+  columns the reader never receives, and two tiers would each
+  have owned one column - the shape this file records as `a <= b`
+  and `b <= a` undoing each other.
+
 - **THE CARE-EPISODE QUESTION IS ANSWERED ON THE REAL EXTRACT: A
   PATIENT'S VISITS SPAN THIRTY PERCENT OF THE COHORT'S RANGE
   (2026-11-08 night).** Earlier today I named this as a property

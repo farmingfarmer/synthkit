@@ -328,6 +328,109 @@ def main():
           "_identities.detect(" in _bp
           and "_identities.apply(" in _gn)
 
+    # ---- A RATIO BETWEEN TWO NOISE NUMBERS IS NOT A TEST -------
+    #
+    # `PAIR_GAIN` compares the pair's residual against the best
+    # single parent's, and when the child IS one other column
+    # exactly both are floating-point noise. A fit with three free
+    # parameters lands an order of magnitude below one with two at
+    # that scale, so the ratio passes and a spurious second parent
+    # is claimed.
+    #
+    # FOUND ON THE REAL EXTRACT, which produced four identities of
+    # which two were this: `procedure_count` from
+    # `procedure_quantity` plus a drug indicator (best single
+    # residual 7.9e-15) and `active_drug_count` from a procedure
+    # indicator plus `active_drugs__n` (8.7e-15). Both children ARE
+    # their first parent; the second is dropped set scaffolding
+    # that is not even in the written file.
+    #
+    # AND NO FIXTURE HERE REACHED IT, because they used integer
+    # counts - where both residuals are exactly 0.0 and the guard
+    # works. It takes FLOAT values for the noise to separate, which
+    # is why this fixture is built at two magnitudes.
+    for _scale, _lab in ((1.0, "small"), (1000.0, "large")):
+        _rg = np.random.default_rng(4)
+        _n = 3000
+        _q = _rg.normal(_scale, _scale / 3.0, _n)
+        _copy = _q.copy()
+        _deg = [("count", pd.Series(_copy)),
+                ("quantity", pd.Series(_q)),
+                ("junk", pd.Series(_rg.integers(0, 2, _n)
+                                   .astype(float))),
+                ("other", pd.Series(_rg.normal(50, 10, _n)))]
+        check("a child that IS one other column exactly is "
+              "REFUSED at {} float magnitude ({}) - a child that "
+              "is a copy belongs to the constraint machinery, "
+              "which repairs an equality by copying, not to a "
+              "two-parent identity"
+              .format(_lab,
+                      [r["child"] for r in ID.detect(_deg)]
+                      or "nothing claimed"),
+              not ID.detect(_deg))
+
+    # AND IT IS A COIN FLIP ON FLOAT NOISE, WHICH IS THE POINT -
+    # so the check has to sweep seeds rather than trust one.
+    # Measured on the same copy-of-a-column frame at float
+    # magnitude: the pair-over-single ratio reads 0.0125 at one
+    # seed and 0.267 at another, so `PAIR_GAIN` refuses it
+    # SOMETIMES. A single-seed fixture would have reported the
+    # guard as load-bearing or as dead depending on the draw.
+    # SO THE RULE IS CHECKED AS A PURE DECISION ON PLANTED
+    # NUMBERS, including the two real-extract pairs. Whether a
+    # float residual lands at 0.01 or 0.27 of the single-parent
+    # fit's depends on the draw - one seed gives 0.0125 and
+    # another 0.267 on the SAME frame - so an end-to-end fixture
+    # reports this guard as load-bearing or dead by luck. The
+    # rule is not luck.
+    _P = ID.pair_earns_second_parent
+    check("the REAL extract's two legitimate identities pass the "
+          "rule on their own measured numbers - best single "
+          "residual 0.90 of 2284 for start = end - span, and "
+          "3.74 of 19 for age = year - year_of_birth",
+          _P(1e-14, 0.90, 2284.0) and _P(1e-14, 3.74, 19.0))
+    check("...and its two SPURIOUS ones are refused on theirs - "
+          "best single 7.9e-15 and 8.7e-15, which is float noise "
+          "rather than a measurement, whichever way the ratio "
+          "happens to fall",
+          not _P(1e-16, 8e-15, 3.0)
+          and not _P(8e-14, 3e-13, 331.0))
+    check("...and a genuine ONE-parent relationship is still "
+          "refused by the ratio, which is the other half of the "
+          "rule and the one the morning fixture found",
+          not _P(3.6, 3.6, 430.0))
+    check("...and a candidate with no single-parent fit at all "
+          "is refused rather than treated as a perfect one",
+          not _P(1e-14, None, 10.0))
+
+    # AND THE GENUINE IDENTITIES MUST SURVIVE IT, all three
+    # shapes this project actually has.
+    _rg = np.random.default_rng(5)
+    _n = 3000
+    _sy = _rg.normal(120, 15, _n)
+    _di = _rg.normal(75, 10, _n)
+    _yb = _rg.integers(1940, 2005, _n).astype(float)
+    _yr = _rg.integers(2015, 2024, _n).astype(float)
+    _st = _rg.integers(0, 4000, _n).astype(float)
+    _sp = np.where(_rg.random(_n) < 0.12,
+                   _rg.integers(1, 20, _n), 0).astype(float)
+    _three = [("map", pd.Series((_sy + 2 * _di) / 3.0)),
+              ("systolic", pd.Series(_sy)),
+              ("diastolic", pd.Series(_di)),
+              ("age", pd.Series(_yr - _yb)),
+              ("yob", pd.Series(_yb)), ("yr", pd.Series(_yr)),
+              ("start", pd.Series(_st)), ("end", pd.Series(_st + _sp)),
+              ("span", pd.Series(_sp))]
+    _got = dict((r["child"], set(r["parents"]))
+                for r in ID.detect(_three))
+    check("...and the three identity shapes this project actually "
+          "has all SURVIVE the floor ({}) - a guard that refused "
+          "the real ones with the spurious ones would be worse "
+          "than no guard".format(sorted(_got)),
+          _got.get("map") == {"systolic", "diastolic"}
+          and _got.get("age") == {"yob", "yr"}
+          and _got.get("start") == {"end", "span"})
+
     print()
     if FAIL:
         print("{} FAILED".format(FAIL))

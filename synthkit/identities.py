@@ -70,12 +70,74 @@ RESIDUAL_SHARE = 0.02
 # Orders of magnitude, not a tuning question.
 PAIR_GAIN = 0.25
 
+# A RATIO NEEDS A DENOMINATOR THAT IS A MEASUREMENT, NOT NOISE.
+#
+# `PAIR_GAIN` compares the pair's residual against the best single
+# parent's, and that is a RATIO - so when the child IS one other
+# column exactly, both residuals are floating-point noise and the
+# comparison means nothing. A least-squares fit with three free
+# parameters lands an order of magnitude below one with two at
+# that scale, so the ratio passes and a spurious second parent is
+# claimed. Found on the REAL EXTRACT, which produced four
+# identities of which two were this:
+#
+#   procedure_count  <- procedure_quantity + a drug indicator
+#                       best single residual 7.9e-15
+#   active_drug_count <- a procedure indicator + active_drugs__n
+#                       best single residual 8.7e-15
+#
+# Both children ARE their first parent, exactly; the second is
+# dropped set scaffolding that earns nothing and is not even in
+# the written file. No fixture here reached it because the
+# fixtures used integer counts, where both residuals are exactly
+# 0.0 and the guard works - it takes float values for the noise
+# to separate.
+#
+# A child that is one other column is a COPY, and this tier
+# refuses it: an exact equality between two columns belongs to
+# the constraint machinery, which repairs it by copying, and a
+# count that is a set's length belongs to the size identity.
+NOISE_FLOOR = 1e-9
+
 # Detection needs enough both-present rows to mean anything.
 MIN_ROWS = 200
 
 # Detection runs on a bounded sample: an identity is a property
 # of the columns, not of every row.
 SAMPLE_ROWS = 4000
+
+
+def pair_earns_second_parent(pair_resid: float,
+                             best_single_resid: Optional[float],
+                             child_sd: float,
+                             pair_gain: float = PAIR_GAIN,
+                             noise_floor: float = NOISE_FLOOR
+                             ) -> bool:
+    """Did the SECOND parent earn its place?
+
+    A PURE DECISION ON NUMBERS, because the end-to-end condition
+    is a lottery. Whether a least-squares fit's float residual
+    lands at 0.01 or 0.27 of the single-parent fit's depends on
+    the draw: measured on the same copy-of-a-column frame, one
+    seed gives a ratio of 0.0125 and another 0.267, so a
+    single-seed fixture reports this guard as load-bearing or as
+    dead depending on luck. The rule itself is not luck and is
+    checkable on planted inputs.
+
+    Two things have to hold. The pair must beat the best single
+    parent by a factor - otherwise the child is a one-parent
+    relationship wearing two, and enforcing it replaces the
+    difference with a constant. AND the single parent's residual
+    must be a MEASUREMENT rather than float noise, because a
+    ratio between two numbers that are both numerically zero says
+    nothing. When the child IS one other column exactly, the
+    second test is the only one that refuses it.
+    """
+    if best_single_resid is None:
+        return False
+    if best_single_resid <= noise_floor * child_sd:
+        return False
+    return pair_resid < pair_gain * best_single_resid
 
 
 def detect(cols: Sequence[Tuple[str, Any]],
@@ -183,7 +245,8 @@ def detect(cols: Sequence[Tuple[str, Any]],
                                  - _A1 @ _w1).std())
                     _single = (_r1 if _single is None
                                else min(_single, _r1))
-                if _single is not None and rs >= pair_gain * _single:
+                if not pair_earns_second_parent(
+                        rs, _single, csd, pair_gain):
                     continue
                 if best is None or rs < best[0]:
                     best = (rs, pa, pb, [float(x) for x in w],
