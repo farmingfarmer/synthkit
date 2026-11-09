@@ -655,6 +655,15 @@ exactly what they were.
       dynamics tracked      17/87           35/89
       coverage              42/42 PASS      42/42 PASS
 
+  And both published arithmetic identities hold on **1.0** of
+  rows in the written file — `visit_start_date == visit_end_date
+  − span_days` and `age_at_visit == f(year_of_birth,
+  visit_end_date)` — measured by recomputing from the written
+  parents. A first reading of 0.6267 for the second was my own
+  reader's tolerance (2% of a nineteen-year spread is 0.38, and
+  the tier rounds a whole-number child by up to 0.5) and is
+  withdrawn.
+
   `inverted` is the one criterion this project calls an absolute
   stop, and the deliverable needed a reordered column to clear
   it. Surfaces go from NONE to two of five — the pressure family

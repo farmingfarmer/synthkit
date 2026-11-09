@@ -603,17 +603,33 @@ Synthetic clinical data generator and model-evaluation instrument. Core rule: le
   the output side: their PARENTS are scaffolding dropped before
   the file is written, so the identity cannot be checked in the
   deliverable at all - published, enforced, and unverifiable.
-- **AND `age_at_visit` AT 0.6267 IS THE HONEST NUMBER FOR A
-  NEAR-IDENTITY, NOT A FAILURE.** The record measures that
-  identity holding on **21.4%** of generated rows before any
-  enforcement, so this is a large improvement - and it is not
-  1.0, because age is the visit YEAR minus the year of birth and
-  the visit year is not a column. In ordinal-day space the
-  relation is linear only to within a year boundary, so a
-  whole-number child rounds to the wrong integer on part of the
-  rows. The 2% residual bar admits that, and the right thing is
-  to SAY 0.6267 rather than to let "identities enforced" imply
-  they all hold.
+- **CORRECTION, SAME NIGHT: THE 0.6267 WAS MY OWN TOLERANCE, NOT
+  THE FILE, AND IT IS WITHDRAWN.** I first read
+  `age_at_visit == f(year_of_birth, visit_end_date)` as holding
+  on 0.6267 of rows and wrote that up as "the honest number for a
+  near-identity". It is an artifact of the reader: it compared
+  the written child against the prediction at **2% of the
+  column's spread**, which on a nineteen-year spread is 0.38 - and
+  the tier ROUNDS a whole-number child, so a row whose un-rounded
+  error was 0.4 is written 0.4 away and is correct. Compared at
+  half a unit, which is what rounding can move it by, both
+  identities on the real extract hold on **1.0** of rows.
+  Two measurements of one thing disagreeing is this project's
+  alarm and it fired here: the engine's own report said the
+  column had been computed on every row while the reader said a
+  third of them were wrong. The reader was wrong.
+- **AND WHAT HOLDING MEANS HERE IS NARROWER THAN THE CALENDAR,
+  which is worth saying since neither number answers it.** What
+  holds on 1.0 is the LINEAR identity the blueprint published and
+  the tier enforced. Whether `age_at_visit` equals the visit YEAR
+  minus the year of birth in the calendar sense is a different
+  question, and this extract carries no visit-year column to ask
+  it with - the record's **21.4%** figure was an exact-integer
+  comparison against such a column on a different frame, so it is
+  not the before-number for this 1.0 either. The engine now
+  reports `held_before` - how often the DRAWN value already
+  satisfied the identity - which is the comparable thing and
+  cannot be satisfied by the enforcement itself.
 
 - **THE REAL EXTRACT FOUND A DEFECT IN THE IDENTITY TIER THE SAME
   DAY IT SHIPPED, AND NO FIXTURE HERE COULD REACH IT (2026-11-08
