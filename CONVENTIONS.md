@@ -396,6 +396,44 @@ Synthetic clinical data generator and model-evaluation instrument. Core rule: le
 - Never state a number as measured unless you actually ran it.
 
 ## Fixing what the real extract found
+- **PREDICTION FOR THE NEXT REAL RUN, ON RECORD BEFORE IT RUNS AND
+  BEFORE THE FIXTURE ARM REPORTED (2026-11-09).** `_grid_for` now
+  gives a binary column its two values instead of its quantiles, so
+  a token indicator whose share is under 2% carries a published
+  curve where it previously carried NONE. Measured on the fixture's
+  own publishable vocabulary: **91-92% of the tokens that clear k
+  sit under a 2% share** (conditions 120 of 132, active_drugs 132
+  of 144, procedures 120 of 132), and **half of the MODELLED
+  indicators** are under it even though the frequency top-24 skews
+  dense. On the real extract, where 1,827 tokens are published over
+  56,065 rows, 2% is 1,121 rows and the great majority of published
+  tokens are far below it - so most token-indicator PARENTS have
+  been carrying no curve for as long as the search has expanded
+  them.
+  WHAT IS PREDICTED: the close drift on pairs where a SPARSE TOKEN
+  IS THE PARENT should move. The record names that group as the
+  largest single one - "a `set__has__token` against an ordinary
+  column, 5 of 17" - and names the cross-set token pairs
+  (has_sodium-chloride <- has_Flush, 0.88 source against 0.58
+  generated) as the residue after the implication tier.
+  WHAT IS NOT PREDICTED, and the distinction decides whether the
+  fix can reach a pair at all: where the indicator is the CHILD it
+  is DERIVED from the set already drawn, so its own grid was never
+  consulted and this fix does nothing for it. Nor is anything
+  claimed for tokens ABOVE a 2% share - the quantile grid already
+  returned [0, 1] for those, which is exactly why the change is
+  additive. And `shapes tracked`, `interaction surfaces` and
+  `dynamics tracked` are untouched by this.
+  AND THE RISK IS NAMED RATHER THAN WAITED FOR: a parent that
+  previously applied NO push now applies one, so this is not a
+  tightening of something that already worked - it is a new force
+  on every sparse-token parent at once. A fix aimed at one
+  criterion must say what it might cost the others, and the honest
+  statement is that `close` could move either way on pairs whose
+  sparse-token parent was previously inert. The run of record is a
+  PAIRED arm on one seed with one code change, and the whole gate
+  is read, not just the criterion this aims at.
+
 - **THE SEARCH AND THE CONTRACT DISAGREE ABOUT WHICH SET TOKENS
   EXIST, SO A RELATIONSHIP FOUND CORRECTLY CANNOT BE PUBLISHED -
   AND THE CLAIM SURVIVES NAMING A PARENT THAT DOES NOT DRIVE IT
