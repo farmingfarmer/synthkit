@@ -80,11 +80,54 @@ def regate(run, src_df, src_rows):
     gid = (bp.get("patients") or {}).get("id_column") or "person_id"
     fid = compare(src_df, g, bp, gid, tc)
     res = G.assess(fid)
-    out = {"run": run.name, "met": res.get("met"), "criteria": {}}
+    out = {"run": run.name, "met": res.get("met"),
+           "fid": fid, "criteria": {}}
     for c in res["criteria"]:
         out["criteria"][c["name"]] = {
             "ok": c["ok"], "detail": c["detail"][:70]}
     return out
+
+
+def pair_map(fid):
+    """(child, parent) -> the pair record, for the related ones.
+
+    The gate counts a pair when the SOURCE relates it, so that is
+    the set to intersect: a pair one run never related cannot say
+    anything about the other.
+    """
+    out = {}
+    for x in ((fid.get("relationships") or {}).get("pairs") or []):
+        if x.get("source") is None or x.get("generated") is None:
+            continue
+        try:
+            if abs(float(x["source"])) < 0.1:
+                continue
+        except (TypeError, ValueError):
+            continue
+        out[(x.get("child"), x.get("parent"))] = x
+    return out
+
+
+def shared_close(fa, fb, tol=0.2):
+    """`close` for both runs, on the pairs BOTH of them relate.
+
+    WHY THIS IS THE ONLY COMPARABLE CLOSE. Each run's pair surface
+    comes from its OWN blueprint's token vocabulary, so two runs
+    with different blueprints are graded over different sets and
+    no amount of re-measuring makes the denominators equal -
+    measured tonight as 148 against 125 with the same code and
+    the same source. On the INTERSECTION both numbers are over
+    one set, and a difference there is the output differing.
+    """
+    a, b = pair_map(fa), pair_map(fb)
+    keys = sorted(set(a) & set(b))
+    if not keys:
+        return None
+    def ok(x):
+        return abs(float(x["source"]) - float(x["generated"])) <= tol
+    return {"shared": len(keys),
+            "a_close": sum(1 for k in keys if ok(a[k])),
+            "b_close": sum(1 for k in keys if ok(b[k]))}
 
 
 def main():
@@ -96,12 +139,20 @@ def main():
     src = pd.read_csv(a.src, dtype=str, keep_default_na=False)
     print("source rows {}".format(len(src)))
     print()
+    _fids, _labels = {}, {}
     for r in a.runs:
         got = regate(r, src, len(src))
         if "why" in got:
             print("{:<22} SKIPPED: {}".format(got["run"],
                                               got["why"]))
             continue
+        if got.get("fid") is not None:
+            # KEYED BY PATH, not by directory NAME. Two runs can
+            # perfectly well both be called `run_n9g` under
+            # different parents, and keying by name would silently
+            # collapse them into one and print nothing.
+            _fids[str(Path(r).resolve())] = got.pop("fid")
+            _labels[str(Path(r).resolve())] = got["run"]
         print("{} met={}".format(got["run"], got["met"]))
         for name, c in got["criteria"].items():
             print("  {:<22} {:<5} {}".format(
@@ -113,6 +164,25 @@ def main():
     print("A difference here is the OUTPUT differing, which a "
           "difference between two recorded runs is not.")
     print()
+    if len(_fids) == 2:
+        _names = list(_fids)
+        _sh = shared_close(_fids[_names[0]], _fids[_names[1]])
+        print("=== `close` ON THE PAIRS BOTH RUNS RELATE ===")
+        if _sh is None:
+            print("  the two runs share no related pair, so there "
+                  "is nothing comparable to report")
+        else:
+            print("  shared related pairs      {}"
+                  .format(_sh["shared"]))
+            print("  {:<22} {} close".format(
+                _labels[_names[0]][:22], _sh["a_close"]))
+            print("  {:<22} {} close".format(
+                _labels[_names[1]][:22], _sh["b_close"]))
+            print("  Each run's own percentage is over its OWN "
+                  "blueprint vocabulary, so the")
+            print("  denominators differ by construction. This is "
+                  "the number that compares.")
+        print()
     print("AND THESE FIGURES NEED NOT MATCH A RUN'S OWN RECORDED "
           "ONES. A run measures the frame it")
     print("generated in memory; this re-reads the written CSV, so "
