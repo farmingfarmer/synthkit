@@ -396,6 +396,44 @@ Synthetic clinical data generator and model-evaluation instrument. Core rule: le
 - Never state a number as measured unless you actually ran it.
 
 ## Fixing what the real extract found
+- **AND THE FORCING ARM IS THE FOURTH REFUTATION, WHICH TURNS THE
+  PATTERN INTO SOMETHING WORTH PLANNING AROUND (2026-11-10,
+  run_fi_on against run_tt_off, seed 11, one flag apart,
+  byte-identical at default).**
+      criterion            control    --force-implications 0.90
+      direction kept       121/130    121/130
+      close                113/130    111/130
+      inverted             0 PASS     0 PASS
+      set token shares     71/72      71/72
+  **Two close pairs lost and nothing gained.** Read back spelled:
+  "one two one", "one one one". And the tier DID execute - the run
+  printed `forcing implications at a published conditional of 0.9 or
+  above, capped at each token's own share` at 1733s, so this is a
+  measured cost rather than a silent skip.
+- **AND IT FITS THE MECHANISM EXACTLY, which is why it is worth
+  recording rather than just reverting.** Forcing DISPLACES the
+  weakest unforced pick - that is how the set keeps the size the
+  published grid drew for it - so forcing is a PLACEMENT change like
+  the other three, and it pays the same zero-sum among the 101
+  scaffolding pairs. The fixture said 4 to 20, 9 to 19 and 13 to 28
+  conditionals landed with no share over the bar; the extract says
+  the arrangement that buys those costs two close pairs elsewhere.
+      change                 close        real-arm verdict
+      co-occurrence draw   106 -> 113     the one clear gain
+      token-target tier    113 -> 110     refuted
+      passes scaling       113 -> 112     traded for a token share
+      forcing tier         113 -> 111     refuted
+  FOUR arms now, and the only winner remains the one that ADDED a
+  mechanism where none existed. Everything that rearranges existing
+  placement has cost more than it gained.
+- **SO THE NEXT FIDELITY WORK SHOULD BE SCREENED ON THAT TEST BEFORE
+  IT IS BUILT: does this change ADD a mechanism, or rearrange what
+  the draw already does?** Four arms is not a law and it is not a
+  coincidence either. The three losers were each measured good on
+  three fixture seeds with their neighbouring properties checked,
+  which is the strongest fixture evidence this project knows how to
+  produce - so fixture evidence is not the filter. The filter is the
+  question above, and it is free to ask.
 - **THE PASSES ARM IS ALSO A TRADE, AND THAT MAKES THREE TOKEN
   CHANGES REVERSED OR TRADED BY THE REAL EXTRACT IN ONE NIGHT
   (2026-11-09, run_ps_on against run_tt_off, seed 11, one flag
