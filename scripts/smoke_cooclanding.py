@@ -31,7 +31,8 @@ ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT))
 sys.path.insert(0, str(ROOT / "scripts"))
 
-from cooc_landing import column_of, landing, verdict    # noqa: E402
+from cooc_landing import (BANDS, column_of,            # noqa: E402
+                          landing, verdict)
 
 PASS = FAIL = 0
 
@@ -141,6 +142,44 @@ def main():
               res2["unscored"] >= 1
               and any("never emitted" in (r.get("why") or "")
                       for r in res2["unscored_rows"]))
+
+        # ---- THE BANDS SEPARATE THE FAILING KIND ----------------
+        # "Most land" is the wrong summary if the ones that do not
+        # are the near-deterministic implications - and a source
+        # correlation near 0.9 is MADE of those. The planted frame
+        # holds a true conditional of 0.50, so a published 1.0 must
+        # land in the top band and miss by 0.50 while a published
+        # 0.50 lands in the middle band and misses by nothing.
+        plant(t, cond_a=1.0, cond_b=1.0 / 3.0)
+        res3, _ = landing(t, tol=0.15)
+        bands = dict((b["band"], b) for b in res3["bands"])
+        # A MESSAGE MUST NOT INDEX WHAT ITS MUTATION REMOVES.
+        # Collapsing BANDS to a single band made this an IndexError,
+        # so the suite CRASHED and emitted no FAIL line at all -
+        # which a grep for failures reads as success. This project
+        # records that trap repeatedly; the verdict comes from the
+        # check, so the lookup has to survive its own mutation.
+        _top = [lbl for lo, hi, lbl in BANDS if lo >= 0.95]
+        check("the bands include a NEAR-DETERMINISTIC band at all - "
+              "without one, a conditional of 1.0 is averaged in "
+              "with the modest ones and the failing kind is "
+              "invisible", len(_top) == 1)
+        top = _top[0] if _top else "<no such band>" 
+        check("the report BANDS the landing by how strong the "
+              "published conditional is, and a near-deterministic "
+              "ask that misses lands in the TOP band ({} pairs "
+              "there, {} landed) rather than being averaged into a "
+              "healthy majority"
+              .format(bands.get(top, {}).get("pairs"),
+                      bands.get(top, {}).get("landed")),
+              top in bands and bands[top]["pairs"] == 1
+              and bands[top]["landed"] == 0)
+
+        check("...while the modest ask that MATCHES the file lands "
+              "in its own band, so the two kinds are never summed "
+              "into one rate",
+              any(b["landed"] == 1 and b["band"] != top
+                  for b in res3["bands"]))
 
         # ---- THE VERDICT, ON PLANTED NUMBERS --------------------
         check("the verdict names the DRAW when most conditionals "

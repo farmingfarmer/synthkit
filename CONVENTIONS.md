@@ -396,6 +396,56 @@ Synthetic clinical data generator and model-evaluation instrument. Core rule: le
 - Never state a number as measured unless you actually ran it.
 
 ## Fixing what the real extract found
+- **THE LANDING DIAGNOSTIC RAN ON THE REAL EXTRACT AND REFUTED MY
+  OWN DRAW HYPOTHESIS, THEN NAMED A SHARPER ONE (2026-11-09,
+  run_tt_off).** `cooc_landing` on the shipping default's own run:
+      published pairs      4,471
+      scored               4,471
+      not scorable             0
+      LANDED within 0.15   2,729   (61%)
+      mean absolute miss  0.1735
+  Read back spelled by the machine - "four four seven one", "two
+  seven two nine", "zero point one seven three five". **Most
+  published conditionals DO land**, where my synthetic fixture had
+  predicted 7% at 400 pairs. So the solve is not broadly broken at
+  real scale, and the fixture that said otherwise was asking 0.9 of
+  every pair's feasible bound - far more aggressive than what the
+  extract actually publishes.
+- **AND THE PAIRS THAT FAIL ARE THE NEAR-DETERMINISTIC ONES, WHICH
+  IS EXACTLY THE KIND `close` IS MADE OF.** The worst misses read
+  **published 1.0, achieved 0.0** - three ophthalmic drugs against
+  one procedure code, a perfect implication landing at nothing. A
+  source rank correlation of 0.885 IS a near-perfect implication, so
+  a single landing rate of 61% can sit beside a band that lands
+  NONE and every pair the gate still misses can live in that band.
+  The report is BANDED by published conditional strength now, for
+  that reason: "most land" was a true summary and the wrong one.
+- **AND THE MECHANISM IS THE ONE THE ENGINE'S OWN COMMENT NAMES.** A
+  multiplicative weight cannot reach a conditional of 1.0 - "a lift
+  is a nudge; P(b|a) is the thing the draw has to LAND, and a
+  near-deterministic implication cannot be reached by multiplying a
+  weight - it has to be solved against". The neural engine solved
+  this with an IMPLICATION TIER that FORCES b wherever an implying a
+  was drawn and then restores b's marginal, and this file records
+  both of its pitfalls: a broad token must keep its own placement
+  (the cap at share 0.5, after forcing Oral flipped a guarded
+  negative sign), and the restore must be able to drain (dropping
+  only from rows keeping two or more left a route column's excess
+  nowhere to go). The rules engine has no such tier. That is the
+  next build, and it has a known design and two known traps.
+- **WHAT THIS CLOSES: the DRAW-versus-ADOPTION question, with the
+  answer being neither of the two things I guessed.** It is not the
+  cap (ranking is by abs(phi), the quantity the grader computes),
+  not detection (the pair is published at phi 0.88483), and not the
+  solve being broadly starved (61% land). It is that the top band
+  cannot be reached by the mechanism in use at all.
+- **AND THE BAND CHECK CRASHED THE SUITE INSTEAD OF FAILING IT.**
+  The mutation collapsing BANDS to one made a label lookup an
+  IndexError, so the suite raised and emitted NO `FAIL:` line - and
+  the fail-first reported "0 red", which reads as a check that
+  cannot fail. This file records that trap repeatedly and the rule
+  it prescribes: a message must not index what its mutation
+  removes. Guarded; the same mutation now gives two red checks.
 - **THE TOKEN-TARGET TIER WAS REFUTED BY THE REAL EXTRACT, AND THE
   LOSS IS ENTIRELY ON SCAFFOLDING (2026-11-09, run_tt_off against
   run_tt_on, seed 11, one flag apart, same tree).** Three fixture

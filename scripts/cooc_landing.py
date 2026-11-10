@@ -43,6 +43,23 @@ def _say(n):
     return annotate(str(n))
 
 
+BANDS = ((0.0, 0.5, "under 0.5"), (0.5, 0.8, "0.5 to 0.8"),
+         (0.8, 0.95, "0.8 to 0.95"), (0.95, 1.01, "0.95 and up"))
+
+
+def _bands(scored, tol):
+    out = []
+    for lo, hi, label in BANDS:
+        rows = [r for r in scored if lo <= r["published"] < hi]
+        if not rows:
+            continue
+        ok = sum(1 for r in rows if abs(r["miss"]) <= tol)
+        out.append({"band": label, "pairs": len(rows), "landed": ok,
+                    "mean_abs_miss": float(np.mean(
+                        [abs(r["miss"]) for r in rows]))})
+    return out
+
+
 def verdict(landed, scored):
     """Whether the DRAW or the ADOPTION is the next question.
 
@@ -131,6 +148,16 @@ def landing(run_dir, top=20, tol=0.15):
         "mean_abs_miss": (float(np.mean([abs(r["miss"])
                                          for r in scored]))
                           if scored else float("nan")),
+        # BY HOW STRONG THE PUBLISHED CONDITIONAL IS. "Most land"
+        # is the wrong summary if the ones that do not are the
+        # near-deterministic implications - and those are exactly
+        # the pairs a source correlation near 0.9 is made of, so a
+        # single landing rate can report a healthy majority while
+        # every pair the gate still misses sits in one band. A
+        # multiplicative weight cannot reach a conditional of 1.0;
+        # that needs forcing, which is what the engine's own comment
+        # says and what the neural engine's implication tier does.
+        "bands": _bands(scored, tol),
     }, None
 
 
@@ -186,6 +213,18 @@ def main(argv):
             print("  still misses on these pairs then the drift is")
             print("  NOT the adopted pairs, and the adoption gates")
             print("  are the next question rather than the solve.")
+    print()
+    print("BY HOW STRONG THE PUBLISHED CONDITIONAL IS - a single "
+          "landing rate")
+    print("hides this: a healthy majority can sit beside a band "
+          "that lands none,")
+    print("and a correlation near 0.9 is MADE of near-deterministic "
+          "implications.")
+    for b in (res.get("bands") or []):
+        print("  {:<12}  pairs {:<7} landed {:<7} mean|miss| {}"
+              .format(b["band"], _say(b["pairs"]),
+                      _say(b["landed"]),
+                      _say(round(b["mean_abs_miss"], 4))))
     print()
     print("WORST MISSES (published conditional against achieved):")
     for r in res["worst"]:
