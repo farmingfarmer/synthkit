@@ -396,6 +396,53 @@ Synthetic clinical data generator and model-evaluation instrument. Core rule: le
 - Never state a number as measured unless you actually ran it.
 
 ## Fixing what the real extract found
+- **THE PASSES ARM IS ALSO A TRADE, AND THAT MAKES THREE TOKEN
+  CHANGES REVERSED OR TRADED BY THE REAL EXTRACT IN ONE NIGHT
+  (2026-11-09, run_ps_on against run_tt_off, seed 11, one flag
+  apart, byte-identical at default - verified by hashing a
+  cooc-carrying blueprint through both trees).**
+      criterion            control      --token-solve-scale 0.5
+      direction kept       121/130      120/130
+      close                113/130      112/130
+      set token shares     71/72 FAIL   72/72 PASS
+  Read back spelled: "one two zero", "one one two", and the shares
+  line as PASS seven two of seven two. So the scaling fixes the one
+  drifting token share - flipping a whole criterion to PASS - and
+  costs one close pair and one direction pair. The run also PRINTED
+  the setting it used, `token solve: 0.5 extra pass(es) per
+  published conditional pair, capped at 224`, which is the
+  read-but-not-used guard satisfied on real data.
+- **THE PATTERN IS THE FINDING, AND IT IS STRUCTURAL.** Three
+  changes tonight, each measured good on fixtures and each paired
+  on the real extract at one seed:
+      token-target tier    close 113 -> 110   direction 121 -> 122
+      passes scaling       close 113 -> 112   direction 121 -> 120
+      co-occurrence draw   close 106 -> 113   direction 119 -> 121
+  Only the third is a clear gain, and it is the one that ADDED a
+  mechanism where none existed rather than re-arranging what was
+  already there. **The gate's close criterion counts 130 pairs of
+  which 101 are set-token search scaffolding and 29 are the
+  operator's own columns** - and on the two arms that traded, the
+  own-column figures were IDENTICAL (25 direction, 24 close, 0
+  inverted). So every point of movement happened among the
+  scaffolding pairs, where one token's placement is another's
+  displacement.
+- **WHICH MEANS IMPROVING `close` BY MOVING TOKEN PLACEMENT IS NEAR
+  ZERO-SUM, and that reframes the remaining work.** A change that
+  rearranges which row holds which token takes from one pair to
+  give to another; the only changes that have ever won here are
+  ADDITIVE - a mechanism that was absent, like the conditional draw,
+  or the binary-grid fix that gave a sparse indicator a curve it
+  never had. Two more arms would be needed to call this a law
+  rather than a pattern across three, and it is written as a
+  pattern.
+- **AND THE THREE ARMS COST ABOUT FOUR HOURS OF MACHINE TIME AND
+  WERE WORTH EVERY MINUTE.** Each of the two refuted changes looked
+  good on three fixture seeds with the neighbouring properties
+  checked. This file already says a control arm is the only thing
+  that has ever overturned a fidelity claim here; tonight it did it
+  twice in one session, and both times the fixture evidence was the
+  strongest kind this project knows how to produce.
 - **THE RULES ENGINE CAN FORCE AN IMPLICATION NOW, AND THE BUDGET IS
   THE WHOLE DESIGN (2026-11-09, `--force-implications`).** The real
   extract's unreachable band is the near-deterministic one -
