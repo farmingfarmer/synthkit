@@ -396,6 +396,71 @@ Synthetic clinical data generator and model-evaluation instrument. Core rule: le
 - Never state a number as measured unless you actually ran it.
 
 ## Fixing what the real extract found
+- **THE REMAINING CLOSE MISSES ARE CROSS-SET TOKEN PAIRS, AND BOTH
+  OBVIOUS SUSPECTS ARE ACQUITTED BY READING THE ARTIFACTS
+  (2026-11-09, run_tt_off, seed 11).** `close_gap` on the shipping
+  default's own run reads **"to clear the 87.9% bar this run needs
+  TWO more pairs inside 0.2"** - read back spelled by the machine -
+  and the misses group as:
+      CROSS-set token pair   has_sodium-chloride <- has_Flush  +0.885
+                             has_heparin         <- has_Flush  +0.570
+                             has_lactate         <- has_IV     +0.583
+                             has_lidocaine       <- has_Topical +0.443
+      ordinary numeric       procedure_quantity <- active_drug_count
+                             procedure_quantity <- span_days
+                             procedure_count <- mean_arterial_pressure
+      token vs plain column  has_midazolam <- procedure_count  +0.335
+      other scaffolding      procedure_quantity <- conditions__n
+  So the dominant group is a DRUG IMPLYING ITS ROUTE, which is the
+  shape the co-occurrence tier exists for - and that tier is ON.
+- **THE CAP IS NOT THE CAUSE, AND NOR IS DETECTION.** This file
+  records the cap-excludes-the-measured-pair fault twice, so it was
+  the first suspect. `cooccurrence` ranks candidates by **abs(phi)**
+  - the correlation the grader itself computes - before applying
+  `COOC_MAX_PER_TOKEN`, so the strongest partner cannot be cut.
+  Checked rather than argued, by querying the run's own blueprint:
+  the sodium-chloride / Flush pair IS published, in BOTH directions,
+  at **phi 0.88483** with conditionals of **0.837** and **0.954**.
+  Phi matches the source correlation of +0.885 to three decimals.
+  **The contract carries the structure and the output does not**,
+  which puts the fault in the DRAW rather than in detection or
+  adoption - a different fix from raising a cap or loosening a
+  screen, and the kind of thing two reverted tiers were built
+  without establishing first.
+- **AND THE ENGINE'S OWN COMMENT PREDICTED THIS.** The detector
+  records `cond` beside `lift` precisely because "a lift is a nudge;
+  P(b|a) is the thing the draw has to LAND, and a near-deterministic
+  implication cannot be reached by multiplying a weight - it has to
+  be solved against". A conditional of 0.954 is near-deterministic.
+  The precedented suspect is the solve not converging at extract
+  scale: this file already records the token MARGINAL solve being
+  verified at EIGHT tokens and oscillating at the extract's own
+  vocabulary, where the ends swapped. The conditional solve was
+  likewise developed on fixtures carrying a handful of pairs, and
+  the extract publishes hundreds.
+- **SO THE NEXT STEP IS A DIAGNOSTIC IN THE RUN DIRECTORY, NOT A
+  FOURTH GUESS (`scripts/cooc_landing.py`).** For every published
+  pair it measures P(b | a) in the WRITTEN file - the indicators are
+  derived from the set column the operator actually receives - and
+  compares it against the conditional the blueprint published. The
+  verdict is a PURE FUNCTION on planted numbers with three branches:
+  most pairs failing to land names the DRAW, most landing names the
+  ADOPTION gates (because then the drifting pairs are not the
+  adopted ones), and nothing scored is its own answer. Same move as
+  `quota_landing`, for the same reason.
+- **AND NOT SCORABLE IS KEPT APART FROM MISSED, with its reason.** A
+  pair whose driving token the output never emitted has no achieved
+  conditional at all, and counting that as a miss would blame the
+  draw for something the vocabulary did - which is the
+  blocked-versus-unchanged distinction this file already draws for
+  the corruption ledger.
+- **AND MY OWN FIXTURE ASSUMED THE TWO DIRECTIONS OF ONE PAIR SHARE
+  A CONDITIONAL.** It planted P(B|A) = 0.50 and expected P(A|B) to
+  be 0.50 as well; B is held by 150 rows of which 50 hold A, so the
+  honest value is **one third**. The check caught it. The two
+  directions being different numbers is the whole reason both are
+  published, and I had written that in the detector's own docstring
+  before getting it wrong in a fixture.
 - **THE CLOSE CEILING ON THE REAL EXTRACT IS 97.9% TO 100.0%, SO
   SAMPLING NOISE EXPLAINS ALMOST NONE OF THE GAP AND THE BAR IS NOT
   MISCALIBRATED (2026-11-09, `phase2_800\tidy_visits.csv`, 55,428
