@@ -4226,6 +4226,53 @@ the direction that stops work happening.
   error with did-you-mean; `synthkit dials` lists every edge.
 
 ## Numbers before conclusions
+- **HOW MUCH OF `close` IS SAMPLING NOISE IS COMPUTABLE FROM THE
+  SOURCE ALONE, AND NOBODY HAD ASKED (2026-11-09,
+  `scripts/close_ceiling.py`).** `close` has sat 1 to 8 points under
+  its 87.9% bar on the real extract for months, and this file already
+  records that the bar's provenance is an old absolute target
+  restated as a proportion rather than one set from a measured
+  distribution. Before spending more on the engine it is worth
+  knowing what the number could be AT BEST - and that needs no fit
+  and no generate. Split the cohort into two disjoint halves BY
+  PATIENT, put one in as the source and the other as the generated
+  table, and run the gate's OWN `_pair_fidelity` over them. Nothing
+  has been generated, so every pair that fails is failing on
+  sampling noise: two halves of the same real data disagreeing about
+  a correlation by more than 0.2. A pair that cannot agree with
+  ITSELF across a split cannot be expected to agree between a source
+  and any synthetic file.
+- **IT IS A LOWER BOUND, AND WHICH VERDICT THAT PERMITS IS STATED
+  RATHER THAN LEFT TO A READER.** Each half holds half the patients,
+  so it carries MORE noise than the full-cohort comparison the gate
+  actually makes. A split-half reading BELOW the bar is therefore
+  decisive - the bar is unreachable before the engine is involved -
+  while a reading above it is INCONCLUSIVE and says so in those
+  words. This project has twice drawn a conclusion from a number
+  whose denominator or scale it had not checked, and a lower bound
+  read as a measurement would be the third.
+- **THE SPLIT IS BY PATIENT, which is the one way this instrument
+  could lie in the flattering direction.** Splitting ROWS puts the
+  same person on both sides, so the agreement measured is the same
+  records twice and the ceiling reads high. The mutation that splits
+  by row turns two checks red.
+- **AND THE VERDICT IS A PURE FUNCTION ON PLANTED NUMBERS, because
+  no fixture here reaches the UNREACHABLE branch.** Discovery
+  publishes only the pairs it FINDS, so a cohort weak enough to
+  disagree across halves is also one where few pairs reach the
+  surface at all - measured over six shapes, the lowest split-half
+  reading reached was 93.3%. A branch no fixture can reach is the
+  dead-branch fault this project already found in a linkage verdict,
+  so the decision is asserted where it is MADE, and NO-PAIRS is its
+  own answer rather than being folded into either verdict - an
+  absent measurement is not a clean one.
+- **AND THE BLUEPRINT IS REQUIRED RATHER THAN OPTIONAL.**
+  `_pair_fidelity` iterates the blueprint's own relationships, so
+  without one there are ZERO pairs and the tool would report a
+  ceiling over nothing - the worst kind of clean. It also has to be
+  the surface the GATE measures, which this file records costing a
+  week when two runs counted pairs over different token
+  vocabularies and the difference was read as a regression.
 - **AND THE 2% BAR ALONE CLAIMED A ONE-PARENT NEAR-IDENTITY AND
   DESTROYED THE COLUMN THE DIFFERENCE IS.** Four checks that had
   been reproducing a constraint violation for months went red the
