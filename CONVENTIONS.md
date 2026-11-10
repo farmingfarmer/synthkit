@@ -396,6 +396,48 @@ Synthetic clinical data generator and model-evaluation instrument. Core rule: le
 - Never state a number as measured unless you actually ran it.
 
 ## Fixing what the real extract found
+- **THE SET SIZES WERE UNCOUPLED, AND THAT IS WHAT BOUNDED THE
+  TOKEN DRAW (2026-11-09).** A visit with five drugs has more
+  routes than one with a single drug. Measured on a planted
+  fixture, the source correlates the two set sizes at **+0.915**
+  and the generated file at **-0.003** - absent, not weakened,
+  because each set column drew its size from its own published
+  distribution with no reference to the other.
+  It is also what capped the conditional token draw at ~0.42. Of
+  the rows holding a drug whose route is implied with certainty,
+  58% carried the route - and **among those that missed it, 60%
+  had drawn NO routes at all**. No reweighting of WHICH tokens are
+  picked can help a row that is picking none, which is why the
+  solve plateaued rather than running out of iterations.
+- **THE TWO MECHANISMS ARE COMPLEMENTARY, AND THE FOUR-ARM TABLE
+  IS WHAT SHOWS IT.** One fixture, one seed, flags apart:
+      arm                size corr   implied token carried   phi
+      source               +0.915            100.0%        +1.000
+      neither              -0.003             28.0%        -0.003
+      cooccurrence only    -0.003             58.3%        +0.419
+      size coupling only   +0.916             49.5%        +0.284
+      BOTH                 +0.916             89.3%        +0.833
+  Either alone leaves most of the gap; together they carry **83%
+  of a deterministic association** that was previously absent, and
+  the size correlation comes back to within 0.001 of source. The
+  set's own mean size still lands (1.31 against 1.29).
+- **THE CONDITIONING GROUP IS WHAT CLEARS k.** A published
+  distribution of "how many routes, given six drugs" describes the
+  people who have six drugs - so a size held by six patients is
+  six people's set sizes however many rows they have, and it is
+  not published. The first check for this could not separate the
+  mechanism: every size on the fixture is held by hundreds, so
+  dropping the floor published the same table and the mutation
+  broke nothing. A frame with a size held by six patients turns it
+  red.
+- **BOTH SHIP OFF, UNDER SEPARATE FLAGS, because they must be
+  measurable apart.** `--token-cooccurrence` and
+  `--set-size-coupling`. The real-extract arm for the first was a
+  TRADE, and a second mechanism that helps on a fixture is not
+  evidence about the extract - which is this file's most expensive
+  recurring lesson. Separate flags mean the decomposition can be
+  run there the way it was run here.
+
 - **THE SCREEN IS PHI NOW, AND THE FAIL-FIRST CAUGHT ME
   ATTRIBUTING THE FIX TO THE WRONG THING (2026-11-09).** The
   detector screened pairs on LIFT at 1.5. A contention fixture -

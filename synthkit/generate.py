@@ -160,7 +160,8 @@ def _to_integers(out, m):
 
 
 def _draw_list(m: Dict[str, Any], n: int, rng, cooc=None,
-               col=None, ctx_fn=None) -> np.ndarray:
+               col=None, ctx_fn=None,
+               size_fn=None) -> np.ndarray:
     """Draw a SET per row and join it back into one field.
 
     The size comes from its own observed distribution and the tokens
@@ -169,7 +170,8 @@ def _draw_list(m: Dict[str, Any], n: int, rng, cooc=None,
     shares past tolerance on the real extract. Co-occurrence is not
     modeled - the blueprint says so on the marginal itself."""
     return _draw_list_sized(m, [None] * n, rng, cooc=cooc,
-                            col=col, ctx_fn=ctx_fn)
+                            col=col, ctx_fn=ctx_fn,
+                            size_fn=size_fn)
 
 
 def _invented_labels(inv: Dict[str, Any], n: int, rng):
@@ -873,6 +875,53 @@ def _collapse_to_patient(rows, pat_draw, pidx, n_pat, numeric):
     return np.asarray(rows, dtype=object)[first][pidx]
 
 
+def _size_ctx(bp, col, out, rng):
+    """Each row's SET SIZE, drawn from the published conditional on
+    an already-generated set column's size.
+
+    Returns None when nothing applies, so the ordinary independent
+    size draw is reached unchanged and the change acts only where
+    its mechanism lives.
+    """
+    import numpy as np
+    from . import sets as _sets
+    recs = [r for r in (bp.get("set_size_coupling") or [])
+            if r.get("draw") == col and r.get("given") in out]
+    if not recs:
+        return None
+    # ONE conditioner, the one with the most published groups -
+    # several would need a joint distribution this contract does
+    # not carry, and silently taking the first is how a choice
+    # nobody made becomes a default.
+    rec = max(recs, key=lambda r: len(r.get("by_size") or {}))
+    given = rec["given"]
+    cols = bp.get("columns") or {}
+    sep = (((cols.get(given) or {}).get("marginal") or {})
+           .get("separator") or ";")
+    import pandas as pd
+    src = pd.Series(out[given])
+    have = _sets.sizes_of(src, sep)
+    hv = pd.to_numeric(have, errors="coerce").to_numpy(dtype=float)
+    table = rec.get("by_size") or {}
+
+    def size_for(i):
+        if i >= len(hv):
+            return None
+        t = hv[i]
+        if not np.isfinite(t):
+            return None
+        e = table.get(str(int(min(t, _sets.SIZE_MAX_V))))
+        if not e or not e.get("v"):
+            return None
+        p = np.asarray(e["p"], dtype=float)
+        s = p.sum()
+        if not np.isfinite(s) or s <= 0:
+            return None
+        return int(rng.choice(np.asarray(e["v"], dtype=int),
+                              p=p / s))
+    return size_for
+
+
 def _cooc_ctx(cooc, col, m, out, bp=None):
     """The multiplier a row already carries from EARLIER set
     columns, as a function of row index.
@@ -1205,7 +1254,7 @@ def _token_weights(m, sizes_per_row, seed, within=None,
 
 
 def _draw_list_sized(m, ks, rng, cooc=None, col=None,
-                     ctx_fn=None):
+                     ctx_fn=None, size_fn=None):
     """A set per row whose SIZE is handed in, not drawn.
 
     `active_drug_count == active_drugs__n` holds on every source row
@@ -1231,8 +1280,19 @@ def _draw_list_sized(m, ks, rng, cooc=None, col=None,
     # resolve every row's size FIRST, so the weight solve sees the
     # real budget
     ks2 = []
-    for k in ks:
-        if k is None or (isinstance(k, float) and not np.isfinite(k)):
+    for _row_i, k in enumerate(ks):
+        if k is None or (isinstance(k, float)
+                         and not np.isfinite(k)):
+            # THE PUBLISHED CONDITIONAL FIRST. A set whose
+            # size ignores the column it travels with cannot
+            # carry an implied token: measured, 60% of the
+            # rows that missed one had drawn NOTHING.
+            if size_fn is not None:
+                _cs = size_fn(_row_i)
+                if _cs is not None:
+                    ks2.append(max(0, min(int(_cs),
+                                          len(toks))))
+                    continue
             k_ = int(rng.choice(sizes, p=sp)) if sp is not None else 1
             # ZERO IS A SIZE THE DISTRIBUTION CAN CARRY, and this
             # floor threw it away. It was harmless while `set_size`
@@ -1842,7 +1902,8 @@ def generate(blueprint: Dict[str, Any],
              refine_sweeps: int = 2,
              reorder_dates: bool = True,
              enforce_identities: bool = True,
-             use_cooccurrence: bool = False
+             use_cooccurrence: bool = False,
+             use_size_coupling: bool = False
              ) -> pd.DataFrame:
     """Build a table from a blueprint. Nothing else is consulted."""
     bp = resolve(blueprint)
@@ -2074,7 +2135,9 @@ def generate(blueprint: Dict[str, Any],
             else:
                 base = _draw_list(
                     m, n_draw, rng, cooc=_cooc, col=c,
-                    ctx_fn=_cooc_ctx(_cooc, c, m, out, bp))
+                    ctx_fn=_cooc_ctx(_cooc, c, m, out, bp),
+                    size_fn=(_size_ctx(bp, c, out, rng)
+                             if use_size_coupling else None))
             # TOKENS LAND WHERE THEIR PARENTS SAY. Relationships whose
             # child is a derived indicator were dropped for weeks -
             # the whole worst-pairs list on the real extract - and are

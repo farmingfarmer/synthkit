@@ -731,3 +731,72 @@ def cooccurrence(frame, cols, groups, k: int = 10,
                         "phi": round(phi, 5),
                         "patients": pats})
     return out
+
+
+# ---------------------------------------------------------------
+# HOW BIG ONE SET IS, GIVEN HOW BIG ANOTHER IS
+# ---------------------------------------------------------------
+# A visit with five drugs has more routes than a visit with one.
+# Measured on a planted fixture: the source's correlation between
+# the number of drugs and the number of routes is **+0.915** and
+# the generated file's is **-0.003** - absent, not weakened,
+# because each set column draws its size from its own published
+# distribution with no reference to the other.
+#
+# That is also what bounds the conditional token draw. Of the rows
+# holding a drug whose route is implied with certainty, 58% carried
+# the route - and among those that missed it, **60% had drawn NO
+# routes at all**. No amount of reweighting which tokens are picked
+# can help a row that is picking none.
+SIZE_MAX_V = 24          # sizes above this share a tail bucket
+SIZE_MIN_PATIENTS = 10   # a conditioning group must clear the floor
+
+
+def size_coupling(frame, cols, groups, k: int = 10, seps=None):
+    """P(size of B | size of A), k-screened by PATIENTS.
+
+    The CONDITIONING GROUP is what clears the floor: a published
+    distribution describes the people in that group, so a group of
+    three is three people's set sizes however many rows they have.
+    Within a kept group the numbers are shares over at least k
+    patients, which is the same rule the bounds follow.
+    """
+    out = []
+    if not cols or len(cols) < 2:
+        return out
+    gid = np.asarray(groups)
+    sizes = {}
+    for col in cols:
+        if col not in frame.columns:
+            continue
+        sep = (seps or {}).get(col) or ";"
+        s = sizes_of(frame[col], sep)
+        if s is None:
+            continue
+        v = pd.to_numeric(s, errors="coerce").to_numpy(dtype=float)
+        sizes[col] = np.where(np.isfinite(v),
+                              np.minimum(v, SIZE_MAX_V), -1.0)
+    names = [c for c in cols if c in sizes]
+    for a in names:
+        for b in names:
+            if a == b:
+                continue
+            va, vb = sizes[a], sizes[b]
+            ok = (va >= 0) & (vb >= 0)
+            if int(ok.sum()) < 50:
+                continue
+            table = {}
+            for t in np.unique(va[ok]):
+                m = ok & (va == t)
+                pats = int(len(np.unique(gid[m])))
+                if pats < max(k, SIZE_MIN_PATIENTS):
+                    continue
+                vals, cnt = np.unique(vb[m], return_counts=True)
+                p = cnt.astype(float) / float(cnt.sum())
+                table[str(int(t))] = {
+                    "v": [int(x) for x in vals],
+                    "p": [round(float(x), 6) for x in p],
+                    "patients": pats}
+            if len(table) >= 2:
+                out.append({"given": a, "draw": b, "by_size": table})
+    return out

@@ -77,6 +77,23 @@ def build_parser(prog=None, add_help=True):
                     help="the patient id column")
     ap.add_argument("--time-col", default="",
                     help="visit ordering column; detected if omitted")
+    ap.add_argument("--set-size-coupling", action="store_true",
+                    help="draw each set column's SIZE from the "
+                         "published conditional on an "
+                         "already-drawn set column's size, "
+                         "instead of from its own marginal. A "
+                         "visit with five drugs has more "
+                         "routes than one with a single drug: "
+                         "measured on a fixture the source "
+                         "correlates the two sizes at +0.915 "
+                         "and the output at -0.003. It also "
+                         "BOUNDS the conditional token draw - "
+                         "60%% of the rows that missed an "
+                         "implied token had drawn none at all. "
+                         "With --token-cooccurrence a planted "
+                         "implication goes from -0.003 to "
+                         "+0.833 against a source +1.000; "
+                         "either alone reaches +0.28 to +0.42.")
     ap.add_argument("--token-cooccurrence", action="store_true",
                     help="draw set tokens CONDITIONALLY on what "
                          "the row already holds, using the "
@@ -726,7 +743,9 @@ def main(argv=None, args=None):
                  reorder_dates=not a.no_reorder_dates,
                  enforce_identities=not a.no_identities,
                  use_cooccurrence=bool(
-                     getattr(a, 'token_cooccurrence', False)))
+                     getattr(a, 'token_cooccurrence', False)),
+                 use_size_coupling=bool(
+                     getattr(a, 'set_size_coupling', False)))
     g.to_csv(out / "generated.csv", index=False, encoding="utf-8")
     say("{} rows for {} patients -> generated.csv".format(
         rep["rows"], rep["patients"]))

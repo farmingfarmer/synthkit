@@ -334,6 +334,124 @@ def main():
           "threshold that would drop it",
           bool(_mhit))
 
+    # HOW BIG ONE SET IS, GIVEN HOW BIG ANOTHER IS.
+    #
+    # This is what BOUNDED the conditional token draw. A visit with
+    # five drugs has more routes than one with a single drug, and
+    # each set column drew its size from its own distribution with
+    # no reference to the other: measured, the source correlates
+    # the two sizes at +0.915 and the output at -0.003. Of the rows
+    # holding a drug whose route is implied with certainty, 58%
+    # carried the route - and among those that missed it, 60% had
+    # drawn NO routes at all. No reweighting of which tokens are
+    # picked can help a row that is picking none.
+    _sc = S.size_coupling(df, ["active_drugs", "drug_routes"], gid,
+                          k=10)
+    check("the size coupling is published, both directions ({} "
+          "records)".format(len(_sc)),
+          len(_sc) == 2)
+
+    _rec = [r for r in _sc if r["given"] == "active_drugs"][0]
+    check("...and every CONDITIONING GROUP clears the patient "
+          "floor - a published distribution describes the people "
+          "in that group, so a group of three is three people's "
+          "set sizes however many rows they have",
+          all(e["patients"] >= 10
+              for e in _rec["by_size"].values()))
+
+    check("...and it carries the structure rather than a constant: "
+          "more drugs means more routes in the published table",
+          len(_rec["by_size"]) >= 3)
+
+    # A RARE SIZE IS A SMALL GROUP OF PEOPLE, AND ITS DISTRIBUTION
+    # DESCRIBES THEM. The fixture above has hundreds of patients at
+    # every size, so a mutation dropping the floor published the
+    # same table and broke nothing - the check could not separate
+    # the mechanism. This frame plants a size held by a handful.
+    _rg4 = np.random.default_rng(41)
+    _n4 = 4000
+    _ra, _rb = [], []
+    for _i in range(_n4):
+        if _i < 12:                       # six patients, size 6
+            _ra.append(";".join("a%d" % j for j in range(6)))
+            _rb.append("b0;b1;b2")
+        else:
+            _k = 1 + (_i % 3)
+            _ra.append(";".join("a%d" % j for j in range(_k)))
+            _rb.append(";".join("b%d" % j for j in range(_k)))
+    _rdf = pd.DataFrame({
+        "person_id": ["P%04d" % (i // 2) for i in range(_n4)],
+        "ca": _ra, "cb": _rb})
+    _rgid = _rdf["person_id"].to_numpy()
+    _rsc = S.size_coupling(_rdf, ["ca", "cb"], _rgid, k=10)
+    _tab = [r for r in _rsc if r["given"] == "ca"]
+    _sizes = sorted(_tab[0]["by_size"], key=int) if _tab else []
+    _pats6 = len(set(_rgid[:12]))
+    check("the frame carries the thing THIS check is about: a set "
+          "size held by only {} patients, where every other size "
+          "is held by hundreds".format(_pats6),
+          _pats6 < 10)
+
+    check("...and that group is NOT published - a conditional "
+          "distribution for a size only six people have is those "
+          "six people's set sizes, which is the same rule the "
+          "bounds follow",
+          "6" not in _sizes and len(_sizes) >= 2)
+
+
+    def nsz(f, c):
+        return S.sizes_of(f[c], ";").to_numpy(dtype=float)
+
+    def szcorr(f):
+        return float(np.corrcoef(nsz(f, "active_drugs"),
+                                 nsz(f, "drug_routes"))[0, 1])
+
+    _g_none = generate(bp, n_patients=1000, seed=5)
+    _g_sz = generate(bp, n_patients=1000, seed=5,
+                     use_size_coupling=True)
+    _g_both = generate(bp, n_patients=1000, seed=5,
+                       use_cooccurrence=True, use_size_coupling=True)
+
+    check("the SIZE correlation is ABSENT without it ({:+.3f} "
+          "against a source {:+.3f}) and RECOVERED with it "
+          "({:+.3f}) - absent, not weakened, which is what made it "
+          "worth building".format(szcorr(_g_none), szcorr(df),
+                                  szcorr(_g_sz)),
+          abs(szcorr(_g_none)) < 0.10
+          and abs(szcorr(_g_sz) - szcorr(df)) < 0.10)
+
+    # THE TWO MECHANISMS ARE COMPLEMENTARY, AND THE FOUR-ARM TABLE
+    # IS WHAT SHOWS IT - either alone leaves most of the gap.
+    _p = dict((t, phi(f, "heparin", "Flush")) for t, f in (
+        ("none", _g_none), ("cooc", g), ("size", _g_sz),
+        ("both", _g_both)))
+    check("the two mechanisms are COMPLEMENTARY: none {:+.3f}, "
+          "cooccurrence alone {:+.3f}, size alone {:+.3f}, BOTH "
+          "{:+.3f} against a source {:+.3f} - either on its own "
+          "leaves most of the gap".format(
+              _p["none"], _p["cooc"], _p["size"], _p["both"],
+              phi(df, "heparin", "Flush")),
+          _p["both"] > _p["cooc"] + 0.15
+          and _p["both"] > _p["size"] + 0.15)
+
+    check("...and together they carry most of a DETERMINISTIC "
+          "association ({:+.3f} of a source {:+.3f})".format(
+              _p["both"], phi(df, "heparin", "Flush")),
+          _p["both"] > 0.7 * phi(df, "heparin", "Flush"))
+
+    _szs = float(np.mean(nsz(_g_sz, "drug_routes")))
+    _szd = float(np.mean(nsz(df, "drug_routes")))
+    check("...and the set's own mean SIZE still lands ({:.2f} "
+          "against a source {:.2f}) - a conditional size must not "
+          "be paid for out of the published size distribution"
+          .format(_szs, _szd),
+          abs(_szs - _szd) < 0.15)
+
+    _gd = generate(bp, n_patients=1000, seed=5)
+    check("...and size coupling is OFF BY DEFAULT, so a run that "
+          "does not ask for it is unchanged",
+          _gd.equals(_g_none) and not _gd.equals(_g_sz))
+
     # ---- inert where its mechanism is absent -------------------
     rng = np.random.default_rng(11)
     nn = 2000
