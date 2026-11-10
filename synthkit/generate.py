@@ -1841,7 +1841,8 @@ def generate(blueprint: Dict[str, Any],
              enforce_constraints: bool = False,
              refine_sweeps: int = 2,
              reorder_dates: bool = True,
-             enforce_identities: bool = True
+             enforce_identities: bool = True,
+             use_cooccurrence: bool = False
              ) -> pd.DataFrame:
     """Build a table from a blueprint. Nothing else is consulted."""
     bp = resolve(blueprint)
@@ -1850,7 +1851,29 @@ def generate(blueprint: Dict[str, Any],
     # ordinary independent draw unchanged - an old artifact
     # must still generate, and absent is not a different fact
     # from empty here.
-    _cooc = bp.get("token_cooccurrence") or []
+    # OFF BY DEFAULT, BECAUSE THE CONTROL ARM CALLED IT A
+    # TRADE ON REAL DATA.
+    #
+    # Paired on the real extract, same source and seed, one
+    # code change: direction kept 118/125 -> 120/125 and
+    # close 102/125 -> 99/125. Re-measured on the shared
+    # 136-pair surface, close 109 -> 107. Four pairs flipped
+    # out of close and ALL FOUR are token pairs, which is the
+    # mechanism acting exactly where it lives - and they
+    # FADED rather than overshot (source +0.342, before
+    # +0.158, after +0.079). A token carries up to twelve
+    # published conditionals competing for one fixed budget,
+    # so satisfying some costs others.
+    #
+    # On a fixture with few conditionals per token it is a
+    # clean win - a planted implication goes from absent
+    # (-0.003) to carried (+0.419) with the marginals still
+    # landing. Trading a criterion for another is an
+    # operator decision, not a default, and this project has
+    # twice reverted a tier that shipped on a fixture gain a
+    # control arm later overturned.
+    _cooc = (bp.get("token_cooccurrence") or []) \
+        if use_cooccurrence else []
     rng = np.random.RandomState(seed)
     cols = bp.get("columns") or {}
     pat = bp.get("patients") or {}

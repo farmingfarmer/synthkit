@@ -175,10 +175,12 @@ def main():
           "carries it rather than the engine keeping it privately",
           len(bp.get("token_cooccurrence") or []) > 0)
 
-    g = generate(bp, n_patients=1000, seed=5)
+    g = generate(bp, n_patients=1000, seed=5,
+                 use_cooccurrence=True)
     bp0 = copy.deepcopy(bp)
     bp0["token_cooccurrence"] = []
-    g0 = generate(bp0, n_patients=1000, seed=5)
+    g0 = generate(bp0, n_patients=1000, seed=5,
+                  use_cooccurrence=True)
 
     for a, b in (("heparin", "Flush"), ("albuterol", "Neb")):
         s_, n_, y_ = phi(df, a, b), phi(g0, a, b), phi(g, a, b)
@@ -204,6 +206,134 @@ def main():
           "disagree".format(worst),
           worst < 0.05)
 
+    # CONTENTION: TEN DRUGS COMPETING FOR ONE ROUTE'S BUDGET.
+    #
+    # A token's marginal share is pinned, so placing it in one
+    # partner's rows takes it out of another's. This is the shape
+    # that made the real-extract arm a trade - four token pairs
+    # flipped out of close and they FADED rather than overshot.
+    _rg2 = np.random.default_rng(13)
+    _n2 = 6000
+    _DR = ["d%02d" % i for i in range(10)]
+    _OT = ["r%02d" % i for i in range(6)]
+    _dg, _rt = [], []
+    for _ in range(_n2):
+        _d, _r = [], []
+        for _g in _DR:
+            if _rg2.random() < 0.10:
+                _d.append(_g)
+                if _rg2.random() < 0.9:
+                    _r.append("Oral")
+        for _o in _OT:
+            if _rg2.random() < 0.25:
+                _r.append(_o)
+        _dg.append(";".join(sorted(set(_d))))
+        _rt.append(";".join(sorted(set(_r))))
+    _cdf = pd.DataFrame({
+        "person_id": ["P%04d" % (i // 6) for i in range(_n2)],
+        "active_drugs": _dg, "drug_routes": _rt,
+        "x": np.round(_rg2.normal(0, 1, _n2), 4)})
+    _cgid = _cdf["person_id"].to_numpy()
+    _oral = float(S.has_token(_cdf["drug_routes"], ";", "Oral")
+                  .astype(float).mean())
+    _cco = S.cooccurrence(_cdf, ["active_drugs", "drug_routes"],
+                          _cgid, k=10)
+    _into = [c for c in _cco
+             if c["b"] == "drug_routes__has__Oral"]
+
+    check("the fixture carries the thing this screen is about: a "
+          "route on {:.0%} of rows that ten drugs imply, so its "
+          "LIFT is small while its pair correlation is not"
+          .format(_oral),
+          _oral > 0.5 and len(_DR) == 10)
+
+    check("...and the structure IS published on it ({} "
+          "conditionals into that route)".format(len(_into)),
+          len(_into) >= 5)
+
+    check("...and every published pair carries the PHI the screen "
+          "used, so a reader can see why it was kept",
+          all(abs(float(c.get("phi") or 0)) >= 0.10
+              for c in _cco))
+
+    _ccat = discover(_cdf, group_by="person_id", targets=["x"])
+    _cbp = B.build(_cdf, _ccat, group_by="person_id")
+    _cg = generate(_cbp, n_patients=1000, seed=5,
+                   use_cooccurrence=True)
+    _cbp0 = copy.deepcopy(_cbp)
+    _cbp0["token_cooccurrence"] = []
+    _cg0 = generate(_cbp0, n_patients=1000, seed=5,
+                    use_cooccurrence=True)
+
+    def _mphi(f):
+        return float(np.mean([phi(f, d, "Oral") for d in _DR]))
+    _ms, _m0, _mc = _mphi(_cdf), _mphi(_cg0), _mphi(_cg)
+    check("...and under genuine CONTENTION - ten drugs competing "
+          "for one route's fixed budget - the association goes "
+          "from {:+.3f} to {:+.3f} against a source {:+.3f}, so "
+          "the allocation carries most of it rather than "
+          "collapsing".format(_m0, _mc, _ms),
+          abs(_m0) < 0.05 and _mc > 0.5 * _ms)
+
+    _os = float(S.has_token(_cg["drug_routes"], ";", "Oral")
+                .astype(float).mean())
+    check("...and the contended token's own MARGINAL still lands "
+          "({:.3f} against a source {:.3f}) - satisfying ten "
+          "conditionals must not be paid for out of the published "
+          "share".format(_os, _oral),
+          abs(_os - _oral) < 0.05)
+
+    # THE SCREEN IS PHI, NOT LIFT, AND HERE IS WHERE THEY PART.
+    #
+    # A lift threshold and the gate's relate floor disagree about
+    # what counts as structure. They agree on strong pairs and on
+    # rare ones - a first attempt to separate them used both and
+    # the mutation found NOTHING, because on those shapes the two
+    # screens publish the same list. Where they part is a MODERATE
+    # conditional on a COMMON token: lift divides by a large base
+    # so it stays near 1, while phi - the binary-pair correlation
+    # the gate would compute - is comfortably over the floor.
+    _rg3 = np.random.default_rng(31)
+    _n3 = 20000
+    _ca, _cb = [], []
+    for _ in range(_n3):
+        _a, _b = [], []
+        _ha = _rg3.random() < 0.30
+        if _ha:
+            _a.append("tokA")
+        if _rg3.random() < (0.62 if _ha else 0.449):
+            _b.append("tokB")
+        for _i in range(4):
+            if _rg3.random() < 0.35:
+                _a.append("fa%d" % _i)
+            if _rg3.random() < 0.35:
+                _b.append("fb%d" % _i)
+        _ca.append(";".join(sorted(set(_a))))
+        _cb.append(";".join(sorted(set(_b))))
+    _mdf = pd.DataFrame({
+        "person_id": ["P%05d" % (i // 2) for i in range(_n3)],
+        "ca": _ca, "cb": _cb})
+    _mgid = _mdf["person_id"].to_numpy()
+    _ma = S.has_token(_mdf["ca"], ";", "tokA").astype(float)
+    _mb = S.has_token(_mdf["cb"], ";", "tokB").astype(float)
+    _mphi_v = float(np.corrcoef(_ma, _mb)[0, 1])
+    _mco = S.cooccurrence(_mdf, ["ca", "cb"], _mgid, k=10)
+    _mhit = [c for c in _mco
+             if "tokA" in c["a"] and "tokB" in c["b"]]
+
+    check("the fixture carries the shape the two screens disagree "
+          "on: a MODERATE conditional on a COMMON token, measured "
+          "phi {:+.4f} - over the gate's 0.1 relate floor - with a "
+          "lift of only {:.3f}".format(
+              _mphi_v, _mhit[0]["lift"] if _mhit else float("nan")),
+          abs(_mphi_v) > 0.10
+          and _mhit and _mhit[0]["lift"] < 1.5)
+
+    check("...and it IS published, because the screen is the "
+          "correlation the grader measures rather than a lift "
+          "threshold that would drop it",
+          bool(_mhit))
+
     # ---- inert where its mechanism is absent -------------------
     rng = np.random.default_rng(11)
     nn = 2000
@@ -226,6 +356,27 @@ def main():
           "load, and absent is not a different fact from empty "
           "here",
           g1.equals(g2))
+
+    # OFF BY DEFAULT, AND THAT DEFAULT IS LOAD-BEARING.
+    #
+    # The control arm on the real extract called this a TRADE:
+    # direction kept 118/125 -> 120/125 and close 102/125 -> 99/125,
+    # with all four flipped pairs being token pairs that FADED
+    # rather than overshot. Trading one criterion for another is an
+    # operator decision, and this project has twice reverted a tier
+    # that shipped on a fixture gain a control arm later overturned.
+    g_def = generate(bp, n_patients=1000, seed=5)
+    g_off = generate(bp0, n_patients=1000, seed=5)
+    check("the conditional draw is OFF BY DEFAULT - a run that "
+          "does not ask for it is BYTE-IDENTICAL to one whose "
+          "blueprint carries no structure at all, so the measured "
+          "trade cannot land on anybody by accident",
+          g_def.equals(g_off))
+
+    check("...and asking for it CHANGES the output, so the flag is "
+          "not read-but-unused - which this project has recorded "
+          "as its own failure mode more than once",
+          not g_def.equals(g))
 
     print()
     if FAIL:

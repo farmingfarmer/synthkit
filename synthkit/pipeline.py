@@ -77,6 +77,22 @@ def build_parser(prog=None, add_help=True):
                     help="the patient id column")
     ap.add_argument("--time-col", default="",
                     help="visit ordering column; detected if omitted")
+    ap.add_argument("--token-cooccurrence", action="store_true",
+                    help="draw set tokens CONDITIONALLY on what "
+                         "the row already holds, using the "
+                         "k-screened structure the blueprint "
+                         "publishes, instead of independently. "
+                         "OFF by default because the control "
+                         "arm called it a TRADE on the real "
+                         "extract: direction kept 118/125 to "
+                         "120/125 and close 102/125 to 99/125, "
+                         "with all four flipped pairs being "
+                         "token pairs that FADED rather than "
+                         "overshot. On a fixture with few "
+                         "conditionals per token it takes a "
+                         "planted implication from absent "
+                         "(-0.003) to carried (+0.419) with "
+                         "the marginals still landing.")
     ap.add_argument("--no-identities", action="store_true",
                     help="do NOT enforce the arithmetic "
                          "identities the blueprint published. "
@@ -708,7 +724,9 @@ def main(argv=None, args=None):
                  enforce_constraints=a.enforce_constraints,
                  refine_sweeps=a.refine_sweeps,
                  reorder_dates=not a.no_reorder_dates,
-                 enforce_identities=not a.no_identities)
+                 enforce_identities=not a.no_identities,
+                 use_cooccurrence=bool(
+                     getattr(a, 'token_cooccurrence', False)))
     g.to_csv(out / "generated.csv", index=False, encoding="utf-8")
     say("{} rows for {} patients -> generated.csv".format(
         rep["rows"], rep["patients"]))

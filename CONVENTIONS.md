@@ -396,6 +396,108 @@ Synthetic clinical data generator and model-evaluation instrument. Core rule: le
 - Never state a number as measured unless you actually ran it.
 
 ## Fixing what the real extract found
+- **THE SCREEN IS PHI NOW, AND THE FAIL-FIRST CAUGHT ME
+  ATTRIBUTING THE FIX TO THE WRONG THING (2026-11-09).** The
+  detector screened pairs on LIFT at 1.5. A contention fixture -
+  ten drugs all implying one route - published ZERO conditionals
+  into that route, and I wrote that up as the lift threshold
+  disagreeing with the gate's relate floor. Then the mutation back
+  to the lift screen broke NOTHING, which is this file's own
+  signal, and the measurement said why: on the properly-built
+  fixture BOTH screens publish the same twenty pairs, the real
+  lift being **1.568** rather than the 1.47 I had computed by
+  hand. **The zero came from a MALFORMED fixture** whose route
+  column averaged under 1.2 tokens per row, so `vocabulary`
+  correctly did not treat it as a set at all and published no
+  tokens for it. I had measured the set-size floor and called it a
+  lift threshold.
+- **AND WHERE THE TWO SCREENS GENUINELY PART TOOK THREE
+  CONSTRUCTIONS TO FIND.** A STRONG pair: both publish. A RARE
+  pair: both publish - phi is large when the association is
+  strong, however rare the tokens, so "lift explodes on rare
+  pairs" is also wrong. They part on a **MODERATE conditional on a
+  COMMON token**, where lift divides by a large base and stays
+  near 1 while phi does not: measured at P(a) 0.301, P(b) 0.500,
+  **phi +0.1648 against a lift of 1.251**. The gate relates that
+  pair at 0.1 and the lift screen drops it. Pinned as the check
+  the mutation can see, and it turns two red.
+- **SO THE JUSTIFICATION IS ALIGNMENT, NOT A RESCUE.** Phi is the
+  binary-pair correlation the grader computes, so screening on it
+  means the contract carries the structure the criterion asks
+  about. That is worth doing on its own reasoning; what is NOT
+  true, and was nearly recorded, is that it rescued the contention
+  case. Under contention - ten drugs for one route's fixed budget
+  - the association goes from **+0.001 to +0.147 against a source
+  +0.241** with the route's own share landing at 0.636 against
+  0.611, and that holds under either screen.
+
+- **THE CONDITIONAL TOKEN DRAW IS A TRADE ON THE REAL EXTRACT, SO
+  IT SHIPS OFF (2026-11-09, run_cooc_nov9 against run_rules_nov9).**
+  Paired: same source, same seed 20260731, same settings, one code
+  change, SAME denominator of 125 so the percentages compare:
+      criterion        run_rules_nov9    run_cooc_nov9
+      direction kept   118/125 = 94.4%   120/125 = 96.0%
+      close            102/125 = 81.6%    99/125 = 79.2%
+      inverted              0 PASS            0 PASS
+  Re-measured on the shared 136-pair surface with today's code on
+  both sides: close **109 against 107**. Direction up two, close
+  down three. **Not a net win there**, and this project has twice
+  reverted a tier that shipped on a fixture gain a control arm
+  later overturned - so it is behind `--token-cooccurrence`, OFF,
+  with the price on record. The blueprint PUBLISHES the structure
+  either way; hiding the finding would be a different change.
+- **AND THE MECHANISM IS ACTING EXACTLY WHERE IT LIVES, WHICH IS
+  WHAT MAKES THE NEGATIVE READABLE.** Four pairs flipped out of
+  close and **all four are token pairs, none are plain columns**.
+  So this is not a broad disturbance; it is the token surface
+  moving, which is the surface it was built for.
+- **THEY FADED, THEY DID NOT OVERSHOOT - WHICH REFUTES THE OBVIOUS
+  READING.** `has_Sodium... <- has_Flush` reads source **+0.342**,
+  before **+0.158**, after **+0.079**; `has_mid... <- has_UBC`
+  reads +0.400, +0.204, +0.156. A draw that had over-applied its
+  conditionals would push past the source; these went the other
+  way. The cause is budget: a token's marginal share is pinned, it
+  carries up to TWELVE published conditionals, and placing it in
+  one partner's rows takes it out of another's. The neural
+  engine's own notes name this - "the cross-column route quotas
+  become JOINTLY UNSATISFIABLE" - and the allocation here is
+  unprioritised, so a 1.5-lift pair steals budget from a 3.4-lift
+  one.
+- **ON A FIXTURE WITH FEW CONDITIONALS PER TOKEN IT IS A CLEAN
+  WIN**, which is why the fixture could not predict the extract: a
+  planted implication goes from **-0.003 (absent) to +0.419
+  (carried)** with the worst token share missing by 0.016. Two
+  shapes, opposite verdicts, and the one that decides is the one
+  with the real contention.
+
+- **TVD OVER EVERY PAIR IS REPORTED NOW, WHICH IS THE AXIS THE
+  COMMERCIAL TOOLS PUBLISH ON (2026-11-09).** Every pair criterion
+  here is a PASS/FAIL on a correlation delta over the pairs the
+  SOURCE relates at 0.1 or more - blind to a generator INVENTING
+  structure where there was none, and a threshold, so it moves in
+  steps while the thing underneath moves continuously. MOSTLY AI
+  reports accuracy as the mean of univariate and bivariate total
+  variation distance over DISCRETISED distributions across ALL
+  pairs; SDV's quality report uses contingency similarity for
+  categorical pairs, the same quantity.
+- **THE PROPERTY THAT MAKES IT WORTH CARRYING, measured:**
+  shuffling one column leaves every MARGINAL untouched and the
+  univariate distance at **0.0000** while the bivariate rises to
+  **0.2472** and names the broken pair at 0.713. That is the
+  classic way a generator looks right per column and is useless,
+  seen by one number.
+- **THE EDGES COME FROM THE SOURCE AND ARE APPLIED TO BOTH
+  TABLES.** Binning each table by its own quantiles compares a
+  source decile against a synthetic decile and calls two
+  differently-shaped columns identical - the mutation that does it
+  turns a check red.
+- **REPORTED, NOT GATED, AND NO CELL IS PUBLISHED.** A bar for it
+  would change what a MET means on a threshold nobody has measured
+  a basis for, and this project does not move a bar and a number
+  in the same commit. The report carries aggregate distances and
+  column names only - a contingency cell is a count of people, and
+  a bin holding three describes those three.
+
 - **TOKEN CO-OCCURRENCE IS MODELLED NOW, AND IT CLOSES THE LARGEST
   STRUCTURAL GAP THIS ENGINE HAD (2026-11-09).** About **110 of the
   135 pairs** the real extract's gate relates are set-token pairs -

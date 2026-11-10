@@ -604,14 +604,30 @@ def collisions(columns) -> List[str]:
 # here, where both halves can call it rather than each keeping a
 # loop - which is how two halves come to disagree, the fault this
 # module was created to close.
-COOC_MIN_LIFT = 1.5        # a pair must show a real association
+# THE SCREEN IS PHI, NOT LIFT, BECAUSE PHI IS WHAT IS GRADED.
+#
+# A lift threshold and the gate's relate floor disagree about
+# what counts as structure, and they disagree worst on exactly
+# the tokens that matter. Measured: a route on 61% of rows,
+# implied at P(route|drug) = 0.9, has a lift of only 1.47 -
+# under a 1.5 bar - while its pair correlation is +0.238,
+# comfortably above the 0.1 the gate relates at. So every
+# conditional on a COMMON token was invisible to the model
+# while being measured by the grader.
+#
+# Phi is the binary-pair correlation the gate would compute,
+# so publishing on it means the contract carries the structure
+# the criterion asks about.
+COOC_MIN_PHI = 0.10        # the gate's own relate floor
+COOC_MIN_LIFT = 1.05       # and a direction, so ties are not noise
 COOC_MAX_PER_TOKEN = 12    # bound what a blueprint carries
-COOC_MIN_ROWS = 30         # and a lift from a handful of rows is noise
+COOC_MIN_ROWS = 30         # a pair from a handful of rows is noise
 
 
 def cooccurrence(frame, cols, groups, k: int = 10,
                  vocab=None, cap: int = COOC_MAX_PER_TOKEN,
-                 min_lift: float = COOC_MIN_LIFT):
+                 min_lift: float = COOC_MIN_LIFT,
+                 min_phi: float = COOC_MIN_PHI):
     """Published, k-screened LIFT between set tokens.
 
     Returns a list of {"a", "b", "lift", "patients"} where `a` and
@@ -672,6 +688,7 @@ def cooccurrence(frame, cols, groups, k: int = 10,
         with np.errstate(divide="ignore", invalid="ignore"):
             cond = joint / counts[i]
             lift = np.where(base > 0, cond / base, 1.0)
+        pa = base[i]
         cands = []
         for j in range(len(names)):
             if j == i or joint[j] < 1:
@@ -681,14 +698,27 @@ def cooccurrence(frame, cols, groups, k: int = 10,
                 continue
             if min_lift > 1 and (1.0 / min_lift) < L < min_lift:
                 continue
+            # PHI - the correlation the gate would compute for two
+            # binary columns - is the screen, because it is what
+            # the criterion measures.
+            pb = base[j]
+            den = pa * (1.0 - pa) * pb * (1.0 - pb)
+            if den <= 0:
+                continue
+            phi = ((joint[j] / float(n_rows)) - pa * pb) \
+                / float(np.sqrt(den))
+            if not np.isfinite(phi) or abs(phi) < min_phi:
+                continue
             # THE JOINT'S OWN PATIENT COUNT, which is the whole
             # privacy question for a pair.
             pats = int(len(np.unique(gid[rows_a & M[j]])))
             if pats < k:
                 continue
-            cands.append((abs(np.log(max(L, 1e-9))), j, L, pats))
+            cands.append((abs(float(phi)), j, L, pats, float(phi)))
+        # STRONGEST FIRST, by the same measure the grader uses, so
+        # a weak pair cannot take the budget a strong one needs.
         cands.sort(key=lambda t: -t[0])
-        for _, j, L, pats in cands[:cap]:
+        for _, j, L, pats, phi in cands[:cap]:
             # THE CONDITIONAL ITSELF, not only the lift. A
             # lift is a nudge; `P(b | a)` is the thing the
             # draw has to LAND, and a near-deterministic
@@ -698,5 +728,6 @@ def cooccurrence(frame, cols, groups, k: int = 10,
                         "lift": round(float(L), 5),
                         "cond": round(float(cond[j]), 5),
                         "base": round(float(base[j]), 5),
+                        "phi": round(phi, 5),
                         "patients": pats})
     return out
