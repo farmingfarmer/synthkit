@@ -165,6 +165,20 @@ def main():
           "information must never be able to kill a run",
           isinstance(bad.get("tvd"), dict))
 
+    # AND IT REACHES THE PAGE. A measurement that lives only in
+    # a json file might as well not exist for the person deciding,
+    # which is this project's own recurring complaint.
+    _lines, _code = G.report(res, "RUNDIR")
+    _txt = "\n".join(_lines)
+    check("the gate's human-readable report PRINTS the distance, "
+          "so an operator sees it without opening fidelity.json",
+          "accuracy" in _txt and "variation distance" in _txt)
+
+    check("...and it says IN THE LINE that it is not a criterion - "
+          "a number printed under a list of verdicts reads as one "
+          "unless it says otherwise",
+          "not a criterion" in _txt)
+
     print()
     if FAIL:
         print("{} FAILED".format(FAIL))

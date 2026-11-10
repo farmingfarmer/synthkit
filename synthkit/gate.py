@@ -587,6 +587,34 @@ def report(verdict, rundir) -> "tuple":
     # 22 declared relationships went unmeasured with no line
     # anywhere. Silent only when the run predates the account,
     # since absent is not the same fact as zero.
+    # THE DISTANCE, ON THE AXIS A BUYER WILL COMPARE US ON.
+    #
+    # A measurement that never reaches a page might as well
+    # not exist for the person deciding. Every criterion above
+    # is a PASS/FAIL on the pairs the SOURCE relates; this is
+    # a continuous distance over EVERY pair, so it moves when
+    # the engine moves and it sees a generator inventing
+    # structure where there was none. Printed as INFORMATION,
+    # never as a verdict - the line says so itself, because a
+    # number under a verdict list reads as a criterion.
+    _tv = verdict.get("tvd") or {}
+    if _tv.get("accuracy") is not None:
+        lines.append("")
+        lines.append(
+            "  distance (not a criterion): accuracy {:.4f} - "
+            "univariate {:.4f}, bivariate {:.4f} over {} "
+            "pair(s)".format(
+                _tv["accuracy"], _tv.get("univariate") or 0.0,
+                _tv.get("bivariate") or 0.0,
+                _tv.get("pairs_measured")))
+        lines.append(
+            "  total variation distance on discretised "
+            "distributions over EVERY pair, not only the "
+            "related ones;")
+        lines.append(
+            "  1.0 is identical. This is the form MOSTLY AI "
+            "and SDV publish, so it can be compared "
+            "directly.")
     _de = verdict.get("declared_edges") or {}
     if _de.get("declared"):
         lines.append("")
