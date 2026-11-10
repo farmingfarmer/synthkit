@@ -396,6 +396,36 @@ Synthetic clinical data generator and model-evaluation instrument. Core rule: le
 - Never state a number as measured unless you actually ran it.
 
 ## Fixing what the real extract found
+- **THE PHI SCREEN TURNED THE REAL-EXTRACT TRADE INTO A WIN, AND
+  THE FIXTURE COULD NOT HAVE TOLD ME (2026-11-09, run_cooc2
+  against run_base2).** Same build, same source, same seed
+  20260731, ONE FLAG apart, same denominator of 125:
+      criterion        run_base2        run_cooc2
+      direction kept   119/125          120/125
+      close            102/125 = 81.6%  106/125 = 84.8%
+      inverted             0 PASS           0 PASS
+  **close +4 pairs**, where the same mechanism under the old LIFT
+  screen read **-3** (102 to 99). The phi screen is what changed,
+  and 84.8% is the best close this engine has measured on this
+  extract.
+- **AND THE FIXTURE SAID THE TWO SCREENS WERE INTERCHANGEABLE.**
+  On every fixture shape tried - strong pairs, rare pairs, the
+  contention case - lift and phi published the SAME list, and the
+  mutation between them broke nothing until a frame was built
+  specifically for a moderate conditional on a common token. The
+  real extract is full of exactly that shape, which is why a
+  one-line screen change moved seven pairs there and nothing on a
+  fixture. The justification was alignment - screen on the
+  correlation the grader measures - and it was right for a reason
+  the fixtures could not show.
+- **SO THE EARLIER TRADE VERDICT IS SUPERSEDED, NOT OVERTURNED.**
+  `run_cooc_nov9` really did read close 99 against 102: that arm
+  carried the lift screen. The flag stays OFF by default until the
+  full decomposition is read - `--set-size-coupling` and both
+  together are the remaining arms - because a one-seed paired
+  reading is what this file has been burned by, and because the
+  bar is 87.9% and 84.8% does not clear it.
+
 - **THE SET SIZES WERE UNCOUPLED, AND THAT IS WHAT BOUNDED THE
   TOKEN DRAW (2026-11-09).** A visit with five drugs has more
   routes than one with a single drug. Measured on a planted
