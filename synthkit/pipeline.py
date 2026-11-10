@@ -77,6 +77,23 @@ def build_parser(prog=None, add_help=True):
                     help="the patient id column")
     ap.add_argument("--time-col", default="",
                     help="visit ordering column; detected if omitted")
+    ap.add_argument("--solve-token-targets",
+                    action="store_true",
+                    help="ask the bisection for the "
+                         "correlation each routed token "
+                         "claim implies, instead of using "
+                         "that number as a blend weight, and "
+                         "place the least-free token first. A "
+                         "two-valued child reaches only "
+                         "phi(z)/sqrt(p(1-p)) of whatever it "
+                         "is rank-matched to - 0.78 at a 0.35 "
+                         "share, 0.58 at 0.10 - so every "
+                         "routed indicator lands short by a "
+                         "factor of its own share. OFF: three "
+                         "fixture seeds read within-0.2 1/4 "
+                         "to 2/4 with signs 4/4 both arms, "
+                         "and a fixture result is not the "
+                         "standard for a default here.")
     ap.add_argument("--no-token-cooccurrence",
                     action="store_true",
                     help="draw set tokens INDEPENDENTLY "
@@ -722,7 +739,9 @@ def main(argv=None, args=None):
                  reorder_dates=not a.no_reorder_dates,
                  enforce_identities=not a.no_identities,
                  use_cooccurrence=not bool(
-                     getattr(a, 'no_token_cooccurrence', False)))
+                     getattr(a, 'no_token_cooccurrence', False)),
+                 solve_token_targets=bool(
+                     getattr(a, 'solve_token_targets', False)))
     g.to_csv(out / "generated.csv", index=False, encoding="utf-8")
     say("{} rows for {} patients -> generated.csv".format(
         rep["rows"], rep["patients"]))
@@ -2361,6 +2380,21 @@ def compare(df, g, bp, group_by, time_col, ordinals=None,
         "relationships": pairs,
         "shapes": shapes,
         "surfaces": surfaces,
+        # WHICH SET COLUMNS WERE INFORMED, AND WHAT EACH CHILD WAS
+        # ASKED FOR. `generate` has recorded this for as long as the
+        # routing existed and the CLI consumed only one field of the
+        # report - so a tier acting on the real extract could not be
+        # seen from the run's own artifacts, and reading the key off
+        # fidelity.json returned None and read as "the routing never
+        # fired". It had fired. A fix that cannot prove it executed
+        # has not been deployed, which this project has already paid
+        # for twice in round trips to the data machine.
+        #
+        # ABSENT, not empty, when nothing was routed: a run with no
+        # informed set column is a different fact from one where the
+        # field did not exist.
+        "sets_informed": ((gen_report or {}).get("sets_informed")
+                          or None),
         "tvd": tvd_block,
         "summary": {
             "columns": len(cols), "numeric": n_ok["num"],

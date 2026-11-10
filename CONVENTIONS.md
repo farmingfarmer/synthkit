@@ -396,6 +396,132 @@ Synthetic clinical data generator and model-evaluation instrument. Core rule: le
 - Never state a number as measured unless you actually ran it.
 
 ## Fixing what the real extract found
+- **A TWO-VALUED CHILD SATURATES THE WAY A TWO-VALUED DRIVER DOES,
+  AND ONLY THE DRIVER CASE WAS EVER HANDLED (2026-11-09).**
+  `_informative_sets` rearranges the drawn sets so a token indicator
+  lands where its parents say, and `_place` builds the ordering
+  target as `lam * sys + sqrt(1 - lam^2) * noise` - so that target
+  correlates with the systematic at exactly `lam`. Rank-matching a
+  BINARY child onto it reaches only `ceiling(p)` of that, where
+  `ceiling(p) = phi(z)/sqrt(p(1-p))` is the point-biserial bound for
+  the token's own share. So every routed indicator landed
+  systematically short, by a factor of how common the token is:
+      share   ceiling   achieved/target   bisected
+       0.10     0.585         0.562        0.876
+       0.20     0.700         0.687        0.966
+       0.35     0.777         0.776        0.996
+       0.50     0.798         0.797        0.998
+  measured on a SYNTHETIC frame at the extract's own row count -
+  56,065 rows, nine routed children, independent drivers - and NOT
+  on the extract itself, which is a run nobody has made yet. **The plain
+  column tracks the PREDICTED ceiling to three decimals - 0.776
+  measured against 0.7766 predicted at a 0.35 share** - which is two
+  independent routes to one number and is what makes this a
+  mechanism rather than an observed fade. Because the factor is a
+  smooth function of the share it looked like ordinary drift, and a
+  single-share fixture could not have told the two apart.
+  `generate.py` already carried this solve for the case where the
+  PARENT is two-valued, with a comment naming the saturation. The
+  CHILD being two-valued is the mirror image, it is universal for
+  token indicators, and it was unhandled.
+- **THE FIX ASKS THE BISECTION THAT WAS ALREADY THERE.** Rather than
+  computing a ceiling, the existing `corr_at` loop - which MEASURES
+  the achieved correlation and raises lam until it lands - is handed
+  the correlation the claim implies instead of using that number as
+  a blend weight. No distributional assumption, no new formula, and
+  where the ask exceeds what the share can carry the bisection
+  saturates and the shortfall is REAL: a token on a twentieth of
+  rows cannot correlate above about 0.45 with anything, whatever the
+  arrangement does.
+- **AND THE SOLVE ALONE BOUGHT THREE GAINS WITH ONE INVERSION, which
+  is not a trade to take.** Raising lam on the earlier children
+  fixes the groups more tightly and starves the last one. Paired on
+  a four-token fixture at one seed, one file apart, target +0.548:
+      order        solve   achieved                        signs
+      skill         off    +0.37 +0.32 +0.24 +0.13          4/4
+      skill          ON    +0.55 +0.52 +0.35 -0.02          3/4
+      least-free    off    +0.37 +0.21 +0.15 +0.34          4/4
+      least-free     ON    +0.55 +0.30 +0.08 +0.55          4/4
+  Placing the LEAST-FREE token first - the extreme shares, which
+  have the fewest arrangements available to them - removes the sign
+  loss on every seed, and is the same reasoning the SIZE rule beside
+  it already follows: spend the degrees of freedom where they still
+  exist. That ordering is part of this tier rather than a tidy-up,
+  and the mutation that removes it turns exactly the sign check red.
+  Across three seeds: within the gate's own 0.2 band **1/4 -> 2/4**
+  on every seed, mean absolute miss **0.282 -> 0.179**, signs 4/4 on
+  BOTH arms.
+- **AND TWO LARGER IDEAS WERE MEASURED AND REFUSED FIRST, BOTH
+  CHEAPLY.** A WHITENED JOINT SOLVE over all the routed children at
+  once - `v = R^-1 q`, the algebra the cross-table work measured as
+  six times tighter - reads **2.3x WORSE** here: 0 of 6 children
+  within 0.2 against greedy's 6 of 6. The reason is structural and
+  worth keeping: a foreign key gives ONE choice per row, so the
+  correlations across a link have rank one and whitening is the
+  whole game, while a set rearrangement is a FULL PERMUTATION that
+  sequential sorts exploit once per child - and k independent
+  drivers cannot share one axis, which caps every correlation at
+  about 1/sqrt(k). And CAPPING the group refinement, so later
+  children stay out of singleton groups, is worse at every child
+  count (-0.10 mean) and drives the worst child NEGATIVE,
+  manufacturing the one verdict this project calls an absolute stop.
+- **AND THE STARVATION IS A COUNTING FACT THAT THE REAL EXTRACT'S
+  ROW COUNT ABSORBS.** Each placed child DOUBLES the group count, so
+  after k children there are 2^k groups and the permutation is
+  exhausted once that passes n. Measured at three row counts:
+      rows     k   2^k/rows   mean ratio   worst
+      4,000    13      2.05       0.677    0.337
+      14,000   13      0.59       0.732    0.553
+      56,065   13      0.15       0.761    0.689
+      56,065   18      4.68       0.674    0.248
+  **At the extract's own row count with its own thirteen routed
+  children the ratio is 0.761 against an unstarved ceiling of
+  0.775** - so there is no extract-scale starvation at thirteen, and
+  the shortfall there is the point-biserial bound rather than the
+  arrangement running out of room. The problem I first set out to
+  fix did not exist; the one underneath it did.
+- **OFF BY DEFAULT, ON FIXTURE EVIDENCE ALONE.** Three fixture seeds
+  are not the standard a default meets here - the co-occurrence
+  default was earned on three seeds OF THE EXTRACT, and this file
+  records a fidelity gain that a real control arm later overturned
+  after a whole night of work. `--solve-token-targets` is the
+  opt-in, the paired real arms decide it, and the run REPORTS each
+  child's asked-for correlation beside what it achieved in place, so
+  a tier that silently stops landing is visible from the run's own
+  artifacts rather than from a fixture.
+- **AND MY FIRST CHECK FOR THE MECHANISM ASSERTED THE BOUND ON EVERY
+  CHILD AND WENT RED, CORRECTLY.** The point-biserial bound predicts
+  an UNCONSTRAINED placement, so it describes the FIRST-placed child
+  (+0.3745 measured against +0.3691 predicted) and every later one
+  falls BELOW it as the group starvation compounds - 0.32 of its own
+  bound by the fourth. Those are two separate true statements, and
+  averaging them into one tolerance hid both.
+- **AND THE RUN COULD NOT PROVE THE TIER EXECUTED, BECAUSE THE CLI
+  CONSUMED ONE FIELD OF THE GENERATE REPORT AND DROPPED THE REST.**
+  `generate` has recorded `sets_informed` for as long as the routing
+  existed; `pipeline` read `persistence_solved` out of that report
+  and nothing else, so `fidelity.json` never carried it. Reading the
+  key off a run therefore returned None - and I read that as **"the
+  routing never fired on this fixture"** and nearly rebuilt the
+  fixture around a fault that did not exist. It had fired, in BOTH
+  arms, with five children. That is the wrong-field fault in its
+  quietest form: the field was real, the writer was real, and only
+  the PLUMBING between them was missing, so the absence looked like
+  a measurement. It reaches `fidelity.json` now, with each child's
+  asked-for correlation beside what it achieved in place, and it is
+  ABSENT rather than empty when nothing was routed.
+- **AND PROPAGATION IS NOT A LEAK, which my own check asserted
+  wrongly first.** It demanded that every column except the set be
+  byte-identical across the two arms, and went red on `severity` -
+  which the blueprint declares a CHILD of two token indicators
+  (`severity <- ['drugs__has__t_mid', 'drugs__has__t_rare',
+  'load']`). A column drawn FROM an indicator must move when the
+  sets are rearranged; that is the relationship working. Which is
+  which is now read from the blueprint's own graph rather than
+  assumed, the same distinction the dial matrix already draws, and
+  separately EVERY column's multiset is asserted unchanged - so
+  nothing the tier touches or reaches can drift a published
+  marginal.
 - **THE CONDITIONAL TOKEN DRAW IS ON BY DEFAULT, EARNED ON THREE
   PAIRED SEEDS OF THE REAL EXTRACT - AND THE SCREEN THAT DECIDED
   IT WAS PHI RATHER THAN LIFT (2026-11-09).** About four fifths of

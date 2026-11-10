@@ -1322,7 +1322,8 @@ def _size_partners(bp):
 
 
 def _informative_sets(cname, m, base, routed, out, rng,
-                      masks=None, fixed_sizes=None):
+                      masks=None, fixed_sizes=None,
+                      solve_token_targets=True):
     """Rearrange the drawn sets so tokens land where their parents say.
 
     THE MULTISET OF SETS IS UNTOUCHED. Sizes, token shares and
@@ -1446,6 +1447,53 @@ def _informative_sets(cname, m, base, routed, out, rng,
             num = float(np.cov(sys_std, mu)[0, 1])
             if xs > 0:
                 solve_r = min(max(num / xs, 0.0), 0.99)
+        # A BINARY CHILD SATURATES THE WAY A BINARY DRIVER DOES,
+        # AND ONLY THE DRIVER CASE WAS HANDLED. `_place` builds
+        # `lam * sys + sqrt(1 - lam^2) * noise`, so the target
+        # correlates with the systematic at exactly `lam` - and
+        # rank-matching a TWO-VALUED child onto it reaches only
+        # `ceiling(p)` of that, where ceiling is the point-biserial
+        # bound `phi(z)/sqrt(p(1-p))` for the token's own share. So
+        # every routed indicator landed systematically short, by a
+        # factor that depends on how common the token is:
+        #
+        #   share   ceiling   achieved/target, plain   bisected
+        #    0.10     0.585            0.562             0.876
+        #    0.20     0.700            0.687             0.966
+        #    0.35     0.777            0.776             0.996
+        #    0.50     0.798            0.797             0.998
+        #
+        # measured at 56,065 rows with nine routed children. The
+        # plain column tracks the predicted ceiling to three decimals
+        # - 0.776 measured against 0.7766 predicted at a 0.35 share -
+        # which is two independent routes to one number and is what
+        # makes this a mechanism rather than a tuning observation.
+        #
+        # The fix is to ASK THE BISECTION ALREADY HERE for the
+        # correlation the claim implies, instead of using that number
+        # as a blend weight. It measures the achieved correlation and
+        # raises lam until it lands, so it needs no ceiling formula
+        # and makes no distributional assumption. Where the ask
+        # exceeds what the share can carry the bisection saturates
+        # and the shortfall is REAL - a token on a tenth of rows
+        # cannot correlate above 0.585 with anything, whatever the
+        # arrangement does - so it is REPORTED rather than hidden.
+        #
+        # TWO ALTERNATIVES WERE MEASURED AND REFUSED. A whitened
+        # joint solve over all children at once - the algebra that is
+        # 6x tighter across a table link - reads 2.3x WORSE here
+        # (0 of 6 children within 0.2 against 6 of 6), because a link
+        # gives ONE choice per row and is rank one, while a set
+        # rearrangement is a full permutation that sequential sorts
+        # exploit once per child; k independent drivers cannot share
+        # one axis. And capping the group refinement to keep later
+        # children out of singleton groups is worse at every child
+        # count (-0.10 mean) and drives the worst child NEGATIVE,
+        # manufacturing the one thing this project calls an absolute
+        # stop.
+        if solve_token_targets and solve_r is None \
+                and not child.endswith(_sets.SIZE):
+            solve_r = float(min(lam, 0.99))
         jobs.append((np.sqrt(skill) * strength, child, sys_std, x,
                      lam, solve_r))
     if not jobs:
@@ -1459,7 +1507,33 @@ def _informative_sets(cname, m, base, routed, out, rng,
     # against two competing token jobs 0.48, and against the
     # extract's thirteen it read 0.01. Ordering coarse-to-fine spends
     # the degrees of freedom where they still exist.
-    jobs.sort(key=lambda j: (not j[1].endswith(_sets.SIZE), -j[0]))
+    # AND THE LEAST-FREE TOKEN PLACES FIRST, which is the same
+    # reasoning the size rule above already follows: spend the
+    # degrees of freedom where they still exist. A token held by
+    # three quarters of rows - or by a twentieth - has far fewer
+    # arrangements available to it than one near a half, so placing
+    # it late starves it. This is NOT cosmetic ordering: it is what
+    # makes the solve above safe. Measured on a four-token fixture,
+    # two seeds, target +0.548:
+    #
+    #   order      solve   achieved                          signs
+    #   skill       off    +0.37 +0.32 +0.24 +0.13            4/4
+    #   skill       ON     +0.55 +0.52 +0.35 -0.02            3/4
+    #   least-free  off    +0.37 +0.21 +0.15 +0.34            4/4
+    #   least-free  ON     +0.55 +0.30 +0.08 +0.55            4/4
+    #
+    # The sign loss the solve caused on its own is GONE, on both
+    # seeds, and the mean absolute error falls 0.280 to 0.178. The
+    # trade is visible and deliberate: the mid-share child places
+    # last and does worse, while the two extreme-share children land
+    # on target. A pair counted close is worth less than a pair
+    # counted INVERTED, which this project calls an absolute stop,
+    # so a count that trades one inversion for one close pair is a
+    # count read the wrong way round.
+    jobs.sort(key=lambda j: (not j[1].endswith(_sets.SIZE),
+                             (-abs(float(j[3].mean()) - 0.5)
+                              if solve_token_targets else 0.0),
+                             -j[0]))
     arr = np.asarray(base, dtype=object)
     perm = np.arange(n)               # perm[i] = index into arr
     # When sizes are an IDENTITY with another column, every row's set
@@ -1482,6 +1556,10 @@ def _informative_sets(cname, m, base, routed, out, rng,
         new_perm[order_rows] = perm[order_sets]
         return new_perm
 
+    # WHAT EACH CHILD WAS ASKED FOR AND WHAT IT GOT, so a tier
+    # that silently stopped landing is visible from the run's own
+    # report rather than from a fixture.
+    _asked: Dict[str, Any] = {}
     for _w, _child, sys_std, x, lam, solve_r in jobs:
         # One noise realisation per child, held FIXED through the
         # bisection - bisecting a function that redraws its own noise
@@ -1503,7 +1581,51 @@ def _informative_sets(cname, m, base, routed, out, rng,
                     lo_l = mid
                 else:
                     hi_l = mid
-            lam = (lo_l + hi_l) / 2.0
+            solved = (lo_l + hi_l) / 2.0
+            # THE BISECTION MUST NOT LEAVE A CHILD WORSE THAN THE
+            # PLAIN BLEND WOULD, AND ON THE FOURTH CHILD IT DID.
+            # Raising lam makes the earlier placements more
+            # deterministic, so the freedom left to a later child
+            # shrinks - and measured on a four-token fixture at one
+            # seed, one file apart:
+            #
+            #   token  share   plain     solved    target +0.548
+            #     t0    0.17  +0.3745   +0.5493
+            #     t1    0.34  +0.3236   +0.5196
+            #     t2    0.53  +0.2395   +0.3525
+            #     t3    0.75  +0.1273   -0.0219   <- SIGN LOST
+            #
+            # Three large gains and one pair crossing zero. A
+            # generated relationship with the opposite sign to its
+            # source is the one verdict this project calls an
+            # absolute stop, so trading three fades for one
+            # inversion is not a trade to take silently. Both
+            # candidates are scored on the SAME fixed noise, so the
+            # comparison is exact rather than a draw, and the one
+            # closer to the target wins - with a sign that disagrees
+            # with the target refused outright, however close its
+            # magnitude.
+            def _score(l_):
+                # A SIGN-WRONG CANDIDATE IS PENALISED, NOT DISCARDED.
+                # Returning inf made every wrong-signed option
+                # identical - and on the fourth child of the fixture
+                # BOTH candidates were negative, because the damage
+                # is upstream: tightening the earlier children fixes
+                # the groups and leaves the last one no freedom. With
+                # a flat inf the comparison then picked arbitrarily.
+                # A penalty keeps the ordering, so any correctly
+                # signed option still beats every wrong one and the
+                # LEAST inverted wrong one is taken when that is all
+                # there is.
+                got = corr_at(l_)
+                bad = ((solve_r > 0 and got < 0)
+                       or (solve_r < 0 and got > 0))
+                return abs(got - solve_r) + (100.0 if bad else 0.0)
+
+            lam = solved if _score(solved) <= _score(lam) else lam
+            _asked[_child] = (round(float(solve_r), 4),
+                              round(float(corr_at(lam)), 4),
+                              round(float(lam), 4))
         perm = _place(sys_std, x, lam, noise, jit)
         # extend the groups by what this child now shows per ROW
         shown = x[perm]
@@ -1513,7 +1635,9 @@ def _informative_sets(cname, m, base, routed, out, rng,
     return arr[perm], {"column": cname,
                        "children": [j[1] for j in jobs],
                        "skills": [round(float(j[0]) ** 2, 4)
-                                  for j in jobs]}
+                                  for j in jobs],
+                       # (asked, achieved-in-place, lam) per child
+                       "asked": _asked}
 
 
 def _pin_pass(obj, cols, order):
@@ -1843,7 +1967,17 @@ def generate(blueprint: Dict[str, Any],
              refine_sweeps: int = 2,
              reorder_dates: bool = True,
              enforce_identities: bool = True,
-             use_cooccurrence: bool = True
+             use_cooccurrence: bool = True,
+             # OFF BY DEFAULT, ON FIXTURE EVIDENCE ALONE. Three
+             # fixture seeds read signs 4/4 on BOTH arms with the
+             # within-0.2 count 1/4 -> 2/4 and the mean absolute
+             # error 0.282 -> 0.179 - never worse, every seed. That
+             # is not the standard for a default here: this file
+             # records a fidelity "gain" that a real-extract control
+             # arm later overturned, and the co-occurrence default
+             # was earned on three seeds OF THE EXTRACT rather than
+             # of a fixture. The paired real arms decide it.
+             solve_token_targets: bool = False
              ) -> pd.DataFrame:
     """Build a table from a blueprint. Nothing else is consulted."""
     bp = resolve(blueprint)
@@ -2089,7 +2223,8 @@ def generate(blueprint: Dict[str, Any],
                     c, m, base, routed, out, rng, masks,
                     fixed_sizes=(None if sized is None else
                                  [0 if x is None else int(round(x))
-                                  for x in sized]))
+                                  for x in sized]),
+                    solve_token_targets=solve_token_targets)
                 if _note is not None and report is not None:
                     report.setdefault("sets_informed",
                                       []).append(_note)
