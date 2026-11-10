@@ -120,6 +120,26 @@ def main():
           abs(rows[0]["ceiling"] - rows2[0]["ceiling"]) < 1e-9
           and rows[0]["delivered"] > 1.8 * rows2[0]["delivered"])
 
+    # A MATHEMATICAL INVARIANT, asserted because a violation
+    # would mean the measure is wrong rather than the engine.
+    # Clipping is a CONTRACTION - |clip(x)-clip(y)| <= |x-y| - and
+    # the variance of a contraction cannot exceed the original, so
+    # the ceiling can never be above 1. The first real-extract read
+    # appeared to show 2.869 for one column, which would have been
+    # impossible; it was the screen bridge rendering "0." as "2.",
+    # and the words channel settled it at 0.869. A check is cheaper
+    # than that round trip.
+    for _bl, _bh in ((-3.0, 7.0), (-0.5, 0.5), (-50.0, 50.0)):
+        _r = price(src, pd.DataFrame({"x": src["x"].to_numpy()}),
+                   bp_with(_bl, _bh))
+        check("the ceiling is never above 1.0 at bounds "
+              "[{}, {}] ({:.4f}) - clipping is a contraction, so "
+              "the variance it leaves cannot exceed the original, "
+              "and a reading above one would mean the MEASURE is "
+              "wrong rather than the engine"
+              .format(_bl, _bh, _r[0]["ceiling"]),
+              _r[0]["ceiling"] <= 1.0 + 1e-9)
+
     check("...and the share of rows sitting OUTSIDE the published "
           "bound is reported, because that is what tells a reader "
           "the shortfall is the privacy rule rather than a sampler "

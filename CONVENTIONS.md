@@ -396,6 +396,58 @@ Synthetic clinical data generator and model-evaluation instrument. Core rule: le
 - Never state a number as measured unless you actually ran it.
 
 ## Fixing what the real extract found
+- **THE PER-REGION k SCREEN IS REFUTED BEFORE IT WAS BUILT: THE
+  ENGINE IS ALREADY AT THE PRIVACY RULE'S CEILING (2026-11-10,
+  run_tt_off, `scripts/k_price.py`).** The plan was to make the
+  published bounds per-region rather than global, on the reasoning
+  that uniform caution costs spread on dense columns - and this file
+  records every spread miss on the extract as "bound-explained",
+  68% to 96% of a column's magnitude beyond the bound. That is true
+  and it is only half the question. It says the rule is responsible
+  for a shortfall without saying how much spread was REACHABLE and
+  how much of that the engine delivered. Measured on the real
+  extract, 31 bounded numeric columns:
+      mean ceiling     0.8935   what the RULE still allows
+      mean delivered   0.9972   what the ENGINE produced of that
+      at the ceiling   25 of 31 columns (delivered >= 0.95)
+  All three read back SPELLED by the machine. **The engine produces
+  99.7% of the spread the rule leaves available**, so there is
+  essentially nothing for a cleverer bound construction to recover:
+  the remaining ~10.7% is the posture itself, and moving it is a
+  governance decision rather than an engineering one.
+- **AND THE DECOMPOSITION IS THE REUSABLE PART.** `ceiling` is
+  `sd(source clipped to the published bounds) / sd(source)` - what
+  ANY generator obeying the rule can reach, since the bounds are the
+  mean of the k most extreme patients. `delivered` is
+  `sd(generated) / sd(source clipped)`. Before this there was no way
+  to tell "the k rule explains it" from "the k rule explains PART of
+  it", and the second is the only one a fidelity change can act on.
+- **WHAT SURVIVES IS NARROWER AND BETTER AIMED: SIX NAMED COLUMNS.**
+  Six of 31 sit below 0.95, and the two worst are
+  `procedure_quantity` at **0.437** and `glasgow_coma_score` at
+  **0.450** - the engine delivering under half the spread the rule
+  allows, on columns whose ceilings are 0.697 and 0.869. Both are
+  COUNT-LIKE or ordinal, which is where this file already records a
+  point mass being unreachable by a curve plus symmetric noise.
+- **AND `procedure_quantity` CARRIES PART OF THE CLOSE GAP TOO,
+  which is what makes it the lead rather than one of six.**
+  `close_gap` on the same run names it in THREE of the nine
+  remaining misses - against `active_drug_count`, against
+  `span_days`, and against `conditions__n`. One column appearing in
+  both the spread shortfall and a third of the close misses is a
+  concentration worth chasing, and it is ADDITIVE work - how a count
+  column's spread is produced - rather than the token-placement
+  rearrangement that four real arms have now shown to be near
+  zero-sum.
+- **AND A CEILING ABOVE 1.0 WOULD MEAN THE MEASURE IS WRONG, WHICH
+  THE BRIDGE NEARLY CONVINCED ME OF.** The first real read appeared
+  to show 2.869 for `glasgow_coma_score`. Clipping is a CONTRACTION,
+  so the variance it leaves cannot exceed the original and a ceiling
+  above one is impossible - the contradiction is the signal this
+  file relies on, and it was right: the screen had rendered "0." as
+  "2.", and the words channel settled it at **0.869**. The invariant
+  is a check now at three bound widths, which is cheaper than the
+  round trip.
 - **AND THE FORCING ARM IS THE FOURTH REFUTATION, WHICH TURNS THE
   PATTERN INTO SOMETHING WORTH PLANNING AROUND (2026-11-10,
   run_fi_on against run_tt_off, seed 11, one flag apart,
