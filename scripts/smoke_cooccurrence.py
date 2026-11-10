@@ -207,10 +207,26 @@ def main():
         t = Path(td)
         src = t / "src.csv"
         df.to_csv(src, index=False)
-        r_off = run_cli(src, t / "off")
-        r_on = run_cli(src, t / "on", "--token-cooccurrence")
+        r_off = run_cli(src, t / "off",
+                        "--no-token-cooccurrence")
+        r_on = run_cli(src, t / "on")
         check("both CLI arms complete", r_off.returncode == 0
               and r_on.returncode == 0)
+
+        # THE DEFAULT IS THE CLAIM. The plain invocation above is
+        # the `on` arm, so if somebody flips the default back the
+        # two arms become identical and every comparison below
+        # silently stops comparing anything - two arms that agree
+        # are one arm, and this suite would read green.
+        import inspect
+        from synthkit.generate import generate as _gen
+        _d = inspect.signature(_gen).parameters[
+            "use_cooccurrence"].default
+        check("the conditional draw is ON BY DEFAULT, which is the "
+              "claim three paired seeds of the real extract earned: "
+              "close +4 / +7 / +5 pairs, direction +2 on every seed, "
+              "zero own-column inversions throughout - a range that "
+              "does not cross zero", _d is True)
 
         bp = json.loads((t / "on" / "blueprint.json")
                         .read_text(encoding="utf-8"))
@@ -284,6 +300,9 @@ def main():
     fbp2 = copy.deepcopy(fbp)
     fbp2.pop("token_cooccurrence", None)
     g2 = generate(fbp2, n_patients=300, seed=7)
+    # AND THE DEFAULT PATH IS THE ONE EXERCISED, so the identity
+    # above is a statement about the shipped behaviour rather than
+    # about a branch nobody takes.
     check("...and a blueprint written BEFORE this field existed "
           "generates BYTE-IDENTICALLY - an old artifact must still "
           "load, and absent is not a different fact from empty",

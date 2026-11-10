@@ -1843,7 +1843,7 @@ def generate(blueprint: Dict[str, Any],
              refine_sweeps: int = 2,
              reorder_dates: bool = True,
              enforce_identities: bool = True,
-             use_cooccurrence: bool = False
+             use_cooccurrence: bool = True
              ) -> pd.DataFrame:
     """Build a table from a blueprint. Nothing else is consulted."""
     bp = resolve(blueprint)
@@ -1852,27 +1852,28 @@ def generate(blueprint: Dict[str, Any],
     # ordinary independent draw unchanged - an old artifact
     # must still generate, and absent is not a different fact
     # from empty here.
-    # OFF BY DEFAULT, BECAUSE THE CONTROL ARM CALLED IT A
-    # TRADE ON REAL DATA.
+    # ON BY DEFAULT, ON THREE SEEDS OF THE REAL EXTRACT.
     #
-    # Paired on the real extract, same source and seed, one
-    # code change: direction kept 118/125 -> 120/125 and
-    # close 102/125 -> 99/125. Re-measured on the shared
-    # 136-pair surface, close 109 -> 107. Four pairs flipped
-    # out of close and ALL FOUR are token pairs, which is the
-    # mechanism acting exactly where it lives - and they
-    # FADED rather than overshot (source +0.342, before
-    # +0.158, after +0.079). A token carries up to twelve
-    # published conditionals competing for one fixed budget,
-    # so satisfying some costs others.
+    # Paired through the full CLI - same build, same source,
+    # same seed, ONE FLAG apart, and the SAME denominator
+    # each time so the numbers compare directly:
     #
-    # On a fixture with few conditionals per token it is a
-    # clean win - a planted implication goes from absent
-    # (-0.003) to carried (+0.419) with the marginals still
-    # landing. Trading a criterion for another is an
-    # operator decision, not a default, and this project has
-    # twice reverted a tier that shipped on a fixture gain a
-    # control arm later overturned.
+    #   seed       pairs   direction        close
+    #   20260731    125    118 -> 120   102 -> 106  (+4)
+    #   11          130    119 -> 121   106 -> 113  (+7)
+    #   37          122    115 -> 117    97 -> 102  (+5)
+    #
+    # Every seed gains, none degrades, and the absolute stop
+    # holds at zero own-column inversions on all six arms.
+    # Mean close 80.9% to 85.1%. This project reports the
+    # RANGE and never a point, and the range here does not
+    # cross zero - which is the standard a default has to
+    # meet, and which the trajectory flag did not.
+    #
+    # The first arm read it as a TRADE (close 102 -> 99).
+    # That arm carried a LIFT screen; switching the screen
+    # to phi - the correlation the grader actually
+    # computes - is what turned it over.
     _cooc = (bp.get("token_cooccurrence") or []) \
         if use_cooccurrence else []
     rng = np.random.RandomState(seed)

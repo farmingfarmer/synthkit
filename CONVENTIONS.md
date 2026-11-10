@@ -396,6 +396,68 @@ Synthetic clinical data generator and model-evaluation instrument. Core rule: le
 - Never state a number as measured unless you actually ran it.
 
 ## Fixing what the real extract found
+- **THE CONDITIONAL TOKEN DRAW IS ON BY DEFAULT, EARNED ON THREE
+  PAIRED SEEDS OF THE REAL EXTRACT - AND THE SCREEN THAT DECIDED
+  IT WAS PHI RATHER THAN LIFT (2026-11-09).** About four fifths of
+  the pairs the gate relates on this extract are SET-TOKEN pairs,
+  and `_token_weights` solved only each token's MARGINAL share -
+  so within a row the tokens were drawn INDEPENDENTLY and a drug
+  implying its route had nothing to carry it. The draw now
+  reweights each pick by the published co-occurrence of what the
+  row already holds, including tokens drawn in EARLIER set
+  columns, which is the shape auto-regressive tabular generators
+  use over discretised columns. Paired through the full CLI, same
+  build, same source, ONE FLAG apart, and the SAME denominator on
+  each arm so the counts compare directly:
+      seed       pairs   direction        close          own inv
+      20260731    125    118 -> 120   102 -> 106  (+4)   0 -> 0
+      11          130    119 -> 121   106 -> 113  (+7)   0 -> 0
+      37          122    115 -> 117    97 -> 102  (+5)   0 -> 0
+  **Every seed gains, none degrades, and the absolute stop holds
+  at zero own-column inversions on all six arms.** Mean close
+  80.9% to 85.1%, direction 93.4% to 95.0%. This file's oldest
+  rule is to report the RANGE and never a point; the range here is
+  +4 to +7 and does not cross zero, which is the standard a
+  DEFAULT has to meet and which the trajectory flag did not.
+- **AND THE FIRST ARM READ IT AS A TRADE, WHICH IS WHY THE SCREEN
+  MATTERS.** With a LIFT bar the one-seed arm read close 102 -> 99
+  and would have been written up as a cost. Switching the
+  publication screen to PHI - the binary-pair correlation the
+  grader ACTUALLY computes - is what turned it over. Lift and phi
+  agree on strong pairs and on rare ones; they part on a MODERATE
+  conditional on a COMMON token, where lift divides by a large
+  base and sits near 1 while phi clears the gate's own 0.1 relate
+  floor. **Screen on the quantity the criterion measures**, which
+  is the same lesson as optimising `within_lag1` rather than the
+  two measurements it is derived from.
+- **AND THE k FLOOR APPLIES TO THE JOINT, NOT TO THE TOKENS.** Each
+  token has already cleared the vocabulary's floor; a PAIR held by
+  three patients describes those three people however common each
+  token is alone. Pinned on a fixture carrying exactly that shape -
+  two tokens on hundreds of patients whose joint is held by a
+  handful - because no existing fixture had one.
+- **AND A SIZE-COUPLING TIER WAS BUILT ALONGSIDE IT AND REMOVED
+  ENTIRELY, because its gain was an artifact of my own fixture.**
+  Its baseline came from a blueprint built with
+  `discover(df, targets=["x"])`, which EXCLUDES the relationships
+  the pipeline finds between the set-size and token-indicator
+  scaffolding columns - and the engine already draws those through
+  its ordinary relationship machinery. On that restricted
+  blueprint the baseline read -0.003 and the tier looked like it
+  took a planted implication from absent to +0.419. Through the
+  REAL CLI the baseline already carries **+0.497**. A measurement
+  that does not go through the real code path is not a
+  measurement, and this suite now runs the CLI for that reason.
+- **WHAT IS NOT CLAIMED: that close CLEARS ITS BAR.** The best arm
+  is 86.9% at seed 11 against 87.9%, so M0's close criterion still
+  FAILS on every seed - a four-point gain on a criterion that was
+  seven points short. Thirteen of the seventeen close misses on
+  the record sit on TOKEN INDICATORS and SET SIZES, which are
+  search machinery dropped before `generated.csv` is written, so
+  no rearrangement of the written file can reach them and the only
+  route to them is the draw. Nor is anything claimed for shapes
+  tracked, interaction surfaces or dynamics tracked; nothing here
+  touches those.
 - **TWO SEEDS NOW, BOTH POSITIVE, AND THE SECOND IS BIGGER THAN
   THE FIRST (2026-11-09 overnight).** The conditional token draw,
   paired through the full CLI - same build, same source, same
