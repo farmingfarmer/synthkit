@@ -1219,24 +1219,9 @@ def build(df: pd.DataFrame,
                 .get("type") == "list"]
     _cooc = _sets.cooccurrence(df, _setcols, gvals, k=k) \
         if _setcols else []
-    # AND HOW BIG ONE SET IS GIVEN ANOTHER. A visit with five
-    # drugs has more routes than a visit with one; measured on
-    # a fixture the source correlates the two sizes at +0.915
-    # and the generated file at -0.003, because each column
-    # draws its size from its own distribution with no
-    # reference to the other. It is also what BOUNDS the
-    # conditional token draw: of the rows that missed an
-    # implied token, 60% had drawn no tokens at all.
-    _seps = dict(
-        (c, ((columns.get(c) or {}).get("marginal") or {})
-         .get("separator") or ";") for c in _setcols)
-    _szc = _sets.size_coupling(df, _setcols, gvals, k=k,
-                               seps=_seps) if _setcols else []
-
     return {
         "blueprint_version": BLUEPRINT_VERSION,
         "token_cooccurrence": _cooc,
-        "set_size_coupling": _szc,
         "arithmetic_identities": _ident,
         "constraints": _constraints(X, k),
         "correlations": correlations,

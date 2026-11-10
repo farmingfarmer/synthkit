@@ -396,6 +396,57 @@ Synthetic clinical data generator and model-evaluation instrument. Core rule: le
 - Never state a number as measured unless you actually ran it.
 
 ## Fixing what the real extract found
+- **MY FIXTURE BASELINE WAS AN ARTIFACT OF MY OWN RESTRICTED
+  DISCOVERY, AND IT OVERSTATED TWO FEATURES BY AN ORDER OF
+  MAGNITUDE (2026-11-09, found by checking that a mechanism
+  FIRED).** Every fixture measurement of the token work built its
+  blueprint with `discover(df, group_by=..., targets=["x"])`. That
+  restriction EXCLUDES the relationships the pipeline discovers
+  between the SCAFFOLDING columns - and those are exactly where
+  this structure already lived. A real run's blueprint carries,
+  unprompted:
+      drug_routes__has__Flush <- ['active_drugs__n',
+          'active_drugs__has__acetaminophen',
+          'active_drugs__has__albuterol']
+      active_drugs__n <- ['drug_routes__n',
+          'drug_routes__has__Oral', 'x']
+  So the engine ALREADY draws token co-occurrence and set-size
+  coupling through its ordinary relationship machinery.
+- **THE SAME FIXTURE, MEASURED THROUGH THE REAL CLI PATH:**
+      arm          size corr   heparin/Flush   albuterol/Neb
+      source         +0.9130        +1.000         +1.000
+      neither        +0.8730        +0.497         +0.445
+      size only      +0.8804        +0.503         +0.435
+      cooccurrence   +0.8730        +0.502         +0.378
+      both           +0.8804        +0.509         +0.422
+  The baseline already carries HALF the implication and nearly all
+  of the size correlation. The numbers I recorded hours earlier -
+  "neither -0.003, cooccurrence +0.419, both +0.833" - are
+  WITHDRAWN: they describe a blueprint no run produces.
+- **SO THE SET-SIZE COUPLING IS REMOVED ENTIRELY.** On the real
+  extract it moved the mean set-size correlation from **0.1499 to
+  0.1520** against a source **0.4210** - 0.002 of a 0.27 gap - and
+  it introduced **2 scaffolding inversions**. On a fixture through
+  the real path it is worth +0.007. It is redundant with machinery
+  that already exists, and a flag that buys nothing is a thing to
+  delete rather than ship: the detector, the published field, the
+  draw hook and the CLI flag are all gone.
+- **THE CO-OCCURRENCE DRAW STAYS, AND ITS JUSTIFICATION IS THE
+  REAL EXTRACT ALONE.** Paired through the full CLI, same build,
+  same seed, one flag: close **102/125 to 106/125**, and on the
+  re-measured 136-pair shared surface **110 to 113**. On a fixture
+  it adds nothing measurable. A feature whose only evidence is the
+  extract is exactly the kind this file says to keep OFF by
+  default and measure again - which is where it is.
+- **AND THE WAY THIS WAS CAUGHT IS THE REUSABLE PART.** The gate
+  numbers alone said "size coupling is neutral". Asking whether
+  the MECHANISM had fired - mean set-size correlation, source
+  against both arms - said it had barely run at all, which is a
+  different fact with a different fix. An arm that bought nothing
+  and an arm that did nothing are indistinguishable in a verdict
+  table, and this project has a rule about that in both
+  directions.
+
 - **THE PHI SCREEN TURNED THE REAL-EXTRACT TRADE INTO A WIN, AND
   THE FIXTURE COULD NOT HAVE TOLD ME (2026-11-09, run_cooc2
   against run_base2).** Same build, same source, same seed
