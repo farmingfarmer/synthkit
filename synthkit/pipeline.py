@@ -77,6 +77,27 @@ def build_parser(prog=None, add_help=True):
                     help="the patient id column")
     ap.add_argument("--time-col", default="",
                     help="visit ordering column; detected if omitted")
+    ap.add_argument("--force-implications", type=float,
+                    default=None, metavar="COND",
+                    help="FORCE an implied token into the "
+                         "row wherever an implying token "
+                         "was drawn, for published "
+                         "conditionals at or above COND "
+                         "(0.90 is the tier's bar). A "
+                         "near-deterministic implication "
+                         "cannot be reached by multiplying "
+                         "a weight, and on the real extract "
+                         "the worst misses read published "
+                         "1.0 against achieved 0.0. Forcing "
+                         "is capped at each token's own "
+                         "published share, and a token over "
+                         "half the rows keeps its own "
+                         "placement. OFF by default: three "
+                         "fixture seeds land 4-to-20, "
+                         "9-to-19 and 13-to-28 more pairs "
+                         "with no share over the bar, and a "
+                         "fixture result is not the "
+                         "standard for a default here.")
     ap.add_argument("--token-solve-scale", type=float,
                     default=None,
                     help="extra draw-measure-adjust passes "
@@ -752,6 +773,15 @@ def main(argv=None, args=None):
     # project's own named failure mode, so the run PRINTS the value
     # it is about to use rather than leaving a reader to assume the
     # default.
+    _force = getattr(a, "force_implications", None)
+    if _force is not None:
+        import synthkit.generate as _gen
+        _gen.COOC_FORCE_MIN = float(_force)
+        say("forcing implications at a published "
+            "conditional of {} or above, capped at each "
+            "token's own share (a token over {} of rows "
+            "keeps its own placement)".format(
+                float(_force), _gen.COOC_FORCE_MAX_SHARE))
     _scale = getattr(a, "token_solve_scale", None)
     if _scale is not None:
         import synthkit.generate as _gen

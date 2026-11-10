@@ -1003,8 +1003,37 @@ def _cooc_index(cooc, col, toks):
     return pack(w_tmp), pack(c_tmp)
 
 
+# A NEAR-DETERMINISTIC IMPLICATION CANNOT BE REACHED BY MULTIPLYING
+# A WEIGHT, which is what the detector's own comment says and what the
+# real extract then showed. `cooc_landing` on the shipping default's
+# run: 4,471 published pairs, 2,729 landing within 0.15 - so the solve
+# is NOT broadly broken - and the worst misses read **published 1.0,
+# achieved 0.0**, three ophthalmic drugs against one procedure code.
+# A source rank correlation of 0.885 IS a near-perfect implication, so
+# the band that cannot be reached is exactly the band `close` is made
+# of.
+#
+# Above this conditional the implied token is FORCED into the row
+# rather than nudged. The neural engine has had this tier since
+# 2026-09-30; the rules engine never did.
+COOC_FORCE_MIN = None          # None = off; 0.90 is the tier's bar
+# AND A BROAD TOKEN KEEPS ITS OWN PLACEMENT. Forcing b wherever any
+# implier lands replaces b's own signal with the UNION of
+# independently-placed impliers, and a union cannot carry a macro
+# signal: this project measured exactly that when forcing `Oral`
+# (share 0.86) flipped a guarded negative correlation from -0.13 to
+# +0.19 against a source -0.25 - an INVERTED verdict manufactured by
+# a fix for a close verdict.
+COOC_FORCE_MAX_SHARE = 0.5
+# ONE LEVEL, NOT A CASCADE. If forcing b pulled in whatever b implies,
+# a chain of near-deterministic pairs would fill a row from one pick
+# and the size distribution would be decided by the implication graph
+# rather than by the published grid.
+COOC_FORCE_DEPTH = 1
+
+
 def _pick_row(n_tok, k_, w, rng, within=None, ctx=None,
-              cross=None):
+              cross=None, share=None, budget=None):
     """One row's tokens, drawn AUTO-REGRESSIVELY.
 
     WHY THIS EXISTS AND WHAT IT REPLACES. The draw was
@@ -1055,7 +1084,93 @@ def _pick_row(n_tok, k_, w, rng, within=None, ctx=None,
             hit = within.get(j)
             if hit is not None:
                 mult[hit["idx"]] *= hit["mu"]
-    return picks
+    if COOC_FORCE_MIN is None or not picks:
+        return picks
+
+    # ---- THE FORCING PASS ------------------------------------
+    # THE MARGINAL RESTORE IS FREE HERE, which is what makes this
+    # cheap where the neural engine's version was not. The weight
+    # SOLVE calls this same function, so it measures a draw that
+    # already includes the forcing and compensates the shares by
+    # construction - the neural tier had to drain the books by hand
+    # and this project recorded both ways that went wrong.
+    picked = set(picks)
+    owed = set()
+
+    def _owe(hit):
+        if hit is None:
+            return
+        idx = hit["idx"]
+        want = hit.get("want")
+        if want is None:
+            return
+        for pos_ in range(len(idx)):
+            wv = float(want[pos_])
+            if not np.isfinite(wv) or wv < COOC_FORCE_MIN:
+                continue
+            j2 = int(idx[pos_])
+            if j2 in picked:
+                continue
+            if share is not None and \
+                    float(share[j2]) > COOC_FORCE_MAX_SHARE:
+                continue
+            # NO BUDGET TEST HERE. One was written and REMOVED:
+            # the apply loop below already refuses an exhausted
+            # token, so this one changed nothing - proven rather
+            # than argued, by generating with and without it and
+            # getting the identical md5. A guard no mutation can
+            # break is dead code that implies a protection living
+            # somewhere else, which is why this project removed a
+            # redundant campaign guard rather than leaving it as an
+            # untestable comment.
+            owed.add(j2)
+
+    for name in (ctx or ()):
+        _owe((cross or {}).get(name))
+    for i in picks:
+        _owe((within or {}).get(i))
+    if not owed:
+        return picks
+
+    # THE SIZE GRID STILL DECIDES THE SIZE. A forced token displaces
+    # the weakest pick that was NOT itself forced, so the row keeps
+    # the length the published grid drew for it.
+    out = list(picks)
+    for j2 in sorted(owed):
+        # THE FORCED COUNT MAY NOT EXCEED THE TOKEN'S OWN PUBLISHED
+        # SHARE, and this is the guard that enforces it - removing
+        # it turns three checks red, including both marginal checks.
+        #
+        # The cost of not having it was measured rather than
+        # imagined: forcing every near-deterministic pair landed 69
+        # of 69 conditionals and pushed SEVENTEEN token shares past
+        # the 0.05 bar, worst by 0.31. The reason is the UNION - a
+        # token implied by many others is forced wherever ANY of
+        # them lands, and that union can exceed the token's own
+        # share even when each implier fits inside it. No weight can
+        # undo it: the solve can drive the UNFORCED picks to zero
+        # and the forced ones remain. This project recorded the same
+        # union fault in the neural engine's tier.
+        #
+        # With the budget the conditional lands on as many rows as
+        # the marginal can afford and no more - 4 to 20, 9 to 19 and
+        # 13 to 28 landed across three seeds, with ZERO shares over
+        # the bar in every arm.
+        if budget is not None:
+            if budget[j2] <= 0:
+                continue
+            budget[j2] -= 1
+        if len(out) < int(k_):
+            out.append(j2)
+            continue
+        cand = [(float(w[i2] * mult[i2]), i2) for i2 in out
+                if i2 not in owed]
+        if not cand:
+            break
+        cand.sort()
+        out.remove(cand[0][1])
+        out.append(j2)
+    return out
 
 
 # HOW MANY DRAW-MEASURE-ADJUST PASSES THE TOKEN SOLVE GETS. Named
@@ -1187,6 +1302,11 @@ def _token_weights(m, sizes_per_row, seed, within=None,
     for it in range(_solve_passes(cross, within)):
         r2 = np.random.RandomState((seed + 977 * it) % (2 ** 31))
         got = np.zeros(len(toks))
+        # A FRESH FORCED BUDGET EACH PASS, because each pass redraws
+        # every row. Carrying it across passes would exhaust it in
+        # the first one and the solve would measure a draw no later
+        # pass could reproduce.
+        _budget = _force_budget(p_pub, len(sizes_per_row))
         ww = w / w.sum()
         wtrig = {}
         whit = {}
@@ -1203,7 +1323,8 @@ def _token_weights(m, sizes_per_row, seed, within=None,
             # unlanded and the two halves disagreeing about
             # the column's contents.
             picks = _pick_row(len(toks), k_, ww, r2, within,
-                              names, cross)
+                              names, cross, share=p_pub,
+                              budget=_budget)
             got[picks] += 1.0
             if not picks:
                 continue
@@ -1272,6 +1393,28 @@ def _token_weights(m, sizes_per_row, seed, within=None,
     return toks, w / w.sum()
 
 
+def _force_budget(share, n_rows):
+    """How many rows each token may be FORCED into.
+
+    Its own published share, in rows. Beyond that the forcing would
+    push the token's marginal past what the contract says, and no
+    weight can take it back - the solve can drive the UNFORCED picks
+    to zero and the forced ones remain.
+    """
+    if share is None or n_rows <= 0:
+        return None
+    return np.maximum(
+        np.floor(np.asarray(share, dtype=float) * float(n_rows)),
+        0.0).astype(np.int64)
+
+
+def _pub_shares(m):
+    """The published token shares, for the broad-token cap."""
+    return np.asarray([max(float(t.get("p") or 0.0), 0.0)
+                       for t in (m.get("tokens") or [])],
+                      dtype=float)
+
+
 def _draw_list_sized(m, ks, rng, cooc=None, col=None,
                      ctx_fn=None):
     """A set per row whose SIZE is handed in, not drawn.
@@ -1324,6 +1467,8 @@ def _draw_list_sized(m, ks, rng, cooc=None, col=None,
                            within=within, ctx_fn=ctx_fn,
                            cross=cross)
     sep = m.get("separator", ";")
+    _shares = _pub_shares(m)
+    _budget = _force_budget(_shares, len(ks))
     out = []
     for k_ in ks2:
         if k_ == 0:
@@ -1340,7 +1485,8 @@ def _draw_list_sized(m, ks, rng, cooc=None, col=None,
             continue
         picked = _pick_row(len(toks), k_, w, rng, within,
                            () if ctx_fn is None
-                           else ctx_fn(len(out)), cross)
+                           else ctx_fn(len(out)), cross,
+                           share=_shares, budget=_budget)
         out.append(sep.join(sorted(toks[i] for i in picked)))
     return np.asarray(out, dtype=object)
 

@@ -396,6 +396,68 @@ Synthetic clinical data generator and model-evaluation instrument. Core rule: le
 - Never state a number as measured unless you actually ran it.
 
 ## Fixing what the real extract found
+- **THE RULES ENGINE CAN FORCE AN IMPLICATION NOW, AND THE BUDGET IS
+  THE WHOLE DESIGN (2026-11-09, `--force-implications`).** The real
+  extract's unreachable band is the near-deterministic one -
+  `cooc_landing` reads 4,471 published pairs with 2,729 landing, and
+  the worst read **published 1.0, achieved 0.0**. A multiplicative
+  weight cannot reach a conditional of 1.0; the neural engine has
+  forced since 2026-09-30 and the rules engine never did. Forcing
+  goes inside `_pick_row`, which both the DRAW and the weight SOLVE
+  call, so the solve measures a draw that already includes it.
+- **AND MY FIRST CUT LANDED EVERY CONDITIONAL AND WRECKED SEVENTEEN
+  MARGINALS.** Measured, not imagined:
+      arm                   landed      worst share   over 0.05
+      no forcing             4 of 74       0.0089         0
+      forcing, no budget    69 of 69       0.3073        17
+      forcing with budget   20 of 74       0.0097         0
+  I had written in the commit that the marginal restore was FREE
+  because the solve calls the same function. **That is false**, and
+  the measurement is what said so. The reason is the UNION: a token
+  implied by many others is forced wherever ANY of them lands, and
+  that union can exceed the token's own published share even when
+  each implier fits inside it. No weight can take it back - the
+  solve can drive the UNFORCED picks to zero and the forced ones
+  remain. This project recorded the same union fault in the neural
+  engine's tier and I rediscovered it from the other side.
+- **SO FORCING IS CAPPED AT EACH TOKEN'S OWN PUBLISHED SHARE, IN
+  ROWS.** Past that the pair falls back to the nudge, so the
+  conditional lands on as many rows as the marginal can afford and
+  no more - which is the honest arrangement rather than a choice
+  between the two. Three seeds: **4 to 20, 9 to 19, 13 to 28**
+  landed, with ZERO shares over the 0.05 bar in every arm and the
+  mean set size unchanged, because a forced token DISPLACES the
+  weakest unforced pick rather than extending the row. Removing the
+  budget turns three checks red, both marginal checks among them.
+- **AND A SECOND BUDGET TEST WAS WRITTEN, PROVEN REDUNDANT, AND
+  REMOVED.** The first fail-first removed the test in the
+  candidate-gathering step and ALL ELEVEN CHECKS PASSED - because
+  the apply loop already refuses an exhausted token. Byte-identical
+  md5 with and without it. A guard no mutation can break is dead
+  code implying a protection that lives somewhere else, which is
+  why this project removed a redundant campaign guard rather than
+  leaving it as an untestable comment. Deleted, with the proof in
+  its place.
+- **AND THE BROAD-TOKEN CAP IS KEPT AND CHECKED, because this file
+  already records what happens without it:** forcing a 0.86-share
+  token flipped a guarded NEGATIVE correlation to positive, an
+  inversion manufactured by a fix for a close verdict. A token over
+  half the rows keeps its own placement, measured at 0.7635 against
+  a published 0.80 with the tier on - inside the share bar.
+- **AND THE BROAD-TOKEN FIXTURE WAS THE THIRD INFEASIBLE ONE OF THE
+  NIGHT.** It set one share to 0.80 and left the rest, so the total
+  passed what any row can hold - and the CONTROL arm then missed the
+  broad token too, at 0.6886 against 0.80, which I first read as
+  the forcing dragging it. Rescaling the rest so the shares still
+  sum to the mean set size gave 0.7830 on the control. Three times
+  in one session: a frame whose targets cannot all be met at once
+  measures nothing but its own infeasibility, and the feasibility
+  condition for a set vocabulary is that the shares sum to the mean
+  SIZE.
+- **OFF BY DEFAULT, AND BYTE-IDENTICAL WHEN OFF.** Asserted through
+  `generate`, not argued. The token-target tier was reversed by a
+  real arm the same night on fixture evidence of the same strength,
+  so the paired real arm decides this one too.
 - **THE LANDING DIAGNOSTIC RAN ON THE REAL EXTRACT AND REFUTED MY
   OWN DRAW HYPOTHESIS, THEN NAMED A SHARPER ONE (2026-11-09,
   run_tt_off).** `cooc_landing` on the shipping default's own run:
