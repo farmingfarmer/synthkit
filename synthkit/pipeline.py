@@ -2061,6 +2061,25 @@ def compare(df, g, bp, group_by, time_col, ordinals=None,
     shapes = _curves.measure_shapes(Xs, Xg, bp, _gid, _kk)
     surfaces = _curves.measure_surfaces(Xs, Xg, bp, _gid, _kk)
 
+    # TOTAL VARIATION DISTANCE, over EVERY pair rather than
+    # only the related ones. The pair criteria are a pass/fail
+    # on a correlation delta over the pairs the source relates
+    # at 0.1 or more - blind to a generator INVENTING structure
+    # where there was none, and a threshold, so it moves in
+    # steps while the thing underneath moves continuously.
+    # This is the axis the commercial tools publish on.
+    # REPORTED, NOT GATED.
+    try:
+        from synthkit import tvd as _tvd
+        from synthkit import sets as _S_tvd
+        _skip = set([group_by]) | set(
+            c for c in Xs.columns
+            if _S_tvd.is_scaffolding(c))
+        tvd_block = _tvd.measure(Xs, Xg, skip=_skip)
+    except Exception as _e:          # pragma: no cover
+        # A REPORTED measure must never take a run down.
+        tvd_block = {"error": str(_e)[:200]}
+
     # SCAFFOLDING IS COUNTED SEPARATELY, or the headline is inflated.
     # A four-column file expanded to twenty-seven, and the run
     # reported "coverage within 0.05 on 27/27 columns" - a reader
@@ -2328,6 +2347,7 @@ def compare(df, g, bp, group_by, time_col, ordinals=None,
         "relationships": pairs,
         "shapes": shapes,
         "surfaces": surfaces,
+        "tvd": tvd_block,
         "summary": {
             "columns": len(cols), "numeric": n_ok["num"],
             # Counted APART from the columns above, which are the

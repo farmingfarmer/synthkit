@@ -222,10 +222,28 @@ def assess(fid: Dict[str, Any],
     # context for the ones already here.
     _de = ((fid.get("relationships") or {}).get("declared_edges")
            or {})
+    # AND THE DISTANCE, ON THE AXIS THE COMMERCIAL TOOLS
+    # PUBLISH ON - carried for the same reason and under the
+    # same rule. Every criterion above is a pass/fail on the
+    # pairs the SOURCE relates; this is a continuous distance
+    # over EVERY pair, so it moves when the engine moves and
+    # it sees a generator inventing structure where there was
+    # none. NOT a criterion: a bar for it would change what a
+    # MET means on a threshold nobody has measured a basis
+    # for, and this project does not move a bar and a number
+    # in the same commit.
+    _tv = fid.get("tvd") or {}
     return {"criteria": crit,
             "met": all(c["ok"] for c in crit),
             "pairs": pairs,
             "declared_edges": _de,
+            "tvd": {"accuracy": _tv.get("accuracy"),
+                    "univariate": (_tv.get("univariate")
+                                   or {}).get("mean_tvd"),
+                    "bivariate": (_tv.get("bivariate")
+                                  or {}).get("mean_tvd"),
+                    "pairs_measured": (_tv.get("bivariate")
+                                       or {}).get("n")},
             "bars": {"direction": dir_bar, "close": close_bar,
                      "custom": bool(dir_custom or close_custom)}}
 
