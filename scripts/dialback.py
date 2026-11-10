@@ -86,29 +86,26 @@ def load_pair(run):
     return k, g, c, None
 
 
-def verify(run):
-    """Is the released file an exact permutation of the key?
+def verify_report(run):
+    """The verify measurement AS DATA, so one computation serves
+    both the terminal and the bench.
 
-    This is the claim that makes a re-pointed file a legitimate
-    test article rather than corrupted data, so it is asserted
-    rather than described: every perturbed column round-trips
-    through the cipher EXACTLY, holds the identical multiset of
-    values, and every column we did not touch is untouched.
+    `verify` printed as it computed, which left the bench no way
+    to show this without re-implementing the round-trip - and two
+    implementations of the claim that makes a re-pointed file a
+    legitimate test article rather than corrupted data is exactly
+    how the shipped artifact and the screen come to disagree.
     """
     k, g, c, err = load_pair(run)
     if err:
-        print("STOP: " + err)
-        return 1
+        return {"error": err}
     bad = []
-    print("key/released pair in {}".format(run))
-    print("  rows        key {}  released {}".format(len(k),
-                                                     len(g)))
     if len(k) != len(g):
         bad.append("row counts differ - the pair is not aligned")
     if list(k.columns) != list(g.columns):
         bad.append("column lists differ")
     cols = c.get("columns") or {}
-    print("  perturbed   {}".format(", ".join(cols) or "(none)"))
+    perturbed = []
     for col, tf in cols.items():
         tf = np.asarray(tf, dtype=np.int64)
         rec = np.empty(len(g), dtype=object)
@@ -121,9 +118,9 @@ def verify(run):
                                   errors="coerce").dropna())
         same = (len(a) == len(b)
                 and np.allclose(a, b, equal_nan=True))
-        print("    {:<22} inverse exact {}   same multiset "
-              "{}".format(col, "YES" if exact else "NO",
-                          "YES" if same else "NO"))
+        perturbed.append({"column": col,
+                          "inverse_exact": bool(exact),
+                          "same_multiset": bool(same)})
         if not exact:
             bad.append("{}: the cipher does not invert".format(
                 col))
@@ -134,18 +131,65 @@ def verify(run):
     moved = [x for x in untouched
              if not np.array_equal(g[x].to_numpy().astype(str),
                                    k[x].to_numpy().astype(str))]
-    print("  untouched   {} column(s), {} changed".format(
-        len(untouched), len(moved)))
     if moved:
         bad.append("columns changed with no cipher entry: "
                    + ", ".join(moved[:6]))
+    repointed = []
     for r in (c.get("repointed") or []):
         _rch = r.get("reachable")
         _ask = float(r.get("requested", 0))
         _got = float(r.get("achieved", 0))
+        _lo = float(_rch[0]) if _rch else None
+        _hi = float(_rch[1]) if _rch else None
+        repointed.append({
+            "pair": r.get("pair", "?"),
+            "requested": _ask, "achieved": _got,
+            "reachable": [_lo, _hi] if _rch else None,
+            "distinct_child": r.get("distinct_child"),
+            "outside_band": bool(_rch) and (
+                (_ask < _lo - 1e-9) or (_ask > _hi + 1e-9))})
+    return {"run": str(run), "rows_key": len(k),
+            "rows_released": len(g),
+            "perturbed": perturbed,
+            "untouched": len(untouched), "moved": moved,
+            "repointed": repointed,
+            "suppressed": list(c.get("suppressed") or []),
+            "bad": bad, "verified": not bad}
+
+
+def verify(run):
+    """Is the released file an exact permutation of the key?
+
+    This is the claim that makes a re-pointed file a legitimate
+    test article rather than corrupted data, so it is asserted
+    rather than described: every perturbed column round-trips
+    through the cipher EXACTLY, holds the identical multiset of
+    values, and every column we did not touch is untouched.
+
+    The MEASUREMENT lives in `verify_report`; this prints it.
+    """
+    rep = verify_report(run)
+    if rep.get("error"):
+        print("STOP: " + rep["error"])
+        return 1
+    print("key/released pair in {}".format(run))
+    print("  rows        key {}  released {}".format(
+        rep["rows_key"], rep["rows_released"]))
+    print("  perturbed   {}".format(
+        ", ".join(p["column"] for p in rep["perturbed"])
+        or "(none)"))
+    for p in rep["perturbed"]:
+        print("    {:<22} inverse exact {}   same multiset "
+              "{}".format(p["column"],
+                          "YES" if p["inverse_exact"] else "NO",
+                          "YES" if p["same_multiset"] else "NO"))
+    print("  untouched   {} column(s), {} changed".format(
+        rep["untouched"], len(rep["moved"])))
+    for r in rep["repointed"]:
         print("    re-pointed {:<28} asked {:+.2f}  landed "
-              "{:+.2f}".format(r.get("pair", "?"), _ask, _got))
-        if not _rch:
+              "{:+.2f}".format(r["pair"], r["requested"],
+                               r["achieved"]))
+        if not r["reachable"]:
             # ABSENT IS NOT KNOWN-TO-BE-FINE. A cipher written
             # before the band was recorded cannot say whether
             # the ask was representable at all, and printing
@@ -161,31 +205,27 @@ def verify(run):
         # A MISS. Rank correlation is bounded by the TIE
         # STRUCTURE, and a reader who sees -0.60 asked and -0.29
         # landed will hunt a sampler bug unless the ceiling is
-        # printed beside it WITH THE THING THAT BOUNDS IT. The
-        # run's own console names the distinct-value count;
-        # verify is the audit record somebody reads weeks later
-        # when that console is long gone, so it has to name it
-        # too, or the band is a bare bracket nobody can check.
-        _lo, _hi = float(_rch[0]), float(_rch[1])
-        _nd = r.get("distinct_child")
+        # printed beside it WITH THE THING THAT BOUNDS IT.
+        _lo, _hi = r["reachable"]
+        _nd = r["distinct_child"]
         print("      reachable band for this pair "
               "[{:+.3f}, {:+.3f}]{}".format(
                   _lo, _hi,
                   "" if _nd is None else
                   ", bounded by the {} distinct value(s) the "
                   "dialed column holds".format(_nd)))
-        if (_ask < _lo - 1e-9) or (_ask > _hi + 1e-9):
+        if r["outside_band"]:
             print("      THE ASK WAS OUTSIDE THAT BAND: {:+.2f} "
                   "does not exist for this pair however the "
                   "values are arranged, so the dial went as far "
                   "as the pair allows. An impossible ask, not a "
-                  "weak dial.".format(_ask))
-    for r in (c.get("suppressed") or []):
+                  "weak dial.".format(r["requested"]))
+    for r in rep["suppressed"]:
         print("    suppressed {}".format(r))
     print("")
-    if bad:
+    if rep["bad"]:
         print("NOT VERIFIED:")
-        for b in bad:
+        for b in rep["bad"]:
             print("  - " + b)
         return 1
     print("VERIFIED. The released file carries every column's "

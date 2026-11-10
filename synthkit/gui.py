@@ -1817,6 +1817,118 @@ def api_duel(payload: dict) -> dict:
     return {"html": html}
 
 
+def api_cipher(payload: dict) -> dict:
+    """The key / released / cipher arrangement, for one run.
+
+    A WINDOW ONTO `dialback verify`: both call `verify_report`, so
+    the audit record a reviewer reads weeks later and the panel on
+    screen are one computation. The terminal prints FROM that
+    report rather than computing beside it.
+
+    WHAT IT ASSERTS, rather than describes: every perturbed column
+    round-trips through the cipher exactly, holds the identical
+    multiset of values, and every column nobody touched is
+    untouched. That is what makes a re-pointed file a legitimate
+    test article instead of damaged data - so it is checked, and
+    moving a single value in the released file makes it fail and
+    name the column.
+    """
+    import sys as _sys
+    sd = str(Path(__file__).resolve().parent.parent / "scripts")
+    if sd not in _sys.path:
+        _sys.path.insert(0, sd)
+    try:
+        from dialback import verify_report
+    except Exception as e:                          # noqa: BLE001
+        return {"error": "could not load the cipher reader: {}"
+                         .format(e)}
+    raw = (payload.get("out") or "").strip()
+    if not raw:
+        return {"error": "Give the output directory of a run that "
+                         "wrote a key and a cipher."}
+    run = Path(raw).expanduser()
+    if not run.is_dir():
+        return {"error": "No such run directory: {}".format(run)}
+    missing = [f for f in ("key.csv", "generated.csv",
+                           "cipher.json")
+               if not (run / f).exists()]
+    if missing:
+        return {"error": "This run has no {} - so there is nothing "
+                         "to read an answer back against. A run "
+                         "writes the key and the cipher only when "
+                         "a release dial was set; without one the "
+                         "released file IS the full-fidelity file."
+                         .format(" or ".join(missing))}
+    try:
+        rep = verify_report(str(run))
+    except Exception as e:                          # noqa: BLE001
+        return {"error": "the check failed: {}".format(e)}
+    if rep.get("error"):
+        return {"error": rep["error"]}
+    return rep
+
+
+def api_scrub(payload: dict) -> dict:
+    """The Safe Harbor scan, for one table, before it is fitted.
+
+    A WINDOW ONTO `synthkit scrub`: both call `scrub.detect` and
+    `scrub.inventory`, so the bench and the terminal cannot
+    disagree about what was found or about what was looked for.
+
+    IT REPORTS COVERAGE, NOT ONLY FINDINGS. A detector that finds
+    nothing and never says what it searched for is a clean bill of
+    health for whatever nobody checked, so all eighteen categories
+    come back with their status.
+
+    AND IT NEVER QUOTES WHAT IT FOUND. Counting is safe; printing
+    the span is not - a PHI detector whose own output carries the
+    identifier has MOVED the leak rather than closed it. The
+    findings carry a column, a kind, a share and a reason, and no
+    value from the table.
+    """
+    from . import scrub as _scrub
+    from .intake import read_table, IntakeError
+    raw = (payload.get("src") or "").strip()
+    if not raw:
+        return {"error": "Give the table to scan."}
+    src = str(Path(raw).expanduser())
+    sp = _src_problem(src)
+    if sp:
+        return {"error": sp}
+    try:
+        df, how = read_table(src, max_rows=20000)
+    except IntakeError as e:
+        return {"error": str(e)}
+    except Exception as e:                          # noqa: BLE001
+        return {"error": "could not read {}: {}".format(src, e)}
+    gb = (payload.get("group_by") or "").strip() or None
+    if gb and gb not in df.columns:
+        return {"error": "No column named {!r} to group by. The "
+                         "per-patient tests - a name is constant "
+                         "within a person, an identifier is about "
+                         "one per row - need it, and guessing "
+                         "which column it is would decide the "
+                         "answer.".format(gb)}
+    try:
+        rep = _scrub.detect(df, group_by=gb)
+    except Exception as e:                          # noqa: BLE001
+        return {"error": "the scan failed: {}".format(e)}
+    inv = _scrub.inventory()
+    pend = _scrub.pending(rep)
+    return {
+        "read_as": how,
+        "columns_seen": rep.get("columns_seen"),
+        "findings": rep.get("findings") or [],
+        "clear": rep.get("clear") or [],
+        "out_of_scope": rep.get("out_of_scope") or [],
+        "pending": [dict(x) for x in pend],
+        "inventory": inv.get("categories") or [],
+        "coverage": inv.get("counts") or {},
+        "categories_total": inv.get("total"),
+        "note": rep.get("note"),
+    }
+
+
 def api_determination(payload: dict) -> dict:
     """The HIPAA Expert Determination evidence package, for one run.
 
@@ -2012,6 +2124,8 @@ _ROUTES = {
                           budget_s=4 * 3600.0)},
     "/api/fit-log": api_fit_log,
     "/api/fit-open": api_fit_open,
+    "/api/cipher": api_cipher,
+    "/api/scrub": api_scrub,
     "/api/determination": api_determination,
     "/api/deck": api_deck,
     "/api/explain": lambda payload: __import__(
@@ -3159,6 +3273,10 @@ textarea:focus,input:focus,select:focus{
   <button class="station" data-step="2" data-s="fitver" data-route="measure"><b>02</b>
     Verdict<small class="subt">judge the run</small></button>
   <div class="railsplit">before you release</div>
+  <button class="station" data-step="8" data-s="scrub" data-route="shared"><b>REL</b>
+    De-identify<small class="subt">scan for PHI first</small></button>
+  <button class="station" data-step="8" data-s="cipher" data-route="shared"><b>REL</b>
+    Key &amp; cipher<small class="subt">tune it, read it back</small></button>
   <button class="station" data-step="8" data-s="determ" data-route="shared"><b>REL</b>
     Determination<small class="subt">assemble the evidence</small></button>
   <div class="railsplit">then, for either route</div>
@@ -3931,6 +4049,60 @@ textarea:focus,input:focus,select:focus{
   <div class="nextup"><span class="lbl">next</span><b>Step 4 &mdash; Campaign</b><span>A measured dataset takes the same road as an invented one: set the exam, then the showdown.</span></div>
 </section>
 
+<section id="s-cipher" data-step="8" data-route="shared">
+  <div class="stepbanner"><span class="stepchip">Before release</span><span>Tune the release, and still read the answer back</span></div>
+  <div class="exbar"><span class="exlbl">how this works</span><button onclick="exOpen('key-and-cipher')"><b>?</b>the key and the cipher</button><button onclick="exOpen('k-rule')"><b>?</b>the k rule</button><button onclick="exOpen('membership-attack')"><b>?</b>the privacy attacks</button><button onclick="exOpen('privacy-not-a-fault')"><b>?</b>when a miss is the k rule</button></div>
+  <dl class="stepgoal"><dt>you need</dt><dd>A run that set a release dial. Such a run writes three files instead of one &mdash; without a dial the released file IS the full-fidelity file and there is nothing to read back.</dd><dt>you get</dt><dd>The proof that the released file is an exact REARRANGEMENT of the key: every perturbed column round-trips through the cipher, holds the identical multiset of values, and every column nobody touched is untouched. That is the sentence for a governance conversation &mdash; a faithful rearrangement, not damaged data &mdash; and it is checked rather than described.</dd></dl>
+  <div class="panel">
+    <h2>What a run produces</h2>
+    <table class="jt"><tr><th>file</th><th>what it is</th><th>who sees it</th></tr>
+    <tr><td><code>key.csv</code></td><td>the full-fidelity synthetic table, before any deliberate distortion</td><td>we keep it &mdash; never shared</td></tr>
+    <tr><td><code>generated.csv</code></td><td>the released table, after the distortion we chose</td><td>this is what goes out</td></tr>
+    <tr><td><code>cipher.json</code></td><td>which key row each released value came from</td><td>we keep it &mdash; the key to reading an answer back</td></tr></table>
+    <div class="hint">Before this arrangement existed the run threw
+    the full-fidelity table away the moment the dial was applied,
+    so there was nothing to read an answer back against. The
+    architecture was not merely unbuilt; it was impossible.</div>
+  </div>
+  <div class="panel">
+    <h2>Check a pair</h2>
+    <label>run directory <span class="hint">(the output directory of a run that set a release dial)</span>
+      <input id="cipout" placeholder="/path/to/run_dir"></label>
+    <button class="act" onclick="cipRun()">Check the arrangement</button>
+    <div class="out" id="cip-out">Nothing checked yet.</div>
+    <div id="cip-body"></div>
+  </div>
+  <div class="nextup"><span class="lbl">next</span><b>Determination</b><span>The arrangement is one piece of the evidence; the package assembles the rest.</span></div>
+</section>
+
+<section id="s-scrub" data-step="8" data-route="shared">
+  <div class="stepbanner"><span class="stepchip">Before release</span><span>Scan the table before you fit it</span></div>
+  <div class="exbar"><span class="exlbl">how this works</span><button onclick="exOpen('safe-harbor')"><b>?</b>Safe Harbor</button><button onclick="exOpen('remedy')"><b>?</b>drop, generalise, review</button><button onclick="exOpen('expert-determination')"><b>?</b>the other route</button><button onclick="exOpen('patients-not-rows')"><b>?</b>patients, not rows</button></div>
+  <dl class="stepgoal"><dt>you need</dt><dd>The table you are about to fit, and the column that identifies a person &mdash; the per-patient tests need it, and guessing which column it is would decide the answer.</dd><dt>you get</dt><dd>Every column classified: what was found, what is clear, and what was out of scope &mdash; three lists whose union is the table, so the report can be checked against the file it describes. Plus this scan's COVERAGE of all eighteen Safe Harbor categories, because a detector that finds nothing and never says what it looked for is a clean bill of health for whatever nobody checked.</dd></dl>
+  <div class="panel">
+    <h2>Scan a table</h2>
+    <label>table <span class="hint">(CSV, spreadsheet, JSON-lines or Parquet &mdash; read the same way the fit reads it)</span>
+      <input id="scsrc" placeholder="/path/to/table.csv"></label>
+    <label>person column <span class="hint">(a name is constant within a person; an identifier is about one per row. Both tests need to know who is who.)</span>
+      <input id="scgroup" placeholder="person_id"></label>
+    <button class="act" onclick="scrubRun()">Scan</button>
+    <div class="out" id="sc-out">Nothing scanned yet.</div>
+  </div>
+  <div class="panel" id="sc-resultpanel" style="display:none">
+    <h2>What the scan found</h2>
+    <div class="hint">No value from your table appears here. A
+    detector whose own output carries the identifier it found has
+    moved the leak rather than closed it, so this reports a column,
+    a kind, a share and a reason &mdash; and never a span.</div>
+    <div id="sc-find"></div>
+    <h3>Coverage of the eighteen</h3>
+    <div class="hint">What this scan reaches, stated whether or not
+    it found anything.</div>
+    <div id="sc-cov"></div>
+  </div>
+  <div class="nextup"><span class="lbl">next</span><b>Measure 1 &mdash; Source</b><span>Scan first, then fit the scanned table. The determination package can cite this coverage as evidence.</span></div>
+</section>
+
 <section id="s-determ" data-step="8" data-route="shared">
   <div class="stepbanner"><span class="stepchip">Before release</span><span>Assemble the evidence a determination needs</span></div>
   <div class="exbar"><span class="exlbl">how this works</span><button onclick="exOpen('expert-determination')"><b>?</b>expert determination</button><button onclick="exOpen('residual-risk')"><b>?</b>residual risk</button><button onclick="exOpen('membership-attack')"><b>?</b>the privacy attacks</button><button onclick="exOpen('linkage')"><b>?</b>linking to a named person</button><button onclick="exOpen('k-rule')"><b>?</b>the k rule</button><button onclick="exOpen('patients-not-rows')"><b>?</b>patients, not rows</button></div>
@@ -4126,6 +4298,8 @@ const titles={home:['Home','Start here','what this is, in one page'],
   fitver:['Measure 2','Verdict','judge the run'],
   dashboard:['View','Visualize','original vs synthetic - drawn, and in 3D'],
   duel:['Duel','Duel','two engines, one source'],
+  cipher:['Release','Key & cipher','tune the release, read the answer back'],
+  scrub:['Release','De-identify','scan for PHI before fitting'],
   determ:['Release','Determination','assemble the evidence a determination needs'],
   roadmap:['Map','Roadmap','the eight goals \u2014 built and planned']};
 let campaignDir='';
@@ -5170,6 +5344,132 @@ function loaderSet(outId,frac,label,secs){
   if(label!=null)l.querySelector('.lstage').textContent=label;
   l.querySelector('.lelapsed').textContent=
     secs==null?'':Math.round(secs)+'s';}
+async function cipRun(){
+  const out=document.getElementById('cip-out');
+  const body_=document.getElementById('cip-body');
+  const body={out:document.getElementById('cipout').value.trim()};
+  if(!body.out){out.textContent=
+    'STOPPED: give the output directory of a run that set a '+
+    'release dial.';body_.innerHTML='';return;}
+  out.textContent='checking '+body.out+'...';
+  loaderSet('cip-out',null,'checking the arrangement');
+  const r=await api('/api/cipher',body);
+  loaderDone('cip-out',!r.error);
+  if(r.error){out.textContent='STOPPED: '+r.error;
+    body_.innerHTML='';return;}
+  out.textContent=r.verified
+    ? 'VERIFIED. '+r.rows_key+' rows on both sides. The released '+
+      'file carries every column\u2019s own distribution '+
+      'unchanged and differs from the key only by the recorded '+
+      'arrangement \u2014 a faithful rearrangement, not damaged '+
+      'data.'
+    : 'NOT VERIFIED: '+(r.bad||[]).join('; ');
+  let h='<table class="jt"><tr><th>perturbed column</th>'+
+    '<th>inverse exact</th><th>same multiset</th></tr>';
+  (r.perturbed||[]).forEach(x=>{
+    h+='<tr><td><b>'+scEsc(x.column)+'</b></td><td>'+
+      '<span class="chip '+(x.inverse_exact?'ok':'bad')+'">'+
+      (x.inverse_exact?'YES':'NO')+'</span></td><td>'+
+      '<span class="chip '+(x.same_multiset?'ok':'bad')+'">'+
+      (x.same_multiset?'YES':'NO')+'</span></td></tr>';});
+  if(!(r.perturbed||[]).length){h+='<tr><td colspan="3">No '+
+    'column was perturbed by this run.</td></tr>';}
+  h+='</table><p class="note">'+r.untouched+' untouched column(s), '+
+    (r.moved||[]).length+' changed'+
+    ((r.moved||[]).length?': '+r.moved.join(', '):'')+'.</p>';
+  if((r.repointed||[]).length){
+    h+='<h3>What the dials asked for, and what the data allowed</h3>'+
+      '<table class="jt"><tr><th>pair</th><th>asked</th>'+
+      '<th>landed</th><th>reachable band</th></tr>';
+    r.repointed.forEach(x=>{
+      /* A GAP BETWEEN ASKED AND LANDED IS NOT AUTOMATICALLY A
+         MISS: rank correlation is bounded by the tie structure,
+         so the ceiling is printed beside it WITH the thing that
+         bounds it. An absent band is said to be absent rather
+         than shown as no ceiling at all. */
+      let band;
+      if(!x.reachable){band='<span class="small">NOT RECORDED by '+
+        'this run \u2014 it cannot be said from this cipher '+
+        'whether the ask was representable</span>';}
+      else{band='['+x.reachable[0].toFixed(3)+', '+
+        x.reachable[1].toFixed(3)+']';
+        if(x.distinct_child!=null){band+='<span class="small"> '+
+          'bounded by the '+x.distinct_child+' distinct value(s) '+
+          'the dialed column holds</span>';}
+        if(x.outside_band){band+='<br><span class="chip bad">'+
+          'THE ASK WAS OUTSIDE THAT BAND</span><span class="small">'+
+          ' \u2014 an impossible ask, not a weak dial</span>';}}
+      h+='<tr><td>'+scEsc(x.pair)+'</td><td>'+
+        x.requested.toFixed(2)+'</td><td>'+
+        x.achieved.toFixed(2)+'</td><td>'+band+'</td></tr>';});
+    h+='</table>';}
+  body_.innerHTML=h;
+  tick('cipher');}
+
+function scEsc(t){return String(t==null?'':t)
+  .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
+async function scrubRun(){
+  const out=document.getElementById('sc-out');
+  const pan=document.getElementById('sc-resultpanel');
+  const body={src:document.getElementById('scsrc').value.trim(),
+    group_by:document.getElementById('scgroup').value.trim()};
+  if(!body.src){out.textContent=
+    'STOPPED: give the table to scan.';
+    pan.style.display='none';return;}
+  out.textContent='scanning '+body.src+'...';
+  loaderSet('sc-out',null,'scanning the table');
+  const r=await api('/api/scrub',body);
+  loaderDone('sc-out',!r.error);
+  if(r.error){out.textContent='STOPPED: '+r.error;
+    pan.style.display='none';return;}
+  const f=r.findings||[],cl=r.clear||[],oos=r.out_of_scope||[];
+  /* THE UNION IS THE TABLE. Stating it lets a reader check the
+     report against the file rather than trusting it: a column
+     that is in none of the three lists would be a column the
+     scan silently skipped. */
+  const union=f.length+cl.length+oos.length;
+  let msg=f.length+' finding(s), '+cl.length+' clear, '+
+    oos.length+' out of scope \u2014 '+union+' of '+
+    r.columns_seen+' columns accounted for';
+  msg+=(union===r.columns_seen)?'. Every column is in exactly one '+
+    'list, so this report can be checked against the file.'
+    :'. MISMATCH: some column is in none of the three lists.';
+  if((r.pending||[]).length){msg+=' STILL OWED after an apply: '+
+    r.pending.map(x=>x.column).join(', ')+
+    ' \u2014 these are generalised or reviewed, not dropped.';}
+  msg+=' Read as: '+r.read_as+'.';
+  out.textContent=msg;
+  let h='<table class="jt"><tr><th>column</th><th>what it looks '+
+    'like</th><th>share</th><th>remedy</th><th>why</th></tr>';
+  if(!f.length){h+='<tr><td colspan="5">Nothing found. That '+
+    'means something only because the coverage below says what '+
+    'was looked for.</td></tr>';}
+  f.forEach(x=>{
+    const rem=scEsc(x.remedy||'');
+    const cls=rem==='drop'?'bad':(rem==='review'?'gold':'ok');
+    h+='<tr><td><b>'+scEsc(x.column)+'</b></td><td>'+
+      scEsc(x.kind)+'</td><td>'+
+      (x.share==null?'':(100*x.share).toFixed(0)+'%')+
+      '</td><td><span class="chip '+cls+'">'+rem+
+      '</span></td><td class="small">'+scEsc(x.why)+'</td></tr>';});
+  h+='</table>';
+  document.getElementById('sc-find').innerHTML=h;
+  const cov=r.coverage||{};
+  let c='<div class="gate">';
+  Object.keys(cov).forEach(k=>{
+    c+='<span class="chip '+(k==='covered'?'ok':'gold')+'">'+
+      cov[k]+' '+scEsc(k)+'</span>';});
+  c+='</div><table class="jt"><tr><th>#</th><th>category</th>'+
+    '<th>status</th><th>how</th></tr>';
+  (r.inventory||[]).forEach(x=>{
+    c+='<tr><td>'+scEsc(x.number)+'</td><td>'+scEsc(x.what)+
+      '</td><td>'+scEsc(x.status)+'</td><td class="small">'+
+      scEsc(x.note)+'</td></tr>';});
+  c+='</table>';
+  document.getElementById('sc-cov').innerHTML=c;
+  pan.style.display='block';
+  tick('scrub');}
+
 async function detRun(){
   const out=document.getElementById('det-out');
   const frame=document.getElementById('det-frame');

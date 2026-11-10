@@ -2571,6 +2571,209 @@ def main():
               "error" in r and "provenance" in r["error"]
               and "scoped" in r["error"])
 
+        # ---- THE SCRUB STATION ------------------------------
+        check("the bench carries a De-identify STATION - the scan "
+              "was a CLI command only, so the thing a governance "
+              "reader asks about first had no face here",
+              'data-s="scrub"' in page and 'id="s-scrub"' in page)
+
+        _ssec = page.split('id="s-scrub"')[1].split("</section>")[0]
+        check("...with what you NEED, what you GET, and where to "
+              "go next",
+              _ssec.count("you need") == 1
+              and 'class="nextup"' in _ssec)
+
+        _sslugs = _re.findall(r"exOpen\('([a-z0-9-]+)'\)", _ssec)
+        check("...and every door on it resolves ({})"
+              .format(", ".join(_sslugs)),
+              len(_sslugs) >= 3
+              and all(g in _ex.TERMS for g in _sslugs))
+
+        _t = Path(tmp) / "scan.csv"
+        import pandas as _pd
+        _pd.DataFrame({
+            "person_id": ["P%03d" % (i // 3) for i in range(300)],
+            "mrn": ["MRN%07d" % i for i in range(300)],
+            "visit_date": ["2019-04-%02d" % (1 + i % 28)
+                           for i in range(300)],
+            "systolic": [str(100 + i % 40) for i in range(300)],
+        }).to_csv(_t, index=False)
+        sr = post("/api/scrub", {"src": str(_t),
+                                 "group_by": "person_id"})
+        check("the scan finds the identifier and the service date "
+              "through the endpoint, and gives each its own "
+              "REMEDY - drop and generalise are different answers, "
+              "and treating them as one destroys data for no "
+              "privacy gain",
+              {f["column"] for f in sr["findings"]} >=
+              {"mrn", "visit_date"}
+              and {f["remedy"] for f in sr["findings"]} ==
+              {"drop", "generalise"})
+
+        # THE UNION IS THE TABLE. A report that only lists what it
+        # found cannot be checked against the file it describes.
+        check("...and the three lists account for every column "
+              "({} + {} + {} = {}), so the report can be checked "
+              "against the file"
+              .format(len(sr["findings"]), len(sr["clear"]),
+                      len(sr["out_of_scope"]), sr["columns_seen"]),
+              len(sr["findings"]) + len(sr["clear"])
+              + len(sr["out_of_scope"]) == sr["columns_seen"])
+
+        check("...and it reports COVERAGE of all eighteen Safe "
+              "Harbor categories, so 'nothing found' means "
+              "something rather than being a clean bill of health "
+              "for whatever nobody looked at",
+              sr["categories_total"] == 18
+              and len(sr["inventory"]) == 18
+              and sum(sr["coverage"].values()) == 18)
+
+        # IT MUST NEVER QUOTE WHAT IT FOUND. A detector whose own
+        # output carries the identifier has moved the leak rather
+        # than closed it.
+        _blob = json.dumps(sr)
+        check("...and NO value from the table appears anywhere in "
+              "the response - a PHI report that quotes its own "
+              "findings has moved the leak, not closed it",
+              "MRN0000001" not in _blob
+              and "2019-04-05" not in _blob)
+
+        # THE RENDERER READS THESE NAMES. Asserting them against a
+        # LIVE response is this project's prescribed fix for the
+        # wrong-key fault: a renderer reading a field the writer
+        # does not emit draws an empty table and says nothing.
+        _page_js = page
+        for _k in ("column", "kind", "share", "remedy", "why"):
+            check("...and a finding carries {!r}, which the "
+                  "station's renderer reads".format(_k),
+                  all(_k in f for f in sr["findings"])
+                  and ("x." + _k) in _page_js)
+        for _k in ("number", "what", "status", "note"):
+            check("...and a category carries {!r}, likewise"
+                  .format(_k),
+                  all(_k in c for c in sr["inventory"])
+                  and ("x." + _k) in _page_js)
+
+        check("a table with no person column is REFUSED by name, "
+              "because the per-patient tests need to know who is "
+              "who and guessing would decide the answer",
+              "error" in post("/api/scrub",
+                              {"src": str(_t),
+                               "group_by": "nope"})
+              and "No column named" in post(
+                  "/api/scrub",
+                  {"src": str(_t), "group_by": "nope"})["error"])
+
+        check("...and an empty table path is refused",
+              "error" in post("/api/scrub", {}))
+
+        # ---- THE KEY & CIPHER STATION -----------------------
+        check("the bench carries a Key & cipher STATION - the "
+              "release arrangement is the most distinctive thing "
+              "this tool does for a governance conversation and "
+              "it had no face here",
+              'data-s="cipher"' in page and 'id="s-cipher"' in page)
+
+        _csec = page.split('id="s-cipher"')[1].split(
+            "</section>")[0]
+        check("...with what you NEED, what you GET, and where to "
+              "go next",
+              _csec.count("you need") == 1
+              and 'class="nextup"' in _csec)
+
+        _cslugs = _re.findall(r"exOpen\('([a-z0-9-]+)'\)", _csec)
+        check("...and every door on it resolves ({})"
+              .format(", ".join(_cslugs)),
+              len(_cslugs) >= 3
+              and all(g in _ex.TERMS for g in _cslugs))
+
+        check("...and it names all THREE files a dialled run "
+              "produces, because the arrangement is unreadable "
+              "without saying which one is kept and which goes out",
+              "key.csv" in _csec and "generated.csv" in _csec
+              and "cipher.json" in _csec)
+
+        # ONE COMPUTATION, NOT TWO. `verify` used to print as it
+        # computed, which left the bench no way to show this
+        # without re-implementing the round-trip - and two
+        # implementations of the claim that makes a re-pointed
+        # file a legitimate test article is how the artifact and
+        # the screen come to disagree.
+        _dbsrc = Path("scripts/dialback.py").read_text(
+            encoding="utf-8")
+        check("the endpoint drives `dialback.verify_report`, and "
+              "the terminal PRINTS from that same report rather "
+              "than computing beside it",
+              "def verify_report(" in _dbsrc
+              and "verify_report(run)" in _dbsrc
+              and "verify_report" in Path(
+                  "synthkit/gui.py").read_text(encoding="utf-8"))
+
+        # A PAIR BUILT BY HAND, so the round-trip is exercised
+        # without a full fit - and so the TAMPERED case can be
+        # reached, which is the only thing that proves the check
+        # can fail at all.
+        import numpy as _np
+        _cd = Path(tmp) / "cip"
+        _cd.mkdir(parents=True, exist_ok=True)
+        _n = 60
+        _rng = _np.random.default_rng(3)
+        _key = _pd.DataFrame({
+            "pid": ["P%02d" % i for i in range(_n)],
+            "keep": [str(i) for i in range(_n)],
+            "moved": [str(100 + i) for i in range(_n)]})
+        _perm = _rng.permutation(_n)
+        _rel = _key.copy()
+        _rel["moved"] = _key["moved"].to_numpy()[_perm]
+        # cipher["columns"][col][i] is the KEY row that released
+        # row i took its value from: verify scatters the released
+        # values BACK by that index and requires the key. So it is
+        # the permutation itself, not its inverse - the first cut
+        # used argsort and the sound pair failed, which is the
+        # check doing its job on my own fixture.
+        _key.to_csv(_cd / "key.csv", index=False)
+        _rel.to_csv(_cd / "generated.csv", index=False)
+        (_cd / "cipher.json").write_text(json.dumps({
+            "key_file": "key.csv", "released_file": "generated.csv",
+            "rows": _n,
+            "columns": {"moved": [int(x) for x in _perm]},
+            "repointed": [], "suppressed": []}), encoding="utf-8")
+        cr = post("/api/cipher", {"out": str(_cd)})
+        check("a sound pair VERIFIES: the perturbed column "
+              "round-trips through the cipher exactly and holds "
+              "the identical multiset, and every untouched column "
+              "is untouched",
+              cr.get("verified") is True
+              and cr["perturbed"][0]["inverse_exact"] is True
+              and cr["perturbed"][0]["same_multiset"] is True
+              and cr["moved"] == [])
+
+        # AND THE CHECK MUST BE ABLE TO FAIL. Moving a single
+        # value in the released file has to be caught and the
+        # column named, or "VERIFIED" is a sentence that means
+        # nothing.
+        _bad = _rel.copy()
+        _bad.loc[0, "moved"] = "999999"
+        _bad.to_csv(_cd / "generated.csv", index=False)
+        cb = post("/api/cipher", {"out": str(_cd)})
+        check("...and moving a SINGLE value in the released file "
+              "makes it fail and NAME the column - a check that "
+              "cannot fail proves nothing about the pairs it "
+              "blessed",
+              cb.get("verified") is False
+              and any("moved" in b for b in (cb.get("bad") or [])))
+
+        check("a run that set no release dial is refused WITH THE "
+              "REASON - without a dial the released file IS the "
+              "full-fidelity file and there is nothing to read "
+              "back",
+              "error" in post("/api/cipher", {"out": str(tmp)})
+              and "nothing" in post(
+                  "/api/cipher", {"out": str(tmp)})["error"])
+
+        check("...and an empty directory field is refused",
+              "error" in post("/api/cipher", {}))
+
     finally:
         gui.BACKEND_FACTORY = None
         server.shutdown()
