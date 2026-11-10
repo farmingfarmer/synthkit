@@ -2500,6 +2500,77 @@ def main():
               "see",
               "error" in r and "number" in r["error"])
 
+        # ---- THE DETERMINATION STATION ----------------------
+        # The evidence package had no face in the bench: it was a
+        # CLI command only, so the thing a governance reader most
+        # needs to see could not be shown on screen. This project
+        # has a rule about that - "a measurement that never
+        # reaches a page might as well not exist for the person
+        # deciding".
+        # READ WHAT THE SERVER SERVES, not a constant that
+        # might be assembled differently - a stale serve already
+        # cost this session one wrong screenshot today.
+        page = get("/")[1]
+        check("the bench carries a Determination STATION, in the "
+              "rail and as a section - the package is the thing a "
+              "governance reader asks for and it had no face here",
+              'data-s="determ"' in page
+              and 'id="s-determ"' in page)
+
+        check("...and it declares what you NEED and what you GET "
+              "and names where to go next, which every station "
+              "here is held to",
+              page.split('id="s-determ"')[1].split("</section>")[0]
+              .count("you need") == 1
+              and 'class="nextup"' in
+              page.split('id="s-determ"')[1].split("</section>")[0])
+
+        # EVERY DOOR MUST RESOLVE. A link that goes nowhere is
+        # worse than no link, because the reader trusted it.
+        import re as _re
+        _sec = page.split('id="s-determ"')[1].split("</section>")[0]
+        _slugs = _re.findall(r"exOpen\('([a-z0-9-]+)'\)", _sec)
+        from synthkit import explain as _ex
+        check("...and every explanation door on it resolves ({} "
+              "doors: {})".format(len(_slugs), ", ".join(_slugs)),
+              len(_slugs) >= 4
+              and all(g in _ex.TERMS for g in _slugs))
+
+        # ONE LOADER, NOT TWO. `assess` already took artifacts so
+        # the CLI, the bench and the checks drive one function -
+        # but the LOADING was unshared, and the bench would have
+        # had to re-decide which file holds which element. That is
+        # the wrong-key fault this module was burned by once.
+        from synthkit import determination as _det
+        check("the endpoint drives `determination.assess_run`, the "
+              "same loader the CLI uses, rather than re-deciding "
+              "which artifact holds which element",
+              hasattr(_det, "assess_run")
+              and "assess_run" in Path(
+                  "synthkit/gui.py").read_text(encoding="utf-8"))
+
+        r = post("/api/determination", {})
+        check("...and an empty run directory is refused by name - "
+              "Path('') resolves to '.', so an unchecked field "
+              "would have been read as the current directory and "
+              "refused with the wrong sentence",
+              "error" in r and "output directory" in r["error"])
+
+        r = post("/api/determination",
+                 {"out": "/no/such/dir/at/all"})
+        check("...and a directory that does not exist is refused "
+              "by name", "error" in r and "No such" in r["error"])
+
+        _rd = str(Path(tmp) / "notarun")
+        Path(_rd).mkdir(parents=True, exist_ok=True)
+        r = post("/api/determination", {"out": _rd})
+        check("...and a directory with no provenance is refused "
+              "WITH THE REASON - a determination is scoped to one "
+              "release, and without the run's own record there is "
+              "nothing to scope it to",
+              "error" in r and "provenance" in r["error"]
+              and "scoped" in r["error"])
+
     finally:
         gui.BACKEND_FACTORY = None
         server.shutdown()

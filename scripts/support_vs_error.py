@@ -31,7 +31,10 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 
-ROOT = Path("/Users/alexandermarunycz/dev/synthkit")
+# DERIVED, never hardcoded: a tracked script carrying an
+# absolute home path is both unportable and a personal
+# identifier in a tracked file, which this repo scans for.
+ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT))
 sys.path.insert(0, str(ROOT / "scripts"))
 

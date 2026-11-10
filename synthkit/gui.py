@@ -1817,6 +1817,77 @@ def api_duel(payload: dict) -> dict:
     return {"html": html}
 
 
+def api_determination(payload: dict) -> dict:
+    """The HIPAA Expert Determination evidence package, for one run.
+
+    A WINDOW ONTO `synthkit determination`, not a second
+    implementation: both call `determination.assess_run`, which
+    loads the run's artifacts and hands them to the one `assess`.
+    The module already insisted on a single `assess` so the CLI,
+    the bench and the checks could not disagree about the
+    EVIDENCE; the loading was the half still unshared, and the
+    bench would otherwise have had to re-decide which file holds
+    which element - the wrong-key fault this module already paid
+    for once.
+
+    THE PACKAGE RENDERS ITSELF. `render_html` is the same renderer
+    the CLI writes to disk, dropped into a sandboxed iframe, so the
+    page a reviewer opens and the file they are sent are one
+    document.
+    """
+    from . import determination as _det
+    # THE EMPTINESS IS CHECKED BEFORE Path(), because Path("")
+    # resolves to "." - so an empty field would have been read as
+    # the current directory and refused with the wrong sentence.
+    raw = (payload.get("out") or "").strip()
+    if not raw:
+        return {"error": "Give the output directory of a finished "
+                         "run."}
+    run = str(Path(raw).expanduser())
+    if not Path(run).is_dir():
+        return {"error": "No such run directory: {}".format(run)}
+    if not (Path(run) / "provenance.json").exists():
+        return {"error": "That directory has no provenance.json, "
+                         "so it is not a finished run. A "
+                         "determination is scoped to ONE release, "
+                         "and without the run's own record there "
+                         "is nothing to scope it to."}
+    notes = []
+
+    def _opt(key):
+        v = payload.get(key)
+        return str(Path(v).expanduser()) if v else None
+
+    scope = payload.get("scope") or None
+    try:
+        rep = _det.assess_run(
+            run,
+            membership=_opt("membership"),
+            attribute=_opt("attribute"),
+            linkage=_opt("linkage"),
+            scrubbed=bool(payload.get("scrubbed")),
+            scope_text=scope,
+            note=notes.append)
+    except Exception as e:                          # noqa: BLE001
+        return {"error": "could not assemble the package: {}"
+                         .format(e)}
+    # THE COUNTS ARE READ, NEVER RE-DERIVED. The report already
+    # publishes them, and the first cut of this endpoint counted
+    # statuses itself against a guessed spelling - `owed` where the
+    # module writes `OWED` - so a run with seven owed elements
+    # reported zero. That is the wrong-key fault this module was
+    # burned by, committed in the window onto it.
+    return {
+        "html": _det.render_html(rep),
+        "total": rep.get("elements_total"),
+        "present": rep.get("elements_present"),
+        "owed": rep.get("elements_owed"),
+        "elsewhere": rep.get("elements_elsewhere"),
+        "ready": bool(rep.get("ready")),
+        "notes": notes,
+    }
+
+
 def api_deck(payload: dict) -> dict:
     """The original-vs-synthetic dashboard, built live for one run.
 
@@ -1941,6 +2012,7 @@ _ROUTES = {
                           budget_s=4 * 3600.0)},
     "/api/fit-log": api_fit_log,
     "/api/fit-open": api_fit_open,
+    "/api/determination": api_determination,
     "/api/deck": api_deck,
     "/api/explain": lambda payload: __import__(
         "synthkit.explain", fromlist=["x"]).as_json(),
@@ -3086,6 +3158,9 @@ textarea:focus,input:focus,select:focus{
     Source<small class="subt">point at a real CSV</small></button>
   <button class="station" data-step="2" data-s="fitver" data-route="measure"><b>02</b>
     Verdict<small class="subt">judge the run</small></button>
+  <div class="railsplit">before you release</div>
+  <button class="station" data-step="8" data-s="determ" data-route="shared"><b>REL</b>
+    Determination<small class="subt">assemble the evidence</small></button>
   <div class="railsplit">then, for either route</div>
   <button class="station" data-step="4" data-s="campaign" data-route="shared"><b>04</b>
     Campaign<small class="subt">configure the evaluation</small></button>
@@ -3856,6 +3931,39 @@ textarea:focus,input:focus,select:focus{
   <div class="nextup"><span class="lbl">next</span><b>Step 4 &mdash; Campaign</b><span>A measured dataset takes the same road as an invented one: set the exam, then the showdown.</span></div>
 </section>
 
+<section id="s-determ" data-step="8" data-route="shared">
+  <div class="stepbanner"><span class="stepchip">Before release</span><span>Assemble the evidence a determination needs</span></div>
+  <div class="exbar"><span class="exlbl">how this works</span><button onclick="exOpen('expert-determination')"><b>?</b>expert determination</button><button onclick="exOpen('residual-risk')"><b>?</b>residual risk</button><button onclick="exOpen('membership-attack')"><b>?</b>the privacy attacks</button><button onclick="exOpen('linkage')"><b>?</b>linking to a named person</button><button onclick="exOpen('k-rule')"><b>?</b>the k rule</button><button onclick="exOpen('patients-not-rows')"><b>?</b>patients, not rows</button></div>
+  <dl class="stepgoal"><dt>you need</dt><dd>A finished run &mdash; its output directory. The attack batteries are optional: name their JSON files if you have run them, and the elements they answer read OWED if you have not.</dd><dt>you get</dt><dd>The eleven elements 45&nbsp;CFR&nbsp;164.514(b)(1) asks for, each marked present or OWED, rendered as the same document <code>synthkit determination</code> writes to disk. Both call one function, so this panel and the file cannot disagree.</dd></dl>
+  <div class="panel">
+    <h2>Assemble the package</h2>
+    <label>run directory <span class="hint">(the output directory of a finished run &mdash; a determination is scoped to ONE release)</span>
+      <input id="detout" placeholder="/path/to/run_dir"></label>
+    <label>membership battery <span class="hint">(optional JSON &mdash; was a person in the cohort)</span>
+      <input id="detmem" placeholder="membership.json"></label>
+    <label>attribute battery <span class="hint">(optional JSON &mdash; does the release help guess a sensitive field)</span>
+      <input id="detatt" placeholder="attribute.json"></label>
+    <label>linkage battery <span class="hint">(optional JSON &mdash; linking with outside knowledge)</span>
+      <input id="detlink" placeholder="linkage.json"></label>
+    <label>scope and residual risk <span class="hint">(the one element a RUN cannot supply: a person writes it. A one-line scope is refused.)</span>
+      <textarea id="detscope" rows="3" placeholder="What was analysed, what was assumed, what risk remains, and who bears it."></textarea></label>
+    <label class="chk"><input type="checkbox" id="detscrub"> the table was scrubbed first <span class="hint">(includes the Safe Harbor coverage inventory as evidence)</span></label>
+    <button class="act" onclick="detRun()">Assemble the package</button>
+    <div class="out" id="det-out">Nothing assembled yet.</div>
+  </div>
+  <div class="panel">
+    <h2>The package</h2>
+    <div class="hint">This is the document itself, exactly as the
+    CLI writes it. It refuses to call itself a determination: the
+    determination in 164.514(b)(1) is made by a qualified person,
+    and what this assembles is the evidence they would ask for.</div>
+    <iframe id="det-frame" title="determination evidence package" style="width:100%;
+      height:72vh;border:1px solid var(--rule);border-radius:12px;
+      margin-top:14px;display:none;background:#fff"></iframe>
+  </div>
+  <div class="nextup"><span class="lbl">next</span><b>Visualize</b><span>The package states what was measured; the dashboard draws what the data looks like.</span></div>
+</section>
+
 <section id="s-dashboard" data-step="8" data-route="map">
   <div class="stepbanner"><span class="stepchip">View</span><span>Original vs synthetic, drawn</span></div>
   <dl class="stepgoal"><dt>you need</dt><dd>A finished run &mdash; from the measure route, or any terminal run this machine holds &mdash; and the source CSV it was measured from.</dd><dt>you get</dt><dd>The interactive fidelity dashboard: every column original beside synthetic, the relationship curves drawn as shapes, correlation heatmaps side by side, and the gate verdict. The same picture the roadshow file carries, because it is built by the same code.</dd></dl>
@@ -4018,6 +4126,7 @@ const titles={home:['Home','Start here','what this is, in one page'],
   fitver:['Measure 2','Verdict','judge the run'],
   dashboard:['View','Visualize','original vs synthetic - drawn, and in 3D'],
   duel:['Duel','Duel','two engines, one source'],
+  determ:['Release','Determination','assemble the evidence a determination needs'],
   roadmap:['Map','Roadmap','the eight goals \u2014 built and planned']};
 let campaignDir='';
 // CARRY THE SOURCE FORWARD. "why are we re-pointing the source and
@@ -4151,7 +4260,30 @@ document.querySelectorAll('.station').forEach(btn=>{
        they were last painted with; repaint so the one now shown
        starts from its own true position. */
     if(typeof pxSchedule==='function')pxSchedule();
+    /* A STATION IS LINKABLE. The hash follows wherever you are,
+       so a walkthrough can point at one station rather than
+       saying "now click the fourth button down" - and a reviewer
+       can send a colleague the exact panel they are asking
+       about. replaceState, not a jump: pushing a history entry
+       per click would make Back walk the rail backwards instead
+       of leaving the bench. */
+    try{history.replaceState(null,'','#'+btn.dataset.s);}
+    catch(e){}
   };});
+/* ...and honoured on arrival, so the link works when it lands. An
+   unknown or absent hash leaves the default station showing rather
+   than a blank page, because a link that half-works is worse than
+   one that does not. */
+function stationFromHash(){
+  var h=(location.hash||'').replace(/^#/,'');
+  if(!h)return false;
+  var b=document.querySelector('.station[data-s="'+h+'"]');
+  if(!b)return false;
+  b.click();
+  return true;}
+try{stationFromHash();}catch(e){}
+window.addEventListener('hashchange',function(){
+  try{stationFromHash();}catch(e){}});
 function engCount(){var t=document.getElementById('english');
   var c=document.getElementById('engcount');if(!t||!c)return;
   var n=t.value.length;c.textContent=n+' / 4000 characters';
@@ -5038,6 +5170,39 @@ function loaderSet(outId,frac,label,secs){
   if(label!=null)l.querySelector('.lstage').textContent=label;
   l.querySelector('.lelapsed').textContent=
     secs==null?'':Math.round(secs)+'s';}
+async function detRun(){
+  const out=document.getElementById('det-out');
+  const frame=document.getElementById('det-frame');
+  const body={out:document.getElementById('detout').value.trim(),
+    membership:document.getElementById('detmem').value.trim(),
+    attribute:document.getElementById('detatt').value.trim(),
+    linkage:document.getElementById('detlink').value.trim(),
+    scope:document.getElementById('detscope').value,
+    scrubbed:document.getElementById('detscrub').checked};
+  if(!body.out){out.textContent=
+    'STOPPED: give the output directory of a finished run.';
+    frame.style.display='none';return;}
+  out.textContent='assembling from '+body.out+'...';
+  loaderSet('det-out',null,'assembling the package');
+  const r=await api('/api/determination',body);
+  loaderDone('det-out',!r.error);
+  if(r.error){out.textContent='STOPPED: '+r.error;
+    frame.style.display='none';return;}
+  frame.srcdoc=r.html;
+  frame.style.display='block';
+  const owed=(r.owed||[]);
+  let msg=r.present+' of '+r.total+' elements have evidence on '+
+    'this run';
+  msg+=owed.length? '. STILL OWED: '+owed.join(', ')+
+    ' \u2014 an element with no evidence is reported, never '+
+    'assumed.' : '. Nothing is owed.';
+  if(!r.ready){msg+=' READINESS IS NOT A DETERMINATION: that is '+
+    'made by a qualified person.';}
+  if(r.notes&&r.notes.length){msg+=' Notes: '+r.notes.join('; ');}
+  out.textContent=msg;
+  tick('determ');
+  frame.scrollIntoView({behavior:'smooth',block:'start'});}
+
 function loaderDone(outId,ok){
   const l=loaderGet(outId,false);
   if(!l)return;

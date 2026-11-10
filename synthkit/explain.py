@@ -29,6 +29,89 @@ from typing import Any, Dict, List
 # [[slug]] and are rendered with those as further links.
 TERMS: Dict[str, Dict[str, str]] = {
 
+"expert-determination": {"title": "Expert Determination",
+ "body": "One of the two ways HIPAA allows identified data to be "
+ "released. A qualified person applies statistical methods and "
+ "determines that the risk of re-identification is <b>very "
+ "small</b> - and documents how they reached it. The regulation "
+ "is 45 CFR 164.514(b)(1).<br><br>This tool does <b>not</b> make "
+ "that determination and says so on every page that mentions it. "
+ "What it does is assemble the ELEVEN kinds of evidence such a "
+ "person would ask for, measured on this cohort, and state "
+ "plainly which are present and which are still <b>owed</b>. Ten "
+ "of eleven are measured on our own extract; the eleventh is "
+ "[[residual-risk]], which a run cannot supply.<br><br>Readiness "
+ "is not a determination. It is the strongest position from "
+ "which to ask for one."},
+
+"residual-risk": {"title": "Residual risk and scope",
+ "body": "The one element of an [[expert-determination]] that a "
+ "program cannot produce. Everything else is a measurement; this "
+ "is a <b>judgement about scope</b> - what was analysed, what "
+ "was assumed, what risk remains and who bears it.<br><br>A tool "
+ "that generated this would be inventing the bound on somebody "
+ "else's determination, so ours refuses and reports the element "
+ "as owed until a person writes it. A one-line scope is refused "
+ "too."},
+
+"safe-harbor": {"title": "Safe Harbor, and the eighteen",
+ "body": "The other HIPAA route: remove eighteen named "
+ "categories of identifier and the data is considered "
+ "de-identified. Names, dates finer than a year, ages over 89, "
+ "record numbers, geography below a state, and so on.<br><br>Our "
+ "scan reports its own <b>coverage</b> of all eighteen rather "
+ "than only what it found - so 'nothing found' means something. "
+ "A detector that finds nothing and never says what it looked "
+ "for is a clean bill of health for whatever nobody "
+ "checked.<br><br>Finding one is not the same as knowing what to "
+ "do with it, which is why each finding carries a [[remedy]]."},
+
+"remedy": {"title": "Drop, generalise, or review",
+ "body": "Three different answers, because treating them as one "
+ "destroys data for no privacy gain.<br><br><b>Drop</b> - a "
+ "direct identifier like a record number. Nothing is lost that "
+ "a model wanted.<br><b>Generalise</b> - a service date keeps "
+ "its YEAR, an age over 89 becomes '90 or above', a postal code "
+ "keeps three digits. The column survives, which matters: "
+ "dropping both dates of a stay destroys the length of "
+ "stay.<br><b>Review</b> - clinical free text. A redactor that "
+ "misses one identifier is worse than none, so the tool refuses "
+ "to pretend and marks it for a human.<br><br>A scan that only "
+ "dropped would remove the identifier by destroying the "
+ "variable."},
+
+"key-and-cipher": {"title": "The key and the cipher",
+ "body": "A run produces three things. The <b>key</b> is the "
+ "full-fidelity synthetic table, which we keep and never share. "
+ "The <b>released</b> table is what a vendor receives, after any "
+ "distortion we deliberately chose. The <b>cipher</b> records "
+ "exactly which key row each released value came "
+ "from.<br><br>It works because every distortion is a "
+ "<i>rearrangement</i>: values move between rows and are never "
+ "invented or altered, so the released column holds the same "
+ "multiset the key did and the change is exactly undoable. That "
+ "is the sentence for a governance conversation - the released "
+ "file is a faithful rearrangement, not damaged "
+ "data.<br><br>What it does NOT do is un-distort a row-level "
+ "prediction by rearranging inputs. Only the model can produce "
+ "that number, which is why the best arrangement is to run their "
+ "model on our key."},
+
+"linkage": {"title": "Linking to a named person",
+ "body": "The statute asks about re-identification <i>alone or "
+ "in combination with other reasonably available "
+ "information</i> - and most synthetic-data evidence answers "
+ "only the first half, because the adversaries hold nothing "
+ "external.<br><br>Against synthetic output a match is not an "
+ "identification: nobody's record is there. So the question is "
+ "translated - an adversary holding quasi-identifiers for a "
+ "person they can NAME selects the released rows matching that "
+ "combination. Does that tell them this person's value better "
+ "than the same procedure applied to someone never in the "
+ "cohort? Only that EXCESS belongs to the release.<br><br>The "
+ "verdict is a fraction of what a verbatim republish achieves on "
+ "the same cohort, so it calibrates itself."},
+
 "k-rule": {"title": "The k rule",
  "body": "Nothing is published unless at least <b>k</b> different "
  "people stand behind it . k is 10 by default, and the Generate station lets you RAISE it - a stronger guarantee that visibly costs fidelity, with every page stating which k it was built under. It cannot go below 10: beneath that, a pattern starts describing individuals. A value held by three "

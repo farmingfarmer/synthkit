@@ -491,6 +491,72 @@ def assess(fidelity: Optional[Dict] = None,
     }
 
 
+def assess_run(rundir,
+               membership=None, attribute=None, linkage=None,
+               scrubbed: bool = False, scope_text: Optional[str] = None,
+               note=None) -> Dict[str, Any]:
+    """`assess`, driven from a RUN DIRECTORY.
+
+    `assess` deliberately takes artifacts rather than a path, so
+    that the CLI, the bench and the checks all drive one function.
+    That left the LOADING unshared - and the bench would have had
+    to re-implement which file holds which element, which is the
+    wrong-key fault this module already paid for once: its first
+    cut read `arms`, `membership` and `attribute` out of a single
+    invented `attack.json`, and every element would have read OWED
+    on a run that HELD the evidence.
+
+    So the loading is one function too. An unreadable or absent
+    artifact is reported through `note` and treated as OWED, which
+    is the honest answer - a package that looks complete and is not
+    is worse than no package, because an expert signs against
+    evidence that does not exist.
+    """
+    import json as _json
+    import os as _os
+
+    say = note if callable(note) else (lambda _m: None)
+
+    def _read_path(path):
+        if not path or not _os.path.exists(path):
+            if path:
+                say("no such file, treated as OWED: {}".format(path))
+            return None
+        try:
+            with open(path) as fh:
+                return _json.load(fh)
+        except (ValueError, OSError) as e:          # noqa: BLE001
+            say("could not read {} ({}), treated as OWED"
+                .format(path, e))
+            return None
+
+    def _read(name):
+        return _read_path(_os.path.join(str(rundir), name))
+
+    inv = None
+    if scrubbed:
+        try:
+            from . import scrub as _scrub
+            inv = _scrub.inventory()
+        except Exception as e:                      # noqa: BLE001
+            say("could not read the Safe Harbor inventory ({})"
+                .format(e))
+
+    prov = _read("provenance.json")
+    return assess(
+        fidelity=_read("fidelity.json"),
+        blueprint=_read("blueprint.json"),
+        provenance=prov,
+        membership=_read_path(membership),
+        attribute=_read_path(attribute),
+        linkage=_read_path(linkage),
+        scrub_inventory=inv,
+        scope=scope_text,
+        source_name=((prov or {}).get("source", {}) or {}).get("name"),
+        run_config=((prov or {}).get("settings") or {}),
+    )
+
+
 def plain(report: Dict[str, Any]) -> List[str]:
     """The package as text, for the CLI.
 
