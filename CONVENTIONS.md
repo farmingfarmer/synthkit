@@ -396,6 +396,43 @@ Synthetic clinical data generator and model-evaluation instrument. Core rule: le
 - Never state a number as measured unless you actually ran it.
 
 ## Fixing what the real extract found
+- **THE ENGINE ALREADY CARRIED TOKEN STRUCTURE, BY A ROUTE I SPENT
+  AN EVENING REDISCOVERING - AND IT IS WRITTEN DOWN IN ITS OWN
+  SOURCE (2026-11-09).** An indicator is DERIVED from the set that
+  was drawn, so a relationship whose child is `x__has__t` can never
+  be applied to the indicator: `generate` hits
+  `if c in derived and derived[c] in out: continue` before the
+  relationship path. For weeks those relationships were dropped
+  outright. They are now ROUTED to the set column, and
+  `_informative_sets` REARRANGES which row gets which drawn set so
+  the tokens land where their parents say - the multiset of sets is
+  untouched, so no marginal can drift.
+  That is what produces the baseline I mistook for nothing: on a
+  fixture measured through the real path, `heparin <-> Flush` reads
+  **+0.497** and the two set sizes correlate at **+0.873** with no
+  count column, no size partner and no set column appearing as a
+  relationship child. Nothing I added put it there.
+- **WHICH MAKES THE TWO MECHANISMS COMPLEMENTARY IN A PRECISE
+  WAY.** `_informative_sets` decides WHICH ROW gets a given drawn
+  set, after the draw. The conditional token draw decides WHICH
+  TOKENS go into a set, during it. The first cannot create a set
+  that pairs two tokens the draw never put together; the second
+  cannot place a set on the right row. They compose, and the
+  measured increment of adding the second on the real extract is
+  **+3 close pairs** - small because the first was already doing
+  most of the work, and real because it is measured through the
+  full CLI on the extract rather than on a blueprint I restricted.
+- **AND THE SIZE CORRELATION COMES FROM THE SAME REARRANGEMENT,
+  which is the whole reason an explicit size coupling bought
+  nothing.** A row that needs a token gets a set containing it, and
+  sets containing more tokens are larger - so the sizes correlate
+  as a CONSEQUENCE of the token routing rather than as a thing
+  anybody modelled. Measured: the real extract's mean set-size
+  correlation is 0.1499 before my feature and 0.1520 after, against
+  a source 0.4210. The gap is real and it is NOT closed by
+  publishing a size conditional; it is bounded by how well the
+  rearrangement can satisfy every token relationship at once.
+
 - **MY FIXTURE BASELINE WAS AN ARTIFACT OF MY OWN RESTRICTED
   DISCOVERY, AND IT OVERSTATED TWO FEATURES BY AN ORDER OF
   MAGNITUDE (2026-11-09, found by checking that a mechanism
