@@ -122,6 +122,27 @@ def build_signoff(run_dir):
             "ok" if c["ok"] else "bad",
             "PASS" if c["ok"] else "FAIL", esc(c["name"]))
         for c in verdict["criteria"]) + "</div>")
+    # THE DISTANCE, BESIDE THE VERDICTS AND MARKED AS NOT ONE.
+    # Every criterion here is a pass/fail on the pairs the
+    # SOURCE relates; this is a continuous distance over EVERY
+    # pair, and it is the form the commercial tools publish, so
+    # a reader comparing vendors has the same number on both
+    # sides. Printed only when the run carries it - absent is
+    # not the same fact as zero.
+    _tv = verdict.get("tvd") or {}
+    if _tv.get("accuracy") is not None:
+        body.append(
+            '<p class="note"><b>Distance (not a criterion):</b> '
+            'accuracy {:.4f} &mdash; univariate {:.4f}, '
+            'bivariate {:.4f} over {} pair(s). Total '
+            'variation distance on discretised '
+            'distributions over EVERY pair, not only the '
+            'related ones; 1.0 is identical. This is the '
+            'form MOSTLY AI and SDV publish, so it can be '
+            'compared directly.</p>'.format(
+                _tv["accuracy"], _tv.get("univariate") or 0.0,
+                _tv.get("bivariate") or 0.0,
+                _tv.get("pairs_measured")))
     body.append("<table><tr><th>criterion</th><th>reading</th>"
                 "</tr>" + "".join(
                     "<tr><td>{}</td><td>{}</td></tr>".format(

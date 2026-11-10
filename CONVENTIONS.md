@@ -396,6 +396,28 @@ Synthetic clinical data generator and model-evaluation instrument. Core rule: le
 - Never state a number as measured unless you actually ran it.
 
 ## Fixing what the real extract found
+- **TWO SEEDS NOW, BOTH POSITIVE, AND THE SECOND IS BIGGER THAN
+  THE FIRST (2026-11-09 overnight).** The conditional token draw,
+  paired through the full CLI - same build, same source, same
+  seed, ONE FLAG apart, and the SAME denominator each time so the
+  numbers compare directly:
+      seed        pairs   direction        close        own inv
+      20260731     125    118 -> 120   102 -> 106 (+4)   0 -> 0
+      11           130    119 -> 121   106 -> 113 (+7)   0 -> 0
+  As percentages: 81.6% to 84.8%, and 81.5% to 86.9%. The absolute
+  stop holds at zero on every arm. Seed 37 is the third and is
+  running; this project's own rule is to report the RANGE and
+  never a point, and two seeds is not a range yet.
+- **THE BAR'S OWN PROVENANCE IS WORTH SAYING BESIDE THOSE
+  NUMBERS.** 87.9% is an old absolute target - "close at least
+  116" when a run related 132 pairs - restated as a proportion
+  after the denominator moved. It was never set from a measured
+  distribution, and the measured three-seed baseline spread is
+  **four points** (79.5 / 81.6 / 83.8). A bar inside its own
+  measure's noise is a verdict decided by the draw, which is a
+  product decision to revisit rather than something to engineer
+  against.
+
 - **THE ENGINE ALREADY CARRIED TOKEN STRUCTURE, BY A ROUTE I SPENT
   AN EVENING REDISCOVERING - AND IT IS WRITTEN DOWN IN ITS OWN
   SOURCE (2026-11-09).** An indicator is DERIVED from the set that

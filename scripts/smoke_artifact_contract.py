@@ -273,6 +273,23 @@ def main():
               "so a silent empty section there is the worst "
               "place for one".format(sign.returncode),
               wrote and "Traceback" not in sign.stderr)
+        # AND THE DISTANCE REACHES THE PAGE A DECISION-MAKER
+        # SIGNS. It is the form the commercial tools publish, so a
+        # reader comparing vendors needs the same number on both
+        # sides - and it must say it is not a criterion, because a
+        # figure printed beside a verdict table reads as one.
+        _sp = os.path.join(td, "signoff.html")
+        _html = ""
+        if wrote:
+            with io.open(_sp, encoding="utf-8") as _fh:
+                _html = _fh.read()
+        check("...and that page carries the DISTANCE beside the "
+              "verdicts, marked as not a criterion - a measurement "
+              "that never reaches a page might as well not exist "
+              "for the person deciding",
+              "Distance (not a criterion)" in _html
+              and "variation distance" in _html)
+
         det = cli("-m", "synthkit.cli", "determination", run)
         check("the determination CLI runs on this run and exits "
               "3 while elements are owed ({}), rather than "
