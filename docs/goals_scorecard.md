@@ -607,7 +607,7 @@ on this page.
 
 ---
 
-## Goal 5 — High-fidelity generation   **~96%**
+## Goal 5 — High-fidelity generation   **~97%**
 
 **What works, measured — on the real extract**
 
@@ -1052,9 +1052,44 @@ dates:
    ceiling: ongoing and unscheduled, because unknowns move dates
    and these are the genuine unknowns.
 
-Equal-weighting the eight goals: **~96.2% complete** as of
-2026-11-09 — 95, 97, 97, 95, 96, 100, 92, 98. The mean is
-exactly 96.25, which rounds to 96.2.
+Equal-weighting the eight goals: **~96.4% complete** as of
+2026-11-09 — 95, 97, 97, 95, 97, 100, 92, 98.
+
+Moved 2026-11-09 (overnight): goal 5 96→97, for a measured
+fidelity gain and a new measure, and against an honest
+correction of my own.
+
+**Token co-occurrence is modelled.** Set tokens were drawn
+independently within a row; the draw now reweights each pick
+by the k-screened structure the blueprint publishes,
+including tokens already drawn in earlier set columns. On the
+real extract, paired through the full CLI at one seed and one
+flag apart: **close 102/125 → 106/125**, and on the
+re-measured 136-pair shared surface **110 → 113**. OFF by
+default until it is measured across seeds — those arms are
+running.
+
+**Total variation distance is reported over EVERY pair.**
+The gate's pair criteria are pass/fail on a correlation delta
+over the pairs the source relates; TVD on discretised
+distributions is continuous and covers all pairs, so it moves
+when the engine moves and it sees a generator inventing
+structure where there was none. It is the form MOSTLY AI and
+SDV publish — first real-extract reading **accuracy 0.928**.
+Reported, never gated: a bar would change what a MET means on
+a threshold nobody has measured a basis for.
+
+**And a correction that cost a feature.** A set-size coupling
+was built, measured as a large win on a fixture, and then
+REMOVED — because the fixture baseline was an artifact of my
+own restricted discovery. Measured through the real CLI path
+the engine already carries that structure: it routes a
+derived-indicator relationship to its set column and
+rearranges which row gets which drawn set. On the real
+extract the feature moved the mean set-size correlation from
+0.1499 to 0.1520 against a source 0.4210, and added two
+scaffolding inversions. The checks that claimed otherwise
+were rewritten to run through the CLI.
 
 Moved on 2026-11-09: goal 3 95→97 and goal 5 95→96, both for
 the same finding. A planted relationship of the kind that
