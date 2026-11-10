@@ -396,6 +396,75 @@ Synthetic clinical data generator and model-evaluation instrument. Core rule: le
 - Never state a number as measured unless you actually ran it.
 
 ## Fixing what the real extract found
+- **THE CLOSE CEILING ON THE REAL EXTRACT IS 97.9% TO 100.0%, SO
+  SAMPLING NOISE EXPLAINS ALMOST NONE OF THE GAP AND THE BAR IS NOT
+  MISCALIBRATED (2026-11-09, `phase2_800\tidy_visits.csv`, 55,428
+  rows, 800 patients).** Two disjoint halves BY PATIENT, one in as
+  the source and the other as the generated table, through the
+  gate's own `_pair_fidelity`:
+      split 0   pairs 155   close 155   = 100.0%   inverted 0
+      split 1   pairs 146   close 143   =  97.9%   inverted 0
+  Every figure read back SPELLED by the machine - "one zero zero
+  point zero percent", "nine seven point nine percent" - because
+  the digits channel off that screen turns a zero into an at-sign.
+  **Nothing is generated here**: both sides are real data, and each
+  half holds only FOUR HUNDRED patients, so it carries MORE
+  sampling noise than the full-cohort comparison the gate makes.
+- **SO THE ~11 TO 13 POINT GAP IS THE ENGINE, AND THAT IS THE
+  ANSWER TO "WHAT IS STOPPING US".** The shipping engine reads
+  close **113/130 = 86.9%** on this extract at seed 11 against a
+  ceiling of 97.9% measured with half the data. Two hypotheses this
+  retires, both of which this file had entertained: that the 87.9%
+  bar is unreachable on this cohort - it is cleared by a wide
+  margin with nothing generated at all - and that the close gap is
+  substantially seed and sampling noise. It is not. There is real
+  headroom, which means the fidelity work is worth doing rather
+  than being a chase after a number the data cannot support.
+- **WHAT THE CEILING DOES NOT SAY.** It is a LOWER bound on what is
+  achievable, so it cannot be read as a target the engine should
+  hit: a generator is not a second half of the same cohort, and
+  nothing here says the remaining gap is all addressable. It also
+  says nothing about the OTHER criteria - shapes tracked, the
+  interaction surfaces or the dynamics - which have their own
+  ceilings and were not measured.
+- **AND THE FIRST READING OF IT CAME BACK IN BARE DIGITS WHILE THE
+  TOOL REPORTED SUCCESS.** `close_ceiling.py` imported a function
+  named `sayn`, which does not exist - the module exports `spell`
+  and `annotate` - inside a `try/except` that fell back to `str`.
+  So every figure in the one measurement built to settle a
+  strategic question arrived as an OCR artifact by this project's
+  own rule, and nothing said so. That is the banned silent-no-op
+  shape: `getattr(obj, name, default)` on a library attribute is
+  forbidden here for exactly this reason, and a try/except around
+  an IMPORT is the same fault wearing different syntax. The import
+  is now unguarded - if the speller cannot be loaded the script
+  FAILS rather than quietly producing numbers nobody can trust -
+  and reinstating the fallback turns two checks red.
+- **AND THE SHIPPING DEFAULT'S OWN REAL-EXTRACT READING IS ON
+  RECORD, with two criteria far better than anything this file has
+  recorded.** Seed 11, co-occurrence ON, token targets OFF:
+      inverted               0        PASS, the absolute stop
+      coverage               42/42    PASS
+      set EMPTY rate         4/4      PASS
+      set token shares       71/72
+      direction kept         121/130 = 93.1%   (need 93.9%)
+      close                  113/130 = 86.9%   (need 87.9%)
+      shapes tracked         6/9
+      interaction surfaces   4/7
+      dynamics tracked       38/89
+  `interaction surfaces` and `dynamics tracked` were read back in
+  WORDS - "four / seven" and "three eight / eight nine". Against
+  this file's recorded history those are the best readings yet:
+  surfaces have read 0/5 on the deliverable and 2/5 on the n8g/n9g
+  pair, and dynamics 17/87 and 35/89. **The DENOMINATORS moved, so
+  the absolute counts are the comparison** - surfaces 0 or 2 to 4,
+  dynamics 17 or 35 to 38 - and these are a different seed and 180-odd
+  commits from the deliverable, so this is NOT a paired arm and
+  nothing here attributes the movement to any one change.
+- **AND IT REPRODUCES THE SEED-11 CO-OCCURRENCE ARM EXACTLY**, at
+  130 pairs, 121 direction and 113 close - which is an independent
+  confirmation that the flipped default is the arm that was
+  measured, rather than a near neighbour of it.
 - **A TWO-VALUED CHILD SATURATES THE WAY A TWO-VALUED DRIVER DOES,
   AND ONLY THE DRIVER CASE WAS EVER HANDLED (2026-11-09).**
   `_informative_sets` rearranges the drawn sets so a token indicator

@@ -116,6 +116,31 @@ def main():
           "large one and attribute the extra noise to the engine",
           abs(len(sa) - len(sb)) <= 1)
 
+    # ---- THE SPELLER IS WIRED, WITH NO SILENT FALLBACK ----------
+    # The first cut imported a function named `sayn`, which does not
+    # exist - the module exports `spell` and `annotate` - inside a
+    # try/except that fell back to `str`. The real-extract reading
+    # then came back as bare DIGITS, which by this project's own
+    # rule are OCR artifacts rather than measurements, while the
+    # tool reported success. A silent no-op is worse than a crash,
+    # which is why `getattr` on a library attribute is banned here.
+    from close_ceiling import _say
+    said = _say(97.9)
+    check("every number the tool prints is repeated in WORDS, "
+          "because the machine that holds the extract is read by "
+          "screen OCR and a bare digit off it is an artifact - "
+          "`{}`".format(said),
+          "nine" in said and "seven" in said)
+
+    cc = (ROOT / "scripts" / "close_ceiling.py").read_text(
+        encoding="utf-8")
+    check("...and the speller is imported WITHOUT a fallback, so a "
+          "rename breaks the script instead of quietly turning "
+          "every figure back into an untrustworthy digit",
+          "from sayn import annotate" in cc
+          and "def sayn(x)" not in cc
+          and "return str(n)" not in cc)
+
     # ---- NOTHING IS GENERATED ------------------------------------
     txt = (ROOT / "scripts" / "close_ceiling.py").read_text(
         encoding="utf-8")

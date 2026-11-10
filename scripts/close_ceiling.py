@@ -49,23 +49,25 @@ from synthkit.intake import read_table                  # noqa: E402
 from synthkit.pipeline import _pair_fidelity            # noqa: E402
 from synthkit.sets import is_scaffolding                # noqa: E402
 
-try:
-    from scripts.sayn import sayn                       # noqa: E402
-except Exception:                                       # pragma: no cover
-    sys.path.insert(0, str(ROOT / "scripts"))
-    try:
-        from sayn import sayn                           # noqa: E402
-    except Exception:
-        def sayn(x):
-            return str(x)
+# NUMBERS CROSS THIS PROJECT'S SCREEN BRIDGE IN WORDS, and the
+# import is NOT wrapped in a fallback. The first cut imported a
+# function named `sayn` - which does not exist; the module exports
+# `spell` and `annotate` - inside a try/except that fell back to
+# `str`. So the real-extract reading came back as bare DIGITS and
+# every figure in it was an OCR artifact by this project's own rule,
+# while the tool reported success. That is the banned silent-no-op
+# shape: `getattr(obj, name, default)` on a library attribute is
+# forbidden here for exactly this reason, and a try/except around an
+# import is the same fault wearing different syntax. If the speller
+# cannot be imported this script must FAIL, not quietly produce
+# numbers nobody can trust.
+sys.path.insert(0, str(ROOT / "scripts"))
+from sayn import annotate                               # noqa: E402
 
 
 def _say(n):
-    """Numbers cross this project's screen bridge in WORDS."""
-    try:
-        return sayn(n)
-    except Exception:
-        return str(n)
+    """One numeric literal, repeated in words beside its digits."""
+    return annotate(str(n))
 
 
 BAR = 87.9
