@@ -4636,6 +4636,86 @@ the direction that stops work happening.
   error with did-you-mean; `synthkit dials` lists every edge.
 
 ## Numbers before conclusions
+- **THE CAPACITY AXIS WAS SWEPT AND IT IS NEARLY FLAT FOR `close`,
+  WITH ONE SEED-ROBUST GAIN ON THE ABSOLUTE STOP (2026-11-10).** The
+  proposal was to train a generalising and a MEMORISING autoencoder
+  and interpolate between their feature spaces to find the best
+  fidelity that still generalises. Two things had to be measured
+  before any of that was worth building: whether fidelity rises with
+  capacity at all, and whether the privacy measures go first.
+  Swept on an extract-shaped fixture (7,811 rows, 220 patients,
+  ~1,375 uniform pairs), three seeds per width, scored on the
+  challenger's own pair metric AND the nn tripwire AND the
+  train/holdout reconstruction ratio together:
+      width   close, three seeds        mean      inversions
+        32    97.75 / 97.09 / 97.53    97.46%     8, 7, 6
+       128    98.62 / 98.03 / 97.24    97.96%     3, 3, 5
+       256    96.58 / 98.47 / 98.03    97.69%     6, 4, 5
+  **The within-width seed spread is 0.66 to 1.89 points and the
+  between-width differences are about 0.5** - so on `close` the axis
+  above the default is flat, and the single-seed readings that
+  looked like a +10-pair peak at 128 and a -29-pair collapse at 256
+  were both draws. This project's oldest rule caught both.
+- **WHAT IS SEED-ROBUST IS THE INVERSION COUNT: 6 to 8 at width 32
+  against 3 to 5 at 128, with NON-OVERLAPPING ranges.** That is the
+  one verdict this project calls an absolute stop, and it is the
+  only thing the capacity axis moved. Quoted on the CHALLENGER's
+  uniform pair metric over ~1,375 pairs, which is a different
+  denominator and definition from the gate's own inverted count -
+  say which one is being quoted.
+- **AND THE DEFAULT SITS EXACTLY AT THE KNEE, BY A CAP NOBODY HAS
+  REVISITED.** `self.b = int(max(8, min(32, self.d // 6)))` - a HARD
+  cap at 32 whatever the frame. At the fixture's d=547 the rule
+  wants 91 and gets 32; at the real extract's d=1,601 it wants 266
+  and gets 32, eight times lower. So the engine has been running at
+  the knee of this curve on every real run, which is why the axis
+  looks flat: the cheap part was already being taken.
+- **AND RECONSTRUCTION ERROR CANNOT FIND THE SPOT, WHICH REFUTES THE
+  SELECTION CRITERION THE PROPOSAL RESTED ON.** Training error falls
+  **4x** from width 32 to 256 (0.0438 to 0.0119) across a range
+  where `close` does not move outside its own seed noise. A criterion
+  that improves monotonically while the graded surface stays flat
+  cannot locate an optimum on that surface. The selection has to be
+  scored on the GATE, which this file already says about optimising
+  `within_lag1` rather than the two measurements it is derived from.
+- **AND THE PRIVACY MEASURES NEVER DEGRADED IN THE RANGE, which is
+  the half of the proposal that would have decided it.** nn-ratio
+  0.990 to 1.016 across every arm, against **0.00** for a verbatim
+  republish; train/holdout 1.076 to 1.113, against **9.7** for the
+  recorded pure-noise positive control. So nothing in this range is
+  near the memorising regime at all - which means an interpolation
+  between a generalising and a memorising model has almost no
+  fidelity to arbitrate over here, because the generalising end
+  already has it.
+- **AND THE OUTLIER SCREEN THE PROPOSAL NEEDED WAS TESTED AND IS A
+  MEDIOCRE PROXY FOR A MEASURE THIS ENGINE ALREADY HAS.** The idea
+  was to use per-record reconstruction error to find the records
+  whose patterns fewer than k patients support, keep the rest, and
+  reproduce them faithfully - the k-ceiling half of which is sound
+  and is this project's own posture. Measured against
+  `support_of_rows`, which counts DISTINCT TRAINING PATIENTS within
+  a radius in FEATURE space:
+      width    sub-k share   AUROC(error finds sub-k)   err ratio
+         8        0.202              0.781                1.24
+        32        0.202              0.738                1.21
+       256        0.202              0.791                1.27
+  **My own predicted flaw was REFUTED** - I expected the AUROC to
+  collapse as capacity rose, because a memorising model rebuilds a
+  unique record well, and it does not: the error falls everywhere
+  and the RATIO survives. What the measurement does say is that the
+  proxy is moderate, not sharp - an error ratio of 1.2 and an AUROC
+  near 0.78 would keep a real share of sub-k records and discard a
+  real share of well-supported ones - and that the exact quantity is
+  already computed directly and already wired in as the k-aware
+  blur. There is no reason to screen on a 0.78 proxy for something
+  measured at 1.0 by definition.
+- **WHAT THE SWEEP DOES LEAVE: raising the cap for the INVERSION
+  gain, on a real arm.** It is the one thing three seeds agreed on,
+  it costs nothing measurable in privacy, and it is a capacity
+  change rather than a token-placement rearrangement - so it is not
+  subject to the near zero-sum this file records for the last four
+  token tiers. The cost is a longer fit and more memory at d=1,601,
+  which is the shape that once died allocating 1.5 GiB.
 - **HOW MUCH OF `close` IS SAMPLING NOISE IS COMPUTABLE FROM THE
   SOURCE ALONE, AND NOBODY HAD ASKED (2026-11-09,
   `scripts/close_ceiling.py`).** `close` has sat 1 to 8 points under
