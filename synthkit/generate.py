@@ -1058,6 +1058,74 @@ def _pick_row(n_tok, k_, w, rng, within=None, ctx=None,
     return picks
 
 
+# HOW MANY DRAW-MEASURE-ADJUST PASSES THE TOKEN SOLVE GETS. Named
+# because it is the knob the extract's vocabulary bends: with
+# FEASIBLE conditional asks the solve lands 10 of 10 published pairs
+# at 40 tokens, 40 of 50 at 200, 124 of 200 at 800 and 28 of 400 at
+# the extract's own 1,827 - so it is verified at fixture scale and
+# collapses at real scale, which is exactly what this project
+# recorded for the token MARGINAL solve when it was tested at EIGHT
+# tokens and the ends swapped at 1,827.
+TOKEN_SOLVE_PASSES = 24
+# AND PASSES PROPORTIONAL TO THE PUSH, which is the rule this
+# project already reached for token SHARPNESS: "sharpening alone
+# trades the marginals away; passes proportional to the push restore
+# them". Measured on a FEASIBLE 1,827-token vocabulary - shares
+# scaled to sum to the mean set size, so every target can be met at
+# once - with 400 published conditional pairs:
+#
+#   passes   conditionals landed   mean|miss|   worst share   >0.05
+#      24          27 of 400          0.696        0.032        0
+#      96          55 of 400          0.533        0.053        1
+#     224          93 of 400          0.372        0.039        0
+#
+# So the solve is ITERATION-STARVED at real vocabulary and improves
+# monotonically, while the NEIGHBOURING property holds: the token
+# marginals are unharmed in every arm. The cost is 31s to 109s of
+# generate on a run whose fit alone takes 29 minutes.
+#
+# THIS REFUTES A CLAIM IN THIS FILE'S OWN COMMENT, which said the
+# solve "plateaus" by 30 passes - measured on ONE planted pair. At
+# 400 pairs it does not plateau anywhere near there.
+#
+# AND IT IS NOT THE WHOLE CAUSE, said plainly: even 224 passes land
+# only 23% of the published conditionals. The comment above names
+# the remaining candidate - the set SIZE is drawn independently of
+# context - and that is a different fix.
+# ZERO BY DEFAULT, so the engine is BYTE-IDENTICAL to the build
+# every existing run was made with. The evidence above is from
+# FIXTURES, and this project has just been shown - on the token
+# TARGET tier, the same night - that a fixture gain can be reversed
+# by a real-extract control arm: that tier read within-0.2 1/4 to
+# 2/4 on three fixture seeds and cost THREE close pairs on the
+# extract. Both changes act by moving token placement, so the same
+# risk applies here, and the paired real arm decides it.
+TOKEN_SOLVE_PER_PAIR = 0.0
+TOKEN_SOLVE_MAX_PASSES = 224
+
+
+def _solve_passes(cross, within):
+    """How many draw-measure-adjust passes this column earns.
+
+    A column with NO published conditionals earns exactly the base,
+    so a run that publishes none is BYTE-IDENTICAL to the old path -
+    the change acts only where its mechanism lives.
+    """
+    n = 0
+    for part in (within, cross):
+        if not part:
+            continue
+        try:
+            n += len(part)
+        except TypeError:
+            pass
+    if n <= 0:
+        return TOKEN_SOLVE_PASSES
+    return int(min(TOKEN_SOLVE_MAX_PASSES,
+                   TOKEN_SOLVE_PASSES
+                   + int(round(n * TOKEN_SOLVE_PER_PAIR))))
+
+
 def _token_weights(m, sizes_per_row, seed, within=None,
                    ctx_fn=None, cross=None):
     """Sampling weights SOLVED so the drawn shares measure back.
@@ -1116,7 +1184,7 @@ def _token_weights(m, sizes_per_row, seed, within=None,
     # plateaus there - the rest of the gap is the SIZE draw,
     # which is still independent of context, not the solve
     # running out of road.
-    for it in range(24):
+    for it in range(_solve_passes(cross, within)):
         r2 = np.random.RandomState((seed + 977 * it) % (2 ** 31))
         got = np.zeros(len(toks))
         ww = w / w.sum()

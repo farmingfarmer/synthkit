@@ -396,6 +396,85 @@ Synthetic clinical data generator and model-evaluation instrument. Core rule: le
 - Never state a number as measured unless you actually ran it.
 
 ## Fixing what the real extract found
+- **THE TOKEN-TARGET TIER WAS REFUTED BY THE REAL EXTRACT, AND THE
+  LOSS IS ENTIRELY ON SCAFFOLDING (2026-11-09, run_tt_off against
+  run_tt_on, seed 11, one flag apart, same tree).** Three fixture
+  seeds had read the within-0.2 count 1/4 to 2/4 with signs 4/4 on
+  both arms and the mean miss 0.282 to 0.179. The paired real arm:
+      criterion              OFF (shipping)   ON (--solve-token-targets)
+      inverted               0 PASS           0 PASS
+      direction kept         121/130 93.1%    122/130 93.8%
+      close                  113/130 86.9%    110/130 84.6%
+      coverage               42/42            42/42
+      set EMPTY rate         4/4              4/4
+      set token shares       71/72            71/72
+      shapes tracked         6/9              6/9
+      interaction surfaces   4/7              4/7
+      dynamics tracked       38/89            38/89
+  **The tier costs THREE close pairs and gains ONE direction pair.**
+  Every figure read back spelled by the machine - "one two two",
+  "one one zero", "one one three", "one three zero".
+- **AND THE DAMAGE IS ALL IN THE SCAFFOLDING, which the gate's own
+  breakdown says.** Both arms report the SAME own-column figures -
+  29 of the 130 pairs are the operator's columns, and those read 25
+  direction, 24 close, 0 inverted on BOTH arms - so the 101
+  set-token search pairs carry the entire difference. The tier acts
+  on token indicators and makes them worse by three while leaving
+  the operator's data untouched.
+- **SO IT STAYS OFF, and the control arm is what earned that.** This
+  is the THIRD time in this file a fixture-measured fidelity gain
+  has been overturned by a real-extract arm at the same seed, and
+  the first two cost a night each. A fixture told me the tier fixed
+  a point-biserial saturation it had correctly diagnosed; the
+  extract says the arrangement it buys costs more elsewhere than it
+  gains. Locally right, globally worse - the greedy-cut lesson, in
+  a new place.
+- **THE MECHANISM IT FIXED IS STILL REAL, which is why it ships as a
+  flag rather than being deleted.** The point-biserial bound is
+  arithmetic: a two-valued child rank-matched to a continuous target
+  reaches only `phi(z)/sqrt(p(1-p))` of it, measured at 0.776
+  against a predicted 0.7766 at a 0.35 share. What the real arm
+  shows is that landing that target more exactly is not worth what
+  the tightened arrangement costs the pairs around it.
+
+- **AND THE TOKEN SOLVE IS ITERATION-STARVED AT A REAL VOCABULARY,
+  WHICH REFUTES A CLAIM IN THE ENGINE'S OWN COMMENT (2026-11-09).**
+  The remaining close misses are cross-set token pairs whose
+  structure IS detected and IS published - sodium-chloride against
+  Flush at phi 0.88483, conditional 0.954 - so the draw is the
+  suspect. Measured on a FEASIBLE 1,827-token vocabulary with 400
+  published pairs:
+      passes   conditionals landed   mean|miss|   worst share   >0.05
+         24          27 of 400          0.696        0.032         0
+         96          55 of 400          0.533        0.053         1
+        224          93 of 400          0.372        0.039         0
+  Monotone, with the token MARGINALS unharmed in every arm. The
+  engine's comment said the solve "plateaus" by 30 passes - measured
+  on ONE planted pair, and it does not hold at 400.
+- **AND IT IS NOT THE WHOLE CAUSE, said rather than implied.** Even
+  224 passes land only 23% of the published conditionals. The
+  engine's own comment names the remaining candidate - the set SIZE
+  is drawn independently of context - and that is a different fix.
+- **SHIPPED OFF, AT A RATE OF ZERO, FOR THE REASON THE TIER ABOVE
+  JUST DEMONSTRATED.** Both changes act by moving token placement,
+  so a fixture gain here carries the same risk that was realised
+  there. `--token-solve-scale` is the opt-in, the default is
+  BYTE-IDENTICAL to every run made so far - asserted through
+  `generate`, not argued - and the paired real arm decides it.
+- **AND MY FIRST FIXTURE FOR IT WAS INFEASIBLE IN AGGREGATE, which
+  made the engine look broken at every scale.** It gave 1,827 tokens
+  an average share of 0.15, so the shares summed to about 274 tokens
+  per row against a set size of at most 12. Every token ran cold,
+  1,638 of 1,827 marginals missed by more than 0.05 on BOTH arms,
+  and the conditional landing read 1 of 10 even at FORTY tokens -
+  which I briefly read as "the solve never works". The asks were
+  also individually impossible: **P(b|a) cannot exceed p_b / p_a
+  while both marginals hold**, and the first version asked 0.95 of
+  every pair regardless. Scaling the shares to sum to the mean set
+  size and capping each ask at 0.9 of its feasible bound turned
+  10 of 10 at 40 tokens into the honest curve above. A frame whose
+  targets cannot all be met at once measures nothing but its own
+  infeasibility - the same lesson as the dial work's reachable band.
 - **THE REMAINING CLOSE MISSES ARE CROSS-SET TOKEN PAIRS, AND BOTH
   OBVIOUS SUSPECTS ARE ACQUITTED BY READING THE ARTIFACTS
   (2026-11-09, run_tt_off, seed 11).** `close_gap` on the shipping

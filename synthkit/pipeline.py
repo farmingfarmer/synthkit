@@ -77,6 +77,23 @@ def build_parser(prog=None, add_help=True):
                     help="the patient id column")
     ap.add_argument("--time-col", default="",
                     help="visit ordering column; detected if omitted")
+    ap.add_argument("--token-solve-scale", type=float,
+                    default=None,
+                    help="extra draw-measure-adjust passes "
+                         "per published conditional pair, on "
+                         "top of the base 24. The solve is "
+                         "ITERATION-STARVED at a real "
+                         "vocabulary: on a feasible "
+                         "1,827-token frame with 400 pairs "
+                         "it lands 27 of 400 at 24 passes "
+                         "and 93 at 224, monotone, with the "
+                         "token marginals unharmed in every "
+                         "arm. 0.5 reaches the cap at 400 "
+                         "pairs. DEFAULT 0, which is "
+                         "byte-identical to every run made "
+                         "so far - the evidence is from "
+                         "fixtures and the paired real arm "
+                         "decides it.")
     ap.add_argument("--solve-token-targets",
                     action="store_true",
                     help="ask the bisection for the "
@@ -730,6 +747,18 @@ def main(argv=None, args=None):
             "tune, then re-run with --generate")
         return
 
+    # THE PASS RATE IS SET ON THE MODULE, because the draw reads
+    # it at generate time. A flag that is read and not used is this
+    # project's own named failure mode, so the run PRINTS the value
+    # it is about to use rather than leaving a reader to assume the
+    # default.
+    _scale = getattr(a, "token_solve_scale", None)
+    if _scale is not None:
+        import synthkit.generate as _gen
+        _gen.TOKEN_SOLVE_PER_PAIR = float(_scale)
+        say("token solve: {} extra pass(es) per published "
+            "conditional pair, capped at {}".format(
+                float(_scale), _gen.TOKEN_SOLVE_MAX_PASSES))
     say("generating")
     rep = {}
     g = generate(bp, n_patients=(a.patients or None), seed=a.seed,
