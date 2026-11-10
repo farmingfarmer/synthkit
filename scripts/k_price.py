@@ -11,11 +11,16 @@ how much of THAT the engine actually delivered.
 Those are different numbers and they call for different work:
 
   ceiling   = sd(source clipped to the published bounds) / sd(source)
-              What ANY generator obeying the rule can reach. The
-              published minimum and maximum are the MEAN of the k
-              most extreme patients' own extremes, so nothing beyond
-              them may be emitted by anything. This is the price of
-              the posture, and no arrangement recovers it.
+              A REFERENCE, not a maximum - and the first version of
+              this docstring called it one, which is false. Nothing
+              beyond the bounds may be emitted, since they are the
+              mean of the k most extreme patients. But CLIPPING
+              compresses the tail toward the cap, while a generator
+              may PLACE mass at the cap, which is bimodal and
+              carries more variance: measured on a heavy-tailed
+              fixture, clipped 16.12 against an extremal placement
+              at 20.29, both matching the published tail mean. So
+              `delivered` above 1.0 is legitimate rather than noise.
 
   delivered = sd(generated) / sd(source clipped)
               How much of the reachable spread the engine actually

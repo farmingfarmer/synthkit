@@ -159,6 +159,90 @@ def _tail_mean(v: pd.Series, groups, cut: float, upper: bool,
     return float(per.mean())
 
 
+# HOW MANY k-SCREENED KNOTS THE TOP SEGMENT EARNS. Zero is off,
+# and off is the default: this is an engine change whose only
+# evidence is a fixture, and four real-extract arms this week have
+# each overturned or traded away a fixture-measured gain. The
+# paired real arm decides it.
+TAIL_BAND_KNOTS = 0
+
+
+def _tail_bands(v: pd.Series, groups, cut: float, cut_q: float,
+                k: int, max_bands: int = 4):
+    """Extra knots INSIDE the top segment, each a k-screened band.
+
+    WHY. The grid's last inner knot is the 99th percentile and the
+    next is the published cap, so the whole top 1% is ONE segment
+    and generation draws a straight line across it.
+    `tail_mean_high` bends that line to the right average, which
+    this project measured as the dominant error in a skewed
+    column's MEAN - but a bend cannot carry the segment's own
+    SHAPE. Measured on a count column whose top 1% runs from 10 to
+    379, the generated tail reached 107 and the column delivered
+    0.49 of the spread the k rule still allowed. The body was
+    exact: median, 90th and 99th all matched, and the whole
+    shortfall sat above the last knot.
+
+    NOTHING NEW IS DISCLOSED. Every knot is the mean of a band of
+    at least k PATIENTS - the same rule the bounds follow, and for
+    the same reason: one person seen two hundred times must not set
+    a published number alone. The outermost band is the top k
+    patients, whose mean IS the published cap that was already
+    there. Only the resolution BELOW the cap improves.
+
+    Returns [(q, value), ...] strictly inside (cut_q, 1.0), or [].
+    """
+    if groups is None:
+        return []
+    arr = v.to_numpy(dtype=float)
+    sel = arr >= cut
+    n_all = len(arr)
+    if not sel.any() or n_all <= 0:
+        return []
+    g = np.asarray(groups)[v.index][sel]
+    tail = pd.DataFrame({"g": g, "v": arr[sel]})
+    per = tail.groupby("g")["v"].agg(["mean", "size"])
+    # A BAND NEEDS k PATIENTS, so the segment must hold at least
+    # two of them to be worth splitting at all - one band is the
+    # cap we already publish.
+    if len(per) < 2 * k:
+        return []
+    per = per.sort_values("mean")
+    n_bands = int(min(max_bands, len(per) // k))
+    if n_bands < 2:
+        return []
+    # THE OUTERMOST BAND IS THE TOP k PATIENTS, so its mean is the
+    # published cap; the bands below it are what is new. Walk from
+    # the top so that stays true however the remainder divides.
+    edges = []
+    idx = len(per)
+    for _ in range(n_bands):
+        lo_i = max(0, idx - k)
+        if idx - lo_i < k:
+            break
+        edges.append((lo_i, idx))
+        idx = lo_i
+    edges.reverse()
+    if len(edges) < 2:
+        return []
+    # the lowest band absorbs whatever patients are left below it,
+    # so no patient in the segment is dropped from the shape
+    edges[0] = (0, edges[0][1])
+    out = []
+    rows_below = float(per["size"].iloc[:edges[0][0]].sum())
+    span = 1.0 - cut_q
+    tail_rows = float(per["size"].sum()) or 1.0
+    cum = rows_below
+    for lo_i, hi_i in edges:
+        band = per.iloc[lo_i:hi_i]
+        cum += float(band["size"].sum())
+        q = cut_q + span * (cum / tail_rows)
+        out.append((float(min(q, 1.0)), float(band["mean"].mean())))
+    # the last knot coincides with the cap, which the caller
+    # already appends - drop it rather than publish it twice
+    return [(q, val) for q, val in out[:-1] if cut_q < q < 1.0]
+
+
 def _numeric_marginal(s: pd.Series, groups=None,
                       k: int = 10) -> Dict[str, Any]:
     v = s.dropna()
@@ -226,6 +310,25 @@ def _numeric_marginal(s: pd.Series, groups=None,
             z = float((arr0 == 0.0).mean())
             if z >= 0.02:
                 out["zero_share"] = round(z, 6)
+    # EXTRA KNOTS INSIDE THE TOP SEGMENT, each a band of at least k
+    # patients. The cap does not move - the outermost band IS the
+    # cap - so nothing new is published; only the shape below it
+    # gains resolution.
+    if TAIL_BAND_KNOTS and groups is not None and len(inner):
+        _bands = _tail_bands(
+            v, groups, float(np.quantile(arr, inner[-1])),
+            float(inner[-1]), k, max_bands=int(TAIL_BAND_KNOTS))
+        if _bands:
+            _q = list(out["q"])
+            _v = list(out["v"])
+            for _bq, _bv in _bands:
+                _bv = min(max(_bv, lo), hi)
+                if _q[-2] < _bq < 1.0 and _v[-2] <= _bv <= hi:
+                    _q.insert(len(_q) - 1, round(float(_bq), 6))
+                    _v.insert(len(_v) - 1, round(float(_bv), 6))
+            out["q"] = _q
+            out["v"] = _v
+            out["tail_band_knots"] = len(_q) - len(inner) - 2
     if hi_mean is not None:
         out["tail_mean_high"] = round(hi_mean, 6)
     if lo_mean is not None:

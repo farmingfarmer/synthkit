@@ -396,6 +396,52 @@ Synthetic clinical data generator and model-evaluation instrument. Core rule: le
 - Never state a number as measured unless you actually ran it.
 
 ## Fixing what the real extract found
+- **CORRECTION TO YESTERDAY'S `ceiling`: IT IS A REFERENCE, NOT A
+  MAXIMUM, AND I CALLED IT ONE (2026-11-10).** `k_price.py` reports
+  `ceiling = sd(source clipped to the published bounds) / sd(source)`
+  and the entry above describes that as "what ANY generator obeying
+  the rule can reach". **That is false.** Clipping compresses the
+  tail toward the cap; a generator may instead PLACE mass at the cap,
+  which is bimodal and carries more variance. Measured on a
+  heavy-tailed count fixture, all three consistent with the same
+  published facts:
+      source sd                          63.41
+      sd if the tail is CLIPPED to cap   16.12
+      sd with a SMOOTH tail placement    10.25
+      sd with an EXTREMAL placement      20.29
+  The extremal arrangement EXCEEDS the clipped reference by a quarter
+  while matching the published tail mean to two decimals. So
+  `delivered` above 1.0 is legitimate rather than noise - and the
+  capacity sweep's 1.073 and 1.189 readings, which I waved off, were
+  real. The quantity is still the right reference to report and the
+  decomposition still separates the rule's price from the engine's;
+  what is withdrawn is the word "maximum".
+- **AND THE GAP IT EXPOSES IS A 2x AMBIGUITY THE CONTRACT DOES NOT
+  RESOLVE.** The top segment publishes its MEAN (`tail_mean_high`)
+  and its cap, and nothing about its spread. Two placements matching
+  both differ by a factor of two in sd - 10.25 against 20.29 - and
+  the engine takes the smooth one, because `_shape_tail` bends a
+  line to hit the mean. On a heavy-tailed column that is the wrong
+  half of the ambiguity: the source's tail is a few rows far out and
+  many near the knot, which is the extremal shape.
+- **SO THE FIX IS ONE MORE PUBLISHED AGGREGATE, NOT MORE KNOTS.** The
+  obvious move was a k-banded grid inside the top segment, the way
+  sparse numerics already get one. It is IMPOSSIBLE under the k rule:
+  the top 1% of ROWS holds about 1% of PATIENTS, so at k=10 there are
+  not enough people above the 99th percentile to form two bands - on
+  the real extract's 800 patients that segment holds roughly eight.
+  `_tail_bands` was written, measured returning nothing for exactly
+  that reason, and is kept with the finding in its docstring. What IS
+  publishable is a k-screened SPREAD for the segment, one aggregate
+  over the same patients the cap already averages, which resolves the
+  ambiguity without disclosing anything the cap does not.
+- **AND THE SHORTFALL IS ENTIRELY ABOVE THE LAST KNOT, which is what
+  makes this worth doing rather than guessing.** On the reproduction
+  fixture, source against generated: zeros 0.171 against 0.171,
+  median 2 against 2, 90th 5 against 5, 99th 10 against 10 - and then
+  99.9th **178 against 40** and max **379 against 107**. The body is
+  exact and the whole loss sits in the one segment the contract
+  describes with a single number.
 - **THE PER-REGION k SCREEN IS REFUTED BEFORE IT WAS BUILT: THE
   ENGINE IS ALREADY AT THE PRIVACY RULE'S CEILING (2026-11-10,
   run_tt_off, `scripts/k_price.py`).** The plan was to make the
