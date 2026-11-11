@@ -396,6 +396,54 @@ Synthetic clinical data generator and model-evaluation instrument. Core rule: le
 - Never state a number as measured unless you actually ran it.
 
 ## Fixing what the real extract found
+- **A PUBLISHED TAIL AGGREGATE WAS MEASURED ON ONE SEGMENT AND
+  CONSUMED ON ANOTHER, AND NOTHING COULD SEE IT BECAUSE THE
+  CAPABILITY THAT REACHES THE FAULT SHIPS OFF (2026-11-10).**
+  `tail_mean_high` was measured at `inner[-1]` - the 99th
+  percentile - and `_shape_tail` consumes it at `v[-2]`. Those are
+  the same value on every blueprint this project has written, so
+  the fault was invisible; `TAIL_BAND_KNOTS` inserts a knot and
+  they stop being the same. With four bands the engine bent a
+  segment whose own clipped mean is **381.43** to average
+  **102.24**, and `delivered` fell from **0.65-0.80 to 0.19-0.27**
+  on four paired seeds. Both aggregates are now read off the grid
+  AS IT STANDS, which is byte-identical at the default by
+  construction, and reverting to `inner[-1]` turns three checks
+  red.
+- **AND THE CAPABILITY IS NOT DEAD CODE, WHICH RETRACTS WHAT I
+  WROTE ABOUT IT HOURS EARLIER.** I recorded that `_tail_bands`
+  "measured returning `[]` because the top 1% of rows holds ~1% of
+  patients" and was ready to delete it under this file's own rule
+  about a guard no mutation can break. It returns **three bands**
+  on the heavy fixture - the segment holds 69 patients against a k
+  of 10 - so the earlier measurement was of some other shape, and
+  deleting it would have removed a working capability on the
+  strength of a number I did not re-run. Check whether a thing is
+  reachable before calling it dead.
+- **AND ONCE THE SEGMENTS AGREE, BANDING IS THE LARGEST SINGLE
+  GAIN MEASURED ON THIS COLUMN - WHICH IS WHY THE BUG MATTERED.**
+  Paired, four generate seeds, mean |delivered - 1|:
+      TAIL_BAND_KNOTS 0    0.345
+      TAIL_BAND_KNOTS 4    0.168
+  Better on 4 of 4 seeds. It still ships OFF: `delivered` has a
+  seed range of 0.38 on this very column, four seeds is not a
+  range, and two of the banded readings OVERSHOOT (1.097, 1.085),
+  which is a different failure from undershooting and is not
+  obviously the better one. The paired real arm decides it, and the
+  fixture evidence is now worth the machine time to ask.
+- **AND THE OBVIOUS TIDY-UP IS A REGRESSION: THE SPREAD IS CLIPPED
+  AT THE BOUND AND THE MEAN MUST NOT BE.** Having clipped the
+  spread, clipping the mean for symmetry reads WORSE on **0 of 5
+  seeds across three fixtures** - mean |delivered - 1| 0.260 to
+  0.390, 0.392 to 0.449, 0.213 to 0.382. The reason is the
+  DIRECTION each correction pulls: patient-weighting already puts
+  the published mean BELOW the segment's own row mean (65.56
+  against 82.14), so clipping compounds two conservative
+  corrections, while the unclipped SPREAD sits ABOVE anything a
+  placement under the cap can reach (172.88 against 98.28).
+  **Clip where the figure is unreachable; leave it where it is
+  already conservative.** Both halves of that are asserted, and
+  clipping the mean turns five checks red.
 - **THE TOP SEGMENT'S SPREAD IS PUBLISHED NOW, AND THE FIRST
   VERSION ASKED THE DRAW FOR A NUMBER NO ARRANGEMENT UNDER THE CAP
   COULD REACH (2026-11-10).** The extreme segment publishes its

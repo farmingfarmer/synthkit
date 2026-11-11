@@ -334,8 +334,12 @@ def _numeric_marginal(s: pd.Series, groups=None,
     # is the single largest source of center error on skewed columns.
     # Absent when fewer than k patients reach the segment, and
     # generation then keeps the straight line rather than guessing.
-    hi_mean = _tail_mean(v, groups, float(np.quantile(arr, inner[-1])),
-                         True, k)
+    # THE TOP SEGMENT'S AGGREGATES ARE COMPUTED BELOW, AFTER any
+    # extra knots have been inserted - they describe the segment
+    # `_shape_tail` will actually bend, which is the one between
+    # `v[-2]` and the cap. Measuring them here instead reads the
+    # top 1% while generation applies them to whatever the band
+    # insertion left, and those are different segments.
     lo_mean = _tail_mean(v, groups, float(np.quantile(arr, inner[0])),
                          False, k)
     # A POINT MASS AT ZERO IS NOT A SHAPE A CURVE CAN MAKE.
@@ -385,14 +389,22 @@ def _numeric_marginal(s: pd.Series, groups=None,
             out["q"] = _q
             out["v"] = _v
             out["tail_band_knots"] = len(_q) - len(inner) - 2
+    # THE SEGMENT THE DRAW WILL BEND, read off the grid as it now
+    # stands rather than from `inner[-1]`. With no extra knots the
+    # two are the same value by construction, so this is
+    # byte-identical at the default; with knots inserted they are
+    # not, and publishing the wrong one made the engine bend a
+    # segment whose own mean is 381.43 to average 102.24 and took
+    # `delivered` from 0.65-0.80 down to 0.19-0.27 on four seeds.
+    _hi_cut = float(out["v"][-2]) if len(out["v"]) >= 2 else None
+    hi_mean = (_tail_mean(v, groups, _hi_cut, True, k)
+               if _hi_cut is not None else None)
     if hi_mean is not None:
         out["tail_mean_high"] = round(hi_mean, 6)
         # AND ITS SPREAD, so the placement is chosen rather than
         # falling out of the mean. One aggregate over the same
         # patients the cap already averages.
-        _hsd = _tail_sd(v, groups,
-                        float(np.quantile(arr, inner[-1])), True, k,
-                        bound=hi) if len(inner) else None
+        _hsd = _tail_sd(v, groups, _hi_cut, True, k, bound=hi)
         if _hsd is not None:
             out["tail_sd_high"] = round(_hsd, 6)
     if lo_mean is not None:

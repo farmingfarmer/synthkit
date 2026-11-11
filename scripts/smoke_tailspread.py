@@ -474,6 +474,94 @@ def main():
           np.array_equal(np.nan_to_num(v_old, nan=-7.5),
                          np.nan_to_num(voff, nan=-7.5)))
 
+    # ---- the SPREAD is clipped and the MEAN is not --------------
+    # THE ASYMMETRY IS MEASURED, NOT AESTHETIC, and the obvious
+    # tidy-up is a regression. Clipping `tail_mean_high` at the
+    # bound as well reads WORSE on 0 of 5 seeds across three
+    # fixtures (mean |delivered - 1| 0.260 -> 0.390, 0.392 ->
+    # 0.449, 0.213 -> 0.382). The reason is the DIRECTION each
+    # correction pulls in: patient-weighting already puts the
+    # published mean BELOW the segment's own row mean, so clipping
+    # compounds two conservative corrections, while the unclipped
+    # SPREAD sits ABOVE anything the draw can produce under the cap.
+    # Clip where the figure is unreachable; leave it where it is
+    # already conservative.
+    pw_unclipped = float(pd.DataFrame({
+        "g": groups.to_numpy()[sel], "v": raw_seg})
+        .groupby("g")["v"].mean().mean())
+    check("the published tail MEAN is the unclipped patient-"
+          "weighted figure, deliberately - clipping it as well "
+          "reads worse on every seed tried, because patient-"
+          "weighting has already pulled it below the segment's own "
+          "row mean",
+          abs(m["tail_mean_high"] - pw_unclipped) < 1e-4)
+
+    check("...and the two corrections pull OPPOSITE ways on this "
+          "fixture, which is what justifies clipping one and not "
+          "the other: the mean already sits BELOW the segment's "
+          "row mean while the unclipped spread sits ABOVE what any "
+          "placement under the cap can reach",
+          m["tail_mean_high"] < clipped.mean()
+          and raw_seg.std() > clipped.std())
+
+    # ---- the aggregates describe the segment the draw BENDS -----
+    # A LATENT FAULT IN COMMITTED CODE. `tail_mean_high` was
+    # measured at `inner[-1]` - the 99th percentile - and is
+    # consumed by `_shape_tail` at `v[-2]`. Those are the same
+    # value until `TAIL_BAND_KNOTS` inserts a knot, and then they
+    # are not: the engine bent a segment whose own clipped mean is
+    # 381.43 to average 102.24, and `delivered` fell from 0.65-0.80
+    # to 0.19-0.27 on four seeds. Nothing could see it, because the
+    # capability that reaches the fault ships off.
+    check("the extra top-segment knots are OFF by default, so the "
+          "two cuts coincide on every blueprint written so far",
+          B.TAIL_BAND_KNOTS == 0)
+
+    cat = discover(df, group_by="person_id")
+    was_k = B.TAIL_BAND_KNOTS
+    try:
+        B.TAIL_BAND_KNOTS = 4
+        bp_b = B.build(df, cat, group_by="person_id")
+    finally:
+        B.TAIL_BAND_KNOTS = was_k
+    mb = bp_b["columns"]["pq"]["marginal"]
+
+    check("...and the fixture REACHES the banded path - extra "
+          "knots are actually inserted, so the checks below are "
+          "about the fault rather than about a branch that never "
+          "ran",
+          len(mb["q"]) > len(m["q"]))
+
+    # THE PUBLISHED FIGURE MUST DESCRIBE THE APPLIED SEGMENT.
+    # Compared against the patient-weighted mean AS `_tail_mean`
+    # COMPUTES IT - unclipped. Whether that aggregate should also
+    # be clipped at the bound is a separate question with a
+    # behaviour change at the default; this check is about the
+    # SEGMENT the figure describes, and comparing against a clipped
+    # mean here would make it fail against correct code, which is
+    # what the first version did.
+    applied_from = float(mb["v"][-2])
+    own = float(pd.DataFrame({
+        "g": groups.to_numpy()[arr >= applied_from],
+        "v": arr[arr >= applied_from]}).groupby("g")["v"]
+        .mean().mean())
+    check("...and with knots inserted the published tail mean "
+          "describes the segment the draw will BEND - the one from "
+          "`v[-2]` up - rather than the 99th-percentile segment it "
+          "used to be measured on",
+          abs(mb["tail_mean_high"] - own) < max(1.0, 0.02 * own))
+
+    check("...and on this fixture those two segments disagree by "
+          "enough for that to be the thing being tested: the top "
+          "1% averages one figure and the banded segment another",
+          abs(mb["tail_mean_high"] - m["tail_mean_high"])
+          > 0.5 * m["tail_mean_high"])
+
+    check("...and the published SPREAD moves with it, so the pair "
+          "describes one segment rather than two",
+          "tail_sd_high" in mb
+          and mb["tail_sd_high"] != m["tail_sd_high"])
+
     print()
     if FAIL:
         print("{} of {} checks failed.".format(FAIL, PASS + FAIL))
