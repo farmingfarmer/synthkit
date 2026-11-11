@@ -724,6 +724,25 @@ def main(argv=None, args=None):
         # was proven has to be nameable. Owner and repo are stripped
         # upstream: this file travels.
         "build": _bid,
+        # WHICH STACK IT RAN ON, not just which commit.
+        #
+        # This project has twice been bitten by a version it did
+        # not record: pandas 3 turned a FutureWarning into a
+        # TypeError on the one machine that mattered, and Python
+        # 3.14 turned a latent help-string bug into a crash on
+        # every invocation. Both were diagnosed by asking what was
+        # installed - after the fact, by hand, on a machine
+        # somebody still had access to.
+        #
+        # It matters more in a container than on a laptop. In a
+        # hospital AWS account the IMAGE is the environment, and
+        # the Dockerfile pins the INTERPRETER while pip resolves
+        # the libraries fresh at build time - measured, the image
+        # carries pandas 3.1.1 where the data machine runs 3.0.5.
+        # So two runs of the same commit can differ by a stack
+        # nobody wrote down, which is the one thing a run is
+        # supposed to make answerable about itself.
+        "stack": _stack_versions(),
         "blueprint_version": bp.get("blueprint_version"),
         "source": {
             "name": src.name,
@@ -2127,6 +2146,30 @@ def blueprint_vocab(bp):
                 keep.append(t)
                 seen.add(tv)
         out[c] = keep
+    return out
+
+
+def _stack_versions():
+    """Interpreter and numeric library versions, for the record.
+
+    REPORTED, NEVER PINNED HERE. A run states what it ran on; it
+    does not decide what that should be. `smoke_packaging` already
+    asserts our declared floors against each dependency's own, and
+    this is the other half: the floor says what is ALLOWED and this
+    says what was USED.
+
+    An import that is not there is recorded as absent rather than
+    raising - a provenance writer that can fail takes the whole run
+    with it, and this project has lost a command to an import at a
+    write step before.
+    """
+    import sys
+    out = {"python": "{}.{}.{}".format(*sys.version_info[:3])}
+    for name in ("pandas", "numpy", "sklearn", "scipy"):
+        try:
+            out[name] = __import__(name).__version__
+        except Exception:
+            out[name] = None
     return out
 
 

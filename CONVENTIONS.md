@@ -396,6 +396,185 @@ Synthetic clinical data generator and model-evaluation instrument. Core rule: le
 - Never state a number as measured unless you actually ran it.
 
 ## Fixing what the real extract found
+- **THE IMAGE COULD NOT RUN ITS OWN NET, AND THAT IS THE ONE THING
+  THE DOCKERFILE SAYS IT IS FOR (2026-11-11).** Built for the first
+  time and told to run the net - the command `docs/AWS.md`
+  instructs a deployment to run before pointing anything at an
+  extract - **TEN of 113 suites failed.** A deployer following the
+  documentation would have seen ten red suites and reasonably
+  concluded the tool was broken. Causes, in the order they were
+  found:
+      cause                                      suites
+      `docs/` was never COPYed into the image          3
+      `requirements.txt`, `Dockerfile`,
+        `.gitignore`, `readmit_demo.json` likewise     3
+      git is not installed, and the suites CRASHED
+        on FileNotFoundError rather than skipping      2
+      a repository property asserted where there
+        is no repository                               1
+      my own per-suite runs used the wrong cwd         2
+  **The in-image net now reports ONE failing suite where it
+  reported ten**, and the one left is `smoke_gui` - the local
+  bench, which is not part of the deployment surface. Its
+  campaign-compile endpoint cannot write where it wants under a
+  non-root user with only `/work` writable, and its vendor-exam
+  arm comes back without a vendor. The first is gated with a
+  printed reason; the second is where I stopped, because patching
+  a bench suite to pass in a container it is not meant to run in
+  is unbounded work aimed at the wrong surface. `synthkit batch`
+  is the deployment entrypoint and it is verified end to end.
+- **AND THE IMAGE HAD NO "MUST NOT TRAVEL" LIST AT ALL, WHICH IS
+  THE SERIOUS ONE.** `make_team_bundle.py` keeps `EXCLUDE_FILES`
+  for the filtered export - the lab notebook, the sprint board,
+  the runbooks that carry a machine's real paths, the demo
+  scripts, and the personal scanner that contains the patterns it
+  scans for. **A container that may run in a hospital's own AWS
+  account is a SECOND way out of this repo and it honoured none of
+  it.** My first fix made it worse: I copied `CONVENTIONS.md`
+  straight in before catching it. The image now carries the
+  documents minus that list, with the bundle's own one-line stub
+  in place of the notebook so the suites skip with a note rather
+  than failing - the same mechanism, the same sentence.
+- **AND THAT LIST NOW EXISTS IN THREE PLACES, which the code
+  already calls a known risk and I have made worse.**
+  `make_team_bundle.py` says of its own duplication: "if this list
+  changes, that file must change with it - stated here because the
+  duplication is a known risk, accepted so the manual path has no
+  import step." There are now three copies: the bundle, the
+  operator export, and `.dockerignore`. A single source of truth
+  is OWED, and adding a fourth without saying so would be the
+  quiet kind of debt.
+- **ONE WRAPPER BEAT PATCHING CALL SITES, after the crash moved
+  twice.** `subprocess.run` raises FileNotFoundError when the
+  PROGRAM is absent - a different condition from a tree with no
+  `.git`, and the one a container is in. I guarded the probe in
+  each suite; the crash moved to the next call. I guarded that;
+  it moved again. `smoke_buildid` has SIX git calls and
+  `smoke_no_personal` four. A single `_run` wrapper per suite, with
+  an absent binary reading as returncode 1 and empty output, fixed
+  every site at once - and every caller already handled that as
+  "not available", so the suites now SKIP with their notes.
+  Whack-a-mole is a signal that the guard is at the wrong level.
+- **AND THE FALLBACK MUST NOT BE AN EMPTY LIST, which is why
+  `smoke_no_personal` delegates rather than returning `[]`.** Its
+  `tracked()` enumerates the files the personal-data scan reads.
+  Returning nothing where git is absent would make the one scan
+  that exists to stop a record leaving pass trivially - this file
+  already records that exact fault in `make_team_bundle`, "an
+  empty source tree whose self-scan passes trivially, which is
+  the worst kind of clean". It now calls that module's own lister,
+  which walks the tree: one decision site about what the tracked
+  tree IS.
+- **AND TWO OF MY SEVEN "FAILURES" WERE MY OWN CWD.**
+  `smoke_hybrid` and `smoke_fidelity` read `readmit_demo.json` and
+  `scripts/fidelity_deck.py` by RELATIVE path, and the image's
+  WORKDIR is `/work` while the repo is `/opt/synthkit`. Run
+  directly they fail; run through the net they do not, because
+  `run_all_smokes` already passes `cwd=SCRIPTS.parent`. I had been
+  testing suites in a way the net never does and reading the
+  result as a defect. The net is the authority on whether the net
+  passes.
+- **THE DELIVERABLE DECISION IS SETTLED, AND IT GOES THE OPPOSITE
+  WAY TO THE CONNECTION NUMBERS (2026-11-11).** The head-to-head
+  had the neural engine ahead on relationship DIRECTION by twelve
+  pairs, clearing a bar the rules engine fails. Asked the other
+  question - how much of each field's natural spread survives,
+  against the ceiling the privacy rule leaves - on the same source
+  and the same blueprint:
+      engine    mean spread retained    fields at the limit
+      rules                   0.9972              25 of 31
+      neural                  0.5847               7 of 31
+  **The neural engine's spread collapse is GENERAL, not the one
+  column.** `procedure_quantity` was the symptom that led here -
+  maximum 14 against a source 2,656 - and the whole-column reading
+  says it retains 58% of the permitted spread across 31 fields
+  where the rules engine retains 99.7%, with 7 fields at the limit
+  against 25.
+- **SO `run_tail_ctl` IS THE FILE, and the reasoning is worth
+  keeping because it is not the flattering one.** A researcher
+  receiving a table cares more that every field has roughly the
+  right spread than that twelve extra SCAFFOLDING relationships
+  keep their direction - and this file already records that the
+  neural engine's twelve-pair win is earned on the scaffolding,
+  with the rules engine slightly AHEAD on the 29 columns a
+  researcher actually receives. Both arms carry zero inverted
+  relationships, which is the absolute stop, so the choice is made
+  on spread and on auditability rather than on safety.
+- **AND IT CORRECTS THE EMPHASIS OF MY OWN WRITE-UP HOURS
+  EARLIER.** I reported the head-to-head as "the neural engine
+  keeps twelve more directions and clears that bar" with the
+  tail collapse as a caveat on one column. Measured across all 31
+  bounded numerics the caveat is the headline: ahead on
+  connections, far behind on distributions. A comparison that
+  reports one axis and footnotes the other invites the wrong
+  decision, which is the denominator fault wearing a different
+  coat.
+- **THE DEPLOYMENT CONTAINER HAD NEVER BEEN BUILT, AND BUILDING IT
+  VERIFIED THE WHOLE PATH EXCEPT THE ONE CALL THAT NEEDS
+  CREDENTIALS (2026-11-11).** `Dockerfile`, `.dockerignore`,
+  `cloud.py` and `docs/AWS.md` have existed since 2026-11-04 with
+  the honest note that none of it had run against a live AWS
+  account. What was NOT said is that the image had never been
+  built either - so the doc's central claim, that the net ships
+  inside it and a deployment can prove the tool works before it is
+  pointed at an extract, rested on nothing. Built and exercised:
+      entrypoint `synthkit batch --help`            works
+      interpreter inside                            3.14.10
+      runs as                                       non-root `synth`
+      *.csv anywhere in the image                   NONE
+      data/ or run_*/ in the image                  NONE
+      AWS env vars, ~/.aws                          NONE
+  And the documented command runs end to end on a mounted
+  extract: `--dry-run` prints the posture, names exactly what
+  would leave, says the source is not on that list and cannot be
+  added by a flag, and starts nothing. A real publish then wrote
+  **six artifacts, all allow-listed, with the source NOT published
+  and key.csv NOT published**. The flags in `docs/AWS.md` match
+  the parser exactly.
+- **AND THE TOOL PRINTS ITS OWN CAVEAT, which is the part worth
+  keeping.** The run says `NOT YET RUN AGAINST A LIVE AWS ACCOUNT
+  - this is the code and the guard, verified locally` in its own
+  output, so a reviewer reading a transcript cannot mistake a
+  local verification for a deployed one.
+- **THE IMAGE PINS THE INTERPRETER AND NOT THE LIBRARIES, which is
+  the layer this project has actually been bitten by.** Measured:
+  the image carries **pandas 3.1.1** where the data machine and
+  the development machine both run **3.0.5**, because
+  `pip install -e .` resolves fresh at build time. The
+  Dockerfile's own comment said "the container and the laptop
+  cannot drift" - true of Python, false of the libraries, and
+  stated in the one place a deployer would read it. Corrected.
+  Pinning them would freeze a stack that stops getting security
+  updates, which is the worse trade in a hospital account, so the
+  versions are REPORTED instead.
+- **AND A RUN RECORDED WHICH COMMIT IT WAS AND NOT WHICH STACK IT
+  RAN ON.** `provenance.json` carried `code_fingerprint`, `build`,
+  source, settings and privacy - and no interpreter or library
+  version at all. Both of this project's version faults were
+  diagnosed AFTER the fact by asking a machine what was installed,
+  which only works while somebody still has that machine. In a
+  container the image IS the environment, so two runs of the same
+  commit can differ by a library nobody wrote down. `stack` now
+  carries python, pandas, numpy, sklearn and scipy. Removing it
+  turns two checks red, and the checks assert the recorded values
+  equal the INSTALLED ones - a provenance field nobody verifies is
+  the read-but-not-used fault in the one file a reviewer trusts.
+- **AND I DIAGNOSED THE CONTAINER NET WRONG TWICE, THE SECOND
+  TIME INSIDE THE RETRACTION OF THE FIRST.** I read its log
+  twenty seconds after launch, saw NINE LINES and no success
+  marker, and called the image's central claim broken. Then I
+  "retracted" that by blaming my own `nohup ... &` for killing it.
+  Both were wrong: the log later held 165 lines and the container
+  was running the whole time - it had simply not got there yet.
+  **A GROWING LOG AT LINE NINE IS INDISTINGUISHABLE FROM A CRASHED
+  ONE AT LINE NINE**, and the only thing that separates them is
+  whether it is still growing. I had written that rule down the
+  same morning - "check the log is GROWING before walking away
+  from a detached launch" - and then applied its converse,
+  declaring a live run dead from a single sample. The tell was
+  free and I did not take it: two containers were up from one
+  image, which is only possible if the first never died. Read a
+  log TWICE before calling it stopped.
 - **OPTION 3'S PREMISE WAS WRONG, AND MEASURING IT TOOK TWENTY
   MINUTES INSTEAD OF A BUILD (2026-11-11).** The plan was the one
   this file recorded weeks ago - "MINE interactions the

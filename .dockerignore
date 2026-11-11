@@ -11,3 +11,32 @@ run_*/
 .git/
 __pycache__/
 *.pyc
+
+# AND NOTHING THAT THE TEAM BUNDLE ALREADY REFUSES TO SHIP.
+#
+# `make_team_bundle.py` keeps an EXCLUDE_FILES list for the
+# filtered export: the lab notebook, the sprint board, the
+# runbooks that carry a machine's real paths, the demo scripts and
+# the personal scanner that contains the patterns it scans for.
+# An image that may run in a hospital's own AWS account is a
+# second way out of this repo, and it had no such list at all.
+#
+# THIS DUPLICATES THAT LIST, WHICH THAT FILE ALREADY CALLS A KNOWN
+# RISK - "if this list changes, that file must change with it".
+# There are now three copies (bundle, operator export, here). A
+# single source of truth would be better and is named as owed.
+RUNBOX.md
+RUNBOX.html
+CONVENTIONS.md
+docs/SPRINT.md
+docs/WINDOWS.md
+docs/DEMO_LLM_WINDOWS.md
+docs/demo_script.md
+docs/demo_script_v2.md
+docs/demo_script_clinic.md
+docs/demo_prompt.md
+# An internal working note addressed to a named colleague. Fine
+# in the repo and fine in the team bundle, which goes to people in
+# this organisation; not something to ship in an image that may
+# run in an account outside it.
+docs/RAI_EVIDENCE_INDEX.md

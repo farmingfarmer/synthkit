@@ -32,6 +32,33 @@ from synthkit.build_id import (ARCHIVAL, STAMP,     # noqa: E402
 PASS = FAIL = 0
 
 
+class _Absent:
+    """What a missing PROGRAM looks like to code expecting a result."""
+    returncode = 1
+    stdout = ""
+    stderr = ""
+
+
+def _run(*args, **kw):
+    """`subprocess.run`, but an absent BINARY is a result, not a raise.
+
+    ONE WRAPPER, EVERY CALL SITE. `subprocess.run` raises
+    FileNotFoundError when the program is not installed - a
+    different condition from a tree with no `.git`, and the one the
+    deployment image is in: it carries no git at all. Patching the
+    sites one at a time was whack-a-mole, because the crash moved
+    to the next of them; this suite has six.
+
+    An absent binary reads as returncode 1 with empty output, which
+    every caller here already handles as "not available", so the
+    suite SKIPS with its notes rather than dying with no FAIL line
+    and no count.
+    """
+    try:
+        return subprocess.run(*args, **kw)
+    except (FileNotFoundError, OSError):
+        return _Absent()
+
 def check(label, cond):
     global PASS, FAIL
     if cond:
@@ -43,7 +70,7 @@ def check(label, cond):
 
 
 def is_repo(d: Path) -> bool:
-    r = subprocess.run(["git", "-C", str(d), "rev-parse", "HEAD"],
+    r = _run(["git", "-C", str(d), "rev-parse", "HEAD"],
                        capture_output=True)
     return r.returncode == 0
 
@@ -52,7 +79,7 @@ def main():
     import tempfile
 
     # ---- the development machine --------------------------------
-    head = subprocess.run(
+    head = _run(
         ["git", "-C", str(ROOT), "rev-parse", "HEAD"],
         capture_output=True, text=True)
     if head.returncode == 0:
@@ -152,13 +179,24 @@ def main():
               build_id(d)["source"] == "unknown")
 
     # ---- it is gitignored, so it can never be committed stale ----
+    # THIS IS A PROPERTY OF THE REPOSITORY, so it SKIPS where there
+    # is no repository - the same gate its neighbours above already
+    # use. In the deployment image there is no `.gitignore` and no
+    # git, and asserting that a file is ignored by a tool that is
+    # not installed is not a statement about this tree. It failed
+    # there, which read as a defect in the stamp rather than as a
+    # question that cannot be asked.
     ig = (ROOT / ".gitignore")
-    check("the stamp is gitignored - committed, it would be wrong on "
-          "every machine but the one that wrote it, and would carry "
-          "an account handle into a tracked file",
-          ig.exists() and STAMP in ig.read_text(encoding="utf-8"))
+    if not ig.exists():
+        check("the stamp is gitignored   [SKIPPED - no .gitignore, "
+              "so not a checkout]", True)
+    else:
+        check("the stamp is gitignored - committed, it would be wrong "
+              "on every machine but the one that wrote it, and would "
+              "carry an account handle into a tracked file",
+              STAMP in ig.read_text(encoding="utf-8"))
 
-    tracked = subprocess.run(["git", "-C", str(ROOT), "ls-files", STAMP],
+    tracked = _run(["git", "-C", str(ROOT), "ls-files", STAMP],
                              capture_output=True, text=True)
     check("...and it is not tracked right now",
           not tracked.stdout.strip())
@@ -177,7 +215,7 @@ def main():
     # temporary fixture has no .gitattributes to get wrong. Written
     # against a tree where the mark was missing, this fails.
     if head.returncode == 0:
-        tracked_sha = subprocess.run(
+        tracked_sha = _run(
             ["git", "-C", str(ROOT), "ls-files", ARCHIVAL],
             capture_output=True, text=True)
         check("{} is TRACKED - the opposite of the stamp, and it has "
@@ -188,13 +226,13 @@ def main():
             d = Path(td) / "extracted"
             d.mkdir()
             tar = Path(td) / "a.tar"
-            arc = subprocess.run(
+            arc = _run(
                 ["git", "-C", str(ROOT), "archive", "--format=tar",
                  "HEAD", "-o", str(tar)], capture_output=True)
             check("`git archive` runs on this repo - the same command "
                   "GitHub runs to build the zipball the data machine "
                   "downloads", arc.returncode == 0)
-            subprocess.run(["tar", "-xf", str(tar)], cwd=str(d),
+            _run(["tar", "-xf", str(tar)], cwd=str(d),
                            capture_output=True)
             check("the fixture is an EXTRACTED ARCHIVE and not a "
                   "checkout, or every check below measures the git "

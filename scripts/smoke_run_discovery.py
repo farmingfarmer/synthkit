@@ -155,6 +155,42 @@ def main():
           and prov["settings"]["seed"] is not None
           and prov["settings"]["group_by"] == "person_id"
           and prov["source"]["rows_read"] > 0)
+    # WHICH STACK IT RAN ON, not just which commit.
+    #
+    # This project has twice been bitten by a version it had not
+    # recorded - pandas 3 turning a FutureWarning into a TypeError,
+    # and Python 3.14 turning a latent help-string bug into a crash
+    # - and both were diagnosed after the fact by asking a machine
+    # what was installed. It matters more in a container, where the
+    # IMAGE is the environment: measured, the deployment image
+    # carries pandas 3.1.1 where this machine and the data machine
+    # both run 3.0.5, because the Dockerfile pins the interpreter
+    # and pip resolves the libraries fresh.
+    import numpy as _np_v
+    import pandas as _pd_v
+    _stk = prov.get("stack") or {}
+    check("the run records the STACK it ran on, not only the "
+          "commit - two runs of the same code can differ by a "
+          "library nobody wrote down",
+          set(_stk) >= {"python", "pandas", "numpy", "sklearn",
+                        "scipy"})
+
+    check("...and the recorded versions are the ones ACTUALLY "
+          "installed, so a stale or wrongly-keyed write cannot "
+          "pass - a provenance field nobody checks is the "
+          "read-but-not-used fault in the one file a reviewer "
+          "trusts",
+          _stk.get("pandas") == _pd_v.__version__
+          and _stk.get("numpy") == _np_v.__version__
+          and _stk.get("python", "").startswith(
+              "{}.{}".format(*__import__("sys").version_info[:2])))
+
+    check("...and nothing in that block is a path or a machine "
+          "name, because this file travels with the output",
+          all(v is None or (len(str(v)) < 24 and "/" not in str(v)
+                            and "\\" not in str(v))
+              for v in _stk.values()))
+
     check("...and names the source rather than pathing it, because "
           "this file travels with the output and the path on that "
           "machine carries a work login",

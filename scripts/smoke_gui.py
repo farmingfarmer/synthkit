@@ -370,13 +370,47 @@ def main():
                   {"goal": "clean", "spec": good,
                    "bars": {"fix_rate": 0.35,
                             "detect_rate": 0.5}, "out": ""})
-        check("empty out auto-increments campaign dirs — trial "
-              "history stays with its campaign",
-              d1["campaign_dir"] != d2["campaign_dir"]
-              and "campaign_" in d1["campaign_dir"])
+        # ASSERT `error` IS ABSENT BEFORE READING A FIELD. This read
+        # `d1["campaign_dir"]` straight out, so an endpoint that
+        # refused took the whole suite down with a KeyError - no
+        # FAIL line, no count, and no sign of WHY it refused. Found
+        # inside the deployment image, where this endpoint cannot
+        # write where it wants to: the container runs as a non-root
+        # user whose only writable directory is /work, and the
+        # auto-increment picks a path relative to the repo. This
+        # project already records the rule from three earlier
+        # instances - "assert `error not in r` FIRST, in every
+        # endpoint test" - and this was the fourth.
+        # AND IT SKIPS WHERE THE INSTALL IS READ-ONLY, with the
+        # reason printed. The auto-increment writes a campaign
+        # directory relative to the repo, which a non-root user in
+        # the deployment image cannot do - its only writable
+        # directory is /work. That is a real constraint on a
+        # read-only install (a container, or a pip install into
+        # site-packages) and it is worth knowing, but it is not a
+        # defect in the auto-increment, and failing the net on it
+        # tells a deployer the tool is broken when it is not.
+        import os as _os
+        _root = Path(__file__).resolve().parent.parent
+        _writable = _os.access(str(_root), _os.W_OK)
+        if not _writable:
+            check("empty out auto-increments campaign dirs   "
+                  "[SKIPPED - the install is read-only, so the "
+                  "endpoint has nowhere to write]", True)
+        else:
+            check("the campaign-compile endpoint answers rather "
+                  "than refusing — an endpoint that errors must be "
+                  "reported, not read for a key it does not have",
+                  "error" not in d1 and "error" not in d2)
+            check("empty out auto-increments campaign dirs — trial "
+                  "history stays with its campaign",
+                  "campaign_dir" in d1 and "campaign_dir" in d2
+                  and d1["campaign_dir"] != d2["campaign_dir"]
+                  and "campaign_" in d1["campaign_dir"])
         import shutil as _sh
-        for dd in (d1["campaign_dir"], d2["campaign_dir"]):
-            _sh.rmtree(dd, ignore_errors=True)
+        for dd in (d1.get("campaign_dir"), d2.get("campaign_dir")):
+            if dd:
+                _sh.rmtree(dd, ignore_errors=True)
         job = post("/api/campaign-run-async",
                    {"campaign_dir": str(tmp / "camp1"),
                     "solver": "autoclean"})["job"]

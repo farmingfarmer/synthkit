@@ -18,6 +18,36 @@ import subprocess
 import sys
 from pathlib import Path
 
+
+class _Absent:
+    """What a missing PROGRAM looks like to code expecting a result."""
+    returncode = 1
+    stdout = ""
+    stderr = ""
+
+
+def _run(*args, **kw):
+    """`subprocess.run`, but an absent BINARY is a result, not a raise.
+
+    ONE WRAPPER, EVERY CALL SITE. `subprocess.run` raises
+    FileNotFoundError when the program is not installed - which is
+    a different condition from a tree with no `.git`, and is the
+    one the deployment image is in: it has no git at all. Patching
+    the call sites one at a time was whack-a-mole, because the
+    crash simply moved to the next of them; this suite had five.
+
+    An absent binary reads as returncode 1 and empty output, which
+    every caller here already handles as "not available", so the
+    suite SKIPS with its notes instead of dying with no FAIL line
+    and no count.
+    """
+    try:
+        return subprocess.run(*args, **kw)
+    except (FileNotFoundError, OSError):
+        return _Absent()
+
+
+
 ROOT = Path(__file__).resolve().parent.parent
 
 PASS = FAIL = 0
@@ -48,7 +78,7 @@ def in_git_repo() -> bool:
     "no tracked file names a person" and "no COMMIT MESSAGE names a
     person" having read zero of each. The suite was noisy about the
     wrong thing and quietly wrong about the right thing."""
-    r = subprocess.run(["git", "rev-parse", "--git-dir"],
+    r = _run(["git", "rev-parse", "--git-dir"],
                        cwd=str(ROOT), capture_output=True)
     return r.returncode == 0
 
@@ -64,7 +94,7 @@ def check(label, cond):
 
 
 def tracked():
-    out = subprocess.run(["git", "ls-files"], cwd=str(ROOT),
+    out = _run(["git", "ls-files"], cwd=str(ROOT),
                          capture_output=True, text=True).stdout
     return [ROOT / p for p in out.split("\n") if p.strip()]
 
@@ -152,12 +182,12 @@ def commit_messages():
     an ancestor of HEAD - a rewritten or shallow history would
     otherwise turn this whole check into a silent no-op, which is the
     failure mode the rest of this repository is built to avoid."""
-    ok = subprocess.run(
+    ok = _run(
         ["git", "merge-base", "--is-ancestor", GRANDFATHERED_THROUGH,
          "HEAD"], cwd=str(ROOT), capture_output=True)
     if ok.returncode != 0:
         return None
-    out = subprocess.run(
+    out = _run(
         ["git", "log", "--format=%H%x00%B%x01",
          "{}..HEAD".format(GRANDFATHERED_THROUGH)],
         cwd=str(ROOT), capture_output=True, text=True).stdout

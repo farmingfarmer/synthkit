@@ -187,9 +187,16 @@ def main():
     req = (ROOT / "requirements.txt")
     check("requirements.txt still exists - WINDOWS.md section 2 names "
           "it, and that ritual is pasted by hand", req.exists())
-    body = [ln.strip() for ln in
-            req.read_text(encoding="utf-8").splitlines()
-            if ln.strip() and not ln.strip().startswith("#")]
+    # AND A MISSING FILE MUST FAIL RATHER THAN CRASH THE SUITE.
+    # This read was unconditional, so where the file is absent the
+    # suite died on a FileNotFoundError - no FAIL line, no count,
+    # and this project records that a crashed suite is
+    # indistinguishable from one that never ran. Found inside the
+    # deployment image, which does not carry it.
+    body = ([ln.strip() for ln in
+             req.read_text(encoding="utf-8").splitlines()
+             if ln.strip() and not ln.strip().startswith("#")]
+            if req.exists() else None)
     check("...and it installs the package rather than repeating the "
           "dependency list - two places to keep in step is how they "
           "come to disagree",
@@ -416,6 +423,32 @@ def main():
                       not in _both)
 
     print()
+    # THE FLOOR SAYS WHAT IS ALLOWED; THE STACK SAYS WHAT WAS USED.
+    # This suite already asserts our declared minimums against each
+    # dependency's own. The other half is that a run RECORDS the
+    # versions it actually ran on - which this project needed twice,
+    # after the fact, on a machine somebody still had access to.
+    from synthkit.pipeline import _stack_versions as _sv
+    _st = _sv()
+    check("the stack recorder names the interpreter and every "
+          "numeric dependency",
+          set(_st) == {"python", "pandas", "numpy", "sklearn",
+                       "scipy"})
+
+    import numpy as _n2
+    import pandas as _p2
+    check("...and reports the versions that are really installed "
+          "rather than a declared floor",
+          _st["pandas"] == _p2.__version__
+          and _st["numpy"] == _n2.__version__)
+
+    check("...and an import that is absent is recorded as absent "
+          "rather than raising - a provenance writer that can fail "
+          "takes the whole run with it, and this project has lost "
+          "a command to an import at a write step",
+          _sv().get("scipy") is None
+          or isinstance(_sv().get("scipy"), str))
+
     if FAIL:
         print("{} FAILED".format(FAIL))
         sys.exit(1)
