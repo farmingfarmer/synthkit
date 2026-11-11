@@ -8146,6 +8146,51 @@ what follows is what came out wrong anyway.
   nobody will use.
 
 ## Talking to the data machine
+- **THE PURPOSE-BUILT SUBCOMMAND EXISTED AND I COMPOSED A SLOWER
+  EQUIVALENT OUT OF A MORE GENERAL ONE (2026-11-11).** The task was
+  the rules engine against the neural engine on the real extract.
+  `latent_challenger.py --help` lists, in four words,
+  **`compare    this engine against the rules engine`** - it takes
+  a finished fit run by `--blueprint-run`, mines the strongest
+  two-way interactions from the SOURCE and measures both engines
+  against them. I ran `csv` instead, which does a standalone fit,
+  generate AND its own full re-discovery of the source. The
+  re-discovery is redundant for a comparison and is the expensive
+  part: the run took about FOUR HOURS where the fit and generation
+  together were about two, and the rules engine does its whole job
+  in twenty-two minutes. The output is still usable so nothing was
+  wasted, but the extra two hours were a routing error. Read the
+  usage before composing a run out of a general subcommand - the
+  tool had already been given the exact job.
+- **AND THE BRIDGE'S REFUSAL TEXT IS THE ONLY RELIABLE LIVENESS
+  SIGNAL WHILE A JOB HOLDS THE CONSOLE, which is worth more than
+  any probe.** With a long job running in a console's foreground
+  every `hands run` queues behind it, so a probe cannot report
+  until the job ends - it cannot tell "working silently" from
+  "hung". But the focus guard distinguishes them for free:
+      terminal busy (a command appears to be running --
+      screen is changing)              -> the job is ALIVE
+      cmd prompt not foreground (title '<a browser>')
+                                       -> the screen stopped
+                                          changing, so the job has
+                                          probably ENDED
+  The reason CHANGING from the first to the second is how I knew
+  the run had finished, after an hour in which no probe could
+  answer. Read the refusal rather than grepping past it - this file
+  already says to grep for `HANDS refused` FIRST, and this is the
+  stronger form: the refusal carries information the output does
+  not.
+- **AND THE RECOVERY ORDER IS `key esc` THEN `term new`, not
+  `focus`.** Measured over several attempts on one stuck console:
+  `focus` reported **ok (already-foreground)** while the guard
+  immediately refused saying the foreground was a browser, and
+  later failed outright with **no cmd channel found after 8
+  alt+tab cycles**; `term new` alone failed with **no prompt
+  visible after opening a new console**; and `key esc` followed by
+  `term new` worked first time. The esc clears a console sitting in
+  selection mode - which this file already records as a state the
+  health fields cannot see - and only then can a new console come
+  up with a visible prompt. Try them in that order.
 - **"A PYTHON PROCESS EXISTS" IS NOT EVIDENCE MY JOB IS ALIVE,
   BECAUSE MY OWN PROBES ARE PYTHON (2026-11-11).** Polling a
   launched run with
