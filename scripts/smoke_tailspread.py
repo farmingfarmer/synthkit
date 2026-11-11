@@ -37,7 +37,10 @@ part of this suite:
   fault.
 """
 import copy
+import json
+import subprocess
 import sys
+import tempfile
 from pathlib import Path
 
 import numpy as np
@@ -561,6 +564,86 @@ def main():
           "describes one segment rather than two",
           "tail_sd_high" in mb
           and mb["tail_sd_high"] != m["tail_sd_high"])
+
+    # ---- reachable from the CLI, which is where an arm runs -----
+    # A MEASUREMENT THAT DOES NOT GO THROUGH THE REAL CODE PATH IS
+    # NOT A MEASUREMENT, and a paired real-extract arm is run by
+    # the CLI. Both of these were module constants, so the arms
+    # could not have been run at all. Asserted by OUTCOME - the
+    # written artifacts differ - rather than by the printed line,
+    # because a flag that is read and not used prints perfectly.
+    with tempfile.TemporaryDirectory() as td:
+        t = Path(td)
+        src = t / "src.csv"
+        df.to_csv(src, index=False)
+
+        def cli(outdir, *extra):
+            rv = subprocess.run(
+                [sys.executable,
+                 str(ROOT / "scripts" / "run_discovery.py"),
+                 "--src", str(src), "--out", str(outdir),
+                 "--group-by", "person_id", "--generate",
+                 "--seed", "7"] + list(extra),
+                capture_output=True, text=True, cwd=str(ROOT))
+            return rv.returncode, rv.stdout + rv.stderr
+
+        rc0, o0 = cli(t / "base")
+        check("the CLI runs at the default and writes a blueprint "
+              "and a generated file",
+              rc0 == 0 and (t / "base" / "blueprint.json").exists()
+              and (t / "base" / "generated.csv").exists())
+
+        def grid(d):
+            return json.loads(
+                (d / "blueprint.json").read_text(
+                    encoding="utf-8"))["columns"]["pq"]["marginal"]
+
+        def gen_bytes(d):
+            return (d / "generated.csv").read_bytes()
+
+        g0 = grid(t / "base")
+        check("...and at the default the published grid carries no "
+              "extra top-segment knots, so every blueprint written "
+              "so far is unaffected by either flag existing",
+              len(g0["q"]) == len(m["q"]))
+
+        rc1, o1 = cli(t / "spread", "--tail-spread")
+        check("`--tail-spread` reaches the draw and CHANGES the "
+              "written file - the flag is asserted by its outcome, "
+              "not by the line it prints, because a flag read and "
+              "not used prints just as well",
+              rc1 == 0
+              and gen_bytes(t / "spread") != gen_bytes(t / "base"))
+
+        check("...and the run SAYS it is consuming the published "
+              "spread, so an arm's log records which arm it was",
+              "tail SPREAD" in o1)
+
+        check("...and it leaves the published grid alone - it is a "
+              "draw-time setting and must not move the contract",
+              grid(t / "spread")["q"] == g0["q"])
+
+        rc2, o2 = cli(t / "bands", "--tail-band-knots", "4")
+        gb = grid(t / "bands")
+        check("`--tail-band-knots` reaches the blueprint and adds "
+              "knots INSIDE the top segment",
+              rc2 == 0 and len(gb["q"]) > len(g0["q"]))
+
+        check("...and the published CAP does not move, which is the "
+              "whole claim that nothing new is disclosed: the "
+              "outermost band IS the cap that was already there",
+              abs(float(gb["v"][-1]) - float(g0["v"][-1])) < 1e-9)
+
+        check("...and the tail aggregates move WITH the grid, so "
+              "the published pair still describes the segment the "
+              "draw will bend rather than the 99th-percentile one",
+              abs(gb["tail_mean_high"] - g0["tail_mean_high"])
+              > 0.5 * g0["tail_mean_high"])
+
+        check("...and the run SAYS how many knots it used and that "
+              "the cap is unmoved",
+              "extra k-screened knot" in o2
+              and "cap does not move" in o2)
 
     print()
     if FAIL:

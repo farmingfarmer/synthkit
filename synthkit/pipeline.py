@@ -265,6 +265,33 @@ def build_parser(prog=None, add_help=True):
                          "is the thing to try first if a cyclic "
                          "column looks wrong on real data - this has "
                          "not been measured on a real extract yet")
+    ap.add_argument("--tail-spread", action="store_true",
+                    help="consume the published spread of the top "
+                         "segment as well as its mean. Without it "
+                         "the power curve's one parameter is solved "
+                         "from the mean and the spread is whatever "
+                         "that leaves - and two placements agreeing "
+                         "on the mean differ by a factor of two in "
+                         "spread. Measured on fixtures: inert on 5 "
+                         "of 8 shapes because the smooth curve "
+                         "already exceeds the k-safe floor, and "
+                         "where it binds the paired per-seed gain in "
+                         "delivered spread ran +0.022 to +0.111 over "
+                         "eight generate seeds. NOT measured on a "
+                         "real extract")
+    ap.add_argument("--tail-band-knots", type=int, default=None,
+                    metavar="N",
+                    help="extra k-screened knots INSIDE the top "
+                         "segment, each a band of at least k "
+                         "patients. The cap does not move - the "
+                         "outermost band IS the cap - so nothing new "
+                         "is published and only the resolution below "
+                         "it improves. Measured on a fixture as the "
+                         "largest single gain on a heavy-tailed "
+                         "count (mean absolute delivered error 0.345 "
+                         "to 0.168, better on 4 of 4 seeds), with "
+                         "two of the four readings OVERSHOOTING. NOT "
+                         "measured on a real extract")
     ap.add_argument("--seed", type=int, default=20260731)
     ap.add_argument("--holdout", type=float, default=0.3,
                     help="share of PATIENTS held out; every number "
@@ -555,6 +582,19 @@ def main(argv=None, args=None):
     (out / "catalogue.json").write_text(
         json.dumps(cat, indent=1), encoding="utf-8")
 
+    # THE BAND COUNT IS SET ON THE MODULE BEFORE THE BUILD, because
+    # it changes the published GRID rather than the draw. The run
+    # prints what it is about to use: a flag that is read and not
+    # used is this project's own named failure mode, and this one
+    # also moves which segment the tail aggregates describe, so a
+    # silent setting would be worse than usual.
+    _bands = getattr(a, "tail_band_knots", None)
+    if _bands is not None:
+        import synthkit.blueprint as _bp
+        _bp.TAIL_BAND_KNOTS = int(_bands)
+        say("up to {} extra k-screened knot(s) inside the top "
+            "segment; the published cap does not move".format(
+                int(_bands)))
     say("building the blueprint")
     bp = B.build(df, cat, group_by=a.group_by, time_col=time_col,
                  ordinals=ordinals)
@@ -789,6 +829,13 @@ def main(argv=None, args=None):
         say("token solve: {} extra pass(es) per published "
             "conditional pair, capped at {}".format(
                 float(_scale), _gen.TOKEN_SOLVE_MAX_PASSES))
+    if getattr(a, "tail_spread", False):
+        import synthkit.generate as _gen
+        _gen.TAIL_SPREAD = True
+        say("consuming the published tail SPREAD as well as its "
+            "mean; where the smooth curve already exceeds the "
+            "k-safe floor the solve declines and the output is "
+            "unchanged")
     say("generating")
     rep = {}
     g = generate(bp, n_patients=(a.patients or None), seed=a.seed,
