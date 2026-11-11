@@ -450,6 +450,23 @@ Synthetic clinical data generator and model-evaluation instrument. Core rule: le
   builds with nothing explaining why. The stamp names the code, the
   stack and the source. `provenance.json` is left alone on purpose:
   it describes the GENERATION, which is unchanged and still true.
+- **APPLIED TO THE DELIVERABLE AND VERIFIED FOUR WAYS
+  (2026-11-11, run_tail_ctl_current).** The refresh ran on the real
+  extract and `m0_gate` against the new directory now reads
+  **132/151, 128/151, 0, 42/42, 94/96, 4/4, 6/9, 14/53, 35/92** -
+  identical to what `regate` measured, where the same command
+  against the original still read the stored `4/7`. Then:
+  `signoff.html` and `deck.html` rebuilt from it and asserted to
+  carry `14/53` and `128/151` with the stale figure GONE; the
+  ORIGINAL run's `fidelity.json` confirmed to carry no
+  `remeasured` stamp, so nothing of record was rewritten; and
+  `fc /b` says the two `generated.csv` files are BYTE-IDENTICAL.
+- **WHICH IS THE SENTENCE WORTH SAYING TO A RECIPIENT: the DATA
+  did not change, the honesty of the numbers describing it did.**
+  A correction that moved the output as well would be a different
+  claim needing a different check, and the byte comparison is what
+  separates the two.
+
 - **AND THE LOAD-BEARING CHECK IS THAT A REFRESH IS NOT A COPY.**
   `copytree` has already put the stale file there, so a writer that
   silently does nothing produces a directory that looks perfect and
