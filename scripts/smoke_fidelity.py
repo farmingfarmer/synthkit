@@ -1016,6 +1016,7 @@ def main():
     import pandas as _pd9
     from synthkit import curvecheck as _cc
     from synthkit import gate as _g2
+    from synthkit import pipeline as _pl
     import fidelity_deck as _fd
     _r9 = _np9.random.RandomState(7)
     _n9 = 3000
@@ -1101,6 +1102,103 @@ def main():
           + _resT["skipped_absent_columns"]
           + _resT["skipped_thin_data"]
           and "never silently" in _resT["note"])
+
+    # A TOKEN-INDICATOR SURFACE WHOSE COLUMNS ARE PRESENT MUST BE
+    # MEASURED, NOT COUNTED AS UNMEASURABLE.
+    #
+    # `compare` hands this function the EXPANDED frames, so an
+    # indicator the blueprint's own vocabulary rebuilt is there to
+    # be read. The old code refused on the NAME before asking, and
+    # on the real extract reported 54 of 61 published surfaces as
+    # unmeasurable - a criterion wrong in the direction nobody
+    # checks, by measuring too little.
+    #
+    # Two axes are planted on purpose: a binary indicator against
+    # an ordinary count, and binary against binary, because a 0/1
+    # axis cannot yield three quantile edges and would otherwise
+    # land in `skipped_thin_data` with the refusal removed.
+    _rT = _np9.random.default_rng(31)
+    _nT = 1600
+    _hx = (_rT.random(_nT) < 0.45).astype(float)
+    _ho = (_rT.random(_nT) < 0.5).astype(float)
+    _mn = _rT.integers(0, 4, _nT).astype(float)
+    _tokfr = _pd9.DataFrame({
+        "pid": ["P%04d" % (i // 4) for i in range(_nT)],
+        "meds__has__x": _hx,
+        "routes__has__oral": _ho,
+        "meds__n": _mn,
+        # genuine interactions, so a lost surface is detectable
+        "y": 3.0 * _hx * _mn + _rT.normal(0, .2, _nT),
+        "w": 4.0 * _hx * _ho + _rT.normal(0, .2, _nT)})
+    _lostT = _tokfr.copy()
+    _lostT["y"] = _rT.normal(float(_tokfr["y"].mean()),
+                             float(_tokfr["y"].std()), _nT)
+    _lostT["w"] = _rT.normal(float(_tokfr["w"].mean()),
+                             float(_tokfr["w"].std()), _nT)
+    _bpTok = {"relationships": [
+        {"child": "y", "parents": ["meds__has__x", "meds__n"],
+         "evidence": {"interaction": {
+             "pair": ["meds__has__x", "meds__n"]}}},
+        {"child": "w", "parents": ["meds__has__x",
+                                   "routes__has__oral"],
+         "evidence": {"interaction": {
+             "pair": ["meds__has__x", "routes__has__oral"]}}}]}
+    _tokKept = _cc.measure_surfaces(_tokfr, _tokfr.copy(), _bpTok,
+                                    _tokfr["pid"], 10)
+    _tokLost = _cc.measure_surfaces(_tokfr, _lostT, _bpTok,
+                                    _tokfr["pid"], 10)
+
+    check("a surface on a TOKEN INDICATOR is measured when the "
+          "column is present - `compare` hands this function the "
+          "expanded frames, and refusing on the name threw away "
+          "the ones the blueprint's own vocabulary had rebuilt",
+          _tokKept["compared"] == 2
+          and _tokKept["skipped_token_columns"] == 0)
+
+    check("...including BINARY AGAINST BINARY, which no quantile "
+          "grid can bin: three edges cannot be built from a 0/1 "
+          "column, so without the two-valued axis rule these land "
+          "in `skipped_thin_data` and nothing changes",
+          _tokKept["skipped_thin_data"] == 0
+          and all(r["cells_compared"] >= 4
+                  for r in _tokKept["surfaces"]))
+
+    check("...and the measurement can still FAIL on them - a "
+          "surface generation loses reads as departed, so this is "
+          "coverage that can report a defect rather than coverage "
+          "that always passes",
+          _tokKept["tracked"] == 2 and _tokLost["tracked"] == 0
+          and min(r["gap_sd"] for r in _tokLost["surfaces"]) > 0.35)
+
+    check("...and the TOTAL identity still holds with the wider "
+          "coverage, so nothing moved from one skip bucket to "
+          "another unnoticed",
+          _tokKept["published"] == _tokKept["compared"]
+          + _tokKept["skipped_token_columns"]
+          + _tokKept["skipped_absent_columns"]
+          + _tokKept["skipped_thin_data"])
+
+    # AND THE VOCABULARY HAS TO CARRY THEM, which is a separate
+    # gap: `pair` is the top two by importance and `parents` is the
+    # filtered order, so a pair member can be named by one and not
+    # the other. Without this the columns are simply not in the
+    # expanded frame and the fix above has nothing to read.
+    _bpVoc = {"relationships": [
+        {"child": "y", "parents": ["meds__n"],
+         "evidence": {"interaction": {
+             "pair": ["meds__has__surfonly", "meds__n"]}}}],
+        "columns": {"meds": {"marginal": {
+            "type": "list",
+            "tokens": [{"value": "t%03d" % i, "p": 0.3}
+                       for i in range(40)]
+            + [{"value": "surfonly", "p": 0.2}]}}}}
+    _voc = _pl.blueprint_vocab(_bpVoc)
+    check("`blueprint_vocab` carries a token named ONLY by an "
+          "interaction pair - `pair` is the top two by importance "
+          "and `parents` is the filtered order, so the two lists "
+          "disagree and a surface-only token was never rebuilt",
+          "surfonly" in [str(t.get("value"))
+                         for t in _voc.get("meds", [])])
 
     _vS = _g2.assess({"summary": {
         "pairs": 10, "pairs_sign_ok": 10, "pairs_close": 10,

@@ -55,6 +55,26 @@ TURN_CLEARANCE = 0.25
 SATURATION_RATIO = 0.25
 
 
+def two_valued(v):
+    """The two values of a two-valued numeric column, or None.
+
+    ONE DECISION SITE, because a second one is how two halves come
+    to disagree. `_grid_for` needs it to give a binary parent a
+    curve at all, and `curvecheck._axis_bins` needs it to put a
+    binary axis of an interaction surface into two bins - those are
+    different consumers of the same fact, and this project has paid
+    for token screening, the scaffolding predicate and the two
+    categorical draw paths each being decided twice.
+    """
+    import numpy as _np
+    a = _np.asarray(v, dtype=float)
+    a = a[_np.isfinite(a)]
+    if a.size == 0:
+        return None
+    u = _np.unique(a)
+    return [float(x) for x in u] if u.size == 2 else None
+
+
 def _grid_for(s: pd.Series, n_grid: int = N_GRID):
     """Quantile grid for a numeric column, levels for a categorical.
 
@@ -86,9 +106,9 @@ def _grid_for(s: pd.Series, n_grid: int = N_GRID):
         # 2% share the quantile grid already returns [0, 1], so
         # the only behaviour that changes is the case that
         # currently produces no curve at all.
-        u = np.unique(v)
-        if u.size == 2:
-            return [float(x) for x in u], "numeric"
+        tv = two_valued(v)
+        if tv is not None:
+            return tv, "numeric"
         qs = np.linspace(0.02, 0.98, n_grid)
         g = np.unique(np.quantile(v, qs))
         return [float(x) for x in g], "numeric"

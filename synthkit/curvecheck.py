@@ -139,6 +139,30 @@ def measure_shapes(Xs, Xg, bp, gid_series, k) -> Dict[str, Any]:
     }
 
 
+def _axis_bins(x):
+    """Bin index per row for one axis of a surface, and the count.
+
+    A TOKEN INDICATOR HAS TWO VALUES AND QUANTILES ARE THE WRONG
+    TOOL FOR IT - the same fact `shapes._grid_for` already handles,
+    read from the same function so the two cannot disagree. Three
+    quantile edges cannot be built from a 0/1 column, so every
+    surface with a binary axis used to fall through to
+    `skipped_thin_data` even when its columns were present: the
+    name-based refusal hid that, and removing the refusal alone
+    would have moved 54 surfaces from one skip bucket to another
+    and changed nothing.
+    """
+    import numpy as np
+    from synthkit.shapes import two_valued
+    tv = two_valued(x)
+    if tv is not None:
+        return (x > tv[0]).astype(int), 2
+    q = np.unique(np.quantile(x, np.linspace(0, 1, 4)))
+    if len(q) < 3:
+        return None, 0
+    return np.clip(np.digitize(x, q[1:-1]), 0, len(q) - 2), len(q) - 1
+
+
 def measure_surfaces(Xs, Xg, bp, gid_series, k) -> Dict[str, Any]:
     """Every published interaction surface, re-measured on both
     tables as a coarse 2-D conditional-mean grid.
@@ -162,20 +186,28 @@ def measure_surfaces(Xs, Xg, bp, gid_series, k) -> Dict[str, Any]:
             continue
         published += 1
         a, b = pair
-        # A SURFACE ON A SEARCH-ONLY COLUMN CANNOT BE MEASURED
-        # HERE, and the count must SAY so - the real extract
-        # publishes 72 surfaces of which only 6 touch columns that
-        # exist in the written files, and a criterion that reads
-        # "2/6" without naming the other 66 reads as coverage it
-        # does not have.
-        if _sets.is_scaffolding(child) or any(
-                _sets.is_scaffolding(c) for c in pair):
-            skipped_tokens += 1
-            continue
-        cols_ok = all(c in Xs.columns and c in Xg.columns
-                      for c in (child, a, b))
-        if not cols_ok:
-            skipped_absent += 1
+        # SKIP ON PRESENCE, NOT ON THE NAME.
+        #
+        # This refused any surface whose child or pair was a search
+        # column, BEFORE asking whether the column was there - and
+        # the frames handed in are the EXPANDED ones, so a token
+        # indicator the blueprint's vocabulary rebuilt was being
+        # thrown away with the ones it could not. On the real
+        # extract that reported 54 of 61 published surfaces as
+        # unmeasurable, which reads as coverage the criterion does
+        # not have in the one direction nobody checks: a criterion
+        # can be wrong by measuring too LITTLE.
+        #
+        # The reason is still named, because a search column that
+        # genuinely is not in the written file is a different fact
+        # from an ordinary column somebody dropped.
+        missing = [c for c in (child, a, b)
+                   if c not in Xs.columns or c not in Xg.columns]
+        if missing:
+            if any(_sets.is_scaffolding(c) for c in missing):
+                skipped_tokens += 1
+            else:
+                skipped_absent += 1
             continue
         vs_c = _numeric(Xs[child])
         sd_c = float(vs_c.dropna().std()) or 1.0
@@ -190,15 +222,13 @@ def measure_surfaces(Xs, Xg, bp, gid_series, k) -> Dict[str, Any]:
             xa = va[ok].to_numpy(dtype=float)
             xb = vb[ok].to_numpy(dtype=float)
             yc = vc[ok].to_numpy(dtype=float)
-            qa = np.unique(np.quantile(xa, np.linspace(0, 1, 4)))
-            qb = np.unique(np.quantile(xb, np.linspace(0, 1, 4)))
-            if len(qa) < 3 or len(qb) < 3:
+            ia, na = _axis_bins(xa)
+            ib, nb = _axis_bins(xb)
+            if ia is None or ib is None:
                 return None
-            ia = np.clip(np.digitize(xa, qa[1:-1]), 0, len(qa) - 2)
-            ib = np.clip(np.digitize(xb, qb[1:-1]), 0, len(qb) - 2)
             cells = {}
-            for ci in range(len(qa) - 1):
-                for cj in range(len(qb) - 1):
+            for ci in range(na):
+                for cj in range(nb):
                     m = (ia == ci) & (ib == cj)
                     if int(m.sum()) < 5:
                         continue

@@ -2069,11 +2069,20 @@ def blueprint_vocab(bp):
         could not be rebuilt under the cap); and
       - the first EXPAND_CAP by published order, which is what
         the token-share criterion saw before, so that criterion
-        keeps its meaning rather than quietly narrowing.
+        keeps its meaning rather than quietly narrowing; and
+      - every token an INTERACTION SURFACE names, which is a
+        third list again - `pair` is the top two by importance
+        where `parents` is the filtered order, so the two
+        disagree whenever a parent is dropped or ranked
+        differently.
 
-    About 133 columns on the real extract, 119 MB for the
-    pair. A measurement that cannot run is worth less than one
-    that is slightly narrow, and what it leaves out is named.
+    The first two were about 133 columns on the real extract and
+    119 MB for the pair. The third is bounded by two per
+    published surface - at most ~122 more on that extract before
+    overlaps, so a few hundred megabytes for the pair rather
+    than the 1.64 GB an unbounded expansion would take. A
+    measurement that cannot run is worth less than one that is
+    slightly narrow, and what it leaves out is named.
     """
     import synthkit.sets as _S
     named = set()
@@ -2084,6 +2093,19 @@ def blueprint_vocab(bp):
         for par in (rel.get("parents") or []):
             if par and _S.HAS in str(par):
                 named.add(str(par))
+        # AND WHAT THE INTERACTION SURFACES NAME, which is a
+        # DIFFERENT list. `pair` is the top two by IMPORTANCE and
+        # `parents` is the blueprint's order after filtering, so
+        # they disagree whenever a parent is dropped or ranked
+        # differently - this project already recorded a surface
+        # measured on (a, b) being applied to (c, a) for exactly
+        # that reason. Without these tokens the surface criterion
+        # cannot rebuild its own columns, and on the real extract
+        # it reported 54 of 61 published surfaces as unmeasurable.
+        for mem in (((rel.get("evidence") or {})
+                     .get("interaction") or {}).get("pair") or []):
+            if mem and _S.HAS in str(mem):
+                named.add(str(mem))
     out = {}
     for c, v in ((bp or {}).get("columns") or {}).items():
         mg = v.get("marginal") or {}
