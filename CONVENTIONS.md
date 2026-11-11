@@ -396,6 +396,89 @@ Synthetic clinical data generator and model-evaluation instrument. Core rule: le
 - Never state a number as measured unless you actually ran it.
 
 ## Fixing what the real extract found
+- **GENERATE AT FULL FIDELITY AND THEN PRUNE WHAT BREAKS k IS THE
+  RIGHT ORDERING FOR AN OUTPUT-ONLY RELEASE, AND IT IS WHAT MAKES
+  THE NEURAL ENGINE AUDITABLE (2026-11-11, design note, nothing
+  built).** The operator's proposal: stop constraining the draw,
+  generate the most faithful table we can, and remove afterwards
+  the synthetic records whose patterns rest on fewer than k
+  patients. Four reasons it is sound, one of which was not
+  obvious.
+  (1) A constraint applied at sampling time distorts EVERY row; a
+  filter applied afterwards distorts only the rows it removes.
+  (2) It is COUNTABLE. "We generated N, removed M for this stated
+  reason" is a sentence a reviewer can check, where a sampling
+  constraint is a property of a model they must take on trust.
+  (3) **IT CLOSES THE ONE OBJECTION TO THE NEURAL ENGINE.** This
+  file records the fork as "latent-informed surfaces, not a second
+  engine", and the surviving argument after the weights risk is
+  dismissed is that a network cannot produce the enumerable
+  screened LIST the rules engine's blueprint provides. A
+  post-generation support filter produces exactly that list - a
+  per-record decision with a stated threshold - applied to the
+  OUTPUT rather than to the contract. The two requests are one
+  design.
+  (4) It composes with any generator, so the engine choice stops
+  being a privacy decision.
+- **AND IT IS ONLY VALID BECAUSE WE NEVER SHIP THE MODEL, which is
+  the operator's own point and is load-bearing rather than
+  incidental.** If a sub-k pattern is learned, it is in the
+  weights, and the model would reproduce it given further draws -
+  so deleting the instances we happened to draw does not remove
+  the capability. For a release that included the model, pruning
+  would be cosmetic. For an output-only release the released
+  artifact genuinely does not contain the pattern, and pruning is
+  sufficient. The architecture rests on the model being destroyed
+  after generation.
+- **THE LOAD-BEARING DECISION IS THE DEFINITION, NOT THE CODE, AND
+  THIS FILE ALREADY MEASURES AN 80-FOLD RANGE.** Asking "which
+  records rest on fewer than k patients" three ways gave: support
+  in the LATENT space **0.3%** of rows, support in FEATURE space
+  **3.8%**, and distinct patients within a RADIUS in feature space
+  **25.3%**. The radius version is the correct one and this file
+  records why - a fixed 40-neighbour count can never isolate a
+  small group, because the list spills into the population and a
+  cluster of four patients still reports ten. So the filter must be
+  specified before it is built, and the honest working figure is
+  that **about a quarter of generated rows would be removed**:
+  over-generate by a third and discard.
+- **IT NEEDS TWO GATES, NOT ONE, AND SUPPORT IS BLIND TO THE
+  SECOND.** Support counts patients NEAR a synthetic record, so a
+  record sitting in a DENSE region has high support and survives -
+  including a record that is a near-copy of one specific patient in
+  that region. Support cannot see that; nearest-neighbour DISTANCE
+  can, and this project already measures it as the nn-ratio
+  tripwire in aggregate. A prune-after release needs both as
+  PER-RECORD gates: a support floor for rare-pattern disclosure and
+  a distance floor for individual near-copying.
+- **THE COST IS THE TAILS, WHICH IS WHERE THE FIDELITY WE WANT
+  LIVES, AND IT COULD BE SELF-DEFEATING.** The rows a support
+  filter removes are the ones in sparse regions - the heavy
+  utilisers, the extreme values, the rare code combinations. So
+  pruning pays for k in exactly the place the current engine
+  already pays for it, and a quarter of rows removed from the
+  sparse end shifts the released distribution toward its centre.
+  The failure mode to measure FIRST is that generate-then-prune
+  ends up WORSE on the tails than the rules engine, which at least
+  publishes a tail shape and draws from it. That comparison is the
+  experiment, and it is not a foregone conclusion either way.
+- **AND WHETHER TO PRUNE ROWS OR WHOLE PATIENTS IS A REAL CHOICE.**
+  Dropping individual visits from a longitudinal table changes a
+  patient's visit count and breaks the course the engine just built
+  for them; dropping whole synthetic patients preserves it and
+  costs more rows. For a table whose unit of analysis is the
+  patient, the second is probably right, and it is the kind of
+  decision that is cheap to make now and expensive to retrofit.
+- **WHAT CANNOT BE MOVED TO THE END: nothing, for an output-only
+  release - which is the surprising part.** Every k-type constraint
+  this project applies is a statement about what the released table
+  contains, and anything of that form can be checked per row and
+  the offending rows removed. The published bounds are the apparent
+  exception - they exist so no released VALUE is an individual's -
+  but a value past what k patients support is also just a row that
+  can be dropped. So the current ordering (screen, then generate)
+  is not forced by the privacy model; it is forced by the rules
+  engine needing an enumerable contract to generate FROM.
 - **THE THIN BUCKET DECOMPOSES, AND HALF OF IT LED TO A MARGINAL
   FAILURE FAR LARGER THAN THE SURFACES (2026-11-11, measured on
   run_tail_ctl).** 22 surfaces landed in `skipped_thin_data`, which
