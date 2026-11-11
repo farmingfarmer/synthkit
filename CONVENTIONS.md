@@ -396,6 +396,94 @@ Synthetic clinical data generator and model-evaluation instrument. Core rule: le
 - Never state a number as measured unless you actually ran it.
 
 ## Fixing what the real extract found
+- **BOTH TAIL FLAGS RAN AS PAIRED REAL-EXTRACT ARMS, AND THE ONE
+  THE FIXTURE CALLED A LARGE GAIN COSTS A THIRD OF THE COLUMN IT
+  WAS BUILT FOR (2026-11-10, run_tail_ctl / _spread / _bands).**
+  Same source (`phase2_800_fix4\tidy_visits.csv`, confirmed at
+  55,428 rows x 44 columns over 800 patients), same tree at one
+  commit, same seed 11, three arms ONE FLAG apart, run within two
+  hours by the same hand. Every figure below was read back SPELLED
+  by the machine.
+      criterion              control   --tail-spread  --tail-band-knots 4
+      direction kept        121/130      122/130        121/130
+      close                 113/130      113/130        113/130
+      inverted                0 PASS       0 PASS         0 PASS
+      coverage                42/42        42/42          42/42
+      set token shares        71/72        71/72          71/72
+      set EMPTY rate            4/4          4/4            4/4
+      shapes tracked            6/9          6/9           8/10
+      interaction surfaces      4/7          4/7            4/7
+      dynamics tracked        38/89        38/89          38/89
+      mean delivered         0.9972       0.9976         0.9551
+      at the ceiling, of 31      25           25             23
+      procedure_quantity     0.4367       0.4367         0.2954
+- **THE CONTROL REPRODUCES THE RECORDED BASELINE EXACTLY, which is
+  what makes the other two arms worth reading.** Mean delivered
+  **0.9972**, **25 of 31** columns at the ceiling and
+  `procedure_quantity` at **0.4367** against a recorded 0.437 -
+  three independent figures landing on the record from a fresh run
+  on a fresh tree. An arm whose control does not reproduce is an
+  arm measuring something else.
+- **`--tail-spread` IS INERT EXACTLY WHERE IT WAS AIMED.**
+  `procedure_quantity` - the column the whole mechanism was built
+  for - reads **0.4367 on both arms, identical to four decimals**,
+  because the real extract is one of the shapes where the smooth
+  power curve ALREADY exceeds the k-safe floor and the solve
+  correctly declines. The fixture predicted that refusal on 5 of 8
+  cells; the extract is one of the five. What the flag does buy is
+  **one direction pair** (121 to 122) and mean delivered +0.0004,
+  from FOUR columns moving by 0.001 to 0.006 - and three of those
+  four were already ABOVE 1.0, so moving them up is not obviously
+  an improvement. One pair is smaller than this criterion's own
+  recorded seed spread, so it is not a gain anybody should bank.
+  The flag DID execute: the run printed its line, which is the
+  read-but-not-used guard satisfied on real data.
+- **`--tail-band-knots` IS REFUTED, AND IT IS THE FIFTH FIXTURE
+  GAIN A REAL ARM HAS OVERTURNED.** It FIRED - the published grid
+  for `procedure_quantity` goes from 11 knots to 14, so the top
+  segment on an 800-patient cohort does hold enough patients to
+  band, which was the open question. It buys **two effect curves**
+  (shapes tracked 6 of 9 to 8 of 10 - the DENOMINATOR moved, so 6
+  against 8 absolute is the comparison) and nothing else on the
+  gate. It costs **mean delivered 0.9972 to 0.9551**, two columns
+  off the ceiling, and **`procedure_quantity` 0.4367 to 0.2954** -
+  a third of the delivered spread of the one column it exists for.
+  On a fixture the same flag was the largest single gain measured
+  on that column (mean absolute delivered error 0.345 to 0.168,
+  better on 4 of 4 seeds).
+- **AND THE MECHANISM IS VISIBLE IN THE CONTRACT, not inferred
+  from the outcome.** The published aggregates for that column:
+      arm        last knot      cap    published tail mean
+      control         87.0    983.0                  212.4
+      bands          238.3    983.0                  507.4
+  The cap does not move, which is the claim that nothing new is
+  disclosed, and it holds. But every inserted knot is a
+  patient-weighted BAND MEAN, and a patient-weighted figure sits
+  BELOW the row distribution it replaces - so adding resolution
+  between 87 and 238 describes that region with values lower than
+  the rows actually there, and the region flattens. Named as the
+  candidate mechanism rather than claimed: what is measured is the
+  grid, the aggregates and the cost.
+- **SO BOTH SHIP OFF, AND THE SCREEN FOR THE NEXT ONE IS ALREADY
+  ON FILE.** This file's own test - does the change ADD a
+  mechanism, or REARRANGE what the draw already does - puts both
+  of these in the rearrange column, and that is now five arms
+  against four. `--tail-spread` stays available because its
+  refusal is correct and its cost is zero; `--tail-band-knots`
+  stays available because a cohort whose tail is held by more
+  patients may read differently, and because it is the only thing
+  that has moved `shapes tracked` on this extract.
+- **AND A NUMERIC NONCE CANNOT VERIFY A READ IS FRESH ON A CHANNEL
+  THAT MANGLES DIGITS.** Polling a long run, I echoed a random
+  10-digit nonce and required it back - and it came back with one
+  digit flipped, which is the exact failure the nonce exists to
+  rule out. A random 8-LETTER nonce then came back with `I` read
+  as `T`. The working form is a SHORT nonce from a visually
+  unambiguous alphabet compared with a one-character tolerance: a
+  stale read returns a completely different string or none, so
+  fuzzy matching still separates fresh from stale while surviving
+  the channel. Worth having, because one poll did return the
+  PREVIOUS command's output and only the nonce caught it.
 - **A PUBLISHED TAIL AGGREGATE WAS MEASURED ON ONE SEGMENT AND
   CONSUMED ON ANOTHER, AND NOTHING COULD SEE IT BECAUSE THE
   CAPABILITY THAT REACHES THE FAULT SHIPS OFF (2026-11-10).**
