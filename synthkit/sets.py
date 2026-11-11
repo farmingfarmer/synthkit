@@ -189,7 +189,8 @@ def looks_like_set(raw: pd.Series) -> bool:
         >= MIN_MEAN_SIZE
 
 
-def patient_counts(raw: pd.Series, groups
+def patient_counts(raw: pd.Series, groups,
+                   declared: bool = False
                    ) -> Optional[Dict[str, Any]]:
     """Distinct PATIENTS and rows holding each token.
 
@@ -201,8 +202,13 @@ def patient_counts(raw: pd.Series, groups
 
     Patients, never rows: one person seen two hundred times
     would otherwise carry a token over the floor alone.
+
+    `declared` is the caller saying the CONTRACT already decided
+    this column is a set - threaded here from `vocabulary`, which
+    reads `pc["sep"]` and would raise on the None this refusal
+    returns.
     """
-    if not looks_like_set(raw):
+    if not declared and not looks_like_set(raw):
         return None
     present = raw.dropna().astype(str).str.strip()
     sep = _separator(present[present.str.len() > 0])
@@ -243,7 +249,8 @@ def patient_counts(raw: pd.Series, groups
 
 
 def vocabulary(raw: pd.Series, groups, k: int = 10,
-               cap: int = 0) -> Optional[Dict[str, Any]]:
+               cap: int = 0,
+               declared: bool = False) -> Optional[Dict[str, Any]]:
     """Which tokens this column holds, screened by PATIENTS.
 
     `cap` limits how many are returned, most common first; 0 means
@@ -253,7 +260,36 @@ def vocabulary(raw: pd.Series, groups, k: int = 10,
     would otherwise carry a token over the bound alone.
 
     Returns None when the column is not a set, so a caller can fall
-    through to the ordinary categorical path."""
+    through to the ordinary categorical path.
+
+    `declared` SAYS THE CONTRACT ALREADY DECIDED, and it exists
+    because one predicate was giving two answers for one column.
+    `looks_like_set` reads the frame in front of it, and what
+    decides it is `_separator`, which needs the separator in at
+    least SEP_SHARE of the FILLED cells. A generated set column
+    holds fewer multi-token cells than its source, so the two can
+    land either side of that bar. Measured on the real extract,
+    `procedures`:
+
+        source     4,352 of 10,697 filled cells hold a ";"  0.4068
+        generated  2,854 of 11,209                          0.2546
+
+    against a SEP_SHARE of 0.30. So the source frame got its
+    indicators, the generated frame got NONE, and every measurement
+    over those columns was comparing a column against nothing: 23
+    of 75 published interaction surfaces were unmeasurable for that
+    one reason, and the column's token pairs and token shares were
+    absent from their criteria without being counted as absent.
+
+    A measurement has to put both tables on ONE ruler, which is the
+    rule the TVD bin edges already follow: binning each table by
+    its own quantiles would call two differently-shaped columns
+    identical. When the caller holds the blueprint, the blueprint
+    has already declared this column a set and the frame's own
+    emptiness must not overrule it.
+
+    The token SCREEN is untouched - a token still has to clear k -
+    so this changes what is measured and not what is disclosed."""
     # PRESENT-AND-EMPTY IS A ROW THIS COLUMN HAS, and dropping it
     # here is why generation invents content for visits that had
     # none. A `drug_routes` list is empty when the visit had no
@@ -272,9 +308,9 @@ def vocabulary(raw: pd.Series, groups, k: int = 10,
     # content - a separator cannot be detected in an empty string,
     # and a column should not stop being a set because many of its
     # rows are legitimately empty.
-    if not looks_like_set(raw):
+    if not declared and not looks_like_set(raw):
         return None
-    pc = patient_counts(raw, groups)
+    pc = patient_counts(raw, groups, declared=declared)
     present = raw.dropna().astype(str).str.strip()
     sep = pc["sep"]
     txt = present

@@ -232,7 +232,16 @@ def prepare(df: pd.DataFrame,
                 # this loop. Expanding by frequency needed nothing
                 # but the column itself, which is exactly why it was
                 # done that way and exactly what was wrong with it.
-                v = _sets.vocabulary(df[c], gv, k=k, cap=0)
+                # THE CONTRACT DECIDES SET-NESS WHEN THE CALLER
+                # HOLDS ONE. `looks_like_set` reads this frame, and
+                # a generated set column is emptier than its
+                # source - on the real extract `procedures` sits
+                # either side of the threshold - so the two frames
+                # were classified DIFFERENTLY and the generated one
+                # got no indicators at all.
+                v = _sets.vocabulary(
+                    df[c], gv, k=k, cap=0,
+                    declared=bool(vocab and c in vocab))
                 if v is not None:
                     sets[c] = v
                     pending_sets.append(c)

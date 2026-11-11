@@ -1788,6 +1788,98 @@ def main():
           "originally lived",
           _voc_tail(S, _tail) is not None)
 
+    # ---- ONE PREDICATE MUST NOT GIVE TWO ANSWERS -------------
+    # `looks_like_set` reads the frame in front of it, and what
+    # decides it is `_separator`, which needs the separator in at
+    # least SEP_SHARE of the FILLED cells. A generated set column
+    # holds fewer multi-token cells than its source, so the two can
+    # land either side of that bar - measured on the real extract,
+    # `procedures` carries a ";" on 0.4068 of its source's filled
+    # cells and 0.2546 of the output's, against SEP_SHARE 0.30. The
+    # source frame got its indicators, the generated frame got
+    # NONE, and 23 of 75 published interaction surfaces were
+    # unmeasurable for that one reason - with the column's token
+    # pairs and shares absent from their criteria without being
+    # counted as absent.
+    from synthkit.discover import prepare as _prep
+    _rS = np.random.default_rng(11)
+    _nS = 4000
+    _tk = ["p01", "p02", "p03", "p04"]
+    _vals = []
+    for _ in range(_nS):
+        if _rS.random() < 0.40:
+            _k2 = 2 if _rS.random() < 0.25 else 1
+            _vals.append(";".join(_rS.choice(_tk, _k2,
+                                             replace=False)))
+        else:
+            _vals.append("")
+    _dfS = pd.DataFrame({
+        "person_id": ["P%04d" % (i // 4) for i in range(_nS)],
+        "procs": _vals,
+        "x": np.round(_rS.normal(0, 1, _nS), 3)})
+    _fill = _dfS["procs"][_dfS["procs"].str.len() > 0]
+    _share = float(_fill.str.contains(";").mean())
+
+    check("the fixture REPRODUCES the real condition - a set "
+          "column whose filled cells carry the separator on less "
+          "than SEP_SHARE of them, so `looks_like_set` refuses it "
+          "and the checks below are about the fault rather than a "
+          "case that already worked",
+          _share < S.SEP_SHARE
+          and not S.looks_like_set(_dfS["procs"]))
+
+    _noV, _, _, _, _ = _prep(_dfS, "person_id")
+    _vocS = {"procs": [{"value": t, "p": 0.1} for t in _tk]}
+    _wiV, _, _, _, _ = _prep(_dfS, "person_id", vocab=_vocS)
+    _ind = lambda X: [c for c in X.columns if S.HAS in c]
+
+    check("...and with no vocabulary the FRAME decides and the "
+          "column yields no indicators at all, which is what made "
+          "a whole column invisible on one side of a comparison",
+          len(_ind(_noV)) == 0)
+
+    check("...while a caller holding the blueprint declares it a "
+          "set and gets every published token - a measurement has "
+          "to put both tables on ONE ruler, the same rule the TVD "
+          "bin edges follow",
+          len(_ind(_wiV)) == len(_tk))
+
+    # THE SCREEN IS NOT BYPASSED. `declared` says what the column
+    # IS, never which tokens may be published - a flag that
+    # loosened the k floor would be a privacy change wearing a
+    # measurement fix.
+    _subk = _dfS.copy()
+    _subk["procs"] = ["rare9" if i < 6 else v
+                      for i, v in enumerate(_dfS["procs"])]
+    _vk = S.vocabulary(_subk["procs"], _subk["person_id"].to_numpy(),
+                       k=10, cap=0, declared=True)
+    check("...and `declared` does NOT loosen the k floor: a token "
+          "held by fewer than k patients is still not published, "
+          "because the flag says what the column IS and never "
+          "which tokens may be released",
+          _vk is None or "rare9" not in [
+              str(t.get("value")) for t in (_vk.get("tokens") or [])])
+
+    # AND IT CHANGES NOTHING WHERE THE FRAME ALREADY AGREES, which
+    # is the property that makes it safe to apply on every
+    # measurement rather than only the ones that looked wrong.
+    _vals2 = [";".join(_rS.choice(_tk, 2, replace=False))
+              if _rS.random() < 0.80 else "" for _ in range(_nS)]
+    _dfOK = _dfS.copy()
+    _dfOK["procs"] = _vals2
+    check("...and a column the frame ALREADY calls a set is "
+          "unaffected, so this is additive rather than a change to "
+          "every measurement",
+          S.looks_like_set(_dfOK["procs"])
+          and sorted(_ind(_prep(_dfOK, "person_id")[0]))
+          == sorted(_ind(_prep(_dfOK, "person_id",
+                               vocab=_vocS)[0])))
+
+    check("...and a column that is genuinely NOT a set and is not "
+          "in the vocabulary stays unexpanded - the override is "
+          "the caller's declaration, not a blanket reclassification",
+          "x" + S.HAS not in "".join(_ind(_wiV)))
+
     if FAIL:
         print("{} FAILED".format(FAIL))
         sys.exit(1)
