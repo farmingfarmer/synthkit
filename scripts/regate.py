@@ -25,7 +25,9 @@ looked reasonable.
 """
 
 import argparse
+import datetime as _dt
 import json
+import shutil
 import sys
 import warnings
 from pathlib import Path
@@ -185,12 +187,85 @@ def shared_close(fa, fb, tol=0.2):
             "lost": flips}
 
 
+REMEASURED = "remeasured"
+
+
+def refresh_into(run, dest, fid, src_path, src_rows):
+    """Write a DROP-IN run directory carrying a CURRENT measurement.
+
+    WHY THIS EXISTS. `m0_gate.py RUNDIR`, the deck and the sign-off
+    page all read `fidelity.json` out of the run directory - so for
+    any run made before a MEASUREMENT fix they report the numbers as
+    they were understood at generation time. On the deliverable that
+    is not a rounding difference: stored says `interaction surfaces
+    4/7` where today's code measures `14/53`, because the criterion
+    used to grade 7 of 75 published surfaces and report the
+    proportion of THAT. The stale figure is the FLATTERING one, and
+    it would otherwise ride on the governance page that accompanies
+    the file.
+
+    WHY A SIBLING RATHER THAN AN OVERWRITE. The run's own
+    `fidelity.json` is an artifact of record - it is what that build
+    measured, and rewriting it would destroy the only evidence of
+    what was believed at the time. This copies the run and swaps one
+    file, which is the arrangement this project already uses for a
+    repaired output: every existing tool then consumes it with no
+    flag and no special case.
+
+    AND THE COPY SAYS WHAT IT IS. A re-measured fidelity that did
+    not announce itself would be indistinguishable from a
+    generation-time one, and a reader comparing it against
+    `provenance.json` would see two different builds with nothing
+    explaining why. The stamp names the code, the stack and the
+    source it was measured against.
+    """
+    run, dest = Path(run), Path(dest)
+    if dest.resolve() == run.resolve():
+        raise SystemExit(
+            "STOPPED: --refresh-into names the run itself. The "
+            "stored fidelity.json is the record of what that build "
+            "measured; write a sibling directory instead.")
+    if dest.exists():
+        raise SystemExit(
+            "STOPPED: {} already exists - refusing to write over a "
+            "run directory.".format(dest))
+    from synthkit.build_id import build_id as _build_id
+    from synthkit.pipeline import _stack_versions
+    shutil.copytree(str(run), str(dest))
+    stamped = dict(fid)
+    stamped[REMEASURED] = {
+        "at": _dt.datetime.now().replace(microsecond=0).isoformat(),
+        "build": _build_id(),
+        "stack": _stack_versions(),
+        "source": Path(src_path).name,
+        "source_rows": int(src_rows),
+        "note": "RE-MEASURED from the written generated.csv by the "
+                "code named here - NOT the measurement the run "
+                "wrote at generation time, which stays untouched "
+                "in the original directory. provenance.json still "
+                "describes the GENERATION, which is unchanged.",
+    }
+    (dest / "fidelity.json").write_text(
+        json.dumps(stamped, indent=2), encoding="utf-8")
+    return dest
+
+
 def main():
     ap = argparse.ArgumentParser(
         description=__doc__.split("\n")[0])
     ap.add_argument("runs", nargs="+")
     ap.add_argument("--src", required=True)
+    ap.add_argument("--refresh-into", default=None, help=(
+        "copy the run to this NEW directory and write the "
+        "measurement taken here into its fidelity.json, so the "
+        "deck, the sign-off page and m0_gate read today's numbers "
+        "instead of the ones stored at generation time. The "
+        "original run is never modified."))
     a = ap.parse_args()
+    if a.refresh_into and len(a.runs) != 1:
+        raise SystemExit(
+            "STOPPED: --refresh-into needs exactly one run - with "
+            "several it is ambiguous which one to refresh.")
     src = pd.read_csv(a.src, dtype=str, keep_default_na=False)
     print("source rows {}".format(len(src)))
     print()
@@ -201,6 +276,12 @@ def main():
             print("{:<22} SKIPPED: {}".format(got["run"],
                                               got["why"]))
             continue
+        if got.get("fid") is not None and a.refresh_into:
+            _d = refresh_into(r, a.refresh_into, got["fid"],
+                              a.src, len(src))
+            print("refreshed into {} - the deck, the sign-off page "
+                  "and m0_gate will now read THIS measurement; the "
+                  "original run is untouched".format(_d))
         if got.get("fid") is not None:
             # KEYED BY PATH, not by directory NAME. Two runs can
             # perfectly well both be called `run_n9g` under

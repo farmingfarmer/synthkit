@@ -242,6 +242,97 @@ def main():
               "turning the guard back off",
               '"rows_read"' in _pipe and '"rows_read"' in _lat)
 
+        # ---- --refresh-into: the stale-measurement trap ------------
+        # THE DELIVERABLE HIT THIS. `m0_gate`, the deck and the
+        # sign-off page all read fidelity.json out of the run, so a
+        # run made before a MEASUREMENT fix reports what was believed
+        # at generation time - and on the real extract the stored
+        # figure was the FLATTERING one (`surfaces 4/7` against a
+        # re-measured `14/53`).
+        stale = {"relationships": {"pairs": [
+            {"child": "GHOST_PAIR", "parent": "x",
+             "source": 0.9, "generated": 0.9}]}}
+        (t / "rul" / "fidelity.json").write_text(
+            json.dumps(stale), encoding="utf-8")
+        before = (t / "rul" / "fidelity.json").read_bytes()
+
+        rv4 = subprocess.run(
+            [sys.executable, str(ROOT / "scripts" / "regate.py"),
+             str(t / "rul"), "--src", str(src),
+             "--refresh-into", str(t / "fresh")],
+            capture_output=True, text=True, cwd=str(ROOT))
+        fresh = t / "fresh"
+
+        check("`--refresh-into` writes a DROP-IN run directory - "
+              "every file the deck, the sign-off page and m0_gate "
+              "read, not just the one that changed",
+              all((fresh / n).exists() for n in
+                  ("fidelity.json", "blueprint.json",
+                   "generated.csv", "provenance.json")))
+
+        newfid = json.loads((fresh / "fidelity.json").read_text(
+            encoding="utf-8")) if (fresh / "fidelity.json").exists() else {}
+        kids = [p.get("child") for p in
+                ((newfid.get("relationships") or {}).get("pairs") or [])]
+
+        # THE LOAD-BEARING CHECK. A copy would carry the sentinel
+        # through, and a copy is exactly what this must not be.
+        check("...and the refreshed fidelity is a NEW MEASUREMENT "
+              "rather than a copy - the planted stale pair is gone, "
+              "which a copy could not manage",
+              "GHOST_PAIR" not in kids)
+
+        check("...and it carries real measured pairs, so the "
+              "refresh did not merely empty the file",
+              len(kids) > 0)
+
+        # A RE-MEASURED FIDELITY MUST SAY SO, or it is
+        # indistinguishable from a generation-time one and a reader
+        # comparing it against provenance.json sees two builds with
+        # nothing explaining why.
+        rm = newfid.get("remeasured") or {}
+        check("...and it STAMPS itself as re-measured, naming the "
+              "source and the build that measured it - absent, it "
+              "would be indistinguishable from the run's own",
+              bool(rm.get("build")) and rm.get("source") == src.name
+              and rm.get("source_rows") == 600)
+
+        # NEVER REWRITE AN ARTIFACT OF RECORD.
+        check("...and the ORIGINAL run is byte-identical "
+              "afterwards - its fidelity.json is the record of what "
+              "that build measured",
+              (t / "rul" / "fidelity.json").read_bytes() == before)
+
+        rv5 = subprocess.run(
+            [sys.executable, str(ROOT / "scripts" / "regate.py"),
+             str(t / "rul"), "--src", str(src),
+             "--refresh-into", str(t / "fresh")],
+            capture_output=True, text=True, cwd=str(ROOT))
+        check("...and an EXISTING destination is refused rather "
+              "than written over",
+              rv5.returncode != 0
+              and "already exists" in (rv5.stdout + rv5.stderr))
+
+        rv6 = subprocess.run(
+            [sys.executable, str(ROOT / "scripts" / "regate.py"),
+             str(t / "rul"), "--src", str(src),
+             "--refresh-into", str(t / "rul")],
+            capture_output=True, text=True, cwd=str(ROOT))
+        check("...and naming the RUN ITSELF is refused - that is "
+              "the overwrite this exists to avoid",
+              rv6.returncode != 0
+              and "the run itself" in (rv6.stdout + rv6.stderr))
+
+        rv7 = subprocess.run(
+            [sys.executable, str(ROOT / "scripts" / "regate.py"),
+             str(t / "rul"), str(t / "neu"), "--src", str(src),
+             "--refresh-into", str(t / "fresh2")],
+            capture_output=True, text=True, cwd=str(ROOT))
+        check("...and refreshing is refused with SEVERAL runs, "
+              "where which one to refresh is ambiguous",
+              rv7.returncode != 0
+              and "exactly one run" in (rv7.stdout + rv7.stderr))
+
     print()
     if FAIL:
         print("{} FAILED".format(FAIL))

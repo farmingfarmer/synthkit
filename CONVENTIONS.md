@@ -396,6 +396,68 @@ Synthetic clinical data generator and model-evaluation instrument. Core rule: le
 - Never state a number as measured unless you actually ran it.
 
 ## Fixing what the real extract found
+- **THE DELIVERABLE'S GATE READS DIFFERENTLY DEPENDING ON WHICH
+  QUESTION YOU ASK IT, AND THE STORED ANSWER IS THE FLATTERING ONE
+  (2026-11-11, run_tail_ctl).** `m0_gate.py RUNDIR`, the deck and
+  the sign-off page all read `fidelity.json` OUT OF THE RUN
+  DIRECTORY - so they report what was believed at GENERATION time.
+  For any run made before a MEASUREMENT fix that is stale, and on
+  this run it is not a rounding difference:
+      criterion            stored      re-measured
+      pairs graded            130              151
+      direction kept          121              132
+      close                   113              128
+      interaction surfaces    4/7            14/53
+      set token shares      71/72            94/96
+      dynamics tracked      38/89            35/92
+  **The stored reading says `surfaces 4/7 = 57%` where today's code
+  measures `14/53 = 26%`**, because the criterion used to grade 7
+  of 75 published surfaces and report the proportion of THAT. So
+  the governance page accompanying the file would have carried the
+  flattering number, which is the fault this project refuses
+  everywhere else.
+- **THE FULL CURRENT READING, every figure crossed in WORDS by the
+  machine because the digits channel off that screen is not
+  trustworthy:**
+      direction kept        132/151 = 87.4%   need 93.9%   FAIL
+      close                 128/151 = 84.8%   need 87.9%   FAIL
+      INVERTED                    0           absolute     PASS
+      coverage                  42/42                      PASS
+      set token shares          94/96                      FAIL
+      set EMPTY rate              4/4                      PASS
+      shapes tracked              6/9                      FAIL
+      interaction surfaces      14/53                      FAIL
+      dynamics tracked          35/92                      FAIL
+  Three of nine, M0 NOT MET - and the one criterion this project
+  calls an absolute stop is CLEAR with no repair. On the 29
+  columns a researcher actually receives: 25 keep direction, 24
+  are close, ZERO inverted. The source row count read back 55,428,
+  which is the provenance guard confirming the right extract
+  rather than my reading of a path.
+- **AND RE-MEASURING NOW WRITES A DROP-IN DIRECTORY RATHER THAN
+  BEING A NUMBER IN A TERMINAL.** `regate.py RUN --src SRC
+  --refresh-into NEW` copies the run and swaps one file, so the
+  deck, the sign-off page and `m0_gate` all read the current
+  measurement with no flag and no special case - the arrangement
+  this file already records for a repaired output. The ORIGINAL is
+  never modified: its `fidelity.json` is the record of what that
+  build measured, and rewriting it would destroy the only evidence
+  of what was believed at the time. A mutation that writes into the
+  original turns a check red.
+- **AND THE REFRESHED FILE STAMPS ITSELF, because otherwise it is
+  indistinguishable from a generation-time measurement.** A reader
+  comparing it against `provenance.json` would see two different
+  builds with nothing explaining why. The stamp names the code, the
+  stack and the source. `provenance.json` is left alone on purpose:
+  it describes the GENERATION, which is unchanged and still true.
+- **AND THE LOAD-BEARING CHECK IS THAT A REFRESH IS NOT A COPY.**
+  `copytree` has already put the stale file there, so a writer that
+  silently does nothing produces a directory that looks perfect and
+  carries the old numbers. The fixture PLANTS a sentinel pair in
+  the stale fidelity and requires it GONE afterwards; removing the
+  write turns two checks red, where an existence check on the
+  directory would have stayed green.
+
 - **THE IMAGE COULD NOT RUN ITS OWN NET, AND THAT IS THE ONE THING
   THE DOCKERFILE SAYS IT IS FOR (2026-11-11).** Built for the first
   time and told to run the net - the command `docs/AWS.md`
