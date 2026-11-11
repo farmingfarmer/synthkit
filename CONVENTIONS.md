@@ -8146,6 +8146,49 @@ what follows is what came out wrong anyway.
   nobody will use.
 
 ## Talking to the data machine
+- **"A PYTHON PROCESS EXISTS" IS NOT EVIDENCE MY JOB IS ALIVE,
+  BECAUSE MY OWN PROBES ARE PYTHON (2026-11-11).** Polling a
+  launched run with
+  `tasklist /fi "imagename eq python.exe" | find "python"` reported
+  RUNNING for a job that had died at launch - the process it found
+  was the `python -c` of the probe I had just sent. The job's log
+  was **8 BYTES** and its output directory did not exist, and both
+  of those facts were available the whole time. This is the
+  predicate-does-not-match-the-thing fault in a new place: this
+  file already records a poll pattern matching its own echoed
+  command, and a `^FAIL` grep that matched the word "failures" in
+  passing lines. Poll on the ARTIFACT the job is supposed to
+  produce, or on a window title the job owns - never on an image
+  name a probe shares.
+- **AND AN 8-BYTE LOG IS A FAILED LAUNCH, NOT A SLOW START.** The
+  detached form that works for the rules engine -
+  `start "x" /min cmd /c "python script ... > log 2>&1"` - produced
+  8 bytes here, because this command carries a SUBCOMMAND plus a
+  quoted positional path and the extra nesting broke the redirect
+  inside `cmd /c "..."`. The same shape had worked three times
+  earlier the same day with a flags-only command. Check the log is
+  GROWING before walking away from a detached launch; a log that
+  exists is not a log that is being written.
+- **AND A LONG JOB MUST NOT BE RUN IN A CONSOLE'S FOREGROUND, which
+  cost four unreliable reads.** Run in the foreground it works
+  fine, but every subsequent `hands run` types into the console the
+  job occupies, and the screen then returns a MIX of the job's
+  output and the probe's - one read came back carrying another
+  project's PostgreSQL message. `term new` did not reliably
+  separate them. The working pattern is the one that already
+  worked: launch detached with a redirect, verify the log grows,
+  then poll the artifacts. If a job is already running in the
+  foreground, STOP DRIVING until it ends - queued keystrokes
+  execute later, and this file records interleaved input returning
+  `python. exe € r+ =o: \ a`.
+- **AND THE FOREGROUND RUN IS WHAT PROVED THE SETTINGS LANDED,
+  which is the one thing it was good for.** With no redirect the
+  echo went to the screen and read back: `caps: set tokens 60 ->
+  800`, `--group-by person_id --seeds 11 --k 10`, `k-aware blur:
+  on`, then `encoded frame: 47029 rows x 1615 dimensions`. Every
+  setting the arm needed, confirmed as received rather than
+  assumed - which is this file's own rule for that terminal, and
+  the detached launch had silently delivered none of it.
 - **A COMPOUND `cmd` LINE CAN DROP ITS POWERSHELL HALF
   SILENTLY, AND THE NEXT STEP THEN RUNS AGAINST NOTHING
   (2026-11-07).** `echo MARK & powershell -Command "Expand-Archive
