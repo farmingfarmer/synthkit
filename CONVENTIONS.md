@@ -396,6 +396,61 @@ Synthetic clinical data generator and model-evaluation instrument. Core rule: le
 - Never state a number as measured unless you actually ran it.
 
 ## Fixing what the real extract found
+- **OPTION 3'S PREMISE WAS WRONG, AND MEASURING IT TOOK TWENTY
+  MINUTES INSTEAD OF A BUILD (2026-11-11).** The plan was the one
+  this file recorded weeks ago - "MINE interactions the
+  challenger's way, publish them as k-screened aggregates the
+  blueprint samples from" - importing the neural engine's
+  interaction fidelity while keeping the rules engine's posture.
+  Three measurements killed the premise before any code was
+  written.
+  (1) **Discovery is not narrow.** I assumed it tested only the top
+  two predictors as a pair where the miner tests all pairs among
+  the top four. It searches `preds[:max(shape_top, 2)]`, every
+  pair, and takes the best by departure from additivity - verified
+  on a fixture where the interacting pair is NOT the top two by
+  importance (`y = 10z + 6ab`) and discovery published `['b','a']`
+  correctly.
+  (2) **The screening bar is not the blocker either.** A pure
+  interaction with no main effects, one beside a dominant main
+  effect, and one beside a main effect three times larger again -
+  all three publish.
+  (3) **The extract already publishes 75 surfaces.** Publication is
+  not the gap.
+- **THE GAP IS APPLICATION, AND IT IS THE SAME SIZE ON BOTH
+  ENGINES.** Measured on one ruler, both outputs through the rules
+  blueprint:
+      engine    surfaces measured   carried   share
+      rules                   53        14     26%
+      neural                  55        19     35%
+  So the neural engine carries five more, and **neither carries
+  most of what the contract publishes.** There is nothing to
+  import: the rules engine already knows about these surfaces and
+  does not apply them.
+- **AND THE FAILURES ARE NOT MARGINAL DRIFT, WHICH CORRECTS A
+  RECORDED CONCLUSION.** This file says of the surface chapter:
+  "the application machinery WORKS ... the other three sit
+  0.03-0.14 above the 0.35 bar - marginal drift, parked with the
+  ring research, not chased as bugs." That was read off SIX
+  measured surfaces, which was all the instrument could then see.
+  On the fifty-odd now measurable, the surfaces that fail miss by:
+      engine    smallest miss   median miss    bar
+      rules              0.37          1.10   0.35
+      neural             0.36          1.05   0.35
+  **The median miss is three times the bar on both engines.** A
+  handful sit just over it, as recorded; the typical one does not.
+  "Marginal drift, not a mechanism" was true of the six visible
+  then and is false of the population.
+- **SO THE WORK MOVES FROM DISCOVERY TO GENERATION, which is a
+  better-aimed target than the one asked for.** The contract
+  carries the structure and the output does not - the same shape
+  this file records for the co-occurrence conditionals, where the
+  blueprint published a phi of 0.885 and the draw delivered
+  nothing. Nothing about mining, publishing or screening is worth
+  changing; the question is why `_apply_numeric` and the surface
+  pass leave two thirds of a published surface on the floor. The
+  recorded suspect is a pair member trimmed to order the graph,
+  which `peek surfaces` reports per surface.
 - **THE HEAD-TO-HEAD RAN ON ONE RULER, AND NEITHER ENGINE WINS -
   THEY FAIL IN OPPOSITE DIRECTIONS (2026-11-11, run_tail_ctl
   against run_neural_h2h).** Same source
