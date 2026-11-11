@@ -159,6 +159,62 @@ def _tail_mean(v: pd.Series, groups, cut: float, upper: bool,
     return float(per.mean())
 
 
+def _tail_sd(v: pd.Series, groups, cut: float, upper: bool,
+             k: int, bound: Optional[float] = None) -> Optional[float]:
+    """The SPREAD of the extreme segment, averaged over patients.
+
+    WHY IT HAS TO BE PUBLISHED TOO. The segment already publishes
+    its mean, and generation fits a power curve whose single
+    parameter is solved from that mean - so the spread falls out as
+    a side effect rather than being chosen. Two placements matching
+    the same published mean differ by a factor of two in spread: a
+    smooth curve across the segment, or most of the mass near the
+    knot with a few rows AT the cap, which is what a heavy tail
+    actually looks like. The engine took the first and a count
+    column delivered 0.49 of the spread the k rule still allowed,
+    with the entire loss above the last knot - median, 90th and
+    99th all exact.
+
+    AVERAGED OVER PATIENTS, for the reason the mean and the bounds
+    are. If one person held the whole segment, a row-counted spread
+    would be that person's own variation and would describe them
+    rather than a population.
+
+    SO IT IS A BETWEEN-PATIENT SPREAD, and that is a FLOOR on the
+    segment's true spread rather than the thing itself - within-
+    patient variation is deliberately excluded. Generation that
+    matches it will under-spread slightly, which is the
+    conservative direction and the one this posture should err in.
+
+    AND IT IS MEASURED ON THE SEGMENT CLIPPED AT THE PUBLISHED
+    BOUND, which is the half that took a measurement to get right.
+    The first version measured the segment AS IT IS, and on a
+    heavy-tailed count that reads 172.88 where the same segment
+    clipped at its own published cap reads 98.28 - the difference
+    being the handful of rows above the bound, which the k rule
+    exists to not publish and which generation CANNOT EMIT. Asking
+    the draw for a spread no arrangement under the cap can reach
+    makes it saturate: it drove the placement to its own limit, the
+    99.9th percentile FELL, and the gain came from pinning mass at
+    the cap rather than from matching a shape. A target has to be
+    reachable by the thing being asked for it.
+    """
+    arr = v.to_numpy(dtype=float)
+    sel = arr >= cut if upper else arr <= cut
+    if not sel.any() or groups is None:
+        return None
+    g = np.asarray(groups)[v.index][sel]
+    seg = arr[sel]
+    if bound is not None:
+        seg = np.clip(seg, None, bound) if upper \
+            else np.clip(seg, bound, None)
+    per = pd.DataFrame({"g": g, "v": seg}).groupby("g")["v"].mean()
+    if len(per) < k:
+        return None
+    sd = float(per.std())
+    return sd if np.isfinite(sd) and sd > 0 else None
+
+
 # HOW MANY k-SCREENED KNOTS THE TOP SEGMENT EARNS. Zero is off,
 # and off is the default: this is an engine change whose only
 # evidence is a fixture, and four real-extract arms this week have
@@ -331,6 +387,14 @@ def _numeric_marginal(s: pd.Series, groups=None,
             out["tail_band_knots"] = len(_q) - len(inner) - 2
     if hi_mean is not None:
         out["tail_mean_high"] = round(hi_mean, 6)
+        # AND ITS SPREAD, so the placement is chosen rather than
+        # falling out of the mean. One aggregate over the same
+        # patients the cap already averages.
+        _hsd = _tail_sd(v, groups,
+                        float(np.quantile(arr, inner[-1])), True, k,
+                        bound=hi) if len(inner) else None
+        if _hsd is not None:
+            out["tail_sd_high"] = round(_hsd, 6)
     if lo_mean is not None:
         out["tail_mean_low"] = round(lo_mean, 6)
     return out

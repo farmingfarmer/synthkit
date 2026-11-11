@@ -164,6 +164,27 @@ def main():
               rc == 0 and "ceiling" in out and "delivered" in out
               and "AT THE RULE'S CEILING" in out)
 
+        # A POINT READING OF A NOISY STATISTIC INVITES THE
+        # CONCLUSION IT CANNOT SUPPORT. `delivered` on a heavy-
+        # tailed column rests on the top 1% of rows and ran 0.421
+        # to 0.801 over eight generate seeds on ONE blueprint -
+        # wider than most columns' distance to 1.00. The warning
+        # must travel with EVERY reading, including a healthy one,
+        # because the reading that gets quoted is the flattering
+        # one.
+        check("...and every reading carries that it is ONE DRAW, "
+              "with the measured seed range beside it - this ran "
+              "on a column AT the ceiling, so the warning is not "
+              "conditional on a bad verdict",
+              "ONE DRAW" in out and "0.421" in out
+              and "0.801" in out)
+
+        check("...and it names what DOES establish a shortfall, "
+              "rather than only warning - a caveat a reader cannot "
+              "act on is the fault this project records for a "
+              "count with no total beside it",
+              "PAIRED arm" in out and "range" in out)
+
         # NO VALUE MAY BE PUBLISHED. A report about a real extract
         # is itself a release, which is why the deck suppresses
         # sparse bins; this prints sds, ratios and names only.

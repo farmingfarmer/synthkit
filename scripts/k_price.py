@@ -32,6 +32,29 @@ the privacy rule and the only way to move it is to change the rule,
 which is a governance decision rather than an engineering one. A
 column at delivered ~ 0.60 has real headroom.
 
+READ IT AS A RANGE AND NEVER AS A POINT, which took a measurement to
+learn. On a HEAVY-TAILED column the spread is carried by the top
+segment, which is 1% of the rows, so `delivered` is a ratio whose
+numerator rests on a few hundred values under a convex placement.
+Measured on one blueprint over eight GENERATE seeds, with nothing
+else changed, it runs 0.421 to 0.801 - a range 0.38 wide, which is
+most of the distance to 1.00. A single reading therefore cannot
+support a conclusion about the engine, and this project has twice
+recorded a day lost to exactly that. A column's shortfall is
+established by a PAIRED arm at the same seed, or by a seed sweep
+reported as a range.
+
+AND THE SAME IS TRUE OF A REPRODUCTION. A fixture reading 0.469
+beside a real-extract 0.437 looks like the fault reproduced; with a
+statistic this noisy it is two draws agreeing by chance, and the
+fixture was additionally too small. At 9,000 rows its top segment
+holds about 70 values, and the realised mean of the placement over
+them is UNBIASED but spans a range of 0.70 across five generate
+seeds (1.414 / 0.922 / 0.717 / 1.228 / 0.750); at four times the
+rows that range is 0.15. Nothing undershoots - a low reading is a
+draw. Match the ROW COUNT before reading a tail reproduction, and
+read the segment over seeds before reading it at all.
+
 NO VALUE IS PUBLISHED. Standard deviations, ratios and column names
 only - the same discipline the deck follows, because a report about
 a real extract is itself a release.
@@ -171,6 +194,18 @@ def main(argv):
     print("  mean delivered {}".format(_say(round(deliv_mean, 4))))
     print("  columns already AT the ceiling (delivered >= 0.95): "
           "{} of {}".format(_say(at_ceiling), _say(len(rows))))
+    print()
+    # A POINT READING OF A NOISY STATISTIC INVITES THE CONCLUSION IT
+    # CANNOT SUPPORT. Measured at 0.421 to 0.801 over eight generate
+    # seeds on one blueprint, so the warning travels with every
+    # reading rather than living in a docstring nobody opens.
+    print("  THIS IS ONE DRAW. On a heavy-tailed column `delivered`")
+    print("  rests on the top 1% of rows, and over eight generate")
+    print("  seeds on one blueprint it ran {} to {} - a range"
+          .format(_say(0.421), _say(0.801)))
+    print("  wider than most columns' distance to 1.00. Establish a")
+    print("  shortfall with a PAIRED arm at the same seed, or a seed")
+    print("  sweep reported as a range. Never from this one number.")
     print()
     if deliv_mean >= 0.95:
         print("  THE ENGINE IS AT THE RULE'S CEILING. The remaining")

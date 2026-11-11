@@ -85,12 +85,99 @@ def _draw_numeric(m: Dict[str, Any], u: np.ndarray) -> np.ndarray:
     q = np.asarray(m["q"], dtype=float)
     v = np.asarray(m["v"], dtype=float)
     out = np.interp(u, q, v)
-    out = _shape_tail(out, u, q, v, m.get("tail_mean_high"), True)
+    out = _shape_tail(out, u, q, v, m.get("tail_mean_high"), True,
+                      sd_target=m.get("tail_sd_high"))
     out = _shape_tail(out, u, q, v, m.get("tail_mean_low"), False)
     return _to_integers(out, m) if m.get("integral") else out
 
 
-def _shape_tail(out, u, q, v, target, upper: bool):
+# USE THE PUBLISHED TAIL SPREAD AS WELL AS ITS MEAN. Off by
+# default: this is an engine change whose only evidence is a
+# fixture, and five real-extract arms this week have each
+# overturned or traded away a fixture-measured gain. The paired
+# real arm decides it.
+TAIL_SPREAD = False
+
+
+def _tail_moments(a, b, p, f):
+    """Mean and sd of the two-parameter tail placement.
+
+    A power curve over (1 - f) of the segment's mass, and the
+    remaining f sitting AT the cap. Closed form, so the solve
+    below needs no sampling:
+
+        E[v]   = s*a + c*s/(p+1) + f*b
+        E[v^2] = s*a^2 + 2ac*s/(p+1) + c^2*s/(2p+1) + f*b^2
+
+    with c = b - a and s = 1 - f.
+    """
+    c, sfrac = b - a, 1.0 - f
+    m = sfrac * a + c * sfrac / (p + 1.0) + f * b
+    m2 = (sfrac * a * a + 2.0 * a * c * sfrac / (p + 1.0)
+          + c * c * sfrac / (2.0 * p + 1.0) + f * b * b)
+    var = max(m2 - m * m, 0.0)
+    return m, float(np.sqrt(var))
+
+
+def _solve_tail(a, b, mean_t, sd_t):
+    """(p, f) matching the published mean AND spread, or None.
+
+    The mean alone fixes p and leaves the spread to fall out - and
+    two placements agreeing on the mean differ by a factor of two
+    in spread, which is the whole reason the spread is published.
+    f is the share of the segment sitting at the cap; raising it
+    raises the spread while p is re-solved to hold the mean, so a
+    bisection on f lands both.
+
+    Returns None when the ask is below what f=0 already gives: no
+    member of this family has less spread than the pure power
+    curve, and clamping silently would put back a bias of unknown
+    size - the same reason `_shape_tail` leaves an out-of-range
+    mean alone.
+    """
+    def p_for(f):
+        denom = mean_t - (1.0 - f) * a - f * b
+        if denom <= 1e-12:
+            return None
+        pv = (1.0 - f) * (b - a) / denom - 1.0
+        return pv if pv > 0.0 else None
+
+    p0 = p_for(0.0)
+    if p0 is None:
+        return None
+    _, sd0 = _tail_moments(a, b, p0, 0.0)
+    if sd_t <= sd0:
+        return None
+    lo_f, hi_f = 0.0, 0.0
+    # find an f whose spread reaches the ask, within what the mean
+    # can still support
+    for cand in (0.01, 0.02, 0.05, 0.1, 0.2, 0.35, 0.5):
+        pv = p_for(cand)
+        if pv is None:
+            break
+        _, sdc = _tail_moments(a, b, pv, cand)
+        hi_f = cand
+        if sdc >= sd_t:
+            break
+    if hi_f <= 0.0:
+        return None
+    for _ in range(40):
+        mid = (lo_f + hi_f) / 2.0
+        pv = p_for(mid)
+        if pv is None:
+            hi_f = mid
+            continue
+        _, sdm = _tail_moments(a, b, pv, mid)
+        if sdm < sd_t:
+            lo_f = mid
+        else:
+            hi_f = mid
+    f = (lo_f + hi_f) / 2.0
+    pv = p_for(f)
+    return None if pv is None else (pv, f)
+
+
+def _shape_tail(out, u, q, v, target, upper: bool, sd_target=None):
     """Bend the extreme segment so it averages what the source did.
 
     A straight line from the last knot to the safe bound spreads the
@@ -123,8 +210,23 @@ def _shape_tail(out, u, q, v, target, upper: bool):
         p = (b - a) / (b - float(target)) - 1.0
         t = 1.0 - t
     p = min(max(p, 0.02), 60.0)
-    shaped = (a + (b - a) * t ** p if upper
-              else b - (b - a) * t ** p)
+    f = 0.0
+    if upper and TAIL_SPREAD and sd_target:
+        # THE SPREAD IS CHOSEN, NOT INHERITED. With only the mean,
+        # p is forced and the spread is whatever that leaves -
+        # measured as half of what the same mean permits.
+        got = _solve_tail(a, b, float(target), float(sd_target))
+        if got is not None:
+            p, f = got
+            p = min(max(p, 0.02), 60.0)
+    if f > 0.0:
+        sfrac = max(1.0 - f, 1e-9)
+        shaped = np.where(t < sfrac,
+                          a + (b - a) * np.clip(t / sfrac, 0.0,
+                                                1.0) ** p, b)
+    else:
+        shaped = (a + (b - a) * t ** p if upper
+                  else b - (b - a) * t ** p)
     inside = (u >= lo_q) if upper else (u < hi_q)
     return np.where(inside, shaped, out)
 

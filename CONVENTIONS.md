@@ -396,6 +396,164 @@ Synthetic clinical data generator and model-evaluation instrument. Core rule: le
 - Never state a number as measured unless you actually ran it.
 
 ## Fixing what the real extract found
+- **THE TOP SEGMENT'S SPREAD IS PUBLISHED NOW, AND THE FIRST
+  VERSION ASKED THE DRAW FOR A NUMBER NO ARRANGEMENT UNDER THE CAP
+  COULD REACH (2026-11-10).** The extreme segment publishes its
+  mean, and `_shape_tail` solves a power curve's single parameter
+  from that mean - so the spread is whatever that leaves rather
+  than anything chosen. Two placements agreeing on the mean differ
+  by a factor of two in spread. `_tail_sd` publishes it: one
+  aggregate over the same patients the cap already averages.
+- **AND THE TARGET HAS TO BE REACHABLE BY THE THING BEING ASKED
+  FOR IT.** Measured on the segment AS IT IS, a heavy-tailed count
+  reads **172.88** where the same segment CLIPPED at its own
+  published cap reads **98.28** - the difference being the handful
+  of rows above the bound, which the k rule exists to not publish
+  and which generation CANNOT EMIT. Asking for the unclipped figure
+  made the solve saturate: it drove the placement to its own limit,
+  the **99.9th percentile FELL from 119 to 91**, and the apparent
+  gain came from pinning mass at the cap rather than from matching
+  a shape. Clipped at the bound it is a floor on the thing the draw
+  can actually produce. The mutation removing the clip turns SIX
+  checks red.
+- **AND A PILE AT THE CAP IS NOT AN ARTIFACT, WHICH IS WHY THE
+  PLACEMENT IS ALLOWED ONE.** It was the obvious objection - a
+  point mass at exactly the published maximum reads as a defect and
+  advertises the bound. Measured instead of argued: **5.8% of the
+  clipped source's own top segment sits exactly at the cap**,
+  because clipping is what puts it there. The family is a power
+  curve over (1 - f) of the segment's mass plus f AT the cap, with
+  p re-solved so the published mean is held exactly while f buys
+  spread - closed form for both moments, checked against sampling
+  the same family to within 0.5.
+- **THE REFUSAL IS THE COMMON CASE, NOT AN EDGE ONE, AND IT REFUTES
+  THE PREMISE I STARTED FROM.** On **5 of 8 measured cells** the
+  smooth power curve ALREADY exceeds the k-safe floor, so the solve
+  declines and the output is BYTE-IDENTICAL. "The engine picks too
+  smooth a placement" is FALSE for those shapes: at the published
+  mean the curve gives 80.88 against a published 79.56. Where it
+  binds (3 of 8) delivered spread moves **+0.061, +0.030, +0.003** -
+  all positive, none negative - with the segment mean, the column
+  mean, the zero mass and the drivers' rank correlations all
+  unmoved, the last two IDENTICAL to three decimals.
+- **AND THE FLOOR CANNOT BE RAISED IN A k-SAFE WAY, which closed off
+  the obvious follow-up.** The gap between the patient-weighted
+  spread (79.56) and the row-weighted one (98.28) looked like
+  within-patient variation, which could be published as a second
+  component and added back. Measured over four seeds, the
+  within-patient term is **1.6 to 2.3** and adds **0.03** to the
+  total. The gap is the WEIGHTING itself: a patient holding many
+  extreme rows counts once. That is the k rule working, and a
+  shortfall privacy explains is not a fault.
+- **SO `procedure_quantity`'s DIAGNOSIS IS REVISED, AND THE
+  DOMINANT TERM IS THE k RULE RATHER THAN THE PLACEMENT.** The
+  published `tail_mean_high` is itself patient-weighted - **65.56
+  against a clipped row mean of 82.14, which is 80%** - so the
+  engine is aiming at a mean a fifth low before any placement
+  question arises. The second term is not in the tail at all:
+  **86 of the 151 generated rows at or above the knot sit EXACTLY
+  AT the knot value**, piled there by the 0.95-to-0.99 band
+  interpolating 7 to 11 and rounding, against 103 such rows in the
+  source. The shaped rows themselves read mean 52.39 on 65 rows.
+  Reading the segment's mean without separating those three is what
+  made a placement look like the cause.
+- **AND THE k-FLOOR CHECK COULD NOT FAIL, TWICE, FOR TWO DIFFERENT
+  REASONS.** It asserted that a segment reaching fewer than k
+  patients publishes nothing. A cut leaving ONE patient returns
+  nothing anyway, because the spread of a single value is NaN; a
+  cut ABOVE the published cap returns nothing too, because every
+  value clips to the cap and the spread is exactly zero. Either way
+  the k floor is deletable with the check still green - and the
+  first two versions of this did one of each. The cut is SEARCHED
+  FOR now (below the cap, two to nine patients, spread finite and
+  positive), the search is asserted to have found one, and the same
+  segment at a k below its own patient count must still publish, so
+  the refusal is the floor doing the work rather than the data
+  being degenerate.
+- **AND THE MUTATION THAT FOUND NOTHING WAS A NON-RESULT, AGAIN.**
+  Shortening the fail-first's anchor to `if len(per) < k:` made it
+  match TWICE, the assert fired, the file was never modified, and
+  the run reported **red=0** against UNMUTATED code - which reads
+  exactly like a check that cannot fail. Assert count==1 before
+  every replacement, including in the mutation.
+- **AND THE PAIRED ARM IS EIGHT GENERATE SEEDS ON ONE BLUEPRINT,
+  WHICH IS THE ONLY FORM THIS MEASUREMENT HOLDS IN.** Same source,
+  same blueprint, one flag apart, varying only the generate seed:
+      TAIL_SPREAD off   delivered 0.421 to 0.801, mean 0.592
+      TAIL_SPREAD on    delivered 0.446 to 0.856, mean 0.644
+      per-seed delta    +0.022 to +0.111, mean +0.052, 8 of 8
+  **The range does not cross zero**, which is the standard this
+  file sets, and it is fixture evidence so the flag still ships
+  off.
+- **BUT THE SAME TABLE SAYS `delivered` CANNOT BE QUOTED AS A
+  POINT, AND THAT RETIRES A NUMBER THIS FILE ALREADY CARRIES.** On
+  ONE blueprint with nothing changed but the generate seed it runs
+  **0.421 to 0.801** - a range **0.38 wide**, which is most of the
+  distance to 1.00. The spread of a heavy-tailed column is carried
+  by its top 1% of rows, so the statistic's numerator rests on a
+  few hundred values under a convex placement. The real extract's
+  `procedure_quantity` reading of **0.437 is therefore ONE DRAW**
+  and supports no conclusion about the engine; nor does the
+  reproduction that "matched" it at 0.469 - two draws of a
+  statistic this noisy agreeing by chance. The warning now travels
+  with EVERY `k_price` reading, including a healthy one, because
+  the reading that gets quoted is the flattering one. Stripping it
+  turns two checks red.
+- **AND THE REPRODUCTION FIXTURE WAS TOO SMALL, WHICH IS A SECOND
+  AND INDEPENDENT REASON ITS AGREEMENT MEANT NOTHING - AND MY FIRST
+  WRITE-UP OF THAT COMMITTED THE SAME FAULT IT WAS DESCRIBING.** I
+  recorded that at 9,000 rows the realised mean of the placement
+  "undershoots its own target by about a fifth, converging by
+  36,000 rows", from readings of 0.783 / 1.030 / 1.009 / 1.052 at
+  four ROW COUNTS. Adding the two scales in between gives 1.176 and
+  0.850, so there is no monotone trend, and the check I wrote to
+  pin the convergence went RED - correctly. Measured properly, over
+  five GENERATE seeds at each scale:
+      shaped rows  71   ratios 1.414 0.922 0.717 1.228 0.750
+      shaped rows 344   ratios 0.923 0.892 1.042 1.044 1.015
+  **The estimator is UNBIASED and its range falls 0.70 to 0.15
+  while the centre stays near 1.0.** Nothing undershoots; 0.783 was
+  one draw from a distribution 0.70 wide, and I read a
+  size-dependent bias off a subsequence of four points. That is the
+  single-seed fault one level below `delivered`, committed in the
+  entry written to record the single-seed fault - and the only
+  reason it was caught is that a check was written for the claim
+  rather than prose.
+  What survives: the fixture at 9,000 rows CANNOT resolve a tail
+  reading at all, so its agreement with the real extract was
+  meaningless, and **the real reading's shortfall still has no
+  established cause.** Match the ROW COUNT before reading a tail
+  reproduction, and read the segment over SEEDS before reading it
+  at all.
+- **AND THE ONE MECHANISM THAT WOULD HAVE EXPLAINED A CONSTANT WAS
+  REFUTED BY MEASURING IT.** Engine-over-contract read **0.707,
+  0.720, 0.698, 0.701** across four seeds - a constant multiplier,
+  which this file's own rule says is one mechanism rather than four
+  faults. The candidate was within-patient clustering: `pq` carries
+  **icc 0.98** over three visits each, so the segment's rows would
+  come from a third as many independent draws. Dialled to zero the
+  segment mean moves **29.07 to 31.04** - nothing. The constancy is
+  the sample mean of a convex transform being below its own
+  expectation in a TYPICAL draw, not a mechanism, and it
+  disappears at scale.
+- **WHAT IS CONFIRMED WORKING, because three candidates died and
+  something had to be acquitted:** the engine reproduces **every
+  published knot exactly** on this column - 0.0, 0.0, 0.0, 0.0,
+  2.0, 3.0, 3.0, 5.0, 7.0, 11.0 and the cap at 551 against a
+  published 551.4 - so the draw's uniforms are marginally uniform,
+  the grid lands, and the loss is entirely INSIDE the top segment.
+  And the segment statistic I first read was diluted by the body:
+  **86 of the 151 generated rows at or above the knot sit exactly
+  AT the knot value**, rounded there from the 0.95-to-0.99 band,
+  so slicing on `> knot` undercounts the shaped rows by about a
+  quarter and drags their mean down with it. Slice on the SHAPED
+  FLAG, not on a value.
+- **OFF BY DEFAULT.** Five real-extract arms this week have each
+  overturned or traded away a fixture-measured gain, and the
+  evidence here is three fixture cells. `TAIL_SPREAD` is the
+  constant, the default is BYTE-IDENTICAL on every shape where the
+  floor does not bind, a blueprint predating the field generates
+  identically, and the paired real arm decides it.
 - **CORRECTION TO YESTERDAY'S `ceiling`: IT IS A REFERENCE, NOT A
   MAXIMUM, AND I CALLED IT ONE (2026-11-10).** `k_price.py` reports
   `ceiling = sd(source clipped to the published bounds) / sd(source)`
