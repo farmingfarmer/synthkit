@@ -8459,6 +8459,39 @@ what follows is what came out wrong anyway.
   nobody will use.
 
 ## Talking to the data machine
+- **`focus` REPORTED ALREADY-FOREGROUND WHILE A QUEUED READ CAME
+  BACK AS ANOTHER PROJECT'S BROWSER SCREEN (2026-11-11).** Three
+  calls, three different answers about one machine: `run` refused
+  with "cmd prompt not foreground" and a window title full of
+  browser tabs; `hands focus` then answered **ok
+  (already-foreground)**; a third call refused for a DIFFERENT
+  reason - another driver holding the single-flight lock with a
+  PowerShell command - and the same call with `--wait` took the
+  lock and returned a Copilot page belonging to a different piece
+  of work, with **my marker absent**. This file already records
+  that the health fields cannot see a console in selection mode;
+  the new part is that **`focus`'s own answer cannot see it
+  either**, so there are now two signals that report green over a
+  screen that is not live.
+- **THE MARKER IS WHAT MADE IT VISIBLE, and nothing else would
+  have.** The returned text was plausible prose - evidence rules,
+  a knowledge pane, a terms line - and the recorded worst case of
+  this fault is a read of ANOTHER PROJECT's model-comparison
+  output being reported as this run's fidelity. It happened again
+  here, and the only thing that caught it was requiring a nonce
+  echoed in a SEPARATE call to come back. Do not read a verdict
+  off that bridge without one, however healthy `status` and
+  `focus` both look.
+- **AND THE ANSWER IS TO STOP DRIVING, NOT TO TAKE THE WINDOW.**
+  Somebody has a browser up on other work. Forcing the console
+  forward means a global window key, which this file forbids
+  because the machine is shared, or clicking around a logged-in
+  corporate page, which the standing instruction forbids outright.
+  A refusal from the focus guard is the guard EARNING its place -
+  it is the same guard that once stopped shell commands being
+  typed into a colleague's chat window - so the correct response
+  is to wait for the console rather than to argue with it.
+
 - **THE PURPOSE-BUILT SUBCOMMAND EXISTED AND I COMPOSED A SLOWER
   EQUIVALENT OUT OF A MORE GENERAL ONE (2026-11-11).** The task was
   the rules engine against the neural engine on the real extract.
