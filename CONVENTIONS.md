@@ -396,6 +396,85 @@ Synthetic clinical data generator and model-evaluation instrument. Core rule: le
 - Never state a number as measured unless you actually ran it.
 
 ## Fixing what the real extract found
+- **THE HEAD-TO-HEAD RAN ON ONE RULER, AND NEITHER ENGINE WINS -
+  THEY FAIL IN OPPOSITE DIRECTIONS (2026-11-11, run_tail_ctl
+  against run_neural_h2h).** Same source
+  (`phase2_800_fix4\tidy_visits.csv`, 55,428 rows, 800 patients),
+  same seed 11, same k of 10 - and critically BOTH OUTPUTS PUT
+  THROUGH THE SAME BLUEPRINT, the one discovery found on the real
+  source, so the 151 pairs are identical pairs rather than two
+  engines each graded on their own surface. This file records a
+  night lost to a cross-engine comparison over different
+  vocabularies; one ruler is the fix.
+      criterion              rules      neural     bar
+      pairs graded             151         151       -
+      direction kept      132 87.4%   144 95.4%     142
+      close               128 84.8%   131 86.8%     133
+      INVERTED                   0           0       0
+      own-column pairs          29          29       -
+      own-column close          24          22       -
+      own-column INVERTED        0           0       0
+  **The neural engine keeps twelve more relationship directions
+  and CLEARS that bar where the rules engine fails it**, and takes
+  close three pairs further while both still miss. The absolute
+  stop holds for both.
+- **AND THE RULES ENGINE IS BETTER ON THE COLUMNS A RESEARCHER
+  ACTUALLY RECEIVES, which is the finding a headline would
+  hide.** Of the 151 pairs, 29 are the operator's own columns and
+  122 are set-token scaffolding. On those 29 the rules engine
+  holds **24** close against the neural engine's **22**. So the
+  neural engine's twelve-pair direction win is earned on the
+  scaffolding, and on the clinical columns themselves it is
+  slightly behind. This file already records that four fifths of
+  the graded surface is scaffolding and that every fidelity arm
+  moves only there; the same split decides this comparison.
+- **AND ON THE WORST COLUMN THE TWO ENGINES FAIL IN OPPOSITE WAYS,
+  which is the most useful thing the comparison produced.**
+  `procedure_quantity`, share of rows by band:
+      band        source     rules    neural
+      = 1         0.5282    0.9284    0.7080
+      2 to 24     0.4223    0.0684    0.2920
+      25 to 87    0.0396    0.0019    0.0000
+      over 87     0.0099    0.0013    0.0000
+      maximum      2,656         -        14
+      delivered         -    0.4367    0.0285
+  The neural engine **recovers most of the missing middle** - 29.2%
+  in the 2-to-24 band against the rules engine's 6.8%, where the
+  source has 42.2% - and has **NO TAIL AT ALL**: nothing above 24,
+  a maximum of 14 against a source maximum of 2,656, and a
+  delivered spread of **0.0285** against the rules engine's 0.4367.
+  A smoothing autoencoder with a narrow bottleneck cannot emit a
+  2,656 outlier, and this file already records that it "smooths".
+  So the rules engine has the wrong body and keeps a tail; the
+  neural engine has a far better body and no tail. Neither is close
+  to this column, and the two defects do not overlap.
+- **WHICH IS A WARNING ABOUT PRUNE-AFTER ON THE NEURAL PATH.** The
+  generate-then-prune design removes records in SPARSE regions,
+  which are the tails. On an engine that already emits no tail,
+  pruning compounds the one failure it has rather than paying for
+  k out of spare fidelity. The order to consider them in is
+  therefore: fix the tail first, prune second - and on the rules
+  engine, whose tail exists, the priority is the reverse.
+- **AND THE COST IS NOT A ROUNDING ERROR: about four hours against
+  twenty-two minutes**, of which roughly two hours was the fit and
+  the rest a self-measurement a comparison does not need. If the
+  neural engine is a release candidate that belongs beside the
+  fidelity numbers, not in a footnote.
+- **WHAT THE NEURAL ARM'S OWN PRIVACY READINGS SAY, measured on
+  this run of the real extract:** held-out reconstruction
+  **0.00557** against **0.00527** on the 47,029 rows it trained on,
+  a ratio of **1.06** where a memorising network climbs and the
+  recorded positive control reads 9.7; nn-ratio **1.04**; and the
+  k-aware blur snapped **20.0% of rows**. The output generalises.
+  That 20% is also an independent read on the prune-after
+  estimate - this file's measured figure was ~25% of rows, from a
+  fixture, and the real extract says a fifth at the sampling stage.
+- **AND ITS OWN CONSOLE METRIC IS NOT THE GATE, said before anybody
+  quotes it.** The run printed `seed 11: sign 476/520 close
+  451/520 INVERTED 11`. That is the challenger's uniform pair
+  metric over 520 pairs with its own definition - a different
+  denominator from the 151 above, and the INVERTED 11 is not the
+  gate's zero. Both are true; say which one is being quoted.
 - **GENERATE AT FULL FIDELITY AND THEN PRUNE WHAT BREAKS k IS THE
   RIGHT ORDERING FOR AN OUTPUT-ONLY RELEASE, AND IT IS WHAT MAKES
   THE NEURAL ENGINE AUDITABLE (2026-11-11, design note, nothing
