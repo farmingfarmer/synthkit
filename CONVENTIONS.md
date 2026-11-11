@@ -396,6 +396,81 @@ Synthetic clinical data generator and model-evaluation instrument. Core rule: le
 - Never state a number as measured unless you actually ran it.
 
 ## Fixing what the real extract found
+- **THE THIN BUCKET DECOMPOSES, AND HALF OF IT LED TO A MARGINAL
+  FAILURE FAR LARGER THAN THE SURFACES (2026-11-11, measured on
+  run_tail_ctl).** 22 surfaces landed in `skipped_thin_data`, which
+  is one number covering three different findings. Attributed:
+      thin, generated side could not fill       11
+      thin, source could not be binned at all    8
+      thin, both binned but share under 4 cells  3
+      thin, source cells removed by the k screen 0
+  **Zero are the k rule**, which was my first suspect and is
+  refuted: a shortfall privacy explains is not a fault, and here
+  privacy explains none of it. Eight are the cohort being unable to
+  support a grid for that pair, which is a statement about the
+  extract rather than about either table.
+- **AND ALL ELEVEN OF THE ENGINE'S REDUCE TO TWO COLUMNS.** Named
+  by asking which axis `_axis_bins` refuses on the generated side
+  and not on the source:
+      procedure_quantity                 53 distinct, source 165
+      procedures__has__Oxygen Therapy      1 distinct, source 2
+  The second is the published-but-never-emitted gap this file
+  already records. The first is the whole of the rest.
+- **AND THE CAUSE IS NOT THE TAIL AT ALL, WHICH RETIRES TWO
+  HYPOTHESES INCLUDING MY OWN MOST RECENT ONE.** I had predicted a
+  pile of rows at the published knot, from the band below it
+  interpolating and rounding - measured on a fixture at 86 of 151
+  rows. On the real extract there are **TWO** source rows at the
+  knot and **ZERO** generated ones. No pile. What is there instead,
+  `procedure_quantity` by band:
+      band        source    generated
+      = 1         0.5282       0.9284
+      2 to 24     0.4223       0.0684
+      25 to 87    0.0396       0.0019
+      over 87     0.0099       0.0013
+  **The engine puts 93% of rows on the single value 1 where the
+  source puts 53%, and the entire body between 2 and 24 - 42% of
+  the source's rows - is almost absent.** That is a marginal
+  failure in the BODY, not a tail placement question, and every
+  hour spent on `tail_mean_high`, `tail_sd_high` and the banded
+  grid was aimed at the 1% above the last knot while 42% of the
+  column sat in the wrong place.
+- **THE MECHANISM IS PRECEDENTED AND THE EXISTING FIX DOES NOT
+  COVER IT.** `procedure_quantity` is a relationship CHILD with
+  three parents, and a parent of eleven other relationships - a
+  hub. This file already records the class: "A POINT MASS IS NOT A
+  SHAPE A CURVE CAN MAKE. Drawn as a relationship child the value
+  arrives as a curve prediction plus roughly symmetric noise, which
+  is continuous, and rounding cannot land a point mass where the
+  source had one." The fix recorded there is `zero_share`, which
+  publishes the mass AT ZERO and places it on the lowest-predicted
+  rows. This column has **no zeros at all**, so `zero_share` is
+  absent and nothing fires - its point mass is at ONE. A fix that
+  only knows about zero cannot see a count whose mode is one.
+- **AND THE REMEDY IS ALREADY IN THE ENGINE FOR OTHER COLUMNS,
+  which is what makes it worth building rather than inventing.**
+  The cyclic refinement sweep works by "taking the exact multiset
+  the marginal produced and changing only the ARRANGEMENT", so the
+  marginal cannot drift; sparse numerics rank-map a decoded channel
+  through a published grid for the same reason. A relationship
+  child that is never reached by either keeps whatever distribution
+  the curve plus noise happens to produce. Rank-mapping such a
+  child onto its own published marginal - the relationship decides
+  the ORDER, the marginal decides the VALUES - preserves the
+  marginal by construction and is a permutation, which is the
+  instrument the repairs and the dials already rest on.
+  NOT CLAIMED: that it fixes the column. What is measured is the
+  defect, its size, and that the engine contains the mechanism for
+  the class. It changes how every relationship child is drawn, so
+  it needs a flag, fixture evidence on several shapes, and a
+  paired real arm before it is a default - five arms this week say
+  so.
+- **AND THE SURFACES WERE THE ROUTE TO IT, NOT THE PRIZE.** Nine of
+  the eleven engine-side thin surfaces are unmeasurable because
+  this one column's distribution is too concentrated to bin. The
+  measurement work did not improve fidelity by itself and is not
+  claimed to; what it did was turn "22 surfaces are thin" into one
+  named column with a 42-point marginal gap.
 - **THE SURFACE CRITERION WAS MEASURING 7 OF 75 AND READING "4/7",
   AND FIXING IT ALSO EXPOSED 21 PAIRS NOBODY WAS GRADING
   (2026-11-11, re-measured on run_tail_ctl).** `interaction
