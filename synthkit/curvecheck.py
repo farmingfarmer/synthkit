@@ -178,6 +178,10 @@ def measure_surfaces(Xs, Xg, bp, gid_series, k) -> Dict[str, Any]:
     skipped_tokens = 0
     skipped_absent = 0
     skipped_thin = 0
+    thin_src_unbinnable = 0
+    thin_src_screened = 0
+    thin_gen = 0
+    thin_overlap = 0
     for rel in (bp.get("relationships") or []):
         child = rel.get("child")
         it = (rel.get("evidence") or {}).get("interaction")
@@ -218,14 +222,14 @@ def measure_surfaces(Xs, Xg, bp, gid_series, k) -> Dict[str, Any]:
             vb = _numeric(fr[b])
             ok = vc.notna() & va.notna() & vb.notna()
             if int(ok.sum()) < 60:
-                return None
+                return None, "rows"
             xa = va[ok].to_numpy(dtype=float)
             xb = vb[ok].to_numpy(dtype=float)
             yc = vc[ok].to_numpy(dtype=float)
             ia, na = _axis_bins(xa)
             ib, nb = _axis_bins(xb)
             if ia is None or ib is None:
-                return None
+                return None, "bins"
             cells = {}
             for ci in range(na):
                 for cj in range(nb):
@@ -237,16 +241,37 @@ def measure_surfaces(Xs, Xg, bp, gid_series, k) -> Dict[str, Any]:
                         if g.nunique() < k:
                             continue
                     cells[(ci, cj)] = float(yc[m].mean())
-            return cells
+            return cells, ("screened" if not cells else None)
 
-        cs = grid_means(Xs, gid_series)
-        cg = grid_means(Xg, None)
-        if not cs or not cg:
+        # WHICH SIDE COULD NOT FILL THE GRID IS THE WHOLE
+        # QUESTION, and one `thin` bucket cannot say.
+        #
+        # A source that cannot be binned means the measurement has
+        # no reference and the surface is unmeasurable by
+        # construction. A source that bins while the OUTPUT does
+        # not is the engine under-emitting, which is a fidelity
+        # defect. A source whose cells are all removed by the k
+        # screen is the privacy rule, and a shortfall privacy
+        # explains is not a fault. Those take three different
+        # actions, and `interaction surfaces` reported 22 of them
+        # as one number.
+        cs, why_s = grid_means(Xs, gid_series)
+        cg, why_g = grid_means(Xg, None)
+        if not cs:
             skipped_thin += 1
+            if why_s == "screened":
+                thin_src_screened += 1
+            else:
+                thin_src_unbinnable += 1
+            continue
+        if not cg:
+            skipped_thin += 1
+            thin_gen += 1
             continue
         both = sorted(set(cs) & set(cg))
         if len(both) < 4:
             skipped_thin += 1
+            thin_overlap += 1
             continue
         gap = max(abs(cs[c] - cg[c]) for c in both) / sd_c
         rows.append({"child": child, "pair": [a, b],
@@ -261,6 +286,13 @@ def measure_surfaces(Xs, Xg, bp, gid_series, k) -> Dict[str, Any]:
         "skipped_token_columns": skipped_tokens,
         "skipped_absent_columns": skipped_absent,
         "skipped_thin_data": skipped_thin,
+        # THE SAME TOTAL, DECOMPOSED. `skipped_thin_data` stays the
+        # sum so the published == compared + token + absent + thin
+        # identity and every reader of it are unchanged.
+        "thin_source_unbinnable": thin_src_unbinnable,
+        "thin_source_k_screened": thin_src_screened,
+        "thin_generated": thin_gen,
+        "thin_no_overlap": thin_overlap,
         "note": "Of the surfaces the blueprint publishes, only "
                 "those whose child and pair exist as columns in "
                 "the WRITTEN files can be re-measured here - "

@@ -1178,6 +1178,67 @@ def main():
           + _tokKept["skipped_absent_columns"]
           + _tokKept["skipped_thin_data"])
 
+    # WHICH SIDE COULD NOT FILL THE GRID IS THREE DIFFERENT
+    # FINDINGS, and one `thin` bucket cannot say which. On the real
+    # extract 22 surfaces landed there: a source that cannot be
+    # binned is unmeasurable by construction, a source whose cells
+    # the k screen removes is the privacy rule doing its job, and a
+    # source that bins while the OUTPUT does not is the engine
+    # under-emitting. Only the last is a fidelity defect.
+    _thinbp = {"relationships": [
+        {"child": "y", "parents": ["meds__has__x", "meds__n"],
+         "evidence": {"interaction": {
+             "pair": ["meds__has__x", "meds__n"]}}}]}
+
+    # (a) the OUTPUT cannot fill it: the token is absent from the
+    # generated frame's rows, so its axis has one value.
+    _flat = _tokfr.copy()
+    _flat["meds__has__x"] = 0.0
+    _rg = _cc.measure_surfaces(_tokfr, _flat, _thinbp,
+                               _tokfr["pid"], 10)
+    check("a surface whose SOURCE bins but whose OUTPUT cannot is "
+          "attributed to the GENERATED side - that is the engine "
+          "under-emitting a token, and it is the only one of the "
+          "three thin reasons that is a fidelity defect",
+          _rg["thin_generated"] == 1
+          and _rg["skipped_thin_data"] == 1
+          and _rg["compared"] == 0)
+
+    # (b) the k screen removes every source cell. It takes FEW
+    # patients over MANY rows: one patient per row would give each
+    # cell as many distinct patients as it has rows, so every cell
+    # would clear k and nothing would be screened - which is what
+    # the first version of this fixture did, and the check went red
+    # against correct code.
+    _solo = _tokfr.copy()
+    _solo["pid"] = ["Q%03d" % (i % 3) for i in range(len(_solo))]
+    _rk = _cc.measure_surfaces(_solo, _solo.copy(), _thinbp,
+                               _solo["pid"], 10)
+    check("...while a surface whose source cells are all removed "
+          "by the k screen is attributed to PRIVACY, not to the "
+          "engine - a shortfall the k rule explains is not a fault "
+          "and must not be counted as one",
+          _rk["thin_source_k_screened"] == 1
+          and _rk["thin_generated"] == 0)
+
+    # (c) too few rows to bin at all.
+    _tiny = _tokfr.head(40).copy()
+    _rt = _cc.measure_surfaces(_tiny, _tiny.copy(), _thinbp,
+                               _tiny["pid"], 10)
+    check("...and a frame with too few rows to bin at all is "
+          "attributed to the SOURCE being unbinnable, which is a "
+          "statement about the cohort rather than about either "
+          "table",
+          _rt["thin_source_unbinnable"] == 1)
+
+    check("...and the three thin reasons SUM to the thin total on "
+          "every one of those frames, so the decomposition cannot "
+          "lose a surface into a bucket nothing counts",
+          all(r["skipped_thin_data"] == r["thin_source_unbinnable"]
+              + r["thin_source_k_screened"] + r["thin_generated"]
+              + r["thin_no_overlap"]
+              for r in (_rg, _rk, _rt, _tokKept, _resT)))
+
     # AND THE VOCABULARY HAS TO CARRY THEM, which is a separate
     # gap: `pair` is the top two by importance and `parents` is the
     # filtered order, so a pair member can be named by one and not
