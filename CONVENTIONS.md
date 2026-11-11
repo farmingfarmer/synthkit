@@ -396,6 +396,104 @@ Synthetic clinical data generator and model-evaluation instrument. Core rule: le
 - Never state a number as measured unless you actually ran it.
 
 ## Fixing what the real extract found
+- **THE SURFACE CRITERION WAS MEASURING 7 OF 75 AND READING "4/7",
+  AND FIXING IT ALSO EXPOSED 21 PAIRS NOBODY WAS GRADING
+  (2026-11-11, re-measured on run_tail_ctl).** `interaction
+  surfaces 4/7` has been on the record for months. The run's own
+  stored accounting says 75 surfaces published, **7 compared**, 67
+  skipped as token columns. So the criterion graded 9% of what it
+  claimed and reported the proportion of THAT - a criterion wrong
+  in the direction nobody checks, by measuring too LITTLE.
+      measurement, same run and source, one commit apart
+                              before      after
+      surfaces published          75         75
+      compared                     7         53
+      tracked                      4         14
+      skipped, token columns      67          0
+      skipped, thin data           1         22
+      the criterion reads     4/7 57%   14/53 26%
+  **The engine carries a quarter of its published two-variable
+  surfaces, not a half.** Nothing was generated differently; this
+  is what the number always was.
+- **AND THE PAIR SURFACE MOVED WITH IT, WHICH NOBODY ASKED FOR AND
+  IS THE LARGER FINDING.**
+      pairs graded              130        151
+      close                 113 86.9%   128 84.8%
+      direction kept        121 93.1%   132 87.4%
+      INVERTED                     0          0
+      own-column pairs            29         29
+      own-column close            24         24
+      own-column inverted          0          0
+  Twenty-one pairs became comparable, and they are far worse than
+  the surface that was already being graded: **15 of 21 close (71%
+  against 86.9%) and 11 of 21 keeping direction (52% against
+  93.1%)**. The absolute stop holds at zero on both counts, and the
+  operator's own 29 columns are IDENTICAL - every point of movement
+  is scaffolding, which is the pattern this file already records
+  for five fidelity arms.
+- **SO EVERY RECORDED close AND direction PERCENTAGE ON THIS
+  EXTRACT IS NOW OVER A DIFFERENT DENOMINATOR.** 130 became 151.
+  The absolute counts are the comparison, not the percentages -
+  this file has twice recorded a conclusion drawn from a
+  percentage whose denominator moved, and this is the third
+  occasion. It also moves the distance to the bars: close needs
+  133 of 151 and has 128 (five pairs, not two), and direction
+  needs 142 and has 132 (ten pairs, not two).
+- **FOUR CAUSES, AND EACH ALONE WOULD HAVE LEFT THE OTHERS
+  POINTLESS.** (1) `measure_surfaces` refused on the NAME before
+  asking whether the column was present - and `compare` hands it
+  the EXPANDED frames, so indicators the blueprint's own
+  vocabulary had rebuilt were thrown away beside the ones it could
+  not. (2) `blueprint_vocab` collected the tokens `child` and
+  `parents` name but not the ones `evidence.interaction.pair`
+  names - a third list, because `pair` is the top two by
+  IMPORTANCE where `parents` is the filtered order, which this
+  file already records costing a surface measured on (a, b) and
+  applied to (c, a). (3) A 0/1 indicator cannot yield three
+  quantile edges, so every surface with a binary axis fell to
+  `skipped_thin_data` even with its columns present; removing the
+  refusal alone would have moved 54 surfaces from one skip bucket
+  to another and changed nothing. The two-valued rule now lives in
+  ONE function that `shapes._grid_for` and
+  `curvecheck._axis_bins` both call.
+- **AND THE FOURTH IS THE WORST: ONE PREDICATE GAVE TWO ANSWERS
+  FOR ONE COLUMN.** `looks_like_set` reads the frame in front of
+  it, and what decides it is `_separator`, which needs the
+  separator in at least `SEP_SHARE` of the FILLED cells. A
+  generated set column holds fewer multi-token cells than its
+  source, so the two land either side of that bar:
+      procedures, share of filled cells holding a ";"
+        source      4,352 of 10,697        0.4068
+        generated   2,854 of 11,209        0.2546
+      SEP_SHARE                            0.30
+  So the SOURCE frame was expanded into indicators and the
+  GENERATED frame was not, and every measurement over those
+  columns compared a column against nothing - silently, because
+  the column was never built to be counted as absent. That one
+  classification carried 23 of the 75 surfaces AND all 21 of the
+  pairs. The fix is that the CONTRACT decides what a column is:
+  when the caller holds a blueprint, the blueprint has already
+  declared the column a set and the frame's own thinness must not
+  overrule it. Same rule as the TVD bin edges, which come from the
+  source and are applied to both tables.
+- **THE k SCREEN IS UNTOUCHED, ASSERTED RATHER THAN CLAIMED.**
+  `declared` says what the column IS and never which tokens may be
+  released; a token held by fewer than k patients is still not
+  published. A flag that loosened that would be a privacy change
+  wearing a measurement fix.
+- **AND THE 22 THAT REMAIN ARE NOW AN HONEST REASON RATHER THAN AN
+  INSTRUMENT GAP.** Token-column skips went 67 to ZERO: every
+  published surface's columns can now be rebuilt. The 22 land in
+  `skipped_thin_data`, which says the OUTPUT holds too few of
+  those tokens to fill a grid - a statement about the engine, and
+  the next thing to look at.
+- **AND MY OWN FIRST WRITE-UP NAMED THE WRONG QUANTITY.** I
+  recorded `procedures` as averaging 0.373 tokens per row in the
+  source against 0.277 in the output. That is the mean over ALL
+  rows; the predicate averages over FILLED rows and in fact turns
+  on the separator SHARE. Both numbers were real and neither was
+  the one the code tests. Read the predicate before explaining
+  what it did.
 - **BOTH TAIL FLAGS RAN AS PAIRED REAL-EXTRACT ARMS, AND THE ONE
   THE FIXTURE CALLED A LARGE GAIN COSTS A THIRD OF THE COLUMN IT
   WAS BUILT FOR (2026-11-10, run_tail_ctl / _spread / _bands).**
