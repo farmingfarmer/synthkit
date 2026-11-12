@@ -2845,11 +2845,21 @@ def generate(blueprint: Dict[str, Any],
     # 0.6479 with the parent available and 0.0000 without,
     # against a grid that says 0.6238.
     unrefined: set = set()
+    # PER COLUMN, WITH A REASON. `refinements_applied` is a
+    # count, and a count cannot answer a question about
+    # WHICH - this file records that lesson for a dropped-edge
+    # report and for a twelve-pair difference guessed at four
+    # times before anybody looked at the names.
+    ref_skip: Dict[str, str] = {}
+    ref_done: set = set()
     if cyclic and refine_sweeps > 0:
         for _sweep in range(int(refine_sweeps)):
             for c in order:
                 rels = cyclic.get(c)
-                if not rels or c not in marg_draw:
+                if not rels:
+                    continue
+                if c not in marg_draw:
+                    ref_skip[c] = "no marginal draw was kept for it"
                     continue
                 spec = cols[c]
                 m = spec.get("marginal") or {}
@@ -2857,6 +2867,10 @@ def generate(blueprint: Dict[str, Any],
                           if all(p in out for p in r["parents"])]
                 if not usable:
                     unrefined.add(c)
+                    ref_skip[c] = (
+                        "no record has all its parents drawn - "
+                        "parents: " + "; ".join(
+                            ",".join(r["parents"]) for r in rels[:3]))
                     continue
                 draw = marg_draw[c]
                 got = _apply_numeric(c, spec, m, draw, usable,
@@ -2898,6 +2912,10 @@ def generate(blueprint: Dict[str, Any],
                     held = held & pending
                 ok = np.isfinite(got) & held
                 if int(ok.sum()) < 2:
+                    unrefined.add(c)
+                    ref_skip[c] = (
+                        "fewer than two rows survive finite and "
+                        "present, so there is nothing to order")
                     continue
                 # rank of each row within the refined values, then the
                 # marginal's own sorted values placed at those ranks
@@ -2906,6 +2924,7 @@ def generate(blueprint: Dict[str, Any],
                 fixed_vals = np.array(out[c], dtype=float).copy()
                 fixed_vals[ok] = pool[idx]
                 out[c] = fixed_vals
+                ref_done.add(c)
                 n_ref += 1
 
         # A FINAL SYNCHRONIZED PASS: every cyclic column computed
@@ -3319,6 +3338,15 @@ def generate(blueprint: Dict[str, Any],
             "set_indicators_derived": len(scaffold),
             "cyclic_columns": len(cyclic),
             "refinements_applied": n_ref,
+            "refinement_refined": sorted(ref_done),
+            # A COLUMN THE SWEEP SKIPPED gets no re-rank from the
+            # acyclic path either, which skips it for being cyclic -
+            # so its marginal is whatever curve plus noise produced.
+            # Named with the reason, because the three skips take
+            # three different fixes.
+            "refinement_skipped": dict(
+                (k, v) for k, v in sorted(ref_skip.items())
+                if k not in ref_done),
             "patients": n_pat,
             "rows": int(n_rows),
             "columns": len(order),

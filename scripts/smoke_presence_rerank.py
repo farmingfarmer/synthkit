@@ -369,6 +369,26 @@ def main():
           "made from the blueprint rather than from a run",
           sorted(_would4) == sorted(_rf.get("presence_reranked") or []))
 
+    # A COUNT CANNOT ANSWER A QUESTION ABOUT WHICH. The sweep
+    # reported `refinements_applied` and nothing else, so a column
+    # it silently skipped was invisible - and the three skips take
+    # three different fixes.
+    check("the sweep NAMES the cyclic columns it refined, not just "
+          "how many - a count cannot say which",
+          "pq" in (_ok.get("refinement_refined") or []))
+    check("...and names the ones it SKIPPED, with the reason, "
+          "because the skips take different fixes",
+          "pq" in (_rg.get("refinement_skipped") or {}))
+    check("...naming the unavailable parents in that reason, so a "
+          "reader can act on it rather than re-deriving it",
+          "parents" in str((_rg.get("refinement_skipped")
+                            or {}).get("pq", "")))
+    check("...and a column it DID refine never appears in the "
+          "skipped list, so the two accounts cannot contradict "
+          "each other",
+          not (set(_ok.get("refinement_refined") or [])
+               & set((_ok.get("refinement_skipped") or {}))))
+
     print()
     if FAIL:
         print("{} FAILED".format(FAIL))
