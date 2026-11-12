@@ -2441,6 +2441,18 @@ def main():
     check("...and it carries a TOTAL a reader can check the rows "
           "against, which is how an omitted category stays visible",
           "column(s) are off their own published grid" in _ms.stdout)
+    # THE QUANTITY A RECIPIENT ACTUALLY HOLDS. The two gaps above
+    # split the blame between the contract and the sampler, and
+    # neither is what lands in their hands - a sampler faithfully
+    # reproducing a wrong grid reads clean on grid-against-output
+    # and is still wrong for them.
+    check("...and reports SOURCE against OUTPUT, which is what a "
+          "recipient holds rather than a split of the blame",
+          "SRC~OUT" in _ms.stdout
+          and "what a recipient holds" in _ms.stdout)
+    check("...and says how many columns differ from the SOURCE in "
+          "a recipient's hands, separately from the blame split",
+          "differ from the SOURCE in a recipient" in _ms.stdout)
 
     print()
     if FAIL:
