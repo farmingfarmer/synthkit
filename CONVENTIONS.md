@@ -396,6 +396,62 @@ Synthetic clinical data generator and model-evaluation instrument. Core rule: le
 - Never state a number as measured unless you actually ran it.
 
 ## Fixing what the real extract found
+- **THE REFINEMENT SWEEP CAN SKIP A CYCLIC COLUMN ENTIRELY, AND
+  THEN NOTHING RE-RANKS IT (2026-11-12).** The sweep needs EVERY
+  parent of some relationship record to be a column the engine
+  actually draws. A blueprint can name one it never modelled - the
+  token cap publishes more indicators than it draws - and then
+  `usable` is empty, the sweep skips the column, and the acyclic
+  re-rank skips it too for being cyclic. Measured on a ring
+  fixture, ONE PARENT NAME apart:
+      parent available    refinements 16   share on the mode 0.6479
+      parent unmodelled   refinements 14   share on the mode 0.0000
+      the published grid                                     0.6238
+  Not a weakened marginal - a DESTROYED one, with the refinements
+  count as the observable that proves the skip rather than an
+  inference. The post-pass picks those up and the column returns to
+  **0.6479**, which is not merely moved but IDENTICAL to the arm
+  where the parent was available.
+- **AND IT IS NOT WHAT THE REAL COLUMN HAS, which is the third
+  candidate to die by measurement.** `peek rerank` reads
+  `procedure_quantity` on the shipping run as coverage **0.19**, a
+  relationship child, with an informative presence model, **CYCLIC
+  and NOT blocked by an unmodelled parent** - so the sweep should
+  be refining it, and its output still sits 32 points from its own
+  published grid. The flag would re-rank **ZERO** columns on that
+  blueprint, so a paired arm there would have measured only the
+  seed. That read cost seconds and saved forty-five minutes, which
+  is the whole reason the predictor was built before the arm was
+  run.
+- **SO THE RUN NOW SAYS WHAT THE SWEEP DID, PER COLUMN, rather than
+  earning a fourth guess.** `refinements_applied` was a COUNT, and
+  a count cannot answer a question about WHICH - this file records
+  that for a dropped-edge report and for a twelve-pair difference
+  guessed at four times before anybody read the names.
+  `refinement_refined` and `refinement_skipped` (column -> reason)
+  now ride in the report, and no column can appear in both.
+- **AND THE CHECK THAT THEY REACH THE RUN DIRECTORY WENT RED ON MY
+  OWN AIM.** I pointed it at a fixture that runs `phase2_pipeline`,
+  which writes its OWN `fidelity.json`; the generate report rides
+  on `synthkit/pipeline.py`, which assigns the whole dict under
+  `generation`. Worth the detour: this project already lost a
+  measurement to the opposite arrangement, where `generate`
+  recorded `sets_informed` for as long as the routing existed and
+  `pipeline` copied one other field out of that report, so
+  `fidelity.json` never carried it and reading the key off a run
+  returned None - which was read as the routing never firing. **A
+  diagnostic that only prints to a terminal on the machine holding
+  the data is not readable at all.**
+- **AND TWO SIZE SAMPLES AGREED BECAUSE MY OWN WAIT RETURNED
+  INSTANTLY.** Polling the launched run, the log read 2209 bytes
+  twice and I nearly called it stalled - but the `until` loop
+  between the samples was waiting on a net that had ALREADY
+  finished, so the two reads were a minute apart rather than
+  fifteen. Reading the log's TAIL showed it at 50 of 138 columns
+  with 630s left, progressing normally. The recorded rule is to
+  read a log twice before calling it stopped; the addition is to
+  check that the two reads are actually separated in time.
+
 - **THE ACYCLIC RE-RANK NEVER GOT THE FIX THE CYCLIC SWEEP HAS HAD
   SINCE IT WAS WRITTEN, AND IT COSTS A PARTIALLY-COVERED COLUMN ITS
   MARGINAL (2026-11-11, `--presence-rerank`).** The re-rank inside
