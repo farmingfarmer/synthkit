@@ -396,6 +396,49 @@ Synthetic clinical data generator and model-evaluation instrument. Core rule: le
 - Never state a number as measured unless you actually ran it.
 
 ## Fixing what the real extract found
+- **THE PAIRED REAL ARM RAN, AND THE GUARD IS A TRADE RATHER THAN A
+  WIN (2026-11-12, run_sw_ctl against run_sw_guard).** Same source,
+  same seed 11, same build for the arm and a control verified
+  unchanged by diff - every change between the two commits is a new
+  constant, a defaulted parameter, report-only recording, or gated
+  behind the flag, so no RNG or value moves with it off.
+      criterion                       control   --copy-coverage-guard
+      procedure_quantity vs its grid   0.3255          0.0254
+      procedure_quantity verdict         BOTH        CONTRACT
+      procedure_count vs its grid      0.0594          0.0594
+      numeric columns off their grid    6 of 31        6 of 31
+      of those, the SAMPLER's                2              1
+  **A thirteen-fold improvement on the worst column on the file**,
+  with its neighbour untouched to four decimals and the
+  sampler-faulted count halved. What remains on that column is the
+  CONTRACT's 0.0756, which is a different and smaller fix.
+- **AND THE COST IS IN THE RUN'S OWN NARRATION: the identity breaks
+  on 97.9% of rows.** `procedure_count == procedure_quantity broken
+  on 10964 rows` - refusing the copy restores the marginal and
+  loses the equality the source has. That is the whole trade, and
+  neither side of it is obviously right: a released file whose two
+  columns should be equal and are not is the same class as a
+  patient whose age contradicts their birth year, and a column
+  putting 93% of rows on the value 1 where the source puts 53% is
+  the largest fidelity gap on the file.
+- **SO THE BETTER FIX IS NAMED RATHER THAN BUILT, because it keeps
+  both.** If the sparse column equals the dense one wherever it is
+  PRESENT, then its published marginal IS the dense column's
+  restricted to those rows - so copying is right and the thing that
+  must be reproduced is WHICH rows are present. The source's rule
+  is almost certainly a function of the dense column's own value (a
+  quantity is recorded when there were procedures), and this engine
+  already models informative presence as a parent plus a response
+  curve. Driving a copied column's presence from its COPY SOURCE
+  would keep the identity AND land the marginal, where the guard
+  keeps one at the cost of the other. NOT MEASURED - it is a design
+  with a reason, and this file has a rule about the difference.
+- **THE GUARD SHIPS OFF, WITH BOTH NUMBERS ON RECORD.** An operator
+  choosing between a faithful marginal and a preserved identity
+  should be shown the trade rather than have it decided for them by
+  a default, which is the same reasoning as the dial that prints
+  requested beside achieved.
+
 - **THE GUARD IS BUILT AND THE FIXTURE REPRODUCES THE REAL
   MAGNITUDE (2026-11-12, `--copy-coverage-guard`).** Two columns
   equal where both are present, one covered on every row and one on
