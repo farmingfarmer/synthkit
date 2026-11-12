@@ -125,6 +125,28 @@ TAIL_SPREAD = False
 # traded away a fixture-measured gain.
 PRESENCE_RERANK = False
 
+# REFUSE A WHOLE-COLUMN COPY BETWEEN COLUMNS OF DIFFERENT COVERAGE.
+#
+# An exact `==` constraint means one column IS the other, and
+# generation carries that by copying. That is right when both are
+# present on the same rows. It is NOT an identity about the whole
+# column when one is present everywhere and the other on a fifth of
+# rows: the two are equal where both are present, which clears the
+# 0.999 bar the detector applies, and copying hands the sparse
+# column the dense one's distribution - masked afterwards by a
+# presence model that selects different rows than the source's did.
+# The sparse column is then never drawn from its own published
+# marginal at all, so the refinement sweep skips it reporting "no
+# marginal draw was kept for it".
+#
+# Measured on the 800-patient extract: `procedure_quantity` is
+# copied from `procedure_count`, coverage 0.19 against 1.00, and
+# lands 0.3255 from its own published grid where its source column
+# lands 0.0594. It is the largest single fidelity gap on that file.
+COPY_COVERAGE_GUARD = False
+# How far the two coverages may differ before the copy is refused.
+COPY_COVERAGE_TOL = 0.05
+
 
 def _tail_moments(a, b, p, f):
     """Mean and sd of the two-parameter tail placement.
@@ -1620,7 +1642,7 @@ def _draw_list_sized(m, ks, rng, cooc=None, col=None,
     return np.asarray(out, dtype=object)
 
 
-def _copy_partners(bp):
+def _copy_partners(bp, mismatched=None):
     """rhs -> lhs for every EXACT numeric identity the constraints
     carry between two ordinary columns.
 
@@ -1640,6 +1662,24 @@ def _copy_partners(bp):
                 and _sets.source_of(lhs) is None
                 and _sets.source_of(rhs) is None
                 and float(con.get("holds_in_source") or 0) >= 0.999):
+            # COVERAGE IS PART OF WHETHER THIS IS AN IDENTITY.
+            def _cov(name):
+                v = (cols.get(name) or {}).get("coverage")
+                return 1.0 if v is None else float(v)
+            gap = abs(_cov(lhs) - _cov(rhs))
+            if gap > COPY_COVERAGE_TOL:
+                if mismatched is not None:
+                    mismatched[rhs] = {
+                        "from": lhs, "coverage_rhs": _cov(rhs),
+                        "coverage_lhs": _cov(lhs),
+                        "note": ("equal where both are present, but "
+                                 "not the same column: copying "
+                                 "hands the sparse one the dense "
+                                 "one's distribution and it is "
+                                 "never drawn from its own "
+                                 "published marginal")}
+                if COPY_COVERAGE_GUARD:
+                    continue
             out[rhs] = lhs
     return out
 
@@ -2419,7 +2459,8 @@ def generate(blueprint: Dict[str, Any],
     size_partners = _size_partners(bp)
     # Plain columns the constraints declare EQUAL - the rhs is copied
     # from the lhs outright.
-    copy_from = _copy_partners(bp)
+    copy_mismatch: Dict[str, Any] = {}
+    copy_from = _copy_partners(bp, mismatched=copy_mismatch)
 
     # Adjacent-visit pairs, built once: the persistence solve
     # measures on exactly the pairing the fidelity report does.
@@ -3338,6 +3379,11 @@ def generate(blueprint: Dict[str, Any],
             "set_indicators_derived": len(scaffold),
             "cyclic_columns": len(cyclic),
             "refinements_applied": n_ref,
+            # REPORTED WHETHER OR NOT THE GUARD ACTED, because a
+            # copy that quietly replaces a column's marginal is
+            # exactly the kind of thing nobody looks for.
+            "copies_coverage_mismatch": copy_mismatch,
+            "copy_coverage_guard": bool(COPY_COVERAGE_GUARD),
             "refinement_refined": sorted(ref_done),
             # A COLUMN THE SWEEP SKIPPED gets no re-rank from the
             # acyclic path either, which skips it for being cyclic -

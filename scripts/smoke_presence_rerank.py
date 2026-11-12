@@ -462,6 +462,133 @@ def main():
           "_copy_partners" in (ROOT / "scripts" / "peek.py")
           .read_text(encoding="utf-8"))
 
+    # ---- AN `==` BETWEEN COLUMNS OF DIFFERENT COVERAGE ----------
+    # Equal where both are present clears the detector's 0.999 bar,
+    # and copying then hands the sparse column the DENSE one's
+    # distribution - masked afterwards by a presence model that
+    # selects different rows than the source's did. The sparse
+    # column is never drawn from its own published marginal, which
+    # is what the sweep reports as "no marginal draw was kept".
+    #
+    # Measured on the real extract: procedure_quantity := 
+    # procedure_count, coverage 0.19 against 1.00, landing 0.3255
+    # from its own grid where its source column lands 0.0594.
+    _DENSE = {"type": "quantiles", "integral": True, "mean": 7.0,
+              "q": [0.0, 0.1, 0.25, 0.5, 0.75, 0.9, 1.0],
+              "v": [1.0, 1.0, 2.0, 4.0, 9.0, 18.0, 60.0]}
+    _SPARSE = {"type": "quantiles", "integral": True, "mean": 14.0,
+               "q": [0.0, 0.1, 0.25, 0.5, 0.75, 0.9, 1.0],
+               "v": [4.0, 5.0, 8.0, 12.0, 20.0, 32.0, 60.0]}
+
+    def _cov_bp(sparse_cov=0.19):
+        return {"columns": {
+                    "drv": col_spec(),
+                    "dense": {"kind": "numeric", "level": "visit",
+                              "coverage": 1.0,
+                              "marginal": dict(_DENSE), "dials": {}},
+                    "sparse": {"kind": "numeric", "level": "visit",
+                               "coverage": sparse_cov,
+                               "marginal": dict(_SPARSE),
+                               "dials": {}}},
+                "relationships": [rel("dense", ["drv"], 0.60),
+                                  rel("sparse", ["drv"], 0.60)],
+                "constraints": [{"op": "==", "lhs": "dense",
+                                 "rhs": "sparse",
+                                 "holds_in_source": 1.0}],
+                "patients": {"count": 400,
+                             "visits": {"q": [0.0, 0.5, 1.0],
+                                        "v": [3.0, 4.0, 5.0],
+                                        "mean": 4.0},
+                             "dials": {}}}
+
+    def _grid_gap(vals, m):
+        grid = np.asarray(_draw_numeric(m, np.random.default_rng(5)
+                               .random(4000)), dtype=float)
+        e = sorted(set(float(x) for x in
+                       np.quantile(grid, [0.25, 0.5, 0.75, 0.9])))
+
+        def sh(x):
+            o, lo = [], -np.inf
+            for q in e:
+                o.append(float(np.mean((x > lo) & (x <= q))))
+                lo = q
+            o.append(float(np.mean(x > lo)))
+            return o
+        a, b = sh(grid), sh(np.asarray(vals, dtype=float))
+        return max(abs(p - q) for p, q in zip(a, b))
+
+    def _cov_run(guard, bpx=None):
+        _prev = G.COPY_COVERAGE_GUARD
+        try:
+            G.COPY_COVERAGE_GUARD = guard
+            r = {}
+            d = generate(bpx or _cov_bp(), n_patients=400, seed=3,
+                         report=r)
+            d = d[0] if isinstance(d, tuple) else d
+        finally:
+            G.COPY_COVERAGE_GUARD = _prev
+        return d, r
+
+    check("the copy guard is OFF by default - this changes which "
+          "values a shipped column carries and the paired real arm "
+          "decides it",
+          G.COPY_COVERAGE_GUARD is False)
+
+    _doff, _roff = _cov_run(False)
+    _don, _ron = _cov_run(True)
+    _sp_off = pd.to_numeric(_doff["sparse"], errors="coerce").dropna()
+    _sp_on = pd.to_numeric(_don["sparse"], errors="coerce").dropna()
+    _dn_off = pd.to_numeric(_doff["dense"], errors="coerce").dropna()
+    _dn_on = pd.to_numeric(_don["dense"], errors="coerce").dropna()
+
+    check("a whole-column copy between columns of DIFFERENT "
+          "coverage drives the sparse column far off its own "
+          "published marginal - the fault, reproduced before it is "
+          "fixed",
+          _grid_gap(_sp_off, _SPARSE) > 0.25)
+    check("...and refusing that copy brings it back inside the "
+          "share bar, because the column is then drawn from its "
+          "own marginal like any other",
+          _grid_gap(_sp_on, _SPARSE) < 0.10)
+    check("...while the DENSE column is untouched either way - the "
+          "guard acts on the copy, not on the pair",
+          abs(_grid_gap(_dn_off, _DENSE)
+              - _grid_gap(_dn_on, _DENSE)) < 1e-9)
+    check("...and the mismatch is REPORTED whether or not the "
+          "guard acted, because a copy that quietly replaces a "
+          "column's marginal is what nobody looks for",
+          "sparse" in (_roff.get("copies_coverage_mismatch") or {})
+          and "sparse" in (_ron.get("copies_coverage_mismatch") or {}))
+    check("...naming BOTH coverages in that report, so a reader "
+          "can see why it is not an identity about the column",
+          (_roff["copies_coverage_mismatch"]["sparse"]
+           .get("coverage_lhs") == 1.0)
+          and (_roff["copies_coverage_mismatch"]["sparse"]
+               .get("coverage_rhs") == 0.19))
+
+    # THE CONTROL THAT KEEPS THE GUARD HONEST. Where the two
+    # columns ARE present on the same rows the `==` is a real
+    # identity and copying is the only way to carry it - this
+    # project enforces an equality by copying precisely because a
+    # second draw only exchanges the mismatch.
+    # THE CONTROL USES THE SAME MARGINAL FOR BOTH, deliberately.
+    # With different published BOUNDS the bound-pinning pass
+    # clamps the copied column to its own cap and the equality
+    # breaks for a reason that has nothing to do with this guard -
+    # measured at 0.49 of rows on BOTH arms, which is what showed
+    # the first version of this check was conflating two things.
+    _eqbp = _cov_bp(sparse_cov=1.0)
+    _eqbp["columns"]["sparse"]["marginal"] = dict(_DENSE)
+    _deq, _req = _cov_run(True, _eqbp)
+    _x = pd.to_numeric(_deq["dense"], errors="coerce")
+    _y = pd.to_numeric(_deq["sparse"], errors="coerce")
+    _m = _x.notna() & _y.notna()
+    check("...and columns of the SAME coverage are still copied "
+          "with the guard on, so a real identity is not thrown out "
+          "with the mismatched one",
+          int(_m.sum()) > 100 and bool((_x[_m] == _y[_m]).all())
+          and not (_req.get("copies_coverage_mismatch") or {}))
+
     print()
     if FAIL:
         print("{} FAILED".format(FAIL))

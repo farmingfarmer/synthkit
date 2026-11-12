@@ -396,6 +396,42 @@ Synthetic clinical data generator and model-evaluation instrument. Core rule: le
 - Never state a number as measured unless you actually ran it.
 
 ## Fixing what the real extract found
+- **THE GUARD IS BUILT AND THE FIXTURE REPRODUCES THE REAL
+  MAGNITUDE (2026-11-12, `--copy-coverage-guard`).** Two columns
+  equal where both are present, one covered on every row and one on
+  19%, with the sparse column's own marginal measured on its own
+  rows and therefore starting higher:
+      arm        sparse vs its OWN grid   dense
+      guard off              0.4449       0.0112
+      guard ON               0.0372       0.0112
+  The real column reads **0.3255**, so the fixture is the same
+  fault at the same size. The DENSE column is untouched to twelve
+  decimals either way - the guard acts on the copy, not on the
+  pair - and the mismatch is REPORTED whether or not the guard
+  acted, because a copy that quietly replaces a column's marginal
+  is exactly what nobody looks for.
+- **AND THE CONTROL THAT KEEPS IT HONEST CAUGHT ME CONFLATING TWO
+  FAULTS.** The check that columns of the SAME coverage are still
+  copied went red - and the guard was innocent: with DIFFERENT
+  published bounds the bound-pinning pass clamps the copied column
+  to its own cap, so the equality breaks for a reason that has
+  nothing to do with coverage. Measured at **0.49 of rows on BOTH
+  arms**, which is what showed the check was testing two things at
+  once. The control now uses one marginal for both columns.
+- **AND THAT IS A SECOND DEFECT, NAMED NOT CHASED.** `_pin_pass`
+  re-asserts each column's own published bounds AFTER the copy is
+  re-asserted, so an `==` carried by copying is broken again by
+  the pin whenever the two columns publish different bounds. That
+  is the `a <= b` and `b <= a` family this file already records -
+  two repairs that each own one column, where whichever runs last
+  wins. Not fixed tonight; measured, and written down.
+- **OFF BY DEFAULT, and the paired real arm decides it.** It
+  changes which values a shipped column carries. `peek rerank`
+  already says the presence pass touches nothing on this
+  blueprint, so the arm worth running is this guard - and its
+  predicted effect is on exactly one column, which is what makes
+  it cheap to read.
+
 - **THE LARGEST FIDELITY GAP ON THE FILE IS AN `==` CONSTRAINT
   BETWEEN TWO COLUMNS OF DIFFERENT COVERAGE, AND IT IS CONFIRMED ON
   THE REAL EXTRACT (2026-11-12, run_sw_ctl).** Four candidates died

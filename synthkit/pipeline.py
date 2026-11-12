@@ -265,6 +265,21 @@ def build_parser(prog=None, add_help=True):
                          "is the thing to try first if a cyclic "
                          "column looks wrong on real data - this has "
                          "not been measured on a real extract yet")
+    ap.add_argument("--copy-coverage-guard", action="store_true",
+                    help=("refuse to carry an `==` constraint by "
+                          "copying when the two columns have "
+                          "different COVERAGE. They are equal "
+                          "where both are present, which clears "
+                          "the detector's bar, but copying hands "
+                          "the sparse column the dense one's "
+                          "distribution and it is never drawn "
+                          "from its own published marginal. On "
+                          "the 800-patient extract that is "
+                          "procedure_quantity := procedure_count, "
+                          "coverage 0.19 against 1.00, landing "
+                          "0.3255 from its own grid. The mismatch "
+                          "is REPORTED either way. OFF by "
+                          "default."))
     ap.add_argument("--presence-rerank", action="store_true",
                     help=("re-rank a partially-covered numeric "
                           "child among the rows that will SURVIVE "
@@ -860,6 +875,12 @@ def main(argv=None, args=None):
         say("token solve: {} extra pass(es) per published "
             "conditional pair, capped at {}".format(
                 float(_scale), _gen.TOKEN_SOLVE_MAX_PASSES))
+    if getattr(a, "copy_coverage_guard", False):
+        import synthkit.generate as _gen
+        _gen.COPY_COVERAGE_GUARD = True
+        say("refusing a whole-column copy where an `==` constraint "
+            "joins columns of different coverage - the sparse one "
+            "is drawn from its own published marginal instead")
     if getattr(a, "presence_rerank", False):
         import synthkit.generate as _gen
         _gen.PRESENCE_RERANK = True
