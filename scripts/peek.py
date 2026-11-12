@@ -11,6 +11,7 @@
     python scripts/peek.py RUNDIR surfaces
     python scripts/peek.py RUNDIR flat
     python scripts/peek.py RUNDIR sizes SRC.csv
+    python scripts/peek.py RUNDIR marginal COLUMN SRC.csv
     python scripts/peek.py RUNDIR curves
 
 WHY THIS EXISTS. Seven diagnoses in a row were fetched with pasted
@@ -703,6 +704,213 @@ def curves_view(run):
         print("  every published parent carries a curve")
 
 
+MARGINAL_SEED = 20261111
+# The share bar this project already uses for coverage. A band
+# whose share differs by less than this is not a finding.
+MARGINAL_TOL = 0.05
+
+
+def classify_marginal(d_grid_src, d_grid_gen, tol=MARGINAL_TOL):
+    """Which half of the engine is responsible - a PURE function.
+
+    Three numbers, three places the fault can be, and they take
+    different fixes:
+
+      CONTRACT    the published grid cannot represent the source's
+                  shape, and generation reproduces the grid
+                  faithfully. Fix the blueprint - more knots, a
+                  point-mass field, a different summary.
+      GENERATION  the grid matches the source and something AFTER
+                  the draw moved it. Fix the sampler.
+      BOTH        the grid misses the source AND generation misses
+                  the grid - two faults, not one.
+      CLEAR       nothing to explain.
+
+    Kept pure and asserted on planted numbers because this project
+    has a guard that could not fire hiding in every verdict it did
+    not test that way.
+    """
+    bad_src = d_grid_src > tol
+    bad_gen = d_grid_gen > tol
+    if bad_src and bad_gen:
+        return "BOTH"
+    if bad_src:
+        return "CONTRACT"
+    if bad_gen:
+        return "GENERATION"
+    return "CLEAR"
+
+
+def _bands(v):
+    """Edges from the SOURCE, applied to all three distributions.
+
+    One ruler. Binning each distribution by its own quantiles is
+    how two differently-shaped columns come to look identical,
+    which this project already records for the TVD edges.
+    """
+    import numpy as np
+    qs = np.quantile(v, [0.5, 0.75, 0.9, 0.99])
+    edges = []
+    for e in list(qs) + [float(np.max(v))]:
+        e = float(e)
+        if not edges or e > edges[-1]:
+            edges.append(e)
+    return edges
+
+
+def _shares(v, edges):
+    import numpy as np
+    v = np.asarray(v, dtype=float)
+    out, lo = [], -np.inf
+    for e in edges:
+        out.append(float(np.mean((v > lo) & (v <= e))))
+        lo = e
+    out.append(float(np.mean(v > lo)))
+    return out
+
+
+def marginal_view(run, col, src_path):
+    """Source vs the PUBLISHED GRID vs the output, on one ruler.
+
+    WHY THIS EXISTS. `procedure_quantity` on the real extract puts
+    93% of rows on the single value 1 where the source puts 53%,
+    and the whole body between 2 and 24 - 42% of the source's rows
+    - is almost absent. That is the largest named fidelity gap on
+    the file, and it has had two incompatible explanations on the
+    record without anybody measuring which applies.
+
+    The question splits cleanly in two and nothing was asking it
+    that way: does the PUBLISHED grid already imply the wrong
+    shape, or does the grid imply the right shape and something
+    after the draw move it? Those take different fixes, and a
+    third guess is not worth making - the same reason
+    `cooc_landing` and `quota_landing` exist.
+
+    The grid column is drawn through the engine's OWN
+    `_draw_numeric`, never a reimplementation here: two halves
+    that each decide what a published grid means is how they come
+    to disagree, which this file records for token screening, the
+    scaffolding predicate and both categorical draw paths.
+    """
+    import numpy as np
+    import pandas as pd
+    from synthkit.generate import _draw_numeric
+
+    bp = _load(run, "blueprint.json")
+    spec = ((bp.get("columns") or {}).get(col) or {})
+    m = (spec.get("marginal") or {})
+    if not spec:
+        sys.exit("STOPPED: {} is not a column of this run's "
+                 "blueprint".format(col))
+    if m.get("type") != "quantiles":
+        sys.exit("STOPPED: {} publishes a `{}` marginal, not "
+                 "quantiles - this compares a NUMERIC grid against "
+                 "the shape it produces".format(col, m.get("type")))
+
+    genf = Path(run) / "generated.csv"
+    if not genf.exists():
+        sys.exit("STOPPED: this run has no generated.csv to read")
+    g = pd.read_csv(genf, dtype=str, keep_default_na=False)
+    src = pd.read_csv(src_path, dtype=str, keep_default_na=False)
+
+    # THE SAME GUARD THE OTHER TOOLS CARRY. A run measured against
+    # an extract that never produced it looks entirely reasonable,
+    # and this project lost a session to exactly that.
+    rec = None
+    prov = Path(run) / "provenance.json"
+    if prov.exists():
+        try:
+            rec = (json.loads(prov.read_text(encoding="utf-8"))
+                   .get("source", {}).get("rows_read"))
+        except Exception:
+            rec = None
+    if isinstance(rec, int) and rec != len(src):
+        sys.exit("STOPPED: the run recorded {} source rows and this "
+                 "source has {} - refusing rather than producing a "
+                 "plausible number about the wrong file"
+                 .format(rec, len(src)))
+
+    if col not in g.columns:
+        sys.exit("STOPPED: {} is in the blueprint but NOT in "
+                 "generated.csv - search scaffolding is dropped "
+                 "before the file is written, and nobody can read "
+                 "a column that is not there".format(col))
+    if col not in src.columns:
+        sys.exit("STOPPED: {} is not a column of the source "
+                 "handed in".format(col))
+
+    sv = pd.to_numeric(src[col], errors="coerce").dropna().to_numpy(float)
+    gv = pd.to_numeric(g[col], errors="coerce").dropna().to_numpy(float)
+    if len(sv) < 50 or len(gv) < 50:
+        sys.exit("STOPPED: too few present numeric values to "
+                 "compare ({} source, {} generated)"
+                 .format(len(sv), len(gv)))
+
+    rng = np.random.default_rng(MARGINAL_SEED)
+    grid = np.asarray(_draw_numeric(m, rng.random(len(gv))),
+                      dtype=float)
+
+    edges = _bands(sv)
+    ss, gs, xs = (_shares(sv, edges), _shares(grid, edges),
+                  _shares(gv, edges))
+    d_gs = max(abs(a - b) for a, b in zip(gs, ss))
+    d_gx = max(abs(a - b) for a, b in zip(gs, xs))
+    verdict = classify_marginal(d_gs, d_gx)
+
+    mode = float(pd.Series(sv).mode().iloc[0])
+    print("{}   source {} present, generated {} present"
+          .format(col, len(sv), len(gv)))
+    print("  the GRID column is what this run's OWN published "
+          "marginal produces through the engine's own draw -")
+    print("  presence and relationships are not applied to it, so "
+          "it is the column's published SHAPE alone.")
+    print()
+    print("  {:<22} {:>9} {:>9} {:>9}".format(
+        "band", "source", "grid", "output"))
+    lo = "-inf"
+    for i, e in enumerate(edges):
+        print("  {:<22} {:>9.4f} {:>9.4f} {:>9.4f}".format(
+            "{} to {:g}".format(lo, e), ss[i], gs[i], xs[i]))
+        lo = "{:g}".format(e)
+    print("  {:<22} {:>9.4f} {:>9.4f} {:>9.4f}".format(
+        "over {}".format(lo), ss[-1], gs[-1], xs[-1]))
+    print()
+    print("  {:<22} {:>9.4f} {:>9.4f} {:>9.4f}".format(
+        "exactly {:g} (the mode)".format(mode),
+        float(np.mean(sv == mode)), float(np.mean(grid == mode)),
+        float(np.mean(gv == mode))))
+    print("  {:<22} {:>9.4f} {:>9.4f} {:>9.4f}".format(
+        "mean", float(np.mean(sv)), float(np.mean(grid)),
+        float(np.mean(gv))))
+    print("  {:<22} {:>9.4f} {:>9.4f} {:>9.4f}".format(
+        "spread", float(np.std(sv)), float(np.std(grid)),
+        float(np.std(gv))))
+    print()
+    print("  worst band gap, grid against source   {:.4f}".format(d_gs))
+    print("  worst band gap, grid against output   {:.4f}".format(d_gx))
+    print("  at a {:.2f} share bar: {}".format(MARGINAL_TOL, verdict))
+    if verdict == "CONTRACT":
+        print("  THE PUBLISHED GRID cannot represent the source's "
+              "shape, and the output reproduces the grid. The fix "
+              "is in the blueprint, not the sampler.")
+    elif verdict == "GENERATION":
+        print("  THE GRID MATCHES THE SOURCE and something after "
+              "the draw moved it. The fix is in the sampler, not "
+              "the contract.")
+    elif verdict == "BOTH":
+        print("  TWO FAULTS, not one: the grid misses the source "
+              "AND the output misses the grid. Fixing either alone "
+              "leaves a gap.")
+    else:
+        print("  this column's published shape and its output both "
+              "track the source - whatever is wrong here, it is "
+              "not the marginal.")
+    print()
+    print("  NOT measured here: whether the RELATIONSHIPS on this "
+          "column survived. A column can have an exact marginal "
+          "and the wrong value on every row.")
+
+
 def main():
     # `--help` IS A QUESTION, NOT A MISTAKE. This printed the
     # docstring and exited 2 for it, which is the code a shell
@@ -742,6 +950,11 @@ def main():
         flat_view(run)
     elif what == "sizes":
         sizes_view(run, arg)
+    elif what == "marginal":
+        arg2 = sys.argv[4] if len(sys.argv) > 4 else None
+        if not arg or not arg2:
+            sys.exit("marginal needs a COLUMN and the source CSV")
+        marginal_view(run, arg, arg2)
     elif what == "curves":
         curves_view(run)
     else:

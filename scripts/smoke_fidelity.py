@@ -2229,6 +2229,174 @@ def main():
           "zero, and an old run must still read cleanly",
           "DECLARES" not in "\n".join(_ls3))
 
+    # ---- peek marginal: WHICH HALF is responsible ------------------
+    # The largest named fidelity gap on the real extract has had two
+    # incompatible explanations on the record and nothing measuring
+    # which applies. This splits it: does the PUBLISHED GRID already
+    # imply the wrong shape, or does the grid imply the right shape
+    # and something after the draw move it? Different fixes.
+    from peek import classify_marginal as _cm, MARGINAL_SEED as _MS
+
+    check("the marginal verdict is a PURE function on planted "
+          "numbers - the grid missing the source while the output "
+          "tracks the grid is the CONTRACT's fault",
+          _cm(0.40, 0.01) == "CONTRACT")
+    check("...the grid tracking the source while the output "
+          "misses it is GENERATION's fault",
+          _cm(0.01, 0.40) == "GENERATION")
+    check("...both missing is TWO faults, not one, because fixing "
+          "either alone leaves a gap",
+          _cm(0.40, 0.40) == "BOTH")
+    check("...and neither missing is CLEAR, so the branch cannot "
+          "report a fault on a healthy column",
+          _cm(0.01, 0.01) == "CLEAR")
+
+    import numpy as _np
+    from synthkit.generate import _draw_numeric as _dn
+
+    _QS = [0.0, 0.01, 0.05, 0.1, 0.25, 0.5, 0.75, 0.9, 0.95,
+           0.99, 1.0]
+
+    def _mk(td, grid, genv, srcv):
+        d = Path(td)
+        (d / "blueprint.json").write_text(json.dumps({
+            "columns": {"q": {"marginal": grid},
+                        "lv": {"marginal": {
+                            "type": "levels",
+                            "levels": [{"value": "a", "p": 1.0}]}},
+                        "set__has__t": {"marginal": grid}}}),
+            encoding="utf-8")
+        (d / "provenance.json").write_text(json.dumps(
+            {"source": {"rows_read": int(len(srcv))}}),
+            encoding="utf-8")
+        (d / "generated.csv").write_text(
+            "q\n" + "\n".join("{:g}".format(x) for x in genv) + "\n",
+            encoding="utf-8")
+        (d / "src.csv").write_text(
+            "q\n" + "\n".join("{:g}".format(x) for x in srcv) + "\n",
+            encoding="utf-8")
+        return d
+
+    def _peek(d, *extra):
+        return subprocess.run(
+            [sys.executable, "scripts/peek.py", str(d), "marginal",
+             "q"] + list(extra),
+            capture_output=True, text=True, cwd=str(ROOT))
+
+    # CASE A - a source with a POINT MASS and a grid too coarse to
+    # carry it, with an output faithful to that grid.
+    _r1 = _np.random.default_rng(7)
+    _mass = _np.concatenate([_np.ones(600),
+                             _r1.integers(2, 31, 400).astype(float)])
+    _r1.shuffle(_mass)
+    _coarse = {"type": "quantiles", "q": [0.0, 0.5, 1.0],
+               "v": [1.0, 10.0, 30.0], "integral": True}
+    with tempfile.TemporaryDirectory() as _td:
+        _r = _mk(_td, _coarse,
+                 _dn(_coarse, _np.random.default_rng(3).random(1000)),
+                 _mass)
+        _a = _peek(_r, str(_r / "src.csv"))
+    check("a grid that cannot carry the source's point mass, with "
+          "an output faithful to that grid, reads CONTRACT - the "
+          "fix is the blueprint rather than the sampler",
+          _a.returncode == 0 and "CONTRACT" in _a.stdout)
+
+    # CASE B - a shape the grid CAN carry, so the grid tracks the
+    # source, and an output piled on one value anyway.
+    #
+    # The source here is SMOOTH on purpose. A point mass is the one
+    # shape a quantile grid cannot reproduce - measured on CASE A's
+    # own source, a grid built from its own quantiles still loses
+    # 10 points of a 60% mode, because the mass between the last
+    # knot equal to the mode and the next one is spread
+    # continuously. So a point-mass fixture cannot isolate a
+    # GENERATION fault: it reads BOTH, correctly.
+    _r2 = _np.random.default_rng(11)
+    _smooth = _np.round(_np.exp(_r2.normal(2.2, 0.8, 1000))).astype(float)
+    _good = {"type": "quantiles", "q": _QS,
+             "v": [float(x) for x in _np.quantile(_smooth, _QS)],
+             "integral": True}
+    _piled = _np.concatenate([
+        _np.full(950, float(_np.median(_smooth))),
+        _np.arange(2.0, 52.0)])
+    with tempfile.TemporaryDirectory() as _td:
+        _r = _mk(_td, _good, _piled, _smooth)
+        _b = _peek(_r, str(_r / "src.csv"))
+    check("...while a grid that DOES carry the source, against an "
+          "output piled on one value, reads GENERATION - the same "
+          "symptom, the opposite fix, which one number could not "
+          "separate",
+          _b.returncode == 0 and "GENERATION" in _b.stdout)
+
+    # THE GRID COLUMN MUST BE THE ENGINE'S OWN DRAW. A
+    # reimplementation here would be the two-halves fault in the
+    # one tool built to tell the halves apart.
+    #
+    # AND THE FIXTURE HAS TO REACH THE DIFFERENCE. The first
+    # version of this check used a grid with no published tail
+    # mean - where `_shape_tail` is a no-op and `_to_integers`
+    # reduces to rounding - so a naive `interp + round` gave the
+    # IDENTICAL mean and the mutation that replaced the engine's
+    # draw broke nothing. A grid carrying `tail_mean_high` bends
+    # the top segment, and the two part by 2.16 on this fixture.
+    _tailm = {"type": "quantiles", "q": _QS,
+              "v": [1.0, 1.0, 2.0, 3.0, 5.0, 9.0, 18.0, 34.0,
+                    48.0, 87.0, 983.0],
+              "integral": True, "tail_mean_high": 212.4}
+    _tu = _np.random.default_rng(_MS).random(1000)
+    _exp = float(_np.mean(_dn(_tailm, _tu)))
+    _naive = float(_np.mean(_np.round(_np.interp(
+        _tu, _np.asarray(_tailm["q"], dtype=float),
+        _np.asarray(_tailm["v"], dtype=float)))))
+    with tempfile.TemporaryDirectory() as _td:
+        _r = _mk(_td, _tailm,
+                 _dn(_tailm, _np.random.default_rng(4).random(1000)),
+                 _np.round(_np.exp(_np.random.default_rng(5)
+                                   .normal(2.2, 1.1, 1000))))
+        _t = _peek(_r, str(_r / "src.csv"))
+    _tg = [l for l in _t.stdout.splitlines()
+           if l.strip().startswith("mean")]
+
+    check("the fixture for the next check REACHES the difference - "
+          "the engine's draw and a naive interp-and-round part by "
+          "more than two on this grid, so a mutation between them "
+          "has something to break",
+          abs(_exp - _naive) > 1.0)
+
+    check("...and the GRID column comes from the engine's own "
+          "`_draw_numeric` at the stated seed, not a second "
+          "implementation of what a published grid means",
+          bool(_tg) and abs(float(_tg[0].split()[2]) - _exp) < 1e-4)
+
+    with tempfile.TemporaryDirectory() as _td:
+        _r = _mk(_td, _good, _piled, _smooth)
+        _c = subprocess.run(
+            [sys.executable, "scripts/peek.py", str(_r), "marginal",
+             "lv", str(_r / "src.csv")],
+            capture_output=True, text=True, cwd=str(ROOT))
+        _d = subprocess.run(
+            [sys.executable, "scripts/peek.py", str(_r), "marginal",
+             "set__has__t", str(_r / "src.csv")],
+            capture_output=True, text=True, cwd=str(ROOT))
+        _bad = Path(_td) / "short.csv"
+        _bad.write_text("q\n1\n2\n3\n", encoding="utf-8")
+        _e = _peek(_r, str(_bad))
+
+    check("a column publishing LEVELS is refused by name - this "
+          "compares a numeric grid against the shape it produces",
+          _c.returncode != 0
+          and "not quantiles" in (_c.stdout + _c.stderr))
+    check("...a column in the blueprint but NOT in generated.csv "
+          "is refused, because search scaffolding is dropped "
+          "before the file is written and nobody can read a "
+          "column that is not there",
+          _d.returncode != 0
+          and "not in generated.csv" in (_d.stdout + _d.stderr).lower())
+    check("...and a source whose row count disagrees with the "
+          "run's own provenance is refused rather than producing a "
+          "plausible number about the wrong file",
+          _e.returncode != 0 and "refusing" in (_e.stdout + _e.stderr))
+
     print()
     if FAIL:
         print("{} FAILED".format(FAIL))
