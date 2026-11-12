@@ -359,6 +359,25 @@ def main():
 
     rep_d = json.loads(
         (out / "fidelity.json").read_text())["generation"]
+
+    # WHAT THE REFINEMENT SWEEP DID MUST REACH THE RUN DIRECTORY.
+    # It reported a COUNT and nothing else, so a cyclic column it
+    # silently skipped was invisible - and a skipped column gets no
+    # re-rank from the acyclic path either, which skips it for
+    # being cyclic, so its marginal is whatever curve plus noise
+    # produced. This project has already lost a measurement to a
+    # generate-report field that never reached fidelity.json.
+    for _k in ("refinements_applied", "refinement_refined",
+               "refinement_skipped"):
+        check("the run directory carries `generation.{}`, so what "
+              "the sweep did is readable from the artifacts rather "
+              "than only from a terminal on the machine that holds "
+              "the data".format(_k),
+              _k in rep_d)
+    check("...and the two accounts cannot contradict each other - "
+          "no column is reported both refined and skipped",
+          not (set(rep_d.get("refinement_refined") or [])
+               & set(rep_d.get("refinement_skipped") or {})))
     for d in rep_d.get("edges_dropped") or []:
         check("every dropped edge says whether its child kept any "
               "other parent, which is what decides if it matters",
