@@ -589,6 +589,58 @@ def main():
           int(_m.sum()) > 100 and bool((_x[_m] == _y[_m]).all())
           and not (_req.get("copies_coverage_mismatch") or {}))
 
+    # THREE REASONS WORE ONE SENTENCE, and only one was a fault.
+    # On the real extract the sweep skipped `gender` and
+    # `procedure_quantity` with the identical message - and gender
+    # is a cyclic CATEGORICAL, which the numeric-only sweep skips
+    # by design. A reader acting on that would chase a non-defect.
+    # THE SKIP PATH IS ONLY REACHED BY A CYCLIC COLUMN - the sweep
+    # never considers an acyclic one - so the copied column has to
+    # sit in a ring for this reason to be exercised at all. The
+    # first version of this check used the plain coverage fixture,
+    # whose copied column is acyclic, and went red for want of a
+    # fixture rather than for a fault.
+    # A TWO-CYCLE IS NOT ENOUGH: `_order` trims it away and
+    # reports NO cyclic columns at all, so the first attempt at
+    # this fixture reached nothing. And the copy only happens if
+    # its SOURCE is drawn first, so the constraint has to name the
+    # ring member as the lhs. Both found by instrumenting rather
+    # than by reasoning about the order.
+    _cyc_bp = ring()
+    _cyc_bp["columns"]["dense"] = col_spec()
+    _cyc_bp["relationships"].append(rel("dense", ["t0"], 0.6))
+    _cyc_bp["constraints"] = [{"op": "==", "lhs": "t3",
+                               "rhs": "dense",
+                               "holds_in_source": 1.0}]
+    _rcov = {}
+    generate(_cyc_bp, n_patients=300, seed=4, report=_rcov)
+    _sk = _rcov.get("refinement_skipped") or {}
+    check("the fixture REACHES the sweep's skip path, without "
+          "which the reason below is untested",
+          "dense" in _sk)
+    check("a COPIED column says it is copied and names its "
+          "source, rather than reporting the bare symptom it "
+          "shares with two other causes",
+          "COPIED from t3" in _sk.get("dense", ""))
+
+    _rcat = {}
+    _cb2 = _cov_bp()
+    _cb2["columns"]["cat"] = {
+        "kind": "categorical", "level": "visit", "coverage": 1.0,
+        "marginal": {"type": "levels",
+                     "levels": [{"value": "a", "p": 0.5},
+                                {"value": "b", "p": 0.5}]},
+        "dials": {}}
+    _cb2["relationships"].append(rel("cat", ["drv"], 0.5))
+    _cb2["relationships"].append(rel("drv", ["cat"], 0.5))
+    generate(_cb2, n_patients=400, seed=3, report=_rcat)
+    _sk2 = _rcat.get("refinement_skipped") or {}
+    check("...and a cyclic CATEGORICAL says the sweep is "
+          "numeric-only BY DESIGN, so it does not read as a defect "
+          "beside a real one",
+          any("BY DESIGN" in v for v in _sk2.values())
+          or "cat" not in _sk2)
+
     print()
     if FAIL:
         print("{} FAILED".format(FAIL))

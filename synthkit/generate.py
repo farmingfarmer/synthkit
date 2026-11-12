@@ -2900,7 +2900,27 @@ def generate(blueprint: Dict[str, Any],
                 if not rels:
                     continue
                 if c not in marg_draw:
-                    ref_skip[c] = "no marginal draw was kept for it"
+                    # THREE REASONS WEAR THE SAME SYMPTOM and only
+                    # one of them is a fault. The sweep keeps a
+                    # marginal draw for NUMERIC columns only, so a
+                    # cyclic categorical always lands here by
+                    # design; a COPIED column has no draw of its
+                    # own because it is never drawn; anything else
+                    # is unexplained. Reported as one sentence,
+                    # `gender` read like a defect beside
+                    # `procedure_quantity` and is not one.
+                    if (cols.get(c) or {}).get("kind") != "numeric":
+                        ref_skip[c] = (
+                            "not numeric - the sweep refines "
+                            "numeric columns only, BY DESIGN")
+                    elif c in copy_from:
+                        ref_skip[c] = (
+                            "COPIED from {} by an `==` constraint, "
+                            "so it is never drawn and has no "
+                            "marginal of its own to re-rank onto"
+                            .format(copy_from[c]))
+                    else:
+                        ref_skip[c] = "no marginal draw was kept for it"
                     continue
                 spec = cols[c]
                 m = spec.get("marginal") or {}
