@@ -396,6 +396,40 @@ Synthetic clinical data generator and model-evaluation instrument. Core rule: le
 - Never state a number as measured unless you actually ran it.
 
 ## Fixing what the real extract found
+- **THREE REAL ARMS ON ONE RULER, AND THE ROW-CHOOSING PASS IS THE
+  ONLY ONE THAT IMPROVES BOTH AXES (2026-11-12, run_sw_ctl /
+  _guard / _rows).** Same source, same seed 11, one flag apart,
+  every arm on a build whose off-path is verified unchanged by
+  diff:
+      arm                           pq vs its grid   identity broken
+      control                               0.3255            90.1%
+      --copy-coverage-guard                 0.0254            97.9%
+      --copy-presence-from-source           0.0847            59.0%
+  **The control already breaks the identity on 90.1% of rows**, so
+  the copy was never delivering the equality in the shipping
+  engine - the bound-pinning pass clamps the copied column to its
+  own cap, which is the second defect recorded above. That reframes
+  both fixes: the guard buys the best marginal and makes a
+  already-broken identity worse, while choosing the rows improves
+  the marginal 3.8-fold AND repairs a third of the identity.
+- **SO THE FIXTURE OVER-PREDICTED THE ROW-CHOOSING PASS AND THE
+  REAL ARM CORRECTED IT, which is the sixth time that has
+  happened here.** On the fixture it read 0.0078 with the identity
+  whole; on the extract it reads 0.0847 with the identity broken on
+  59%. The ORDERING of the three arms is what transferred, not the
+  magnitudes - and the ordering is what the decision rests on.
+- **AND WHAT REMAINS ON THAT COLUMN IS NOW MOSTLY THE CONTRACT'S.**
+  After the fix the split is 0.0774 against the source and 0.0847
+  against the output, so the published grid's own error is no
+  longer the smaller half. Further gain there is a blueprint
+  question rather than a sampler one, which is a different and
+  smaller fix than the one just made.
+- **BOTH STAY OFF AND BOTH STAY AVAILABLE.** The row-choosing pass
+  is the one to reach for - better on both axes than shipping
+  today - and the guard remains the honest answer where two columns
+  do not share a grid shape. Neither is a default on one seed of
+  one extract.
+
 - **IT DID NOT HAVE TO BE A TRADE, AND THE THIRD ARM KEEPS BOTH
   (2026-11-12, `--copy-presence-from-source`).** A column carried by
   an `==` constraint EQUALS its source wherever it is present - so
