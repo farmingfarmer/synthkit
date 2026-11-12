@@ -265,6 +265,18 @@ def build_parser(prog=None, add_help=True):
                          "is the thing to try first if a cyclic "
                          "column looks wrong on real data - this has "
                          "not been measured on a real extract yet")
+    ap.add_argument("--presence-rerank", action="store_true",
+                    help=("re-rank a partially-covered numeric "
+                          "child among the rows that will SURVIVE "
+                          "its presence mask, so the published "
+                          "rows carry the published marginal. The "
+                          "cyclic sweep has done this since it was "
+                          "written; the acyclic path never did. "
+                          "Measured on a fixture whose presence "
+                          "shares a driver with the value: mode "
+                          "share off its own grid by 0.1064, "
+                          "0.0268 with this on, with a flat-presence "
+                          "control unmoved. OFF by default."))
     ap.add_argument("--tail-spread", action="store_true",
                     help="consume the published spread of the top "
                          "segment as well as its mean. Without it "
@@ -848,6 +860,12 @@ def main(argv=None, args=None):
         say("token solve: {} extra pass(es) per published "
             "conditional pair, capped at {}".format(
                 float(_scale), _gen.TOKEN_SOLVE_MAX_PASSES))
+    if getattr(a, "presence_rerank", False):
+        import synthkit.generate as _gen
+        _gen.PRESENCE_RERANK = True
+        say("re-ranking partially-covered numeric children among "
+            "the rows that survive their presence mask, so the "
+            "published rows carry the published marginal")
     if getattr(a, "tail_spread", False):
         import synthkit.generate as _gen
         _gen.TAIL_SPREAD = True

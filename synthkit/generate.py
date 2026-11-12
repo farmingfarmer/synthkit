@@ -98,6 +98,33 @@ def _draw_numeric(m: Dict[str, Any], u: np.ndarray) -> np.ndarray:
 # real arm decides it.
 TAIL_SPREAD = False
 
+# RE-RANK AN ACYCLIC CHILD AMONG THE ROWS THAT WILL SURVIVE.
+#
+# The acyclic re-rank at the draw site keys on `isfinite`; the
+# PRESENCE MASK is computed after it and held back to the end. So
+# the marginal is preserved over EVERY row while the published grid
+# describes the PRESENT rows - which is where the source was
+# measured - and on a column whose presence and whose value share a
+# driver the surviving subset comes out off its own grid.
+#
+# The cyclic sweep already solves this and says so in its own
+# comment, with the measurement beside it: re-ranked on kept rows
+# +0.630 against +0.242 on all rows. This is that same device for
+# the acyclic path, which never got it.
+#
+# Measured on a fixture whose presence is driven by the column's own
+# driver, share on the mode against the grid's own:
+#     presence flat (the control)        +0.0176
+#     presence keeps LOW-driver rows     +0.1064
+#     presence keeps HIGH-driver rows    -0.0880
+# The flat control is what makes the other two the mask rather than
+# noise, and the SIGN follows which rows presence keeps.
+#
+# OFF BY DEFAULT on fixture evidence alone, which is the standard
+# this file sets: five real-extract arms have each overturned or
+# traded away a fixture-measured gain.
+PRESENCE_RERANK = False
+
 
 def _tail_moments(a, b, p, f):
     """Mean and sd of the two-parameter tail placement.
@@ -2293,7 +2320,8 @@ def generate(blueprint: Dict[str, Any],
              # arm later overturned, and the co-occurrence default
              # was earned on three seeds OF THE EXTRACT rather than
              # of a fixture. The paired real arms decide it.
-             solve_token_targets: bool = False
+             solve_token_targets: bool = False,
+             presence_rerank: Optional[bool] = None
              ) -> pd.DataFrame:
     """Build a table from a blueprint. Nothing else is consulted."""
     bp = resolve(blueprint)
@@ -2340,6 +2368,7 @@ def generate(blueprint: Dict[str, Any],
         order, parents, dropped, repaired, derived, cyclic = _res
         set_rels = {}
     marg_draw: Dict[str, Any] = {}
+    rel_order: Dict[str, Any] = {}
     # Patient-level draws, kept so the collapse can be RE-RUN after
     # the refinement sweeps - see below.
     pat_draws: Dict[str, Any] = {}
@@ -2556,7 +2585,7 @@ def generate(blueprint: Dict[str, Any],
             if pat_draw is not None:
                 pat_draws[c] = pat_draw
 
-        if numeric and c in cyclic:
+        if numeric:
             # The MARGINAL draw, before any relationship touched it.
             # A refinement pass rebuilds from this, never from the
             # column's own previous output - iterating on your own
@@ -2586,6 +2615,14 @@ def generate(blueprint: Dict[str, Any],
                 # rank-based association untouched, and the k bound
                 # respected because the marginal draw respects it.
                 arr_rr = np.asarray(base, dtype=float)
+                # THE ORDER THE RELATIONSHIP PRODUCED, kept before
+                # the re-rank replaces it with the marginal's own
+                # values. On a column with a point mass those are
+                # mostly TIES, and a later pass re-ranking on them
+                # must break the ties arbitrarily - which costs
+                # exactly the association the relationship just
+                # put in. This array has the ordering and no ties.
+                rel_order[c] = arr_rr.copy()
                 ok_rr = np.isfinite(arr_rr) & np.isfinite(_pre)
                 # A CYCLIC column is the refinement's to re-rank -
                 # it re-ranks onto the marginal draw after the
@@ -2939,6 +2976,61 @@ def generate(blueprint: Dict[str, Any],
     # moved are exempt, exactly as the invariant pass exempts them:
     # they asked, and the dial report carries requested against
     # achieved.
+    # ---- THE SURVIVING ROWS CARRY THE PUBLISHED MARGINAL --------
+    #
+    # The acyclic re-rank inside the loop runs BEFORE this column's
+    # presence mask exists, so it spreads the published marginal
+    # across every row - and the mask then keeps a subset chosen by
+    # a parent's value. Where that parent also drives the VALUE, the
+    # rows that survive are not a fair sample of the column and the
+    # output lands off its own grid.
+    #
+    # The cyclic sweep has solved this since it was written, with
+    # the measurement in its comment; this is the same device for
+    # the path that never got it. `marg_draw[ok]` is an iid sample
+    # of the published grid, so any subset of it is too - the
+    # surviving rows end up distributed as published, by
+    # construction, and the ORDER the relationships produced is
+    # kept.
+    if presence_rerank if presence_rerank is not None \
+            else PRESENCE_RERANK:
+        _copied = set(copy_from) | set(copy_from.values())
+        _rr = []
+        for c in order:
+            if c in cyclic or c not in out or c not in marg_draw:
+                continue
+            if (cols.get(c) or {}).get("kind") != "numeric":
+                continue
+            # A patient-level column is constant within a person and
+            # a per-ROW re-rank would break that, which is the
+            # eighth ordering bug this function already records.
+            # A copied column follows its source and must not be
+            # re-ordered away from it.
+            if c in pat_draws or c in _copied or not parents.get(c):
+                continue
+            pending = masks.get(c)
+            if pending is None:
+                continue
+            cur = np.asarray(out[c], dtype=float)
+            draw = np.asarray(marg_draw[c], dtype=float)
+            if len(pending) != len(cur) or len(draw) != len(cur):
+                continue
+            ok = np.isfinite(cur) & np.isfinite(draw) & \
+                np.asarray(pending, dtype=bool)
+            if int(ok.sum()) < 2:
+                continue
+            key = rel_order.get(c)
+            if key is None or len(key) != len(cur):
+                key = cur
+            key = np.asarray(key, dtype=float)
+            fixed = cur.copy()
+            fixed[ok] = np.sort(draw[ok])[
+                np.argsort(np.argsort(key[ok]))]
+            out[c] = fixed
+            _rr.append(c)
+        if report is not None and _rr:
+            report["presence_reranked"] = _rr
+
     pinned = _pin_pass(out, cols, order)
     if report is not None and pinned:
         report["bounds_pinned"] = pinned

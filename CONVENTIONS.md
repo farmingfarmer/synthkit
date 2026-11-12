@@ -396,6 +396,66 @@ Synthetic clinical data generator and model-evaluation instrument. Core rule: le
 - Never state a number as measured unless you actually ran it.
 
 ## Fixing what the real extract found
+- **THE ACYCLIC RE-RANK NEVER GOT THE FIX THE CYCLIC SWEEP HAS HAD
+  SINCE IT WAS WRITTEN, AND IT COSTS A PARTIALLY-COVERED COLUMN ITS
+  MARGINAL (2026-11-11, `--presence-rerank`).** The re-rank inside
+  the draw loop runs BEFORE the column's presence mask exists - the
+  mask is deliberately held back to the end so a child can read a
+  parent on every row - so the published marginal is spread across
+  EVERY row while the grid describes the PRESENT rows, which is
+  where the source was measured. Where presence and value share a
+  driver, the surviving rows are not a fair sample. The cyclic
+  sweep already solves this and carries the measurement in its own
+  comment (**re-ranked on kept rows +0.630 against +0.242 on all
+  rows**); the acyclic path keys on `isfinite` instead.
+- **REPRODUCED WITH A CONTROL, which is what makes it the mask
+  rather than noise.** Share on the mode against the column's own
+  published grid, on a fixture whose presence is driven by the
+  column's own driver:
+      presence response          off        on
+      flat (the control)      +0.0176   +0.0142
+      keeps LOW-driver rows   +0.1064   +0.0268
+      keeps HIGH-driver rows  -0.0880   -0.0023
+      keeps low, steeply      +0.1262   +0.0241
+  The flat arm barely moves either way; the other two move by a
+  tenth and come back. **AND THE SIGN FOLLOWS WHICH ROWS PRESENCE
+  KEEPS** - a one-sided fixture would have shown a repair that
+  happens to push one way.
+- **AND THE TIE-BREAK TURNED A COST INTO A GAIN, which is the part
+  worth keeping.** Re-ranking on the column's OWN values breaks the
+  point mass's ties arbitrarily and costs association: rank
+  correlation with the driver fell **-0.011 on every one of three
+  seeds**. The order the RELATIONSHIP produced is still available
+  at draw time, has no ties, and carries the association - keyed on
+  that instead, rho goes **0.1228 -> 0.2920, 0.1981 -> 0.3002,
+  0.0697 -> 0.2310**. So the in-loop re-rank had been destroying
+  association among tied values all along, and this recovers it.
+  Reverting the tie-break turns that check red.
+- **THE NEIGHBOURING PROPERTIES ARE ASSERTED IN THE SAME
+  MEASUREMENT, which this file requires.** Coverage is IDENTICAL to
+  twelve decimals - the pass re-ranks values and never decides which
+  rows are present. A PATIENT-LEVEL column is skipped, because a
+  per-row re-rank would put visit-to-visit variation into a fact
+  about the person, which is the eighth ordering bug this function
+  already records. A column the contract declares EQUAL to another
+  still equals it. And a blueprint with no partially-covered column
+  generates **BYTE-IDENTICALLY** with the pass on - the change acts
+  only where its mechanism lives, asserted as a digest rather than
+  argued.
+- **FOUR MUTATIONS, EACH RED ON ITS OWN TARGET**: re-ranking on all
+  rows rather than the surviving ones (3 red), tie-breaking on the
+  tied marginal values (1), defaulting it ON (1), and dropping the
+  patient-level and copied guards (2).
+- **OFF BY DEFAULT, and the paired real arm decides it.** Fixture
+  evidence alone is not the standard here - five real-extract arms
+  have each overturned or traded away a fixture-measured gain. What
+  is NOT yet known is whether `procedure_quantity` is even reached
+  by this path: its gap is **+0.3255** where this fixture's worst is
+  +0.1262, so the mask explains at most a third of it on these
+  numbers, and the column may be cyclic rather than acyclic. The
+  honest statement is that a real defect was found and fixed, not
+  that the named column is fixed.
+
 - **THE BIGGEST FIDELITY GAP SPLITS IN TWO, AND THE GENERATION HALF
   IS FOUR TIMES THE CONTRACT HALF (2026-11-11, `peek marginal` on
   run_tail_ctl_current).** `procedure_quantity` has had two
