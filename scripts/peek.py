@@ -833,7 +833,9 @@ def marginals_view(run, src_path):
                       _shares(gv, edges))
         d_gs = max(abs(a - b) for a, b in zip(gs, ss))
         d_gx = max(abs(a - b) for a, b in zip(gs, xs))
-        rows.append((d_gx, d_gs, c, classify_marginal(d_gs, d_gx)))
+        d_sx = max(abs(a - b) for a, b in zip(ss, xs))
+        rows.append((d_sx, d_gs, d_gx, c,
+                     classify_marginal(d_gs, d_gx)))
 
     rows.sort(reverse=True)
     print("{} numeric column(s) compared, {} not comparable"
@@ -841,20 +843,29 @@ def marginals_view(run, src_path):
     print("  grid-vs-source is the CONTRACT's error, grid-vs-output "
           "the SAMPLER's. They take opposite fixes.")
     print()
-    print("  {:<34} {:>12} {:>12}  {}".format(
-        "column", "vs source", "vs output", "verdict"))
-    for d_gx, d_gs, c, v in rows:
-        print("  {:<34} {:>12.4f} {:>12.4f}  {}".format(
-            c[:34], d_gs, d_gx, v))
+    print("  sorted by SOURCE-against-OUTPUT, which is what a "
+          "recipient holds - the other two split the blame.")
     print()
-    bad = [r for r in rows if r[3] != "CLEAR"]
+    print("  {:<30} {:>9} {:>9} {:>11}  {}".format(
+        "column", "grid~src", "grid~out", "SRC~OUT", "verdict"))
+    for d_sx, d_gs, d_gx, c, v in rows:
+        print("  {:<30} {:>9.4f} {:>9.4f} {:>11.4f}  {}".format(
+            c[:30], d_gs, d_gx, d_sx, v))
+    print()
+    bad = [r for r in rows if r[4] != "CLEAR"]
     print("  {} of {} column(s) are off their own published grid or "
           "their source by more than {:.2f}".format(
               len(bad), len(rows), MARGINAL_TOL))
-    gen = [r for r in rows if r[3] in ("GENERATION", "BOTH")]
+    _held = [r for r in rows if r[0] > MARGINAL_TOL]
+    print("  and {} of {} differ from the SOURCE in a recipient's "
+          "hands by more than {:.2f}{}".format(
+              len(_held), len(rows), MARGINAL_TOL,
+              ": " + ", ".join(r[3] for r in _held[:8])
+              if _held else ""))
+    gen = [r for r in rows if r[4] in ("GENERATION", "BOTH")]
     if gen:
         print("  {} of those are the SAMPLER's: {}".format(
-            len(gen), ", ".join(r[2] for r in gen[:8])))
+            len(gen), ", ".join(r[3] for r in gen[:8])))
     else:
         print("  NONE of them is the sampler's - every gap here is "
               "the published grid, which is a different fix.")
@@ -946,6 +957,14 @@ def marginal_view(run, col, src_path):
                   _shares(gv, edges))
     d_gs = max(abs(a - b) for a, b in zip(gs, ss))
     d_gx = max(abs(a - b) for a, b in zip(gs, xs))
+    # WHAT A RECIPIENT ACTUALLY HOLDS. The two gaps above split
+    # the blame between the contract and the sampler, which is
+    # what they are for - but neither is the thing a researcher
+    # receives. A sampler that faithfully reproduces a wrong grid
+    # reads CLEAN on grid-vs-output and is still wrong in their
+    # hands, and a fix aimed at the SOURCE rather than the grid
+    # improves this while making grid-vs-output look worse.
+    d_sx = max(abs(a - b) for a, b in zip(ss, xs))
     verdict = classify_marginal(d_gs, d_gx)
 
     mode = float(pd.Series(sv).mode().iloc[0])
@@ -979,6 +998,8 @@ def marginal_view(run, col, src_path):
     print()
     print("  worst band gap, grid against source   {:.4f}".format(d_gs))
     print("  worst band gap, grid against output   {:.4f}".format(d_gx))
+    print("  worst band gap, SOURCE against output {:.4f}  <- what "
+          "a recipient holds".format(d_sx))
     print("  at a {:.2f} share bar: {}".format(MARGINAL_TOL, verdict))
     if verdict == "CONTRACT":
         print("  THE PUBLISHED GRID cannot represent the source's "

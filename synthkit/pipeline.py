@@ -286,6 +286,20 @@ def build_parser(prog=None, add_help=True):
                           "with the declared identity going from "
                           "broken on 90.1 percent of rows to 59.0 "
                           "percent. Pass this to turn it OFF."))
+    ap.add_argument("--floor-share", action="store_true",
+                    help=("put a count's point mass back at its "
+                          "own MINIMUM, the way `zero_share` "
+                          "already does at zero. A column whose "
+                          "mode is its minimum - 52.8 percent of "
+                          "procedure_quantity's rows sit on the "
+                          "value one, and it has no zeros at all - "
+                          "gets nothing from a fix that only knows "
+                          "about zero. The blueprint publishes "
+                          "`floor_share` either way; this consumes "
+                          "it. Measured on a fixture: the mode "
+                          "share becomes exact and the band gap "
+                          "against the source falls 0.0295 to "
+                          "0.0252. OFF by default."))
     ap.add_argument("--copy-coverage-guard", action="store_true",
                     help=("refuse to carry an `==` constraint by "
                           "copying when the two columns have "
@@ -902,6 +916,11 @@ def main(argv=None, args=None):
         say("NOT choosing which rows a copied column is present "
             "on - a flat mask reproduces the SOURCE column's "
             "distribution rather than this column's own")
+    if getattr(a, "floor_share", False):
+        import synthkit.generate as _gen
+        _gen.FLOOR_SHARE = True
+        say("placing each count's published point mass back at its "
+            "own minimum, by rank, the way zero_share does at zero")
     if getattr(a, "copy_coverage_guard", False):
         import synthkit.generate as _gen
         _gen.COPY_COVERAGE_GUARD = True

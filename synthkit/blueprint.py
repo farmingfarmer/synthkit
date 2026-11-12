@@ -370,6 +370,26 @@ def _numeric_marginal(s: pd.Series, groups=None,
             z = float((arr0 == 0.0).mean())
             if z >= 0.02:
                 out["zero_share"] = round(z, 6)
+            # AND THE SAME THING WHEN THE MODE IS NOT ZERO.
+            #
+            # `zero_share` exists because a continuous model cannot
+            # reproduce a POINT MASS, and it only knows about zero.
+            # `procedure_quantity` on the real extract has NO zeros
+            # at all - its mass sits on the value ONE, 52.8% of
+            # rows - so nothing fired and the engine put 93% of
+            # rows there instead. A fix that only knows about zero
+            # cannot see a count whose mode is one.
+            #
+            # The floor is the published low bound, which is
+            # already in the contract, and the share is an
+            # aggregate over every row - so this discloses nothing
+            # the grid did not, by exactly the argument
+            # `zero_share` rests on.
+            _flo = float(out["v"][0]) if out.get("v") else None
+            if _flo is not None and _flo != 0.0:
+                f = float((arr0 == _flo).mean())
+                if f >= 0.02:
+                    out["floor_share"] = round(f, 6)
     # EXTRA KNOTS INSIDE THE TOP SEGMENT, each a band of at least k
     # patients. The cap does not move - the outermost band IS the
     # cap - so nothing new is published; only the shape below it

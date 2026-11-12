@@ -174,6 +174,22 @@ COPY_COVERAGE_GUARD = False
 # improves the FILE a recipient receives rather than the criteria,
 # because close and direction are rank correlations over pairs.
 COPY_PRESENCE_FROM_SOURCE = True
+
+# CONSUME THE PUBLISHED MASS AT A NON-ZERO FLOOR.
+#
+# `zero_share` puts a count's point mass back at ZERO, by rank, and
+# a column whose mode is its own MINIMUM needs the same device
+# aimed at that value instead - `procedure_quantity` on the real
+# extract has no zeros at all and 52.8% of its rows on the value
+# one. The blueprint PUBLISHES `floor_share` either way, because a
+# contract field costs nothing to carry and lets a reader see the
+# mass; consuming it changes output, so it waits for a real arm.
+#
+# Measured on a fixture with that shape: the mode share goes from
+# 0.5575 to 0.5280 against a source 0.5280 - exact by construction
+# - and the whole-column band gap against the SOURCE from 0.0295
+# to 0.0252.
+FLOOR_SHARE = False
 # How far the two coverages may differ before the copy is refused.
 COPY_COVERAGE_TOL = 0.05
 
@@ -2904,7 +2920,17 @@ def generate(blueprint: Dict[str, Any],
                 # the values the draw already produced and changing
                 # only which rows are zero means the column cannot
                 # drift somewhere else while this is fixed.
+                # THE FLOOR IS NOT ALWAYS ZERO. `zero_share` is
+                # the special case of this where the published low
+                # bound happens to be 0; a count whose mode is its
+                # own minimum needs the same device aimed at that
+                # value instead.
                 _zs = m.get("zero_share")
+                _floor = 0.0
+                if _zs is None and FLOOR_SHARE:
+                    _fs = m.get("floor_share")
+                    if _fs is not None and m.get("v"):
+                        _zs, _floor = _fs, float(m["v"][0])
                 if _zs is not None and len(base):
                     _b = np.asarray(base, dtype=float)
                     _fin = np.isfinite(_b)
@@ -2919,10 +2945,11 @@ def generate(blueprint: Dict[str, Any],
                         _zrank = _idx[np.argsort(_b[_idx],
                                                  kind="stable")]
                         _b = _b.copy()
-                        _b[_zrank[:_want]] = 0.0
+                        _b[_zrank[:_want]] = _floor
                         if _want < _nf:
                             _rest = _zrank[_want:]
-                            _b[_rest] = np.maximum(_b[_rest], 1.0)
+                            _b[_rest] = np.maximum(_b[_rest],
+                                                   _floor + 1.0)
                         base = _b
 
         cov = spec.get("target_coverage")

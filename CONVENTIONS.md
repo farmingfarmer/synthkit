@@ -396,6 +396,44 @@ Synthetic clinical data generator and model-evaluation instrument. Core rule: le
 - Never state a number as measured unless you actually ran it.
 
 ## Fixing what the real extract found
+- **A COUNT WHOSE MODE IS ITS OWN MINIMUM GOT NOTHING FROM
+  `zero_share`, AND NOW HAS ITS OWN FIELD (2026-11-12,
+  `--floor-share`).** The recorded gap, closed: "a fix that only
+  knows about zero cannot see a count whose mode is one".
+  `procedure_quantity` has NO zeros at all and 52.8% of its rows on
+  the value one, so nothing fired. The blueprint publishes
+  `floor_share` - the mass at the published low bound, an aggregate
+  over every row, by exactly the argument `zero_share` already
+  rests on - and generation places it by RANK the same way, so the
+  relationship the curve found is preserved.
+      arm      mode share   band gap against the SOURCE
+      source       0.5280                             -
+      off          0.5575                        0.0295
+      on           0.5280                        0.0252
+  The mass is EXACT by construction; the whole-column gap improves
+  modestly, because the band metric is not dominated by the mode.
+- **AND MEASURING IT EXPOSED A GAP IN MY OWN DIAGNOSTIC.** `peek
+  marginals` reported grid-against-source and grid-against-output -
+  which split the blame between the contract and the sampler, and
+  that is what they are for - but NEITHER is what a recipient
+  holds. A sampler that faithfully reproduces a wrong grid reads
+  clean on grid-against-output and is still wrong in their hands,
+  and a fix aimed at the SOURCE improves the held quantity while
+  making grid-against-output look worse. SOURCE-against-OUTPUT is
+  reported now, and the table is sorted by it.
+- **AND THE INERTNESS CHECK WENT RED BECAUSE I STRIPPED THE FIELD
+  FROM ONE COLUMN.** `visit_number` publishes a floor mass of its
+  own - a within-patient counter has minimum 1 on every patient -
+  so the flag still changed the output and the check failed against
+  correct code. The flag reaches EVERY integral column whose
+  minimum is not zero, which is worth knowing on its own and is why
+  it waits for a real arm rather than shipping on a fixture.
+- **AND A MUTATION CRASHED THE SUITE AFTER ONE RED instead of
+  reporting five**, because the check following it indexed the key
+  the mutation removes. Guarded; the same mutation now gives five
+  red checks and the suite completes. This file records that trap
+  repeatedly and it still had to be caught by running it.
+
 - **AND THE GATE BARELY MOVES, WHICH IS THE HALF A HEADLINE WOULD
   HIDE (2026-11-12, regate of both arms on one ruler).**
       criterion               control        --copy-presence-from-source
