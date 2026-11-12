@@ -30,7 +30,8 @@ ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT))
 sys.path.insert(0, str(ROOT / "scripts"))
 
-from smoke_cycles import col_spec, rel, ring          # noqa: E402
+from smoke_cycles import (col_spec, rel, ring,      # noqa: E402
+                          ring_sparse)
 from synthkit import generate as G                    # noqa: E402
 from synthkit.generate import generate, _draw_numeric  # noqa: E402
 
@@ -232,6 +233,65 @@ def main():
           "the link the CLI depends on - asserted by outcome "
           "rather than by reading the flag back",
           "pq" in (rep3.get("presence_reranked") or []))
+
+    # THE PREDICTOR MUST AGREE WITH THE ENGINE. `peek rerank`
+    # exists so a forty-five minute paired arm is only run where
+    # the flag can move something - and a predictor that drifts
+    # from what generation does would send that decision the wrong
+    # way, silently. This project has twice run an arm that could
+    # not reach the thing it was testing.
+    from peek import classify_rerank
+
+    _b = bp_for([0.99, 0.10, 0.001])
+    _rows, _would = classify_rerank(_b)
+    _rep = {}
+    generate(_b, n_patients=400, seed=3, presence_rerank=True,
+             report=_rep)
+    check("`peek rerank` predicts EXACTLY the columns generation "
+          "re-ranks - a predictor that drifts from the engine "
+          "would send the decision to run a real arm the wrong "
+          "way, silently",
+          sorted(_would) == sorted(_rep.get("presence_reranked") or []))
+
+    # AND IT MUST SAY NOTHING WHERE NOTHING WOULD HAPPEN, because
+    # an empty answer is the finding that saves the machine time.
+    _r2, _w2 = classify_rerank(ring())
+    _rep2 = {}
+    generate(ring(), n_patients=300, seed=4, presence_rerank=True,
+             report=_rep2)
+    check("...and on a blueprint with no partially-covered child "
+          "it predicts NOTHING, which is what generation does - "
+          "an empty answer is the finding, not a blank",
+          _w2 == [] and "presence_reranked" not in _rep2)
+
+    # A COLUMN THAT IS BOTH CYCLIC AND PARTIALLY COVERED is the
+    # one shape where the predictor and the engine can disagree -
+    # and no fixture above had it, so a mutation that dropped the
+    # cyclic exclusion was caught by one check instead of three.
+    # It is also the shape the real column may well be in.
+    _rs = ring_sparse(cov=0.20)
+    _r3, _w3 = classify_rerank(_rs)
+    _rep3 = {}
+    generate(_rs, n_patients=300, seed=4, presence_rerank=True,
+             report=_rep3)
+    check("a CYCLIC column that is also partially covered is left "
+          "to the refinement sweep by BOTH halves - the one shape "
+          "where the predictor and the engine could disagree",
+          sorted(_w3) == sorted(_rep3.get("presence_reranked") or []))
+
+    check("...and the predictor says so for the RIGHT reason, "
+          "naming the sweep rather than the coverage",
+          any(r[0] == "t3" and "CYCLIC" in r[5] for r in _r3))
+
+    check("...and it still EXAMINED that blueprint rather than "
+          "returning empty because it looked at nothing - the "
+          "worst kind of clean",
+          len(_r2) >= 4)
+
+    _cyc = [r for r in _r2 if "CYCLIC" in r[5]]
+    check("...naming the cyclic columns as the refinement sweep's "
+          "to own, rather than as columns with no reason",
+          len(_cyc) >= 4)
 
     print()
     if FAIL:

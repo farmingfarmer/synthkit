@@ -12,6 +12,7 @@
     python scripts/peek.py RUNDIR flat
     python scripts/peek.py RUNDIR sizes SRC.csv
     python scripts/peek.py RUNDIR marginal COLUMN SRC.csv
+    python scripts/peek.py RUNDIR rerank
     python scripts/peek.py RUNDIR curves
 
 WHY THIS EXISTS. Seven diagnoses in a row were fetched with pasted
@@ -911,6 +912,88 @@ def marginal_view(run, col, src_path):
           "and the wrong value on every row.")
 
 
+def classify_rerank(bp):
+    """(rows, would_be_reranked) for a blueprint.
+
+    PURE over the blueprint, so the suite can hold it against what
+    `generate` ACTUALLY re-ranks. A predictor that drifts from the
+    engine is the two-halves fault, and this one exists precisely
+    to decide whether a forty-five minute arm is worth running.
+    """
+    from synthkit.generate import _order
+    cols = bp.get("columns") or {}
+    res = _order(bp, refine=True)
+    cyclic = res[5] if len(res) > 5 else {}
+    parents = res[1] if len(res) > 1 else {}
+    rows, would = [], []
+    for c, spec in cols.items():
+        spec = spec or {}
+        m = spec.get("marginal") or {}
+        if m.get("type") != "quantiles":
+            continue
+        cov = spec.get("coverage")
+        child = bool(parents.get(c))
+        cyc = c in cyclic
+        pat = spec.get("level") == "patient"
+        pres = bool(spec.get("presence"))
+        if not child:
+            why = "not a relationship child - its draw IS the marginal"
+        elif cyc:
+            why = "CYCLIC - the refinement sweep already owns it"
+        elif pat:
+            why = "patient-level - a per-row re-rank would break constancy"
+        elif cov is None or float(cov) >= 1.0:
+            why = "fully covered - there is no mask to survive"
+        else:
+            why = "WOULD BE RE-RANKED"
+            would.append(c)
+        rows.append((c, cov, child, cyc, pres, why))
+    return rows, would
+
+
+def rerank_view(run):
+    """Which columns `--presence-rerank` would actually touch.
+
+    WHY THIS EXISTS. The pass re-ranks a partially-covered ACYCLIC
+    numeric child among the rows that survive its presence mask.
+    Three of those words are conditions, and a paired real arm is
+    about forty-five minutes of machine time - so whether the flag
+    can move anything on a given run is worth knowing from the
+    blueprint, which costs seconds.
+
+    This project has twice run an arm that could not reach the
+    thing it was testing and read the zero as evidence.
+    """
+    bp = _load(run, "blueprint.json")
+    rows, would = classify_rerank(bp)
+    cols = bp.get("columns") or {}
+    print("{} numeric column(s) with a published grid"
+          .format(len(rows)))
+    print()
+    print("  {:<34} {:>6} {:>6} {:>5} {}".format(
+        "column", "cov", "child", "pres", "verdict"))
+    for c, cov, child, cyc, pres, why in sorted(rows):
+        print("  {:<34} {:>6} {:>6} {:>5} {}".format(
+            c[:34], "-" if cov is None else "{:.2f}".format(float(cov)),
+            "yes" if child else "no", "yes" if pres else "no", why))
+    print()
+    print("  the pass would re-rank {} column(s)".format(len(would)))
+    if would:
+        print("  namely: {}".format(", ".join(sorted(would)[:12])))
+    else:
+        # AN EMPTY ANSWER IS A FINDING, not a blank. A flag that
+        # cannot touch anything on this run must not be measured
+        # as though it had.
+        print("  NOTHING - on this blueprint the flag cannot change "
+              "a single value, so a paired arm would measure only "
+              "the seed.")
+    print()
+    print("  `pres` says the column has an informative presence "
+          "model. Where it does NOT, the mask is drawn flat and "
+          "the surviving rows are already a fair sample - so the "
+          "pass is correct but has little to do.")
+
+
 def main():
     # `--help` IS A QUESTION, NOT A MISTAKE. This printed the
     # docstring and exited 2 for it, which is the code a shell
@@ -957,6 +1040,8 @@ def main():
         marginal_view(run, arg, arg2)
     elif what == "curves":
         curves_view(run)
+    elif what == "rerank":
+        rerank_view(run)
     else:
         print(__doc__)
         return 2
