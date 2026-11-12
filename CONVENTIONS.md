@@ -396,6 +396,77 @@ Synthetic clinical data generator and model-evaluation instrument. Core rule: le
 - Never state a number as measured unless you actually ran it.
 
 ## Fixing what the real extract found
+- **THE BIGGEST FIDELITY GAP SPLITS IN TWO, AND THE GENERATION HALF
+  IS FOUR TIMES THE CONTRACT HALF (2026-11-11, `peek marginal` on
+  run_tail_ctl_current).** `procedure_quantity` has had two
+  incompatible explanations on this record with nothing measuring
+  which applies. Asked directly - the source, what the run's OWN
+  published grid produces through the engine's own draw, and the
+  output, on one ruler whose edges come from the source:
+      share at the mode (the value 1)
+        source                    0.5282
+        the PUBLISHED GRID        0.6029
+        the OUTPUT                0.9284
+      column mean
+        source                    7.2706
+        the PUBLISHED GRID        7.2707
+        the OUTPUT                2.0591
+      worst band gap, grid against source   0.0760
+      worst band gap, grid against output   0.3255
+      verdict                               BOTH
+  Every decisive figure read back SPELLED by the machine. **The
+  contract is modestly wrong and generation is badly wrong**, and
+  the two take opposite fixes - so the work belongs in the sampler,
+  which is the opposite of where my own earlier write-up pointed it
+  ("a point mass is not a shape a curve can make" is a contract-side
+  framing, and the contract carries 7 points of a 40-point gap).
+- **THE GRID MEAN MATCHES THE SOURCE MEAN TO FOUR DECIMALS, which is
+  what makes the output's 2.06 a measurement rather than an
+  impression.** A published grid that reproduces the source's mean
+  exactly and an output at 28% of it cannot both be describing the
+  same column.
+- **AND IT MEANS NO RE-RANK IS LANDING ON THIS COLUMN.** Both
+  re-rank paths exist and have since **2026-08-25** - the acyclic
+  one at the draw site, the cyclic one in the refinement sweep - and
+  either preserves the marginal BY CONSTRUCTION. An output 32 points
+  from its own grid is therefore not a weakened re-rank; it is no
+  re-rank. So the recorded sentence "a relationship child that is
+  never reached by either keeps whatever curve plus noise produces"
+  is right in its CONCLUSION and wrong in its PREMISE: it was
+  written as though the mechanism were missing, when the mechanism
+  has been in the engine for months and something is stopping it
+  reaching this column.
+- **THREE CANDIDATES DIED THE SAME HOUR, which is the point of
+  asking before building.** It is NOT a set-size partner - the
+  column does not appear in `peek sizes` at all, on a report
+  confirmed non-empty, so the copy-the-set-length path cannot be
+  overwriting it. A plain RING reproduces nothing: every column,
+  cyclic and acyclic alike, holds its marginal within **0.0093 to
+  0.0447** of its own grid. And a fixture built to the column's
+  MEASURED shape - integral, present on 19% of rows, a point mass at
+  1, a hub that is child of two ring members and parent of two more -
+  drifts **-0.07**, which is the WRONG SIGN: the real column sits
+  32 points ABOVE its grid and the fixture lands below it.
+- **A WRONG-SIGN REPRODUCTION IS INFORMATION, not a failed
+  attempt.** It says the mechanism is not "a cyclic hub with low
+  coverage loses its marginal", because that shape loses it the
+  other way. What remains, named rather than guessed: something
+  OVERWRITING the column after the draw (an identity or a
+  constraint repair, neither checked yet on this blueprint), or the
+  PRESENCE MASK selecting a biased subset - the acyclic re-rank
+  keys on `isfinite`, where the sweep deliberately re-ranks "among
+  the rows that will survive", and those are different row sets on
+  a column present on a fifth of rows.
+- **AND A QUANTILE GRID'S ERROR ON A POINT MASS HAS NO FIXED
+  DIRECTION, which is worth knowing before anybody "fixes" the
+  grid.** Building the fixture, a grid derived from a source's OWN
+  quantiles still lost **10 points of a 60% mode**, because the mass
+  between the last knot equal to the mode and the next one is spread
+  continuously and only a sliver rounds back. The real column's grid
+  goes the other way, OVER-representing its mode by 7.5 points. The
+  mean-informed rounding cut is the obvious suspect for the sign,
+  and it is a suspect rather than a finding.
+
 - **THE DELIVERABLE'S GATE READS DIFFERENTLY DEPENDING ON WHICH
   QUESTION YOU ASK IT, AND THE STORED ANSWER IS THE FLATTERING ONE
   (2026-11-11, run_tail_ctl).** `m0_gate.py RUNDIR`, the deck and
