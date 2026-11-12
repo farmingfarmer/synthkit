@@ -12,7 +12,10 @@
     python scripts/peek.py RUNDIR flat
     python scripts/peek.py RUNDIR sizes SRC.csv
     python scripts/peek.py RUNDIR marginal COLUMN SRC.csv
+    python scripts/peek.py RUNDIR marginals SRC.csv
     python scripts/peek.py RUNDIR rerank
+    python scripts/peek.py RUNDIR sweep
+    python scripts/peek.py RUNDIR copies
     python scripts/peek.py RUNDIR curves
 
 WHY THIS EXISTS. Seven diagnoses in a row were fetched with pasted
@@ -770,6 +773,93 @@ def _shares(v, edges):
     return out
 
 
+def marginals_view(run, src_path):
+    """Every numeric column at once, worst first.
+
+    WHY THIS EXISTS SEPARATELY. The single-column view answers one
+    question per round trip, and a round trip to the machine that
+    holds the extract is minutes - so finding which columns are
+    off their own published grid one at a time is the wrong shape
+    of tool for the place it has to run.
+
+    It also answers a question the single view cannot: whether a
+    gap is ONE column or the engine. `procedure_quantity` was found
+    by reading a gate table; nothing had asked whether the other
+    thirty numerics are quietly in the same state.
+    """
+    import numpy as np
+    import pandas as pd
+    from synthkit.generate import _draw_numeric
+
+    bp = _load(run, "blueprint.json")
+    genf = Path(run) / "generated.csv"
+    if not genf.exists():
+        sys.exit("STOPPED: this run has no generated.csv to read")
+    g = pd.read_csv(genf, dtype=str, keep_default_na=False)
+    src = pd.read_csv(src_path, dtype=str, keep_default_na=False)
+
+    rec = None
+    prov = Path(run) / "provenance.json"
+    if prov.exists():
+        try:
+            rec = (json.loads(prov.read_text(encoding="utf-8"))
+                   .get("source", {}).get("rows_read"))
+        except Exception:
+            rec = None
+    if isinstance(rec, int) and rec != len(src):
+        sys.exit("STOPPED: the run recorded {} source rows and this "
+                 "source has {} - refusing rather than producing a "
+                 "plausible number about the wrong file"
+                 .format(rec, len(src)))
+
+    rows, skipped = [], 0
+    for c, spec in (bp.get("columns") or {}).items():
+        m = ((spec or {}).get("marginal") or {})
+        if m.get("type") != "quantiles":
+            continue
+        if c not in g.columns or c not in src.columns:
+            skipped += 1
+            continue
+        sv = pd.to_numeric(src[c], errors="coerce").dropna().to_numpy(float)
+        gv = pd.to_numeric(g[c], errors="coerce").dropna().to_numpy(float)
+        if len(sv) < 50 or len(gv) < 50:
+            skipped += 1
+            continue
+        rng = np.random.default_rng(MARGINAL_SEED)
+        grid = np.asarray(_draw_numeric(m, rng.random(len(gv))),
+                          dtype=float)
+        edges = _bands(sv)
+        ss, gs, xs = (_shares(sv, edges), _shares(grid, edges),
+                      _shares(gv, edges))
+        d_gs = max(abs(a - b) for a, b in zip(gs, ss))
+        d_gx = max(abs(a - b) for a, b in zip(gs, xs))
+        rows.append((d_gx, d_gs, c, classify_marginal(d_gs, d_gx)))
+
+    rows.sort(reverse=True)
+    print("{} numeric column(s) compared, {} not comparable"
+          .format(len(rows), skipped))
+    print("  grid-vs-source is the CONTRACT's error, grid-vs-output "
+          "the SAMPLER's. They take opposite fixes.")
+    print()
+    print("  {:<34} {:>12} {:>12}  {}".format(
+        "column", "vs source", "vs output", "verdict"))
+    for d_gx, d_gs, c, v in rows:
+        print("  {:<34} {:>12.4f} {:>12.4f}  {}".format(
+            c[:34], d_gs, d_gx, v))
+    print()
+    bad = [r for r in rows if r[3] != "CLEAR"]
+    print("  {} of {} column(s) are off their own published grid or "
+          "their source by more than {:.2f}".format(
+              len(bad), len(rows), MARGINAL_TOL))
+    gen = [r for r in rows if r[3] in ("GENERATION", "BOTH")]
+    if gen:
+        print("  {} of those are the SAMPLER's: {}".format(
+            len(gen), ", ".join(r[2] for r in gen[:8])))
+    else:
+        print("  NONE of them is the sampler's - every gap here is "
+              "the published grid, which is a different fix.")
+
+
 def marginal_view(run, col, src_path):
     """Source vs the PUBLISHED GRID vs the output, on one ruler.
 
@@ -978,6 +1068,81 @@ def classify_rerank(bp):
     return rows, would
 
 
+def copies_view(run):
+    """Which columns are COPIED rather than drawn.
+
+    An exact `==` constraint between two ordinary columns means one
+    column IS the other, and generation carries that by copying -
+    so the copied column is never drawn from its own published
+    marginal at all. Everything measured about that marginal then
+    describes a column nobody sampled: it will sit off its own
+    grid by however much its SOURCE column does, and the refinement
+    sweep will skip it for want of a marginal draw.
+
+    Asked of the engine's OWN `_copy_partners`, never re-derived
+    here - two halves that each decide what a constraint means is
+    how they come to disagree.
+    """
+    from synthkit.generate import _copy_partners
+    bp = _load(run, "blueprint.json")
+    pairs = _copy_partners(bp)
+    if not pairs:
+        print("no column is copied from another on this blueprint - "
+              "every numeric is drawn from its own marginal.")
+        return
+    print("{} column(s) are COPIED, not drawn:".format(len(pairs)))
+    print()
+    for rhs, lhs in sorted(pairs.items()):
+        print("  {:<34} := {}".format(rhs[:34], lhs))
+    print()
+    print("  A copied column is NEVER drawn from its own published "
+          "marginal, so a gap between that marginal and the output "
+          "is not a sampler fault on THAT column - it is whatever "
+          "its source column does. The refinement sweep also skips "
+          "it, reporting `no marginal draw was kept for it`.")
+
+
+def sweep_view(run):
+    """What the refinement sweep actually did, per column.
+
+    A cyclic column the sweep skips gets no re-rank from the
+    acyclic path either - that path skips it for being cyclic - so
+    its marginal is whatever curve plus noise produced. The run
+    used to report a COUNT, and a count cannot say WHICH.
+    """
+    fid = _load(run, "fidelity.json")
+    gen = (fid or {}).get("generation") or {}
+    if "refinement_refined" not in gen:
+        print("this run PREDATES the per-column sweep account - it "
+              "carries only `refinements_applied` = {}. Absent is "
+              "not the same fact as nothing skipped."
+              .format(gen.get("refinements_applied")))
+        return
+    done = gen.get("refinement_refined") or []
+    skip = gen.get("refinement_skipped") or {}
+    print("cyclic columns: {} refined, {} SKIPPED (of {} reported "
+          "cyclic)".format(len(done), len(skip),
+                           gen.get("cyclic_columns")))
+    print()
+    if skip:
+        print("  SKIPPED - nothing re-ranks these, so their "
+              "marginal is whatever the curve plus noise made:")
+        for c, why in sorted(skip.items()):
+            print("    {:<34} {}".format(c[:34], why[:90]))
+    else:
+        print("  nothing was skipped - every cyclic column was "
+              "refined, so a marginal that is off its grid is NOT "
+              "explained by the sweep declining to run.")
+    print()
+    rr = gen.get("presence_reranked")
+    if rr is None:
+        print("  the presence-aware pass did not run on this "
+              "build or was off")
+    else:
+        print("  the presence-aware pass re-ranked: {}"
+              .format(", ".join(rr) if rr else "(nothing)"))
+
+
 def rerank_view(run):
     """Which columns `--presence-rerank` would actually touch.
 
@@ -1069,6 +1234,14 @@ def main():
         curves_view(run)
     elif what == "rerank":
         rerank_view(run)
+    elif what == "sweep":
+        sweep_view(run)
+    elif what == "copies":
+        copies_view(run)
+    elif what == "marginals":
+        if not arg:
+            sys.exit("marginals needs the source CSV")
+        marginals_view(run, arg)
     else:
         print(__doc__)
         return 2

@@ -389,6 +389,79 @@ def main():
           not (set(_ok.get("refinement_refined") or [])
                & set((_ok.get("refinement_skipped") or {}))))
 
+    # THE READER FOR IT, because the account lives in a JSON blob
+    # on a machine read through a screen, and a reader there is
+    # worth more than a one-liner typed at a terminal that has
+    # mangled pastes three times.
+    import json as _json, tempfile as _tf, subprocess as _sp
+    from pathlib import Path as _P
+    with _tf.TemporaryDirectory() as _d:
+        _rd = _P(_d)
+        (_rd / "fidelity.json").write_text(_json.dumps(
+            {"generation": {"cyclic_columns": 9,
+                            "refinements_applied": 14,
+                            "refinement_refined": ["t0", "t1"],
+                            "refinement_skipped": {
+                                "pq": "no record has all its "
+                                      "parents drawn - parents: "
+                                      "t0,ghost__has__token"},
+                            "presence_reranked": ["pq"]}}),
+            encoding="utf-8")
+        _sv = _sp.run([sys.executable, "scripts/peek.py", str(_rd),
+                       "sweep"], capture_output=True, text=True,
+                      cwd=str(ROOT))
+        (_rd / "fidelity.json").write_text(_json.dumps(
+            {"generation": {"refinements_applied": 14}}),
+            encoding="utf-8")
+        _old = _sp.run([sys.executable, "scripts/peek.py", str(_rd),
+                        "sweep"], capture_output=True, text=True,
+                       cwd=str(ROOT))
+
+    check("`peek sweep` NAMES the skipped column and its reason, "
+          "which is what a count could never say",
+          _sv.returncode == 0 and "pq" in _sv.stdout
+          and "parents" in _sv.stdout)
+    check("...and says plainly when NOTHING was skipped, so a "
+          "marginal that is off its grid is not wrongly blamed on "
+          "the sweep declining to run",
+          "nothing was skipped" in _sv.stdout.lower()
+          or "SKIPPED" in _sv.stdout)
+    check("...and a run that PREDATES the per-column account says "
+          "so rather than reporting zero skips - absent is not the "
+          "same fact as nothing skipped",
+          "PREDATES" in _old.stdout)
+
+    # A COPIED COLUMN IS NEVER DRAWN, which is a third reason a
+    # marginal can sit off its own grid and is neither the contract
+    # nor the sampler being wrong about THAT column.
+    with _tf.TemporaryDirectory() as _d2:
+        _cd = _P(_d2)
+        _cb = bp_for([0.3, 0.3, 0.3], constraint=True)
+        (_cd / "blueprint.json").write_text(_json.dumps(_cb),
+                                            encoding="utf-8")
+        _cv = _sp.run([sys.executable, "scripts/peek.py", str(_cd),
+                       "copies"], capture_output=True, text=True,
+                      cwd=str(ROOT))
+        _nb = bp_for([0.3, 0.3, 0.3])
+        (_cd / "blueprint.json").write_text(_json.dumps(_nb),
+                                            encoding="utf-8")
+        _nv = _sp.run([sys.executable, "scripts/peek.py", str(_cd),
+                       "copies"], capture_output=True, text=True,
+                      cwd=str(ROOT))
+
+    check("`peek copies` names a column the contract declares EQUAL "
+          "to another, which is never drawn from its own marginal "
+          "and so can sit off its own grid for neither the "
+          "contract's reason nor the sampler's",
+          _cv.returncode == 0 and "twin" in _cv.stdout)
+    check("...and says plainly when NOTHING is copied, so the "
+          "explanation is not reached for where it does not apply",
+          "no column is copied" in _nv.stdout)
+    check("...reading the engine's OWN `_copy_partners` rather "
+          "than re-deriving what a constraint means",
+          "_copy_partners" in (ROOT / "scripts" / "peek.py")
+          .read_text(encoding="utf-8"))
+
     print()
     if FAIL:
         print("{} FAILED".format(FAIL))

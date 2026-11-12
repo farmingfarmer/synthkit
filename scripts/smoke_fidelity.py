@@ -2397,6 +2397,51 @@ def main():
           "plausible number about the wrong file",
           _e.returncode != 0 and "refusing" in (_e.stdout + _e.stderr))
 
+    # THE ALL-COLUMNS VIEW. A round trip to the machine holding
+    # the extract is minutes, so asking one column per trip is the
+    # wrong shape of tool for where it runs - and it cannot answer
+    # whether a gap is ONE column or the engine.
+    with tempfile.TemporaryDirectory() as _td:
+        _r = _mk(_td, _good, _piled, _smooth)
+        # a second column that is FINE, so the view has to sort and
+        # a verdict of CLEAR has to be reachable alongside a fault
+        _sj = json.loads((_r / "blueprint.json").read_text(
+            encoding="utf-8"))
+        _sj["columns"]["ok"] = {"marginal": _good}
+        (_r / "blueprint.json").write_text(json.dumps(_sj),
+                                           encoding="utf-8")
+        _fine = _dn(_good, _np.random.default_rng(9).random(1000))
+        for _p, _vals in ((_r / "generated.csv", _fine),
+                          (_r / "src.csv", _smooth)):
+            _txt = _p.read_text(encoding="utf-8").splitlines()
+            _out = [_txt[0] + ",ok"]
+            for _i, _ln in enumerate(_txt[1:]):
+                _out.append("{},{:g}".format(_ln, _vals[_i % len(_vals)]))
+            _p.write_text("\n".join(_out) + "\n", encoding="utf-8")
+        _ms = subprocess.run(
+            [sys.executable, "scripts/peek.py", str(_r), "marginals",
+             str(_r / "src.csv")],
+            capture_output=True, text=True, cwd=str(ROOT))
+
+    check("the all-columns view reports every numeric column in "
+          "one pass, so finding which are off their grid does not "
+          "cost one round trip each",
+          _ms.returncode == 0 and "q" in _ms.stdout
+          and "ok" in _ms.stdout)
+    check("...worst FIRST, so the column that matters is the one "
+          "a reader sees without scrolling",
+          _ms.stdout.index("\n  q ") < _ms.stdout.index("\n  ok "))
+    check("...separating the SAMPLER's gaps from the contract's, "
+          "because they take opposite fixes",
+          "SAMPLER" in _ms.stdout and "GENERATION" in _ms.stdout)
+    check("...and a healthy column reads CLEAR in the same table, "
+          "so the verdict is not simply reporting every column as "
+          "a fault",
+          "CLEAR" in _ms.stdout)
+    check("...and it carries a TOTAL a reader can check the rows "
+          "against, which is how an omitted category stays visible",
+          "column(s) are off their own published grid" in _ms.stdout)
+
     print()
     if FAIL:
         print("{} FAILED".format(FAIL))
