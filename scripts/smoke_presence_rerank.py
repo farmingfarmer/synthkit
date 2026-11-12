@@ -293,6 +293,82 @@ def main():
           "to own, rather than as columns with no reason",
           len(_cyc) >= 4)
 
+    # ---- THE SWEEP CAN SKIP A COLUMN ENTIRELY -------------------
+    # Its guard needs EVERY parent of some record to be in `out`,
+    # and a blueprint can name a parent the engine never modelled -
+    # the token cap publishes more indicators than it draws. Such a
+    # column gets no re-rank from the sweep, and the acyclic path
+    # skips it for being cyclic. Neither path, so its marginal is
+    # whatever curve plus noise produced.
+    #
+    # This is the shape the real extract is in: procedure_quantity
+    # reads CYCLIC with 0.19 coverage and an output 32 points from
+    # its own published grid.
+    def ghost_bp(ghost):
+        b = ring()
+        b["columns"]["pq"] = {
+            "kind": "numeric", "level": "visit", "coverage": 0.19,
+            "marginal": dict(PQ), "dials": {},
+            "presence": {"parent": "t0", "grid": [-2.6, 0.0, 2.6],
+                         "response": [0.99, 0.10, 0.001]}}
+        b["relationships"].append(rel(
+            "pq", ["t0", "ghost__has__token" if ghost else "t1"], 0.60))
+        b["relationships"].append(rel("t2", ["pq", "t3"], 0.55))
+        return b
+
+    _rg = {}
+    _dg = generate(ghost_bp(True), n_patients=400, seed=3, report=_rg)
+    _dg = _dg[0] if isinstance(_dg, tuple) else _dg
+    _vg = pd.to_numeric(_dg["pq"], errors="coerce").dropna()
+    _ok = {}
+    _do = generate(ghost_bp(False), n_patients=400, seed=3, report=_ok)
+    _do = _do[0] if isinstance(_do, tuple) else _do
+    _vo = pd.to_numeric(_do["pq"], errors="coerce").dropna()
+
+    check("a cyclic column whose only record names an UNMODELLED "
+          "parent loses its marginal outright - the sweep cannot "
+          "refine it and the acyclic path skips it for being "
+          "cyclic, so neither re-ranks it",
+          abs(float((_vg == 1.0).mean()) - grid1) > 0.3)
+    check("...while the SAME blueprint with the parent available "
+          "holds its marginal, which is the control that makes "
+          "the line above the missing parent rather than the shape",
+          abs(float((_vo == 1.0).mean()) - grid1) < 0.1)
+    check("...and the skip is visible in the run's own count of "
+          "refinements, so it is an observable rather than an "
+          "inference",
+          _rg.get("refinements_applied") <
+          _ok.get("refinements_applied"))
+
+    _rf = {}
+    _df2 = generate(ghost_bp(True), n_patients=400, seed=3,
+                    report=_rf, presence_rerank=True)
+    _df2 = _df2[0] if isinstance(_df2, tuple) else _df2
+    _vf = pd.to_numeric(_df2["pq"], errors="coerce").dropna()
+    check("...and the pass picks up what the sweep could not, "
+          "restoring the column to the value the healthy arm "
+          "produces rather than merely moving it",
+          abs(float((_vf == 1.0).mean())
+              - float((_vo == 1.0).mean())) < 0.02)
+    check("...naming it, so a fallback that silently stops firing "
+          "is visible from the run's own artifacts",
+          "pq" in (_rf.get("presence_reranked") or []))
+
+    _rh = {}
+    generate(ghost_bp(False), n_patients=400, seed=3, report=_rh,
+             presence_rerank=True)
+    check("...and where the sweep DID refine the column the pass "
+          "leaves it alone - a second re-rank onto a second pool "
+          "is how the sweeps went from tightening a ring to "
+          "loosening it",
+          "pq" not in (_rh.get("presence_reranked") or []))
+
+    _rows4, _would4 = classify_rerank(ghost_bp(True))
+    check("`peek rerank` predicts the blocked-sweep column too, so "
+          "the decision to spend machine time on a real arm is "
+          "made from the blueprint rather than from a run",
+          sorted(_would4) == sorted(_rf.get("presence_reranked") or []))
+
     print()
     if FAIL:
         print("{} FAILED".format(FAIL))

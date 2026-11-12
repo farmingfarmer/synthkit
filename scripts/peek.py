@@ -912,6 +912,22 @@ def marginal_view(run, col, src_path):
           "and the wrong value on every row.")
 
 
+def _sweep_blocked(bp, col, cols):
+    """True when NO relationship record for `col` has all of its
+    parents among the columns the engine draws.
+
+    That is the sweep's own `usable` test, read off the blueprint:
+    it needs one record whose every parent is in `out`, and `out`
+    holds the modelled columns.
+    """
+    recs = [r for r in (bp.get("relationships") or [])
+            if r.get("child") == col]
+    if not recs:
+        return True
+    return not any(all(p in cols for p in (r.get("parents") or []))
+                   for r in recs)
+
+
 def classify_rerank(bp):
     """(rows, would_be_reranked) for a blueprint.
 
@@ -938,8 +954,19 @@ def classify_rerank(bp):
         pres = bool(spec.get("presence"))
         if not child:
             why = "not a relationship child - its draw IS the marginal"
-        elif cyc:
+        elif cyc and not _sweep_blocked(bp, c, cols):
             why = "CYCLIC - the refinement sweep already owns it"
+        elif cyc:
+            # THE SWEEP NEEDS EVERY PARENT OF SOME RECORD to be a
+            # column the engine actually draws, and a blueprint can
+            # name one it never modelled - the token cap publishes
+            # more indicators than it draws. Such a column gets no
+            # re-rank from the sweep, and the acyclic path skips it
+            # for being cyclic. Neither, so its marginal is
+            # whatever curve plus noise produced.
+            why = ("CYCLIC but the sweep CANNOT refine it - a "
+                   "parent is not modelled - WOULD BE RE-RANKED")
+            would.append(c)
         elif pat:
             why = "patient-level - a per-row re-rank would break constancy"
         elif cov is None or float(cov) >= 1.0:

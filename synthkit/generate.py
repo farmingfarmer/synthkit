@@ -2834,6 +2834,17 @@ def generate(blueprint: Dict[str, Any],
     # imposed by reordering drawn values, so declared marginals
     # survive exactly.
     n_ref = 0
+    # CYCLIC COLUMNS THE SWEEP COULD NOT REFINE. Its guard
+    # needs EVERY parent of some record to be in `out`, and a
+    # blueprint can name a parent the engine never modelled -
+    # the token cap publishes more indicators than it draws.
+    # Such a column gets no re-rank from the sweep and none
+    # from the acyclic path either, which skips it for being
+    # cyclic, so its marginal is whatever curve plus noise
+    # produced. Measured on a ring fixture: share on the mode
+    # 0.6479 with the parent available and 0.0000 without,
+    # against a grid that says 0.6238.
+    unrefined: set = set()
     if cyclic and refine_sweeps > 0:
         for _sweep in range(int(refine_sweeps)):
             for c in order:
@@ -2845,6 +2856,7 @@ def generate(blueprint: Dict[str, Any],
                 usable = [r for r in rels
                           if all(p in out for p in r["parents"])]
                 if not usable:
+                    unrefined.add(c)
                     continue
                 draw = marg_draw[c]
                 got = _apply_numeric(c, spec, m, draw, usable,
@@ -2997,7 +3009,11 @@ def generate(blueprint: Dict[str, Any],
         _copied = set(copy_from) | set(copy_from.values())
         _rr = []
         for c in order:
-            if c in cyclic or c not in out or c not in marg_draw:
+            if c not in out or c not in marg_draw:
+                continue
+            # A cyclic column is the SWEEP's to refine - unless the
+            # sweep could not, in which case nothing else will.
+            if c in cyclic and c not in unrefined:
                 continue
             if (cols.get(c) or {}).get("kind") != "numeric":
                 continue
@@ -3009,14 +3025,20 @@ def generate(blueprint: Dict[str, Any],
             if c in pat_draws or c in _copied or not parents.get(c):
                 continue
             pending = masks.get(c)
-            if pending is None:
+            # A FULLY COVERED column has no mask, and for the
+            # acyclic case that means the surviving rows are every
+            # row and the in-loop re-rank already held the
+            # marginal. A column the SWEEP skipped had no re-rank
+            # at all, so it needs one whether or not it has a mask.
+            if pending is None and c not in unrefined:
                 continue
             cur = np.asarray(out[c], dtype=float)
             draw = np.asarray(marg_draw[c], dtype=float)
-            if len(pending) != len(cur) or len(draw) != len(cur):
+            if len(draw) != len(cur):
                 continue
-            ok = np.isfinite(cur) & np.isfinite(draw) & \
-                np.asarray(pending, dtype=bool)
+            ok = np.isfinite(cur) & np.isfinite(draw)
+            if pending is not None and len(pending) == len(cur):
+                ok = ok & np.asarray(pending, dtype=bool)
             if int(ok.sum()) < 2:
                 continue
             key = rel_order.get(c)
