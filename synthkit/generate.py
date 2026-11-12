@@ -156,7 +156,24 @@ COPY_COVERAGE_GUARD = False
 # the two published densities at that row's value, normalised to
 # the column's own coverage - the same shape `_presence_p` already
 # uses, with the response derived rather than published.
-COPY_PRESENCE_FROM_SOURCE = False
+#
+# ON BY DEFAULT since 2026-11-12, on the strength of a three-arm
+# paired comparison on the real extract rather than a fixture:
+#     arm                           pq vs its grid   identity broken
+#     control                               0.3255            90.1%
+#     --copy-coverage-guard                 0.0254            97.9%
+#     this                                  0.0847            59.0%
+# It is the only arm BETTER ON BOTH AXES than what shipped. The
+# control already broke the declared identity on 90.1% of rows -
+# the bound-pinning pass clamps the copied column to its own cap -
+# so this repairs a third of an identity that was never being
+# delivered while closing most of the marginal gap.
+#
+# WHAT IT DOES NOT DO, said beside the gain: the gate barely moves
+# (direction 132 -> 131, close identical, surfaces 14 -> 15). It
+# improves the FILE a recipient receives rather than the criteria,
+# because close and direction are rank correlations over pairs.
+COPY_PRESENCE_FROM_SOURCE = True
 # How far the two coverages may differ before the copy is refused.
 COPY_COVERAGE_TOL = 0.05
 

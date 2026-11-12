@@ -517,9 +517,16 @@ def main():
         a, b = sh(grid), sh(np.asarray(vals, dtype=float))
         return max(abs(p - q) for p, q in zip(a, b))
 
-    def _cov_run(guard, bpx=None):
+    def _cov_run(guard, bpx=None, cps=False):
+        # THE ROW-CHOOSING PASS IS NOW THE DEFAULT, so the checks
+        # about the GUARD have to turn it off to reproduce the
+        # fault the guard exists for. Leaving it on made the
+        # fault-reproduction check go red against correct code -
+        # the default had fixed it.
         _prev = G.COPY_COVERAGE_GUARD
+        _prev_cps = G.COPY_PRESENCE_FROM_SOURCE
         try:
+            G.COPY_PRESENCE_FROM_SOURCE = cps
             G.COPY_COVERAGE_GUARD = guard
             r = {}
             d = generate(bpx or _cov_bp(), n_patients=400, seed=3,
@@ -527,6 +534,7 @@ def main():
             d = d[0] if isinstance(d, tuple) else d
         finally:
             G.COPY_COVERAGE_GUARD = _prev
+            G.COPY_PRESENCE_FROM_SOURCE = _prev_cps
         return d, r
 
     check("the copy guard is OFF by default - this changes which "
@@ -677,9 +685,19 @@ def main():
 
     _A = _three_arms()
 
-    check("the row-choosing pass is OFF by default, like every "
-          "other fidelity change measured only on fixtures",
-          G.COPY_PRESENCE_FROM_SOURCE is False)
+    # ON BY DEFAULT since the three-arm real comparison. This
+    # check used to assert the opposite and is REWRITTEN to pin the
+    # new property rather than deleted - a check that goes red on
+    # an improvement is the shape this project has corrected four
+    # times.
+    check("the row-choosing pass is ON by default, earned on a "
+          "paired real-extract comparison rather than a fixture",
+          G.COPY_PRESENCE_FROM_SOURCE is True)
+    from synthkit.pipeline import build_parser as _bp_cps
+    check("...and there is an OFF switch, because a default that "
+          "cannot be turned off cannot be measured against",
+          any("--no-copy-presence-from-source" in o.option_strings
+              for o in _bp_cps()._actions))
     check("choosing the present rows from the two published grids "
           "lands the sparse column's own marginal - better than "
           "refusing the copy, which is the alternative",
