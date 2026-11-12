@@ -396,6 +396,36 @@ Synthetic clinical data generator and model-evaluation instrument. Core rule: le
 - Never state a number as measured unless you actually ran it.
 
 ## Fixing what the real extract found
+- **AND THE GATE BARELY MOVES, WHICH IS THE HALF A HEADLINE WOULD
+  HIDE (2026-11-12, regate of both arms on one ruler).**
+      criterion               control        --copy-presence-from-source
+      direction kept          132/151        131/151
+      close                   128/151        128/151
+      shapes tracked              6/9            6/9
+      interaction surfaces      14/53          15/52
+      M0 met                    False          False
+  One surface gained, one direction pair lost, close identical.
+  The DENOMINATOR moved on surfaces (53 to 52), so 14 against 15 is
+  the comparison rather than the percentages - this file has three
+  times recorded a conclusion drawn from a percentage whose
+  denominator moved.
+- **SO THE FIX IMPROVES THE FILE WITHOUT IMPROVING THE GATE, and
+  both halves have to be said.** What a researcher receives is
+  better: the worst column's distance from its own published
+  marginal falls **0.3255 to 0.0847** and the declared identity
+  goes from broken on **90.1%** of rows to **59.0%**. What the gate
+  measures is unmoved, because `close` and `direction` are rank
+  correlations over pairs and this changes WHICH rows carry a value
+  rather than how two columns are ordered against each other.
+- **WHICH IS AN ARGUMENT ABOUT THE GATE AS MUCH AS ABOUT THE FIX.**
+  A criterion set that cannot see a column going from 93% of rows
+  on one value to the right shape is not measuring everything a
+  recipient cares about - `coverage` checks presence within 0.05
+  and nothing checks a numeric column against its own published
+  marginal at all. `peek marginals` now does, and it is REPORTED
+  rather than gated, for the same reason the TVD measure is: a bar
+  nobody has measured a basis for would move release verdicts.
+
 - **THREE REAL ARMS ON ONE RULER, AND THE ROW-CHOOSING PASS IS THE
   ONLY ONE THAT IMPROVES BOTH AXES (2026-11-12, run_sw_ctl /
   _guard / _rows).** Same source, same seed 11, one flag apart,
