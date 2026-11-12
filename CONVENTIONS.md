@@ -396,6 +396,51 @@ Synthetic clinical data generator and model-evaluation instrument. Core rule: le
 - Never state a number as measured unless you actually ran it.
 
 ## Fixing what the real extract found
+- **THE LARGEST FIDELITY GAP ON THE FILE IS AN `==` CONSTRAINT
+  BETWEEN TWO COLUMNS OF DIFFERENT COVERAGE, AND IT IS CONFIRMED ON
+  THE REAL EXTRACT (2026-11-12, run_sw_ctl).** Four candidates died
+  before this one; this is the measurement rather than a fifth
+  guess. The run's own artifacts say:
+      peek copies    procedure_quantity := procedure_count
+      peek sweep     17 of 19 cyclic columns refined; SKIPPED:
+                     gender, procedure_quantity - both for
+                     "no marginal draw was kept for it"
+      peek rerank    procedure_count      coverage 1.00, no presence
+                     procedure_quantity   coverage 0.19, presence
+      peek marginals vs source   vs output   verdict
+                     procedure_quantity   0.0760   0.3255   BOTH
+                     procedure_count      0.0317   0.0594   GENERATION
+  **An `==` constraint between a column present on EVERY row and
+  one present on a fifth of them is not a whole-column identity.**
+  The two are equal where both are present, which clears the 0.999
+  bar the detector applies - and copying the dense column wholesale
+  hands the sparse one the dense one's distribution, masked
+  afterwards by a presence model that selects different rows than
+  the source's did. The sparse column is then never drawn from its
+  own published marginal at all, which is exactly what the sweep
+  reports.
+- **AND THAT IS WHY EVERY EARLIER CANDIDATE MISSED.** `peek sizes`
+  found nothing because this is a CONSTRAINT copy, not the sized-set
+  identity. The unmodelled-parent skip was refuted by the predictor.
+  The presence-aware re-rank cannot reach it, because a copied
+  column has no draw to re-rank onto - the flag would have touched
+  ZERO columns on this blueprint, which is what saved a
+  forty-five-minute paired arm.
+- **AND THE ENGINE IS NOT BROADLY WRONG ABOUT MARGINALS, which is
+  the reassuring half and was never measured before.** Of 31 numeric
+  columns, **25 track both their own published grid and their
+  source**; six do not, and only **two of those are the sampler's -
+  and they are the same column twice**, one copied into the other.
+  The other four are the CONTRACT's error, which is a different and
+  smaller fix. A whole-engine reading like that is worth having
+  before anybody concludes from one column that the sampler is
+  unreliable.
+- **AND `gender` IS THE SECOND SKIP AND IS NOT A FAULT.** The sweep
+  keeps a marginal draw for NUMERIC columns only, so a cyclic
+  CATEGORICAL column always reports "no marginal draw was kept for
+  it". The reason text reads like a defect there and is not one -
+  worth rewording before somebody acts on it.
+
 - **THE REFINEMENT SWEEP CAN SKIP A CYCLIC COLUMN ENTIRELY, AND
   THEN NOTHING RE-RANKS IT (2026-11-12).** The sweep needs EVERY
   parent of some relationship record to be a column the engine
