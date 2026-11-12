@@ -144,6 +144,19 @@ PRESENCE_RERANK = False
 # lands 0.3255 from its own published grid where its source column
 # lands 0.0594. It is the largest single fidelity gap on that file.
 COPY_COVERAGE_GUARD = False
+
+# CHOOSE WHICH ROWS A COPIED COLUMN IS PRESENT ON, from the two
+# published grids - which keeps the identity AND the marginal
+# where the guard above keeps one at the cost of the other.
+#
+# If the sparse column EQUALS the dense one wherever it is present,
+# then its published marginal IS the dense one restricted to those
+# rows. So copying is right and the thing to reproduce is WHICH
+# rows are present. The keep probability for a row is the ratio of
+# the two published densities at that row's value, normalised to
+# the column's own coverage - the same shape `_presence_p` already
+# uses, with the response derived rather than published.
+COPY_PRESENCE_FROM_SOURCE = False
 # How far the two coverages may differ before the copy is refused.
 COPY_COVERAGE_TOL = 0.05
 
@@ -2227,6 +2240,65 @@ def _solve_within(target, icc, within, counts, build, seed,
     return mid, measure(mid)
 
 
+def _grid_density(m, x):
+    """Piecewise density implied by a published quantile grid.
+
+    Between two knots the inverse CDF is linear, so the density is
+    the quantile step divided by the value step. A zero-width step
+    is a POINT MASS and has no finite density - it is handled by
+    the caller, which only ever takes a RATIO of two densities and
+    can treat the shared mass directly.
+    """
+    q = np.asarray(m.get("q") or [], dtype=float)
+    v = np.asarray(m.get("v") or [], dtype=float)
+    if len(q) < 2 or len(q) != len(v):
+        return None
+    x = np.asarray(x, dtype=float)
+    out = np.zeros(len(x), dtype=float)
+    for i in range(len(v) - 1):
+        lo, hi = v[i], v[i + 1]
+        dq = q[i + 1] - q[i]
+        if hi > lo:
+            sel = (x >= lo) & (x <= hi)
+            out[sel] += dq / (hi - lo)
+        else:
+            # a point mass: all of dq sits on this one value
+            out[np.isclose(x, lo)] += dq
+    return out
+
+
+def copy_presence_p(src_m, dst_m, vals, target_cov):
+    """Per-row probability that a COPIED column is present.
+
+    The ratio of the two published densities at the copied value,
+    rescaled so the mean is exactly the coverage the blueprint
+    published - informative missingness must not move the SHARE of
+    rows present, only WHICH ones, which is the rule `_presence_p`
+    already states.
+
+    Returns None when either grid is unusable, so the caller falls
+    back to the flat draw rather than inventing a mask.
+    """
+    fs = _grid_density(dst_m, vals)
+    fd = _grid_density(src_m, vals)
+    if fs is None or fd is None:
+        return None
+    with np.errstate(divide="ignore", invalid="ignore"):
+        r = np.where(fd > 0, fs / np.maximum(fd, 1e-12), 0.0)
+    r = np.where(np.isfinite(r), r, 0.0)
+    if float(r.sum()) <= 0:
+        return None
+    # SCALE TO THE COVERAGE, then clip, then correct once - the
+    # same two-pass shape `_presence_p` uses, and for the same
+    # reason: clipping pulls the mean off target.
+    p = r * (float(target_cov) * len(r) / float(r.sum()))
+    p = np.clip(p, 0.0, 1.0)
+    m2 = float(p.mean())
+    if m2 > 0:
+        p = np.clip(p * (float(target_cov) / m2), 0.0, 1.0)
+    return p
+
+
 def _presence_p(pm, parent_vals, target_cov):
     """Per-row probability that this column is measured.
 
@@ -2521,7 +2593,34 @@ def generate(blueprint: Dict[str, Any],
             if cov is not None and float(cov) < 1.0:
                 clus = float(spec.get(
                     "target_missing_clustering") or 0.0)
-                if clus <= 0.0:
+                keep = None
+                # WHICH ROWS, chosen from the two published grids.
+                # A copied column is equal to its source wherever
+                # it is present, so its own published marginal IS
+                # the source's restricted to those rows - and a
+                # FLAT mask reproduces the source's distribution
+                # instead of its own. Choosing the rows by the
+                # density ratio keeps the identity AND lands the
+                # marginal, where refusing the copy keeps one at
+                # the cost of the other.
+                if COPY_PRESENCE_FROM_SOURCE:
+                    _sm = ((cols.get(_cp) or {}).get("marginal")
+                           or {})
+                    if (m.get("type") == "quantiles"
+                            and _sm.get("type") == "quantiles"):
+                        _p = copy_presence_p(
+                            _sm, m, np.asarray(arr_cp, dtype=float),
+                            float(cov))
+                        if _p is not None:
+                            keep = rng.random_sample(len(_p)) < _p
+                            if report is not None:
+                                report.setdefault(
+                                    "copy_presence_modeled",
+                                    []).append(
+                                        {"column": c, "from": _cp})
+                if keep is not None:
+                    pass
+                elif clus <= 0.0:
                     keep = rng.random_sample(len(arr_cp)) < float(cov)
                 else:
                     keep = clustered_presence(counts, float(cov),

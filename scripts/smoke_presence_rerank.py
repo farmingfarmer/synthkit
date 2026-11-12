@@ -641,6 +641,90 @@ def main():
           any("BY DESIGN" in v for v in _sk2.values())
           or "cat" not in _sk2)
 
+    # ---- CHOOSING WHICH ROWS, INSTEAD OF REFUSING THE COPY ------
+    # The guard above keeps the marginal at the cost of the
+    # identity. It does not have to be a trade: if the sparse
+    # column equals the dense one wherever it is PRESENT, its own
+    # published marginal IS the dense one restricted to those rows,
+    # so copying is right and the thing to reproduce is WHICH rows
+    # are present. The keep probability is the ratio of the two
+    # published densities at the copied value.
+    def _three_arms():
+        out = {}
+        for key, guard, cps in (("base", False, False),
+                                ("guard", True, False),
+                                ("rows", False, True)):
+            _pg, _pc = G.COPY_COVERAGE_GUARD, G.COPY_PRESENCE_FROM_SOURCE
+            try:
+                G.COPY_COVERAGE_GUARD = guard
+                G.COPY_PRESENCE_FROM_SOURCE = cps
+                r = {}
+                d = generate(_cov_bp(), n_patients=400, seed=3,
+                             report=r)
+                d = d[0] if isinstance(d, tuple) else d
+            finally:
+                G.COPY_COVERAGE_GUARD = _pg
+                G.COPY_PRESENCE_FROM_SOURCE = _pc
+            x = pd.to_numeric(d["dense"], errors="coerce")
+            y = pd.to_numeric(d["sparse"], errors="coerce")
+            msk = x.notna() & y.notna()
+            out[key] = {
+                "gap": _grid_gap(y.dropna(), _SPARSE),
+                "identity": float((x[msk] == y[msk]).mean()),
+                "cov": float(y.notna().mean()),
+                "report": r}
+        return out
+
+    _A = _three_arms()
+
+    check("the row-choosing pass is OFF by default, like every "
+          "other fidelity change measured only on fixtures",
+          G.COPY_PRESENCE_FROM_SOURCE is False)
+    check("choosing the present rows from the two published grids "
+          "lands the sparse column's own marginal - better than "
+          "refusing the copy, which is the alternative",
+          _A["rows"]["gap"] < _A["guard"]["gap"] < _A["base"]["gap"])
+    check("...AND keeps the identity the copy exists to carry, "
+          "which refusing the copy destroys - so this is not the "
+          "trade the guard is",
+          _A["rows"]["identity"] > 0.99
+          and _A["guard"]["identity"] < 0.10)
+    check("...while holding the published COVERAGE, because "
+          "informative missingness must move WHICH rows are "
+          "present and not how many",
+          abs(_A["rows"]["cov"] - 0.19) < 0.05)
+    check("...and the run NAMES the column whose presence it "
+          "modelled this way, so a pass that stops firing is "
+          "visible from the artifacts",
+          any(e.get("column") == "sparse" for e in
+              (_A["rows"]["report"].get("copy_presence_modeled")
+               or [])))
+    check("...and says nothing when it is off - absent is not the "
+          "same fact as ran-and-did-nothing",
+          "copy_presence_modeled" not in _A["base"]["report"])
+
+    # THE DENSITY RATIO IS A PURE FUNCTION, asserted on planted
+    # grids rather than only through a generate.
+    _dense_m = {"type": "quantiles", "q": [0.0, 0.5, 1.0],
+                "v": [0.0, 10.0, 20.0]}
+    _sparse_m = {"type": "quantiles", "q": [0.0, 1.0],
+                 "v": [10.0, 20.0]}
+    _vals = np.array([1.0, 5.0, 12.0, 18.0])
+    _p = G.copy_presence_p(_dense_m, _sparse_m, _vals, 0.5)
+    check("the keep probability is ZERO where the sparse column "
+          "publishes no mass - a row whose copied value cannot "
+          "occur in that column must not be present",
+          _p is not None and _p[0] < 1e-9 and _p[1] < 1e-9)
+    check("...and positive where it does, so the rows that survive "
+          "are the ones the sparse marginal describes",
+          _p[2] > 0.0 and _p[3] > 0.0)
+    check("...and averages to the coverage asked for, because the "
+          "share present is not this pass's to change",
+          abs(float(np.mean(_p)) - 0.5) < 0.02)
+    check("...and an unusable grid returns NOTHING rather than a "
+          "mask invented from it",
+          G.copy_presence_p({}, _sparse_m, _vals, 0.5) is None)
+
     print()
     if FAIL:
         print("{} FAILED".format(FAIL))

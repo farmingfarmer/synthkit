@@ -396,6 +396,44 @@ Synthetic clinical data generator and model-evaluation instrument. Core rule: le
 - Never state a number as measured unless you actually ran it.
 
 ## Fixing what the real extract found
+- **IT DID NOT HAVE TO BE A TRADE, AND THE THIRD ARM KEEPS BOTH
+  (2026-11-12, `--copy-presence-from-source`).** A column carried by
+  an `==` constraint EQUALS its source wherever it is present - so
+  its own published marginal IS the source's restricted to those
+  rows, copying is right, and the thing to reproduce is WHICH rows
+  are present. A flat mask reproduces the SOURCE's distribution
+  instead, which is the whole fault. The keep probability for a row
+  is the ratio of the two published densities at the copied value,
+  normalised to the column's own coverage - the shape
+  `_presence_p` already uses, with the response DERIVED from the
+  grids rather than published.
+      arm                           sparse gap   identity   coverage
+      copy with a flat mask             0.4449      48.3%     0.1834
+      refuse the copy (the guard)       0.0372       1.6%     0.1986
+      choose the rows                   0.0078     100.0%     0.1777
+  **Better on the marginal than refusing the copy AND the identity
+  is whole**, with the coverage held.
+- **AND IT RESOLVES THE PIN CONFLICT WITHOUT AIMING AT IT.** The
+  baseline's identity reads 48.3% rather than 100% because the
+  bound-pinning pass clamps the copied column to its OWN published
+  cap - the second defect recorded above. Choosing the rows by the
+  density ratio leaves only values the sparse column's own grid
+  covers, so the pin has nothing to clamp and the equality
+  survives. A fix that removes the need for a second fix is worth
+  noticing; it was not designed for that.
+- **THE DENSITY RATIO IS A PURE FUNCTION ON PLANTED GRIDS**, so the
+  branch that matters is tested without a generate: the keep
+  probability is ZERO where the sparse column publishes no mass - a
+  row whose copied value cannot occur in that column must not be
+  present - positive where it does, averages to the coverage asked
+  for, and an unusable grid returns NOTHING rather than a mask
+  invented from it. Three mutations each turn it red: a flat mask,
+  the ratio inverted, and skipping the renormalisation.
+- **OFF BY DEFAULT, and the real arm is the next run.** The guard
+  stays too: it is the honest answer where the two columns do not
+  share a grid shape, and an operator should be shown the trade
+  rather than have it decided by a default.
+
 - **THE PAIRED REAL ARM RAN, AND THE GUARD IS A TRADE RATHER THAN A
   WIN (2026-11-12, run_sw_ctl against run_sw_guard).** Same source,
   same seed 11, same build for the arm and a control verified

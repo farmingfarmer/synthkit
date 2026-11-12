@@ -265,6 +265,23 @@ def build_parser(prog=None, add_help=True):
                          "is the thing to try first if a cyclic "
                          "column looks wrong on real data - this has "
                          "not been measured on a real extract yet")
+    ap.add_argument("--copy-presence-from-source",
+                    action="store_true",
+                    help=("choose WHICH rows a copied column is "
+                          "present on from the two published "
+                          "grids, instead of a flat draw. A "
+                          "column carried by an `==` constraint "
+                          "equals its source wherever it is "
+                          "present, so its own marginal is the "
+                          "source's restricted to those rows - a "
+                          "flat mask reproduces the SOURCE's "
+                          "distribution instead. Measured on a "
+                          "fixture: the sparse column's gap to "
+                          "its own grid 0.4449 flat, 0.0372 if "
+                          "the copy is refused, 0.0078 this way, "
+                          "with the identity held on 100 percent "
+                          "of rows rather than destroyed. OFF by "
+                          "default."))
     ap.add_argument("--copy-coverage-guard", action="store_true",
                     help=("refuse to carry an `==` constraint by "
                           "copying when the two columns have "
@@ -875,6 +892,12 @@ def main(argv=None, args=None):
         say("token solve: {} extra pass(es) per published "
             "conditional pair, capped at {}".format(
                 float(_scale), _gen.TOKEN_SOLVE_MAX_PASSES))
+    if getattr(a, "copy_presence_from_source", False):
+        import synthkit.generate as _gen
+        _gen.COPY_PRESENCE_FROM_SOURCE = True
+        say("choosing which rows a copied column is present on "
+            "from the two published grids, so the copy keeps the "
+            "identity AND lands its own marginal")
     if getattr(a, "copy_coverage_guard", False):
         import synthkit.generate as _gen
         _gen.COPY_COVERAGE_GUARD = True
