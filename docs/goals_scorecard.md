@@ -509,7 +509,7 @@ fidelity, and the self-explaining gate all landed.)*
   at skill 0.9999, so permuting one date column within a patient
   while the other stays would destroy a near-identity.
 - ~~Next step, measured rather than assumed cheap.~~ DONE the
-  same day. A patient's dates go in visit order now — **0.2% →
+  same day, 2026-11-08. A patient's dates go in visit order now — **0.2% →
   100% of patients** — and the near-identity survives because ONE
   permutation serves every date column, so each row keeps its own
   pair: start~end reads **+0.9988 in both arms**, bit-identical,
@@ -531,23 +531,30 @@ fidelity, and the self-explaining gate all landed.)*
   already orders the generated frame by `visit_number`. Running
   the gate rather than reasoning about it is the only reason that
   did not ship.
-- What remains on dynamics is named and NOT yet measurable here.
-  A generated patient's visit dates are drawn from the GLOBAL
-  marginal, so they spread across the cohort rather than
-  clustering into a care episode — the within-patient
-  autocorrelation read **0.74 against a source 0.98**. That 0.98
-  came from a fixture built with cumulative gaps, where patients
-  are episodes by construction; the repo's own extract-shaped
-  fixture has `visit_start_date` at **icc 0.0062** with a mean
-  within-patient span HALF the cohort's, so its patients are not
-  episodes and an output that spreads them is faithful there.
-  Whether a real patient's visits cluster is a property of the
-  real extract and neither fixture can answer it. The route is
-  written down — a patient-level anchor plus a k-screened
-  within-patient GAP distribution, drawn as a cumulative sum —
-  with its price named in advance: the date column's global
-  marginal becomes a convolution rather than the published
-  quantiles, which the gate measures.
+- ~~What remains on dynamics is the care episode — a generated
+  patient's dates spread across the cohort rather than
+  clustering.~~ **RETIRED BY A CLEAN NEGATIVE, measured on the
+  real extract rather than on either fixture (2026-11-08).** The
+  engine
+  already reproduces the real spread: `visit_start_date` span
+  ratio reads **source 0.2994 against generated 0.3053**, within
+  six thousandths, and a SECOND arm with a different time axis
+  reads **0.3144** on both of its date columns against the same
+  source. Two arms landing within 0.015 of the source is a
+  measurement rather than one draw. **There is nothing to model
+  here** — the patient-level level plus its icc already carries
+  it — so the anchor-and-gaps route is not a fidelity gap on this
+  extract, and the price it would have cost the date column's
+  published marginal is a price for nothing.
+- Why that item existed at all is worth keeping: the
+  within-patient autocorrelation was read as **0.74 against a
+  source 0.98**, and the 0.98 came from a fixture built with
+  cumulative gaps where every patient is an episode by
+  construction. The repo's own extract-shaped fixture has
+  `visit_start_date` at **icc 0.0062** with a mean within-patient
+  span HALF the cohort's — so the two fixtures disagreed with
+  each other AND with the data, and only the extract could
+  settle it.
 - The search cap: only 24 tokens per set column can carry a
   relationship; on the extract the excluded tokens hold 72% of
   `conditions` mass. Measured, reported by `peek cap`, unresolved —

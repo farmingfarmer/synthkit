@@ -145,6 +145,44 @@ def main():
           "judgment as a measurement",
           "The percentages are judgments" in text)
 
+    # A RETIRED ITEM MUST SAY WHAT RETIRED IT. The page carried
+    # "What remains on dynamics is named and NOT yet measurable
+    # here" for days after the real extract had measured it and
+    # refuted it - a reader of a progress document acts on a line
+    # like that, and it is the page's whole job not to be stale.
+    #
+    # The check is about SHAPE rather than about any one item: a
+    # struck-through remaining-item (`~~...~~`) must carry a word
+    # that says what settled it, because a crossed-out line with
+    # no verdict beside it reads as abandoned rather than closed.
+    _struck = [ln for ln in text.splitlines()
+               if ln.strip().startswith("- ~~")]
+    check("the page strikes through at least one remaining item, "
+          "so the check below is not passing on an empty list "
+          "({} struck)".format(len(_struck)),
+          len(_struck) >= 3)
+    # A DATE, NOT A WORD LIST. The first version of this check
+    # kept a tuple of closing verbs - MET, DONE, EXISTS - and
+    # went red on items that said LANDED, ANSWERED and PARTLY
+    # ADDRESSED. A hand-kept vocabulary goes stale the day
+    # somebody writes a different verb, which is the same
+    # objection this project makes to a hand-kept dependency
+    # list. Every genuine closure here cites WHEN it was settled,
+    # so the date is the self-maintaining form.
+    _lines = text.splitlines()
+    _bare = []
+    for _i, _ln in enumerate(_lines):
+        if not _ln.strip().startswith("- ~~"):
+            continue
+        _blk = " ".join(_lines[_i:_i + 8])
+        if not re.search(r"20\d\d-\d\d-\d\d", _blk):
+            _bare.append(_ln.strip()[:60])
+    check("...and every struck item cites WHEN it was settled, "
+          "because a crossed-out line with no date beside it "
+          "reads as abandoned rather than closed: {}".format(
+              ", ".join(_bare) or "none bare"),
+          not _bare)
+
     print()
     if FAIL:
         print("{} FAILED".format(FAIL))
