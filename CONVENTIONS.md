@@ -396,6 +396,32 @@ Synthetic clinical data generator and model-evaluation instrument. Core rule: le
 - Never state a number as measured unless you actually ran it.
 
 ## Fixing what the real extract found
+- **THE NEW MEASURE'S BEST VALUE IS ALSO WHAT THE WORST PRIVACY
+  FAILURE PRODUCES, AND IT SAYS SO (2026-11-12).** A generator that
+  republished the source VERBATIM scores **ZERO** on
+  `source_vs_output` for every column - a perfect marginal is
+  exactly what copying produces. So a good number here must never
+  be read as reassurance; the attack batteries and the nn
+  tripwire are what speak to that. The property is PINNED by a
+  check that feeds the source back as the output, rather than
+  left to a reader to remember.
+- **AND TWO OF THE SUITE'S OWN CHECKS WERE DECORATION UNTIL THEY
+  WERE MUTATED.** The one-ruler property - edges from the SOURCE,
+  applied to all three - compared two edge LISTS and never went
+  through `measure`, so a mutation that binned each table by its
+  OWN quantiles broke nothing. The shape that exposes it is an
+  output that is the source SCALED: identical shares under its own
+  quantiles, entirely off the top under the source's. And the
+  no-cell-published check searched the serialised block for
+  "count" and matched the block's own NOTE explaining that no bin
+  count is published - a check satisfied by its own explanation.
+  Both rewritten; both mutations now bite.
+- **AND THE WRAPPED-PHRASE TRAP CAUGHT ME A SIXTH TIME.** A check
+  asserting the module warns about its own privacy reading looked
+  for "never be read as reassurance", which a line break splits,
+  and went red against a docstring saying exactly that. Anchor
+  inside ONE line.
+
 - **EVERY RUN NOW CARRIES WHETHER ITS NUMERIC COLUMNS MATCH THEIR
   OWN PUBLISHED MARGINAL, AND NOTHING ASKED BEFORE (2026-11-12,
   `synthkit/marginals.py`).** Every per-column criterion in the

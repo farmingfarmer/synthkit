@@ -30,6 +30,16 @@ threshold nobody has measured a basis for - the same reasoning the
 TVD block carries. And no cell is published: this emits distances
 and column names, never a bin count, because a bin holding three
 patients describes those three.
+
+AND IT SAYS NOTHING ABOUT PRIVACY, which has to be stated because
+the direction of "good" here points the wrong way. A generator that
+republished the source VERBATIM would score ZERO on every column -
+a perfect marginal is exactly what copying produces. So this is a
+fidelity measure whose best possible value is also what the worst
+possible privacy failure produces, and it must never be read as
+reassurance. The attack batteries and the nn tripwire are what
+speak to that; `measure` asserts the republish case in the suite so
+the property is pinned rather than remembered.
 """
 from typing import Any, Dict, List, Optional
 
