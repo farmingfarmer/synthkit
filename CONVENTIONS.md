@@ -336,6 +336,42 @@ Synthetic clinical data generator and model-evaluation instrument. Core rule: le
   reason: it tests the third seed and the reproducibility of the
   earlier reading at once.
 
+- **THE REFUSAL WORKS WHERE THE ANSWER EXISTS: ON THE FINAL VALUES
+  (2026-11-13).** Asking at copy time over-predicted, because the
+  pin pass, the constraint repair and the refinement sweep all move
+  the copied values afterwards. The decision now happens
+  immediately before the presence masks are applied - where the
+  values are final, the flat mask is still in hand as the unbiased
+  comparison, and a column that would invert falls back to the flat
+  draw. That costs that column its marginal and keeps its sign.
+- **AND THE SCREEN MATCHES THE GATE'S OWN RULE, which is the thing
+  that makes it neither over- nor under-sensitive.** The gate
+  counts an inversion as `source * generated < 0 AND
+  abs(generated) >= 0.1`, so a relationship pushed to NOISE is not
+  an inversion there and must not be one here. Checked against
+  `pipeline.py`'s own expression rather than remembered.
+- **AND IT EXPLAINS THE SEED-11 ARM EXACTLY, which is the
+  reassuring part.** `sign_kept` has NO magnitude floor, so a
+  relationship pushed just past zero costs a DIRECTION pair
+  without being an inversion - which is precisely the shape that
+  arm showed: direction 131 against 132, one pair, with INVERTED
+  moving only on the column that reached -0.106.
+- **NO FIXTURE HERE REACHES THE REFUSAL, AND THAT IS SAID RATHER
+  THAN PAPERED OVER.** Four cuts of a copied column - coverage
+  0.50, 0.20, 0.10, 0.05 - all send the biased arm to noise rather
+  than past the floor: **+0.0062, +0.0709, -0.0390, +0.0605**
+  against flat arms near +0.19. So the branch is asserted on
+  PLANTED input at the extract's own magnitudes (a flat +0.4681
+  against a biased -0.1753, both over the floor and opposite in
+  sign), and the pass's wiring is asserted separately. Three
+  mutations bite: emptying the pending map, dropping the fallback,
+  and letting a refused column stay in the modeled list.
+- **WHAT THIS DOES NOT DO: restore the default.** The tier is still
+  OFF. Whether the refusal lets it earn the default back is a
+  question for a paired real arm - the one measured shape that
+  crosses the gate's floor is on the extract, not here, so the
+  extract is the only place the answer is.
+
 - **THE REFUSAL I BUILT FOR THAT TIER WAS A PREDICTION, AND IT
   PREDICTED WRONG ON BOTH FIXTURES - SO IT WARNS INSTEAD
   (2026-11-13).** The obvious fix for a tier that manufactures an

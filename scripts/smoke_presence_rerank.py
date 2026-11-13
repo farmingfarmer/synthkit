@@ -815,6 +815,63 @@ def main():
           "going the other way",
           _sfu(_base, [("p", _pv)], _mB, _mA) == [])
 
+    # AND THE DECISION IS MADE ON THE FINAL VALUES NOW, which is
+    # the only place the question has an answer: the pin pass, the
+    # constraint repair and the refinement sweep all move the
+    # copied values after the mask is chosen. The screen matches
+    # the gate's OWN inverted rule - `source * generated < 0 and
+    # abs(generated) >= 0.1` - so it fires on exactly what the
+    # gate would flag and not on a relationship going to noise.
+    _gsrc2 = io.open(ROOT / "synthkit" / "pipeline.py",
+                     encoding="utf-8").read()
+    check("the gate counts an INVERTED only when the generated "
+          "side also reaches 0.1, so a screen that fired on a "
+          "relationship going to NOISE would refuse the tier for "
+          "something the gate does not flag",
+          'abs(r["generated"]) >= 0.1' in _gsrc2)
+    _gen_src = io.open(ROOT / "synthkit" / "generate.py",
+                       encoding="utf-8").read()
+    check("...and the refusal pass is wired: it reads the kept "
+          "masks, replaces the biased one with the flat draw, and "
+          "records the column it refused for",
+          "for _c, (_kb, _kf, _cpn) in sorted(cp_pending" in _gen_src
+          and "masks[_c] = np.asarray(_kf" in _gen_src
+          and "copy_presence_refused" in _gen_src)
+    check("...and a refused column is REMOVED from the modeled "
+          "list, so the two accounts cannot both claim it",
+          'r for r in _mod if r.get("column") != _c' in _gen_src)
+
+    # THE REAL EXTRACT'S OWN MAGNITUDES, planted, because no
+    # fixture here reaches them. Four cuts of a copied column -
+    # coverage 0.50, 0.20, 0.10, 0.05 - all send the biased arm to
+    # NOISE rather than past zero: +0.0062, +0.0709, -0.0390,
+    # +0.0605 against flat arms near +0.19. The extract reached
+    # -0.106 against a source +0.497, which is the one shape
+    # measured to cross the gate's floor.
+    _n6 = 6000
+    _r6 = np.random.default_rng(71)
+    _b6 = _r6.normal(0, 1, _n6)
+    _mF = np.zeros(_n6, dtype=bool)
+    _mF[:_n6 // 2] = True
+    _mB = ~_mF
+    _p6 = np.empty(_n6)
+    _p6[_mF] = (0.497 * _b6[_mF]
+                + np.sqrt(1 - 0.497 ** 2)
+                * _r6.normal(0, 1, int(_mF.sum())))
+    _p6[_mB] = (-0.14 * _b6[_mB]
+                + np.sqrt(1 - 0.14 ** 2)
+                * _r6.normal(0, 1, int(_mB.sum())))
+    _rF6, _rB6 = _sp(_b6[_mF], _p6[_mF]), _sp(_b6[_mB], _p6[_mB])
+    check("the planted pair reaches the real extract's shape - a "
+          "flat {:+.4f} against a biased {:+.4f}, both over the "
+          "gate's own 0.1 floor and opposite in sign".format(
+              _rF6, _rB6),
+          abs(_rF6) > 0.1 and abs(_rB6) > 0.1
+          and (_rF6 > 0) != (_rB6 > 0))
+    check("...and THAT is reported as a flip, which is the case "
+          "the refusal exists for",
+          _sfu(_b6, [("p", _p6)], _mB, _mF) == ["p"])
+
     check("choosing the present rows from the two published grids "
           "lands the sparse column's own marginal - better than "
           "refusing the copy, which is the alternative",

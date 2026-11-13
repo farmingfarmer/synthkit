@@ -2620,6 +2620,10 @@ def generate(blueprint: Dict[str, Any],
         set_rels = {}
     marg_draw: Dict[str, Any] = {}
     rel_order: Dict[str, Any] = {}
+    # (biased mask, flat mask, copy source) per column the
+    # copy-presence tier chose rows for, so the sign question can
+    # be asked AFTER every later pass has moved the values.
+    cp_pending: Dict[str, Any] = {}
     # Patient-level draws, kept so the collapse can be RE-RUN after
     # the refinement sweeps - see below.
     pat_draws: Dict[str, Any] = {}
@@ -2801,6 +2805,18 @@ def generate(blueprint: Dict[str, Any],
                             _bad = sign_flips_under(
                                 arr_cp, _pt, _kb, _kf)
                             keep = _kb
+                            # THE DECISION IS MADE LATER, ON THE
+                            # FINAL VALUES. The reading here is on
+                            # the copied values at copy time, and
+                            # the pin pass, the constraint repair
+                            # and the refinement sweep all move
+                            # them - so this is a prediction, and
+                            # it predicted an inversion that did
+                            # not happen on two fixtures. Both
+                            # masks are kept so the same question
+                            # can be asked where the answer is
+                            # knowable.
+                            cp_pending[c] = (_kb, _kf, _cp)
                             if report is not None:
                                 report.setdefault(
                                     "copy_presence_modeled",
@@ -3469,6 +3485,48 @@ def generate(blueprint: Dict[str, Any],
     # against complete values, the refinement sweeps run, and only
     # then are the unmeasured rows blanked - the latent value existed,
     # it simply is not published.
+    # REFUSE ON THE FINAL VALUES, WHICH IS THE ONLY PLACE THE
+    # QUESTION HAS AN ANSWER.
+    #
+    # Choosing which rows a copied column is present on by the
+    # density ratio is what lands that column's own marginal, and
+    # it makes presence depend on the VALUE - so every
+    # relationship the column takes part in is then measured on a
+    # value-biased subset. On the real extract at seed 11 that
+    # flipped `procedure_quantity` against `active_drug_count`
+    # from a source +0.497 to a generated -0.106: an own-column
+    # INVERTED, which this project calls the absolute stop.
+    #
+    # Asking at COPY TIME over-predicted: the pin pass, the
+    # constraint repair and the refinement sweep all move the
+    # values afterwards, and on two fixtures the written output
+    # weakened the relationship without reversing it. Here the
+    # values are final and the flat mask is the unbiased
+    # comparison, so a reversal is MEASURED rather than guessed -
+    # and a column that would invert falls back to the flat draw,
+    # which costs that column its marginal and keeps the sign.
+    for _c, (_kb, _kf, _cpn) in sorted(cp_pending.items()):
+        if _c not in out:
+            continue
+        _vals = np.asarray(out[_c], dtype=float)
+        _pt = []
+        for _r in (parents.get(_c) or []):
+            for _pn in (_r.get("parents") or []):
+                if _pn in out and _pn != _c:
+                    _pt.append((_pn, np.asarray(out[_pn],
+                                                dtype=float)))
+        _flip = sign_flips_under(_vals, _pt, _kb, _kf)
+        if not _flip:
+            continue
+        masks[_c] = np.asarray(_kf, dtype=bool)
+        if report is not None:
+            report.setdefault("copy_presence_refused", []).append(
+                {"column": _c, "from": _cpn,
+                 "would_invert": _flip})
+            _mod = report.get("copy_presence_modeled") or []
+            report["copy_presence_modeled"] = [
+                r for r in _mod if r.get("column") != _c]
+
     for c, keep in masks.items():
         col = out.get(c)
         if col is None or not len(keep):
