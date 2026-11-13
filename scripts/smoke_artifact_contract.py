@@ -300,11 +300,25 @@ def main():
               "above it cannot see a column that passed coverage "
               "with the wrong distribution",
               "Marginal shape (not a criterion)" in _html)
-        check("...carrying the warning that a verbatim copy would "
-              "score perfectly on it, so a good line is never "
-              "read as privacy on the one page that is signed",
-              "not at all to privacy" in _html
-              or "track both their own published summary" in _html)
+        # WHICH CASE THIS RUN IS IN, said out loud. The measure
+        # refuses a column whose own sampling noise reaches the
+        # share bar, and on a small cohort that is every column -
+        # so the page reports NOT READABLE, where there is no
+        # good number to be misread as privacy and the warning
+        # would be about nothing.
+        if "NOT READABLE on this run" in _html:
+            check("...and on a cohort too thin to read it says so "
+                  "on the page, because a vanished section on the "
+                  "page somebody signs reads as a pass",
+                  "size of the cohort" in _html)
+        else:
+            check("...carrying the warning that a verbatim copy "
+                  "would score perfectly on it, so a good line is "
+                  "never read as privacy on the one page that is "
+                  "signed",
+                  "not at all to privacy" in _html
+                  or "track both their own published summary"
+                  in _html)
 
         det = cli("-m", "synthkit.cli", "determination", run)
         check("the determination CLI runs on this run and exits "

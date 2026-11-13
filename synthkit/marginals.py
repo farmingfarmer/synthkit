@@ -55,6 +55,52 @@ SEED = 20261111
 MIN_ROWS = 50
 
 
+# THE MEASURE'S OWN NOISE FLOOR, MEASURED.
+#
+# Two independent draws of ONE distribution do not score zero
+# here - a faithful output still differs from its source by
+# sampling alone, and on an eleven-band ruler that is not small.
+# Measured over forty draws per cell:
+#
+#     n        mean TVD   worst of 40
+#     50         0.1820        0.3000
+#     200        0.1089        0.1650
+#     1000       0.0504        0.0800
+#     5000       0.0200        0.0368
+#     55000      0.0065        0.0100
+#
+# **AT A THOUSAND ROWS A FAITHFUL OUTPUT READS 0.0504 AGAINST A
+# BAR OF 0.05.** So for any column with a few hundred present
+# rows the bar sat BELOW the instrument's own noise and the column
+# read as a finding whatever the generator did - a verdict decided
+# by the draw, which this project calls out wherever it finds it
+# (an 87.9% bar inside a four-point seed spread; a campaign tier
+# demanding 0.700 over a 0.698 ceiling). `MIN_ROWS = 50` admitted
+# columns where the mean noise is three and a half times the bar.
+#
+# The law is c / sqrt(n), confirmed across four shapes and four
+# scales: c reads 1.40 to 1.61 on a normal, 1.36 to 1.52 skewed,
+# 1.42 to 1.52 on counts, and 1.06 to 1.19 zero-inflated (ties
+# collapse bands, so fewer of them carry noise). 1.6 is taken,
+# which is the conservative end: a floor slightly too generous
+# marks a column unreadable where a floor too tight reports noise
+# as a finding, and the second is the worse error.
+NOISE_C = 1.6
+
+
+def noise_floor(n_src: int, n_gen: int) -> float:
+    """What a FAITHFUL output scores here on these row counts.
+
+    Calibrated on the equal-n case, where sqrt(0.5*(1/n + 1/n))
+    reduces to 1/sqrt(n) and the expression is exactly the fitted
+    law.
+    """
+    if n_src <= 0 or n_gen <= 0:
+        return float("inf")
+    return float(NOISE_C * np.sqrt(0.5 * (1.0 / n_src
+                                          + 1.0 / n_gen)))
+
+
 def classify(d_grid_src: float, d_grid_gen: float,
              tol: float = TOL) -> str:
     """Which half is responsible - a PURE function.
@@ -160,6 +206,7 @@ def measure(src: pd.DataFrame, gen: pd.DataFrame,
 
     skip = set(skip or ())
     rows: List[Dict[str, Any]] = []
+    no_power: List[Dict[str, Any]] = []
     not_comparable = 0
     for c, spec in (bp.get("columns") or {}).items():
         if c in skip:
@@ -184,6 +231,18 @@ def measure(src: pd.DataFrame, gen: pd.DataFrame,
         except Exception:
             not_comparable += 1
             continue
+        floor = noise_floor(len(sv), len(gv))
+        # NO POWER IS ITS OWN ANSWER. A column whose own sampling
+        # noise exceeds the bar cannot be read either way, and
+        # reporting its distance as a finding - or as clean -
+        # would be a verdict from a test that cannot fail. Same
+        # branch, same reasoning, as the linkage element's.
+        if floor >= TOL:
+            no_power.append({
+                "column": c, "noise_floor": round(floor, 5),
+                "rows_source": int(len(sv)),
+                "rows_output": int(len(gv))})
+            continue
         e = bands(sv)
         ss, gs, xs = shares(sv, e), shares(grid, e), shares(gv, e)
         d_gs = total(gs, ss)
@@ -198,6 +257,7 @@ def measure(src: pd.DataFrame, gen: pd.DataFrame,
             # where to look. It is not the verdict: a column can be
             # wrong in many bands and in no single one by much.
             "worst_band": round(worst_band(ss, xs), 5),
+            "noise_floor": round(floor, 5),
             "verdict": classify(d_gs, d_gx)})
 
     rows.sort(key=lambda r: -r["source_vs_output"])
@@ -207,6 +267,11 @@ def measure(src: pd.DataFrame, gen: pd.DataFrame,
     return {
         "columns_measured": len(rows),
         "not_comparable": int(not_comparable),
+        # MEASURED AND UNREADABLE, kept apart from both the clean
+        # and the off-source columns: an absent measurement is not
+        # a clean one.
+        "no_power": no_power,
+        "noise_constant": NOISE_C,
         "tolerance": TOL,
         # THE ONE A RECIPIENT HOLDS, named rather than left to be
         # inferred from the blame split.

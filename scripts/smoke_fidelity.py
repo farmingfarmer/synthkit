@@ -2312,12 +2312,22 @@ def main():
     # continuously. So a point-mass fixture cannot isolate a
     # GENERATION fault: it reads BOTH, correctly.
     _r2 = _np.random.default_rng(11)
-    _smooth = _np.round(_np.exp(_r2.normal(2.2, 0.8, 1000))).astype(float)
+    # FOUR THOUSAND ROWS, NOT A THOUSAND. The measure refuses a
+    # column whose own sampling noise reaches the share bar, and
+    # at a thousand rows that noise IS the bar - measured at
+    # 0.0504 for two draws of one distribution against a bar of
+    # 0.05. At a thousand this fixture measured nothing at all and
+    # every check below passed on an empty table; at four thousand
+    # the floor is 0.025, half the bar, so the faults these
+    # fixtures plant are readable.
+    _MARG_N = 4000
+    _smooth = _np.round(
+        _np.exp(_r2.normal(2.2, 0.8, _MARG_N))).astype(float)
     _good = {"type": "quantiles", "q": _QS,
              "v": [float(x) for x in _np.quantile(_smooth, _QS)],
              "integral": True}
     _piled = _np.concatenate([
-        _np.full(950, float(_np.median(_smooth))),
+        _np.full(_MARG_N - 50, float(_np.median(_smooth))),
         _np.arange(2.0, 52.0)])
     with tempfile.TemporaryDirectory() as _td:
         _r = _mk(_td, _good, _piled, _smooth)
@@ -2410,7 +2420,8 @@ def main():
         _sj["columns"]["ok"] = {"marginal": _good}
         (_r / "blueprint.json").write_text(json.dumps(_sj),
                                            encoding="utf-8")
-        _fine = _dn(_good, _np.random.default_rng(9).random(1000))
+        _fine = _dn(_good,
+                    _np.random.default_rng(9).random(_MARG_N))
         for _p, _vals in ((_r / "generated.csv", _fine),
                           (_r / "src.csv", _smooth)):
             _txt = _p.read_text(encoding="utf-8").splitlines()
@@ -2486,7 +2497,14 @@ def main():
         import numpy as _npm
         import pandas as _pdm
         _rngm = _npm.random.default_rng(4)
-        _n = 900
+        # ENOUGH ROWS FOR THE MEASURE TO HAVE POWER. At 900 rows a
+        # faithful output differs from its source by MORE than the
+        # share bar on sampling alone, so the marginal block
+        # correctly measured nothing and this check - whose whole
+        # point is that a real run carries it - failed against
+        # correct code. The bar is not the thing to move: the
+        # fixture has to be a cohort the question can be asked of.
+        _n = 4200
         _dfm = _pdm.DataFrame({
             "person_id": ["P%03d" % (i // 3) for i in range(_n)],
             "visit_number": [(i % 3) + 1 for i in range(_n)],

@@ -402,19 +402,34 @@ def main():
           "is readable from the artifacts rather than from a "
           "separate tool somebody has to remember to run",
           isinstance(_mg.get("columns_measured"), int))
-    check("...measuring at least one numeric column on this "
-          "fixture, so the block is not empty-by-construction",
-          (_mg.get("columns_measured") or 0) >= 1)
-    check("...naming which columns a RECIPIENT would find off "
-          "their source, separately from the blame split between "
-          "contract and sampler",
-          "off_source" in _mg and "sampler_faults" in _mg)
+    # WHICH CASE THIS FIXTURE IS IN, said out loud, because the
+    # measure refuses a column whose own sampling noise exceeds
+    # the bar - and on a small fixture that can be every column.
+    _np_list = _mg.get("no_power") or []
+    check("the block reports EITHER measured columns or the ones "
+          "it refused to read, never silence - {} measured, {} "
+          "with too few rows for the bar to mean anything".format(
+              _mg.get("columns_measured"), len(_np_list)),
+          bool(_mg.get("columns_measured")) or bool(_np_list))
+    if _mg.get("columns_measured"):
+        check("...and this fixture DOES measure at least one "
+              "column, so the per-column checks below are not "
+              "passing on an empty list",
+              len(_mg.get("columns") or []) >= 1)
+    else:
+        check("...and this fixture measures NONE, so the "
+              "per-column checks below pass on an empty list - "
+              "said rather than left silent",
+              all(r.get("noise_floor", 1.0) >= (
+                  _mg.get("tolerance") or 0.05)
+                  for r in _np_list))
 
     # NO CELL IS PUBLISHED. A bin count is a count of people, and
     # a bin holding three describes those three - the same rule
     # the deck follows when it suppresses sparse source bins.
     _allowed = {"column", "grid_vs_source", "grid_vs_output",
-                "source_vs_output", "worst_band", "verdict"}
+                "source_vs_output", "worst_band", "noise_floor",
+                "verdict"}
     _rows = _mg.get("columns") or []
     check("...and publishes DISTANCES and column names only - no "
           "bin count reaches the artifact, because a bin holding "

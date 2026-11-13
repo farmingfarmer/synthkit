@@ -1915,6 +1915,23 @@ def build_deck(src_path, run_dir, group_by="person_id",
     # never reaches a page might as well not exist for the person
     # deciding, and this is that page.
     _mg = fid.get("marginals") or {}
+    # A COHORT TOO THIN TO READ MUST SAY SO ON THE PAGE. Measured:
+    # two independent draws of ONE distribution score 0.0504 at a
+    # thousand rows against a 0.05 bar, so a column that thin
+    # cannot be read either way - and without this branch the
+    # section simply vanished, which on a page a reader trusts is
+    # indistinguishable from every column being fine.
+    if not _mg.get("columns_measured") and _mg.get("no_power"):
+        body.append('<h2>Does each column keep its own shape?</h2>')
+        body.append(
+            '<p><b>Not readable on this run.</b> All {} numeric '
+            'columns have too few recorded values for the '
+            'comparison to mean anything: two samples of the SAME '
+            'distribution differ by more than the bar at this row '
+            'count, so any number here would be sampling noise '
+            'rather than a finding. This is a statement about the '
+            'size of the cohort, not about the synthetic '
+            'data.</p>'.format(len(_mg.get("no_power") or [])))
     if _mg.get("columns_measured"):
         _off = _mg.get("off_source") or []
         _rows = [r for r in (_mg.get("columns") or [])
@@ -1960,6 +1977,16 @@ def build_deck(src_path, run_dir, group_by="person_id",
                         r["grid_vs_output"], r["source_vs_output"],
                         r.get("worst_band") or 0.0, esc(_w)))
             body.append('</table>')
+        if _mg.get("no_power"):
+            body.append(
+                '<p class="note">{} further column(s) were NOT '
+                'read at all, because at their row count two '
+                'samples of the same distribution would differ by '
+                'more than the bar: {}. An unread column is not a '
+                'clean one.</p>'.format(
+                    len(_mg["no_power"]),
+                    esc(", ".join(
+                        r["column"] for r in _mg["no_power"][:8]))))
         body.append(
             '<p class="note">Reported, not gated. And a generator '
             'that copied the original VERBATIM would score a '

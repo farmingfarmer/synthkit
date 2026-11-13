@@ -127,7 +127,8 @@ def main():
     # NOTE, which explains why no bin count is published - a check
     # satisfied by its own explanation.
     _allowed = {"column", "grid_vs_source", "grid_vs_output",
-                "source_vs_output", "worst_band", "verdict"}
+                "source_vs_output", "worst_band", "noise_floor",
+                "verdict"}
     check("the per-column rows carry distances and names only, no "
           "bin count - a bin holding three patients describes "
           "those three",
@@ -240,6 +241,120 @@ def main():
           "x" in _blob["off_source"]
           and _r["source_vs_output"] > _r["worst_band"])
 
+    # THE MEASURE'S OWN NOISE FLOOR. Two independent draws of ONE
+    # distribution do not score zero, and at a thousand rows a
+    # faithful output reads 0.0504 against a bar of 0.05 - so for
+    # a column with a few hundred present rows the bar sat BELOW
+    # the instrument's noise and the column read as a finding
+    # whatever the generator did.
+    _rng3 = np.random.default_rng(11)
+    _emp = []
+    for _ in range(25):
+        _a = _rng3.normal(0, 1, 1000)
+        _e = M.bands(_a)
+        _emp.append(M.total(M.shares(_a, _e),
+                            M.shares(_rng3.normal(0, 1, 1000), _e)))
+    _obs = float(np.mean(_emp))
+    check("a FAITHFUL output at a thousand rows scores {:.4f} "
+          "here - at or over the {} bar - which is why a column "
+          "that thin cannot be read either way".format(
+              _obs, M.TOL),
+          _obs > 0.03)
+    check("...and the predicted floor agrees with that "
+          "measurement to within a quarter ({:.4f} predicted "
+          "against {:.4f} observed), so the constant is fitted "
+          "rather than chosen".format(
+              M.noise_floor(1000, 1000), _obs),
+          abs(M.noise_floor(1000, 1000) - _obs) < 0.25 * _obs)
+    check("the floor falls as 1/sqrt(n), so a wide cohort is "
+          "readable and a thin one is not: {:.4f} at 55,000 "
+          "against {:.4f} at 500".format(
+              M.noise_floor(55000, 55000),
+              M.noise_floor(500, 500)),
+          M.noise_floor(55000, 55000) < M.TOL
+          and M.noise_floor(500, 500) > M.TOL)
+
+    # NO POWER IS ITS OWN ANSWER, not clean and not a finding.
+    _thin_src = pd.DataFrame({"v": _rng3.normal(0, 1, 300)})
+    _thin_gen = pd.DataFrame({"v": np.zeros(300)})
+    _tq = [0.0, 0.25, 0.5, 0.75, 1.0]
+    _tb = {"columns": {"v": {"marginal": {
+        "type": "quantiles", "q": _tq,
+        "v": [float(np.quantile(_thin_src["v"], q))
+              for q in _tq]}}}}
+    _to = M.measure(_thin_src, _thin_gen, _tb)
+    check("a column too thin to read is NOT counted as off the "
+          "source - a distance from a test that cannot fail is "
+          "not evidence of a fault",
+          _to["off_source"] == []
+          and _to["sampler_faults"] == [])
+    check("...nor as measured, so it cannot be read as clean "
+          "either - an absent measurement is not a clean one",
+          _to["columns_measured"] == 0)
+    check("...and it is NAMED with the row counts that made it "
+          "unreadable, so a reader can see what to do about it",
+          len(_to["no_power"]) == 1
+          and _to["no_power"][0]["column"] == "v"
+          and _to["no_power"][0]["rows_source"] == 300)
+
+    # AND BOTH PAGES SAY SO. A section that simply VANISHES on a
+    # thin cohort is indistinguishable, on a page a reader trusts,
+    # from every column being fine.
+    _dk = io.open(ROOT / "scripts" / "fidelity_deck.py",
+                  encoding="utf-8").read()
+    _so = io.open(ROOT / "scripts" / "signoff.py",
+                  encoding="utf-8").read()
+    check("the deck reports a cohort too thin to read rather than "
+          "dropping the section, and says it is about the COHORT "
+          "size rather than about the synthetic data",
+          "Not readable on this run" in _dk
+          and "size of the cohort" in _dk)
+    check("...and names the refused columns beside the measured "
+          "ones when some of each exist, because an unread column "
+          "is not a clean one",
+          # ANCHORED INSIDE ONE LINE: "not a clean one" spans
+          # a string-literal line break in that file, which is
+          # the wrapped-phrase trap this project records seven
+          # times and hit again here.
+          "were NOT " in _dk
+          and "An unread column is not a " in _dk)
+    check("the sign-off page likewise - it is the one page "
+          "somebody signs, and a vanished section there reads as "
+          "a pass",
+          "NOT READABLE on this run" in _so)
+    check("and the gate's own text likewise, so the CLI and the "
+          "two pages cannot disagree about a run nothing could "
+          "be read on",
+          "NOT READABLE on " in io.open(
+              ROOT / "synthkit" / "gate.py",
+              encoding="utf-8").read())
+
+    # THE REAL EXTRACT'S OWN SHAPE, pinned as a check so the
+    # screen cannot be removed without this going red. Three of
+    # the four columns the measure named as the SAMPLER's on the
+    # 800-patient extract are present on 113 rows - 0.2% of
+    # visits - and every one of their readings sits UNDER its own
+    # noise floor. Only `procedure_quantity`, at 10,696 rows, is
+    # a measurement.
+    _REAL = ((10696, 0.1682, True),    # procedure_quantity
+             (113, 0.1016, False),     # MAP invasive
+             (113, 0.0802, False),     # diastolic invasive
+             (113, 0.0756, False))     # systolic invasive
+    for _n, _d, _readable in _REAL:
+        _f = M.noise_floor(_n, _n)
+        check("a column present on {} row(s) reading {:.4f} is {} "
+              "at a floor of {:.4f} - the real extract's own "
+              "numbers, so removing the screen turns this red"
+              .format(_n, _d,
+                      "READABLE" if _readable else "NOT readable",
+                      _f),
+              (_f < M.TOL) is _readable)
+    check("...and the three unreadable ones read BELOW their own "
+          "floor, so they were not even weak findings - they were "
+          "the draw",
+          all(_d < M.noise_floor(_n, _n)
+              for _n, _d, _r in _REAL if not _r))
+
     # ONE IMPLEMENTATION OF THE DISTANCE. `peek` re-derived it as
     # `max(abs(a - b))` over the shares, three lines above a
     # docstring explaining why `_draw_numeric` must never be
@@ -256,6 +371,12 @@ def main():
     check("...and the whole-table view calls `measure` rather than "
           "walking the blueprint itself",
           "_M.measure(src, g, bp" in _peek)
+    check("...and it PRINTS the columns it could not read, with "
+          "the row counts and the floor, because a thin cohort "
+          "would otherwise look like a short list of healthy "
+          "columns",
+          "NOT READ - at these row counts" in _peek
+          and "noise floor" in _peek)
 
     # ONE QUANTITY, ONE NAME. `gate.assess` used to rename
     # `worst_source_vs_output` to `worst` on the way into its

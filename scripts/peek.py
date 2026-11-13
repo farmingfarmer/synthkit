@@ -811,15 +811,33 @@ def marginals_view(run, src_path):
     print("  sorted by SOURCE-against-OUTPUT, which is what a "
           "recipient holds - the other two split the blame.")
     print()
-    print("  {:<30} {:>9} {:>9} {:>11} {:>7}  {}".format(
+    print("  {:<30} {:>9} {:>9} {:>11} {:>7} {:>7}  {}".format(
         "column", "grid~src", "grid~out", "SRC~OUT", "worst",
-        "verdict"))
+        "noise", "verdict"))
     for r in rows:
-        print("  {:<30} {:>9.4f} {:>9.4f} {:>11.4f} {:>7.4f}  {}"
+        print("  {:<30} {:>9.4f} {:>9.4f} {:>11.4f} {:>7.4f} "
+              "{:>7.4f}  {}"
               .format(r["column"][:30], r["grid_vs_source"],
                       r["grid_vs_output"], r["source_vs_output"],
-                      r["worst_band"], r["verdict"]))
+                      r["worst_band"], r.get("noise_floor") or 0.0,
+                      r["verdict"]))
     print()
+    # THE COLUMNS THAT COULD NOT BE READ. Printed, because an
+    # absent measurement is not a clean one - and silently
+    # dropping them would make a thin cohort look like a short
+    # list of healthy columns.
+    _np_rows = blob.get("no_power") or []
+    if _np_rows:
+        print("  NOT READ - at these row counts two samples of "
+              "the SAME distribution differ by more than the "
+              "{:.2f} bar, so any number would be noise:".format(
+                  MARGINAL_TOL))
+        for r in _np_rows:
+            print("    {:<30} source {:>7} rows, output {:>7} "
+                  "rows, noise floor {:.4f}".format(
+                      r["column"][:30], r["rows_source"],
+                      r["rows_output"], r["noise_floor"]))
+        print()
     bad = [r for r in rows if r["verdict"] != "CLEAR"]
     print("  {} of {} column(s) are off their own published grid or "
           "their source by more than {:.2f}".format(

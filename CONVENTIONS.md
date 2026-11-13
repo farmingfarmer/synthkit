@@ -53,6 +53,99 @@ Synthetic clinical data generator and model-evaluation instrument. Core rule: le
   reason: it tests the third seed and the reproducibility of the
   earlier reading at once.
 
+- **AND THE REAL EXTRACT SETTLES IT IMMEDIATELY: THREE OF THE FOUR
+  COLUMNS THE MEASURE BLAMED ON THE SAMPLER ARE PRESENT ON 113
+  ROWS, AND EVERY ONE OF THEIR READINGS SITS UNDER ITS OWN NOISE
+  FLOOR (2026-11-12).** Read off the run's own blueprint coverage,
+  crossed in WORDS by the machine:
+      column                            rows   SRC~OUT    floor
+      procedure_quantity              10,696    0.1682   0.0155
+      mean_arterial_pressure_invasive    113    0.1016   0.1505
+      diastolic_..._invasive             113    0.0802   0.1505
+      systolic_..._invasive              113    0.0756   0.1505
+  The three invasive pressures are measured on **0.2% of visits**,
+  so at 113 rows a faithful output would differ from its source by
+  **0.15** on sampling alone - more than any of them actually
+  read. **Only `procedure_quantity` is a measurement.**
+- **SO THE READING I RECORDED HOURS EARLIER WAS THREE-QUARTERS
+  NOISE AND IS WITHDRAWN.** It said "8 of 33 differ from the
+  source, 4 of those are the SAMPLER's: procedure_quantity,
+  mean_arterial_pressure_invasive, diastolic_blood_pressure_
+  invasive, systolic_blood_pressure_invasive". Three of those four
+  names were the draw. And the same entry reasoned from them -
+  "the sampler is leaving the grid on the invasive pressure family
+  by 0.10 to 0.12 of mass", with the cyclic sweep acquitted by
+  reading its code because the shortfall "is after the draw and it
+  is not the mask". There was no shortfall to explain.
+- **AND THE SEED-37 ARM'S MARGINAL MOVEMENT IS OVER A METRIC WITH
+  NO POWER SCREEN, so part of its 8-to-6 could be noise too.** The
+  pair itself is clean - one tree, one flag, denominator unmoved -
+  and its stored blocks are internally consistent, so the
+  comparison stands as a comparison. What cannot be read off it is
+  how much of the two-column movement is a column thin enough that
+  either reading was a draw. The honest form is to re-measure both
+  arms with the power screen, which is a read of two run
+  directories rather than a re-run.
+- **THE LESSON IS THE ONE THIS FILE KEEPS PAYING FOR: a measure
+  without a stated noise floor manufactures findings at the thin
+  end, and the thin end is exactly where a clinical extract
+  lives.** Four columns, four reasons to look, three of them
+  nothing - and the fault was found by asking what the instrument
+  scores on a FAITHFUL output rather than by any check going red.
+
+- **THE SHAPE MEASURE'S BAR WAS BELOW ITS OWN NOISE FOR ANY THIN
+  COLUMN, SO SUCH A COLUMN READ AS A FINDING WHATEVER THE
+  GENERATOR DID (2026-11-12).** Two independent draws of ONE
+  distribution do not score zero here - a faithful output still
+  differs from its source by sampling alone, and on an eleven-band
+  ruler that is not small. Measured over forty draws per cell:
+      n          mean TVD   worst of 40
+      50           0.1820        0.3000
+      200          0.1089        0.1650
+      1000         0.0504        0.0800
+      5000         0.0200        0.0368
+      55000        0.0065        0.0100
+  **AT A THOUSAND ROWS A FAITHFUL OUTPUT READS 0.0504 AGAINST A
+  BAR OF 0.05**, and `MIN_ROWS = 50` admitted columns where the
+  mean noise is three and a half times the bar. A bar inside its
+  own measure's noise is a verdict decided by the draw, which this
+  file already calls out for an 87.9% gate bar inside a four-point
+  seed spread and for a campaign tier demanding 0.700 over a 0.698
+  ceiling. Found by attacking the instrument, not by any check.
+- **THE LAW IS c/sqrt(n) AND c IS FITTED ACROSS SHAPES RATHER THAN
+  CHOSEN.** Over four scales: 1.40 to 1.61 on a normal, 1.36 to
+  1.52 skewed, 1.42 to 1.52 on counts, 1.06 to 1.19
+  zero-inflated - ties collapse bands, so fewer of them carry
+  noise. **1.6** is taken, the conservative end, because a floor
+  slightly too generous marks a column unreadable where a floor
+  too tight reports noise as a finding, and the second is the
+  worse error. The predicted floor is asserted against the
+  OBSERVED noise at a thousand rows, so the constant cannot drift
+  away from the thing it describes.
+- **NO POWER IS ITS OWN ANSWER - not clean, not a finding.** A
+  column whose floor reaches the bar is named with the row counts
+  that made it unreadable and is counted in NEITHER `off_source`
+  nor `sampler_faults`. Same branch and same reasoning as the
+  linkage element's, where a control that cannot catch a verbatim
+  republish makes a clean number worthless.
+- **AND ALL THREE PAGES SAY SO, because a section that VANISHES on
+  a thin cohort is indistinguishable from every column being
+  fine.** The gate line, the deck's own section and the sign-off
+  page each report NOT READABLE with the column count, and say it
+  is a statement about the SIZE OF THE COHORT rather than about
+  the synthetic data. Where some columns are readable and others
+  are not, the refused ones are NAMED beside the measured ones.
+  On the real extract at 55,428 rows the floor is 0.0068, so the
+  recorded headline figures are unaffected; it is a thin cohort
+  this protects, and this project has already measured a
+  100-patient cut scoring BETTER than the 800 while publishing
+  less.
+- **AND THE CHECK FOR IT HIT THE WRAPPED-PHRASE TRAP FOR THE
+  SEVENTH TIME.** It looked for "not a clean one" in the deck,
+  which a string-literal line break splits, and went red against a
+  page that says exactly the right thing. Anchor inside ONE
+  literal.
+
 - **I ATTACKED MY OWN NEW MEASURE AND IT WAS BLIND TWICE, IN THE
   EXACT FAULT CLASS IT WAS BUILT FOR (2026-11-12).** The marginal
   measure cut its bands at the median, p75, p90, p99 and the

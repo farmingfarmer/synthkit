@@ -262,7 +262,8 @@ def assess(fid: Dict[str, Any],
             "marginals": dict(
                 (k, _mg_b.get(k)) for k in (
                     "columns_measured", "off_source",
-                    "worst_source_vs_output", "sampler_faults")),
+                    "worst_source_vs_output", "sampler_faults",
+                    "no_power")),
             "bars": {"direction": dir_bar, "close": close_bar,
                      "custom": bool(dir_custom or close_custom)}}
 
@@ -638,6 +639,19 @@ def report(verdict, rundir) -> "tuple":
     # pass coverage, centre and spread and still put most of its
     # rows on one value.
     _mv = verdict.get("marginals") or {}
+    # A COHORT TOO THIN TO READ MUST SAY SO. Without this branch a
+    # run whose every numeric column falls under the measure's own
+    # noise floor printed NOTHING about shape and read as clean -
+    # which is the absent-measurement-reported-as-safe fault the
+    # linkage element already refuses.
+    if not _mv.get("columns_measured") and _mv.get("no_power"):
+        lines.append("")
+        lines.append(
+            "  marginal shape (not a criterion): NOT READABLE on "
+            "this run - all {} numeric column(s) have too few "
+            "rows for the share bar to mean anything, so a "
+            "distance here would be sampling noise".format(
+                len(_mv.get("no_power") or [])))
     if _mv.get("columns_measured"):
         lines.append("")
         _off = _mv.get("off_source") or []

@@ -151,6 +151,16 @@ def build_signoff(run_dir):
     # `procedure_quantity` did for months - and this is the page
     # somebody signs.
     _mv = verdict.get("marginals") or {}
+    if not _mv.get("columns_measured") and _mv.get("no_power"):
+        body.append(
+            '<p class="note"><b>Marginal shape (not a '
+            'criterion):</b> NOT READABLE on this run &mdash; all '
+            '{} numeric column(s) have too few recorded values '
+            'for the share bar to mean anything, so any number '
+            'here would be sampling noise. That is a statement '
+            'about the size of the cohort rather than about the '
+            'synthetic data, and an unread column is not a clean '
+            'one.</p>'.format(len(_mv.get("no_power") or [])))
     if _mv.get("columns_measured"):
         _off = _mv.get("off_source") or []
         if _off:
