@@ -53,6 +53,26 @@ TOL = 0.05
 # agree. The draw is of the GRID, not of the data.
 SEED = 20261111
 MIN_ROWS = 50
+# HOW MANY ROWS THE REFERENCE DRAW GETS.
+#
+# The grid arm is the CONTRACT rendered through the engine's own
+# draw, and it used to be drawn at the generated column's own row
+# count - so the blame-split numbers carried that draw's sampling
+# noise as well as the thing they were measuring. Measured on a
+# grid that describes its source EXACTLY, twelve draws per size:
+#
+#     draw size    mean grid-vs-source   spread over 12 draws
+#       4,000                   0.0165                 0.0158
+#      20,000                   0.0075                 0.0082
+#     100,000                   0.0032                 0.0028
+#
+# At a same-size draw a PERFECT contract read 0.0165 - a third of
+# the share bar - and moved by that much from draw to draw. A
+# large draw costs one inverse-CDF call and makes `grid_vs_source`
+# a statement about the contract rather than about one rendering
+# of it. `source_vs_output` never touches the grid and is
+# unaffected, which is why no recorded figure for it moves.
+GRID_DRAW = 100000
 
 
 # THE MEASURE'S OWN NOISE FLOOR, MEASURED.
@@ -240,7 +260,8 @@ def measure(src: pd.DataFrame, gen: pd.DataFrame,
             continue
         try:
             rng = np.random.default_rng(SEED)
-            grid = np.asarray(_draw_numeric(m, rng.random(len(gv))),
+            _nd = max(int(len(gv)), int(GRID_DRAW))
+            grid = np.asarray(_draw_numeric(m, rng.random(_nd)),
                               dtype=float)
         except Exception:
             not_comparable += 1

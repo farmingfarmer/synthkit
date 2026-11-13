@@ -37,6 +37,12 @@ def bp_for(m, col="v"):
     return {"columns": {col: {"marginal": m}}}
 
 
+
+def _peek_src():
+    return io.open(ROOT / "scripts" / "peek.py",
+                   encoding="utf-8").read()
+
+
 def main():
     check("the verdict is a PURE function - the grid missing the "
           "source while the output tracks the grid is the "
@@ -411,6 +417,135 @@ def main():
     check("...and such a column is NOT reported off the source, "
           "because its own sampling noise explains the reading",
           "v" not in _o5["off_source"])
+
+    # THE REFERENCE DRAW IS LARGE, so the blame split is about
+    # the contract rather than about one rendering of it. At a
+    # same-size draw a grid describing its source EXACTLY read
+    # 0.0165 - a third of the share bar - and moved by that much
+    # from draw to draw.
+    _rngg = np.random.default_rng(5)
+    _ng = 4000
+    _sg = np.round(_rngg.lognormal(2.0, 0.9, _ng), 3)
+    _QSg = [0.0, 0.01, 0.05, 0.1, 0.25, 0.5, 0.75, 0.9, 0.95,
+            0.99, 1.0]
+    _mg = {"type": "quantiles", "q": _QSg,
+           "v": [float(x) for x in np.quantile(_sg, _QSg)]}
+    from synthkit.generate import _draw_numeric as _dnm
+    _eg = M.bands(_sg)
+    _small = M.total(
+        M.shares(np.asarray(_dnm(
+            _mg, np.random.default_rng(7).random(_ng)),
+            dtype=float), _eg), M.shares(_sg, _eg))
+    _big = M.total(
+        M.shares(np.asarray(_dnm(
+            _mg, np.random.default_rng(7).random(M.GRID_DRAW)),
+            dtype=float), _eg), M.shares(_sg, _eg))
+    check("a grid that describes its source exactly reads closer "
+          "to zero at the large reference size than at the "
+          "column's own ({:.4f} against {:.4f}), so the blame "
+          "split is not reporting the reference draw's own "
+          "noise".format(_big, _small),
+          _big < _small)
+    check("...and the large size is actually used by `measure` "
+          "rather than only defined - the reference is at least "
+          "{} rows".format(M.GRID_DRAW),
+          "max(int(len(gv)), int(GRID_DRAW))" in io.open(
+              ROOT / "synthkit" / "marginals.py",
+              encoding="utf-8").read())
+    # ASSERT THE OUTCOME, NOT THE NAME. The first version looked
+    # for `MARGINAL_GRID_DRAW` anywhere in peek's source, and the
+    # mutation that reverted the USE site left the import in
+    # place - so it found nothing. The two views must agree about
+    # the same column to four decimals, which they can only do if
+    # both render the contract at the same size.
+    import csv as _csv
+    import subprocess as _sp
+    from tempfile import TemporaryDirectory as _TD
+    with _TD() as _d:
+        _rd = Path(_d) / "run"
+        _rd.mkdir()
+        _rs = np.random.default_rng(31)
+        _nn = 3000
+        _col = np.round(np.exp(_rs.normal(1.8, 0.8, _nn)), 3)
+        _gen = np.round(np.exp(_rs.normal(1.9, 0.8, _nn)), 3)
+        _Q = [0.0, 0.01, 0.05, 0.1, 0.25, 0.5, 0.75, 0.9, 0.95,
+              0.99, 1.0]
+        _bpj = {"columns": {"v": {"marginal": {
+            "type": "quantiles", "q": _Q,
+            "v": [float(x) for x in np.quantile(_col, _Q)],
+            "integral": False}}}}
+        (_rd / "blueprint.json").write_text(
+            json.dumps(_bpj), encoding="utf-8")
+        for _p, _vals in ((_rd / "generated.csv", _gen),
+                          (Path(_d) / "src.csv", _col)):
+            with io.open(_p, "w", encoding="utf-8", newline="") as _f:
+                _w = _csv.writer(_f)
+                _w.writerow(["v"])
+                for _x in _vals:
+                    _w.writerow(["{:g}".format(_x)])
+        _env = {"PYTHONPATH": str(ROOT)}
+        import os as _os
+        _env.update(dict(_os.environ))
+        _one = _sp.run(
+            [sys.executable, str(ROOT / "scripts" / "peek.py"),
+             str(_rd), "marginal", "v", str(Path(_d) / "src.csv")],
+            capture_output=True, text=True, cwd=str(ROOT),
+            env=_env, timeout=300)
+        _all = _sp.run(
+            [sys.executable, str(ROOT / "scripts" / "peek.py"),
+             str(_rd), "marginals", str(Path(_d) / "src.csv")],
+            capture_output=True, text=True, cwd=str(ROOT),
+            env=_env, timeout=300)
+        _nums = re.findall(r"0\.\d{4}", _one.stdout)
+        _row = [ln for ln in _all.stdout.splitlines()
+                if ln.strip().startswith("v ")]
+        check("both peek views ran on one planted run, so the "
+              "comparison below is not passing on empty output",
+              _one.returncode == 0 and _all.returncode == 0
+              and bool(_nums) and bool(_row))
+        _tab = re.findall(r"0\.\d{4}", _row[0]) if _row else []
+        # THE TWO VIEWS SHARE ONE COMPUTATION, so this compares
+        # what they PRINT rather than two implementations: the
+        # single view takes its three distances and its verdict
+        # from `measure`, which is what the table prints.
+        # PARSED BY LABEL, not by position. The first version
+        # took the first four numbers off each view and asked
+        # whether three of them appeared in the other's whole
+        # output - which passed while the two sets were plainly
+        # different, because the single view prints dozens of
+        # numbers and three of anything will match.
+        _lab = dict(
+            (k, v) for k, v in re.findall(
+                r"MASS IN THE WRONG BAND, (grid against source|"
+                r"grid against output|SOURCE against output)\s+"
+                r"(\d\.\d{4})", _one.stdout))
+        check("the single-column view labels its three distances, "
+              "so they can be read by name rather than by "
+              "position ({} found)".format(len(_lab)),
+              len(_lab) == 3)
+        check("...and all three equal the table's, because both "
+              "take them from `measure` rather than each working "
+              "them out (labelled {} against table {})".format(
+                  [_lab.get("grid against source"),
+                   _lab.get("grid against output"),
+                   _lab.get("SOURCE against output")], _tab[:3]),
+              [_lab.get("grid against source"),
+               _lab.get("grid against output"),
+               _lab.get("SOURCE against output")] == _tab[:3])
+        check("...and the single view computes no distance of its "
+              "own as a fallback that could silently diverge - it "
+              "reads `measure`'s row",
+              "_row[\"source_vs_output\"] if _row" in _peek_src())
+        # AND PEEK'S OWN GRID DRAW IS NOW DISPLAY ONLY, which is
+        # worth saying rather than guarding: the mutation that
+        # reverted it to the column's own size broke nothing,
+        # because every number a reader acts on comes from
+        # `measure`. What it still feeds is the per-band grid
+        # column in the table above the verdict.
+        check("peek still renders the grid's own band shares, so "
+              "the reader sees the three distributions and not "
+              "only the distances between them",
+              "grid" in _one.stdout and "band" in _one.stdout)
 
     # ONE IMPLEMENTATION OF THE DISTANCE. `peek` re-derived it as
     # `max(abs(a - b))` over the shares, three lines above a

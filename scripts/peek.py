@@ -744,6 +744,8 @@ def curves_view(run):
 # scaffolding predicate and both categorical draw paths.
 from synthkit.marginals import (TOL as MARGINAL_TOL,   # noqa: E402
                                 SEED as MARGINAL_SEED,
+                                GRID_DRAW as MARGINAL_GRID_DRAW,
+                                measure as _M_measure,
                                 bands as _bands,
                                 classify as classify_marginal,
                                 total as _total,
@@ -937,14 +939,30 @@ def marginal_view(run, col, src_path):
                  .format(len(sv), len(gv)))
 
     rng = np.random.default_rng(MARGINAL_SEED)
-    grid = np.asarray(_draw_numeric(m, rng.random(len(gv))),
+    # THE SAME REFERENCE SIZE THE MEASURE USES - a same-size
+    # draw carried a third of the share bar in its own noise, and
+    # the single-column view and the table must not disagree
+    # about what the contract says.
+    grid = np.asarray(_draw_numeric(
+        m, rng.random(max(len(gv), MARGINAL_GRID_DRAW))),
                       dtype=float)
 
+    # THE HEADLINE NUMBERS COME FROM THE MEASURE, not from a
+    # second computation here. The grid above is kept because
+    # this view DRAWS the three distributions in bands and needs
+    # the reference values themselves; what it must not do is
+    # work out the distances again, because a text check could
+    # only ever compare the two views by parsing their output.
+    _one = _M_measure(src, g, {"columns": {col: {"marginal": m}}},
+                      limit=None)
+    _row = (_one.get("columns") or [None])[0]
     edges = _bands(sv)
     ss, gs, xs = (_shares(sv, edges), _shares(grid, edges),
                   _shares(gv, edges))
-    d_gs = _total(gs, ss)
-    d_gx = _total(gs, xs)
+    d_gs = (_row["grid_vs_source"] if _row
+             else _total(gs, ss))
+    d_gx = (_row["grid_vs_output"] if _row
+             else _total(gs, xs))
     # WHAT A RECIPIENT ACTUALLY HOLDS. The two gaps above split
     # the blame between the contract and the sampler, which is
     # what they are for - but neither is the thing a researcher
@@ -952,8 +970,10 @@ def marginal_view(run, col, src_path):
     # reads CLEAN on grid-vs-output and is still wrong in their
     # hands, and a fix aimed at the SOURCE rather than the grid
     # improves this while making grid-vs-output look worse.
-    d_sx = _total(ss, xs)
-    verdict = classify_marginal(d_gs, d_gx)
+    d_sx = (_row["source_vs_output"] if _row
+             else _total(ss, xs))
+    verdict = (_row["verdict"] if _row
+               else classify_marginal(d_gs, d_gx))
 
     mode = float(pd.Series(sv).mode().iloc[0])
     print("{}   source {} present, generated {} present"
@@ -984,10 +1004,24 @@ def marginal_view(run, col, src_path):
         "spread", float(np.std(sv)), float(np.std(grid)),
         float(np.std(gv))))
     print()
-    print("  worst band gap, grid against source   {:.4f}".format(d_gs))
-    print("  worst band gap, grid against output   {:.4f}".format(d_gx))
-    print("  worst band gap, SOURCE against output {:.4f}  <- what "
-          "a recipient holds".format(d_sx))
+    # THE LABEL HAS TO DESCRIBE THE NUMBER. These said "worst
+    # band gap" and the metric became the TOTAL - the share of a
+    # column's mass sitting in the wrong band - when the worst
+    # single band turned out to be unfalsifiable on the small
+    # bands. A label that names a different quantity from the one
+    # beside it is the fault this project records for a verdict
+    # contradicting its own note.
+    print("  MASS IN THE WRONG BAND, grid against source   "
+          "{:.4f}".format(d_gs))
+    print("  MASS IN THE WRONG BAND, grid against output   "
+          "{:.4f}".format(d_gx))
+    print("  MASS IN THE WRONG BAND, SOURCE against output "
+          "{:.4f}  <- what a recipient holds".format(d_sx))
+    if _row:
+        print("  this column's own bar {:.4f} (the product bar, "
+              "or twice its sampling noise {:.4f} where that is "
+              "larger)".format(_row.get("bar_used") or 0.0,
+                               _row.get("noise_floor") or 0.0))
     print("  at a {:.2f} share bar: {}".format(MARGINAL_TOL, verdict))
     if verdict == "CONTRACT":
         print("  THE PUBLISHED GRID cannot represent the source's "

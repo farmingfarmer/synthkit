@@ -2353,7 +2353,14 @@ def main():
               "v": [1.0, 1.0, 2.0, 3.0, 5.0, 9.0, 18.0, 34.0,
                     48.0, 87.0, 983.0],
               "integral": True, "tail_mean_high": 212.4}
-    _tu = _np.random.default_rng(_MS).random(1000)
+    # AT THE SAME REFERENCE SIZE THE VIEW USES. The grid arm is
+    # drawn at `max(len(gv), GRID_DRAW)` rather than at the
+    # column's own row count, because a same-size draw carried a
+    # third of the share bar in its own noise - so a reference
+    # computed at 1,000 here no longer matches what the view
+    # prints, and this check went red against correct code.
+    from synthkit.marginals import GRID_DRAW as _GD
+    _tu = _np.random.default_rng(_MS).random(max(1000, _GD))
     _exp = float(_np.mean(_dn(_tailm, _tu)))
     _naive = float(_np.mean(_np.round(_np.interp(
         _tu, _np.asarray(_tailm["q"], dtype=float),

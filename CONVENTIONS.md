@@ -197,6 +197,51 @@ Synthetic clinical data generator and model-evaluation instrument. Core rule: le
   reason: it tests the third seed and the reproducibility of the
   earlier reading at once.
 
+- **THE REFERENCE DRAW WAS THE SIZE OF THE COLUMN, SO THE BLAME
+  SPLIT WAS MOSTLY THE REFERENCE'S OWN NOISE (2026-11-13).** The
+  grid arm is the CONTRACT rendered through the engine's own draw,
+  and it was drawn at the generated column's row count. Measured
+  on a grid that describes its source EXACTLY, twelve draws per
+  size:
+      draw size    mean grid-vs-source   spread over 12 draws
+        4,000                   0.0165                 0.0158
+       20,000                   0.0075                 0.0082
+      100,000                   0.0032                 0.0028
+  **A PERFECT CONTRACT READ 0.0165 - a third of the share bar -
+  and moved by that much from draw to draw.** A large reference
+  costs one inverse-CDF call. `source_vs_output` never touches the
+  grid, so no recorded figure for what a recipient holds moves.
+- **AND THE SINGLE-COLUMN VIEW TAKES ITS NUMBERS FROM THE MEASURE
+  NOW, because a text check could only ever compare the two views
+  by parsing their output.** The first attempt did exactly that and
+  passed while the two sets of numbers were plainly different - it
+  took the first four from each and asked whether three appeared
+  anywhere in the other's output, and a view printing dozens of
+  numbers makes three of anything match. Parsed BY LABEL now, and
+  all three distances must be equal, which they are by
+  construction because both read one `measure` row.
+- **AND THE LABELS NAMED A QUANTITY THAT NO LONGER EXISTED.** They
+  read "worst band gap" after the metric became the TOTAL - the
+  share of a column's mass in the wrong band - which is the fault
+  this file records for a verdict contradicting its own note.
+- **AND peek's OWN GRID DRAW IS NOW DISPLAY ONLY, which the
+  mutation proved rather than the comment claiming it:** reverting
+  it to the column's own size broke nothing, because every number
+  a reader acts on comes from the measure. What it still feeds is
+  the per-band grid column, so a reader sees the three
+  distributions and not only the distances between them.
+- **AND MY OWN POLL PREDICATE MATCHED A PER-SUITE LINE FOR TWENTY
+  MINUTES.** Waiting on the net I used `grep -qE "ALL GREEN|
+  FAILED"`, and `FAIL  smoke_fidelity.py   1 FAILED` contains
+  FAILED - so the waiter returned instantly, I read the tail each
+  time, and concluded the net was still running while a failure
+  had been in the log the whole time. The verdict line is
+  `ALL GREEN:` or `N suite(s) FAILED:`, both with a COLON; the
+  per-suite lines have neither. This file already records a poll
+  pattern matching its own echoed command and a `suite..s..FAILED`
+  regex that could not match the line it was aimed at. Match the
+  VERDICT form, with its colon.
+
 - **AND THE BAR NOW ACCOUNTS FOR EACH COLUMN'S OWN NOISE, not
   only for whether it has any (2026-11-13).** The power screen
   refuses a column whose floor REACHES the share bar, and a column
