@@ -517,13 +517,38 @@ def plant_frame(frame, blueprint: Dict[str, Any],
         center, sd = cs
         x = pd.to_numeric(frame[key], errors="coerce"
                           ).to_numpy(dtype=float)
+        # ONE SD OF WHAT THE RECIPIENT HOLDS, not of the contract.
+        #
+        # The published figure is a trapezoid over the quantile
+        # grid - what the sampler would draw from - and the frame
+        # in hand does not match it exactly. Standardising by the
+        # published number then makes a recovered coefficient
+        # smaller than the one planted by the ratio of the two
+        # spreads, and that bias was always there: it only became
+        # visible when the k-screened knots smoothed the grid
+        # slightly and the recovery crossed a tolerance it had
+        # been sitting just inside. The frame is in hand here, so
+        # there is no reason to use a proxy for it.
+        #
+        # `plant` keeps the grid figure because it has no frame -
+        # it works on a bridged SPEC - and `verify_frame` prefers
+        # whichever the plant recorded, so a record written before
+        # this still verifies against the number it was built
+        # with. Absent is not the same fact as zero.
+        _xf = np.nan_to_num(x, nan=center)
+        _mc = float(np.mean(_xf))
+        _ms = float(np.std(_xf))
+        if _ms > 0:
+            center, sd = _mc, _ms
         w = beta / sd
         z += w * (np.nan_to_num(x, nan=center) - center)
         coefficients[key] = round(w, 6)
         used.append({"effect": key, "in_sds": beta,
                      "coefficient": round(w, 6),
-                     "published_center": round(center, 6),
-                     "published_spread": round(sd, 6)})
+                     "published_center": round(cs[0], 6),
+                     "published_spread": round(cs[1], 6),
+                     "measured_center": round(center, 6),
+                     "measured_spread": round(sd, 6)})
 
     if not used:
         raise ValueError(
@@ -608,7 +633,16 @@ def verify_frame(frame, planted: Dict[str, Any]):
         else:
             x = pd.to_numeric(frame[key], errors="coerce"
                               ).to_numpy(float)
-            c, sd = u["published_center"], u["published_spread"]
+            # THE SAME STANDARDISATION THE PLANT USED, whichever
+            # it was. `plant_frame` records the frame's own centre
+            # and spread; `plant` has no frame and records the
+            # published grid's. Preferring the measured pair where
+            # it exists keeps both paths exact, and falling back
+            # keeps a record written before it loading.
+            c = u.get("measured_center")
+            sd = u.get("measured_spread")
+            if c is None or not sd:
+                c, sd = u["published_center"], u["published_spread"]
             X.append((np.nan_to_num(x, nan=c) - c) / sd)
         labels.append(key)
     Xm = np.column_stack(X)

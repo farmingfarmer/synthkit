@@ -3,6 +3,150 @@
 Synthetic clinical data generator and model-evaluation instrument. Core rule: learn the patterns, never copy the records. Real data teaches parameters; generation never touches a record.
 
 ## Verify before claiming
+- **AN INTERIOR KNOT IS AN ORDER STATISTIC, SO IT IS SOMEBODY'S
+  VALUE TOO - AND NOTHING SCREENED IT (2026-11-13).**
+  `_safe_bounds` has stated the rule and the reason in its own
+  docstring since it was written: storing the 0th and 100th
+  percentile publishes the exact smallest and largest values in
+  the extract, and those are single people's records. **Every word
+  of that applies to the 25th and the 50th, and nothing applied it
+  there** - so a file this project calls aggregates-only carried a
+  grid of raw order statistics. Measured on a lognormal column at
+  800 patients x 69 visits: only **FIVE rows from FIVE patients**
+  hold the published median exactly, which is under the floor this
+  project applies to its own bounds and to its token vocabulary.
+  On a thin column ZERO rows hold it - it is the interpolation of
+  two adjacent order statistics, which is two people averaged.
+- **THE KNOT PUBLISHED NOW IS THE MEAN OF A WINDOW WIDENED UNTIL k
+  DISTINCT PATIENTS BACK IT**, counted in patients and never rows,
+  for the reason this file gives everywhere else: one person with
+  two hundred visits can supply the whole window alone. Asserted
+  rather than argued - a fixture where one patient owns 200 rows
+  of a single value returns exactly that value under a ROW floor
+  and a visibly different number under the patient floor.
+- **THE PRICE, MEASURED, AND IT IS WHERE IT SHOULD BE:**
+      800 patients x 69 visits    worst knot moves 0.0006 sd
+      300 patients x 12 visits                     0.0454 sd
+       40 patients x  3 visits                     0.2766 sd
+  Free where the cohort is wide and real where it is thin - which
+  is exactly where the disclosure was, so paying there is the
+  point rather than a cost to avoid. The price is on the ARTIFACT
+  (`knot_screen_worst_sd`) in units of the column's own spread,
+  and `knots_are_k_anonymous` says what was done, absent rather
+  than false on an older blueprint.
+- **AND THE PRICE WAS FIRST REPORTED THREE TIMES TOO HIGH, BY
+  BEING MEASURED BEFORE THE BOUND CLAMP.** The thin column read
+  **1.5937 sd** against a published grid that actually differs by
+  **0.2766** - the clamp pulls both grids back and most of the
+  apparent price was never in the artifact. Two numbers
+  disagreeing about one thing is this project's alarm and here the
+  alarming one was mine. Measured after the clamp now, against a
+  raw grid clamped the same way.
+- **A WHOLE-NUMBER COLUMN KEEPS WHOLE-NUMBER INTERIOR KNOTS, AND
+  THE TAIL SUITE IS WHAT CAUGHT IT.** A windowed mean of integers
+  is not an integer, and the tail aggregates cut their segment at
+  `> v[-2]` - so a knot moving **11.0 to 11.1** EXCLUDED every row
+  equal to 11 and took the published `tail_mean_high` from
+  **102.24 to 144.95** on this project's own heavy-count fixture.
+  A step change out of a cosmetic move. The screen also buys
+  little there: the disclosure it exists for is a CONTINUOUS
+  measurement, where a quantile is one person's exact recorded
+  value, while a count of 11 is held by many patients and the raw
+  quantile was already an integer. The BOUNDS are deliberately NOT
+  rounded - a bound is the mean of the k most extreme patients and
+  rounding it would undo the rule it exists for, which is a
+  distinction my first check got wrong by asserting every knot.
+- **AND A RUNNING MAXIMUM WAS WRITTEN FOR THIS AND REMOVED AS
+  DEAD.** `np.interp` needs a non-decreasing grid and a windowed
+  mean is not obviously monotone - the window at a higher quantile
+  can be forced further LEFT when the patients near it are less
+  diverse - so the guard looked necessary. Searched rather than
+  argued: **10,000 cohorts across two constructions produced ZERO
+  non-monotone grids**, worst backward step 0.0000, and the
+  mutation removing the guard broke no check. That is the dead
+  `_STATE_HINT` exclusion again. What replaced it is the PROPERTY,
+  asserted over a randomised sweep of 400 cohorts with heavy
+  patient blocks, so a future change to the widening rule that
+  does break it goes red rather than handing the draw a grid that
+  runs backwards.
+- **AND A CHANGE TO EVERY PUBLISHED BLUEPRINT TOOK DOWN EXACTLY
+  ONE SUITE**, which is worth saying because it was the riskiest
+  edit of the session: `smoke_tailspread`, on the integer-knot
+  interaction above and on a fixture premise that moved with it.
+  Not one digest pin and not one gate criterion elsewhere.
+
+- **AND IT EXPOSED A SCALING BIAS IN THE ANSWER KEY THAT HAD
+  ALWAYS BEEN THERE.** `smoke_vendorexam` went red on the planted
+  effects recovering at **1.1352 against an asked 1.40** and
+  **-0.6441 against -0.90** - misses of 0.265 and 0.256 against a
+  0.25 tolerance. The control arm named the cause in one run:
+  with the screen OFF the suite passes, so the smoothed grid did
+  it. `plant_frame` declared an effect in sds and converted using
+  the PUBLISHED trapezoid over the quantile grid - what the
+  sampler would draw from - while the frame in hand carries a
+  slightly different spread, so every recovered coefficient came
+  out smaller by the ratio of the two. The bias was always there;
+  smoothing the grid pushed it across a tolerance it had been
+  sitting just inside.
+- **ONE SD OF WHAT THE RECIPIENT HOLDS, NOT OF THE CONTRACT.**
+  `plant_frame` has the frame, so there is no reason to use a
+  proxy for it: it records the frame's own centre and spread
+  beside the published pair, and `verify_frame` prefers whichever
+  the plant recorded - so `plant`, which works on a bridged SPEC
+  and has no frame, keeps the grid figure, and a record written
+  before this still verifies against the number it was built
+  with. Worst recovery miss **0.265 to 0.061**.
+- **AND THE MUTATION THAT SHOULD HAVE CAUGHT THE PREFERENCE FOUND
+  NOTHING, SO THE DECISION IS ASSERTED INSTEAD OF THE OUTCOME.**
+  Making `verify_frame` ignore the measured pair broke no check,
+  because on that fixture the two spreads are close enough that
+  the recovery still landed inside the tolerance - a mismatch
+  invisible in the number. Doubling the recorded spread must move
+  the recovered coefficient, and it does by 0.9214, which it
+  could not if the published pair were being read.
+
+- **CORRECTION, SAME NIGHT: `--extra-knots` IS A TRADE AND NOT A
+  ONE-SIDED GAIN, AND THE SECOND SEED IS WHAT SAID SO
+  (2026-11-13).** The seed-37 entry below reads "two fewer columns
+  off their own source marginal, and nothing measured goes the
+  other way". That is true at seed 37 and FALSE at seed 11. Both
+  pairs are same-tree, one flag apart, same source, denominator
+  unmoved, every figure spelled back by the machine:
+      criterion              seed 11            seed 37
+                          ctl -> knots       ctl -> knots
+      pairs related        151    151         141    141
+      direction kept       131    131         131    132
+      close                128    127         116    116
+      INVERTED               1      1           0      0
+      own-column pairs      29     29          27     27
+      own-column close      24     24          22     22
+      own-column INVERTED    1      1           0      0
+      marginal off source    6      5           8      6
+      marginal sampler's     2      1           4      4
+      marginal measured     33     33          33     33
+  **The marginal count improves on BOTH seeds - minus one and
+  minus two, a range that does not cross zero - and `close` LOSES
+  A PAIR at seed 11.**
+- **SO IT STAYS OFF BY DEFAULT, on this file's own rule.** `close`
+  is a GATE criterion and the marginal block is reported rather
+  than gated; trading a criterion that decides a release for one
+  that does not is a decision for an operator, not a default -
+  which is exactly what was written about the trajectory arm
+  trading close for dynamics. One pair is also inside this
+  criterion's recorded seed spread, so neither the gain nor the
+  cost should be banked from one seed. The flag stays available
+  with both arms on record.
+- **AND THE SHIPPING DEFAULT AT SEED 11 CARRIES AN OWN-COLUMN
+  INVERSION - the absolute stop, failing on both arms.**
+  `pairs_inverted` and `pairs_own_inverted` both read ONE at seed
+  11 and ZERO at seed 37, on the same tree and the same source.
+  That is the one criterion this project says means STOP, do not
+  send the file, and it is seed-dependent on this extract. It is
+  not the knots flag's doing - it is identical with the flag on
+  and off - and it is recorded here because it was found while
+  reading something else and would otherwise have gone unnoticed
+  until a release run happened to land on that seed.
+
 - **THE EXTRA-KNOTS ARM IS A ONE-SIDED GAIN ON A CLEAN PAIR AT
   SEED 37, AND THE FIRST PAIR I NEARLY READ WAS CROSS-BUILD
   (2026-11-12, run_37_same against run_37_knots).** Same tree,

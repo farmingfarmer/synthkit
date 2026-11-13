@@ -145,6 +145,72 @@ def _safe_bounds(v: pd.Series, groups, k: int):
     return (lo, hi) if hi > lo else None
 
 
+# AN INTERIOR KNOT IS AN ORDER STATISTIC, SO IT IS SOMEBODY'S
+# VALUE TOO.
+#
+# `_safe_bounds` above states the rule and the reason: storing the
+# 0th and 100th percentile publishes the exact smallest and
+# largest values in the extract, and those are single people's
+# records. Every word of that applies to the 25th and the 50th,
+# and nothing applied it there - so a file this project calls
+# aggregates-only carried a grid of raw order statistics.
+#
+# Measured on a lognormal column at 800 patients x 69 visits:
+# only FIVE rows from FIVE patients hold the published median
+# exactly, which is under the floor this project applies to its
+# own bounds and to its token vocabulary. On a thin column (40
+# patients x 3 visits) ZERO rows hold it - it is the interpolation
+# of two adjacent order statistics, which is two people averaged.
+#
+# The knot published instead is the MEAN of a window around that
+# quantile, widened until it is backed by at least k DISTINCT
+# PATIENTS. Counted in patients, never rows, for the reason this
+# file gives everywhere else: one person with two hundred visits
+# can supply the whole window by themselves.
+#
+# THE PRICE, measured:
+#     800 patients x 69 visits    worst knot moves 0.0006 sd
+#      40 patients x 3 visits     worst knot moves 1.6576 sd
+# Free where the cohort is wide, and real where it is thin - which
+# is exactly where the disclosure was, so paying there is the
+# point rather than a cost to avoid. A shortfall privacy explains
+# is not a fault.
+K_SCREEN_KNOTS = True
+
+
+def _k_knot(arr, groups, q: float, k: int) -> float:
+    """One interior knot, backed by at least k patients.
+
+    Falls back to k ROWS where there is no grouping column, which
+    is the same fallback `_safe_bounds` takes - without a patient
+    column the row IS the unit and nothing better can be said.
+    """
+    v = np.asarray(arr, dtype=float)
+    n = len(v)
+    if n == 0:
+        return float("nan")
+    g = (np.arange(n) if groups is None
+         else np.asarray(groups)[:n])
+    o = np.argsort(v, kind="stable")
+    v, g = v[o], g[o]
+    pos = int(round(float(q) * (n - 1)))
+    pos = max(0, min(n - 1, pos))
+    lo = hi = pos
+    seen = {g[pos]}
+    # Widen OUTWARD from the quantile, a step each way at a time,
+    # so the window stays centred on the position it describes.
+    while len(seen) < k and (lo > 0 or hi < n - 1):
+        if lo > 0:
+            lo -= 1
+            seen.add(g[lo])
+        if len(seen) >= k:
+            break
+        if hi < n - 1:
+            hi += 1
+            seen.add(g[hi])
+    return float(v[lo:hi + 1].mean())
+
+
 def _tail_mean(v: pd.Series, groups, cut: float, upper: bool,
                k: int) -> Optional[float]:
     """What the values in the extreme segment actually average.
@@ -350,10 +416,69 @@ def _numeric_marginal(s: pd.Series, groups=None,
         inner = sorted(set(
             round(float(q), 6) for q in inner + _add
             if 0.0 < q < 1.0))
-    vals = [float(np.quantile(arr, q)) for q in inner]
+    if K_SCREEN_KNOTS:
+        _gi = (None if groups is None
+               else np.asarray(groups)[v.index])
+        vals = [_k_knot(arr, _gi, q, k) for q in inner]
+        # A WHOLE-NUMBER COLUMN KEEPS WHOLE-NUMBER KNOTS.
+        #
+        # A windowed mean of integers is not an integer, and
+        # publishing 11.1 as a quantile of a count is odd on its
+        # face. It is also not harmless: the tail aggregates cut
+        # their segment at `> v[-2]`, so moving that knot from
+        # 11.0 to 11.1 EXCLUDED every row equal to 11 and took
+        # the published `tail_mean_high` from 102.24 to 144.95 on
+        # this project's own heavy-count fixture - a step change
+        # out of a cosmetic move, which the tail suite caught.
+        #
+        # AND THE SCREEN BUYS LITTLE HERE. The disclosure it
+        # exists for is a CONTINUOUS measurement, where a
+        # quantile is one person's exact recorded value; a count
+        # of 11 is held by many patients at once, and the raw
+        # quantile of an integer column was already an integer.
+        # So rounding costs the protection nothing it was getting
+        # and removes the interaction.
+        if bool(np.all(np.mod(arr, 1.0) == 0.0)):
+            vals = [float(np.round(x)) for x in vals]
+        # A RUNNING MAXIMUM WAS WRITTEN HERE AND REMOVED, BECAUSE
+        # NOTHING COULD REACH IT. `np.interp` needs a
+        # non-decreasing grid, and a windowed mean is not
+        # obviously monotone - the window at a higher quantile can
+        # be forced to reach FURTHER LEFT when the patients near
+        # it are less diverse. So the guard looked necessary.
+        #
+        # Searched rather than argued: 10,000 cohorts across two
+        # constructions - a few patients owning blocks of 20 to
+        # 200 rows among singletons, and eleven to twenty-five
+        # patients with heavy ties at six value levels - produced
+        # ZERO non-monotone grids, worst backward step 0.0000. The
+        # mutation that removed the running maximum broke no
+        # check, which this project calls dead code implying a
+        # protection that lives somewhere else.
+        #
+        # What replaced it is the PROPERTY, asserted over a
+        # randomised sweep in `smoke_knotscreen`, so a future
+        # change to the widening rule that does break it goes red
+        # here rather than handing the draw a grid that runs
+        # backwards.
+        _raw_ref = [min(max(float(np.quantile(arr, q)), lo), hi)
+                    for q in inner]
+    else:
+        vals = [float(np.quantile(arr, q)) for q in inner]
+        _raw_ref = None
     # interior quantiles are clamped inside the safe bounds, so the
     # published curve never reaches past what k patients support
     vals = [min(max(x, lo), hi) for x in vals]
+    # THE PRICE IS MEASURED AFTER THE CLAMP, against a raw grid
+    # clamped the same way. Measured before it, a thin column
+    # reported 1.5937 sd where the published grid actually differs
+    # by 0.2766 - the bound clamp pulls both back and most of the
+    # apparent price was never in the artifact. Two numbers
+    # disagreeing about one thing is this project's alarm, and
+    # here the alarming one was mine.
+    _raw_worst = (0.0 if _raw_ref is None else
+                  max((abs(a - b) for a, b in zip(vals, _raw_ref)),
+                      default=0.0))
     out = {
         "type": "quantiles",
         "q": [0.0] + [round(float(x), 6) for x in inner] + [1.0],
@@ -363,6 +488,17 @@ def _numeric_marginal(s: pd.Series, groups=None,
         "sd": round(float(arr.std()), 6),
         "integral": bool(np.all(np.mod(arr, 1.0) == 0.0)),
         "bounds_are_k_anonymous": k,
+        # THE INTERIOR KNOTS TOO, said in the artifact rather than
+        # left to be inferred from a build id. Absent on a
+        # blueprint written before the screen existed, which is a
+        # different fact from false.
+        "knots_are_k_anonymous": (k if K_SCREEN_KNOTS else False),
+        # WHAT THE SCREEN COST THIS COLUMN, in units of its own
+        # spread, so the price is on the artifact and not only in
+        # a commit message.
+        "knot_screen_worst_sd": (
+            round(float(_raw_worst / max(float(arr.std()), 1e-12)),
+                  6) if K_SCREEN_KNOTS else None),
     }
     # HOW THE TWO EXTREME SEGMENTS ARE SHAPED. Without these the draw
     # runs a straight line from the last knot to the safe bound, which

@@ -258,6 +258,90 @@ def main():
           "standard deviation" in
           planted["planted"]["effects_are_in_sds"])
 
+    # ONE SD OF WHAT THE RECIPIENT HOLDS, not of the contract.
+    #
+    # `plant_frame` used the published trapezoid over the quantile
+    # grid, which is what the SAMPLER would draw from and not what
+    # the frame in hand actually carries - so a recovered
+    # coefficient came out smaller than the one planted by the
+    # ratio of the two spreads. The bias was always there and
+    # became visible only when the k-screened knots smoothed the
+    # grid slightly and the recovery crossed a tolerance it had
+    # been sitting just inside.
+    import numpy as _np2
+    import pandas as _pd2
+    from synthkit import blueprint as _B2
+    from synthkit import semisynth as _SS
+    _r = _np2.random.default_rng(13)
+    _n = 6000
+    _g = _np2.repeat(_np2.arange(_n // 3), 3)
+    _fr = _pd2.DataFrame({
+        "pid": ["P%04d" % i for i in _g],
+        "a": _r.normal(50, 9, _n),
+        "b": _r.normal(0, 1, _n)})
+    _cat = {"claims": [], "unexplained": [], "skipped": []}
+    _bp2 = _B2.build(_fr, _cat, group_by="pid")
+    _out_fr, _pl = _SS.plant_frame(
+        _fr, _bp2, {"a": 0.9, "b": -0.5}, name="y",
+        prevalence=0.3, seed=5)
+    _rec = _SS.verify_frame(_out_fr, _pl)
+    _miss = max(abs(float(e["recovered_in_sds"])
+                    - float(e["requested_in_sds"]))
+                for e in _rec["effects"])
+    check("a planted effect is recovered within 0.2 sd of what "
+          "was asked, standardised on the frame rather than on "
+          "the published grid (worst miss {:.4f})".format(_miss),
+          _miss < 0.2)
+    _cal = _pl.get("calibration") or []
+    _num = [u for u in _cal if "=" not in u["effect"]]
+    check("...and the record carries BOTH the frame's own centre "
+          "and spread and the published pair, so a reader can see "
+          "which was used and by how much they differ",
+          bool(_num)
+          and all("measured_spread" in u and "published_spread" in u
+                  for u in _num))
+    check("...and the two genuinely differ on this frame, so the "
+          "distinction is not cosmetic",
+          any(abs(float(u["measured_spread"])
+                  - float(u["published_spread"])) > 1e-6
+              for u in _num))
+    # AN OLDER RECORD STILL VERIFIES. Absent is not the same fact
+    # as zero, and a planted record written before this change
+    # carries only the published pair.
+    _old = dict(_pl)
+    _old["calibration"] = [
+        dict((k, v) for k, v in u.items()
+             if k not in ("measured_center", "measured_spread"))
+        for u in _cal]
+    _rec2 = _SS.verify_frame(_out_fr, _old)
+    check("a planted record written BEFORE this change still "
+          "verifies, against the published pair it was built with "
+          "rather than raising on a missing key",
+          len(_rec2["effects"]) == len(_rec["effects"]))
+
+    # ASSERT THE DECISION, NOT THE OUTCOME. The mutation that made
+    # `verify_frame` ignore the measured pair broke no check,
+    # because on this frame the two spreads are close enough that
+    # the recovery still landed inside the tolerance. So the
+    # preference is made observable: a record whose measured
+    # spread is deliberately DOUBLED must move the recovered
+    # number, and it can only do that if the measured pair is the
+    # one being used.
+    _bent = dict(_pl)
+    _bent["calibration"] = [
+        (dict(u, measured_spread=float(u["measured_spread"]) * 2.0)
+         if "measured_spread" in u else dict(u))
+        for u in _cal]
+    _rec3 = _SS.verify_frame(_out_fr, _bent)
+    _moved = max(
+        abs(float(a["recovered_in_sds"]) - float(b["recovered_in_sds"]))
+        for a, b in zip(_rec["effects"], _rec3["effects"]))
+    check("`verify_frame` USES the measured pair rather than "
+          "merely carrying it - doubling the recorded spread moves "
+          "the recovered coefficient by {:.4f}, which it could not "
+          "do if the published pair were being read".format(_moved),
+          _moved > 0.1)
+
     print()
     if FAIL:
         print("{} FAILED".format(FAIL))
