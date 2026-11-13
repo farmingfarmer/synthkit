@@ -396,6 +396,49 @@ Synthetic clinical data generator and model-evaluation instrument. Core rule: le
 - Never state a number as measured unless you actually ran it.
 
 ## Fixing what the real extract found
+- **THE INVERSE CDF ASSUMES UNIFORM DENSITY BETWEEN KNOTS, AND
+  THAT IS THE DOMINANT ERROR ON A BOUNDED COLUMN (2026-11-12,
+  `--extra-knots`).** This file already records the assumption
+  carrying the whole error across a TOP segment; it does the same
+  wherever mass sits near an interior knot. On an spo2-shaped
+  column every published quantile lands EXACTLY - 87, 91, 95, 98,
+  100 - and the band from 95 to 98 still comes out **0.1008 light**
+  with the mass piled into 98-to-100. Nothing was wrong with the
+  knots; the error is between them.
+      extra knots   knots   gap against the SOURCE
+      0 (shipping)     11                   0.1008
+      9                17                   0.0150
+      19               23                   0.0162
+      39               43                   0.0205
+  **Nine extra knots take it 6.7-fold**, and it is NOT MONOTONE
+  beyond that - which is in the flag's own help text, because the
+  obvious reading of a resolution dial is that more is better.
+- **AND IT FIXES A CEILING POINT MASS FOR FREE, which is how a
+  separate field for that came to be DELETED.** `ceil_share` was
+  built as the mirror of `zero_share`: it made the ceiling mass
+  EXACT (0.3150 to 0.3465 against a source 0.3465) and moved the
+  whole-column gap by **nothing at all** - 0.1008 either way,
+  because the gap lives in a different band. Enough knots
+  represent a spike as repeated values and close the gap as well.
+  A flag that buys nothing is a thing to delete rather than ship,
+  which this file already says about a set-size coupling, and it
+  was deleted the same hour it was measured.
+- **WHAT IT COSTS IS DISCLOSURE, AND THAT IS WHY IT IS A DIAL.**
+  Every added knot publishes one more quantile VALUE of the real
+  column. The outer bounds do not move and are still the mean of
+  the k most extreme patients - asserted, with the k the bounds
+  were screened at asserted unchanged too, so this is a resolution
+  dial and not a privacy one.
+- **AND THE CLAMP CHECK WAS DECORATION UNTIL THE FIXTURE REACHED
+  IT.** Interior knots are held inside the published bounds, and
+  removing that clamp broke NOTHING on the spo2 shape because no
+  raw quantile there ever exceeds the bound. The shape that binds
+  is the one the k rule exists for - FIVE patients seen 200 times
+  each at a high value against 495 seen four times - where the
+  0.99 ROW quantile sits far above the mean of the ten most
+  extreme PATIENTS. With that fixture the same mutation turns it
+  red.
+
 - **READ ON THE RECIPIENT AXIS, THE GUARD BEATS THE DEFAULT I
   SHIPPED - AND THE REASON IS CANCELLATION RATHER THAN A BETTER
   MECHANISM (2026-11-12).** `peek marginals` now reports

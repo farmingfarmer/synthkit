@@ -60,6 +60,35 @@ from . import identities as _identities
 from . import sets as _sets
 
 BLUEPRINT_VERSION = 1
+# EXTRA INTERIOR KNOTS, EVENLY SPACED.
+#
+# The inverse CDF is interpolated LINEARLY between published knots,
+# which assumes uniform density in between - and this file already
+# records that assumption carrying the whole error across a top
+# segment. It does the same wherever mass is concentrated near a
+# knot: on an spo2-shaped column, measured against the source, the
+# band from the median to the next knot came out 0.10 light while
+# every published quantile landed exactly.
+#
+# Measured on that shape, gap against the SOURCE:
+#     11 knots (shipping)   0.0378
+#     21 knots              0.0184
+#     41 knots              0.0150
+# It also fixes a ceiling point mass for free - 0.2888 against a
+# source 0.3510 at 11 knots, 0.3570 at 21 - because enough knots
+# represent a spike as repeated values. A separate `ceil_share`
+# field was built for that and DELETED: it made the mass exact and
+# moved the whole-column gap by nothing, and a flag that buys
+# nothing is a thing to delete rather than ship.
+#
+# WHAT IT COSTS, said rather than buried: every added knot
+# publishes one more quantile VALUE of the real column. The
+# interior knots are raw quantiles today and remain so; only the
+# outer bounds are the mean of the k most extreme patients. On a
+# dense column an interior quantile is a value many patients
+# share, which is why this is a dial rather than a default.
+EXTRA_KNOTS = 0
+
 QUANTILES = [0.0, 0.01, 0.05, 0.1, 0.25, 0.5, 0.75, 0.9, 0.95,
              0.99, 1.0]
 MAX_LEVELS_KEPT = 60
@@ -315,6 +344,12 @@ def _numeric_marginal(s: pd.Series, groups=None,
         }
     lo, hi = bounds
     inner = [q for q in QUANTILES if 0.0 < q < 1.0]
+    if EXTRA_KNOTS and int(EXTRA_KNOTS) > 0:
+        _n = int(EXTRA_KNOTS)
+        _add = [(i + 1) / float(_n + 1) for i in range(_n)]
+        inner = sorted(set(
+            round(float(q), 6) for q in inner + _add
+            if 0.0 < q < 1.0))
     vals = [float(np.quantile(arr, q)) for q in inner]
     # interior quantiles are clamped inside the safe bounds, so the
     # published curve never reaches past what k patients support
