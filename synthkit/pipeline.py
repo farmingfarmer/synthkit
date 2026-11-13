@@ -856,6 +856,28 @@ def main(argv=None, args=None):
             "holdout": a.holdout,
             "excluded": drop,
         },
+        # EVERY DIAL THE ENGINE ACTUALLY HAD, read off the module
+        # constants rather than off argv.
+        #
+        # WHY. `settings` recorded eight fields and not one dial -
+        # not the extra knots, not the tail spread, not the token
+        # co-occurrence, not the copy-presence tier - so two runs
+        # could differ in what the engine DID and agree in every
+        # recorded field. That is what made a cross-build control
+        # arm invisible: the older run's fidelity simply had no
+        # copy/presence field, and a comparison against it would
+        # have differed by two things and been written up as one.
+        #
+        # READ FROM THE MODULE, never from the parsed flags: a
+        # flag that is read and not used is this project's oldest
+        # recorded fault, and an inherited environment variable is
+        # the same thing wearing a different hat. What is recorded
+        # is what the sampler was holding.
+        #
+        # It enumerates rather than listing, so a dial added
+        # tomorrow appears here with no edit - a hand-kept list is
+        # the thing that goes stale the day somebody adds one.
+        "dials": _engine_dials(),
         "privacy": {"k": (bp.get("privacy") or {}).get("k")},
         "note": "the source is named, not pathed, on purpose: this "
                 "file travels with the output and a path on that "
@@ -2264,6 +2286,28 @@ def blueprint_vocab(bp):
                 keep.append(t)
                 seen.add(tv)
         out[c] = keep
+    return out
+
+
+def _engine_dials():
+    """Every scalar module constant the engine exposes as a dial.
+
+    Scalars only: a grid or a quantile list is the contract rather
+    than a setting, and the blueprint already carries it.
+    """
+    import synthkit.blueprint as _b
+    import synthkit.generate as _g
+    out = {}
+    for mod, tag in ((_g, "generate"), (_b, "blueprint")):
+        got = {}
+        for k in dir(mod):
+            if not k.isupper():
+                continue
+            v = getattr(mod, k)
+            if isinstance(v, bool) or isinstance(v, (int, float,
+                                                     str)):
+                got[k] = v
+        out[tag] = dict(sorted(got.items()))
     return out
 
 

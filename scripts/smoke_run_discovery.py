@@ -75,6 +75,18 @@ def build(path, n_pat=90, n_vis=6, seed=4):
     pd.DataFrame(rows).to_csv(path, index=False)
 
 
+
+def _cp_off_by_build(gen):
+    """True when this run simply had no copied column to model.
+
+    ABSENT IS NOT THE SAME FACT AS OFF. The tier records a row per
+    column it chose rows for, so a blueprint declaring no `==`
+    constraint produces no field at all - and demanding the key
+    unconditionally would fail every run on a frame with no
+    copies, which is most fixtures.
+    """
+    return not (gen.get("copied_columns") or gen.get("copies"))
+
 def main():
     tmp = Path(tempfile.mkdtemp(prefix="synthkit_cli_"))
     src = tmp / "tidy.csv"
@@ -402,7 +414,7 @@ def main():
     # a bin holding three describes those three - the same rule
     # the deck follows when it suppresses sparse source bins.
     _allowed = {"column", "grid_vs_source", "grid_vs_output",
-                "source_vs_output", "verdict"}
+                "source_vs_output", "worst_band", "verdict"}
     _rows = _mg.get("columns") or []
     check("...and publishes DISTANCES and column names only - no "
           "bin count reaches the artifact, because a bin holding "
@@ -419,10 +431,99 @@ def main():
           "who never opens the JSON",
           any("marginal shape (not a criterion)" in x for x in _lm))
 
+    # AND THE WORST FIGURE ON THAT LINE HAS TO BE THE REAL ONE.
+    # `gate.assess` renamed the measure's `worst_source_vs_output`
+    # to `worst` on the way into its verdict, both renderers read
+    # the measure's name, and the line printed `worst 0.0000` on
+    # every run that had an off-source column - a number a reader
+    # cannot act on, in the block written so a reader would not
+    # have to open the JSON.
+    _mgb = (_fidall.get("marginals") or {})
+    _offc = _mgb.get("off_source") or []
+    _wline = [x for x in _lm if "worst " in x]
+    if _offc:
+        check("...and when a column IS off the source the printed "
+              "worst figure is the measured one rather than a "
+              "zero from a renamed field ({} off, line: {})"
+              .format(len(_offc),
+                      (_wline[0].strip()[:60] if _wline
+                       else "NO WORST LINE")),
+              bool(_wline)
+              and "0.0000" not in _wline[0]
+              and "{:.4f}".format(
+                  _mgb.get("worst_source_vs_output") or 0.0)
+              in _wline[0])
+    else:
+        check("the fixture has NO off-source column, so the worst "
+              "figure is not exercised here - said rather than "
+              "passing silently",
+              not _wline)
+
     # WHICH within-patient properties were lost. This criterion
     # reads 35 of 92 on the real extract - the worst on the file -
     # and recorded a bare COUNT.
     _summ = _fidall.get("summary") or {}
+    # A TIER THAT CANNOT PROVE IT EXECUTED HAS NOT BEEN DEPLOYED.
+    # Three generate-report fields had no plumbing into
+    # fidelity.json, so a run's own artifacts could not say
+    # whether the copy-presence tier, the presence re-rank or a
+    # refinement skip had happened - and a paired arm against an
+    # older build then differs by a DEFAULT nobody can see, which
+    # is the cross-build fault this project has already paid a
+    # night for.
+    # EVERY DIAL THE ENGINE WAS HOLDING, in the one file a
+    # reviewer trusts. `settings` recorded eight fields and not
+    # one dial, so two runs could differ in what the sampler DID
+    # and agree in every recorded field - which is how a
+    # cross-build control arm came to be invisible.
+    _prov = json.loads((out / "provenance.json")
+                       .read_text(encoding="utf-8"))
+    _dials = _prov.get("dials") or {}
+    check("the run records the engine's dials, so a reader can "
+          "tell what the sampler was holding rather than inferring "
+          "it from a build id",
+          isinstance(_dials, dict)
+          and "generate" in _dials and "blueprint" in _dials)
+    check("...and it ENUMERATES them rather than naming a list, "
+          "so a dial added tomorrow appears with no edit ({} "
+          "generate, {} blueprint)".format(
+              len(_dials.get("generate") or {}),
+              len(_dials.get("blueprint") or {})),
+          len(_dials.get("generate") or {}) >= 8
+          and len(_dials.get("blueprint") or {}) >= 4)
+    import synthkit.generate as _gmod
+    check("...and the recorded values are the INSTALLED ones - a "
+          "dial recorded from argv would miss a flag that never "
+          "reached the program, which is this project's oldest "
+          "recorded fault",
+          all((_dials.get("generate") or {}).get(k)
+              == getattr(_gmod, k)
+              for k in ("COPY_PRESENCE_FROM_SOURCE",
+                        "PRESENCE_RERANK", "TAIL_SPREAD")))
+    check("...and no non-scalar sneaks in - a quantile grid is "
+          "the contract rather than a setting and the blueprint "
+          "already carries it",
+          all(isinstance(v, (bool, int, float, str))
+              for grp in _dials.values() for v in grp.values()))
+
+    # AND THE WHOLE GENERATE REPORT IS ALREADY THERE, which is
+    # worth asserting rather than re-plumbing. `fid["generation"]
+    # = rep` carries every field the sampler recorded, so the
+    # copy-presence tier and the presence re-rank are readable
+    # from a run directory - and adding a second route for them
+    # under `summary` would have given one quantity two places,
+    # which is the fault the gate's own verdict block just had.
+    _gen = _fidall.get("generation") or {}
+    check("the generate report reaches fidelity.json WHOLE, so a "
+          "new sampler field needs no plumbing of its own and "
+          "cannot acquire a second name on the way",
+          isinstance(_gen, dict) and len(_gen) >= 3)
+    check("...and the copy-presence tier is readable from it by "
+          "name, so an arm run against an older build cannot "
+          "differ by a default nobody can see",
+          "copy_presence_modeled" in _gen
+          or _cp_off_by_build(_gen))
+
     check("the run NAMES the dynamics misses rather than counting "
           "them, because a count cannot say which patient "
           "property was lost",

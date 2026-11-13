@@ -1924,15 +1924,19 @@ def build_deck(src_path, run_dir, group_by="person_id",
             body.append(
                 '<p>Every one of the {} numeric columns tracks '
                 'both its own published summary and the original '
-                'data, to within {:.0%} of rows in any band.</p>'
+                'data, with under {:.0%} of its rows landing in '
+                'the wrong band.</p>'
                 .format(_mg["columns_measured"],
                         _mg.get("tolerance") or 0.05))
         else:
             body.append(
                 '<p><b>{} of {}</b> numeric columns differ from '
-                'the ORIGINAL by more than {:.0%} of rows in some '
-                'band. That is what a reader of this file holds; '
-                'the two columns beside it split the blame.</p>'
+                'the ORIGINAL in more than {:.0%} of their rows, '
+                'which land in the wrong band. That is what a '
+                'reader of this file holds; the two columns beside '
+                'it split the blame, and <i>worst band</i> says '
+                'where to look - a column can be wrong across '
+                'many bands and in no single one by much.</p>'
                 .format(len(_off), _mg["columns_measured"],
                         _mg.get("tolerance") or 0.05))
             body.append(
@@ -1940,6 +1944,7 @@ def build_deck(src_path, run_dir, group_by="person_id",
                 '<th>summary vs original</th>'
                 '<th>summary vs synthetic</th>'
                 '<th>ORIGINAL vs synthetic</th>'
+                '<th>worst band</th>'
                 '<th>where</th></tr>')
             for r in _rows[:12]:
                 _w = {"CONTRACT": "the published summary cannot "
@@ -1950,10 +1955,10 @@ def build_deck(src_path, run_dir, group_by="person_id",
                 body.append(
                     '<tr><td>{}</td><td>{:.4f}</td>'
                     '<td>{:.4f}</td><td><b>{:.4f}</b></td>'
-                    '<td>{}</td></tr>'.format(
+                    '<td>{:.4f}</td><td>{}</td></tr>'.format(
                         esc(r["column"]), r["grid_vs_source"],
                         r["grid_vs_output"], r["source_vs_output"],
-                        esc(_w)))
+                        r.get("worst_band") or 0.0, esc(_w)))
             body.append('</table>')
         body.append(
             '<p class="note">Reported, not gated. And a generator '

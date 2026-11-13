@@ -77,10 +77,37 @@ def classify(d_grid_src: float, d_grid_gen: float,
     return "CLEAR"
 
 
+# The quantiles the bands are cut at. These are the ones the
+# DEFAULT grid publishes, and they are FIXED here rather than read
+# from the blueprint on purpose: `--extra-knots` adds interior
+# quantiles, and a dial that moved the ruler it is measured on
+# would make its own arm incomparable to its control.
+#
+# WHY NOT THE TOP HALF ALONE. The first version cut at the median,
+# p75, p90, p99 and the maximum - five edges, so the whole lower
+# half was ONE band. A column whose lower half collapses entirely
+# onto a point mass keeps its share of that band, so the measure
+# read a distance of EXACTLY 0.0 on it. Demonstrated rather than
+# argued: a source uniform on 0..20, against an output holding the
+# upper half exactly and every lower-half row on zero, scored
+# 0.0 and read CLEAR - source lower-half mean 4.971 against an
+# output 0.000. That is the same point-mass fault this module was
+# written to catch, invisible to it, which is the worst kind of
+# clean. On the full set the same pair reads 0.49.
+#
+# Refining a partition can only INCREASE a total variation
+# distance, and a faithful output reads exactly 0.0 on either
+# ruler - measured on a permutation of the source - so no correct
+# CLEAR becomes a false finding. What does move is the COUNT of
+# columns over the bar, because the coarse ruler was under
+# reporting. Any count recorded before 2026-11-12 is over the old
+# five-edge ruler and is not comparable to one taken after it.
+BAND_QS = [0.01, 0.05, 0.1, 0.25, 0.5, 0.75, 0.9, 0.95, 0.99]
+
+
 def bands(v) -> List[float]:
     """Edges from the SOURCE, applied to all three distributions."""
-    qs = np.quantile(np.asarray(v, dtype=float),
-                     [0.5, 0.75, 0.9, 0.99])
+    qs = np.quantile(np.asarray(v, dtype=float), BAND_QS)
     edges: List[float] = []
     for e in list(qs) + [float(np.max(v))]:
         e = float(e)
@@ -99,9 +126,35 @@ def shares(v, edges) -> List[float]:
     return out
 
 
+def total(a, b) -> float:
+    """Total variation distance over the bands - the SHARE OF MASS
+    sitting in the wrong band.
+
+    WHY NOT THE WORST SINGLE BAND, which is what this measured
+    first. A band holding 4% of rows cannot differ by more than
+    0.04, so on an eleven-band ruler the small bands are
+    individually unfalsifiable at a 0.05 bar - and the errors do
+    not have to cancel in one place. Demonstrated rather than
+    argued: an output that moves 4% of the rows out of every other
+    band, EMPTYING three of them, reads a worst single band of
+    0.0400 and CLEAR, against a total of 0.1700. Seventeen percent
+    of a column's mass in the wrong band is not a clean column.
+
+    It is also the quantity MOSTLY AI and SDV publish, so this and
+    the TVD block speak the same way.
+    """
+    return float(0.5 * sum(abs(x - y) for x, y in zip(a, b)))
+
+
+def worst_band(a, b) -> float:
+    """The largest single-band share difference."""
+    return float(max(abs(x - y) for x, y in zip(a, b)))
+
+
 def measure(src: pd.DataFrame, gen: pd.DataFrame,
             bp: Dict[str, Any],
-            skip=None) -> Dict[str, Any]:
+            skip=None,
+            limit: Optional[int] = 40) -> Dict[str, Any]:
     """One row per numeric column with a published quantile grid."""
     from synthkit.generate import _draw_numeric
 
@@ -133,14 +186,18 @@ def measure(src: pd.DataFrame, gen: pd.DataFrame,
             continue
         e = bands(sv)
         ss, gs, xs = shares(sv, e), shares(grid, e), shares(gv, e)
-        d_gs = max(abs(a - b) for a, b in zip(gs, ss))
-        d_gx = max(abs(a - b) for a, b in zip(gs, xs))
-        d_sx = max(abs(a - b) for a, b in zip(ss, xs))
+        d_gs = total(gs, ss)
+        d_gx = total(gs, xs)
+        d_sx = total(ss, xs)
         rows.append({
             "column": c,
             "grid_vs_source": round(d_gs, 5),
             "grid_vs_output": round(d_gx, 5),
             "source_vs_output": round(d_sx, 5),
+            # The worst SINGLE band, for a reader who wants to know
+            # where to look. It is not the verdict: a column can be
+            # wrong in many bands and in no single one by much.
+            "worst_band": round(worst_band(ss, xs), 5),
             "verdict": classify(d_gs, d_gx)})
 
     rows.sort(key=lambda r: -r["source_vs_output"])
@@ -157,7 +214,12 @@ def measure(src: pd.DataFrame, gen: pd.DataFrame,
         "worst_source_vs_output": (rows[0]["source_vs_output"]
                                    if rows else None),
         "sampler_faults": [r["column"] for r in sampler],
-        "columns": rows[:40],
+        "columns": rows if limit is None else rows[:limit],
+        "metric": "total variation distance over the bands - the "
+                  "share of a column's mass sitting in the wrong "
+                  "band. `worst_band` beside it is the largest "
+                  "single band, which is NOT the verdict: the "
+                  "small bands cannot individually exceed the bar.",
         "note": "three distributions on one ruler whose edges come "
                 "from the SOURCE. `grid_vs_source` is the "
                 "contract's error and `grid_vs_output` the "

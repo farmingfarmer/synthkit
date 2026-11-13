@@ -250,11 +250,19 @@ def assess(fid: Dict[str, Any],
             # SPREAD; none of them asks whether a column's SHAPE
             # came out right, and the pair criteria are rank
             # correlations and cannot see it either.
-            "marginals": {
-                "columns_measured": _mg_b.get("columns_measured"),
-                "off_source": _mg_b.get("off_source"),
-                "worst": _mg_b.get("worst_source_vs_output"),
-                "sampler_faults": _mg_b.get("sampler_faults")},
+            # THE FIELD NAMES ARE THE MEASURE'S OWN. This block
+            # used to rename `worst_source_vs_output` to `worst`
+            # on the way through, so one quantity had two names
+            # depending on which dict a caller happened to hold -
+            # and an hour was then spent "fixing" two renderers
+            # that were reading the right key for the dict in
+            # front of them. Carrying the names through means a
+            # rename in `marginals` breaks the checks here rather
+            # than a page somewhere.
+            "marginals": dict(
+                (k, _mg_b.get(k)) for k in (
+                    "columns_measured", "off_source",
+                    "worst_source_vs_output", "sampler_faults")),
             "bars": {"direction": dir_bar, "close": close_bar,
                      "custom": bool(dir_custom or close_custom)}}
 
@@ -635,15 +643,15 @@ def report(verdict, rundir) -> "tuple":
         _off = _mv.get("off_source") or []
         lines.append(
             "  marginal shape (not a criterion): {} of {} numeric "
-            "column(s) differ from the SOURCE by more than the "
-            "share bar".format(len(_off),
-                               _mv.get("columns_measured")))
+            "column(s) have more than the share bar of their rows "
+            "in the wrong band against the SOURCE".format(
+                len(_off), _mv.get("columns_measured")))
         if _off:
             lines.append("    " + ", ".join(_off[:8]))
             lines.append(
                 "    worst {:.4f}; of these the SAMPLER's are: "
                 "{}".format(
-                    _mv.get("worst") or 0.0,
+                    _mv.get("worst_source_vs_output") or 0.0,
                     ", ".join(_mv.get("sampler_faults") or [])
                     or "none - every gap here is the published "
                        "grid, which is a different fix"))

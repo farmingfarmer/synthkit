@@ -3,6 +3,206 @@
 Synthetic clinical data generator and model-evaluation instrument. Core rule: learn the patterns, never copy the records. Real data teaches parameters; generation never touches a record.
 
 ## Verify before claiming
+- **I ATTACKED MY OWN NEW MEASURE AND IT WAS BLIND TWICE, IN THE
+  EXACT FAULT CLASS IT WAS BUILT FOR (2026-11-12).** The marginal
+  measure cut its bands at the median, p75, p90, p99 and the
+  maximum - so the whole LOWER HALF was ONE band. A column whose
+  lower half collapses onto a point mass keeps its share of that
+  band, and the distance read **EXACTLY 0.0000**. Demonstrated
+  rather than argued: a source uniform on 0..20 against an output
+  holding the upper half exactly and every lower-half row on zero
+  scored 0.0 and read CLEAR, with the source's lower-half mean at
+  4.971 against an output 0.000. That is the point-mass fault the
+  module exists to catch, invisible to it - the worst kind of
+  clean. On the contract's own quantile set the same pair reads
+  **0.49**.
+- **AND THE METRIC WAS THE WORST SINGLE BAND, WHICH THE SMALL
+  BANDS CANNOT FAIL.** A band holding 4% of rows cannot differ by
+  more than 0.04, so at a 0.05 bar every small band was
+  individually unfalsifiable - and the errors need not cancel in
+  one place. Measured: an output that moves 4% of rows out of
+  every other band, EMPTYING three of them, reads a worst single
+  band of **0.0400 and CLEAR** against a total of **0.1700**.
+  Seventeen percent of a column's mass in the wrong band is not a
+  clean column. The verdict is the TOTAL now - the share of mass
+  in the wrong band, which is also the quantity MOSTLY AI and SDV
+  publish - with the worst single band reported beside it for a
+  reader who wants to know where to look.
+- **REFINING A PARTITION CAN ONLY RAISE A TOTAL VARIATION
+  DISTANCE, AND A FAITHFUL OUTPUT READS EXACTLY 0.0 ON EITHER
+  RULER** - measured on a permutation of the source - so no
+  correct CLEAR becomes a false finding. What moves is the COUNT
+  of columns over the bar, because the coarse ruler was under
+  reporting. **Any off-source count recorded before 2026-11-12 is
+  over the old five-edge ruler and the old metric and is not
+  comparable to one taken after.**
+- **AND THE BAND QUANTILES ARE FIXED RATHER THAN READ FROM THE
+  BLUEPRINT, which is not a detail.** `--extra-knots` adds
+  interior quantiles; a ruler read off the published grid would
+  move with the dial, and the dial's own arm would then be
+  incomparable to its control. Pinned as a check, because that is
+  the same flag that already cost half an hour of machine time by
+  being wired after the stage it configures.
+
+- **ONE QUANTITY HAD TWO NAMES AND I "CORRECTED" BOTH CORRECT
+  READERS (2026-11-12).** `gate.assess` renamed the measure's
+  `worst_source_vs_output` to `worst` on the way into its verdict.
+  Grepping found the gate's render and the sign-off page both
+  reading the measure's name, I called it the wrong-key fault and
+  changed them - and they had been right, because the dict in
+  front of them carried the renamed key. The rename is GONE now:
+  the verdict block carries the measure's own field names, so a
+  rename breaks the checks rather than a page. **A translation
+  layer between two halves is not a convenience; it is the
+  condition that breeds wrong-key faults**, and this project has
+  nine of them on the record.
+- **AND THE GUARD IS A LIVE CALL, NOT A LIST.** Every key the
+  verdict block names must be a key `measure` actually produces,
+  asserted against a live `measure` result - which is the fix
+  this file has prescribed each of the previous times and which
+  was not mechanised until now.
+- **AND THE FIRST VERSION OF THAT GUARD CRASHED THE SUITE INSTEAD
+  OF FAILING IT.** It split the source on the exact text
+  `"marginals": dict(`, so the mutation that reverts to a literal
+  dict made it an IndexError: traceback, no `FAIL:` line, and the
+  fail-first read **red: 0 against broken code**. A message - or a
+  slice - must not index what its mutation removes. Then the
+  window overran into the next block and reported `bars, close,
+  custom, direction` as missing keys, and then the anchor key
+  `marginals` matched its own quoted name. Three attempts before
+  the check could fail for the right reason.
+
+- **peek RE-IMPLEMENTED THE DISTANCE THREE LINES ABOVE A DOCSTRING
+  FORBIDDING EXACTLY THAT (2026-11-12).** `marginals_view`
+  computed `max(abs(a - b))` over the shares itself, and the view
+  directly beneath it carries a paragraph explaining why
+  `_draw_numeric` must never be reimplemented there - "two halves
+  that each decide what a published grid means is how they come to
+  disagree". So moving the run block to a total would have left
+  `peek` and `fidelity.json` reporting DIFFERENT numbers for the
+  same column with nothing saying so. Both views call the measure
+  now, and a check asserts peek computes no band distance of its
+  own. Writing the rule in a comment is not the same as applying
+  it to the function next door.
+
+- **THE SURFACE CENSUS PRINTED A NEGATIVE COUNT ON A REAL RUN, AND
+  THE TOTAL STILL ADDED UP (2026-11-12).** `peek surfaces` on an
+  800-patient run read **"73 surface(s) published: 47 measured, 64
+  on token-indicator columns, -38 otherwise unmeasured"**. The
+  arithmetic balances because one term is **impossible**: the
+  token bucket counted every surface touching a `__has__` column
+  as unmeasurable, which was true while `compare` refused those
+  columns and false since the blueprint's own vocabulary is used
+  to rebuild them. So a measured surface was counted twice and the
+  residual absorbed it. This file's own rule is that a report
+  listing categories must state a total a reader can check
+  against - and a reader doing that sum here would have found it
+  CONSISTENT. The categories are disjoint now (measured wins), a
+  negative residual is called out in words if it ever recurs, and
+  the per-surface reason no longer says a token column "exists
+  only inside the search" - it says the OUTPUT carries too few of
+  that token to bin, which is the honest reason since the fix.
+- **AND THE VIEW HAD NO COVERAGE OF ANY KIND**, which is the
+  second time `peek` has been caught with none. `smoke_surface
+  census` holds the census to two properties on a planted
+  blueprint - the categories are disjoint, and no term can be
+  negative - and reproduces the old rule's negative so the fix is
+  shown to correct something rather than asserted to.
+
+- **A RUN RECORDED ITS SEED AND NOT ONE OF ITS DIALS, SO TWO RUNS
+  COULD DIFFER IN WHAT THE SAMPLER DID AND AGREE IN EVERY RECORDED
+  FIELD (2026-11-12).** `provenance.settings` carried eight fields
+  - group_by, time_col requested and used, lags, generate, seed,
+  holdout, excluded - and NOTHING about `--extra-knots`,
+  `--tail-spread`, `--token-cooccurrence`, `--solve-token-targets`,
+  `--force-implications`, `--presence-rerank`,
+  `--copy-coverage-guard`, `--no-copy-presence-from-source`,
+  `--trajectory`, `--k` or `--max-tokens`. Every one of those
+  changes the output. That is what made the cross-build control
+  arm invisible: the older run's artifacts simply had no field to
+  disagree on.
+- **IT ENUMERATES THE MODULE CONSTANTS RATHER THAN LISTING THEM,
+  because a hand-kept list goes stale the day somebody adds a
+  dial** - which is the same reason `smoke_packaging` asserts every
+  declared dependency appears in its recorded table. Thirteen
+  generate dials and seven blueprint ones on this build, scalars
+  only: a quantile grid is the CONTRACT rather than a setting and
+  the blueprint already carries it.
+- **AND IT READS THE MODULE, NEVER argv.** A flag that is read and
+  not used is this project's oldest recorded fault - `--time-col`
+  was carried into the blueprint and then ignored - and an
+  inherited environment variable is the same thing wearing a
+  different hat. What is recorded is what the sampler was HOLDING,
+  asserted against the installed values rather than against the
+  parsed flags; the mutation that records a parsed value instead
+  turns a check red.
+
+- **I NEARLY READ A CROSS-BUILD PAIR AS AN ARM, AND THE TOOL THAT
+  STOPS IT IS NOW BUILT (2026-11-12, `scripts/arm_compare.py`).**
+  The seed-37 control was run on an older tree. Its fidelity
+  carries no copy/presence field at all, so the copy-presence tier
+  that is now a DEFAULT was off in it - meaning a comparison
+  against the `--extra-knots` arm would have differed by TWO
+  things and been written up as one. Caught by reading the
+  control's own summary keys rather than by anything refusing.
+  A same-tree control was launched instead.
+- **AND A BUILD DIFFERENCE MUST NOT BE REFUSED, which is the part
+  that took thinking.** An old-against-new control arm is
+  cross-build BY DEFINITION, so refusing on build would refuse the
+  comparison the tool is for. What is fatal is a different SOURCE,
+  a different SEED or a different ENGINE - those make the two
+  columns answers to different questions. Everything else is
+  REPORTED as an uncontrolled difference, by name, including a
+  setting recorded on one side only, because an older run's
+  silence is not today's default. `--testing` is required: a table
+  with no stated question is read as whichever difference the
+  reader notices first.
+- **AND IT COMPUTES NOTHING.** Every figure is read from the two
+  run directories, asserted by a check that the tool imports no
+  gate and no measure - a second implementation of the gate is how
+  a report and a verdict come to disagree. It prints the ABSOLUTE
+  counts, marks any row whose DENOMINATOR moved, and names the
+  marginal columns each side fixed and broke, because a count
+  cannot say which column moved.
+
+- **A TIER I WAS ABOUT TO PLUMB WAS ALREADY PLUMBED, AND ADDING
+  THE ROUTE WOULD HAVE GIVEN IT A SECOND NAME (2026-11-12).**
+  `copy_presence_modeled` and `presence_reranked` are written into
+  the generate report and I could not find them in `fidelity.json`
+  by grepping the summary assembly - so I added them, and the
+  checks went red reporting a `refinement_skipped` that already
+  existed under a `generation` block. `fid["generation"] = rep`
+  carries the WHOLE report, one line, in a different function.
+  Reverted; what is asserted instead is that the report arrives
+  whole, so a new sampler field needs no plumbing and cannot
+  acquire a second name on the way. **Verify the gap exists before
+  building the fix** - this is the `_tail_bands` lesson in a new
+  place, and the mutation that would have caught it is one grep.
+
+- **`--presence-rerank` IS REFUTED ON THE REAL EXTRACT WITHOUT
+  RUNNING IT, WHICH IS WHAT THE CLASSIFIER IS FOR (2026-11-12).**
+  The flag re-ranks a relationship child among the rows that will
+  survive its presence mask, and the extract's own sampler faults
+  are the three invasive pressure columns - partially covered,
+  which is exactly its target. `peek rerank` on the run's
+  blueprint reports **the pass would re-rank ZERO columns**: every
+  candidate is either not a relationship child or CYCLIC, and the
+  refinement sweep already owns a cyclic column. "NOTHING - on
+  this blueprint the flag cannot change a single value, so a
+  paired arm would measure only the seed." That saved a
+  forty-five-minute arm and is a cleaner answer than one, because
+  an arm measuring only the seed comes back with a number.
+- **SO THE INVASIVE PRESSURE FAMILY'S SHORTFALL IS NOT THE
+  PRESENCE MASK, and the sweep is acquitted by reading it.** Both
+  the in-sweep re-rank and the final synchronized pass already
+  restrict to `isfinite(got) & held & pending` and place
+  `np.sort(draw[ok])`, so a cyclic column's marginal is preserved
+  ON THE PRESENT ROWS by construction. Measured on the seed-37
+  control, those columns read `grid~src` 0.046 to 0.085 against
+  `grid~out` 0.098 to 0.120 - GENERATION and BOTH - so the gap is
+  after the draw and it is not the mask. Named as open rather than
+  guessed at a fourth time.
+
 - **A DIAL SET AFTER THE STAGE IT CONFIGURES IS NOW CAUGHT
   STATICALLY (2026-11-12, `smoke_dial_order.py`).**
   `--extra-knots` assigned `blueprint.EXTRA_KNOTS` at line 940

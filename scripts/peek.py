@@ -379,8 +379,12 @@ def surfaces_view(run):
             if _sets.is_scaffolding(child) or any(
                     _sets.is_scaffolding(x) for x in pair):
                 print("  not measured - touches a token-indicator "
-                      "column, which exists only inside the "
-                      "search, never in the written files")
+                      "column, and the OUTPUT carries too few of "
+                      "that token to fill a grid. It is NOT that "
+                      "the column cannot be rebuilt: the "
+                      "blueprint's own vocabulary rebuilds it, "
+                      "which is why this bucket went from 67 to a "
+                      "handful")
             else:
                 print("  not measured - a column is absent from "
                       "the written files, or the overlapping "
@@ -408,25 +412,50 @@ def surfaces_view(run):
         print("no interaction surfaces are published in this "
               "blueprint")
     print()
+    # THE CATEGORIES MUST BE DISJOINT, OR THE RESIDUAL GOES
+    # NEGATIVE AND THE TOTAL STILL ADDS UP. This counted every
+    # surface touching a token indicator as unmeasurable - true
+    # while `compare` refused those columns, and false since the
+    # blueprint's own vocabulary is used to rebuild them. On a
+    # real run it then read "73 published: 47 measured, 64 on
+    # token-indicator columns, -38 otherwise unmeasured": the
+    # arithmetic balanced because one term was NEGATIVE, which is
+    # the totals rule satisfied by a number that cannot exist.
+    #
+    # A surface is MEASURED, or it is token-touching AND
+    # unmeasured, or it is unmeasured for some other reason.
+    # Measured wins, because a surface that WAS compared is not an
+    # instrument gap whatever its columns are called.
     from synthkit import sets as _sets2
+    # `gaps` is keyed by (child, sorted pair) - the same key the
+    # measurement records, so a surface is matched exactly rather
+    # than by its child alone.
     n_tok = 0
     for rel in (bp.get("relationships") or []):
         it2 = (rel.get("evidence") or {}).get("interaction")
         pr2 = list((it2 or {}).get("pair") or [])
         if len(pr2) != 2:
             continue
-        if _sets2.is_scaffolding(rel.get("child") or "") or any(
+        child2 = rel.get("child") or ""
+        if (child2, tuple(sorted(pr2))) in gaps:
+            continue
+        if _sets2.is_scaffolding(child2) or any(
                 _sets2.is_scaffolding(x) for x in pr2):
             n_tok += 1
+    _other = n_pub - len(gaps) - n_tok
     print("{} surface(s) published: {} measured, {} on "
-          "token-indicator columns (search-only, unmeasurable "
-          "from the written files), {} otherwise unmeasured. A "
+          "token-indicator columns the OUTPUT carries too few of "
+          "to bin, {} otherwise unmeasured. A "
           "pair member missing from the blueprint parents means "
           "the surface cannot fire in the FIRST pass; a lost lag "
           "parent means the cyclic refinement skips the record "
           "ENTIRELY.".format(
-              n_pub, len(gaps), n_tok,
-              n_pub - len(gaps) - n_tok))
+              n_pub, len(gaps), n_tok, _other))
+    if _other < 0:
+        print("  AND THAT RESIDUAL IS NEGATIVE, which cannot "
+              "happen: the categories above have started "
+              "overlapping and the total only balances because "
+              "one term is impossible. Do not read these counts.")
 
 
 
@@ -717,6 +746,7 @@ from synthkit.marginals import (TOL as MARGINAL_TOL,   # noqa: E402
                                 SEED as MARGINAL_SEED,
                                 bands as _bands,
                                 classify as classify_marginal,
+                                total as _total,
                                 shares as _shares)
 
 
@@ -733,10 +763,19 @@ def marginals_view(run, src_path):
     gap is ONE column or the engine. `procedure_quantity` was found
     by reading a gate table; nothing had asked whether the other
     thirty numerics are quietly in the same state.
+
+    IT DELEGATES THE MEASUREMENT, and that is the load-bearing
+    part. The first version re-derived the band distance here -
+    `max(abs(a - b))` over the shares - so when the run block
+    moved to a total variation distance over the same bands, this
+    view and `fidelity.json` would have reported DIFFERENT numbers
+    for the same column with nothing saying so. The view directly
+    below this one carries a docstring about never reimplementing
+    `_draw_numeric` for exactly that reason, and the distance got
+    reimplemented three lines above it.
     """
-    import numpy as np
     import pandas as pd
-    from synthkit.generate import _draw_numeric
+    from synthkit import marginals as _M
 
     bp = _load(run, "blueprint.json")
     genf = Path(run) / "generated.csv"
@@ -759,60 +798,41 @@ def marginals_view(run, src_path):
                  "plausible number about the wrong file"
                  .format(rec, len(src)))
 
-    rows, skipped = [], 0
-    for c, spec in (bp.get("columns") or {}).items():
-        m = ((spec or {}).get("marginal") or {})
-        if m.get("type") != "quantiles":
-            continue
-        if c not in g.columns or c not in src.columns:
-            skipped += 1
-            continue
-        sv = pd.to_numeric(src[c], errors="coerce").dropna().to_numpy(float)
-        gv = pd.to_numeric(g[c], errors="coerce").dropna().to_numpy(float)
-        if len(sv) < 50 or len(gv) < 50:
-            skipped += 1
-            continue
-        rng = np.random.default_rng(MARGINAL_SEED)
-        grid = np.asarray(_draw_numeric(m, rng.random(len(gv))),
-                          dtype=float)
-        edges = _bands(sv)
-        ss, gs, xs = (_shares(sv, edges), _shares(grid, edges),
-                      _shares(gv, edges))
-        d_gs = max(abs(a - b) for a, b in zip(gs, ss))
-        d_gx = max(abs(a - b) for a, b in zip(gs, xs))
-        d_sx = max(abs(a - b) for a, b in zip(ss, xs))
-        rows.append((d_sx, d_gs, d_gx, c,
-                     classify_marginal(d_gs, d_gx)))
-
-    rows.sort(reverse=True)
+    blob = _M.measure(src, g, bp, limit=None)
+    rows = blob["columns"]
     print("{} numeric column(s) compared, {} not comparable"
-          .format(len(rows), skipped))
+          .format(blob["columns_measured"], blob["not_comparable"]))
+    print("  the distance is the SHARE OF MASS in the wrong band. "
+          "`worst` is the largest single band, which is not the "
+          "verdict - a small band cannot exceed the bar alone.")
     print("  grid-vs-source is the CONTRACT's error, grid-vs-output "
           "the SAMPLER's. They take opposite fixes.")
     print()
     print("  sorted by SOURCE-against-OUTPUT, which is what a "
           "recipient holds - the other two split the blame.")
     print()
-    print("  {:<30} {:>9} {:>9} {:>11}  {}".format(
-        "column", "grid~src", "grid~out", "SRC~OUT", "verdict"))
-    for d_sx, d_gs, d_gx, c, v in rows:
-        print("  {:<30} {:>9.4f} {:>9.4f} {:>11.4f}  {}".format(
-            c[:30], d_gs, d_gx, d_sx, v))
+    print("  {:<30} {:>9} {:>9} {:>11} {:>7}  {}".format(
+        "column", "grid~src", "grid~out", "SRC~OUT", "worst",
+        "verdict"))
+    for r in rows:
+        print("  {:<30} {:>9.4f} {:>9.4f} {:>11.4f} {:>7.4f}  {}"
+              .format(r["column"][:30], r["grid_vs_source"],
+                      r["grid_vs_output"], r["source_vs_output"],
+                      r["worst_band"], r["verdict"]))
     print()
-    bad = [r for r in rows if r[4] != "CLEAR"]
+    bad = [r for r in rows if r["verdict"] != "CLEAR"]
     print("  {} of {} column(s) are off their own published grid or "
           "their source by more than {:.2f}".format(
               len(bad), len(rows), MARGINAL_TOL))
-    _held = [r for r in rows if r[0] > MARGINAL_TOL]
+    _held = blob["off_source"]
     print("  and {} of {} differ from the SOURCE in a recipient's "
           "hands by more than {:.2f}{}".format(
               len(_held), len(rows), MARGINAL_TOL,
-              ": " + ", ".join(r[3] for r in _held[:8])
-              if _held else ""))
-    gen = [r for r in rows if r[4] in ("GENERATION", "BOTH")]
+              ": " + ", ".join(_held[:8]) if _held else ""))
+    gen = blob["sampler_faults"]
     if gen:
         print("  {} of those are the SAMPLER's: {}".format(
-            len(gen), ", ".join(r[3] for r in gen[:8])))
+            len(gen), ", ".join(gen[:8])))
     else:
         print("  NONE of them is the sampler's - every gap here is "
               "the published grid, which is a different fix.")
@@ -902,8 +922,8 @@ def marginal_view(run, col, src_path):
     edges = _bands(sv)
     ss, gs, xs = (_shares(sv, edges), _shares(grid, edges),
                   _shares(gv, edges))
-    d_gs = max(abs(a - b) for a, b in zip(gs, ss))
-    d_gx = max(abs(a - b) for a, b in zip(gs, xs))
+    d_gs = _total(gs, ss)
+    d_gx = _total(gs, xs)
     # WHAT A RECIPIENT ACTUALLY HOLDS. The two gaps above split
     # the blame between the contract and the sampler, which is
     # what they are for - but neither is the thing a researcher
@@ -911,7 +931,7 @@ def marginal_view(run, col, src_path):
     # reads CLEAN on grid-vs-output and is still wrong in their
     # hands, and a fix aimed at the SOURCE rather than the grid
     # improves this while making grid-vs-output look worse.
-    d_sx = max(abs(a - b) for a, b in zip(ss, xs))
+    d_sx = _total(ss, xs)
     verdict = classify_marginal(d_gs, d_gx)
 
     mode = float(pd.Series(sv).mode().iloc[0])

@@ -157,14 +157,15 @@ def build_signoff(run_dir):
             body.append(
                 '<p class="note"><b>Marginal shape (not a '
                 'criterion):</b> {} of {} numeric column(s) '
-                'differ from the ORIGINAL by more than the share '
-                'bar, worst {:.4f} &mdash; {}. Of those, the ones '
+                'have more than the share bar of their rows in '
+                'the wrong band against the ORIGINAL, worst '
+                '{:.4f} &mdash; {}. Of those, the ones '
                 'the generator is responsible for are: {}. A '
                 'generator that copied the original verbatim '
                 'would score perfectly here, so this speaks to '
                 'shape and not at all to privacy.</p>'.format(
                     len(_off), _mv.get("columns_measured"),
-                    _mv.get("worst") or 0.0,
+                    _mv.get("worst_source_vs_output") or 0.0,
                     ", ".join(_off[:8]),
                     ", ".join(_mv.get("sampler_faults") or [])
                     or "none; every gap here is the published "
