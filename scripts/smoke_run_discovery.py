@@ -429,7 +429,7 @@ def main():
     # the deck follows when it suppresses sparse source bins.
     _allowed = {"column", "grid_vs_source", "grid_vs_output",
                 "source_vs_output", "worst_band", "noise_floor",
-                "verdict"}
+                "bar_used", "verdict"}
     _rows = _mg.get("columns") or []
     check("...and publishes DISTANCES and column names only - no "
           "bin count reaches the artifact, because a bin holding "

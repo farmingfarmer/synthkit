@@ -352,6 +352,30 @@ def main():
               ", ".join(_absent) or "none absent"),
           not _absent)
 
+    # NO ROW APPEARS TWICE. A duplicated entry printed
+    # "own-column pairs" on two lines of the first real arm table
+    # - harmless to the arithmetic and exactly the kind of thing a
+    # reader stops to re-read, and a static list is where a
+    # copy-paste lands.
+    _labels = [r[0] for r in A.ROWS]
+    check("every criterion row is listed once - a duplicate "
+          "printed `own-column pairs` twice on the first real arm "
+          "table ({} rows, {} distinct)".format(
+              len(_labels), len(set(_labels))),
+          len(_labels) == len(set(_labels)))
+    _keys = [r[1] for r in A.ROWS]
+    check("...and every row's key is one `readings` produces, so "
+          "a row cannot be silently unreadable",
+          not [k for k in _keys
+               if k not in A.readings.__code__.co_consts
+               and k not in ("related", "direction", "close",
+                             "inverted", "own_inverted",
+                             "own_related", "own_close",
+                             "coverage_ok", "coverage_n",
+                             "dynamics_ok", "dynamics_n",
+                             "token_ok", "token_n", "marg_n",
+                             "marg_off", "marg_sampler")])
+
     # NOTHING IS RECOMPUTED. Every figure is read, because a
     # second implementation of the gate is how a report and a
     # verdict come to disagree.

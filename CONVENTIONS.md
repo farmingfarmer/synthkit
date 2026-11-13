@@ -197,6 +197,26 @@ Synthetic clinical data generator and model-evaluation instrument. Core rule: le
   reason: it tests the third seed and the reproducibility of the
   earlier reading at once.
 
+- **AND THE BAR NOW ACCOUNTS FOR EACH COLUMN'S OWN NOISE, not
+  only for whether it has any (2026-11-13).** The power screen
+  refuses a column whose floor REACHES the share bar, and a column
+  whose floor sits just under it is still noisy: a reading of
+  0.0575 against a floor of 0.0327 is not a finding. A distance
+  must clear the product bar AND twice the column's own sampling
+  noise. On a wide cohort the floor is a fraction of the bar and
+  the effective bar is exactly 0.05, which is why no recorded
+  headline moves; at 2,000 rows it is 0.0716.
+- **AND THE SHAPE THAT SEPARATES THE TWO RULES HAD TO BE LANDED ON
+  PURPOSE.** They part only for a reading BETWEEN the product bar
+  and twice the floor, and the first fixture read 0.0267 - below
+  both - so the mutation that judges on the fixed bar alone found
+  NOTHING. It also read differently from the probe that designed
+  it, because both sides drew from ONE generator and the reading
+  then depended on how many draws the checks above happened to
+  consume. Seeded independently per side, a 0.17 sd shift at 2,400
+  rows lands at 0.0575 against a bar of 0.0653, and the mutation
+  turns it red.
+
 - **AND THE REAL EXTRACT SETTLES IT IMMEDIATELY: THREE OF THE FOUR
   COLUMNS THE MEASURE BLAMED ON THE SAMPLER ARE PRESENT ON 113
   ROWS, AND EVERY ONE OF THEIR READINGS SITS UNDER ITS OWN NOISE

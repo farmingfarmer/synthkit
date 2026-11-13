@@ -101,6 +101,20 @@ def noise_floor(n_src: int, n_gen: int) -> float:
                                           + 1.0 / n_gen)))
 
 
+def effective_bar(floor: float, tol: float = TOL) -> float:
+    """The bar a reading has to clear on THIS column.
+
+    The power screen above already refuses a column whose floor
+    reaches the bar - but a column whose floor sits just under it
+    is still noisy, and a reading of 0.055 against a floor of
+    0.049 is not a finding. So a distance must clear the product
+    bar AND twice its own sampling noise. On a wide cohort the
+    floor is a fraction of the bar and this is exactly `tol`,
+    which is why the headline numbers do not move.
+    """
+    return float(max(tol, 2.0 * float(floor)))
+
+
 def classify(d_grid_src: float, d_grid_gen: float,
              tol: float = TOL) -> str:
     """Which half is responsible - a PURE function.
@@ -243,6 +257,7 @@ def measure(src: pd.DataFrame, gen: pd.DataFrame,
                 "rows_source": int(len(sv)),
                 "rows_output": int(len(gv))})
             continue
+        bar = effective_bar(floor)
         e = bands(sv)
         ss, gs, xs = shares(sv, e), shares(grid, e), shares(gv, e)
         d_gs = total(gs, ss)
@@ -258,10 +273,12 @@ def measure(src: pd.DataFrame, gen: pd.DataFrame,
             # wrong in many bands and in no single one by much.
             "worst_band": round(worst_band(ss, xs), 5),
             "noise_floor": round(floor, 5),
-            "verdict": classify(d_gs, d_gx)})
+            "bar_used": round(bar, 5),
+            "verdict": classify(d_gs, d_gx, tol=bar)})
 
     rows.sort(key=lambda r: -r["source_vs_output"])
-    held = [r for r in rows if r["source_vs_output"] > TOL]
+    held = [r for r in rows
+            if r["source_vs_output"] > r["bar_used"]]
     sampler = [r for r in rows
                if r["verdict"] in ("GENERATION", "BOTH")]
     return {

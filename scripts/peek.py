@@ -805,6 +805,9 @@ def marginals_view(run, src_path):
     print("  the distance is the SHARE OF MASS in the wrong band. "
           "`worst` is the largest single band, which is not the "
           "verdict - a small band cannot exceed the bar alone.")
+    print("  `bar` is this column's OWN bar: the product bar, or "
+          "twice its sampling noise where that is larger. A "
+          "column too thin to read at all is listed below.")
     print("  grid-vs-source is the CONTRACT's error, grid-vs-output "
           "the SAMPLER's. They take opposite fixes.")
     print()
@@ -813,13 +816,13 @@ def marginals_view(run, src_path):
     print()
     print("  {:<30} {:>9} {:>9} {:>11} {:>7} {:>7}  {}".format(
         "column", "grid~src", "grid~out", "SRC~OUT", "worst",
-        "noise", "verdict"))
+        "bar", "verdict"))
     for r in rows:
         print("  {:<30} {:>9.4f} {:>9.4f} {:>11.4f} {:>7.4f} "
               "{:>7.4f}  {}"
               .format(r["column"][:30], r["grid_vs_source"],
                       r["grid_vs_output"], r["source_vs_output"],
-                      r["worst_band"], r.get("noise_floor") or 0.0,
+                      r["worst_band"], r.get("bar_used") or 0.0,
                       r["verdict"]))
     print()
     # THE COLUMNS THAT COULD NOT BE READ. Printed, because an

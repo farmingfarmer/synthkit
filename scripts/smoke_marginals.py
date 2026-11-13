@@ -128,7 +128,7 @@ def main():
     # satisfied by its own explanation.
     _allowed = {"column", "grid_vs_source", "grid_vs_output",
                 "source_vs_output", "worst_band", "noise_floor",
-                "verdict"}
+                "bar_used", "verdict"}
     check("the per-column rows carry distances and names only, no "
           "bin count - a bin holding three patients describes "
           "those three",
@@ -354,6 +354,63 @@ def main():
           "the draw",
           all(_d < M.noise_floor(_n, _n)
               for _n, _d, _r in _REAL if not _r))
+
+    # AND THE BAR ACCOUNTS FOR THE COLUMN'S OWN NOISE. The power
+    # screen refuses a column whose floor REACHES the bar, and a
+    # column whose floor sits just under it is still noisy - a
+    # reading of 0.055 against a floor of 0.049 is not a finding.
+    check("a wide column's bar is exactly the product bar, so the "
+          "headline numbers do not move: floor {:.4f} gives bar "
+          "{:.4f}".format(M.noise_floor(55000, 55000),
+                          M.effective_bar(
+                              M.noise_floor(55000, 55000))),
+          abs(M.effective_bar(M.noise_floor(55000, 55000))
+              - M.TOL) < 1e-9)
+    _f2 = M.noise_floor(2000, 2000)
+    check("...while a column at the edge of readability has to "
+          "clear TWICE its own noise: floor {:.4f} gives bar "
+          "{:.4f}".format(_f2, M.effective_bar(_f2)),
+          M.effective_bar(_f2) > 1.4 * M.TOL)
+    check("...and the bar is never BELOW the product bar, so this "
+          "cannot loosen a verdict on a wide column",
+          all(M.effective_bar(M.noise_floor(n, n)) >= M.TOL
+              for n in (2000, 5000, 20000, 55000, 200000)))
+
+    # AND IT CHANGES A VERDICT, demonstrated rather than asserted:
+    # a 2,400-row column whose reading sits between the product
+    # bar and twice its own noise is CLEAR, where the fixed bar
+    # called it a finding.
+    # SEEDED INDEPENDENTLY ON EACH SIDE, so the fixture lands
+    # where it is meant to whatever ran before it - a shared
+    # generator makes the reading depend on how many draws the
+    # checks above happened to consume, which is how the first
+    # version of this landed at 0.0267 instead of 0.0529.
+    _n5 = 2400
+    _s5 = np.random.default_rng(21).normal(0, 1, _n5)
+    _b5 = {"columns": {"v": {"marginal": {
+        "type": "quantiles", "q": [0.0, 0.25, 0.5, 0.75, 1.0],
+        "v": [float(np.quantile(_s5, q))
+              for q in (0.0, 0.25, 0.5, 0.75, 1.0)]}}}}
+    # A READING BETWEEN THE TWO BARS is the only shape where the
+    # two rules disagree, so the fixture has to land there - a
+    # shift of 0.14 sd on this cohort does, and the mutation that
+    # judges on the product bar alone then calls the column off
+    # the source where its own noise explains the reading.
+    _o5 = M.measure(
+        pd.DataFrame({"v": _s5}),
+        pd.DataFrame({
+            "v": np.random.default_rng(99).normal(0.17, 1, _n5)}),
+        _b5)
+    _r5 = _o5["columns"][0]
+    check("the fixture lands a reading BETWEEN the product bar "
+          "and twice the column's own noise ({:.4f}, bar {:.4f}, "
+          "floor {:.4f}), which is the only shape where the two "
+          "rules part".format(_r5["source_vs_output"],
+                              _r5["bar_used"], _r5["noise_floor"]),
+          M.TOL < _r5["source_vs_output"] < _r5["bar_used"])
+    check("...and such a column is NOT reported off the source, "
+          "because its own sampling noise explains the reading",
+          "v" not in _o5["off_source"])
 
     # ONE IMPLEMENTATION OF THE DISTANCE. `peek` re-derived it as
     # `max(abs(a - b))` over the shares, three lines above a

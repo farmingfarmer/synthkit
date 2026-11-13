@@ -196,12 +196,14 @@ def readings(run):
 # three occasions where a conclusion was drawn from one.
 ROWS = [
     ("pairs related", "related", None),
-    ("own-column pairs", "own_related", None),
-    ("own-column pairs", "own_related", None),
-    ("own-column close", "own_close", "own_related"),
     ("direction kept", "direction", "related"),
     ("close", "close", "related"),
     ("INVERTED", "inverted", None),
+    # THE OPERATOR'S OWN COLUMNS, counted apart. Four fifths of
+    # the graded surface on this extract is set-token scaffolding
+    # dropped before the file is written, and the absolute stop
+    # judges the columns a recipient actually receives.
+    ("own-column pairs", "own_related", None),
     ("own-column close", "own_close", "own_related"),
     ("own-column INVERTED", "own_inverted", None),
     ("coverage", "coverage_ok", "coverage_n"),
