@@ -2325,7 +2325,16 @@ def compare(df, g, bp, group_by, time_col, ordinals=None,
     # the two the dynamics module already derives unbiased; a
     # 0.15 tolerance, the steadiness band this file uses
     # elsewhere.
+    from synthkit import sets as _S_dyn
     dyn_cmp, dyn_ok = 0, 0
+    # WHICH columns, not just how many. This criterion reads
+    # 35 of 92 on the real extract - the worst on the file - and
+    # recorded a bare COUNT, so nobody could say which patient
+    # properties were lost or by how much. A count cannot answer
+    # a question about WHICH, which this file records for a
+    # dropped-edge report, for a twelve-pair difference guessed at
+    # four times, and for the refinement sweep.
+    dyn_rows = []
     _DYN_FLOOR, _DYN_TOL = 0.10, 0.15
     for c in ds:
         if c not in dg:
@@ -2343,8 +2352,24 @@ def compare(df, g, bp, group_by, time_col, ordinals=None,
         if abs(sv) < _DYN_FLOOR:
             continue
         dyn_cmp += 1
-        if abs(sv - gv) <= _DYN_TOL:
+        _measure = ("within_lag1" if "within_lag1" in sd
+                    and sd.get("lag1_total") is not None
+                    else "stickiness")
+        _hit = abs(sv - gv) <= _DYN_TOL
+        if _hit:
             dyn_ok += 1
+        dyn_rows.append({
+            "column": c, "measure": _measure,
+            "source": round(float(sv), 4),
+            "generated": round(float(gv), 4),
+            "delta": round(float(gv - sv), 4),
+            # DIRECTION, because losing a patient's course and
+            # inventing one are different faults with different
+            # fixes, and a magnitude alone cannot tell them apart.
+            "direction": ("flattened" if abs(gv) < abs(sv)
+                          else "overstated"),
+            "ok": bool(_hit),
+            "scaffolding": bool(_S_dyn.is_scaffolding(c))})
 
     cols, n_ok = [], dict(cov=0, ctr=0, spr=0, lag=0, clu=0, num=0, dyn=0,
                           part=0)
@@ -2724,6 +2749,14 @@ def compare(df, g, bp, group_by, time_col, ordinals=None,
             # absence.
             "dynamics_compared": dyn_cmp,
             "dynamics_ok": dyn_ok,
+            # WORST FIRST, and scaffolding flagged - four fifths of
+            # the graded surface on this extract is search
+            # machinery dropped before the file is written, and a
+            # list that did not say so would send a reader after
+            # columns nobody receives.
+            "dynamics_detail": sorted(
+                [r for r in dyn_rows if not r["ok"]],
+                key=lambda r: -abs(r["delta"]))[:40],
             "partly_covered": n_ok["part"],
             "constraints_checked": len(cons),
             "constraints_held": sum(1 for c in cons

@@ -16,6 +16,7 @@
     python scripts/peek.py RUNDIR rerank
     python scripts/peek.py RUNDIR sweep
     python scripts/peek.py RUNDIR copies
+    python scripts/peek.py RUNDIR dynamics
     python scripts/peek.py RUNDIR curves
 
 WHY THIS EXISTS. Seven diagnoses in a row were fetched with pasted
@@ -1035,6 +1036,57 @@ def classify_rerank(bp):
     return rows, would
 
 
+def dynamics_view(run):
+    """Which within-patient properties were lost, and how.
+
+    `dynamics tracked` is the worst criterion on the real extract -
+    35 of 92 - and it recorded a bare COUNT, so nobody could say
+    which patient properties went or by how much. Losing a
+    patient's course and INVENTING one are different faults with
+    different fixes, and a magnitude alone cannot tell them apart.
+    """
+    fid = _load(run, "fidelity.json")
+    summ = (fid or {}).get("summary") or {}
+    rows = summ.get("dynamics_detail")
+    if rows is None:
+        print("this run PREDATES the per-column dynamics account - "
+              "it carries only {} of {} tracked. Absent is not the "
+              "same fact as nothing missed."
+              .format(summ.get("dynamics_ok"),
+                      summ.get("dynamics_compared")))
+        return
+    print("dynamics tracked {} of {}".format(
+        summ.get("dynamics_ok"), summ.get("dynamics_compared")))
+    if not rows:
+        print("  nothing missed - every graded within-patient "
+              "property came through inside the band")
+        return
+    own = [r for r in rows if not r.get("scaffolding")]
+    scaf = [r for r in rows if r.get("scaffolding")]
+    print("  {} miss(es) listed, {} on YOUR columns and {} on "
+          "set-token scaffolding dropped before the file is "
+          "written".format(len(rows), len(own), len(scaf)))
+    print()
+    print("  {:<34} {:<13} {:>8} {:>8} {:>8}  {}".format(
+        "column", "measure", "source", "output", "delta", "how"))
+    for r in (own + scaf):
+        print("  {:<34} {:<13} {:>8.3f} {:>8.3f} {:>+8.3f}  {}{}"
+              .format(r["column"][:34], r["measure"][:13],
+                      r["source"], r["generated"], r["delta"],
+                      r["direction"],
+                      "  (scaffolding)" if r.get("scaffolding")
+                      else ""))
+    print()
+    _fl = [r for r in rows if r["direction"] == "flattened"]
+    print("  {} of {} are FLATTENED - the patient's course is "
+          "weaker than the source's - and {} are OVERSTATED, which "
+          "is structure the engine invented".format(
+              len(_fl), len(rows), len(rows) - len(_fl)))
+    print("  Those take different fixes: a flattened course wants "
+          "persistence the draw is not carrying; an overstated one "
+          "wants less.")
+
+
 def copies_view(run):
     """Which columns are COPIED rather than drawn.
 
@@ -1205,6 +1257,8 @@ def main():
         sweep_view(run)
     elif what == "copies":
         copies_view(run)
+    elif what == "dynamics":
+        dynamics_view(run)
     elif what == "marginals":
         if not arg:
             sys.exit("marginals needs the source CSV")

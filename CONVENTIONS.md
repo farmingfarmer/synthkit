@@ -396,6 +396,32 @@ Synthetic clinical data generator and model-evaluation instrument. Core rule: le
 - Never state a number as measured unless you actually ran it.
 
 ## Fixing what the real extract found
+- **THE WORST CRITERION ON THE FILE REPORTED A COUNT, AND NOW
+  NAMES WHAT IT LOST (2026-11-12, `peek dynamics`).** `dynamics
+  tracked` reads **35 of 92** on the real extract - further from
+  full marks than anything else the gate measures - and recorded
+  `dynamics_ok` / `dynamics_compared` and nothing else. Nobody
+  could say which patient properties went or by how much. That is
+  the same fault this file records for a dropped-edge report, for
+  a twelve-pair difference guessed at four times, and for the
+  refinement sweep two days ago.
+- **AND THE DIRECTION IS THE PART WORTH HAVING.** Losing a
+  patient's course and INVENTING one are different faults with
+  different fixes - a flattened course wants persistence the draw
+  is not carrying, an overstated one wants less - and a magnitude
+  alone cannot tell them apart. Each miss now carries its source
+  value, its generated value, the delta, the direction, and
+  whether the column is SCAFFOLDING the reader never receives,
+  which four fifths of the graded surface is on this extract. A
+  list that did not say so would send somebody after columns
+  nobody gets.
+- **AND THE LIST IS THE MISSES ONLY, with the vacuity made
+  explicit.** Listing the hits too would bury the action in the
+  surface - a mutation that does it turns a check red. And because
+  an empty list makes every per-row assertion pass on nothing, the
+  suite asserts the fixture is either non-empty OR genuinely
+  missed nothing, so a vacuous pass is visible rather than silent.
+
 - **THE NEW MEASURE'S BEST VALUE IS ALSO WHAT THE WORST PRIVACY
   FAILURE PRODUCES, AND IT SAYS SO (2026-11-12).** A generator that
   republished the source VERBATIM scores **ZERO** on

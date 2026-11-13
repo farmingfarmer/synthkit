@@ -418,6 +418,54 @@ def main():
     check("...and the gate PRINTS it, so it is seen by a reader "
           "who never opens the JSON",
           any("marginal shape (not a criterion)" in x for x in _lm))
+
+    # WHICH within-patient properties were lost. This criterion
+    # reads 35 of 92 on the real extract - the worst on the file -
+    # and recorded a bare COUNT.
+    _summ = _fidall.get("summary") or {}
+    check("the run NAMES the dynamics misses rather than counting "
+          "them, because a count cannot say which patient "
+          "property was lost",
+          isinstance(_summ.get("dynamics_detail"), list))
+    _dd = _summ.get("dynamics_detail") or []
+    # THE LIST MAY LEGITIMATELY BE EMPTY, and then every `all()`
+    # below passes on nothing. Say which case this fixture is in,
+    # so a vacuous pass is visible rather than silent.
+    check("the detail list is either non-empty OR the run "
+          "genuinely missed nothing - stated, because every "
+          "per-row check below passes vacuously on an empty list",
+          bool(_dd)
+          or (_summ.get("dynamics_ok")
+              == _summ.get("dynamics_compared")))
+    _keys = {"column", "measure", "source", "generated", "delta",
+             "direction", "ok", "scaffolding"}
+    check("...each with its source and generated value, so the "
+          "size of the miss is readable and not just its name",
+          all(set(r) == _keys for r in _dd))
+    check("...and its DIRECTION, because losing a patient's "
+          "course and INVENTING one are different faults with "
+          "different fixes",
+          all(r["direction"] in ("flattened", "overstated")
+              for r in _dd))
+    check("...and whether the column is scaffolding the reader "
+          "never receives, which four fifths of the graded "
+          "surface is on the real extract",
+          all(isinstance(r["scaffolding"], bool) for r in _dd))
+    check("...listing only the MISSES, so the list is the action "
+          "rather than the whole surface",
+          all(r["ok"] is False for r in _dd))
+
+    import subprocess as _sp_dy
+    _dy = _sp_dy.run(
+        [sys.executable, "scripts/peek.py", str(out), "dynamics"],
+        capture_output=True, text=True, cwd=str(ROOT))
+    check("...and `peek dynamics` reads it back, separating "
+          "flattened from overstated because they take opposite "
+          "fixes",
+          _dy.returncode == 0
+          and "dynamics tracked" in _dy.stdout
+          and ("FLATTENED" in _dy.stdout
+               or "nothing missed" in _dy.stdout))
     for d in rep_d.get("edges_dropped") or []:
         check("every dropped edge says whether its child kept any "
               "other parent, which is what decides if it matters",
