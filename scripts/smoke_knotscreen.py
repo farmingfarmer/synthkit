@@ -234,6 +234,27 @@ def main():
           not all(float(x).is_integer()
                   for x in _mf["v"][1:-1]))
 
+    # THE PRICE REACHES THE PAGE SOMEBODY SIGNS. A number only in
+    # fidelity.json is the diagnostic-nobody-reads fault one step
+    # removed, and this one is a price paid FOR privacy rather
+    # than a fidelity defect - so it belongs beside the posture
+    # and not in the shape block.
+    _so = io.open(ROOT / "scripts" / "signoff.py",
+                  encoding="utf-8").read()
+    check("the sign-off page carries what the interior-knot "
+          "screen cost, in units of the column's own spread",
+          "What the interior-knot screen" in _so
+          and "knot_screen_worst_sd" in _so)
+    check("...and says it is a price paid FOR privacy rather "
+          "than a fidelity defect, because a reader meeting a "
+          "number beside a shape block would read it the other "
+          "way",
+          "price paid " in _so)
+    check("...and names the WORST column, because a reader "
+          "deciding whether the price is acceptable needs to know "
+          "where it fell",
+          "knotcost[0][0]" in _so)
+
     _src = io.open(ROOT / "synthkit" / "blueprint.py",
                    encoding="utf-8").read()
     check("and the module states the rule where the code is, "

@@ -82,6 +82,7 @@ def build_signoff(run_dir):
     # privacy counts, straight off the contract
     k = 10
     invented, suppressed, unpub = [], [], []
+    knotcost = []
     for c, spec in (bp.get("columns") or {}).items():
         m = (spec or {}).get("marginal") or {}
         k = int(m.get("bounds_are_k_anonymous") or k)
@@ -92,6 +93,18 @@ def build_signoff(run_dir):
         v = m.get("unpublishable_row_share")
         if v:
             unpub.append((c, float(v)))
+        # WHAT THE INTERIOR-KNOT SCREEN COST THIS COLUMN. An
+        # interior quantile is an order statistic, so on a thin
+        # column it is one person's recorded value - the same
+        # argument the published bounds already rest on. The knot
+        # published instead is the mean of a window backed by k
+        # distinct patients, and this is how far that moved the
+        # grid, in units of the column's own spread. It belongs on
+        # the page somebody signs because it is a price PAID for
+        # privacy rather than a fidelity defect.
+        _ks = m.get("knot_screen_worst_sd")
+        if _ks:
+            knotcost.append((c, float(_ks)))
 
     build = prov.get("build")
     build_id = (build.get("id", "unknown")
@@ -353,6 +366,22 @@ def build_signoff(run_dir):
                          "{} {:.0%}".format(esc(c), v)
                          for c, v in unpub[:4]) + ".")
     body.append('<p class="note">' + " ".join(parts) + "</p>")
+    if knotcost:
+        knotcost.sort(key=lambda t: -t[1])
+        body.append(
+            '<p class="note"><b>What the interior-knot screen '
+            'cost:</b> a published quantile is an order '
+            'statistic, so on a thin column it is one person\'s '
+            'recorded value &mdash; the same argument the '
+            'published minimum and maximum already rest on. Each '
+            'interior knot here is the mean of a window backed by '
+            'at least {} distinct patients instead. The furthest '
+            'any column\'s grid moved as a result is <b>{:.4f}</b> '
+            'of that column\'s own spread ({}); {} of {} numeric '
+            'columns record a cost at all. This is a price paid '
+            'FOR privacy, not a fidelity defect.</p>'.format(
+                k, knotcost[0][1], esc(knotcost[0][0]),
+                len(knotcost), len(bp.get("columns") or {})))
     body.append('<p class="note"><b>k-anonymous publication is '
                 "NOT differential privacy.</b> Membership and "
                 "attribute-disclosure attacks are run with "

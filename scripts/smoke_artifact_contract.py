@@ -295,6 +295,38 @@ def main():
         # most of a column's rows on one value - which is what
         # procedure_quantity did for months on the real extract -
         # and this is the page somebody signs.
+        # WHAT THE INTERIOR-KNOT SCREEN COST, on the REAL page.
+        # An interior quantile is an order statistic, so on a thin
+        # column it is one person's recorded value - the same
+        # argument the published bounds rest on - and the knot
+        # published instead is the mean of a window backed by k
+        # patients. The price is a number in the blueprint, and a
+        # number only in JSON is the diagnostic-nobody-reads
+        # fault. Asserted on the RENDER rather than on the source,
+        # because a content check cannot see a dead path: the
+        # mutation that disabled the block passed a text check.
+        _bpj = json.loads(
+            io.open(os.path.join(run, "blueprint.json"),
+                    encoding="utf-8").read())
+        _any_cost = [
+            (c, (sp or {}).get("marginal", {}).get(
+                "knot_screen_worst_sd"))
+            for c, sp in (_bpj.get("columns") or {}).items()
+            if ((sp or {}).get("marginal") or {}).get(
+                "knot_screen_worst_sd")]
+        check("this run's blueprint records what the knot screen "
+              "cost on at least one column, without which the "
+              "check below would pass on an absent block ({} of "
+              "{} columns)".format(len(_any_cost),
+                                   len(_bpj.get("columns") or {})),
+              bool(_any_cost))
+        check("...and the sign-off page RENDERS it, with the "
+              "worst column named - asserted on the page rather "
+              "than on the source, because a content check on the "
+              "source cannot see a block that never runs",
+              "What the interior-knot screen" in _html
+              and "price paid " in _html)
+
         check("...and the MARGINAL SHAPE reaches it too, marked "
               "as not a criterion, because the verdict table "
               "above it cannot see a column that passed coverage "
