@@ -93,6 +93,30 @@ Synthetic clinical data generator and model-evaluation instrument. Core rule: le
   seed does not reach it, so the seed is PINNED rather than chosen
   for tidiness.
 
+- **THE SECOND SEED FOR THE KNOT SCREEN IS RUNNING, AND THE
+  PREDICTION IS ON RECORD FIRST (2026-11-13, run_37_raw against
+  run_37_scr).** Both arms on ONE tree at seed 37, differing only
+  by `--raw-knots` - which is the flag added for exactly this,
+  because a default that cannot be turned off cannot be measured
+  against. The flag is confirmed as having fired on real data: the
+  raw arm's log carries "publishing RAW interior quantiles" BEFORE
+  "building the blueprint", which is the dial-ordering guard
+  satisfied where it matters rather than on a fixture.
+- **WHAT IS PREDICTED: the screen is free again.** Seed 11 read
+  direction 132 both ways, close 128 both ways, INVERTED 0 both
+  ways, with the worst column paying 0.2264 of its own spread. If
+  seed 37 reads the same, the range across two seeds does not
+  cross zero on any criterion and the default is earned on the
+  standard this file sets rather than on one reading.
+- **WHAT IS NOT PREDICTED: that every criterion is identical.** A
+  one-pair move on `close` or `direction` is inside this
+  criterion's own recorded seed spread, so a single pair either
+  way would not distinguish the screen from the draw. What would
+  be a finding is an INVERTED appearing, or a move of several
+  pairs - and if either happens the screen becomes a trade needing
+  its own decision rather than a privacy improvement that costs
+  nothing.
+
 - **THE PREDICTION HELD EXACTLY, AND THE SCREEN IS NOW FREE ON
   EVERY GATE CRITERION (2026-11-13, run_11_nocp against
   run_11_ks2).** Same source, same seed 11, denominator unmoved,
