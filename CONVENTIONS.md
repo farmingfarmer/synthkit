@@ -406,6 +406,53 @@ Synthetic clinical data generator and model-evaluation instrument. Core rule: le
   reason: it tests the third seed and the reproducibility of the
   earlier reading at once.
 
+- **BRANCH ONE, CONFIRMED: THE REFUSAL FIRES AND THE TIER IS
+  THEREFORE INERT ON THIS EXTRACT (2026-11-13, run_11_cpoff
+  against run_11_cpon).** Both arms on one tree at seed 11,
+  `--copy-presence-from-source` the only difference. Read off the
+  run's OWN report rather than inferred:
+      copy_presence_refused   1   procedure_quantity from
+                                  procedure_count, would_invert
+                                  ["span_days"]
+      copy_presence_warned    1   the same column and partner
+      copy_presence_modeled   ABSENT
+  and the gate:
+      criterion                  OFF        ON
+      INVERTED                     0         0
+      own-column INVERTED          0         0
+      marginal worst          0.4013    0.3966
+  **The absolute stop held, and the tier bought 0.0047 of the
+  worst column's shape - noise.** So making it safe made it inert
+  here: its benefit and its harm are the same mechanism on the
+  same column, and `procedure_quantity`'s 0.40 gap needs a
+  DIFFERENT mechanism rather than a safer version of this one.
+- **WHICH IS WHAT THE PREDICTION CALLED, and it was written as the
+  branch I expected rather than the one I wanted.** The recorded
+  text said: "the refusal FIRES and the arm is identical to its
+  control ... the tier buys NOTHING here. That would be a real
+  negative rather than a success." It also named the alternative -
+  branch two, the INVERTED coming back - and that did not happen,
+  which is the half that makes the refusal worth having at all.
+- **AND I NAMED THE WRONG PARTNER.** The prediction said the
+  refusal would fire for `procedure_quantity <- active_drug_count`,
+  because that is the pair the earlier narration carried at source
+  +0.497 against a generated -0.106. The run refused for
+  **`span_days`**. The column was right and the partner was not:
+  biasing presence by VALUE moves every relationship that column
+  takes part in, so which partner crosses the gate's floor is a
+  property of the draw rather than a fixed pair. Two partners of
+  one column, measured in two different runs, are not the same
+  finding and must not be written as one.
+- **AND THE TWO READINGS AGREED FOR THE FIRST TIME, which is
+  itself the finding about the instrument.** The copy-time
+  WARNING and the final-value REFUSAL named the same column and
+  the same partner. On both fixtures they disagreed - the warning
+  fired where the written output never reversed - so the
+  over-prediction was a property of those fixtures rather than of
+  the method. That does not retire the warning-versus-refusal
+  split: the reason the decision is taken on the final values is
+  that it CAN differ, and one agreement does not show it cannot.
+
 - **THE COPY-PRESENCE ARM WITH THE FINAL-VALUE REFUSAL IS RUNNING,
   AND THE PREDICTION HAS TWO NAMED BRANCHES (2026-11-13,
   run_11_cpoff against run_11_cpon).** Both arms on ONE tree at
