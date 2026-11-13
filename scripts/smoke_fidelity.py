@@ -2530,6 +2530,33 @@ def main():
           "just in the file that builds it",
           "says nothing whatever" in _docm)
 
+    # THE USAGE LIST AND THE DISPATCH MUST AGREE. `peek` has
+    # grown to eighteen subcommands; a documented one that is not
+    # wired reads as a broken tool, and a wired one that is not
+    # documented is invisible to the operator it was built for.
+    # Both are silent today.
+    _pk = (ROOT / "scripts" / "peek.py").read_text(encoding="utf-8")
+    _doc = _pk.split('"""')[1]
+    _documented = set(
+        re.findall(r"peek\.py RUNDIR (\w+)", _doc))
+    _dispatched = set(re.findall(r'elif what == "(\w+)":', _pk))
+    _dispatched |= set(re.findall(r'if what == "(\w+)":', _pk))
+    check("the peek usage list is non-trivial, so the comparison "
+          "below is not between two empty sets",
+          len(_documented) >= 10)
+    check("every subcommand peek DOCUMENTS is dispatchable - a "
+          "documented command that does nothing reads as a broken "
+          "tool: {}".format(
+              ", ".join(sorted(_documented - _dispatched))
+              or "none missing"),
+          not (_documented - _dispatched))
+    check("...and every subcommand it DISPATCHES is documented - "
+          "an undocumented one is invisible to the operator it "
+          "was built for: {}".format(
+              ", ".join(sorted(_dispatched - _documented))
+              or "none undocumented"),
+          not (_dispatched - _documented))
+
     print()
     if FAIL:
         print("{} FAILED".format(FAIL))
