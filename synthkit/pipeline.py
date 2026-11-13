@@ -293,6 +293,28 @@ def build_parser(prog=None, add_help=True):
                           "now the default and changes nothing - "
                           "pass --copy-presence-from-source to "
                           "turn the tier ON."))
+    ap.add_argument("--copy-presence-model", action="store_true",
+                    help=("let a COPIED column use its own "
+                          "published presence model - a parent "
+                          "plus a k-screened response curve, "
+                          "measured on the source - instead of a "
+                          "flat mask. The ordinary draw has "
+                          "consulted that model since it existed; "
+                          "the copy branch never looked, so a "
+                          "column carried by an `==` constraint "
+                          "had the one model describing the "
+                          "source's own presence rule published "
+                          "for it and unused. Different mechanism "
+                          "from --copy-presence-from-source: the "
+                          "density ratio selects rows to make the "
+                          "MARGINAL land, which is a stronger "
+                          "bias than the source's rule and is "
+                          "what inverted procedure_quantity "
+                          "against span_days; the published curve "
+                          "is what the source DID. OFF by "
+                          "default - it changes which values a "
+                          "shipped column carries and the paired "
+                          "real arm decides it."))
     ap.add_argument("--copy-presence-from-source",
                     action="store_true",
                     help=("turn the copy-presence tier ON. It "
@@ -1022,6 +1044,12 @@ def main(argv=None, args=None):
         say("token solve: {} extra pass(es) per published "
             "conditional pair, capped at {}".format(
                 float(_scale), _gen.TOKEN_SOLVE_MAX_PASSES))
+    if getattr(a, "copy_presence_model", False):
+        import synthkit.generate as _gen
+        _gen.COPY_PRESENCE_MODEL = True
+        say("a copied column may use its OWN published presence "
+            "model - the source's measured rule - rather than a "
+            "flat mask")
     if getattr(a, "copy_presence_from_source", False):
         import synthkit.generate as _gen
         _gen.COPY_PRESENCE_FROM_SOURCE = True

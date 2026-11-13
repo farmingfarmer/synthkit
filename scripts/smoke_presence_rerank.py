@@ -815,6 +815,76 @@ def main():
           "going the other way",
           _sfu(_base, [("p", _pv)], _mB, _mA) == [])
 
+    # A COPIED COLUMN IGNORED ITS OWN PUBLISHED PRESENCE MODEL.
+    #
+    # The ordinary draw consults `spec["presence"]` - a parent
+    # plus a k-screened response curve measured on the source -
+    # and the COPY branch never looked. So a column carried by an
+    # `==` constraint had the one model describing the source's
+    # own presence rule published for it and unused, which is the
+    # capability-present-in-one-branch fault this project records
+    # more than any other.
+    _gen_src = io.open(ROOT / "synthkit" / "generate.py",
+                       encoding="utf-8").read()
+    check("the ordinary draw consults the published presence "
+          "model, which is the half that already worked",
+          "keep = _informative_presence(" in _gen_src)
+    check("...and the COPY branch now consults it too, before "
+          "falling back to anything else",
+          "copy_presence_model_used" in _gen_src
+          and "COPY_PRESENCE_MODEL" in _gen_src)
+    check("...and the density-ratio tier only runs where no "
+          "published model was usable, so the two cannot both "
+          "choose the rows",
+          "if keep is None and COPY_PRESENCE_FROM_SOURCE:"
+          in _gen_src)
+    check("...and it is OFF by default, because it changes which "
+          "values a shipped column carries",
+          G.COPY_PRESENCE_MODEL is False)
+    from synthkit.pipeline import build_parser as _bp_cm
+    check("...with a CLI flag, so the paired real arm can be run "
+          "without editing the module on the data machine",
+          any("--copy-presence-model" in o.option_strings
+              for o in _bp_cm()._actions))
+
+    # ASSERT THE OUTCOME. The checks above are text checks on the
+    # source, and the mutation that disabled the block with `if
+    # False:` left every one of those strings in place and broke
+    # nothing - a content check cannot see a dead path, which
+    # this project has recorded repeatedly and I did again.
+    #
+    # The fixture is the one with the `==` constraint, so a column
+    # is COPIED and carries a published presence model whose
+    # parent is drawn first.
+    # Presence that keeps the LOW-driver rows, which is the
+    # informative shape the rest of this suite uses, plus the
+    # `==` constraint so a column is actually COPIED.
+    _cmbp = bp_for([0.9, 0.5, 0.1], cov=0.19, constraint=True)
+    _rm_off, _rm_on = {}, {}
+    _pm_prev = G.COPY_PRESENCE_MODEL
+    try:
+        for _flag, _store in ((False, "off"), (True, "on")):
+            G.COPY_PRESENCE_MODEL = _flag
+            _rep = {}
+            generate(_cmbp, n_patients=400, seed=5, report=_rep)
+            if _store == "off":
+                _rm_off = _rep
+            else:
+                _rm_on = _rep
+    finally:
+        G.COPY_PRESENCE_MODEL = _pm_prev
+    check("the fixture COPIES a column - without that the branch "
+          "under test never runs and every check above would pass "
+          "on a path nothing reached",
+          bool((_rm_on or {}).get("copied_identities")))
+    check("...and with the flag ON the run RECORDS that the "
+          "copied column used its own published presence model, "
+          "naming the parent",
+          bool((_rm_on or {}).get("copy_presence_model_used")))
+    check("...and with it OFF it records nothing of the kind - "
+          "absent is not the same fact as ran-and-did-nothing",
+          not (_rm_off or {}).get("copy_presence_model_used"))
+
     # AND THE DECISION IS MADE ON THE FINAL VALUES NOW, which is
     # the only place the question has an answer: the pin pass, the
     # constraint repair and the refinement sweep all move the

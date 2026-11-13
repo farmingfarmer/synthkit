@@ -406,6 +406,42 @@ Synthetic clinical data generator and model-evaluation instrument. Core rule: le
   reason: it tests the third seed and the reproducibility of the
   earlier reading at once.
 
+- **A COPIED COLUMN IGNORED ITS OWN PUBLISHED PRESENCE MODEL, AND
+  THAT IS THE MECHANISM THE RECORD NAMED RATHER THAN THE ONE THAT
+  GOT BUILT (2026-11-13).** The ordinary draw consults
+  `spec["presence"]` - a PARENT plus a k-screened response curve,
+  measured on the source - and falls back to a flat or clustered
+  mask only where there is none. **The COPY branch never looked.**
+  It went straight to a flat draw, or to the density-ratio tier.
+  So a column carried by an `==` constraint had the one model
+  describing the source's own presence rule published for it and
+  unused - the capability-present-in-one-branch fault this file
+  records more than any other, and the record had even named the
+  fix: "the source's rule is almost certainly a function of the
+  dense column's own value, and this engine already models
+  informative presence as a parent plus a response curve".
+- **IT IS A DIFFERENT MECHANISM FROM THE DENSITY RATIO, which is
+  the whole reason it is worth an arm after tonight's negative.**
+  The ratio selects rows to make the column's MARGINAL land -
+  a stronger bias than the source's own rule, and the thing that
+  inverted `procedure_quantity` against `span_days`. The
+  published curve is what the source DID, so the subset it
+  selects is distributed like the source's subset, and a
+  relationship measured on it should carry the source's bias
+  rather than an artifact of the reconstruction.
+- **AND THE DENSITY TIER NOW ONLY RUNS WHERE NO PUBLISHED MODEL
+  WAS USABLE**, so the two cannot both choose the rows - a
+  mutation that lets the tier go first turns a check red.
+- **OFF BY DEFAULT, AND THE CHECK FOR IT HAD TO ASSERT THE
+  OUTCOME.** Three text checks on the source passed while a
+  mutation disabled the block with `if False:` - a content check
+  cannot see a dead path, which this file records repeatedly and
+  which I did again in the same session I recorded it for the
+  sign-off page. The fixture now COPIES a column that carries a
+  published presence model, and the run must RECORD
+  `copy_presence_model_used` with the flag on and nothing with it
+  off.
+
 - **BRANCH ONE, CONFIRMED: THE REFUSAL FIRES AND THE TIER IS
   THEREFORE INERT ON THIS EXTRACT (2026-11-13, run_11_cpoff
   against run_11_cpon).** Both arms on one tree at seed 11,

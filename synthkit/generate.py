@@ -214,6 +214,33 @@ COPY_COVERAGE_GUARD = False
 # marginal. That needs its own arm.
 COPY_PRESENCE_FROM_SOURCE = False
 
+# A COPIED COLUMN IGNORED ITS OWN PUBLISHED PRESENCE MODEL.
+#
+# The ordinary draw consults `spec["presence"]` - a PARENT plus a
+# k-screened response curve, measured on the source - and only
+# falls back to a flat or clustered mask when there is none. The
+# COPY branch never looked: it went straight to a flat draw, or
+# to the density-ratio tier above. So a column carried by an `==`
+# constraint had the one model that describes the source's own
+# presence rule published for it and unused, which is this
+# project's most repeated fault - a capability present in one
+# branch and absent from the branch that needs it.
+#
+# IT IS A DIFFERENT MECHANISM FROM THE DENSITY RATIO, which is
+# why it is worth measuring rather than assuming settled. The
+# ratio selects rows to make the column's MARGINAL land, which is
+# a stronger bias than the source's own rule and is what inverted
+# `procedure_quantity` against `span_days`. The published curve
+# is what the source DID - a quantity is recorded when there were
+# procedures - so the subset it selects is distributed like the
+# source's subset, and a relationship measured on it should carry
+# the source's bias rather than an artifact of the reconstruction.
+#
+# OFF by default: it changes which values a shipped column
+# carries, and the paired real arm decides it. The prediction is
+# written down before the arm runs.
+COPY_PRESENCE_MODEL = False
+
 # CONSUME THE PUBLISHED MASS AT A NON-ZERO FLOOR.
 #
 # `zero_share` puts a count's point mass back at ZERO, by rank, and
@@ -2737,6 +2764,23 @@ def generate(blueprint: Dict[str, Any],
                 clus = float(spec.get(
                     "target_missing_clustering") or 0.0)
                 keep = None
+                # THE COLUMN'S OWN PUBLISHED PRESENCE MODEL FIRST,
+                # where it has one and its parent is drawn. This
+                # is the source's measured rule rather than a
+                # reconstruction from two grids.
+                if COPY_PRESENCE_MODEL:
+                    _pmc = spec.get("presence")
+                    if (_pmc and not per_patient
+                            and _pmc.get("parent") in out):
+                        keep = _informative_presence(
+                            _pmc, out[_pmc["parent"]], counts,
+                            float(cov), clus, rng)
+                        if keep is not None and report is not None:
+                            report.setdefault(
+                                "copy_presence_model_used",
+                                []).append(
+                                    {"column": c, "from": _cp,
+                                     "parent": _pmc["parent"]})
                 # WHICH ROWS, chosen from the two published grids.
                 # A copied column is equal to its source wherever
                 # it is present, so its own published marginal IS
@@ -2746,7 +2790,7 @@ def generate(blueprint: Dict[str, Any],
                 # density ratio keeps the identity AND lands the
                 # marginal, where refusing the copy keeps one at
                 # the cost of the other.
-                if COPY_PRESENCE_FROM_SOURCE:
+                if keep is None and COPY_PRESENCE_FROM_SOURCE:
                     _sm = ((cols.get(_cp) or {}).get("marginal")
                            or {})
                     if (m.get("type") == "quantiles"
