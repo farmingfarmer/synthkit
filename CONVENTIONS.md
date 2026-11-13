@@ -9171,6 +9171,32 @@ what follows is what came out wrong anyway.
   nobody will use.
 
 ## Talking to the data machine
+- **A CASE-SENSITIVE `findstr` FOR "Error" HID AN ARGPARSE
+  REFUSAL, AND I HUNTED A DEAD PROCESS FOR AN HOUR
+  (2026-11-12).** A real arm was launched against the tree
+  ALREADY ON THE MACHINE, which predated the flag it was given -
+  so `run_discovery.py` exited on an unrecognised argument and
+  wrote its USAGE to the log. My liveness check was
+  `findstr /c:"done ->" /c:"Traceback" /c:"Error"`, and argparse
+  prints lowercase **`error:`**, so the check reported no error on
+  a log whose entire content was an error. The log sat at 1379
+  bytes, the output directory existed and was empty, and I read
+  that as "still in discovery" and polled it for over an hour.
+- **THE TELL WAS FREE AND I DID NOT TAKE IT UNTIL LATE: ZERO
+  python.exe PROCESSES.** `tasklist /fi "imagename eq
+  python.exe"` is safe here precisely because the probes are cmd
+  BUILTINS - `for`, `if`, `echo` - so the predicate cannot match
+  itself, which is the trap this file records when probes were
+  `python -c`. One count of zero settles alive-or-dead in a
+  single command, where a static log size cannot: Python buffers
+  a redirected stdout, so the ctl arm's log ALSO sat unchanged
+  for long stretches while running perfectly.
+- **TWO RULES FROM IT.** Grep a log for errors CASE-INSENSITIVELY
+  (`findstr /i`), because the thing that writes them is not
+  always yours. And verify the TREE carries the flag before
+  launching a long arm against it - one `findstr` for the flag
+  name costs seconds and the arm costs an hour.
+
 - **`focus` REPORTED ALREADY-FOREGROUND WHILE A QUEUED READ CAME
   BACK AS ANOTHER PROJECT'S BROWSER SCREEN (2026-11-11).** Three
   calls, three different answers about one machine: `run` refused
