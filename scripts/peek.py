@@ -14,6 +14,7 @@
     python scripts/peek.py RUNDIR marginal COLUMN SRC.csv
     python scripts/peek.py RUNDIR marginals SRC.csv
     python scripts/peek.py RUNDIR rerank
+    python scripts/peek.py RUNDIR copymodel
     python scripts/peek.py RUNDIR sweep
     python scripts/peek.py RUNDIR copies
     python scripts/peek.py RUNDIR dynamics
@@ -1071,6 +1072,96 @@ def _sweep_blocked(bp, col, cols):
                    for r in recs)
 
 
+def classify_copymodel(bp):
+    """(rows, usable) - can `--copy-presence-model` reach anything?
+
+    PURE over the blueprint, for the reason `classify_rerank`
+    exists: a real arm on the extract is half an hour of machine
+    time, and this answers from an artifact already on disk
+    whether the flag can change a single value. The last time this
+    was asked before an arm it saved forty-five minutes and gave
+    a cleaner answer than a run would have, because an arm that
+    measures only the seed still comes back with a number.
+
+    The engine takes the mask only where a COPIED column carries a
+    published presence record whose PARENT is already drawn - the
+    draw order is fixed by the relationship graph and is not
+    rearranged for this - so all three conditions are read here
+    rather than guessed.
+    """
+    from synthkit.generate import _copy_partners, _order
+    cols = bp.get("columns") or {}
+    pairs = _copy_partners(bp)
+    order = _order(bp, refine=True)[0]
+    pos = dict((c, i) for i, c in enumerate(order))
+    rows, usable = [], []
+    for dst, src in sorted(pairs.items()):
+        spec = cols.get(dst) or {}
+        pm = spec.get("presence") or {}
+        par = pm.get("parent")
+        cov = spec.get("coverage")
+        lvl = spec.get("level")
+        if lvl == "patient":
+            why = ("PATIENT-LEVEL - presence is a fact about the "
+                   "person and the mask is not drawn per row")
+        elif cov is None or float(cov) >= 1.0:
+            why = ("present on every row, so there is no mask to "
+                   "choose")
+        elif not pm or not par:
+            why = ("no published presence model - the blueprint "
+                   "records no parent for its missingness, so "
+                   "there is nothing to use")
+        elif par not in pos or dst not in pos:
+            why = ("{} is not in the draw order, so the engine "
+                   "never reaches this".format(par))
+        elif pos[par] > pos[dst]:
+            why = ("parent {} is drawn AFTER it (position {} "
+                   "against {}), so the model cannot be read - "
+                   "the gap is the ORDER rather than the "
+                   "model".format(par, pos[par], pos[dst]))
+        else:
+            why = "USABLE - parent {} is drawn first".format(par)
+            usable.append(dst)
+        rows.append({"column": dst, "copied_from": src,
+                     "coverage": cov, "parent": par, "why": why})
+    return rows, usable
+
+
+def copymodel_view(run):
+    """Would `--copy-presence-model` change anything on this run?"""
+    bp = _load(run, "blueprint.json")
+    rows, usable = classify_copymodel(bp)
+    print("copymodel_view on {}".format(run))
+    print("  a COPIED column uses its own published presence "
+          "model only where that model names a parent the engine "
+          "draws FIRST. All three conditions are read from the "
+          "blueprint, so this costs seconds rather than an arm.")
+    print()
+    if not rows:
+        print("  NOTHING IS COPIED on this blueprint - no `==` "
+              "constraint between two ordinary numeric columns, so "
+              "the flag cannot change a single value and an arm "
+              "would measure only the seed.")
+        return
+    print("  {:<30} {:>5}  {:<22}  {}".format(
+        "column", "cov", "parent", "verdict"))
+    for r in rows:
+        print("  {:<30} {:>5}  {:<22}  {}".format(
+            r["column"][:30],
+            "-" if r["coverage"] is None
+            else "{:.2f}".format(float(r["coverage"])),
+            str(r["parent"])[:22], r["why"]))
+    print()
+    if usable:
+        print("  the flag would choose the rows for {} "
+              "column(s): {}".format(len(usable),
+                                     ", ".join(usable)))
+    else:
+        print("  NOTHING - on this blueprint the flag cannot "
+              "change a single value, so a paired arm would "
+              "measure only the seed.")
+
+
 def classify_rerank(bp):
     """(rows, would_be_reranked) for a blueprint.
 
@@ -1338,6 +1429,8 @@ def main():
         curves_view(run)
     elif what == "rerank":
         rerank_view(run)
+    elif what == "copymodel":
+        copymodel_view(run)
     elif what == "sweep":
         sweep_view(run)
     elif what == "copies":

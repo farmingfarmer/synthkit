@@ -885,6 +885,113 @@ def main():
           "absent is not the same fact as ran-and-did-nothing",
           not (_rm_off or {}).get("copy_presence_model_used"))
 
+    # AND WHETHER THE FLAG CAN REACH ANYTHING IS ANSWERED FROM
+    # THE BLUEPRINT, not by spending an arm. The last time this
+    # was asked before a run it saved forty-five minutes and gave
+    # a cleaner answer than a run would have - an arm that
+    # measures only the seed still comes back with a number.
+    sys.path.insert(0, str(ROOT / "scripts"))
+    import peek as _PK
+    _rowsC, _useC = _PK.classify_copymodel(
+        bp_for([0.9, 0.5, 0.1], cov=0.19, constraint=True))
+    check("the predictor EXAMINES the copied columns rather than "
+          "returning empty because it looked at nothing - the "
+          "worst kind of clean ({} row(s))".format(len(_rowsC)),
+          len(_rowsC) >= 1)
+    check("...and says the flag is USABLE on a copied column "
+          "whose published presence model names a parent drawn "
+          "first, which is what the fixture carries: {}".format(
+              ", ".join(_useC) or "NONE"),
+          bool(_useC))
+    # AND IT AGREES WITH THE ENGINE, which is the whole point of a
+    # predictor: one that drifts sends the decision to run a real
+    # arm the wrong way, silently.
+    _pm_prev2 = G.COPY_PRESENCE_MODEL
+    try:
+        G.COPY_PRESENCE_MODEL = True
+        _repP = {}
+        generate(bp_for([0.9, 0.5, 0.1], cov=0.19,
+                        constraint=True),
+                 n_patients=400, seed=5, report=_repP)
+    finally:
+        G.COPY_PRESENCE_MODEL = _pm_prev2
+    _actual = sorted(r["column"] for r in
+                     (_repP.get("copy_presence_model_used") or []))
+    check("...and the prediction EQUALS what generation actually "
+          "did ({} predicted, {} done)".format(
+              sorted(_useC), _actual),
+          sorted(_useC) == _actual)
+    # AND A PARENT DRAWN AFTER THE COLUMN IS THE THIRD OUTCOME,
+    # which has to be planted because no fixture above reaches it:
+    # on all of them the presence parent is drawn first, so
+    # removing the ORDER check changed nothing and the mutation
+    # found nothing. Here the presence parent is the copied
+    # column's own CHILD, so the graph orders it last.
+    _lateM = {"type": "quantiles", "q": [0.0, 0.25, 0.5, 0.75, 1.0],
+              "v": [1.0, 2.0, 3.0, 5.0, 9.0], "integral": True}
+    _lbp = {"columns": {
+                "pq": {"kind": "numeric", "level": "visit",
+                       "coverage": 1.0,
+                       "marginal": dict(_lateM), "dials": {}},
+                "twin": {"kind": "numeric", "level": "visit",
+                         "coverage": 0.19,
+                         "marginal": dict(_lateM), "dials": {},
+                         "presence": {"parent": "late",
+                                      "grid": [0.0, 1.0, 2.0],
+                                      "response": [0.9, 0.5, 0.1]}},
+                "late": {"kind": "numeric", "level": "visit",
+                         "coverage": 1.0,
+                         "marginal": dict(_lateM), "dials": {}}},
+            "relationships": [rel("late", ["twin"], 0.60)],
+            "constraints": [{"op": "==", "lhs": "pq",
+                             "rhs": "twin",
+                             "holds_in_source": 1.0}],
+            "patients": {"count": 200,
+                         "visits": {"q": [0.0, 0.5, 1.0],
+                                    "v": [3.0, 4.0, 5.0],
+                                    "mean": 4.0},
+                         "dials": {}}}
+    _rowsL, _useL = _PK.classify_copymodel(_lbp)
+    check("a copied column whose presence parent is drawn AFTER "
+          "it is named with THAT reason - the gap is the ORDER "
+          "rather than the model, and those are different fixes",
+          any("drawn AFTER it" in r["why"] for r in _rowsL)
+          and not _useL)
+    # THE CALL IS GUARDED, because the mutation that drops the
+    # engine's `parent in out` test makes this a KeyError - and a
+    # crash is a traceback with no `FAIL:` line, which the net
+    # cannot tell from a check that never ran. This project
+    # records that trap repeatedly; a message must not be the
+    # only thing standing between a mutation and a dead suite.
+    _pm_prev3 = G.COPY_PRESENCE_MODEL
+    _repL, _errL = {}, None
+    try:
+        G.COPY_PRESENCE_MODEL = True
+        generate(_lbp, n_patients=200, seed=5, report=_repL)
+    except Exception as _e:
+        _errL = _e
+    finally:
+        G.COPY_PRESENCE_MODEL = _pm_prev3
+    check("generation does not RAISE on a presence parent that is "
+          "drawn after the column - it must skip the model, not "
+          "reach for a column that is not there yet ({})".format(
+              type(_errL).__name__ if _errL else "no error"),
+          _errL is None)
+    check("...and it records no model used, so the predictor is "
+          "not claiming a reach the engine does not have",
+          _errL is None
+          and not (_repL.get("copy_presence_model_used") or []))
+
+    # A COLUMN WITH NO PUBLISHED MODEL IS REFUSED BY NAME, so an
+    # empty answer is the finding rather than a blank.
+    _nomodel = bp_for([0.9, 0.5, 0.1], cov=0.19, constraint=True)
+    _nomodel["columns"]["twin"].pop("presence", None)
+    _rowsN, _useN = _PK.classify_copymodel(_nomodel)
+    check("a copied column with NO published presence model is "
+          "named with that reason rather than silently omitted",
+          any("no published presence model" in r["why"]
+              for r in _rowsN) and not _useN)
+
     # AND THE DECISION IS MADE ON THE FINAL VALUES NOW, which is
     # the only place the question has an answer: the pin pass, the
     # constraint repair and the refinement sweep all move the

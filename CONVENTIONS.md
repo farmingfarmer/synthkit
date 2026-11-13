@@ -442,6 +442,34 @@ Synthetic clinical data generator and model-evaluation instrument. Core rule: le
   `copy_presence_model_used` with the flag on and nothing with it
   off.
 
+- **AND WHETHER THAT FLAG CAN REACH ANYTHING IS ANSWERED FROM THE
+  BLUEPRINT (`peek copymodel`).** The last time this question was
+  asked before an arm it saved forty-five minutes and gave a
+  cleaner answer than a run would have, because an arm that
+  measures only the seed still comes back with a number. The
+  engine takes the mask only where a COPIED column carries a
+  published presence record whose PARENT is already drawn, so all
+  three conditions are read from an artifact already on disk.
+- **AND IT IS HELD AGAINST THE ENGINE RATHER THAN TRUSTED.** The
+  predicted column set must EQUAL what `generate` records having
+  done - a predictor that drifts sends the decision to spend
+  machine time the wrong way, silently, which is the rule this
+  file states for `peek rerank`.
+- **AND THE THIRD CONDITION HAD TO BE PLANTED, because no fixture
+  reached it.** On every existing fixture the presence parent is
+  drawn first, so removing the ORDER check changed nothing and the
+  mutation found NOTHING. The shape that reaches it is a presence
+  parent that is the copied column's own CHILD, which the graph
+  then orders last - and the verdict names the ORDER rather than
+  the model, because those are different fixes.
+- **AND THE ENGINE'S OWN GUARD CRASHED THE SUITE INSTEAD OF
+  FAILING IT.** Dropping its `parent in out` test makes the call a
+  `KeyError: 'late'` - a traceback with no `FAIL:` line, which the
+  net cannot tell from a check that never ran, and my grep counted
+  ZERO red. Guarded; the same mutation now gives two red checks.
+  That trap is on this file more times than any other and it still
+  caught me.
+
 - **THE ARM FOR IT IS QUEUED, WITH THE PREDICTION FIRST
   (2026-11-13, run_11_pmoff against run_11_pmon).** Both arms on
   ONE tree at seed 11, `--copy-presence-model` the only
