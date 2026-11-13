@@ -93,6 +93,52 @@ Synthetic clinical data generator and model-evaluation instrument. Core rule: le
   seed does not reach it, so the seed is PINNED rather than chosen
   for tidiness.
 
+- **THE SECOND SEED AGREES, AND THE PREDICTION SCORED EXACTLY AS
+  WRITTEN (2026-11-13, run_37_raw against run_37_scr).** Both arms
+  on ONE tree at seed 37, `--raw-knots` the only difference, every
+  figure spelled back by the machine:
+      criterion              raw knots   k-screened
+      pairs related                141          141
+      direction kept               127          126
+      close                        116          117
+      INVERTED                       0            0
+      own-column pairs              27           27
+      own-column close           22/27        22/27
+      own-column INVERTED            0            0
+  **One direction pair lost, one close pair gained, the absolute
+  stop untouched and every own-column figure identical.** Across
+  the two seeds:
+      criterion        seed 11   seed 37
+      direction              0        -1
+      close                  0        +1
+      INVERTED               0         0
+      own-column INVERTED    0         0
+- **WHICH IS WHAT THE PREDICTION SAID WOULD AND WOULD NOT COUNT.**
+  It claimed the screen would be free again, and named in advance
+  what a finding would be: "an INVERTED appearing, or a move of
+  several pairs", with a one-pair move explicitly refused as
+  inside the criterion's own seed spread. Neither finding
+  happened, and the two one-pair moves point in OPPOSITE
+  directions on two different criteria, which is what noise looks
+  like rather than a mechanism.
+- **AND THE PRICE IS SEED-INDEPENDENT BY CONSTRUCTION, which the
+  two runs confirm to four decimals.** The screen is computed from
+  the SOURCE, so the published grids and their cost cannot depend
+  on the draw - and seeds 11 and 37 both read **17 of 133 numeric
+  columns charged, worst `urine_voided` 0.2264 sd, then
+  diastolic_invasive 0.1418, MAP_invasive 0.1350, 787_2 0.1184**.
+  Identical. Only the GATE reading moves with the seed, which is
+  the right way round: the disclosure property is a fact about the
+  contract and the fidelity reading is a draw.
+- **SO THE DEFAULT IS EARNED ON THIS FILE'S OWN STANDARD.** Two
+  same-tree paired arms, one flag apart, denominator unmoved on
+  both; no criterion moves by more than a pair; the one verdict
+  this project calls an absolute stop reads zero on all four arms;
+  and every published interior quantile a recipient receives is
+  now an aggregate backed by at least ten patients rather than an
+  order statistic. What is still NOT claimed is a third seed, or
+  any other extract.
+
 - **THE SECOND SEED FOR THE KNOT SCREEN IS RUNNING, AND THE
   PREDICTION IS ON RECORD FIRST (2026-11-13, run_37_raw against
   run_37_scr).** Both arms on ONE tree at seed 37, differing only
