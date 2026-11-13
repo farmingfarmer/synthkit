@@ -93,6 +93,44 @@ Synthetic clinical data generator and model-evaluation instrument. Core rule: le
   seed does not reach it, so the seed is PINNED rather than chosen
   for tidiness.
 
+- **THE PREDICTION HELD EXACTLY, AND THE SCREEN IS NOW FREE ON
+  EVERY GATE CRITERION (2026-11-13, run_11_nocp against
+  run_11_ks2).** Same source, same seed 11, denominator unmoved,
+  every figure spelled back by the machine:
+      criterion              without screen   with + pass-through
+      pairs related                     151                   151
+      direction kept                    132                   132
+      close                             128                   128
+      INVERTED                            0                     0
+      own-column INVERTED                 0                     0
+  **The three direction pairs the first version cost came back.**
+  The recorded prediction was "direction returns toward 132"
+  because the pass-through makes the screen a no-op on any value k
+  patients already share, and `glasgow_coma_score` is exactly
+  that.
+- **AND THE WORST PRICE ON THE FILE FELL 8.7-FOLD.** The screen's
+  own cost, read off the two blueprints:
+      column                       first version   with pass-through
+      glasgow_coma_score              1.9739 sd          NOT CHARGED
+      urine_voided                    0.2264 sd            0.2264 sd
+      diastolic_..._invasive          0.1418 sd            0.1418 sd
+      mean_arterial_..._invasive      0.1350 sd            0.1350 sd
+      columns recording any cost         20 of 133           17 of 133
+  The three it still charges are exactly the kind the screen
+  exists for - continuous measurements on partially-covered
+  columns, where a published quantile is one person's recorded
+  value - and the one it stopped charging is a bounded score every
+  value of which hundreds of patients share.
+- **SO THE WHOLE THING IS A PRIVACY IMPROVEMENT AT ZERO MEASURED
+  FIDELITY COST, on one seed of one extract.** Every interior
+  quantile a recipient receives is now an aggregate backed by at
+  least ten patients rather than an order statistic, and no gate
+  criterion moved. What is NOT claimed is the second seed: this
+  file's own standard for a default is a range that does not cross
+  zero, and a zero on one seed is not a range - though a default
+  whose cost is zero and whose benefit is a privacy property is a
+  different case from a fidelity dial, which is why it ships.
+
 - **AND THE FIRST SCREEN COST THREE DIRECTION PAIRS ON THE REAL
   EXTRACT, WITH A PREDICTION ON RECORD BEFORE THE RE-RUN
   (2026-11-13, run_11_nocp against run_11_knotscreen).** Same
