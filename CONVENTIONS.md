@@ -56,6 +56,43 @@ Synthetic clinical data generator and model-evaluation instrument. Core rule: le
   rounded - a bound is the mean of the k most extreme patients and
   rounding it would undo the rule it exists for, which is a
   distinction my first check got wrong by asserting every knot.
+- **AND THE REAL EXTRACT PRICED THE KNOT SCREEN AT TWO STANDARD
+  DEVIATIONS ON ONE COLUMN, WHICH SENT THE RULE BACK FOR A FIX
+  (2026-11-13, run_11_knotscreen).** The first real run with the
+  screen on, spelled back by the machine:
+      column                              worst knot move
+      glasgow_coma_score                       1.9739 sd
+      urine_voided                             0.2264 sd
+      diastolic_blood_pressure_invasive        0.1418 sd
+      mean_arterial_pressure_invasive          0.1350 sd
+  **20 of 33 numeric columns recorded a cost at all**, and the
+  fixture's worst had been 0.2766 - so the extract found a case an
+  order of magnitude worse than anything measured here.
+- **AND THE COLUMN THAT PAID IT NEEDED NO PROTECTION.**
+  `glasgow_coma_score` is a bounded integer score: nearly every
+  row sits at the ceiling, so its SPREAD is tiny and a knot moving
+  by one whole point is two standard deviations. Each of its values
+  is held by hundreds of patients, so the raw quantile was already
+  an aggregate - which is exactly what this file had already said
+  about counts and had not acted on. Paying two sd of published
+  shape for a value hundreds of people share is the wrong trade.
+- **SO A RAW QUANTILE ALREADY BACKED BY k PATIENTS IS PUBLISHED
+  UNCHANGED.** Counted in patients, never rows. The screen then
+  fires only where the disclosure is - a CONTINUOUS measurement,
+  where a quantile is one person's recorded value - and
+  `glasgow_coma_score` records a cost of exactly **0.0** while a
+  continuous column on a thin cohort still pays 0.0916.
+- **AND THE SHAPE THAT REACHES THE RULE HAD TO BE SEARCHED FOR.**
+  On a wide cohort every value is held by far more than k patients
+  AND the window is tiny, so removing the pass-through changed
+  nothing and the mutation found NOTHING twice. Searched over 300
+  score-shaped cohorts: what parts them is a high ceiling mass
+  with a thin lower tail at moderate row counts - **508 patients x
+  11 visits, 93% at the ceiling**, where the window moves a knot
+  7.0 to 6.0 and the recorded cost goes 0.964 to zero. A nearby
+  seed does not reach it, so the seed is PINNED rather than chosen
+  for tidiness.
+
 - **AND A RUNNING MAXIMUM WAS WRITTEN FOR THIS AND REMOVED AS
   DEAD.** `np.interp` needs a non-decreasing grid and a windowed
   mean is not obviously monotone - the window at a higher quantile

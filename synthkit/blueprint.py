@@ -184,6 +184,21 @@ def _k_knot(arr, groups, q: float, k: int) -> float:
     Falls back to k ROWS where there is no grouping column, which
     is the same fallback `_safe_bounds` takes - without a patient
     column the row IS the unit and nothing better can be said.
+
+    A RAW QUANTILE ALREADY BACKED BY k PATIENTS IS PUBLISHED
+    UNCHANGED, and that turned out to matter a great deal. The
+    screen exists because a quantile of a CONTINUOUS measurement
+    is one person's recorded value; a value many patients share -
+    a coma score of 15, a count of 1 - is already an aggregate and
+    the window buys nothing there. Measured on the real extract
+    before this: `glasgow_coma_score` paid **1.9739 sd**, because
+    its spread is tiny (nearly every row sits at the ceiling) so
+    the window plus the integral rounding moved a knot by a whole
+    point, which is two standard deviations of that column. Paying
+    two sd of shape for a value held by hundreds of patients is
+    the wrong trade, and this file's own note already said the
+    screen buys little on a shared value - it just did not act on
+    it.
     """
     v = np.asarray(arr, dtype=float)
     n = len(v)
@@ -195,6 +210,12 @@ def _k_knot(arr, groups, q: float, k: int) -> float:
     v, g = v[o], g[o]
     pos = int(round(float(q) * (n - 1)))
     pos = max(0, min(n - 1, pos))
+    # ALREADY AN AGGREGATE? Count the DISTINCT PATIENTS holding
+    # exactly this value - patients, never rows, for the reason
+    # this file gives everywhere else.
+    _same = (v == v[pos])
+    if len(set(g[_same].tolist())) >= k:
+        return float(v[pos])
     lo = hi = pos
     seen = {g[pos]}
     # Widen OUTWARD from the quantile, a step each way at a time,

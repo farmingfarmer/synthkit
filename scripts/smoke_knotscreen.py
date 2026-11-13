@@ -255,6 +255,72 @@ def main():
           "where it fell",
           "knotcost[0][0]" in _so)
 
+    # A VALUE MANY PATIENTS SHARE IS ALREADY AN AGGREGATE, and
+    # the screen must not pay shape for it. Measured on the real
+    # extract before this rule: `glasgow_coma_score` paid 1.9739
+    # sd, because nearly every row sits at the ceiling so its
+    # spread is tiny and the window plus the integral rounding
+    # moved a knot by a whole point - two standard deviations of
+    # that column, for a value held by hundreds of patients.
+    _rs = np.random.default_rng(7)
+    _np_, _per = 800, 69
+    _gg2 = np.repeat(np.arange(_np_), _per)
+    _n2 = _np_ * _per
+    _score = pd.Series(np.where(
+        _rs.random(_n2) < 0.85, 15.0,
+        _rs.integers(3, 15, _n2).astype(float)))
+    _raw2, _scr2 = both(_score, _gg2)
+    check("a bounded SCORE whose values are each held by many "
+          "patients is published UNCHANGED - the screen exists "
+          "for a continuous measurement, where a quantile is one "
+          "person's value, and buys nothing on a shared one",
+          list(_raw2["v"]) == list(_scr2["v"]))
+    check("...and the recorded price on it is exactly zero, so an "
+          "operator is not shown a cost that was not paid "
+          "({})".format(_scr2.get("knot_screen_worst_sd")),
+          float(_scr2.get("knot_screen_worst_sd") or 0.0) == 0.0)
+
+    # AND THE SHAPE THAT REACHES THE RULE HAD TO BE SEARCHED FOR.
+    # On a wide cohort every value is held by far more than k
+    # patients AND the window is tiny, so removing the
+    # pass-through changes nothing and the mutation found nothing.
+    # Searched over 300 score-shaped cohorts: the shape that
+    # parts them is a HIGH ceiling mass with a thin lower tail at
+    # moderate row counts - 508 patients x 11 visits, 93% at the
+    # ceiling - where the window moves a knot 7.0 to 6.0 and the
+    # recorded cost goes 0.977 to zero.
+    # SEED 379 IS THE PIN, found by searching seeds at these
+    # parameters: without the pass-through this cohort's 0.05
+    # knot moves 7.0 to 6.0 and the recorded cost goes 0.0 to
+    # 0.964. A nearby seed does not reach it, which is why the
+    # seed is pinned rather than chosen for tidiness.
+    _rs3 = np.random.default_rng(379)
+    _npB, _perB, _topB, _hiB = 508, 11, 0.93, 9
+    _nB = _npB * _perB
+    _gB = np.repeat(np.arange(_npB), _perB)
+    _vB = pd.Series(np.where(
+        _rs3.random(_nB) < _topB, float(_hiB),
+        _rs3.integers(3, _hiB, _nB).astype(float)))
+    _rawB, _scrB = both(_vB, _gB)
+    check("the searched shape publishes its grid UNCHANGED too, "
+          "and this is the fixture a removed pass-through would "
+          "move - 508 patients x 11 visits with {:.0%} at the "
+          "ceiling".format(_topB),
+          list(_rawB["v"]) == list(_scrB["v"])
+          and float(_scrB.get("knot_screen_worst_sd")
+                    or 0.0) == 0.0)
+    # AND THE CONTINUOUS CASE STILL PAYS, so the pass-through is
+    # not a way of turning the screen off.
+    _cont = pd.Series(np.round(
+        _rs.normal(10.0, 2.0, 120), 6))
+    _gg3 = np.repeat(np.arange(40), 3)
+    _raw3, _scr3 = both(_cont, _gg3)
+    check("...while a continuous column on a thin cohort still "
+          "pays - the pass-through is a statement about shared "
+          "values, not a way of turning the screen off ({})"
+          .format(_scr3.get("knot_screen_worst_sd")),
+          float(_scr3.get("knot_screen_worst_sd") or 0.0) > 0.0)
+
     _src = io.open(ROOT / "synthkit" / "blueprint.py",
                    encoding="utf-8").read()
     check("and the module states the rule where the code is, "
