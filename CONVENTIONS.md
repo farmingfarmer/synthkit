@@ -406,6 +406,38 @@ Synthetic clinical data generator and model-evaluation instrument. Core rule: le
   reason: it tests the third seed and the reproducibility of the
   earlier reading at once.
 
+- **THE COPY-PRESENCE ARM WITH THE FINAL-VALUE REFUSAL IS RUNNING,
+  AND THE PREDICTION HAS TWO NAMED BRANCHES (2026-11-13,
+  run_11_cpoff against run_11_cpon).** Both arms on ONE tree at
+  seed 11, `--copy-presence-from-source` the only difference. The
+  tier buys the worst marginal on the file - `procedure_quantity`
+  from 0.4002 to 0.1621 - and before the refusal it cost an
+  own-column INVERTED, which is the absolute stop.
+- **BRANCH ONE, WHICH I EXPECT: the refusal FIRES and the arm is
+  identical to its control.** The column it would refuse for is
+  `procedure_quantity`, whose relationship with
+  `active_drug_count` reached a generated **-0.106** against a
+  source **+0.497** - the one measured shape that crosses the
+  gate's own floor. Refusing means that column falls back to the
+  flat mask, so its marginal reverts to 0.4002 and the tier buys
+  NOTHING here. **That would be a real negative rather than a
+  success: the tier's benefit and its harm would be the same
+  mechanism on the same column, and making it safe would have
+  made it inert on this extract.**
+- **BRANCH TWO: the refusal does NOT fire and the INVERTED comes
+  back.** Then the final-value reading disagrees with the gate's
+  own measurement despite using the gate's own rule, and the
+  reason has to be found before the tier is offered to anybody -
+  the likeliest candidate being that the relationship the gate
+  measures is computed on the WRITTEN file after the mask, while
+  the refusal reads `out[c]` before it.
+- **WHAT IS NOT PREDICTED: the marginal count or close.** Those
+  moved by nothing measurable when this tier was last paired, and
+  a one-pair move on either is inside the recorded seed spread.
+  The two things this arm decides are the own-column INVERTED and
+  whether `procedure_quantity` keeps 0.1621 or reverts to 0.4002 -
+  and those two cannot both go the way I would want.
+
 - **THE REFUSAL WORKS WHERE THE ANSWER EXISTS: ON THE FINAL VALUES
   (2026-11-13).** Asking at copy time over-predicted, because the
   pin pass, the constraint repair and the refinement sweep all move
