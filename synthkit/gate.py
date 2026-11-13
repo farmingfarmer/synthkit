@@ -233,6 +233,7 @@ def assess(fid: Dict[str, Any],
     # for, and this project does not move a bar and a number
     # in the same commit.
     _tv = fid.get("tvd") or {}
+    _mg_b = fid.get("marginals") or {}
     return {"criteria": crit,
             "met": all(c["ok"] for c in crit),
             "pairs": pairs,
@@ -244,6 +245,16 @@ def assess(fid: Dict[str, Any],
                                   or {}).get("mean_tvd"),
                     "pairs_measured": (_tv.get("bivariate")
                                        or {}).get("n")},
+            # REPORTED, NOT GATED, like the distance above. The
+            # per-column criteria ask about PRESENCE, CENTRE and
+            # SPREAD; none of them asks whether a column's SHAPE
+            # came out right, and the pair criteria are rank
+            # correlations and cannot see it either.
+            "marginals": {
+                "columns_measured": _mg_b.get("columns_measured"),
+                "off_source": _mg_b.get("off_source"),
+                "worst": _mg_b.get("worst_source_vs_output"),
+                "sampler_faults": _mg_b.get("sampler_faults")},
             "bars": {"direction": dir_bar, "close": close_bar,
                      "custom": bool(dir_custom or close_custom)}}
 
@@ -615,6 +626,31 @@ def report(verdict, rundir) -> "tuple":
             "  1.0 is identical. This is the form MOSTLY AI "
             "and SDV publish, so it can be compared "
             "directly.")
+    # SHAPE, which no criterion above asks about. A column can
+    # pass coverage, centre and spread and still put most of its
+    # rows on one value.
+    _mv = verdict.get("marginals") or {}
+    if _mv.get("columns_measured"):
+        lines.append("")
+        _off = _mv.get("off_source") or []
+        lines.append(
+            "  marginal shape (not a criterion): {} of {} numeric "
+            "column(s) differ from the SOURCE by more than the "
+            "share bar".format(len(_off),
+                               _mv.get("columns_measured")))
+        if _off:
+            lines.append("    " + ", ".join(_off[:8]))
+            lines.append(
+                "    worst {:.4f}; of these the SAMPLER's are: "
+                "{}".format(
+                    _mv.get("worst") or 0.0,
+                    ", ".join(_mv.get("sampler_faults") or [])
+                    or "none - every gap here is the published "
+                       "grid, which is a different fix"))
+        else:
+            lines.append(
+                "    every numeric column tracks its own "
+                "published marginal and its source")
     _de = verdict.get("declared_edges") or {}
     if _de.get("declared"):
         lines.append("")

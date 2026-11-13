@@ -396,6 +396,54 @@ Synthetic clinical data generator and model-evaluation instrument. Core rule: le
 - Never state a number as measured unless you actually ran it.
 
 ## Fixing what the real extract found
+- **EVERY RUN NOW CARRIES WHETHER ITS NUMERIC COLUMNS MATCH THEIR
+  OWN PUBLISHED MARGINAL, AND NOTHING ASKED BEFORE (2026-11-12,
+  `synthkit/marginals.py`).** Every per-column criterion in the
+  gate is about PRESENCE, CENTRE or SPREAD; the pair criteria are
+  rank correlations. So a column could put 93% of rows on the value
+  1 where the source puts 53%, pass coverage, and not move a single
+  number - which is exactly what `procedure_quantity` did for
+  months. The block rides in `fidelity.json` and the gate PRINTS a
+  line, so a reader who never opens the JSON sees it.
+- **THREE DISTRIBUTIONS ON ONE RULER, AND THE THIRD IS THE ONE
+  THAT MATTERS.** `grid_vs_source` is the CONTRACT's error,
+  `grid_vs_output` the SAMPLER's - they take opposite fixes - and
+  `source_vs_output` is what a recipient holds. A sampler
+  faithfully reproducing a wrong grid reads clean on the second
+  and is still wrong in their hands, which is why the first two
+  alone were not enough.
+- **REPORTED, NEVER GATED, and NO CELL IS PUBLISHED.** A bar would
+  move release verdicts on a threshold nobody has measured a basis
+  for - the TVD block's own reasoning. And the artifact carries
+  distances and column names only: a bin count is a count of
+  people, and a bin holding three describes those three, which is
+  the rule the deck already follows. A mutation that adds
+  `source_bin_counts` turns that check red.
+- **AND IT LIVES IN THE PACKAGE WITH `peek` DELEGATING TO IT.**
+  The measurement started in a script; the run reports it now, and
+  a second copy is how the two halves come to disagree - which
+  this file records for token screening, the scaffolding predicate
+  and both categorical draw paths.
+
+- **THE `--floor-share` REAL ARM IS A CLEAN NEGATIVE, AND THE
+  REASON IS NAMEABLE (2026-11-12, run_sw_fs).** It reads
+  **0.0774 / 0.0847 / 0.1621** on `procedure_quantity` and
+  **0.0317 / 0.0594 / 0.0911** on `procedure_count` - IDENTICAL to
+  the arm without it, to four decimals, on both columns. The flag
+  was not inert for want of anything to act on: the blueprint
+  publishes `floor_share` for **two** columns. It is inert on the
+  column it was aimed at because that column is COPIED rather than
+  drawn, so generation never reaches the numeric draw path where
+  the mass would be placed.
+- **WHICH IS THE RECORDED GAP CLOSED AND THE RECORDED COLUMN
+  UNTOUCHED, said plainly.** "A fix that only knows about zero
+  cannot see a count whose mode is one" was a real gap and
+  `floor_share` closes it - measured exact on a fixture. It simply
+  does not bind here. An arm that cannot reach the thing it is
+  testing returns zero and means nothing; this one CAN reach two
+  columns and still means nothing for the six that are off,
+  which is a different and better-evidenced statement.
+
 - **THE INVERSE CDF ASSUMES UNIFORM DENSITY BETWEEN KNOTS, AND
   THAT IS THE DOMINANT ERROR ON A BOUNDED COLUMN (2026-11-12,
   `--extra-knots`).** This file already records the assumption

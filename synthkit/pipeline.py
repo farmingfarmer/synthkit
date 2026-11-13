@@ -2395,6 +2395,26 @@ def compare(df, g, bp, group_by, time_col, ordinals=None,
         # A REPORTED measure must never take a run down.
         tvd_block = {"error": str(_e)[:200]}
 
+    # DOES EACH NUMERIC COLUMN MATCH ITS OWN PUBLISHED MARGINAL?
+    #
+    # Nothing asked until now. Every per-column criterion is about
+    # PRESENCE, CENTRE or SPREAD - so a column could put 93% of
+    # rows on the value 1 where the source puts 53%, pass coverage,
+    # and the pair criteria would see nothing because they are rank
+    # correlations. Measured on the SAME frames the rest of
+    # fidelity uses, so this block and the gate cannot disagree
+    # about what the column contains.
+    # REPORTED, NOT GATED.
+    try:
+        from synthkit import marginals as _mg
+        from synthkit import sets as _S_mg
+        _mskip = set([group_by]) | set(
+            c for c in Xs.columns
+            if _S_mg.is_scaffolding(c))
+        marg_block = _mg.measure(Xs, Xg, bp, skip=_mskip)
+    except Exception as _e:          # pragma: no cover
+        marg_block = {"error": str(_e)[:200]}
+
     # SCAFFOLDING IS COUNTED SEPARATELY, or the headline is inflated.
     # A four-column file expanded to twenty-seven, and the run
     # reported "coverage within 0.05 on 27/27 columns" - a reader
@@ -2678,6 +2698,7 @@ def compare(df, g, bp, group_by, time_col, ordinals=None,
         "sets_informed": ((gen_report or {}).get("sets_informed")
                           or None),
         "tvd": tvd_block,
+        "marginals": marg_block,
         "summary": {
             "columns": len(cols), "numeric": n_ok["num"],
             # Counted APART from the columns above, which are the

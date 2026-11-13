@@ -378,6 +378,46 @@ def main():
           "no column is reported both refined and skipped",
           not (set(rep_d.get("refinement_refined") or [])
                & set(rep_d.get("refinement_skipped") or {})))
+
+    # DOES EACH NUMERIC COLUMN MATCH ITS OWN PUBLISHED MARGINAL?
+    # Nothing asked until this existed: every per-column criterion
+    # is about PRESENCE, CENTRE or SPREAD, and the pair criteria
+    # are rank correlations, so a column could put most of its rows
+    # on one value and no number would move.
+    _fidall = json.loads((out / "fidelity.json").read_text())
+    _mg = _fidall.get("marginals") or {}
+    check("the run carries a `marginals` block, so marginal shape "
+          "is readable from the artifacts rather than from a "
+          "separate tool somebody has to remember to run",
+          isinstance(_mg.get("columns_measured"), int))
+    check("...measuring at least one numeric column on this "
+          "fixture, so the block is not empty-by-construction",
+          (_mg.get("columns_measured") or 0) >= 1)
+    check("...naming which columns a RECIPIENT would find off "
+          "their source, separately from the blame split between "
+          "contract and sampler",
+          "off_source" in _mg and "sampler_faults" in _mg)
+
+    # NO CELL IS PUBLISHED. A bin count is a count of people, and
+    # a bin holding three describes those three - the same rule
+    # the deck follows when it suppresses sparse source bins.
+    _allowed = {"column", "grid_vs_source", "grid_vs_output",
+                "source_vs_output", "verdict"}
+    _rows = _mg.get("columns") or []
+    check("...and publishes DISTANCES and column names only - no "
+          "bin count reaches the artifact, because a bin holding "
+          "three patients describes those three",
+          all(set(r) <= _allowed for r in _rows))
+    check("...and says of itself that it is reported rather than "
+          "gated, so nobody reads it as a release verdict",
+          "NOT GATED" in (_mg.get("note") or ""))
+
+    from synthkit import gate as _gt_mg
+    _vm = _gt_mg.assess(_fidall)
+    _lm, _ = _gt_mg.report(_vm, "run_x")
+    check("...and the gate PRINTS it, so it is seen by a reader "
+          "who never opens the JSON",
+          any("marginal shape (not a criterion)" in x for x in _lm))
     for d in rep_d.get("edges_dropped") or []:
         check("every dropped edge says whether its child kept any "
               "other parent, which is what decides if it matters",

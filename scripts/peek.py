@@ -708,69 +708,15 @@ def curves_view(run):
         print("  every published parent carries a curve")
 
 
-MARGINAL_SEED = 20261111
-# The share bar this project already uses for coverage. A band
-# whose share differs by less than this is not a finding.
-MARGINAL_TOL = 0.05
-
-
-def classify_marginal(d_grid_src, d_grid_gen, tol=MARGINAL_TOL):
-    """Which half of the engine is responsible - a PURE function.
-
-    Three numbers, three places the fault can be, and they take
-    different fixes:
-
-      CONTRACT    the published grid cannot represent the source's
-                  shape, and generation reproduces the grid
-                  faithfully. Fix the blueprint - more knots, a
-                  point-mass field, a different summary.
-      GENERATION  the grid matches the source and something AFTER
-                  the draw moved it. Fix the sampler.
-      BOTH        the grid misses the source AND generation misses
-                  the grid - two faults, not one.
-      CLEAR       nothing to explain.
-
-    Kept pure and asserted on planted numbers because this project
-    has a guard that could not fire hiding in every verdict it did
-    not test that way.
-    """
-    bad_src = d_grid_src > tol
-    bad_gen = d_grid_gen > tol
-    if bad_src and bad_gen:
-        return "BOTH"
-    if bad_src:
-        return "CONTRACT"
-    if bad_gen:
-        return "GENERATION"
-    return "CLEAR"
-
-
-def _bands(v):
-    """Edges from the SOURCE, applied to all three distributions.
-
-    One ruler. Binning each distribution by its own quantiles is
-    how two differently-shaped columns come to look identical,
-    which this project already records for the TVD edges.
-    """
-    import numpy as np
-    qs = np.quantile(v, [0.5, 0.75, 0.9, 0.99])
-    edges = []
-    for e in list(qs) + [float(np.max(v))]:
-        e = float(e)
-        if not edges or e > edges[-1]:
-            edges.append(e)
-    return edges
-
-
-def _shares(v, edges):
-    import numpy as np
-    v = np.asarray(v, dtype=float)
-    out, lo = [], -np.inf
-    for e in edges:
-        out.append(float(np.mean((v > lo) & (v <= e))))
-        lo = e
-    out.append(float(np.mean(v > lo)))
-    return out
+# ONE IMPLEMENTATION, in the package, because the run REPORTS
+# this now and a second copy here is how the two halves come to
+# disagree - which this file records for token screening, the
+# scaffolding predicate and both categorical draw paths.
+from synthkit.marginals import (TOL as MARGINAL_TOL,   # noqa: E402
+                                SEED as MARGINAL_SEED,
+                                bands as _bands,
+                                classify as classify_marginal,
+                                shares as _shares)
 
 
 def marginals_view(run, src_path):
