@@ -675,6 +675,21 @@ def main(argv=None, args=None):
         say("up to {} extra k-screened knot(s) inside the top "
             "segment; the published cap does not move".format(
                 int(_bands)))
+    # BEFORE THE BUILD, because this changes what the blueprint
+    # PUBLISHES. Set with the generate-time flags it printed its
+    # message and reached nothing - the blueprint was already
+    # built - and the real arm read identical to its control on
+    # every column while the log said the dial had fired. Caught
+    # by comparing blueprint SIZES: 60 bytes apart where nine
+    # knots across thirty-one columns is thousands.
+    _xk = int(getattr(a, "extra_knots", 0) or 0)
+    if _xk > 0:
+        import synthkit.blueprint as _bp_xk
+        _bp_xk.EXTRA_KNOTS = _xk
+        say("publishing {} extra interior quantile(s) per numeric "
+            "column - better resolution where mass sits near a "
+            "knot, and one more published value per knot"
+            .format(_xk))
     say("building the blueprint")
     bp = B.build(df, cat, group_by=a.group_by, time_col=time_col,
                  ordinals=ordinals)
@@ -934,14 +949,6 @@ def main(argv=None, args=None):
         say("NOT choosing which rows a copied column is present "
             "on - a flat mask reproduces the SOURCE column's "
             "distribution rather than this column's own")
-    _xk = int(getattr(a, "extra_knots", 0) or 0)
-    if _xk > 0:
-        import synthkit.blueprint as _bp
-        _bp.EXTRA_KNOTS = _xk
-        say("publishing {} extra interior quantile(s) per numeric "
-            "column - better resolution where mass sits near a "
-            "knot, and one more published value per knot"
-            .format(_xk))
     if getattr(a, "floor_share", False):
         import synthkit.generate as _gen
         _gen.FLOOR_SHARE = True

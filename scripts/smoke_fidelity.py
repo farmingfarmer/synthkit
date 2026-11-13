@@ -2454,6 +2454,82 @@ def main():
           "a recipient's hands, separately from the blame split",
           "differ from the SOURCE in a recipient" in _ms.stdout)
 
+    # THE DECK IS THE PAGE PEOPLE READ, and a measurement that
+    # never reaches it might as well not exist for the person
+    # deciding - this project's own words. The shape measure has
+    # to appear there, and it has to carry its privacy warning,
+    # because the deck is also the page that travels.
+    _dk = (ROOT / "scripts" / "fidelity_deck.py").read_text(
+        encoding="utf-8")
+    check("the deck renders the marginal-SHAPE section, which no "
+          "gate criterion asks about - a column can pass "
+          "coverage, centre and spread with most of its rows on "
+          "one value",
+          "Does each column keep its own shape?" in _dk)
+    check("...naming the ORIGINAL-against-synthetic column as the "
+          "one a reader holds, rather than only the blame split",
+          "ORIGINAL vs synthetic" in _dk)
+    check("...and carrying the warning that a VERBATIM copy would "
+          "score perfectly here, so a good row is never read as "
+          "privacy",
+          "says nothing whatever" in _dk)
+    check("...and saying plainly when every column tracks, rather "
+          "than rendering an empty table",
+          "Every one of the {} numeric columns tracks" in _dk)
+
+    # AND RENDERED, not merely present in the source. A content
+    # check cannot see a dead code path - this project lost a
+    # whole bench to 211 green content checks over a page the
+    # browser could not run.
+    with tempfile.TemporaryDirectory() as _dm:
+        _dmp = Path(_dm)
+        import numpy as _npm
+        import pandas as _pdm
+        _rngm = _npm.random.default_rng(4)
+        _n = 900
+        _dfm = _pdm.DataFrame({
+            "person_id": ["P%03d" % (i // 3) for i in range(_n)],
+            "visit_number": [(i % 3) + 1 for i in range(_n)],
+            "v": _npm.round(_rngm.normal(50, 9, _n), 3)})
+        _spm = _dmp / "s.csv"
+        _dfm.to_csv(_spm, index=False)
+        _rdm = _dmp / "run"
+        subprocess.run(
+            [sys.executable, "scripts/run_discovery.py",
+             "--src", str(_spm), "--out", str(_rdm),
+             "--group-by", "person_id", "--generate"],
+            capture_output=True, text=True, cwd=str(ROOT))
+        _fp = _rdm / "fidelity.json"
+        _fj2 = json.loads(_fp.read_text(encoding="utf-8"))
+        _had = bool((_fj2.get("marginals") or {}).get(
+            "columns_measured"))
+        # PLANT a column off the source, so the table branch is
+        # exercised rather than only the all-clear sentence.
+        _fj2["marginals"] = {
+            "columns_measured": 3, "tolerance": 0.05,
+            "off_source": ["v"], "sampler_faults": ["v"],
+            "worst_source_vs_output": 0.4,
+            "columns": [{"column": "v", "grid_vs_source": 0.02,
+                         "grid_vs_output": 0.39,
+                         "source_vs_output": 0.4,
+                         "verdict": "GENERATION"}]}
+        _fp.write_text(json.dumps(_fj2), encoding="utf-8")
+        _docm, _ = _fd0.build_deck(str(_spm), str(_rdm),
+                                   "person_id")
+
+    check("a real run's own fidelity.json CARRIES the marginals "
+          "block, without which the deck would have nothing to "
+          "render and the check below would pass on a stub",
+          _had)
+    check("...and the deck RENDERS the section from it - a "
+          "content check on the source cannot see a dead path",
+          "Does each column keep its own shape?" in _docm)
+    check("...naming the off-source column in the page itself",
+          ">v</td>" in _docm or "<td>v</td>" in _docm)
+    check("...and rendering the privacy warning on the page, not "
+          "just in the file that builds it",
+          "says nothing whatever" in _docm)
+
     print()
     if FAIL:
         print("{} FAILED".format(FAIL))

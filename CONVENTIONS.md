@@ -396,6 +396,45 @@ Synthetic clinical data generator and model-evaluation instrument. Core rule: le
 - Never state a number as measured unless you actually ran it.
 
 ## Fixing what the real extract found
+- **THE KNOTS DIAL PRINTED ITS MESSAGE AND REACHED NOTHING, AND A
+  REAL ARM WAS SPENT PROVING IT (2026-11-12, run_sw_kn).** It was
+  wired with the GENERATE-time flags, so `EXTRA_KNOTS` was set at
+  line 940 and `B.build` runs at line 679 - the blueprint was
+  already built. The arm came back IDENTICAL to its control on
+  every number I read: spo2 grid-against-source **0.0725** both
+  ways and source-against-output **0.0763** both ways, with the
+  log faithfully reporting "publishing 9 extra interior
+  quantile(s)". The read-but-not-used fault, which this file calls
+  the `--time-col` failure, in a dial whose whole content is what
+  it publishes.
+- **THE TELL WAS THE BLUEPRINT SIZE: 2,127,806 against
+  2,127,746.** Sixty bytes, where nine knots across thirty-one
+  numeric columns is thousands. Nothing else would have shown it -
+  the flag's own line said it fired, and every check in the suite
+  set the module constant DIRECTLY and never went through the
+  CLI, so all sixteen stayed green over a dial that did nothing.
+  The check now asserts the KNOT COUNT in `blueprint.json` after a
+  real `run_discovery` invocation, and putting the assignment back
+  after the build turns it red.
+- **AND THE 6.7-FOLD FIXTURE GAIN IS NOT WITHDRAWN BUT IS NOT YET
+  CONFIRMED EITHER.** That measurement set `BP.EXTRA_KNOTS`
+  directly and did reach the grid, so it stands as a fixture
+  result - 0.1008 to 0.0150 on an spo2-shaped column through the
+  full build-and-generate path. What has NOT happened is a real
+  arm, because the one that ran measured a dial that never
+  engaged. Re-running it is the next measurement, and the honest
+  statement until then is that the dial is unproven on the
+  extract rather than refuted on it.
+- **AND A RAW-GRID CHECK DISAGREES WITH THE FIXTURE, which is
+  worth holding onto.** Drawing straight from a raw quantile grid
+  on that shape, more knots reads WORSE - 0.0415 at eleven
+  against 0.0508 at twenty - on the module's bands and on my
+  probe's alike. The end-to-end path includes the k-anonymous
+  clamp, the relationships and integral rounding, and the two
+  measurements are of different things; but a dial whose benefit
+  appears only through the whole pipeline needs its real arm
+  before anybody believes it.
+
 - **THE WORST CRITERION ON THE FILE REPORTED A COUNT, AND NOW
   NAMES WHAT IT LOST (2026-11-12, `peek dynamics`).** `dynamics
   tracked` reads **35 of 92** on the real extract - further from

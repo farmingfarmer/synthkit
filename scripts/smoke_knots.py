@@ -197,6 +197,46 @@ def main():
               and "NOT monotone" in (o.help or "")
               for o in _bpk()._actions))
 
+    # ASSERT THE OUTCOME, NOT THE MESSAGE - through the real CLI.
+    #
+    # The dial was first wired with the GENERATE-time flags, so it
+    # printed "publishing 9 extra interior quantile(s)" and
+    # reached nothing: the blueprint had already been built. A
+    # real arm then read IDENTICAL to its control on every column
+    # while the log said the dial had fired. The tell was the
+    # blueprint SIZE - sixty bytes apart where nine knots across
+    # thirty-one columns is thousands - and no check in this
+    # suite could have caught it, because every one of them set
+    # the module constant directly and never went through the CLI.
+    import subprocess as _sp_k, tempfile as _tf_k, json as _js_k
+    with _tf_k.TemporaryDirectory() as _d:
+        _dp = Path(_d)
+        _src = _dp / "s.csv"
+        df.to_csv(_src, index=False)
+        _runs = {}
+        for _n in (0, 9):
+            _o = _dp / ("r%d" % _n)
+            _args = [sys.executable, "scripts/run_discovery.py",
+                     "--src", str(_src), "--out", str(_o),
+                     "--group-by", "person_id"]
+            if _n:
+                _args += ["--extra-knots", str(_n)]
+            _sp_k.run(_args, capture_output=True, text=True,
+                      cwd=str(ROOT))
+            _bpj = _js_k.loads(
+                (_o / "blueprint.json").read_text(encoding="utf-8"))
+            _runs[_n] = len(
+                _bpj["columns"]["spo2"]["marginal"]["q"])
+
+    check("the CLI dial reaches the PUBLISHED GRID - asserted on "
+          "the knot count in blueprint.json, not on the line the "
+          "run prints, because the first wiring printed it and "
+          "changed nothing",
+          _runs[9] > _runs[0])
+    check("...and the run without it still publishes the shipping "
+          "eleven, so the comparison is against what ships",
+          _runs[0] == 11)
+
     print()
     if FAIL:
         print("{} FAILED".format(FAIL))

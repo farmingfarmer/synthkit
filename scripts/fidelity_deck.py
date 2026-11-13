@@ -1905,6 +1905,63 @@ def build_deck(src_path, run_dir, group_by="person_id",
     except Exception:
         pass
 
+    # ---- SHAPE, WHICH NO CRITERION ABOVE ASKS ABOUT -------------
+    #
+    # Every per-column criterion is about PRESENCE, CENTRE or
+    # SPREAD; the pair criteria are rank correlations. So a column
+    # could put most of its rows on one value, pass all of them,
+    # and the chips above would be green - which is what
+    # `procedure_quantity` did for months. A measurement that
+    # never reaches a page might as well not exist for the person
+    # deciding, and this is that page.
+    _mg = fid.get("marginals") or {}
+    if _mg.get("columns_measured"):
+        _off = _mg.get("off_source") or []
+        _rows = [r for r in (_mg.get("columns") or [])
+                 if r.get("column") in set(_off)]
+        body.append('<h2>Does each column keep its own shape?</h2>')
+        if not _off:
+            body.append(
+                '<p>Every one of the {} numeric columns tracks '
+                'both its own published summary and the original '
+                'data, to within {:.0%} of rows in any band.</p>'
+                .format(_mg["columns_measured"],
+                        _mg.get("tolerance") or 0.05))
+        else:
+            body.append(
+                '<p><b>{} of {}</b> numeric columns differ from '
+                'the ORIGINAL by more than {:.0%} of rows in some '
+                'band. That is what a reader of this file holds; '
+                'the two columns beside it split the blame.</p>'
+                .format(len(_off), _mg["columns_measured"],
+                        _mg.get("tolerance") or 0.05))
+            body.append(
+                '<table><tr><th>column</th>'
+                '<th>summary vs original</th>'
+                '<th>summary vs synthetic</th>'
+                '<th>ORIGINAL vs synthetic</th>'
+                '<th>where</th></tr>')
+            for r in _rows[:12]:
+                _w = {"CONTRACT": "the published summary cannot "
+                                  "carry the shape",
+                      "GENERATION": "the generator left the summary",
+                      "BOTH": "both",
+                      "CLEAR": "-"}.get(r.get("verdict"), "-")
+                body.append(
+                    '<tr><td>{}</td><td>{:.4f}</td>'
+                    '<td>{:.4f}</td><td><b>{:.4f}</b></td>'
+                    '<td>{}</td></tr>'.format(
+                        esc(r["column"]), r["grid_vs_source"],
+                        r["grid_vs_output"], r["source_vs_output"],
+                        esc(_w)))
+            body.append('</table>')
+        body.append(
+            '<p class="note">Reported, not gated. And a generator '
+            'that copied the original VERBATIM would score a '
+            'perfect zero here - so a good number on this table '
+            'says the shape is right, and says nothing whatever '
+            'about privacy.</p>')
+
     total_suppressed = 0
     numeric_cols = []
     for c, m in cols:
