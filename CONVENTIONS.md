@@ -93,6 +93,47 @@ Synthetic clinical data generator and model-evaluation instrument. Core rule: le
   seed does not reach it, so the seed is PINNED rather than chosen
   for tidiness.
 
+- **AND THE FIRST SCREEN COST THREE DIRECTION PAIRS ON THE REAL
+  EXTRACT, WITH A PREDICTION ON RECORD BEFORE THE RE-RUN
+  (2026-11-13, run_11_nocp against run_11_knotscreen).** Same
+  source, same seed 11, denominator unmoved at 151 pairs, every
+  figure spelled back:
+      criterion              without screen   with (first version)
+      pairs related                     151                    151
+      direction kept                    132                    129
+      close                             128                    128
+      INVERTED                            0                      0
+      own-column INVERTED                 0                      0
+      marginal worst                 0.4002                 0.4013
+  **Three direction pairs, and nothing else measured moves.** The
+  pair is cross-build, so the knot screen is the only GENERATION
+  difference between the two - the marginal changes beside it are
+  measurement-only and the semisynth change does not touch
+  generate - and that is stated rather than assumed.
+- **WHAT IS PREDICTED FOR THE RE-RUN, before it lands: direction
+  returns toward 132.** The pass-through added afterwards makes
+  the screen a NO-OP on any value k patients already share, which
+  is exactly what `glasgow_coma_score` is - and that column paid
+  1.9739 sd of its own spread in the arm above, by far the largest
+  cost on the file. If the three pairs come back, the screen is
+  free on the gate and the privacy improvement is unambiguous.
+- **WHAT IS NOT PREDICTED: that it returns to 132 exactly.** Three
+  pairs is inside this criterion's own recorded seed spread, so a
+  partial recovery would not distinguish the fix from the draw,
+  and a FULL recovery on one seed is still one seed. If direction
+  stays at 129 the cost is somewhere other than the score column
+  and the screen is a trade that needs its own decision - which
+  is a different and more interesting answer than the one I
+  expect.
+- **AND THE MARGINAL ROW OF THAT PAIR IS NOT A COMPARISON, which
+  the tool said rather than me.** `marginal: off the source` reads
+  6/33 against 7/27 and `arm_compare` marked the row DENOMINATOR
+  MOVED: the newer build refuses six columns for want of power,
+  so the two counts are over different column sets. Three
+  sessions of this project have drawn a conclusion from a
+  percentage whose denominator moved; this is the first time an
+  instrument caught it at the point of reading.
+
 - **AND A RUNNING MAXIMUM WAS WRITTEN FOR THIS AND REMOVED AS
   DEAD.** `np.interp` needs a non-decreasing grid and a windowed
   mean is not obviously monotone - the window at a higher quantile
