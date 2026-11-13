@@ -837,6 +837,22 @@ def main():
           "for _c, (_kb, _kf, _cpn) in sorted(cp_pending" in _gen_src
           and "masks[_c] = np.asarray(_kf" in _gen_src
           and "copy_presence_refused" in _gen_src)
+    check("...and it judges the OPERATOR'S OWN columns only - a "
+          "`__has__` indicator or a set size is dropped before "
+          "the file is written, so refusing this tier to protect "
+          "a pair nobody receives would cost a real column its "
+          "marginal for nothing",
+          "from synthkit.sets import is_scaffolding as _is_scaf"
+          in _gen_src
+          and "not _is_scaf(_pn)" in _gen_src
+          and "[] if _is_scaf(_c)" in _gen_src)
+    from synthkit.sets import is_scaffolding as _isc
+    check("...and that predicate is the one `sets` owns, which "
+          "both halves call rather than each deciding what counts "
+          "as scaffolding",
+          _isc("drugs__has__oral") and _isc("drugs__n")
+          and not _isc("procedure_quantity"))
+
     check("...and a refused column is REMOVED from the modeled "
           "list, so the two accounts cannot both claim it",
           'r for r in _mod if r.get("column") != _c' in _gen_src)

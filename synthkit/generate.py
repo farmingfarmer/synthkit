@@ -3509,13 +3509,24 @@ def generate(blueprint: Dict[str, Any],
         if _c not in out:
             continue
         _vals = np.asarray(out[_c], dtype=float)
+        # THE OPERATOR'S OWN COLUMNS ONLY. A `__has__` indicator
+        # or a set size exists inside the search and is DROPPED
+        # before the file is written, so refusing this tier to
+        # protect the sign of a pair nobody receives would cost a
+        # real column its marginal for nothing - and the gate's
+        # absolute stop judges the own-column count for exactly
+        # that reason. The predicate lives in `sets` and both
+        # halves call it rather than each deciding what counts as
+        # scaffolding.
+        from synthkit.sets import is_scaffolding as _is_scaf
         _pt = []
         for _r in (parents.get(_c) or []):
             for _pn in (_r.get("parents") or []):
-                if _pn in out and _pn != _c:
+                if _pn in out and _pn != _c and not _is_scaf(_pn):
                     _pt.append((_pn, np.asarray(out[_pn],
                                                 dtype=float)))
-        _flip = sign_flips_under(_vals, _pt, _kb, _kf)
+        _flip = ([] if _is_scaf(_c)
+                 else sign_flips_under(_vals, _pt, _kb, _kf))
         if not _flip:
             continue
         masks[_c] = np.asarray(_kf, dtype=bool)
