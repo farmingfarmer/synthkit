@@ -131,6 +131,29 @@ Synthetic clinical data generator and model-evaluation instrument. Core rule: le
   whose cost is zero and whose benefit is a privacy property is a
   different case from a fidelity dial, which is why it ships.
 
+- **AND THE SCREEN HAD NO OFF SWITCH, WHICH IS A RULE THIS FILE
+  STATES ABOUT EVERY OTHER TIER.** `K_SCREEN_KNOTS` was a module
+  default reachable only by editing the module on the machine that
+  holds the data - so the claim above could not be measured again
+  on a second seed. `--raw-knots` is the measurement arm, and its
+  help says in its own words that it is NOT a release setting
+  because passing it publishes order statistics.
+- **AND THE STATIC DIAL AUDIT CAUGHT MY OWN EDIT WITHIN A
+  MINUTE.** The flag went in beside the generate flags, which puts
+  the assignment AFTER `B.build` - exactly the fault that cost
+  `--extra-knots` half an hour of machine time measuring a dial
+  that never engaged. `smoke_dial_order` went red immediately.
+  That audit was written for one flag and has now caught a second.
+- **AND THE FLAG IS ASSERTED THROUGH THE CLI, not by reading the
+  constant back.** The mutation that made it a no-op - parse the
+  flag, say the sentence, change nothing - broke NO check until
+  the outcome was asserted: two runs on one frame, one with the
+  flag, whose published grids must DIFFER and whose
+  `knots_are_k_anonymous` must read 10 and False. Every check in
+  `--extra-knots`'s own suite set the module constant directly,
+  which is why sixteen of them stayed green over a dial that did
+  nothing.
+
 - **AND THE FIRST SCREEN COST THREE DIRECTION PAIRS ON THE REAL
   EXTRACT, WITH A PREDICTION ON RECORD BEFORE THE RE-RUN
   (2026-11-13, run_11_nocp against run_11_knotscreen).** Same

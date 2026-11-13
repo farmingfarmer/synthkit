@@ -311,6 +311,27 @@ def build_parser(prog=None, add_help=True):
                           "and generated -0.106. Both arms are on "
                           "record; this is an operator's trade, "
                           "not a default."))
+    ap.add_argument("--raw-knots", action="store_true",
+                    help=("publish the RAW interior quantiles "
+                          "instead of screening them. A quantile "
+                          "is an order statistic, so on a thin "
+                          "column it is one person's recorded "
+                          "value - the same argument the "
+                          "published minimum and maximum rest "
+                          "on - and the default publishes the "
+                          "mean of a window backed by at least k "
+                          "distinct patients instead. Measured on "
+                          "the real extract at seed 11, the "
+                          "screen costs NOTHING on any gate "
+                          "criterion (direction 132 both ways, "
+                          "close 128, INVERTED 0) while the worst "
+                          "column pays 0.2264 of its own spread. "
+                          "This flag exists so that claim can be "
+                          "measured again on another seed: a "
+                          "default that cannot be turned off "
+                          "cannot be measured against. It is NOT "
+                          "a release setting - passing it "
+                          "publishes order statistics."))
     ap.add_argument("--extra-knots", type=int, default=0,
                     metavar="N",
                     help=("publish N extra evenly spaced interior "
@@ -707,6 +728,17 @@ def main(argv=None, args=None):
     # every column while the log said the dial had fired. Caught
     # by comparing blueprint SIZES: 60 bytes apart where nine
     # knots across thirty-one columns is thousands.
+    # A BLUEPRINT DIAL, SO IT IS SET BEFORE THE BUILD. The
+    # static audit caught this assignment at the generate flags
+    # within a minute of being written - which is the same fault
+    # `--extra-knots` cost half an hour of machine time for.
+    if getattr(a, "raw_knots", False):
+        import synthkit.blueprint as _bp_rk
+        _bp_rk.K_SCREEN_KNOTS = False
+        say("publishing RAW interior quantiles - each one is an "
+            "order statistic, so on a thin column it is one "
+            "person's recorded value. This is a MEASUREMENT arm, "
+            "not a release setting")
     _xk = int(getattr(a, "extra_knots", 0) or 0)
     if _xk > 0:
         import synthkit.blueprint as _bp_xk

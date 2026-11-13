@@ -321,6 +321,88 @@ def main():
           .format(_scr3.get("knot_screen_worst_sd")),
           float(_scr3.get("knot_screen_worst_sd") or 0.0) > 0.0)
 
+    # A DEFAULT THAT CANNOT BE TURNED OFF CANNOT BE MEASURED
+    # AGAINST, which is this project's own rule and the reason
+    # every other tier here has an off switch. The screen's claim
+    # - that it costs nothing on the gate - rests on one seed,
+    # and a second arm needs a flag rather than an edit to the
+    # module on the machine that holds the data.
+    from synthkit.pipeline import build_parser as _bp_k
+    _opts = [o for o in _bp_k()._actions]
+    check("the CLI exposes an off switch, so the screen's claim "
+          "can be measured again on another seed without editing "
+          "the module on the data machine",
+          any("--raw-knots" in o.option_strings for o in _opts))
+    _psrc = io.open(ROOT / "synthkit" / "pipeline.py",
+                    encoding="utf-8").read()
+    check("...and it says in its own help that it is a "
+          "MEASUREMENT arm rather than a release setting, "
+          "because passing it publishes order statistics",
+          "not a release setting" in _psrc
+          and "publishes order statistics" in _psrc)
+    # AND THE FLAG MUST ACTUALLY REACH THE BLUEPRINT, asserted
+    # THROUGH THE CLI. `--extra-knots` printed its message and
+    # reached nothing for half an hour of machine time because
+    # every check in its suite set the module constant directly;
+    # a flag that is read and not used is the oldest recorded
+    # fault here, and the mutation that made this one a no-op
+    # broke nothing until the outcome was asserted.
+    import csv as _csv
+    import json as _json
+    import subprocess as _sp
+    from tempfile import TemporaryDirectory as _TD
+    with _TD() as _d:
+        _sp_src = Path(_d) / "s.csv"
+        _rr2 = np.random.default_rng(23)
+        _npat2, _per2 = 300, 6
+        _rows2 = _npat2 * _per2
+        with io.open(_sp_src, "w", encoding="utf-8",
+                     newline="") as _f:
+            _w = _csv.writer(_f)
+            _w.writerow(["pid", "v"])
+            _vals2 = _rr2.normal(50.0, 9.0, _rows2)
+            for _i in range(_rows2):
+                _w.writerow(["P%04d" % (_i // _per2),
+                             "{:.6f}".format(_vals2[_i])])
+
+        def _knots_flag(extra):
+            _out = Path(_d) / ("r" + ("raw" if extra else "scr"))
+            _cmd = [sys.executable,
+                    str(ROOT / "scripts" / "run_discovery.py"),
+                    "--src", str(_sp_src), "--out", str(_out),
+                    "--group-by", "pid"]
+            if extra:
+                _cmd.append("--raw-knots")
+            _sp.run(_cmd, capture_output=True, text=True,
+                    cwd=str(ROOT), timeout=900)
+            _bp = _json.loads(
+                (_out / "blueprint.json").read_text(
+                    encoding="utf-8"))
+            _m = ((_bp.get("columns") or {}).get("v") or {}).get(
+                "marginal") or {}
+            return _m.get("knots_are_k_anonymous"), _m
+
+        _scr_f, _m_scr = _knots_flag(False)
+        _raw_f, _m_raw = _knots_flag(True)
+        check("a run with the DEFAULTS records its interior knots "
+              "as k-anonymous, through the CLI rather than by "
+              "setting the module constant ({})".format(_scr_f),
+              _scr_f == 10)
+        check("...and `--raw-knots` REACHES the blueprint - the "
+              "flag is not merely parsed ({})".format(_raw_f),
+              _raw_f is False)
+        check("...and the two runs publish DIFFERENT grids, which "
+              "is the outcome rather than the flag being read "
+              "back to itself",
+              list(_m_scr.get("v") or []) != list(
+                  _m_raw.get("v") or []))
+
+    check("...and the assignment sits BEFORE the blueprint is "
+          "built, which the static dial audit caught within a "
+          "minute of this flag being written",
+          _psrc.index("_bp_rk.K_SCREEN_KNOTS = False")
+          < _psrc.index("bp = B.build(df, cat,"))
+
     _src = io.open(ROOT / "synthkit" / "blueprint.py",
                    encoding="utf-8").read()
     check("and the module states the rule where the code is, "
