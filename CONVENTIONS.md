@@ -396,6 +396,45 @@ Synthetic clinical data generator and model-evaluation instrument. Core rule: le
 - Never state a number as measured unless you actually ran it.
 
 ## Fixing what the real extract found
+- **READ ON THE RECIPIENT AXIS, THE GUARD BEATS THE DEFAULT I
+  SHIPPED - AND THE REASON IS CANCELLATION RATHER THAN A BETTER
+  MECHANISM (2026-11-12).** `peek marginals` now reports
+  SOURCE-against-OUTPUT, which is what a researcher holds, and the
+  three arms read:
+      arm                       grid~src   grid~out   SRC~OUT
+      control                     0.0760     0.3255    0.4002
+      --copy-coverage-guard       0.0756     0.0254    0.0559
+      row-choosing (default)      0.0774     0.0847    0.1621
+  The guard's 0.0559 is a **0.0756 contract error and a 0.0254
+  sampler error partly cancelling**. The row-choosing arm lands the
+  output ON the grid - which is what it is for - and therefore
+  inherits the grid's own error in full. A number that is small
+  because two errors point opposite ways is not a mechanism to
+  build on, and this file already records a recovery ratio between
+  two noise numbers reading as a result.
+- **WHICH RESTATES THE DEFAULT DECISION PRECISELY RATHER THAN
+  OVERTURNING IT.** "The only arm better on BOTH axes" meant better
+  than the CONTROL on both - marginal and identity - and that
+  stands: the guard makes the declared identity WORSE than shipping
+  today (97.9% broken against 90.1%), while the row-choosing arm
+  improves both. Between the two FIXES it remains a trade, and
+  nobody should read the default as beating the guard everywhere.
+- **AND THE COUNT OF AFFECTED COLUMNS DOES NOT MOVE AT ALL.** All
+  three arms have the SAME six of 31 columns off the source by more
+  than 0.05 - `procedure_quantity`, `respiratory_rate`,
+  `urine_voided`, `diastolic_blood_pressure_invasive`,
+  `procedure_count`, `spo2`. What changed is WHICH is worst. A fix
+  that moves one column a long way and leaves the population
+  unchanged is worth saying out loud, because a headline built on
+  the one column would imply otherwise.
+- **SO THE REMAINING GAP ON THAT COLUMN IS THE CONTRACT'S, which is
+  what `floor_share` is aimed at.** With the output now landing on
+  the grid, the grid's own 0.0774 is the floor on what any sampler
+  fix can reach there. The next arm is `--floor-share` on top of
+  the new default, and it is the first experiment this project has
+  run where the PREDICTION follows from a decomposition rather than
+  from a hunch.
+
 - **A COUNT WHOSE MODE IS ITS OWN MINIMUM GOT NOTHING FROM
   `zero_share`, AND NOW HAS ITS OWN FIELD (2026-11-12,
   `--floor-share`).** The recorded gap, closed: "a fix that only
