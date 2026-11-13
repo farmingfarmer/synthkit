@@ -442,6 +442,36 @@ Synthetic clinical data generator and model-evaluation instrument. Core rule: le
   `copy_presence_model_used` with the flag on and nothing with it
   off.
 
+- **THE ARM FOR IT IS QUEUED, WITH THE PREDICTION FIRST
+  (2026-11-13, run_11_pmoff against run_11_pmon).** Both arms on
+  ONE tree at seed 11, `--copy-presence-model` the only
+  difference. The column it acts on is `procedure_quantity`, whose
+  published presence model names a parent the engine draws before
+  it.
+- **WHAT IS PREDICTED: the marginal moves and the sign does
+  NOT.** The density-ratio tier took that column from 0.4002 to
+  0.1621 and inverted a relationship; this selects the rows by the
+  SOURCE's own measured rule instead, so the subset should be
+  distributed like the source's subset. So: `marginal worst`
+  should fall below 0.40, `INVERTED` and `own-column INVERTED`
+  should stay at ZERO, and the run should RECORD
+  `copy_presence_model_used` naming the column and its parent.
+- **WHAT IS NOT PREDICTED: that it reaches 0.1621.** The published
+  curve is a k-screened response on one parent, not a
+  reconstruction fitted to the marginal, so it has no reason to
+  land the marginal as tightly as the ratio did - and the honest
+  possibility is that it moves the marginal very little, in which
+  case the source's presence rule simply is not the whole story
+  for that column. A move of less than 0.02 would be noise on
+  this measure and should be read as "no effect" rather than as a
+  small gain.
+- **AND A THIRD OUTCOME WOULD BE THE MOST INFORMATIVE: the model
+  not being usable at all.** The mask is only taken where the
+  presence record names a parent ALREADY DRAWN, and a copied
+  column's parent may be ordered after it. If the run records
+  nothing, the gap is the ORDER rather than the model, and that is
+  a different fix from either tier.
+
 - **BRANCH ONE, CONFIRMED: THE REFUSAL FIRES AND THE TIER IS
   THEREFORE INERT ON THIS EXTRACT (2026-11-13, run_11_cpoff
   against run_11_cpon).** Both arms on one tree at seed 11,
