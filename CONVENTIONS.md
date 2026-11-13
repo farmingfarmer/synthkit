@@ -3,6 +3,28 @@
 Synthetic clinical data generator and model-evaluation instrument. Core rule: learn the patterns, never copy the records. Real data teaches parameters; generation never touches a record.
 
 ## Verify before claiming
+- **A DIAL SET AFTER THE STAGE IT CONFIGURES IS NOW CAUGHT
+  STATICALLY (2026-11-12, `smoke_dial_order.py`).**
+  `--extra-knots` assigned `blueprint.EXTRA_KNOTS` at line 940
+  while `B.build` runs at 679, so the run printed its message, the
+  blueprint was built without the knots, and half an hour of
+  machine time measured a dial that never engaged. Nothing could
+  have caught it: the flag's own line said it fired, and every
+  check in its suite set the module constant DIRECTLY rather than
+  through the CLI, so all sixteen stayed green.
+  The audit reads `pipeline.py` and requires every assignment to a
+  BLUEPRINT constant to appear before the build and every GENERATE
+  constant before the generate call. It identifies the stage by
+  what the import alias was BOUND to rather than by its name, so
+  `_bp`, `_bp_xk` and a future `_blueprint` are all covered.
+- **AND IT PROVES IT CAN FIRE, two ways.** It asserts the scan
+  FINDS dials at all - a static scan matching nothing passes
+  trivially, which this file calls the worst kind of clean - and
+  it runs the same scan over a COPY of the file with
+  `EXTRA_KNOTS` moved after the build and requires that copy to
+  be named. A check that cannot demonstrate its own fault is the
+  shape this project has corrected more than any other.
+
 - **THE SAME DIGEST FAULT TWICE IN ONE DAY, AND THE SECOND TIME
   WAS BECAUSE I DIAGNOSED A CLASS AND FIXED AN INSTANCE
   (2026-11-08 night).** The data machine's net came back with one
