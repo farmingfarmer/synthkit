@@ -52,14 +52,22 @@ def plant(d, name, source="tidy.csv", rows=100, seed=7,
                                "pandas": "3.0.5"}}
     (run / "provenance.json").write_text(
         json.dumps(prov), encoding="utf-8")
-    base = {"pairs": {"compared": 100, "sign_kept": 95,
-                      "close": 90, "inverted": 0,
-                      "own_inverted": 0},
-            "summary": {"coverage_ok": 40, "coverage_compared": 40,
+    base = {"summary": {"coverage_ok": 40,
+                        "coverage_compared": 40,
                         "dynamics_ok": 20,
                         "dynamics_compared": 80,
                         "set_tokens_ok": 70,
-                        "set_tokens_compared": 72},
+                        "set_tokens_compared": 72,
+                        # THE NAMES THE REAL WRITER USES, asserted
+                        # against it below rather than invented
+                        # here - a fixture that shares the
+                        # reader's invented names agrees with the
+                        # reader and both disagree with the only
+                        # thing that matters.
+                        "pairs": 100, "pairs_sign_ok": 95,
+                        "pairs_close": 90, "pairs_inverted": 0,
+                        "pairs_own": 30, "pairs_own_close": 25,
+                        "pairs_own_inverted": 0},
             "marginals": {"columns_measured": 31,
                           "off_source": ["a", "b"],
                           "worst_source_vs_output": 0.30,
@@ -215,9 +223,11 @@ def main():
         # A MOVING DENOMINATOR IS MARKED ON ITS OWN ROW. The
         # record carries three conclusions drawn from a
         # percentage whose denominator had moved.
-        rm = plant(d, "m", fid={"pairs": {
-            "compared": 125, "sign_kept": 118, "close": 100,
-            "inverted": 0, "own_inverted": 0}})
+        rm = plant(d, "m", fid={"summary": {
+            "pairs": 125, "pairs_sign_ok": 118,
+            "pairs_close": 100, "pairs_inverted": 0,
+            "pairs_own": 30, "pairs_own_close": 25,
+            "pairs_own_inverted": 0}})
         rc, out = run_cli(ra, rm)
         check("a run relating a different number of pairs is "
               "compared, not refused - the counts are still a "
@@ -239,6 +249,34 @@ def main():
               "cannot say which column a change fixed and which "
               "it broke",
               "B fixed: a" in out and "B broke: zz" in out)
+
+        # A ROW NEITHER RUN CARRIES IS SAID, NOT SKIPPED. A key
+        # read under the wrong name looks exactly like a criterion
+        # the runs do not have, and the first real arm printed a
+        # finished-looking table with no close, no direction and
+        # no INVERTED for precisely that reason.
+        _thin = {"summary": {"coverage_ok": 40,
+                             "coverage_compared": 40}}
+        r1 = plant(d, "t1", fid={"summary": None})
+        (Path(r1) / "fidelity.json").write_text(
+            json.dumps({"summary": _thin["summary"],
+                        "generation": {}}), encoding="utf-8")
+        r2 = plant(d, "t2", fid={"summary": None})
+        (Path(r2) / "fidelity.json").write_text(
+            json.dumps({"summary": _thin["summary"],
+                        "generation": {}}), encoding="utf-8")
+        rc, out = run_cli(r1, r2)
+        check("a criterion NEITHER run carries is printed as "
+              "such, because a key read under the wrong name is "
+              "indistinguishable from a criterion that was never "
+              "measured",
+              "NEITHER RUN CARRIES" in out)
+        check("...and the rows are NAMED, so a reader can see "
+              "that close and INVERTED were among them rather "
+              "than reading a table that looks finished",
+              "close" in out.split("NEITHER RUN CARRIES")[1]
+              and "INVERTED" in out.split(
+                  "NEITHER RUN CARRIES")[1])
 
         # A TIER RECORDED ON ONE SIDE ONLY.
         rt = plant(d, "t", fid={"generation": {
@@ -267,6 +305,52 @@ def main():
         check("a run with no fidelity.json is refused by name "
               "rather than compared as a run of zeros",
               rc != 0 and "not a finished run" in out)
+
+    # EVERY KEY THE TOOL READS MUST EXIST IN A FIDELITY DICT THE
+    # REAL WRITER PRODUCED. The first version read `fid["pairs"]`
+    # for the pair counts - that block's own internal names - and
+    # `fid["pairs"]` is a dict whose `pairs` key is a list of
+    # rows, so all five came back None and every pair row was
+    # SILENTLY SKIPPED. The first real arm printed coverage,
+    # tokens, dynamics and the marginals with no close, no
+    # direction and no INVERTED: the criteria it was for. The
+    # fixture above could not catch it, because the fixture used
+    # the same invented names as the reader.
+    import numpy as _np
+    import pandas as _pd
+    from synthkit import blueprint as _B
+    from synthkit import discover as _D
+    from synthkit import pipeline as _PL
+
+    _rng = _np.random.default_rng(5)
+    _n = 600
+    _pid = ["p{:03d}".format(i // 3) for i in range(_n)]
+    _x = _rng.normal(10.0, 2.0, _n)
+    _frame = _pd.DataFrame({
+        "pid": _pid, "x": _x,
+        "y": 2.0 * _x + _rng.normal(0, 1.0, _n),
+        "z": _rng.normal(0, 1.0, _n)})
+    _cat = _D.discover(_frame, group_by="pid")
+    _bp = _B.build(_frame, _cat, group_by="pid")
+    _fid = _PL.compare(_frame, _frame.copy(), _bp, "pid", None)
+    _r = A.readings
+    _need = {
+        "related": "pairs", "direction": "pairs_sign_ok",
+        "close": "pairs_close", "inverted": "pairs_inverted",
+        "own_inverted": "pairs_own_inverted",
+        "own_related": "pairs_own",
+        "own_close": "pairs_own_close"}
+    _summ = _fid.get("summary") or {}
+    _absent = sorted(k for k in _need.values() if k not in _summ)
+    check("the real writer produces a summary with pair counts in "
+          "it, so this check is not passing on an empty dict ({} "
+          "keys)".format(len(_summ)),
+          len(_summ) >= 10)
+    check("...and EVERY pair key the tool reads is a key the real "
+          "writer produces - the fixture above cannot catch a "
+          "wrong name because it shares it: {}".format(
+              ", ".join(_absent) or "none absent"),
+          not _absent)
 
     # NOTHING IS RECOMPUTED. Every figure is read, because a
     # second implementation of the gate is how a report and a

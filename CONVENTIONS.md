@@ -3,6 +3,56 @@
 Synthetic clinical data generator and model-evaluation instrument. Core rule: learn the patterns, never copy the records. Real data teaches parameters; generation never touches a record.
 
 ## Verify before claiming
+- **THE EXTRA-KNOTS ARM IS A ONE-SIDED GAIN ON A CLEAN PAIR AT
+  SEED 37, AND THE FIRST PAIR I NEARLY READ WAS CROSS-BUILD
+  (2026-11-12, run_37_same against run_37_knots).** Same tree,
+  same source (`phase2_800_fix4\tidy_visits.csv`, 55,428 rows, 800
+  patients), same seed, ONE FLAG apart, launched an hour apart by
+  the same hand. `arm_compare` reports "no difference visible in
+  provenance beyond the flags below", which is what a paired arm
+  looks like. Every figure read back SPELLED by the machine:
+      criterion                control   --extra-knots 9
+      pairs related                141        141
+      direction kept               131        132
+      close                        116        116
+      INVERTED                       0          0
+      own-column pairs              27         27
+      own-column close              22         22
+      own-column INVERTED            0          0
+      coverage                      41         41
+      set token shares           94/96      94/96
+      dynamics tracked           38/92      38/92
+      marginal: off the source    8/33       6/33
+      marginal: the sampler's     4/33       4/33
+      marginal worst            0.1682     0.1541
+      TVD accuracy              0.9323     0.9349
+  **THE DENOMINATOR DID NOT MOVE** - 141 pairs both sides - so
+  this is a comparison rather than two readings.
+- **TWO FEWER COLUMNS OFF THEIR OWN SOURCE MARGINAL, AND NOTHING
+  MEASURED GOES THE OTHER WAY.** close, INVERTED, coverage, the
+  token shares, the dynamics and all three own-column figures are
+  IDENTICAL. The one direction pair (131 to 132) is smaller than
+  this criterion's own recorded seed spread and is not a gain
+  anybody should bank; the marginal count and the worst gap are
+  the movement.
+- **AND THE FIRST CONTROL I HAD WAS NOT A CONTROL.** `run_37_ctl`
+  was built on an older tree, and its fidelity summary carries NO
+  copy/presence field at all - so the copy-presence tier that is
+  now a DEFAULT was absent from it, and the comparison would have
+  differed by TWO things and been written up as one. Caught by
+  reading the control's own summary keys, not by anything
+  refusing. The same-tree control cost one extra half-hour run and
+  is the only honest route - which is the deliverable-against-
+  run_n9g lesson, met again and this time before the write-up
+  rather than after it.
+- **WHAT IS NOT CLAIMED: the default.** Two seeds is not the
+  standard a default meets here - the co-occurrence default was
+  earned on three seeds OF THE EXTRACT - and the earlier seed-11
+  reading was taken against a control whose tree I cannot now
+  vouch for. Seed 11 is being re-run as a same-tree pair for that
+  reason: it tests the third seed and the reproducibility of the
+  earlier reading at once.
+
 - **I ATTACKED MY OWN NEW MEASURE AND IT WAS BLIND TWICE, IN THE
   EXACT FAULT CLASS IT WAS BUILT FOR (2026-11-12).** The marginal
   measure cut its bands at the median, p75, p90, p99 and the

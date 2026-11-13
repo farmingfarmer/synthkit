@@ -153,15 +153,29 @@ def readings(run):
     """The numbers, read - never recomputed."""
     fid = _load(run, "fidelity.json")
     summ = fid.get("summary") or {}
-    pairs = fid.get("pairs") or {}
     mg = fid.get("marginals") or {}
     tv = fid.get("tvd") or {}
+    # THE PAIR COUNTS LIVE IN `summary`, NOT IN `pairs`.
+    #
+    # The first version of this read `fid["pairs"]` for
+    # `compared`, `sign_kept`, `close` and `inverted` - the names
+    # the pair BLOCK uses internally - and `fid["pairs"]` is a
+    # dict whose own `pairs` key is a list of per-pair rows. So
+    # all five came back None and every pair row was SILENTLY
+    # SKIPPED by the "both sides missing" rule, and the first real
+    # arm printed coverage, tokens, dynamics and the marginals
+    # with no close, no direction and no INVERTED - the criteria
+    # the arm was for. The tenth wrong-key fault on the record,
+    # inside a tool written in the same session as a check
+    # prescribing that the names be asserted against a live call.
     return {
-        "related": pairs.get("compared"),
-        "direction": pairs.get("sign_kept"),
-        "close": pairs.get("close"),
-        "inverted": pairs.get("inverted"),
-        "own_inverted": pairs.get("own_inverted"),
+        "related": summ.get("pairs"),
+        "direction": summ.get("pairs_sign_ok"),
+        "close": summ.get("pairs_close"),
+        "inverted": summ.get("pairs_inverted"),
+        "own_inverted": summ.get("pairs_own_inverted"),
+        "own_related": summ.get("pairs_own"),
+        "own_close": summ.get("pairs_own_close"),
         "coverage_ok": summ.get("coverage_ok"),
         "coverage_n": summ.get("coverage_compared"),
         "dynamics_ok": summ.get("dynamics_ok"),
@@ -182,9 +196,13 @@ def readings(run):
 # three occasions where a conclusion was drawn from one.
 ROWS = [
     ("pairs related", "related", None),
+    ("own-column pairs", "own_related", None),
+    ("own-column pairs", "own_related", None),
+    ("own-column close", "own_close", "own_related"),
     ("direction kept", "direction", "related"),
     ("close", "close", "related"),
     ("INVERTED", "inverted", None),
+    ("own-column close", "own_close", "own_related"),
     ("own-column INVERTED", "own_inverted", None),
     ("coverage", "coverage_ok", "coverage_n"),
     ("set token shares", "token_ok", "token_n"),
@@ -272,11 +290,18 @@ def main():
         print("")
 
     ra, rb = readings(a.run_a), readings(a.run_b)
+    missing = []
     print("  {:<28} {:>12} {:>12} {:>9}".format(
         "criterion", "A", "B", "B - A"))
     for label, key, den in ROWS:
         va, vb = ra.get(key), rb.get(key)
         if va is None and vb is None:
+            # SAY IT, do not skip it. A row absent from both runs
+            # is indistinguishable from a key read under the
+            # wrong name, and the first real arm printed no close,
+            # no direction and no INVERTED for exactly that
+            # reason while looking like a finished table.
+            missing.append(label)
             continue
         da = ra.get(den) if den else None
         db = rb.get(den) if den else None
@@ -298,6 +323,14 @@ def main():
             continue
         print("  {:<28} {:>12.4f} {:>12.4f} {:>+9.4f}".format(
             label, va, vb, vb - va))
+
+    if missing:
+        print("")
+        print("  NEITHER RUN CARRIES: {}".format(
+            ", ".join(missing)))
+        print("    A row absent from both is indistinguishable "
+              "from a key read under the wrong name, which is why "
+              "it is printed rather than skipped.")
 
     gained = sorted(set(ra["marg_off_names"]) - set(rb["marg_off_names"]))
     lost = sorted(set(rb["marg_off_names"]) - set(ra["marg_off_names"]))
