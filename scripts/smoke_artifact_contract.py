@@ -290,6 +290,22 @@ def main():
               "Distance (not a criterion)" in _html
               and "variation distance" in _html)
 
+        # AND THE SHAPE, which no criterion on that page asks
+        # about. Presence, centre and spread can all pass with
+        # most of a column's rows on one value - which is what
+        # procedure_quantity did for months on the real extract -
+        # and this is the page somebody signs.
+        check("...and the MARGINAL SHAPE reaches it too, marked "
+              "as not a criterion, because the verdict table "
+              "above it cannot see a column that passed coverage "
+              "with the wrong distribution",
+              "Marginal shape (not a criterion)" in _html)
+        check("...carrying the warning that a verbatim copy would "
+              "score perfectly on it, so a good line is never "
+              "read as privacy on the one page that is signed",
+              "not at all to privacy" in _html
+              or "track both their own published summary" in _html)
+
         det = cli("-m", "synthkit.cli", "determination", run)
         check("the determination CLI runs on this run and exits "
               "3 while elements are owed ({}), rather than "

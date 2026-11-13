@@ -143,6 +143,38 @@ def build_signoff(run_dir):
                 _tv["accuracy"], _tv.get("univariate") or 0.0,
                 _tv.get("bivariate") or 0.0,
                 _tv.get("pairs_measured")))
+
+    # SHAPE, which no criterion above asks about. The per-column
+    # criteria are PRESENCE, CENTRE and SPREAD; the pair criteria
+    # are rank correlations. A column can pass all of them with
+    # most of its rows on one value - which is what
+    # `procedure_quantity` did for months - and this is the page
+    # somebody signs.
+    _mv = verdict.get("marginals") or {}
+    if _mv.get("columns_measured"):
+        _off = _mv.get("off_source") or []
+        if _off:
+            body.append(
+                '<p class="note"><b>Marginal shape (not a '
+                'criterion):</b> {} of {} numeric column(s) '
+                'differ from the ORIGINAL by more than the share '
+                'bar, worst {:.4f} &mdash; {}. Of those, the ones '
+                'the generator is responsible for are: {}. A '
+                'generator that copied the original verbatim '
+                'would score perfectly here, so this speaks to '
+                'shape and not at all to privacy.</p>'.format(
+                    len(_off), _mv.get("columns_measured"),
+                    _mv.get("worst") or 0.0,
+                    ", ".join(_off[:8]),
+                    ", ".join(_mv.get("sampler_faults") or [])
+                    or "none; every gap here is the published "
+                       "summary rather than the draw"))
+        else:
+            body.append(
+                '<p class="note"><b>Marginal shape (not a '
+                'criterion):</b> all {} numeric column(s) track '
+                'both their own published summary and the '
+                'original.</p>'.format(_mv["columns_measured"]))
     body.append("<table><tr><th>criterion</th><th>reading</th>"
                 "</tr>" + "".join(
                     "<tr><td>{}</td><td>{}</td></tr>".format(
