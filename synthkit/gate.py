@@ -673,6 +673,22 @@ def report(verdict, rundir) -> "tuple":
             lines.append(
                 "    every numeric column tracks its own "
                 "published marginal and its source")
+        # AND THE ONES THAT COULD NOT BE READ AT ALL, named
+        # beside the measured ones. A column whose own sampling
+        # noise reaches the share bar is neither clean nor a
+        # finding, and leaving it out of this line would make a
+        # partly-unreadable cohort look like a short list of
+        # healthy columns - which is the absent-measurement-
+        # reported-as-safe fault.
+        _npw = _mv.get("no_power") or []
+        if _npw:
+            lines.append(
+                "    and {} column(s) could NOT be read at this "
+                "row count - two samples of the same "
+                "distribution would differ by more than the bar: "
+                "{}".format(len(_npw),
+                            ", ".join(r["column"]
+                                      for r in _npw[:8])))
     _de = verdict.get("declared_edges") or {}
     if _de.get("declared"):
         lines.append("")

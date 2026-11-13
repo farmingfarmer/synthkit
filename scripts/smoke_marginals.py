@@ -547,6 +547,47 @@ def main():
               "only the distances between them",
               "grid" in _one.stdout and "band" in _one.stdout)
 
+    # THE GATE NAMES THE UNREAD COLUMNS BESIDE THE MEASURED
+    # ONES, not only when NOTHING could be read. A cohort where
+    # some columns are readable and others are not would
+    # otherwise print a short list of healthy columns and say
+    # nothing about the rest.
+    from synthkit import gate as _GT
+    # THE PAIR COUNTS LIVE IN `summary`, which `assess` requires
+    # before it will read a gate at all - a run that related no
+    # pairs is a finding rather than a pass.
+    _fid = {"summary": {"pairs": 10, "pairs_sign_ok": 10,
+                        "pairs_close": 9, "pairs_inverted": 0,
+                        "pairs_own": 5, "pairs_own_sign_ok": 5,
+                        "pairs_own_close": 5,
+                        "pairs_own_inverted": 0},
+            "columns": [],
+            "marginals": {
+                "columns_measured": 2,
+                "off_source": ["a"],
+                "worst_source_vs_output": 0.31,
+                "sampler_faults": ["a"],
+                "no_power": [{"column": "thin",
+                              "noise_floor": 0.15,
+                              "rows_source": 113,
+                              "rows_output": 120}]}}
+    try:
+        _v = _GT.assess(_fid)
+        _ln, _ = _GT.report(_v, "run_x")
+        _txt = "\n".join(_ln)
+        check("the gate names a column it could NOT read beside "
+              "the ones it did, so a partly-unreadable cohort is "
+              "not shown as a short list of healthy columns",
+              "could NOT be read" in _txt and "thin" in _txt)
+        check("...and still reports the measured ones in the same "
+              "block, so the two accounts sit together",
+              "marginal shape (not a criterion)" in _txt
+              and "0.3100" in _txt)
+    except Exception as _e:
+        check("the gate renders a marginal block carrying both "
+              "measured and unreadable columns ({})".format(_e),
+              False)
+
     # ONE IMPLEMENTATION OF THE DISTANCE. `peek` re-derived it as
     # `max(abs(a - b))` over the shares, three lines above a
     # docstring explaining why `_draw_numeric` must never be
