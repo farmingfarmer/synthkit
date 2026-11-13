@@ -3505,6 +3505,18 @@ def generate(blueprint: Dict[str, Any],
     # comparison, so a reversal is MEASURED rather than guessed -
     # and a column that would invert falls back to the flat draw,
     # which costs that column its marginal and keeps the sign.
+    #
+    # ONE CAVEAT, CHECKED RATHER THAN ASSUMED. "Final" is final
+    # for the DEFAULT path: `enforce_constraints` is False unless
+    # an operator asks for it, and with it ON a repair pass runs
+    # AFTER the masks and SWAPS values between columns - on an
+    # `==` constraint that is exactly this pair. So under that
+    # flag the sign checked here can still move, and the authority
+    # is the gate's own INVERTED count on the written file, which
+    # re-checks every constraint rather than trusting this pass.
+    # Said here because a guard whose premise quietly stops
+    # holding under a flag is the read-but-not-used fault wearing
+    # a different hat.
     for _c, (_kb, _kf, _cpn) in sorted(cp_pending.items()):
         if _c not in out:
             continue

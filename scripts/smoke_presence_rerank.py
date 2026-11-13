@@ -837,6 +837,30 @@ def main():
           "for _c, (_kb, _kf, _cpn) in sorted(cp_pending" in _gen_src
           and "masks[_c] = np.asarray(_kf" in _gen_src
           and "copy_presence_refused" in _gen_src)
+    # THE REFUSAL'S PREMISE IS THAT THE VALUES ARE FINAL, and
+    # that holds for the DEFAULT path only: `enforce_constraints`
+    # is off unless asked for, and with it on a repair pass runs
+    # AFTER the masks and swaps values between columns - which on
+    # an `==` constraint is exactly the pair this guard checks.
+    # Checked rather than assumed, both halves.
+    from synthkit.generate import generate as _g_sig
+    import inspect as _insp
+    _d = _insp.signature(_g_sig).parameters["enforce_constraints"]
+    check("constraint enforcement is OFF by default, so the "
+          "refusal's reading is final on the shipping path",
+          _d.default is False)
+    check("...and the caveat is STATED where the guard is, "
+          "because a premise that quietly stops holding under a "
+          "flag is the read-but-not-used fault wearing a "
+          "different hat",
+          "ONE CAVEAT, CHECKED RATHER THAN ASSUMED" in _gen_src
+          and "the authority" in _gen_src)
+    check("...and the repair really does run AFTER the masks, "
+          "which is what makes the caveat necessary rather than "
+          "decorative",
+          _gen_src.index('report["masked_after_relationships"]')
+          < _gen_src.index("if enforce_constraints:"))
+
     check("...and it judges the OPERATOR'S OWN columns only - a "
           "`__has__` indicator or a set size is dropped before "
           "the file is written, so refusing this tier to protect "
