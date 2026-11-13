@@ -19,6 +19,7 @@ default here; five real-extract arms have each overturned or traded
 away a fixture-measured gain.
 """
 import hashlib
+import io
 import sys
 from pathlib import Path
 
@@ -685,19 +686,42 @@ def main():
 
     _A = _three_arms()
 
-    # ON BY DEFAULT since the three-arm real comparison. This
-    # check used to assert the opposite and is REWRITTEN to pin the
-    # new property rather than deleted - a check that goes red on
-    # an improvement is the shape this project has corrected four
-    # times.
-    check("the row-choosing pass is ON by default, earned on a "
-          "paired real-extract comparison rather than a fixture",
-          G.COPY_PRESENCE_FROM_SOURCE is True)
+    # OFF AGAIN FROM 2026-11-13, because it MANUFACTURES THE
+    # ABSOLUTE STOP. A paired arm at seed 11 on the real extract,
+    # this flag the only difference: INVERTED 1 -> 0 and
+    # own-column INVERTED 1 -> 0 with it off, close unchanged at
+    # 128/151, one direction pair gained, and the worst marginal
+    # going 0.1621 -> 0.4002. So it buys one column's shape and
+    # costs a sign flip on a column the operator receives.
+    #
+    # INVERTED is not a dial at any setting: a generated
+    # relationship with the opposite sign to its source reads as a
+    # finding, and this project's rule is that the verdict means
+    # STOP. This check has now been written both ways - it is
+    # rewritten each time to pin the CURRENT property rather than
+    # deleted, which is how a default's history stays readable.
+    check("the row-choosing pass is OFF by default, because a "
+          "paired real arm showed it manufactures an own-column "
+          "INVERTED and that is the absolute stop",
+          G.COPY_PRESENCE_FROM_SOURCE is False)
     from synthkit.pipeline import build_parser as _bp_cps
-    check("...and there is an OFF switch, because a default that "
-          "cannot be turned off cannot be measured against",
+    _opts = [o for o in _bp_cps()._actions]
+    check("...and there is an ON switch, because a tier nobody can "
+          "turn on cannot be measured again - which is what would "
+          "be needed to earn the default back",
+          any("--copy-presence-from-source" in o.option_strings
+              for o in _opts))
+    # A FLAG THAT SILENTLY DOES NOTHING IS WORSE THAN NO FLAG.
+    # `--no-copy-presence-from-source` turned a default off and
+    # the default is now off, so it says so rather than being
+    # accepted as a no-op.
+    check("...and the old OFF switch still parses and SAYS it is "
+          "now the default, rather than quietly changing nothing",
           any("--no-copy-presence-from-source" in o.option_strings
-              for o in _bp_cps()._actions))
+              for o in _opts)
+          and "is now the " in io.open(
+              ROOT / "synthkit" / "pipeline.py",
+              encoding="utf-8").read())
     check("choosing the present rows from the two published grids "
           "lands the sparse column's own marginal - better than "
           "refusing the copy, which is the alternative",

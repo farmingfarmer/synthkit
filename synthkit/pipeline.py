@@ -285,7 +285,32 @@ def build_parser(prog=None, add_help=True):
                           "0.3255 to 0.0847 on the worst column "
                           "with the declared identity going from "
                           "broken on 90.1 percent of rows to 59.0 "
-                          "percent. Pass this to turn it OFF."))
+                          "percent. OFF AGAIN from 2026-11-13: a "
+                          "paired arm at seed 11 showed it "
+                          "manufactures an own-column INVERTED, "
+                          "which is the absolute stop and is not "
+                          "a dial at any setting. This flag is "
+                          "now the default and changes nothing - "
+                          "pass --copy-presence-from-source to "
+                          "turn the tier ON."))
+    ap.add_argument("--copy-presence-from-source",
+                    action="store_true",
+                    help=("turn the copy-presence tier ON. It "
+                          "buys the worst column's shape - "
+                          "procedure_quantity 0.4002 to 0.1621 on "
+                          "the real extract - and COSTS an "
+                          "own-column INVERTED at seed 11, with "
+                          "close unchanged and one direction pair "
+                          "lost. The keep probability depends on "
+                          "the copied VALUE, so presence becomes "
+                          "correlated with it and that column's "
+                          "relationships are measured on a "
+                          "value-biased subset: "
+                          "procedure_quantity against "
+                          "active_drug_count reads source +0.497 "
+                          "and generated -0.106. Both arms are on "
+                          "record; this is an operator's trade, "
+                          "not a default."))
     ap.add_argument("--extra-knots", type=int, default=0,
                     metavar="N",
                     help=("publish N extra evenly spaced interior "
@@ -965,12 +990,27 @@ def main(argv=None, args=None):
         say("token solve: {} extra pass(es) per published "
             "conditional pair, capped at {}".format(
                 float(_scale), _gen.TOKEN_SOLVE_MAX_PASSES))
-    if getattr(a, "no_copy_presence_from_source", False):
+    if getattr(a, "copy_presence_from_source", False):
         import synthkit.generate as _gen
-        _gen.COPY_PRESENCE_FROM_SOURCE = False
-        say("NOT choosing which rows a copied column is present "
-            "on - a flat mask reproduces the SOURCE column's "
-            "distribution rather than this column's own")
+        _gen.COPY_PRESENCE_FROM_SOURCE = True
+        say("choosing WHICH rows a copied column is present on "
+            "from the two published grids. This buys that "
+            "column's own shape and has been measured to "
+            "manufacture an own-column INVERTED on the real "
+            "extract at seed 11 - read the whole gate, not only "
+            "the marginal block")
+    # A FLAG THAT SILENTLY DOES NOTHING IS WORSE THAN NO FLAG.
+    # `--no-copy-presence-from-source` turned a default OFF, and
+    # the default is now off - so rather than accept it as a
+    # no-op, it says so. The read-but-not-used fault is this
+    # project's oldest, and a documented flag that quietly stopped
+    # mattering is the same shape.
+    if getattr(a, "no_copy_presence_from_source", False):
+        say("note: --no-copy-presence-from-source is now the "
+            "DEFAULT and this flag changes nothing. The tier was "
+            "turned off on 2026-11-13 because a paired arm showed "
+            "it manufactures an own-column INVERTED. Pass "
+            "--copy-presence-from-source to turn it on.")
     if getattr(a, "floor_share", False):
         import synthkit.generate as _gen
         _gen.FLOOR_SHARE = True

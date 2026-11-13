@@ -197,6 +197,56 @@ Synthetic clinical data generator and model-evaluation instrument. Core rule: le
   reason: it tests the third seed and the reproducibility of the
   earlier reading at once.
 
+- **THE COPY-PRESENCE DEFAULT I SET YESTERDAY MANUFACTURES THE
+  ABSOLUTE STOP, AND IT IS OFF AGAIN (2026-11-13).** A paired arm
+  on the real extract - same tree, same source, seed 11, this flag
+  the only difference, read back SPELLED by the machine:
+      criterion                      ON        OFF
+      pairs related                 151        151
+      direction kept                131        132
+      close                         128        128
+      INVERTED                        1          0
+      own-column INVERTED             1          0
+      marginal: off the source     6/33       6/33
+      marginal: the sampler's      2/33       2/33
+      marginal worst             0.1621     0.4002
+  **It buys the worst column's SHAPE - `procedure_quantity` from
+  0.4002 to 0.1621 - and costs an INVERTED on one of the
+  operator's own columns**, with close unchanged and one direction
+  pair lost.
+- **INVERTED IS NOT A DIAL AT ANY SETTING.** A generated
+  relationship with the opposite sign to its source is worse than
+  a missing one because it reads as a finding, and this project's
+  own rule is that the verdict means STOP, do not send the file. A
+  marginal gain on one column cannot buy that, and a DEFAULT must
+  not manufacture it. `--copy-presence-from-source` is the opt-in
+  and both arms are on record.
+- **AND THE MECHANISM IS THE TIER'S OWN, not a mystery.** The keep
+  probability depends on the copied VALUE - that is how it lands
+  the marginal - so presence becomes correlated with the value and
+  that column's relationships are then measured on a value-biased
+  subset. `procedure_quantity <- active_drug_count` reads source
+  **+0.497** against a generated **-0.106**.
+- **THE FIX WORTH BUILDING IS NAMED RATHER THAN GUESSED: the tier
+  should REFUSE on a column whose published relationships would
+  change sign under the biased subset** - the same shape as the
+  forcing budget, which caps at each token's own published share
+  rather than choosing between landing a conditional and keeping a
+  marginal. That needs its own arm.
+- **AND IT WAS FOUND BY READING SOMETHING ELSE.** The seed-11
+  own-column inversion turned up while reading the extra-knots
+  pair, where it was IDENTICAL on both arms and therefore not the
+  knots flag's doing. Without that it would have sat in the
+  shipping default until a release run happened to land on that
+  seed. A paired arm read in full - every criterion, not only the
+  one the change aimed at - is what surfaced it, which is the rule
+  this file states for the repair tool and now pays for again.
+- **AND THE OLD OFF SWITCH SAYS IT IS NOW THE DEFAULT RATHER THAN
+  DOING NOTHING.** `--no-copy-presence-from-source` turned a
+  default off and the default is now off; accepting it as a silent
+  no-op would be the read-but-not-used fault, which is the oldest
+  one on this file.
+
 - **THE REFERENCE DRAW WAS THE SIZE OF THE COLUMN, SO THE BLAME
   SPLIT WAS MOSTLY THE REFERENCE'S OWN NOISE (2026-11-13).** The
   grid arm is the CONTRACT rendered through the engine's own draw,

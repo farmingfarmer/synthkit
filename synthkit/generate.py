@@ -173,7 +173,46 @@ COPY_COVERAGE_GUARD = False
 # (direction 132 -> 131, close identical, surfaces 14 -> 15). It
 # improves the FILE a recipient receives rather than the criteria,
 # because close and direction are rank correlations over pairs.
-COPY_PRESENCE_FROM_SOURCE = True
+#
+# OFF AGAIN FROM 2026-11-13, BECAUSE IT MANUFACTURES THE ABSOLUTE
+# STOP. A paired arm on the real extract - same tree, same source,
+# seed 11, this flag the only difference, every figure spelled back
+# by the machine:
+#
+#     criterion                      ON        OFF
+#     pairs related                 151        151
+#     direction kept                131        132
+#     close                         128        128
+#     INVERTED                        1          0
+#     own-column INVERTED             1          0
+#     marginal: off the source     6/33       6/33
+#     marginal: the sampler's      2/33       2/33
+#     marginal worst             0.1621     0.4002
+#
+# So it buys the worst column's SHAPE - `procedure_quantity` from
+# 0.4002 to 0.1621 - and costs an INVERTED on one of the
+# operator's own columns, with close unchanged and one direction
+# pair lost. The mechanism is the tier's own: the keep probability
+# depends on the copied VALUE, so presence becomes correlated with
+# it, and the relationships of that column are then measured on a
+# value-biased subset. `procedure_quantity <- active_drug_count`
+# reads source +0.497 against a generated -0.106.
+#
+# INVERTED IS NOT A DIAL AT ANY SETTING. A generated relationship
+# with the opposite sign to its source is worse than a missing one
+# because it reads as a finding, and this project's own rule is
+# that the verdict means STOP, do not send the file. A marginal
+# gain on one column cannot buy that, and a default must not
+# manufacture it. The flag stays available with both arms on
+# record.
+#
+# THE FIX WORTH BUILDING, named rather than guessed: the tier
+# should REFUSE on a column whose published relationships would
+# change sign under the biased subset - the same shape as the
+# forcing budget, which caps at each token's own published share
+# rather than choosing between landing a conditional and keeping a
+# marginal. That needs its own arm.
+COPY_PRESENCE_FROM_SOURCE = False
 
 # CONSUME THE PUBLISHED MASS AT A NON-ZERO FLOOR.
 #
