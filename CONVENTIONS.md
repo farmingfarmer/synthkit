@@ -197,6 +197,46 @@ Synthetic clinical data generator and model-evaluation instrument. Core rule: le
   reason: it tests the third seed and the reproducibility of the
   earlier reading at once.
 
+- **THE REFUSAL I BUILT FOR THAT TIER WAS A PREDICTION, AND IT
+  PREDICTED WRONG ON BOTH FIXTURES - SO IT WARNS INSTEAD
+  (2026-11-13).** The obvious fix for a tier that manufactures an
+  inversion is to refuse on the column it would invert, and the
+  comparison needs no published correlation: a FLAT mask is the
+  unbiased subset and both masks are in hand. Built, and then
+  measured.
+      fixture        flat    biased    written output
+      three-arm    +0.1211   warned           +0.0881
+      wide copy    +0.1765   warned           +0.1614
+  **The written output WEAKENED the relationship and never
+  reversed it**, because the reading is taken on the COPIED VALUES
+  at copy time and the pin pass, the constraint repair and the
+  refinement sweep all move them afterwards. A guard firing where
+  nothing inverts would silently remove the tier's whole benefit
+  while an operator believed it was on - which is worse than no
+  guard, and is the silent-no-op shape this file bans.
+- **SO IT REPORTS THE PAIR AND LETS THE OPERATOR READ THE GATE.**
+  `copy_presence_warned` names the column and the partner whose
+  sign may reverse. The real-extract case it was built for is far
+  louder than either fixture - source **+0.497** against a
+  generated **-0.106** - so a warning there is actionable, and
+  refusing properly means checking the FINAL values and redrawing
+  the mask, which is a different change and needs its own arm.
+- **AND THE FIRST SCREEN CALLED A RELATIONSHIP GOING ABSENT A
+  SIGN FLIP.** It required only the UNBIASED side to clear the
+  gate's 0.1 relate floor, so a biased reading of **-0.0288**
+  against a flat **+0.1765** counted as an inversion. That is a
+  pair going to NOISE, not a pair going the other way, and the two
+  take different actions. Both sides clear the floor now; no
+  fixture in that suite reaches the shape, so it is planted at
+  those measured magnitudes.
+- **AND TWO OF THE THREE MUTATIONS FOUND NOTHING UNTIL THE CHECKS
+  WERE FIXED.** Removing the warning entirely broke nothing,
+  because the check read `all(w.get(...) for w in warned)` - which
+  passes on an EMPTY list, the vacuous-all fault. And loosening
+  the screen back to one side broke nothing, because on that
+  fixture both sides already clear the floor. The list is asserted
+  NON-EMPTY now and the one-sided case is planted.
+
 - **THE COPY-PRESENCE DEFAULT I SET YESTERDAY MANUFACTURES THE
   ABSOLUTE STOP, AND IT IS OFF AGAIN (2026-11-13).** A paired arm
   on the real extract - same tree, same source, seed 11, this flag

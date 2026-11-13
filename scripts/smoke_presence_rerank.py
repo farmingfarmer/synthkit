@@ -722,6 +722,99 @@ def main():
           and "is now the " in io.open(
               ROOT / "synthkit" / "pipeline.py",
               encoding="utf-8").read())
+    # AND IT REFUSES WHERE IT WOULD INVERT. The bias that lands
+    # the marginal makes presence depend on the VALUE, so every
+    # relationship the column takes part in is measured on a
+    # value-biased subset - which on the real extract at seed 11
+    # flipped `procedure_quantity` against `active_drug_count`
+    # from a source +0.497 to a generated -0.106.
+    #
+    # The comparison needs no published correlation: a FLAT mask
+    # is the unbiased subset and both masks are in hand.
+    from synthkit.generate import sign_flips_under as _sfu
+    from synthkit.generate import _spearman as _sp
+    _rf = np.random.default_rng(3)
+    _nf = 20000
+    _v = _rf.gamma(2.0, 2.0, _nf)
+    _pp = _v + _rf.normal(0, 2.0, _nf)
+    _flat = _rf.random(_nf) < 0.2
+    _bias = (((_v < np.quantile(_v, 0.3)) & (_pp > np.median(_pp)))
+             | ((_v > np.quantile(_v, 0.7))
+                & (_pp <= np.median(_pp))))
+    _rflat = _sp(_v[_flat], _pp[_flat])
+    _rbias = _sp(_v[_bias], _pp[_bias])
+    check("the fixture REACHES the fault - a flat mask relates "
+          "the pair at {:+.4f} and the biased one at {:+.4f}, so "
+          "there is a sign to lose".format(_rflat, _rbias),
+          (_rflat > 0) != (_rbias > 0) and abs(_rflat) > 0.3)
+    check("...and the detector names the partner whose sign "
+          "reverses, so the refusal can say which pair it was for",
+          _sfu(_v, [("p", _pp)], _bias, _flat) == ["p"])
+    check("...and reports NOTHING when the mask is the flat one, "
+          "so it cannot refuse the tier on every column",
+          _sfu(_v, [("p", _pp)], _flat, _flat) == [])
+    _q = _rf.normal(0, 1, _nf)
+    check("...and ignores a pair the UNBIASED subset barely "
+          "relates, because a sign is only lost if there was one "
+          "- the gate's own 0.1 relate floor, applied here",
+          _sfu(_v, [("q", _q)], _bias, _flat) == [])
+
+    # AND IT IS A PREDICTION, NOT A MEASUREMENT - which is why it
+    # WARNS rather than refusing. The reading is on the copied
+    # values at copy time, and the pin pass, the constraint repair
+    # and the refinement sweep all move them afterwards. On this
+    # very fixture it predicted an inversion that did not happen:
+    # the written output read +0.0881 against a flat arm of
+    # +0.1211 - weakened, never reversed. A guard firing where
+    # nothing inverts would silently remove the tier's whole
+    # benefit while an operator believed it was on.
+    _rw = (_A["rows"]["report"].get("copy_presence_warned") or [])
+    check("the tier still FIRES on this fixture, so its gain is "
+          "not quietly removed by a prediction - it is reported "
+          "and the arm below measures what it bought",
+          bool(_A["rows"]["report"].get("copy_presence_modeled")))
+    check("...and the prediction DOES fire on this fixture, so "
+          "the check below is not passing on an empty list - the "
+          "shape it warns about is present here ({})".format(
+              [w.get("may_invert") for w in _rw] or "NONE"),
+          bool(_rw))
+    check("...and it NAMES the pair, so an operator who turns the "
+          "tier on is told which relationship to read on the gate "
+          "rather than being left to find it",
+          bool(_rw) and all(w.get("may_invert") for w in _rw))
+
+    # BOTH SIDES HAVE TO CLEAR THE RELATE FLOOR. A biased reading
+    # of -0.03 against a flat +0.18 is a relationship going
+    # ABSENT, not one going the other way - and screening only the
+    # flat side called that a flip. Measured inside a real run
+    # before the fix: rb=-0.0288 against rf=+0.1765, while the
+    # written output read +0.1614. Planted here at those
+    # magnitudes, because no fixture in this suite reaches them.
+    _nn = 4000
+    _rr = np.random.default_rng(17)
+    _base = _rr.normal(0, 1, _nn)
+    _mA = np.zeros(_nn, dtype=bool)
+    _mA[:_nn // 2] = True          # the "flat" half
+    _mB = ~_mA                     # the "biased" half
+    _pv = np.empty(_nn)
+    # a clear +0.18 on the flat half...
+    _pv[_mA] = (0.18 * _base[_mA]
+                + np.sqrt(1 - 0.18 ** 2) * _rr.normal(0, 1, _mA.sum()))
+    # ...and near-zero, slightly negative, on the biased half
+    _pv[_mB] = (-0.03 * _base[_mB]
+                + np.sqrt(1 - 0.03 ** 2) * _rr.normal(0, 1, _mB.sum()))
+    _rA = _sp(_base[_mA], _pv[_mA])
+    _rB = _sp(_base[_mB], _pv[_mB])
+    check("the planted pair has a real sign on the unbiased side "
+          "and only noise on the biased one ({:+.4f} against "
+          "{:+.4f}), which is the shape that fooled the first "
+          "screen".format(_rA, _rB),
+          abs(_rA) > 0.1 and abs(_rB) < 0.1 and (_rA > 0) != (_rB > 0))
+    check("...and it is NOT reported as a flip, because a "
+          "relationship going absent is a different fact from one "
+          "going the other way",
+          _sfu(_base, [("p", _pv)], _mB, _mA) == [])
+
     check("choosing the present rows from the two published grids "
           "lands the sparse column's own marginal - better than "
           "refusing the copy, which is the alternative",

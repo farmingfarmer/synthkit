@@ -2339,6 +2339,73 @@ def _grid_density(m, x):
     return out
 
 
+def sign_flips_under(vals, partners, keep_biased, keep_flat,
+                    min_rows: int = 30):
+    """Partners whose sign REVERSES under the biased mask.
+
+    WHY THIS EXISTS. Choosing which rows a copied column is
+    present on by the density ratio of two published grids is what
+    lands that column's own marginal - and it makes presence
+    depend on the VALUE, so every relationship the column takes
+    part in is then measured on a value-biased subset. On the real
+    extract at seed 11 that flipped `procedure_quantity` against
+    `active_drug_count` from a source +0.497 to a generated
+    -0.106: an own-column INVERTED, which this project calls the
+    absolute stop and does not treat as a dial at any setting.
+
+    The comparison needs no published correlation. A FLAT mask is
+    the unbiased subset, so the question is whether the biased one
+    says something with the opposite sign - and both masks are in
+    hand here. Returns the partner names that reverse, so the
+    caller can refuse and SAY which pair it refused for.
+    """
+    out = []
+    v = np.asarray(vals, dtype=float)
+    kb = np.asarray(keep_biased, dtype=bool)
+    kf = np.asarray(keep_flat, dtype=bool)
+    for name, pv in partners:
+        p = np.asarray(pv, dtype=float)
+        if len(p) != len(v):
+            continue
+        ok_b = kb & np.isfinite(v) & np.isfinite(p)
+        ok_f = kf & np.isfinite(v) & np.isfinite(p)
+        if int(ok_b.sum()) < min_rows or int(ok_f.sum()) < min_rows:
+            continue
+        rb = _spearman(v[ok_b], p[ok_b])
+        rf = _spearman(v[ok_f], p[ok_f])
+        if rb is None or rf is None:
+            continue
+        # A SIGN IS ONLY LOST IF THERE WAS ONE, AND ONLY FOUND IF
+        # THERE IS ONE. A pair the unbiased subset barely relates
+        # cannot be inverted by anything; and a biased reading of
+        # -0.03 against a flat +0.18 is a relationship going
+        # ABSENT, not one going the other way. Both sides have to
+        # clear the gate's own 0.1 relate floor or this refuses
+        # the tier on noise - measured: on the three-arm fixture
+        # the raw reading is rb=-0.0288 against rf=+0.1765, and
+        # the final output's correlation comes out +0.1614, so
+        # screening only the flat side refused a tier that
+        # inverted nothing. The real-extract case clears both:
+        # source +0.497 against a generated -0.106.
+        if abs(rf) < 0.1 or abs(rb) < 0.1:
+            continue
+        if (rb > 0) != (rf > 0):
+            out.append(name)
+    return out
+
+
+def _spearman(a, b):
+    if len(a) < 2:
+        return None
+    ra = np.argsort(np.argsort(a)).astype(float)
+    rb = np.argsort(np.argsort(b)).astype(float)
+    sa, sb = ra.std(), rb.std()
+    if sa <= 0 or sb <= 0:
+        return None
+    return float(((ra - ra.mean()) * (rb - rb.mean())).mean()
+                 / (sa * sb))
+
+
 def copy_presence_p(src_m, dst_m, vals, target_cov):
     """Per-row probability that a COPIED column is present.
 
@@ -2684,12 +2751,68 @@ def generate(blueprint: Dict[str, Any],
                             _sm, m, np.asarray(arr_cp, dtype=float),
                             float(cov))
                         if _p is not None:
-                            keep = rng.random_sample(len(_p)) < _p
+                            _kb = rng.random_sample(len(_p)) < _p
+                            # REFUSE WHERE IT WOULD INVERT. The
+                            # bias that lands the marginal also
+                            # makes presence depend on the value,
+                            # and a relationship measured on that
+                            # subset can come out with the
+                            # opposite sign. A flat mask is the
+                            # unbiased comparison and it is one
+                            # draw away.
+                            _kf = (rng.random_sample(len(_p))
+                                   < float(cov))
+                            _pt = []
+                            for _r in (parents.get(c) or []):
+                                for _pn in (_r.get("parents") or []):
+                                    if _pn in out and _pn != c:
+                                        _pt.append(
+                                            (_pn, np.asarray(
+                                                out[_pn],
+                                                dtype=float)))
+                            # REPORTED, NOT ACTED ON - and that
+                            # distinction is measured rather than
+                            # chosen. The reading here is on the
+                            # COPIED VALUES at copy time, and the
+                            # pin pass, the constraint repair and
+                            # the refinement sweep all move them
+                            # afterwards, so it is a PREDICTION of
+                            # the final sign and not the sign. On
+                            # two fixtures it predicted an
+                            # inversion that did not happen: the
+                            # written output read +0.1614 and
+                            # +0.0881 against flat arms of +0.1765
+                            # and +0.1211 - weakened, never
+                            # reversed. A guard that fires where
+                            # nothing inverts would silently
+                            # remove the tier's whole benefit
+                            # while an operator believed it was
+                            # on, which is worse than no guard.
+                            #
+                            # So it WARNS. The real-extract case
+                            # it was built for is louder than
+                            # either fixture - source +0.497
+                            # against a generated -0.106 - and an
+                            # operator who turns this tier on is
+                            # told which pair to read on the gate.
+                            # Refusing properly means checking the
+                            # FINAL values and redrawing the mask,
+                            # which is a different change.
+                            _bad = sign_flips_under(
+                                arr_cp, _pt, _kb, _kf)
+                            keep = _kb
                             if report is not None:
                                 report.setdefault(
                                     "copy_presence_modeled",
                                     []).append(
                                         {"column": c, "from": _cp})
+                                if _bad:
+                                    report.setdefault(
+                                        "copy_presence_warned",
+                                        []).append(
+                                            {"column": c,
+                                             "from": _cp,
+                                             "may_invert": _bad})
                 if keep is not None:
                     pass
                 elif clus <= 0.0:
