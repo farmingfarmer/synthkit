@@ -418,6 +418,36 @@ Synthetic clinical data generator and model-evaluation instrument. Core rule: le
 - Never state a number as measured unless you actually ran it.
 
 ## Fixing what the real extract found
+- **WITH THE DIAL ACTUALLY WIRED, THE KNOTS ARM IS THE FIRST
+  THING TO MOVE THE RECIPIENT-AXIS COUNT ON THE REAL EXTRACT
+  (2026-11-12, run_sw_kn against run_sw_rows).** Same source, same
+  seed 11, one flag apart, and this time the blueprint PROVES the
+  dial engaged: **2,145,604 bytes against 2,127,746**, +17,858,
+  where the broken wiring differed by sixty.
+      columns off the SOURCE by more than 0.05
+        default                6 of 31
+        --extra-knots 9        5 of 31
+      spo2, source against output
+        default                 0.0763
+        --extra-knots 9         0.0338
+  `spo2` improves **2.3-fold** and drops under the bar;
+  `urine_voided` also leaves the list; `active_drug_count` ENTERS
+  it. Net one column better. Every previous dial measured on this
+  axis moved the count by zero.
+- **AND THE COST IS THE DISCLOSURE, which is the whole reason it
+  is a dial.** Those 17,858 bytes are published quantile VALUES of
+  the real column - nine more per numeric column. The outer bounds
+  do not move and are still the mean of the k most extreme
+  patients, which is asserted; what grows is the resolution of
+  the interior, and that is a governance choice rather than a
+  free win.
+- **WHAT IS NOT CLAIMED: one seed, one extract, and one column
+  went the other way.** `active_drug_count` was inside the bar
+  and is now outside it, which is the kind of movement this file
+  has repeatedly seen reverse on a second seed. A second seed is
+  what would turn "net one column better" into a result rather
+  than a reading.
+
 - **THE KNOTS DIAL PRINTED ITS MESSAGE AND REACHED NOTHING, AND A
   REAL ARM WAS SPENT PROVING IT (2026-11-12, run_sw_kn).** It was
   wired with the GENERATE-time flags, so `EXTRA_KNOTS` was set at
