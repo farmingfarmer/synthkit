@@ -844,13 +844,23 @@ def marginals_view(run, src_path):
                       r["rows_output"], r["noise_floor"]))
         print()
     bad = [r for r in rows if r["verdict"] != "CLEAR"]
-    print("  {} of {} column(s) are off their own published grid or "
-          "their source by more than {:.2f}".format(
-              len(bad), len(rows), MARGINAL_TOL))
+    # THE BAR IS PER COLUMN, so these lines must not quote one
+    # number as though it applied to all of them. A column whose
+    # own sampling noise is a fraction of the product bar is
+    # judged at 0.05; one at the edge of readability has to clear
+    # twice its own noise.
+    _bars = sorted(set(round(r.get("bar_used") or MARGINAL_TOL, 4)
+                       for r in rows))
+    _barsay = ("{:.2f}".format(_bars[0]) if len(_bars) == 1
+               else "each column's own bar, {:.4f} to {:.4f}"
+                    .format(_bars[0], _bars[-1]))
+    print("  {} of {} column(s) are off their own published grid "
+          "or their source by more than {}".format(
+              len(bad), len(rows), _barsay))
     _held = blob["off_source"]
     print("  and {} of {} differ from the SOURCE in a recipient's "
-          "hands by more than {:.2f}{}".format(
-              len(_held), len(rows), MARGINAL_TOL,
+          "hands by more than that{}".format(
+              len(_held), len(rows),
               ": " + ", ".join(_held[:8]) if _held else ""))
     gen = blob["sampler_faults"]
     if gen:

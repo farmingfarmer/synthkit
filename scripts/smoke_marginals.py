@@ -470,19 +470,36 @@ def main():
         _gen = np.round(np.exp(_rs.normal(1.9, 0.8, _nn)), 3)
         _Q = [0.0, 0.01, 0.05, 0.1, 0.25, 0.5, 0.75, 0.9, 0.95,
               0.99, 1.0]
-        _bpj = {"columns": {"v": {"marginal": {
-            "type": "quantiles", "q": _Q,
-            "v": [float(x) for x in np.quantile(_col, _Q)],
-            "integral": False}}}}
+        # TWO COLUMNS WITH DIFFERENT BARS, because that is the
+        # only shape where quoting one figure for all of them
+        # differs from naming the range - a one-column table
+        # prints the same text either way and the mutation found
+        # nothing. `thin` is present on few enough rows that
+        # twice its own noise exceeds the product bar.
+        _thin = _col[:2200]
+        _gthin = _gen[:2200]
+        _bpj = {"columns": {
+            "v": {"marginal": {
+                "type": "quantiles", "q": _Q,
+                "v": [float(x) for x in np.quantile(_col, _Q)],
+                "integral": False}},
+            "thin": {"marginal": {
+                "type": "quantiles", "q": _Q,
+                "v": [float(x) for x in np.quantile(_thin, _Q)],
+                "integral": False}}}}
         (_rd / "blueprint.json").write_text(
             json.dumps(_bpj), encoding="utf-8")
-        for _p, _vals in ((_rd / "generated.csv", _gen),
-                          (Path(_d) / "src.csv", _col)):
+        for _p, _vals, _tv in (
+                (_rd / "generated.csv", _gen, _gthin),
+                (Path(_d) / "src.csv", _col, _thin)):
             with io.open(_p, "w", encoding="utf-8", newline="") as _f:
                 _w = _csv.writer(_f)
-                _w.writerow(["v"])
-                for _x in _vals:
-                    _w.writerow(["{:g}".format(_x)])
+                _w.writerow(["v", "thin"])
+                for _i, _x in enumerate(_vals):
+                    _w.writerow([
+                        "{:g}".format(_x),
+                        "{:g}".format(_tv[_i]) if _i < len(_tv)
+                        else ""])
         _env = {"PYTHONPATH": str(ROOT)}
         import os as _os
         _env.update(dict(_os.environ))
@@ -542,6 +559,27 @@ def main():
         # because every number a reader acts on comes from
         # `measure`. What it still feeds is the per-band grid
         # column in the table above the verdict.
+        # AND THE SUMMARY LINE MUST NOT QUOTE ONE BAR AS THOUGH
+        # IT APPLIED TO EVERY COLUMN. The bar is per column now,
+        # and a single figure there would be a label naming a
+        # quantity the code no longer uses - the fault these
+        # views already had once with "worst band gap".
+        # THE BARS ON THIS TABLE, read off the printed rows so
+        # the assertion is about what a reader sees.
+        _tb = [float(x) for x in re.findall(
+            r"^\s{2}\S+\s+\d\.\d{4}\s+\d\.\d{4}\s+"
+            r"\d\.\d{4}\s+\d\.\d{4}\s+(\d\.\d{4})",
+            _all.stdout, re.M)]
+        check("the fixture's two columns are judged at DIFFERENT "
+              "bars ({}), which is the only shape where quoting "
+              "one figure differs from naming the range".format(
+                  sorted(set(_tb))),
+              len(set(_tb)) >= 2)
+        check("...and the summary names the RANGE rather than one "
+              "figure, because the bar is the product bar OR "
+              "twice that column's own noise",
+              "each column's own bar" in _all.stdout
+              and "by more than that" in _all.stdout)
         check("peek still renders the grid's own band shares, so "
               "the reader sees the three distributions and not "
               "only the distances between them",
