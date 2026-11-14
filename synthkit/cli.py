@@ -1413,6 +1413,155 @@ def cmd_notes(args) -> int:
     return 0
 
 
+def cmd_grounded(args) -> int:
+    """Census a tool's claims against the record it was given.
+
+    The question a vendor's safety claim makes - every statement
+    traces back to the chart - is answerable exactly here, because
+    we wrote the chart. Recall and the per-corruption breakdown
+    come from `transcribe.score_extraction`, which this calls
+    rather than reimplements; what it adds is the claim that
+    matches no fact at all, which that loop cannot see.
+    """
+    import json
+    import pandas as pd
+    from synthkit import grounding as GR
+    from synthkit.transcribe import FactSpec, score_extraction
+
+    try:
+        key = json.load(open(args.ledger, encoding="utf-8"))
+    except (OSError, ValueError) as e:
+        print("could not read {}: {}".format(args.ledger, e),
+              file=sys.stderr)
+        return 2
+    if "ledger" not in key:
+        print("{} is not a ledger from `synthkit notes` - it has "
+              "no `ledger` list".format(args.ledger),
+              file=sys.stderr)
+        return 2
+    ledgers = key["ledger"]
+    facts = [FactSpec(**f) for f in key.get("facts", [])]
+    plan = key.get("plan", {})
+
+    try:
+        claims_raw = json.load(open(args.claims, encoding="utf-8"))
+    except (OSError, ValueError) as e:
+        print("could not read {}: {}".format(args.claims, e),
+              file=sys.stderr)
+        return 2
+    claims = _claims_per_row(claims_raw, len(ledgers))
+    if claims is None:
+        print("claims must be a list of {} per-row lists, or a "
+              "flat list of objects each carrying `row` - got {} "
+              "entries".format(len(ledgers), len(claims_raw)),
+              file=sys.stderr)
+        return 2
+
+    frame = None
+    if args.notes:
+        try:
+            frame = pd.read_csv(args.notes, dtype=str,
+                                keep_default_na=False)
+        except OSError as e:
+            print("could not read {}: {}".format(args.notes, e),
+                  file=sys.stderr)
+            return 2
+        if len(frame) != len(ledgers):
+            print("{} has {} rows and the ledger has {} - these "
+                  "are not the same run".format(
+                      args.notes, len(frame), len(ledgers)),
+                  file=sys.stderr)
+            return 2
+
+    desc = None
+    if args.descriptions:
+        desc = json.load(open(args.descriptions, encoding="utf-8"))
+
+    rep = GR.audit(ledgers, claims, frame=frame, facts=facts,
+                   plan=plan, descriptions=desc)
+    print("grounding: {} positive claim(s) over {} row(s)".format(
+        rep["claims_censused"], len(ledgers)))
+    if frame is None:
+        print("  NOTE: no --notes given, so the STRUCTURED record "
+              "could not be consulted and a claim read straight "
+              "off a code set will be reported as ungrounded")
+    for cat in GR.CATEGORIES:
+        print("  {:14s} {}".format(cat, rep["counts"][cat]))
+    print("  grounded share {}".format(rep["grounded_share"]))
+    print()
+    print(rep["verdict"])
+    for ex in rep["ungrounded_examples"][:10]:
+        print("  ungrounded  row {:>6}  {}".format(
+            ex["row"], ex["label"]))
+    for ex in rep["contradicted_examples"][:10]:
+        print("  DENIED by the prose  row {:>6}  {}".format(
+            ex["row"], ex["label"]))
+
+    sf = GR.source_followed(ledgers, claims)
+    print()
+    if sf["disagreements"]:
+        print("where the prose and the record DISAGREE by "
+              "construction ({} mentions), the tool followed:"
+              .format(sf["disagreements"]))
+        for k, v in sf["followed"].items():
+            print("  {:12s} {}".format(k, v))
+    else:
+        print("no planted disagreement in this run, so which "
+              "source the tool trusts is not measured here")
+
+    scored = score_extraction(
+        ledgers, [[{"fact": g.get("fact"),
+                    "present": g.get("present", True),
+                    "value": g.get("value"),
+                    "current": g.get("current", True),
+                    "certain": g.get("certain", True)}
+                   for g in (row or [])] for row in claims])
+    print()
+    print("recall by documentation problem (from "
+          "transcribe.score_extraction):")
+    for tag in sorted(scored):
+        r = scored[tag]
+        print("  {:22s} mentions {:>6}  recall {}  false "
+              "positives {}".format(
+                  tag, r["mentions"], r["recall"],
+                  r["false_positive_rate"]))
+
+    if args.out:
+        json.dump({"grounding": rep, "source_followed": sf,
+                   "by_corruption": scored},
+                  open(args.out, "w", encoding="utf-8"),
+                  indent=1, default=str)
+        print()
+        print("wrote {}".format(args.out))
+    return 0
+
+
+def _claims_per_row(raw, n):
+    """Accept per-row lists or a flat list carrying `row`.
+
+    A vendor returns whichever shape their tool produces, and
+    refusing one of them would make the audit unusable for a
+    reason that has nothing to do with grounding.
+    """
+    if isinstance(raw, dict):
+        raw = raw.get("claims", raw.get("rows"))
+    if not isinstance(raw, list):
+        return None
+    if raw and isinstance(raw[0], dict) and "row" in raw[0]:
+        out = [[] for _ in range(n)]
+        for g in raw:
+            try:
+                i = int(g["row"])
+            except (KeyError, TypeError, ValueError):
+                return None
+            if 0 <= i < n:
+                out[i].append(g)
+        return out
+    if len(raw) != n:
+        return None
+    return [r or [] for r in raw]
+
+
 def cmd_sample(args) -> int:
     """A PATIENT-level subsample, for live demonstrations and
     quick reads - all rows of N randomly chosen patients, chosen
@@ -2186,6 +2335,27 @@ def main(argv=None) -> int:
     p.add_argument("--note-column", default="clinical_note")
     p.add_argument("--seed", type=int, default=20260731)
     p.set_defaults(fn=cmd_notes)
+
+    p = sub.add_parser("grounded",
+                       help="census a tool's claims against the "
+                            "record it was given - is every "
+                            "statement supported?")
+    p.add_argument("--ledger", required=True,
+                   help="ledger.json from `synthkit notes` - the "
+                        "answer key")
+    p.add_argument("--claims", required=True,
+                   help="json: one list per row of "
+                        "{label, present}, or a flat list whose "
+                        "objects carry `row`")
+    p.add_argument("--notes",
+                   help="notes.csv, so the STRUCTURED record can "
+                        "be consulted too; without it a claim "
+                        "read off a code set reads as ungrounded")
+    p.add_argument("--descriptions",
+                   help="the same code-to-phrasing json the notes "
+                        "were rendered with")
+    p.add_argument("-o", "--out", help="write the report as json")
+    p.set_defaults(fn=cmd_grounded)
 
     args = ap.parse_args(argv)
     return args.fn(args)
