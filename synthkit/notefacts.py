@@ -56,7 +56,29 @@ MEASURE_LABELS: Dict[str, Tuple[str, str]] = {
     "height": ("height", "cm"),
     "weight": ("weight", "kg"),
     "urine_voided": ("urine output", "mL"),
+    # names the 800-patient extract actually uses - the first real
+    # run reported `temperature_oral` and `heart_rate_monitored`
+    # as not-charted because this list named the generic forms
+    "temperature_oral": ("oral temperature", "C"),
+    "heart_rate_monitored": ("heart rate", "bpm"),
+    "peripheral_pulse_rate": ("peripheral pulse", "bpm"),
+    "mean_arterial_pressure_cuff_bmdi":
+        ("mean arterial pressure", "mmHg"),
+    "right_pupil_size": ("right pupil", "mm"),
+    "left_pupil_size": ("left pupil", "mm"),
 }
+
+# A measurement needs ROWS, not a SHARE. This project has recorded
+# the presence-share fault four times - a column whose present
+# values are numbers is numeric however often it is present - and
+# a 0.5 coverage gate committed it a fifth time: on the real
+# extract's inpatient slice EVERY declared vital sits under it
+# (spo2 0.194, respiratory_rate 0.343, systolic 0.449), so a note
+# carried no vitals line at all. A vital recorded on a fifth of
+# encounters is perfectly chartable; the note mentions it where it
+# was taken and stays silent where it was not, which is what a
+# real note does.
+MIN_MEASURE_ROWS = 50
 
 # Eligible as a CHARTED measurement, in the order a note would
 # carry them. `span_days` and `age_at_visit` are deliberately
@@ -217,15 +239,19 @@ def build_facts(frame: pd.DataFrame,
         if S.is_scaffolding(col):
             continue
         vals = pd.to_numeric(frame[col], errors="coerce")
-        if vals.notna().mean() >= 0.5 and vals.nunique() >= 4:
+        if (int(vals.notna().sum()) >= MIN_MEASURE_ROWS
+                and vals.nunique() >= 4):
             plan["not_charted"].append(col)
     for col in eligible:
         if taken >= measures:
             plan["over_measure_budget"].append(col)
             continue
         vals = pd.to_numeric(frame[col], errors="coerce")
-        if vals.notna().mean() < 0.5 or vals.nunique() < 4:
-            plan["too_thin"].append(col)
+        rows_with = int(vals.notna().sum())
+        if rows_with < MIN_MEASURE_ROWS or vals.nunique() < 4:
+            plan["too_thin"].append(
+                "{} ({} row(s) carry a value)".format(
+                    col, rows_with))
             continue
         lab = label_for_column(col)
         if lab is None:

@@ -97,6 +97,69 @@ def run_cli(*argv):
     return r.returncode, r.stdout + r.stderr
 
 
+def sparse_checks():
+    """A VITAL RECORDED ON A FIFTH OF ENCOUNTERS IS STILL A VITAL.
+
+    The first real run carried NO vitals line, and two faults were
+    hiding behind one number: this list named the generic column
+    forms where the extract uses specific ones, and the gate was a
+    presence SHARE - on the inpatient slice every declared vital
+    sits under 0.5. A fixture with fully populated measurements
+    could reach neither.
+    """
+    from synthkit.notefacts import MIN_MEASURE_ROWS
+    df = cohort()
+    # spo2 recorded on about a fifth of rows, as in the extract
+    keep = np.arange(len(df)) % 5 == 0
+    # pandas 3 refuses a string into a float64 column, so the
+    # column becomes object first - the same TypeError that once
+    # passed here and crashed on the data machine
+    df["spo2"] = df["spo2"].astype(object)
+    df.loc[~keep, "spo2"] = ""
+    share = float(keep.mean())
+    rows_with = int(keep.sum())
+    check("the fixture's vital is sparse like the real one - "
+          "{} rows, a share of {:.3f}".format(rows_with, share),
+          share < 0.5 and rows_with >= MIN_MEASURE_ROWS)
+
+    frame, facts, plan = build_facts(
+        df, group_by="person_id", k=10, tokens_per_set=4,
+        descriptions=DESC)
+    labels = [f.label for f in facts if f.kind == "measurement"]
+    check("...and it STILL becomes a charted fact, because a "
+          "measurement needs ROWS and not a share: {}".format(
+              labels),
+          "oxygen saturation" in labels)
+
+    noted, led = transcribe(
+        frame.to_dict("records"),
+        TranscribeSpec(facts=facts, rates=default_rates(0.0),
+                       seed=5))
+    notes = pd.DataFrame(noted)["clinical_note"]
+    absent = notes[~keep]
+    check("a note on a row where nobody recorded it does NOT "
+          "mention it - rendering an empty measurement produced "
+          "'oxygen saturation:  %.'",
+          not absent.str.contains("oxygen saturation").any())
+    check("...while a row that HAS it does",
+          notes[keep].str.contains("oxygen saturation").all())
+    empties = [e for L in led for e in L
+               if e.get("asserted_value") is not None
+               and str(e["asserted_value"]).strip() == ""]
+    check("and no ledger entry asserts a value of nothing, which "
+          "would grade an extractor against text that says "
+          "nothing", not empties)
+
+    # the real extract's own column names, pinned so the finding
+    # that cost a real run cannot regress
+    for col, want in (("temperature_oral", "oral temperature"),
+                      ("heart_rate_monitored", "heart rate")):
+        check("the extract's own column {!r} is labelled - the "
+              "first real run reported it as not-charted because "
+              "this named the generic form".format(col),
+              label_for_column(col) == want)
+
+
 def cli_checks():
     import json
     import subprocess           # noqa: F401
@@ -360,6 +423,7 @@ def main():
                                      "without", "ruled out",
                                      "not ")))
 
+    sparse_checks()
     cli_checks()
 
     print()

@@ -247,10 +247,30 @@ def _transpose(v: str) -> str:
     return v
 
 
+def _measured(value: Any) -> bool:
+    """A measurement is present when a NUMBER was recorded.
+
+    The general rule treats "0" as absent, which is right for a
+    medication and wrong for a measurement - a urine output of
+    zero is a finding. And an EMPTY measurement is not a fact
+    about this encounter at all: rendering one produced
+    "oxygen saturation:  %." with a ledger entry asserting a
+    value of nothing, which no fixture with fully populated
+    columns could reach and every real cohort reaches at once.
+    """
+    try:
+        float(str(value).strip())
+        return True
+    except (TypeError, ValueError):
+        return False
+
+
 def _present(fact: FactSpec, value: Any) -> bool:
     s = str(value).strip().lower()
     if fact.kind == "condition":
         return s in ("1", "true", "yes", "y", "present")
+    if fact.kind == "measurement":
+        return _measured(value)
     return s not in ("", "0", "none", "nan", "false", "no")
 
 
@@ -394,8 +414,11 @@ def transcribe_row(row: Dict[str, Any], spec: TranscribeSpec,
                 chosen = [c for c in chosen
                           if c not in ("hedge",
                                        "temporal_history")]
-        elif not present and fact.kind != "measurement":
-            continue          # absent and not negated: say nothing
+        elif not present:
+            # absent and not negated: say nothing. A measurement
+            # nobody recorded is skipped for the same reason - a
+            # note does not carry an empty vital.
+            continue
 
         if "negation_compound" in chosen:
             compound_pool.append(fact)
