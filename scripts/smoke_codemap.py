@@ -65,6 +65,25 @@ def main():
           why is None and len(got) == 4
           and got["E11.9"].startswith("Type 2 diabetes"))
 
+    # EVERY code column, not the first. In OMOP a condition's
+    # standard concept is SNOMED while the cohort may be built on
+    # ICD-10, which lives in the SOURCE value - taking only the
+    # first code column left every ICD-10 token reading as a code.
+    both = pd.DataFrame({
+        "condition_source_value": ["I10", "Fever"],
+        "standard_concept_code": ["59621000", "386661006"],
+        "standard_concept_name": ["Essential hypertension",
+                                  "Fever"]})
+    got2, why_b = CM.pairs_from(both)
+    check("both the standard code and the SOURCE value are "
+          "paired to the name: {}".format(sorted(got2)),
+          why_b is None and got2.get("I10") == "Essential "
+          "hypertension" and "59621000" in got2)
+    check("...and a free-text source value equal to its own name "
+          "is not paired, because mapping a phrase to itself "
+          "describes nothing",
+          "Fever" not in got2)
+
     none, why2 = CM.pairs_from(
         pd.DataFrame({"person_id": ["1"], "quantity": ["2"]}))
     check("a table with no code/name pair REPORTS why rather than "

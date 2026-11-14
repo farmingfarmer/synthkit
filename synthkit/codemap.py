@@ -38,22 +38,45 @@ def _pick(columns: Iterable[str],
     return None
 
 
+def code_columns(columns: Iterable[str]) -> List[str]:
+    """EVERY column that carries a code, not the first one found.
+
+    In OMOP the standard concept for a condition is SNOMED while
+    the vocabulary a cohort was built on may be ICD-10 - which
+    lives in the SOURCE value. Taking only the first code column
+    described the standard code and left every ICD-10 token in the
+    extract reading as a bare code.
+    """
+    out = []
+    for c in columns:
+        low = str(c).strip().lower()
+        if low in CODE_COLUMNS or low.endswith("_source_value"):
+            out.append(str(c))
+    return out
+
+
 def pairs_from(frame) -> Tuple[Dict[str, str], Optional[str]]:
     """code -> name from one table, or a reason it yielded none."""
     cols = list(frame.columns)
-    code = _pick(cols, CODE_COLUMNS)
+    codes = code_columns(cols)
     name = _pick(cols, NAME_COLUMNS)
-    if code is None or name is None:
-        return {}, ("no code/name pair - looked for {} beside {}"
+    if not codes or name is None:
+        return {}, ("no code/name pair - looked for {} or a "
+                    "*_source_value beside {}"
                     .format("/".join(CODE_COLUMNS),
                             "/".join(NAME_COLUMNS)))
     out = {}
-    for c, n in zip(frame[code].astype(str),
-                    frame[name].astype(str)):
-        c, n = c.strip(), " ".join(n.split())
-        if not c or not n or n.lower() in ("nan", "none"):
-            continue
-        out.setdefault(c, n)
+    names = frame[name].astype(str)
+    for code in codes:
+        for c, n in zip(frame[code].astype(str), names):
+            c, n = c.strip(), " ".join(n.split())
+            if not c or not n or n.lower() in ("nan", "none"):
+                continue
+            if c == n:
+                continue      # a free-text source value is not a
+                              # code, and mapping it to itself
+                              # describes nothing
+            out.setdefault(c, n)
     if not out:
         return {}, "the code and name columns are present but empty"
     return out, None

@@ -3,6 +3,163 @@
 Synthetic clinical data generator and model-evaluation instrument. Core rule: learn the patterns, never copy the records. Real data teaches parameters; generation never touches a record.
 
 ## Verify before claiming
+- **THE NOTE PATH REACHES THE REAL COHORT NOW, AND THE FIRST RUN
+  CARRIED NO VITALS LINE AT ALL (2026-11-13).** `transcribe` has
+  rendered authored facts into clinical prose with a truth ledger
+  since it was written and NOTHING CALLED IT on real data - the
+  capability-wired-to-nothing fault, in the place the Prente
+  pilot's whole centre of gravity sits. It needs ONE COLUMN PER
+  FACT and this extract's diagnoses, procedures and drugs arrive
+  as semicolon-joined SETS, so `notefacts` expands the tokens,
+  runs the render, and then UNDOES the expansion. On the
+  800-patient extract's inpatient slice - **789 of 57,684 rows** -
+  it now declares **35 facts: 13 condition, 6 measurement, 16
+  med**.
+- **AND THE UNDO IS THE PART THAT IS EASY TO GET WRONG.**
+  `transcribe` honors `both_disagree` and `text_only` by
+  overriding THE FACT'S OWN COLUMN, which for a set-derived fact
+  is a derived indicator - so an override there leaves the SET
+  STRING still asserting what the note denies, and the set is what
+  the recipient reads. Measured on a fixture: a `both_disagree`
+  fact flips the set on **243 rows** and a `text_only` token goes
+  from 243 rows to **ZERO**. A row's UNEXPANDED tokens survive,
+  because rebuilding the string from the indicators alone deletes
+  every token nobody expanded.
+- **AND THE k SCREEN GOVERNS A NOTE EXACTLY AS IT GOVERNS A
+  PUBLISHED COLUMN, BECAUSE A NOTE IS A RELEASE.** A note that
+  mentions what the file withholds has undone the screen.
+- **THE PRESENCE-SHARE FAULT, FOR THE FIFTH TIME, AND IT WAS
+  MINE.** The measurement gate was `notna().mean() >= 0.5` and on
+  that slice EVERY declared vital sits under it:
+      spo2                      0.194
+      respiratory_rate          0.343
+      glasgow_coma_score        0.015
+      systolic_blood_pressure   0.449
+      heart_rate_monitored      0.046
+      urine_voided              0.016
+      body_mass_index_measured  0.311
+      temperature_oral          0.837
+  This file already records the rule - a column whose present
+  values are numbers is numeric however often it is present -
+  for span_days at low cardinality, height at 46.6%, an all-empty
+  column and the SHAP screen. **A measurement needs ROWS, not a
+  share**; a vital recorded on a fifth of encounters is perfectly
+  chartable and the note simply stays silent where it was not
+  taken.
+- **AND THE SHARE GATE WAS HIDING A BUG IN `transcribe` ITSELF.**
+  An absent measurement was deliberately exempted from the
+  say-nothing rule, so a sparse column rendered as
+  `"oxygen saturation:  %."` **with a ledger entry asserting a
+  value of nothing** - which would grade an extractor against text
+  that says nothing. No fixture with fully populated measurements
+  could reach it and every real cohort reaches it at once. Also
+  `_present` treated `"0"` as absent, right for a medication and
+  wrong for a measurement where a urine output of zero is a
+  finding.
+- **AND MY OWN LABEL LIST NAMED THE GENERIC COLUMN FORMS.** The
+  extract uses `temperature_oral`, `heart_rate_monitored`,
+  `peripheral_pulse_rate`, `mean_arterial_pressure_cuff_bmdi` and
+  the pupil sizes where I declared `temperature` and
+  `heart_rate` - so the BEST-COVERED vital in the whole extract,
+  at 0.837, was reported as not-charted. Pinned, so the finding
+  that cost a real run cannot regress.
+
+- **THE CODE MAP'S SCREEN WITHHELD 7,207 OF 7,382 CODES ON THE
+  REAL SOURCE (2026-11-13).** The first real note read
+  `No I10 or E03.9` in its assessment, which nobody writes, so
+  descriptions are not a nicety. The source tables carry
+  `standard_concept_name` beside the code, so the map is READ
+  rather than invented - **and a map built from the raw source
+  names every code the k rule REFUSED to publish**, which is a
+  file saying a patient in this cohort has that rare condition.
+  Restricted to codes the released cohort already carries:
+      codes in the source     7,382
+      kept                      175
+      withheld                7,207
+  A 97.6% withholding rate, so the screen is not a formality. A
+  description is public reference data - an ICD-10 code means the
+  same thing in every hospital - so what is sensitive was never
+  the phrasing. It is the LIST.
+- **AND CONDITIONS CANNOT BE DESCRIBED FROM THE DATA ON THAT
+  MACHINE, which is a measured negative rather than a gap to
+  guess at.** The extract's tokens are `ICD10-CM!Z94.0` and
+  `ICD9CM!238.2`, and `condition_occurrence.csv` is 149,408 SNOMED
+  rows against **16** ICD10CM. Crossed directly: the generated
+  file carries **10,650 distinct condition codes of which 16
+  appear anywhere in that table**. So procedures and drugs get
+  real prose and conditions read as bare codes until somebody
+  supplies an ICD-10-CM/ICD-9-CM dictionary, which is public and
+  free and is simply not on the machine.
+- **AND I REASONED ABOUT THE TOKEN FORMAT FROM AN OCR'd NOTE
+  BEFORE READING THE TOKENS.** The prose came back as
+  `No 11@ or £@3.9` and I built two hypotheses about ICD-10
+  mapping on it. Reading the actual cells took one command and
+  gave `ICD10-CM!Z94.0`. Read the value, not a rendering of a
+  sentence that contains it.
+- **AND IN OMOP THE STANDARD CONCEPT IS NOT THE COHORT'S
+  VOCABULARY.** A condition's standard code is SNOMED while the
+  extract is built on ICD-10, which lives in the SOURCE value - so
+  pairing only the FIRST code column described the standard code
+  and left every ICD-10 token unresolved. Every code-ish column is
+  paired now, and a free-text source value equal to its own name
+  is refused because mapping a phrase to itself describes nothing.
+
+- **THE SOURCE CARRIES DIAGNOSIS STATUS AND THE TIDY EXTRACT
+  THREW IT AWAY (2026-11-13).** Found while looking for something
+  else. `condition_occurrence.condition_status_source_value` is
+  populated over 152,641 rows:
+      DISCHARGE          86,441
+      (blank)            32,998
+      FINAL              16,138
+      ADMITTING           8,937
+      REASONFORVISIT      8,073
+      BILLINGDIAGNOSIS        37
+  **That is not a principal-diagnosis flag** - nothing names the
+  condition chiefly responsible for the admission, and
+  BILLINGDIAGNOSIS on 37 of 152,641 rows is not a usable
+  denominator. But ADMITTING against DISCHARGE is a
+  present-on-admission proxy, which is exactly what CDI work turns
+  on, and it is in the source and absent from the tidy file. So
+  the re-pull ask is sharper than "add a principal diagnosis": ask
+  for a field the source demonstrably already has to be CARRIED
+  THROUGH.
+
+- **`score_extraction` IS BLIND TO A HALLUCINATION, MEASURED
+  RATHER THAN ARGUED (2026-11-13).** It grades an extractor BY
+  CORRUPTION TYPE and is the right tool for that, so
+  `grounding.py` calls it rather than reimplementing - but it
+  iterates the LEDGER, so a claim it has no entry for is never
+  examined. **The report is IDENTICAL for an honest reader and one
+  inventing a diagnosis on every row.** That claim is precisely a
+  hallucination, and on synthetic data it is the one thing
+  judgeable perfectly, because we wrote the record.
+- **AND MY FIRST CUT MADE A FALSE ACCUSATION, which for that tool
+  is the worst error available.** Crediting only the labels of
+  EXPANDED facts marked a vendor who read a genuine diagnosis
+  straight off the set string as a hallucinator - only a handful
+  of tokens per set become note facts and the rest are still in
+  the record the recipient holds. Every token in a set column
+  counts as support now.
+- **AND NOTHING CLAIMED IS ITS OWN ANSWER.** A tool that asserts
+  nothing cannot be ungrounded, and reporting that as a perfect
+  grounding score would be the worst kind of pass - the same
+  branch the linkage verdict already draws for a control that
+  cannot fire. A claim of ABSENCE is not censused either: counting
+  "no diabetes" as a statement needing support would make silence
+  indistinguishable from accuracy.
+
+- **AND MY OWN VERIFICATION PATTERN MATCHED THE COMMAND'S ECHO,
+  the trap this file already records twice (2026-11-13).** Checking
+  a transferred file I grepped for `$f-DIGEST-[A-Z]*` over output
+  that contains the command, whose text holds BOTH
+  `'...-DIGEST-MATCHES' if ... else '...-DIGEST-MISMATCH'` - so
+  every file reported MATCHES, MISMATCH and MATCHES at once and
+  only the ordering said which was real. The mechanical fix is the
+  recorded one: make the PATTERN differ from the TEXT it matches.
+  What worked was writing the verdict to a FILE in one command and
+  reading it in a SEPARATE one, so the reading command cannot
+  contain the words being looked for.
+
 - **AN INTERIOR KNOT IS AN ORDER STATISTIC, SO IT IS SOMEBODY'S
   VALUE TOO - AND NOTHING SCREENED IT (2026-11-13).**
   `_safe_bounds` has stated the rule and the reason in its own
