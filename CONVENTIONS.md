@@ -3,6 +3,58 @@
 Synthetic clinical data generator and model-evaluation instrument. Core rule: learn the patterns, never copy the records. Real data teaches parameters; generation never touches a record.
 
 ## Verify before claiming
+- **THE MODEL BOUGHT NOTHING, AND THE CONTROL ARM IS THE ONLY
+  REASON ANYBODY KNOWS (2026-11-14, run_tail_ctl_current).** The
+  operator's proposal was to fit a model on the real extract -
+  every column except the target as predictors - and use it to set
+  `procedure_quantity`, the worst marginal gap on the file at 93%
+  of rows on the value 1 against a source 53%. Built with the
+  model supplying the ORDER and the published grid supplying the
+  VALUES, because a prediction plus noise cannot land a point
+  mass. Three arms on one run, read off the whole gate:
+      arm                          pq marginal   direction   INV
+      copying (today)                   0.4002     132/151     0
+      re-value, RANDOM order            0.0255     135/151     0
+      re-value, MODEL order             0.0255     134/151     0
+  **The control arm BEATS the model arm by a pair**, both reach
+  the identical marginal, and the absolute stop holds on all
+  three. One pair is inside this criterion's own recorded seed
+  spread, so the honest reading is that the model's ordering is
+  worth NOTHING MEASURABLE - not that random is better.
+- **SO THE WHOLE 15.7-FOLD GAIN IS THE RE-VALUING, AND IT NEEDS NO
+  MODEL AT ALL.** `procedure_quantity` is carried by an `==`
+  constraint from `procedure_count`, so it is never drawn from its
+  own published grid; drawing it there instead takes its distance
+  from its own source marginal **0.4002 to 0.0255** with coverage
+  identical to four decimals. That is better than the
+  density-ratio tier's 0.1621 AND it does not manufacture the
+  INVERTED that tier cost, which is the one verdict this project
+  calls an absolute stop.
+- **AND THAT IS THE BEST POSSIBLE SHAPE OF ANSWER, because the
+  mechanism that wins carries no model and therefore no
+  disclosure.** A boosted tree fitted on 55,428 real rows has
+  leaves defined by a handful of real patients, and this project
+  has MEASURED that surface - the neural engine's weights-leak
+  adversary reads 0.776 against 0.514-0.551 output-only. The
+  winning arm never fits anything, so the question does not arise.
+  Without the control arm this would have shipped as a
+  model-based win, carrying a privacy cost for a gain the model
+  was not producing.
+- **AND THE MODEL'S OWN SKILL WAS A CONFOUND WORTH NAMING: 0.9200
+  ON HELD-OUT PATIENTS, EARNED BY READING THE COLUMN'S OWN COPY
+  SOURCE.** `procedure_count` is in the feature set and the
+  quantity EQUALS it wherever present, so the model was largely
+  re-deriving the identity rather than discovering structure. A
+  skill that high on a column this badly reproduced should have
+  been the first thing to question, and the arm answered it.
+- **AND THE CONTROL WAS CHEAP AND NEARLY NOT RUN.** The reasoning
+  that produced it is one line: `--order-only` cannot move a
+  marginal because it is a permutation of the same multiset, so if
+  the model arm's marginal gain is real it must come from the
+  re-valuing - which means the GATE, not the marginal, is where
+  the model's worth is readable. Assigning the same published-grid
+  draw in RANDOM order isolates it exactly.
+
 - **THE NOTE PATH REACHES THE REAL COHORT NOW, AND THE FIRST RUN
   CARRIED NO VITALS LINE AT ALL (2026-11-13).** `transcribe` has
   rendered authored facts into clinical prose with a truth ledger

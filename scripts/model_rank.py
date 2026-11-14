@@ -132,7 +132,7 @@ def fit_ranker(real, target, group_by=None, seed=0):
 
 
 def rank_column(model, features, gen, target, marginal,
-                revalue=True, seed=0):
+                revalue=True, seed=0, random_order=False):
     """Arrange the target by the model's predicted order.
 
     The model supplies the ORDER. The VALUES come from the
@@ -171,7 +171,11 @@ def rank_column(model, features, gen, target, marginal,
                              errors="coerce").to_numpy()
         pool = np.nan_to_num(pool, nan=float(np.nanmedian(pool)))
 
-    # the smallest predicted row gets the smallest value
+    # the smallest predicted row gets the smallest value - or,
+    # in the CONTROL ARM, nobody does, so the marginal lands the
+    # same way and the gate says what the model was worth
+    if random_order:
+        pred = np.random.RandomState(seed + 991).rand(len(gen))
     order = np.argsort(np.argsort(pred[here]))
     placed = np.sort(np.asarray(pool, dtype=float))[order]
 
@@ -233,6 +237,17 @@ def main(argv=None):
                          "and only rearrange them; the marginal "
                          "cannot move, so this fixes "
                          "relationships and not shape")
+    ap.add_argument("--random-order", action="store_true",
+                    help="THE CONTROL ARM. Draw the same values "
+                         "from the same published grid and "
+                         "assign them in RANDOM order. The "
+                         "marginal must land identically, "
+                         "because a marginal does not care who "
+                         "got which value - so whatever this "
+                         "arm leaves on the gate is what the "
+                         "MODEL is actually buying, and if it "
+                         "leaves nothing the model is not "
+                         "earning its place")
     ap.add_argument("--seed", type=int, default=0)
     ap.add_argument("--apply", action="store_true")
     ap.add_argument("--out", default=None)
@@ -318,11 +333,17 @@ def main(argv=None):
 
     rep, n_here, achieved = rank_column(
         model, feats, gen, col, marginal,
-        revalue=not a.order_only, seed=a.seed)
+        revalue=not a.order_only, seed=a.seed,
+        random_order=a.random_order)
     if rep is None:
         print("  REFUSED: the generated file marks no row present "
               "for {}, so there is nothing to arrange".format(col))
         return 1
+    if a.random_order:
+        print("  CONTROL ARM: the values are assigned in RANDOM "
+              "order, so the marginal lands the same way and "
+              "whatever the gate loses here is what the model "
+              "was buying")
     print("  arranged {} present row(s); values from {}".format(
         n_here, "the generator's own draw (--order-only)"
         if a.order_only else "the published quantile grid"))

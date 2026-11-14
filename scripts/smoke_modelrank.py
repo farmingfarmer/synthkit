@@ -157,6 +157,7 @@ def main():
         check("it re-measures the WHOLE gate, not only the "
               "column it aims at",
               "THE WHOLE GATE" in out and "direction kept" in out)
+        out_model = out
         check("nothing is written without --apply",
               "nothing written" in out
               and not (Path(str(rd) + "_modelrank")).exists())
@@ -254,6 +255,31 @@ def main():
                       "person_id")
         check("a source that never produced this run is refused "
               "by row count", rc != 0 and "not the extract" in out)
+
+        # THE CONTROL ARM. The same values from the same
+        # published grid, assigned in RANDOM order: the marginal
+        # cannot care who got which value, so it must land
+        # IDENTICALLY - and whatever the gate loses is what the
+        # model was buying. Without this the whole marginal gain
+        # could be the re-valuing with the model contributing
+        # nothing, and nobody could tell.
+        rc, ctl = run(MR, rd, "--src", src, "--column",
+                      "procedure_quantity", "--group-by",
+                      "person_id", "--random-order")
+        check("the control arm runs and SAYS it is a control",
+              rc == 0 and "CONTROL ARM" in ctl)
+        grab = lambda t: ([l.strip() for l in t.splitlines()
+                           if "source marginal" in l] or [""])[0]
+        l_m, l_c = grab(out_model), grab(ctl)
+        # ON A THIN COLUMN THE MARGINAL IS NOT MEASURABLE AT ALL
+        # and both arms print None, which is still the property:
+        # the marginal does not care who got which value. Reading
+        # the LINE rather than parsing a number survives that,
+        # and an absent measurement is not a mismatch.
+        check("the marginal lands the SAME in both arms, which is "
+              "what makes the GATE the place to read the model's "
+              "worth rather than the marginal: {!r}".format(l_m),
+              l_m and l_m == l_c)
 
         rc, out = run(MR, rd, "--src", src, "--column",
                       "nope", "--group-by", "person_id")
