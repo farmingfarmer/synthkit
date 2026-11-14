@@ -1253,6 +1253,166 @@ def cmd_plant(args) -> int:
     return 0
 
 
+def cmd_notes(args) -> int:
+    """Render clinical notes over a generated cohort, and write
+    the answer key separately.
+
+    WHY THE KEY IS A SEPARATE FILE. The ledger says what every
+    note actually asserts - which corruptions were applied, where
+    the prose and the structured record disagree, and which facts
+    live only in the text. That is the answer key to the exam, so
+    `notes.csv` is the thing that travels to a recipient and
+    `ledger.json` is the thing that stays, exactly as the release
+    dials keep a key beside what they publish. Shipping both would
+    be marking your own homework for somebody else.
+
+    NO PHRASING COMES FROM A REAL NOTE. Facts are declared and
+    rendered, so no sentence can be traced to a patient - which is
+    what makes a note shareable at all, and is why this is
+    generated from the SYNTHETIC cohort rather than learned from
+    real text.
+    """
+    import json
+    import pandas as pd
+    from synthkit import notefacts as NF
+    from synthkit.transcribe import CORRUPTIONS, TranscribeSpec, \
+        transcribe
+
+    src = args.csv
+    if args.run:
+        cand = Path(args.run) / "generated.csv"
+        if not cand.exists():
+            print("no generated.csv in {} - point --run at a run "
+                  "directory or pass --csv".format(args.run),
+                  file=sys.stderr)
+            return 2
+        src = str(cand)
+    if not src:
+        print("give --run RUNDIR or --csv FILE", file=sys.stderr)
+        return 2
+    try:
+        df = pd.read_csv(src, dtype=str, keep_default_na=False)
+    except OSError as e:
+        print("could not read {}: {}".format(src, e),
+              file=sys.stderr)
+        return 2
+    print("notes: reading {} ({} rows, {} columns)".format(
+        src, len(df), len(df.columns)))
+
+    if args.visit_type:
+        if args.visit_column not in df.columns:
+            print("no column named {!r} to filter on - the "
+                  "columns are: {}".format(
+                      args.visit_column,
+                      ", ".join(map(str, df.columns[:12]))),
+                  file=sys.stderr)
+            return 2
+        wanted = [v.strip().upper()
+                  for v in args.visit_type.split(",")]
+        before = len(df)
+        df = df[df[args.visit_column].astype(str).str.upper()
+                .isin(wanted)].reset_index(drop=True)
+        print("scope: {} -> {} rows where {} is one of {}".format(
+            before, len(df), args.visit_column,
+            ", ".join(wanted)))
+        if df.empty:
+            print("nothing matched that scope - no notes written",
+                  file=sys.stderr)
+            return 2
+
+    desc = None
+    if args.descriptions:
+        try:
+            desc = json.load(open(args.descriptions,
+                                  encoding="utf-8"))
+        except (OSError, ValueError) as e:
+            print("could not read {}: {}".format(
+                args.descriptions, e), file=sys.stderr)
+            return 2
+        print("descriptions: {} code(s) supplied".format(len(desc)))
+    else:
+        print("descriptions: none supplied, so a diagnosis reads "
+              "as its bare code - pass --descriptions for prose")
+
+    gb = args.group_by if args.group_by in df.columns else None
+    frame, facts, plan = NF.build_facts(
+        df, group_by=gb, k=args.k,
+        tokens_per_set=args.tokens_per_set,
+        descriptions=desc, measures=args.measures)
+
+    if not facts:
+        print("no facts could be derived from this frame, so "
+              "there is nothing for a note to say", file=sys.stderr)
+        for col, why in plan["skipped_sets"].items():
+            print("  {}: {}".format(col, why), file=sys.stderr)
+        return 2
+
+    kinds = {}
+    for f in facts:
+        kinds[f.kind] = kinds.get(f.kind, 0) + 1
+    print("facts: {} total - {}".format(
+        len(facts),
+        ", ".join("{} {}".format(v, k)
+                  for k, v in sorted(kinds.items()))))
+    print("tokens mentioned are held by at least {} patients, "
+          "counted in patients and never rows - a note is a "
+          "release".format(args.k))
+    for col, why in plan["skipped_sets"].items():
+        print("  set skipped: {} - {}".format(col, why))
+    if plan["not_charted"]:
+        print("  not a charted measurement, so absent from the "
+              "vitals line: {}".format(
+                  ", ".join(plan["not_charted"][:8])))
+    if plan["unlabelled"]:
+        print("  no declared clinical phrasing, so left out "
+              "rather than given prose invented from a code: "
+              "{}".format(", ".join(plan["unlabelled"][:8])))
+
+    spec = TranscribeSpec(facts=facts,
+                          rates=NF.default_rates(args.rate),
+                          seed=args.seed)
+    noted, ledgers = transcribe(frame.to_dict("records"), spec,
+                                note_column=args.note_column)
+    final = NF.reconcile(pd.DataFrame(noted), plan)
+
+    applied = {}
+    for L in ledgers:
+        for e in L:
+            for c in e.get("corruptions", []):
+                applied[c] = applied.get(c, 0) + 1
+    missing = [c for c in CORRUPTIONS if c not in applied]
+
+    out = Path(args.out)
+    out.mkdir(parents=True, exist_ok=True)
+    final.to_csv(out / "notes.csv", index=False)
+    json.dump({"facts": [f.__dict__ for f in facts],
+               "rates": spec.rates, "seed": spec.seed,
+               "k": args.k, "source": src,
+               "corruptions_applied": applied,
+               "corruptions_never_applied": missing,
+               "plan": {k: v for k, v in plan.items()
+                        if k != "indicators"},
+               "ledger": ledgers},
+              open(out / "ledger.json", "w", encoding="utf-8"),
+              indent=1, default=str)
+
+    print()
+    print("wrote {} - {} rows, {} columns, the note in "
+          "{!r}".format(out / "notes.csv", len(final),
+                        len(final.columns), args.note_column))
+    print("wrote {} - the ANSWER KEY. This one does NOT travel "
+          "with the notes.".format(out / "ledger.json"))
+    print()
+    print("documentation problems planted, by kind:")
+    for c in CORRUPTIONS:
+        print("  {:22s} {}".format(c, applied.get(c, 0)))
+    if missing:
+        print("  NEVER APPLIED: {} - a grader cannot report on a "
+              "failure type the text does not contain".format(
+                  ", ".join(missing)))
+    return 0
+
+
 def cmd_sample(args) -> int:
     """A PATIENT-level subsample, for live demonstrations and
     quick reads - all rows of N randomly chosen patients, chosen
@@ -1995,6 +2155,37 @@ def main(argv=None) -> int:
     p.add_argument("--prevalence", type=float, default=0.25)
     p.add_argument("-o", "--out", required=True)
     p.set_defaults(fn=cmd_plant)
+
+    p = sub.add_parser("notes",
+                       help="render clinical notes over a "
+                            "generated cohort, with the answer "
+                            "key written separately")
+    p.add_argument("--run", help="a run directory; its "
+                                 "generated.csv is used")
+    p.add_argument("--csv", help="a generated cohort csv instead")
+    p.add_argument("-o", "--out", required=True,
+                   help="directory for notes.csv and ledger.json")
+    p.add_argument("--group-by", default="person_id",
+                   help="the patient column; k counts patients")
+    p.add_argument("--k", type=int, default=10,
+                   help="a note may mention only a token held by "
+                        "at least this many PATIENTS")
+    p.add_argument("--tokens-per-set", type=int, default=8)
+    p.add_argument("--measures", type=int, default=6)
+    p.add_argument("--rate", type=float, default=0.25,
+                   help="per-corruption rate; 0 renders clean "
+                        "prose with no documentation problems")
+    p.add_argument("--descriptions",
+                   help="json mapping a code to its clinical "
+                        "phrasing; without it a diagnosis reads "
+                        "as its bare code")
+    p.add_argument("--visit-type",
+                   help="restrict to these visit types, comma "
+                        "separated, e.g. INPATIENT")
+    p.add_argument("--visit-column", default="visit_type")
+    p.add_argument("--note-column", default="clinical_note")
+    p.add_argument("--seed", type=int, default=20260731)
+    p.set_defaults(fn=cmd_notes)
 
     args = ap.parse_args(argv)
     return args.fn(args)
