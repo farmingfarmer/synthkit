@@ -58,6 +58,7 @@ sys.path.insert(0, str(ROOT / "scripts"))
 from dialback import _design, _model, load_pair      # noqa: E402
 from fidelity_deck import read_frame                 # noqa: E402
 from synthkit.semisynth import plant_frame, verify_frame  # noqa: E402
+from synthkit.mlmetrics import ordinal_c                   # noqa: E402
 
 OUTCOME = "exam_outcome"
 
@@ -82,7 +83,56 @@ def _split(n, seed=0):
     return idx[:cut], idx[cut:]
 
 
-def set_exam(run, effects, prevalence=0.25, seed=0):
+def _ordinal_score(proba):
+    """One ordinal score from a multiclass probability.
+
+    The EXPECTED CLASS - sum of k times p_k - which is what a
+    0-to-10 placement score is: a single number whose ORDER is
+    the claim. Taking the argmax instead would throw the
+    confidence away and make the measure a classification
+    accuracy, which is not what a score is asked for.
+    """
+    import numpy as _np
+    pr = _np.asarray(proba, dtype=float)
+    ks = _np.arange(pr.shape[1], dtype=float)
+    return pr.dot(ks)
+
+
+def _measure(truth, score, metric):
+    """One place decides what a number MEANS.
+
+    The answer key records the metric, and `grade` reads it back
+    rather than assuming - applying AUROC to an ordered exam
+    would answer a different question with the same word, which
+    is how two halves come to disagree.
+    """
+    if metric == "ordinal_c":
+        v = ordinal_c(score, [int(round(float(t))) for t in truth])
+        return float("nan") if v is None else float(v)
+    if metric == "auroc":
+        # AUROC ON AN ORDERED LABEL SILENTLY DROPS A CLASS.
+        # `_auc` takes pos as y==1 and neg as y==0, so on
+        # discharge/observation/inpatient it grades observation
+        # against discharge and IGNORES INPATIENT ALTOGETHER -
+        # a number over a different question wearing the same
+        # word. An answer key predating the metric field is
+        # AUROC, which is correct for the binary exams it was
+        # written for and wrong here, so it is refused by name.
+        seen = sorted({int(round(float(t))) for t in truth})
+        if not set(seen) <= {0, 1}:
+            raise ValueError(
+                "this exam has an ORDERED outcome with classes "
+                "{} and its answer key asks for AUROC, which "
+                "would grade class 1 against class 0 and ignore "
+                "the rest. Re-run `set --shares` so the key "
+                "records the ordinal measure.".format(seen))
+        return _auc(truth, score)
+    raise ValueError(
+        "unknown metric {!r} - this exam cannot be graded on a "
+        "measure it was not set with".format(metric))
+
+
+def set_exam(run, effects, prevalence=0.25, seed=0, shares=None):
     run = Path(run)
     k, g, c, err = load_pair(run)
     if err:
@@ -98,10 +148,10 @@ def set_exam(run, effects, prevalence=0.25, seed=0):
     bp = json.loads(bp_path.read_text(encoding="utf-8"))
 
     try:
-        planted, rec = plant_frame(k, bp, effects,
-                                   name=OUTCOME,
-                                   prevalence=prevalence,
-                                   seed=seed)
+        planted, rec = plant_frame(
+            k, bp, effects, name=OUTCOME,
+            kind=("ordered" if shares else "logistic"),
+            prevalence=prevalence, shares=shares, seed=seed)
     except ValueError as e:
         print("STOP: {}".format(e))
         return 1
@@ -155,13 +205,17 @@ def set_exam(run, effects, prevalence=0.25, seed=0):
     Xr, _ = _design(rel, OUTCOME, set())
     tr, te = _split(len(planted), seed)
     truth = y.to_numpy()[te]
+    metric = "ordinal_c" if shares else "auroc"
     from sklearn.ensemble import HistGradientBoostingClassifier
 
     def _fit(X, lab):
         m = HistGradientBoostingClassifier(max_iter=120,
                                            random_state=0)
         m.fit(X.iloc[tr], lab[tr])
-        return _auc(truth, m.predict_proba(Xk.iloc[te])[:, 1])
+        pr = m.predict_proba(Xk.iloc[te])
+        sc = (_ordinal_score(pr) if metric == "ordinal_c"
+              else pr[:, 1])
+        return _measure(truth, sc, metric)
 
     ceiling = _fit(Xk, y.to_numpy())
     floor = _fit(Xr, rel[OUTCOME].to_numpy())
@@ -207,6 +261,22 @@ def set_exam(run, effects, prevalence=0.25, seed=0):
         "outcome_permutation": [int(x) for x in perm],
         "ceiling": round(float(ceiling), 4),
         "floor": round(float(floor), 4),
+        "metric": metric,
+        "metric_note": (
+            "ordinal concordance over every pair of rows whose "
+            "placement differs - a score that tells inpatient "
+            "from everything else perfectly while confusing "
+            "discharge with observation would read as flawless "
+            "on a binary AUROC"
+            if metric == "ordinal_c" else
+            "AUROC on a two-class outcome"),
+        "ordered_shares_requested": (
+            rec.get("requested_shares") if shares else None),
+        "ordered_shares_achieved": (
+            rec.get("achieved_shares") if shares else None),
+        "ordered_cuts": (rec.get("cuts") if shares else None),
+        "ordered_draw_violations": (
+            rec.get("ordered_draw_violations") if shares else None),
         "seed": seed,
     }
     (run / "answer_key.json").write_text(
@@ -263,7 +333,23 @@ def grade(run, scores_csv, score_col=None, bar=None):
     y = pd.to_numeric(kp[ak["outcome"]], errors="coerce").to_numpy()
     s = pd.to_numeric(sc[score_col], errors="coerce").to_numpy()
     _, te = _split(len(kp), int(ak.get("seed", 0)))
-    vend = _auc(y[te], s[te])
+    # THE METRIC COMES FROM THE ANSWER KEY. An exam set on an
+    # ordered placement and graded with a binary AUROC would
+    # answer a different question under the same word. An answer
+    # key written before the field existed is AUROC, which is
+    # what those exams were set with - absent is not unknown.
+    metric = ak.get("metric", "auroc")
+    try:
+        vend = _measure(y[te], s[te], metric)
+    except ValueError as e:
+        print("STOP: {}".format(e))
+        return 1
+    if metric == "ordinal_c":
+        print("  measured as ORDINAL CONCORDANCE over {} "
+              "placement classes - {}".format(
+                  ak.get("classes") or len(
+                      ak.get("ordered_shares_requested") or []),
+                  ak.get("metric_note", "")))
     ceiling = float(ak["ceiling"])
     floor = float(ak["floor"])
     print("grading {} against the planted answer".format(scores_csv))
@@ -354,10 +440,26 @@ def main(argv):
             except ValueError:
                 print("STOP: {} is not a number".format(val))
                 return 2
+        shares = None
+        if "shares" in kw:
+            try:
+                shares = [float(x) for x in
+                          kw["shares"].split(",")]
+            except ValueError:
+                print("STOP: --shares wants numbers, e.g. "
+                      "\"0.55,0.20,0.25\" for discharge, "
+                      "observation, inpatient")
+                return 2
+            if len(shares) < 3:
+                print("STOP: --shares needs at least three "
+                      "classes; with two the ordinary binary "
+                      "exam is the same model")
+                return 2
         return set_exam(run, eff,
                         prevalence=float(kw.get("prevalence",
                                                 0.25)),
-                        seed=int(kw.get("seed", 0)))
+                        seed=int(kw.get("seed", 0)),
+                        shares=shares)
     if cmd == "grade":
         if "scores" not in kw:
             print("STOP: grade needs --scores FILE.csv")

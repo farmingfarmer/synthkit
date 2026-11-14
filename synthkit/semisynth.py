@@ -47,7 +47,7 @@ mean the same thing on any column.
 from __future__ import annotations
 
 import math
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Dict, List, Optional, Sequence, Tuple
 
 # What share of rows should carry the positive label by default. A
 # planted outcome at 0.1% prevalence produces a table nobody can
@@ -421,7 +421,8 @@ def plant_frame(frame, blueprint: Dict[str, Any],
                 kind: str = "logistic",
                 prevalence: float = DEFAULT_PREVALENCE,
                 noise_sd: float = 1.0,
-                seed: int = 20260731):
+                seed: int = 20260731,
+                shares: Optional[Sequence[float]] = None):
     """Plant a KNOWN outcome on a generated frame.
 
     `effects` uses the same vocabulary as `plant`: standard deviations
@@ -557,9 +558,69 @@ def plant_frame(frame, blueprint: Dict[str, Any],
 
     out = frame.copy()
     p = min(max(float(prevalence), 0.01), 0.99)
+    cuts: List[float] = []
     if kind == "linear":
         intercept = 0.0
         out[name] = z + noise_sd * rng.standard_normal(n)
+    elif kind == "ordered":
+        # AN ORDERED OUTCOME, for a target with a real order -
+        # discharge, observation, inpatient. One systematic and
+        # K-1 CUT POINTS, each solved by bisection on the frame's
+        # own z exactly as the binary intercept is, so every
+        # class share lands on what was asked rather than leaving
+        # the correlations as a residual.
+        if not shares or len(shares) < 3:
+            raise ValueError(
+                "kind='ordered' needs `shares`, one per class in "
+                "order and at least three - with two classes the "
+                "logistic kind is the same model and already "
+                "solves its own intercept")
+        sh = [max(float(v), 0.0) for v in shares]
+        tot = sum(sh)
+        if tot <= 0:
+            raise ValueError("the shares must not all be zero")
+        sh = [v / tot for v in sh]
+        # cumulative from the TOP: P(Y >= k)
+        tail = []
+        run = 0.0
+        for v in reversed(sh[1:]):
+            run += v
+            tail.append(run)
+        tail.reverse()                 # P(Y>=1) ... P(Y>=K-1)
+        for want in tail:
+            w = min(max(want, 1e-6), 1 - 1e-6)
+            lo, hi = -30.0, 30.0
+            for _ in range(60):
+                mid = (lo + hi) / 2.0
+                if float(np.mean(
+                        1.0 / (1.0 + np.exp(-(z + mid))))) < w:
+                    lo = mid
+                else:
+                    hi = mid
+            cuts.append(round((lo + hi) / 2.0, 6))
+        # ONE UNIFORM PER ROW, which is what makes the draw
+        # coherent. Independent uniforms per threshold could
+        # place a row above the second cut and below the first,
+        # so Y >= 2 without Y >= 1 - a label the order says
+        # cannot exist.
+        u = rng.random_sample(n)
+        probs = [1.0 / (1.0 + np.exp(-(z + c))) for c in cuts]
+        ind = np.array([(pk > u).astype(int) for pk in probs])
+        lab = ind.sum(axis=0).astype(int)
+        # THE COHERENCE INVARIANT, COUNTED WHERE THE DRAW IS MADE
+        # rather than inferred from the shares afterwards. A row
+        # may not pass a HIGHER cut while failing a lower one -
+        # that would be inpatient without being observation, a
+        # label the order says cannot exist. One uniform against
+        # ordered probabilities makes it impossible; an
+        # independent uniform per cut makes it common. The share
+        # drift it causes depends on how far apart the cuts
+        # happen to sit - measured at 0.0585 on one fixture and
+        # 0.1895 on another - so a tolerance on the shares is a
+        # proxy that can pass by a hair. This is exact.
+        ordered_violations = int(np.sum(np.diff(ind, axis=0) > 0))
+        out[name] = lab
+        intercept = None
     else:
         # Bisection over the frame's own z: monotone in the
         # intercept, so twelve steps land within a fraction of a
@@ -576,9 +637,28 @@ def plant_frame(frame, blueprint: Dict[str, Any],
                      1.0 / (1.0 + np.exp(-(z + intercept)))
                      ).astype(int)
 
+    _ach_shares = None
+    if kind == "ordered":
+        _counts = out[name].value_counts().to_dict()
+        _ach_shares = [round(float(_counts.get(i, 0)) / n, 6)
+                       for i in range(len(shares))]
     planted = {
         "outcome": name, "kind": kind,
         "intercept": intercept,
+        "cuts": (cuts or None),
+        "ordered_draw_violations": (
+            ordered_violations if kind == "ordered" else None),
+        "ordered_draw_note": (
+            "a row passing a higher cut while failing a lower "
+            "one would be a label the order says cannot exist; "
+            "one uniform against ordered probabilities makes "
+            "that impossible, and this is the count rather than "
+            "the claim" if kind == "ordered" else None),
+        "classes": (len(shares) if kind == "ordered" else None),
+        "requested_shares": ([round(float(v) / sum(
+            float(x) for x in shares), 6) for v in shares]
+            if kind == "ordered" else None),
+        "achieved_shares": _ach_shares,
         "requested_prevalence": (None if kind == "linear" else p),
         "achieved_prevalence": (None if kind == "linear" else
                                 round(float(out[name].mean()), 6)),

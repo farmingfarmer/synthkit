@@ -14,7 +14,7 @@ Python 3.8 compatible. Stdlib only.
 """
 from __future__ import annotations
 
-from typing import Dict, List, Sequence
+from typing import Dict, List, Optional, Sequence
 
 
 class MetricInputError(ValueError):
@@ -66,6 +66,93 @@ def auroc(scores: Sequence[float], labels: Sequence[int]) -> float:
     rank_sum = sum(r for r, y in zip(ranks, labels) if y)
     u = rank_sum - n_pos * (n_pos + 1) / 2.0
     return u / (n_pos * n_neg)
+
+
+def _check_ordinal(scores: Sequence[float],
+                   labels: Sequence[int]) -> None:
+    """Same contract as `_check` but for an ORDERED label.
+
+    `len(scores) == 0` rather than `not scores`, because a numpy
+    array raises on truthiness - the fault this module already
+    records, and a caller asking for a concordance would get a
+    message about ambiguous truth values from a guard meant to
+    catch an empty input.
+    """
+    if len(scores) == 0 or len(labels) == 0:
+        raise MetricInputError("no rows given")
+    if len(scores) != len(labels):
+        raise MetricInputError(
+            "scores and labels differ in length: {} against "
+            "{}".format(len(scores), len(labels)))
+    for y in labels:
+        try:
+            iv = int(y)
+        except (TypeError, ValueError):
+            raise MetricInputError(
+                "an ordered label must be a whole number, got "
+                "{!r}".format(y))
+        if float(y) != float(iv):
+            raise MetricInputError(
+                "an ordered label must be a whole number, got "
+                "{!r}".format(y))
+
+
+def ordinal_c(scores: Sequence[float],
+              labels: Sequence[int]) -> Optional[float]:
+    """Concordance between a score and an ORDERED label.
+
+    WHY NOT AUROC. A placement score is asked to separate
+    discharge from observation from inpatient - three levels with
+    a real order - and collapsing that to one binary question
+    throws away the distinction a reviewer cares about most. A
+    tool that tells inpatient from everything else perfectly
+    while confusing discharge with observation would read as
+    flawless.
+
+    So: over every pair of rows whose labels DIFFER, the share
+    the score orders correctly, ties counting half. This is the
+    pairwise generalisation, and it is computed by WEIGHTING THIS
+    MODULE'S OWN `auroc` over each pair of classes rather than by
+    a second implementation of the same arithmetic - which also
+    makes it exactly AUROC when there are two classes, asserted
+    rather than claimed.
+
+    None when fewer than two classes are present: with no
+    discordant pair there is nothing to be concordant about, and
+    that is an absent measurement rather than a perfect one.
+    """
+    # `_check` enforces BINARY labels, which is right for auroc
+    # and brier and must stay that way - an ordered label needs
+    # its own validation rather than a loosened guard that
+    # protects two other metrics.
+    _check_ordinal(scores, labels)
+    lab = [int(v) for v in labels]
+    classes = sorted(set(lab))
+    if len(classes) < 2:
+        return None
+    total_w = 0.0
+    acc = 0.0
+    for ai in range(len(classes)):
+        for bi in range(ai + 1, len(classes)):
+            a, b = classes[ai], classes[bi]
+            sub_s, sub_y = [], []
+            for sc, y in zip(scores, lab):
+                if y == a:
+                    sub_s.append(float(sc))
+                    sub_y.append(0)
+                elif y == b:
+                    sub_s.append(float(sc))
+                    sub_y.append(1)
+            n_a = sub_y.count(0)
+            n_b = sub_y.count(1)
+            if not n_a or not n_b:
+                continue
+            w = float(n_a * n_b)
+            acc += w * auroc(sub_s, sub_y)
+            total_w += w
+    if total_w <= 0:
+        return None
+    return acc / total_w
 
 
 def brier(probs: Sequence[float], labels: Sequence[int]) -> float:

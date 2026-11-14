@@ -25,6 +25,8 @@ loud before anybody quotes it.
 import json
 import subprocess
 import sys
+import re
+import shutil
 import tempfile
 from pathlib import Path
 
@@ -39,6 +41,9 @@ PASS = FAIL = 0
 PY = sys.executable
 LC = str(ROOT / "scripts" / "latent_challenger.py")
 VE = str(ROOT / "scripts" / "vendor_exam.py")
+
+
+OUT = "exam_outcome"
 
 
 def check(label, cond):
@@ -282,6 +287,152 @@ def main():
               "with no answer in it",
               rc != 0 and "no effect could be planted" in out
               and "nope" in out)
+
+        # ================= THE ORDERED EXAM =================
+        # A placement score is asked to separate discharge from
+        # observation from inpatient - three levels with a real
+        # order - so the exam has to be set and graded on a
+        # measure that can see the order.
+        od = td / "ord"
+        od.mkdir()
+        for f in ("key.csv", "generated.csv", "blueprint.json",
+                  "cipher.json"):
+            shutil.copy(rd / f, od / f)
+        rc, out = run(VE, "set", od, "--effects",
+                      "age_at_visit=+1.3,span_days=+1.1,"
+                      "lab=+0.8",
+                      "--shares", "0.55,0.20,0.25")
+        ok_set = rc == 0 and (od / "answer_key.json").exists()
+        check("an ORDERED exam can be set with three placement "
+              "classes{}".format(
+                  "" if ok_set else " -- LOG: " + out[-700:]),
+              ok_set)
+        if not ok_set:
+            print("  the ordered checks below cannot run without "
+                  "an answer key")
+            print()
+            print("{} FAILED".format(FAIL))
+            sys.exit(1)
+        ak = json.loads((od / "answer_key.json").read_text(
+            encoding="utf-8"))
+        check("the answer key records WHICH measure it was set "
+              "with, so grading cannot answer a different "
+              "question under the same word: {!r}".format(
+                  ak.get("metric")),
+              ak.get("metric") == "ordinal_c")
+        req = ak.get("ordered_shares_requested") or []
+        ach = ak.get("ordered_shares_achieved") or []
+        check("the requested class shares are recorded and the "
+              "ACHIEVED ones beside them: {} against {}".format(
+                  req, ach),
+              len(req) == 3 and len(ach) == 3
+              and max(abs(a - b) for a, b in zip(req, ach)) < 0.06)
+        viol = ak.get("ordered_draw_violations")
+        check("NO ROW IS INPATIENT WITHOUT BEING OBSERVATION - "
+              "the coherence invariant, COUNTED where the draw "
+              "is made rather than inferred from the shares, "
+              "because the share drift an incoherent draw causes "
+              "depends on how far apart the cuts happen to sit "
+              "and passed a 0.06 tolerance by a hair at 0.0585 "
+              "on this very fixture (violations: {})".format(viol),
+              viol == 0)
+        cuts = ak.get("ordered_cuts") or []
+        check("the cut points DECREASE, which is what makes the "
+              "draw coherent - a row above the second cut and "
+              "below the first would be inpatient without being "
+              "observation: {}".format(cuts),
+              len(cuts) == 2 and cuts[0] >= cuts[1])
+        kp = read_frame(od / "key_planted.csv")
+        labs = sorted(set(int(float(v)) for v in kp[OUT]))
+        check("all three placement classes are present in the "
+              "planted truth: {}".format(labs),
+              labs == [0, 1, 2])
+        check("the exam separates - ceiling {} over floor "
+              "{}".format(ak.get("ceiling"), ak.get("floor")),
+              float(ak["ceiling"]) > float(ak["floor"]))
+
+        # THE PROPERTY THE MEASURE EXISTS FOR, through the real
+        # CLI. A score that tells inpatient from everything else
+        # PERFECTLY while unable to separate discharge from
+        # observation reads as flawless on a binary AUROC. It
+        # must not read as flawless here.
+        truth = np.array([int(float(v)) for v in kp[OUT]])
+        rng2 = np.random.RandomState(3)
+        blind = np.where(truth >= 2, 10.0 + rng2.rand(len(truth)),
+                         rng2.rand(len(truth)))
+        sc1 = od / "blind.csv"
+        pd.DataFrame({"score": blind}).to_csv(sc1, index=False)
+        rc, out_blind = run(VE, "grade", od, "--scores", sc1,
+                            "--score-col", "score")
+        got = [float(x) for x in re.findall(
+            r"VENDOR\s+([0-9.]+)", out_blind)]
+        check("grading runs on the ordered exam and SAYS it is "
+              "measured as ordinal concordance",
+              rc == 0 and "ORDINAL CONCORDANCE" in out_blind)
+        check("a score that nails inpatient-vs-rest and cannot "
+              "tell discharge from observation does NOT read as "
+              "flawless: {}".format(got),
+              got and got[0] < 0.95)
+        # and the fully-ordered score beats it, so the measure is
+        # not merely refusing to award high marks
+        good = truth * 5.0 + rng2.rand(len(truth))
+        sc2 = od / "good.csv"
+        pd.DataFrame({"score": good}).to_csv(sc2, index=False)
+        rc, out_good = run(VE, "grade", od, "--scores", sc2,
+                           "--score-col", "score")
+        got2 = [float(x) for x in re.findall(
+            r"VENDOR\s+([0-9.]+)", out_good)]
+        check("...while a score that gets the whole order right "
+              "scores higher: {} against {}".format(got2, got),
+              got2 and got and got2[0] > got[0])
+
+        # AN EXAM CANNOT BE GRADED ON A MEASURE IT WAS NOT SET
+        # WITH, and a key predating the field is AUROC because
+        # that is what those exams were set with - absent is not
+        # unknown.
+        bad = json.loads((od / "answer_key.json").read_text(
+            encoding="utf-8"))
+        bad["metric"] = "kendall_tau_b"
+        (od / "answer_key.json").write_text(json.dumps(bad),
+                                            encoding="utf-8")
+        rc, out_bad = run(VE, "grade", od, "--scores", sc2,
+                          "--score-col", "score")
+        check("an unknown metric in the answer key is REFUSED "
+              "rather than graded on whatever is to hand",
+              rc != 0 and "kendall_tau_b" in out_bad)
+        # AN ANSWER KEY PREDATING THE METRIC FIELD IS AUROC,
+        # which is correct for the binary exams it was written
+        # for - and WRONG for an ordered one, where AUROC grades
+        # class 1 against class 0 and drops inpatient entirely.
+        del bad["metric"]
+        (od / "answer_key.json").write_text(json.dumps(bad),
+                                            encoding="utf-8")
+        rc, out_old = run(VE, "grade", od, "--scores", sc2,
+                          "--score-col", "score")
+        check("an ORDERED exam whose key has no metric field is "
+              "REFUSED rather than silently graded on two of its "
+              "three classes",
+              rc != 0 and "ignore" in out_old)
+        bk = json.loads((rd / "answer_key.json").read_text(
+            encoding="utf-8"))
+        del bk["metric"]
+        (rd / "answer_key.json").write_text(json.dumps(bk),
+                                            encoding="utf-8")
+        rc, _ = run(VE, "grade", rd, "--scores",
+                    td / "v_trained.csv", "--score-col", "score")
+        check("...while a BINARY exam with no metric field still "
+              "grades, because AUROC is what it was set with - "
+              "absent is not unknown", rc == 0)
+
+        rc, out2 = run(VE, "set", od, "--effects",
+                       "age_at_visit=+1.0", "--shares", "0.6,0.4")
+        check("two classes under --shares is refused - the "
+              "binary exam is the same model and already solves "
+              "its own intercept", rc != 0)
+        rc, out3 = run(VE, "set", od, "--effects",
+                       "age_at_visit=+1.0", "--shares", "a,b,c")
+        check("--shares that are not numbers is refused",
+              rc != 0)
 
     print()
     if FAIL:
