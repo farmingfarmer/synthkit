@@ -1562,6 +1562,87 @@ def _claims_per_row(raw, n):
     return [r or [] for r in raw]
 
 
+def cmd_codemap(args) -> int:
+    """Build a code-to-phrasing map, screened by what was already
+    released.
+
+    The screen is the point. A map built from the raw source names
+    every code the source contains - including the ones the k rule
+    refused to publish - and a list of rare codes says a patient
+    in this cohort has one. Restricted to codes the released
+    cohort already carries, it discloses nothing new.
+    """
+    import json
+    import pandas as pd
+    from synthkit import codemap as CM
+
+    paths = list(args.table or [])
+    if args.omop:
+        for name in ("condition_occurrence", "procedure_occurrence",
+                     "drug_exposure", "measurement",
+                     "observation", "device_exposure"):
+            cand = Path(args.omop) / (name + ".csv")
+            if cand.exists():
+                paths.append(str(cand))
+    if not paths:
+        print("give --omop DIR or --table FILE (repeatable)",
+              file=sys.stderr)
+        return 2
+
+    tables = []
+    for pth in paths:
+        try:
+            frame = pd.read_csv(pth, dtype=str,
+                                keep_default_na=False,
+                                low_memory=False)
+        except OSError as e:
+            print("could not read {}: {}".format(pth, e),
+                  file=sys.stderr)
+            return 2
+        tables.append((Path(pth).name, frame))
+        print("read {} ({} rows)".format(Path(pth).name,
+                                         len(frame)))
+
+    released = None
+    if args.cohort:
+        try:
+            coh = pd.read_csv(args.cohort, dtype=str,
+                              keep_default_na=False)
+        except OSError as e:
+            print("could not read {}: {}".format(args.cohort, e),
+                  file=sys.stderr)
+            return 2
+        cols = args.set_column or None
+        released = CM.cohort_codes(coh, cols or coh.columns,
+                                   sep=args.sep)
+        print("cohort {} carries {} distinct token(s)".format(
+            args.cohort, len(released)))
+    else:
+        print("NO --cohort GIVEN, so the map is NOT screened. It "
+              "will name codes the k rule refused to publish and "
+              "must not be handed to a recipient.")
+
+    rep = CM.build(tables, released)
+    for why in rep["tables_skipped"]:
+        print("  skipped {}".format(why))
+    if rep["screened"]:
+        print("codes in the source {} -> kept {}, withheld "
+              "{}".format(rep["codes_in_source"],
+                          rep["codes_kept"],
+                          rep["codes_withheld"]))
+    print(rep["note"])
+    if not rep["descriptions"]:
+        print("no code carried a description, so there is nothing "
+              "to write", file=sys.stderr)
+        return 2
+    json.dump(rep["descriptions"],
+              open(args.out, "w", encoding="utf-8"),
+              indent=1, sort_keys=True)
+    print("wrote {} - {} entries".format(
+        args.out, len(rep["descriptions"])))
+    return 0
+
+
 def cmd_sample(args) -> int:
     """A PATIENT-level subsample, for live demonstrations and
     quick reads - all rows of N randomly chosen patients, chosen
@@ -2356,6 +2437,26 @@ def main(argv=None) -> int:
                         "were rendered with")
     p.add_argument("-o", "--out", help="write the report as json")
     p.set_defaults(fn=cmd_grounded)
+
+    p = sub.add_parser("codemap",
+                       help="build a code-to-phrasing map for "
+                            "note rendering, screened by what the "
+                            "released cohort already carries")
+    p.add_argument("--omop", help="a directory of OMOP-shaped csvs")
+    p.add_argument("--table", action="append", default=[],
+                   help="one table carrying a code beside a name, "
+                        "repeatable")
+    p.add_argument("--cohort",
+                   help="the released cohort csv; codes absent "
+                        "from it are DROPPED, because naming a "
+                        "code the k rule withheld discloses that "
+                        "a patient here has it")
+    p.add_argument("--set-column", action="append", default=[],
+                   help="restrict the cohort scan to these "
+                        "columns")
+    p.add_argument("--sep", default=";")
+    p.add_argument("-o", "--out", required=True)
+    p.set_defaults(fn=cmd_codemap)
 
     args = ap.parse_args(argv)
     return args.fn(args)
