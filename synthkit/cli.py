@@ -1497,6 +1497,35 @@ def cmd_grounded(args) -> int:
         print("  DENIED by the prose  row {:>6}  {}".format(
             ex["row"], ex["label"]))
 
+    if args.claims_b:
+        try:
+            raw_b = json.load(open(args.claims_b,
+                                   encoding="utf-8"))
+        except (OSError, ValueError) as e:
+            print("could not read {}: {}".format(args.claims_b, e),
+                  file=sys.stderr)
+            return 2
+        claims_b = _claims_per_row(raw_b, len(ledgers))
+        if claims_b is None:
+            print("--claims-b must cover the same {} rows"
+                  .format(len(ledgers)), file=sys.stderr)
+            return 2
+        con = GR.consistency(claims, claims_b)
+        print()
+        print("consistency - two readings of records identical in "
+              "everything recorded. This needs NO ground truth, "
+              "so it is usable where nothing can be graded.")
+        print("  rows {}  agree {}  differ {}  agreement {}".format(
+            con["rows"], con["agree"], con["differ"],
+            con["agreement"]))
+        print("  {}".format(con["verdict"]))
+        for ex in con["examples"][:10]:
+            print("    row {:>6}  only in the first: {}  only in "
+                  "the second: {}".format(
+                      ex["row"],
+                      ", ".join(ex["only_first"]) or "-",
+                      ", ".join(ex["only_second"]) or "-"))
+
     sf = GR.source_followed(ledgers, claims)
     print()
     if sf["disagreements"]:
@@ -1528,7 +1557,8 @@ def cmd_grounded(args) -> int:
 
     if args.out:
         json.dump({"grounding": rep, "source_followed": sf,
-                   "by_corruption": scored},
+                   "by_corruption": scored,
+                   "consistency": (con if args.claims_b else None)},
                   open(args.out, "w", encoding="utf-8"),
                   indent=1, default=str)
         print()
@@ -2432,6 +2462,11 @@ def main(argv=None) -> int:
                    help="notes.csv, so the STRUCTURED record can "
                         "be consulted too; without it a claim "
                         "read off a code set reads as ungrounded")
+    p.add_argument("--claims-b",
+                   help="a SECOND reading of the same rows; the "
+                        "two must agree, which needs no ground "
+                        "truth at all and is the one test usable "
+                        "where nothing can be graded")
     p.add_argument("--descriptions",
                    help="the same code-to-phrasing json the notes "
                         "were rendered with")

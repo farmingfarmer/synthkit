@@ -142,6 +142,47 @@ def cli_checks():
         # --- refusals, by exit code
         bad = td / "bad.json"
         json.dump({"nothing": 1}, open(bad, "w"))
+        # --- CONSISTENCY THROUGH THE CLI. No ground truth is
+        # involved, which is what makes it usable where nothing
+        # can be graded.
+        rc, same = run_cli(
+            "grounded", "--ledger", td / "o" / "ledger.json",
+            "--claims", td / "nested.json",
+            "--claims-b", td / "nested.json",
+            "--notes", td / "o" / "notes.csv", "-o", td / "c1.json")
+        check("two identical readings are CONSISTENT through the "
+              "real CLI",
+              rc == 0 and "CONSISTENT" in same)
+        honest = [[g for g in row
+                   if g["label"] != "acute kidney injury"]
+                  for row in nested]
+        json.dump(honest, open(td / "honest.json", "w"))
+        rc, diff = run_cli(
+            "grounded", "--ledger", td / "o" / "ledger.json",
+            "--claims", td / "nested.json",
+            "--claims-b", td / "honest.json",
+            "--notes", td / "o" / "notes.csv", "-o", td / "c2.json")
+        c2 = json.load(open(td / "c2.json")).get("consistency")
+        differ = (c2 or {}).get("differ")
+        check("...and two readings that differ are named with the "
+              "rows and the labels: {} differ".format(differ),
+              rc == 0 and differ == n
+              and "acute kidney injury" in diff)
+        r1_con = json.load(open(td / "r1.json")).get(
+            "consistency", "KEY-ABSENT")
+        check("a run without --claims-b records no consistency "
+              "result rather than an empty one that reads as "
+              "agreement (got {!r})".format(r1_con),
+              r1_con is None)
+        stub = td / "stub.json"
+        json.dump(nested[:3], open(stub, "w"))
+        rc, _ = run_cli(
+            "grounded", "--ledger", td / "o" / "ledger.json",
+            "--claims", td / "nested.json",
+            "--claims-b", stub)
+        check("a second reading of the wrong length is refused",
+              rc != 0)
+
         rc, _ = run_cli("grounded", "--ledger", bad,
                         "--claims", td / "flat.json")
         check("a file that is not a ledger is refused", rc != 0)
