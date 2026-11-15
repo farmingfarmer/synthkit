@@ -138,6 +138,12 @@ def audit(ledgers, claims, frame=None, facts=(), plan=None,
     counts = {c: 0 for c in CATEGORIES}
     ungrounded_examples: List[Dict[str, Any]] = []
     contradicted_examples: List[Dict[str, Any]] = []
+    # PRINT THE ITEMS, NOT THE COUNT. Twenty examples cannot
+    # answer "what is the 498 made of" - this project once
+    # asserted a cause from five of them and had to go back and
+    # measure the share. A complete count per label can be
+    # attributed; a sample cannot.
+    by_label: Dict[str, int] = {}
     total = 0
     for i, got in enumerate(claims):
         for g in got or []:
@@ -161,6 +167,7 @@ def audit(ledgers, claims, frame=None, facts=(), plan=None,
                         {"row": i, "label": lab})
             else:
                 counts["ungrounded"] += 1
+                by_label[lab] = by_label.get(lab, 0) + 1
                 if len(ungrounded_examples) < 20:
                     ungrounded_examples.append(
                         {"row": i, "label": lab})
@@ -179,6 +186,9 @@ def audit(ledgers, claims, frame=None, facts=(), plan=None,
         "ungrounded_share": (round(counts["ungrounded"] / total, 4)
                              if total else None),
         "ungrounded_examples": ungrounded_examples,
+        "ungrounded_by_label": dict(
+            sorted(by_label.items(), key=lambda kv: -kv[1])),
+        "ungrounded_labels": len(by_label),
         "contradicted_examples": contradicted_examples,
         "verdict": _verdict(total, counts),
         "note": ("recall and the per-corruption breakdown come "

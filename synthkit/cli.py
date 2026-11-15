@@ -1527,9 +1527,14 @@ def cmd_grounded(args) -> int:
     print("  grounded share {}".format(rep["grounded_share"]))
     print()
     print(rep["verdict"])
-    for ex in rep["ungrounded_examples"][:10]:
-        print("  ungrounded  row {:>6}  {}".format(
-            ex["row"], ex["label"]))
+    byl = rep.get("ungrounded_by_label") or {}
+    if byl:
+        print("  ungrounded claims BY LABEL, complete - {} "
+              "distinct label(s), because a sample of twenty "
+              "cannot be attributed:".format(
+                  rep.get("ungrounded_labels")))
+        for lab, n in list(byl.items())[:15]:
+            print("    {:>7}  {}".format(n, lab))
     for ex in rep["contradicted_examples"][:10]:
         print("  DENIED by the prose  row {:>6}  {}".format(
             ex["row"], ex["label"]))

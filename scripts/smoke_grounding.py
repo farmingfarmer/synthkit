@@ -248,6 +248,28 @@ def main():
           b["ungrounded_examples"]
           and b["ungrounded_examples"][0]["label"]
           == "acute kidney injury")
+
+    # A COMPLETE COUNT PER LABEL, because a sample of twenty
+    # cannot be attributed. This project asserted the cause of a
+    # 498 from FIVE examples and had to go back and measure the
+    # share; the breakdown makes the attribution arithmetic.
+    byl = b.get("ungrounded_by_label") or {}
+    check("every ungrounded claim is counted BY LABEL, and the "
+          "counts total the ungrounded exactly: {}".format(byl),
+          sum(byl.values()) == b["counts"]["ungrounded"]
+          and byl.get("acute kidney injury")
+          == b["counts"]["ungrounded"])
+    mixed = [c + [{"label": "acute kidney injury",
+                   "present": True},
+                  {"label": "a second invention", "present": True}]
+             for c in perfect]
+    mb = G.audit(led, mixed, frame=final, facts=facts, plan=plan,
+                 descriptions=DESC)
+    check("...and two different inventions are counted "
+          "SEPARATELY, so a reader can tell one cause from two",
+          mb.get("ungrounded_labels") == 2
+          and mb["ungrounded_by_label"]["a second invention"]
+          == len(led))
     check("the verdict is not CLEAN",
           not b["verdict"].startswith("CLEAN"))
 
