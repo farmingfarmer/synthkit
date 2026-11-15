@@ -1368,6 +1368,43 @@ def cmd_notes(args) -> int:
               "rather than given prose invented from a code: "
               "{}".format(", ".join(plan["unlabelled"][:8])))
 
+    # AMBIGUITY WE CREATED, NAMED. The real route vocabulary
+    # nests - IV inside IV Push, Slow IV Push and IV Piggyback -
+    # so a note mentioning the longer one contains the shorter
+    # one's label and NO READER can tell them apart from the
+    # prose. Measured on 789 real notes, a substring matcher
+    # produced 498 ungrounded claims almost entirely from this.
+    # A grader that penalises a reader for conflating them is
+    # penalising our own fact selection, so the run says it
+    # rather than leaving an unexplained count to be
+    # rediscovered.
+    amb = plan.get("ambiguous_labels") or []
+    if amb:
+        print("")
+        print("  {} fact label(s) NEST inside another, so no "
+              "reader - human or machine - can tell them apart "
+              "from the prose alone:".format(len(amb)))
+        for a in amb[:10]:
+            print("    {!r} sits inside {!r}".format(
+                a["inside"], a["contains"]))
+        print("  This is an ambiguity the FACT SELECTION created, "
+              "not a fault in the notes: a clinician writing "
+              "\"IV push\" really does write a string containing "
+              "\"IV\". Do not grade a reader down for conflating "
+              "them without saying so.")
+    shorts = plan.get("short_labels") or []
+    if shorts:
+        print("")
+        print("  {} label(s) are {} characters or fewer, which "
+              "ANY extractor without word boundaries will match "
+              "inside unrelated words - 'iv' sits inside "
+              "'received': {}".format(
+                  len(shorts), NF.SHORT_LABEL_CHARS,
+                  ", ".join(repr(x) for x in shorts[:10])))
+        print("  That is a caution about the READER rather than "
+              "an ambiguity in the fact set, which is why it is "
+              "counted apart from the nesting above.")
+
     spec = TranscribeSpec(facts=facts,
                           rates=NF.default_rates(args.rate),
                           seed=args.seed)

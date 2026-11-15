@@ -3,6 +3,42 @@
 Synthetic clinical data generator and model-evaluation instrument. Core rule: learn the patterns, never copy the records. Real data teaches parameters; generation never touches a record.
 
 ## Verify before claiming
+- **THE RUN NOW NAMES THE AMBIGUITY IT CREATED, BECAUSE THE ARM
+  FOUND ONE NOBODY HAD (2026-11-15).** The stand-in reader arm
+  produced 498 ungrounded claims on 789 real notes and the
+  measured cause was NESTED LABELS, which is a property of the
+  real route vocabulary rather than of any reader:
+      iv              inside  iv push, slow iv push, iv piggyback
+      iv push         inside  slow iv push
+      sodium chloride inside  Sodium Chloride 0.9% 1,000 mL
+  FIVE pairs on the extract's own vocabulary. A note mentioning
+  the longer one contains the shorter one's label, so NO READER -
+  human or machine - can separate them from the prose. **That is
+  an ambiguity the FACT SELECTION created, not a fault in the
+  notes**: a clinician writing "IV push" really does write a
+  string containing "IV". A grader penalising a reader for
+  conflating them is penalising our own choice of tokens, so the
+  run says so rather than leaving an unexplained count to be
+  rediscovered.
+- **AND NESTING IS AT WORD BOUNDARIES, which the first version
+  got wrong and a fixture exposed immediately.** A plain
+  substring test reported `'c' sits inside 'acetaminophen'` and
+  **eighteen such pairs** on one fixture - a flood that buries
+  the real thing. `IV` is a WHOLE WORD inside `IV Push`, which is
+  why nobody can separate them; a letter inside a drug name is a
+  careless matcher and not an ambiguity in the fact set. Those
+  are counted APART: a label of three characters or fewer is
+  flagged as a caution about READERS, because any extractor
+  without word boundaries matches `iv` inside `received`.
+- **AND TWO MUTATIONS FOUND NOTHING BECAUSE THE PLAN FIELDS WERE
+  REPORTED AND UNASSERTED - the fault I recorded in this same
+  session.** My checks called `nested_labels` and `short_labels`
+  DIRECTLY, so emptying `plan["ambiguous_labels"]` broke no
+  check: a mutation that changes a reported field no assertion
+  depends on is not a fail-first. Asserted through `build_facts`
+  AND through the real CLI now, and both mutations turn three and
+  two checks red.
+
 - **THE AUDIT DISCRIMINATES AT REAL SCALE, THE TRADE LANDED
   EXACTLY, AND THE CENSUS SEPARATED TWO READERS I PREDICTED IT
   COULD NOT (2026-11-14, 789 real notes, 35 facts).** Three

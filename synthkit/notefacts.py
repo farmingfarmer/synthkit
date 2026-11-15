@@ -117,6 +117,86 @@ NAMED_CORRUPTIONS = ["negation_simple", "negation_compound",
                      "negation_scope_trap", "abbreviation"]
 
 
+def nested_labels(facts) -> List[Dict[str, str]]:
+    """Pairs where one fact's label sits INSIDE another's.
+
+    WHY THIS IS REPORTED. The real route vocabulary nests - `IV`
+    inside `IV Push`, `Slow IV Push` and `IV Piggyback`, and
+    `sodium chloride` inside `Sodium Chloride 0.9% 1,000 mL` - so
+    a note mentioning the longer one contains the shorter one's
+    label. NO READER CAN TELL THEM APART FROM THE PROSE, human or
+    machine, and measured on 789 real notes a substring matcher
+    produced 498 ungrounded claims almost entirely from this.
+
+    That is not a defect in the notes: a clinician writing "IV
+    push" really does write a string containing "IV". It is an
+    AMBIGUITY WE CREATED BY CHOOSING BOTH TOKENS AS FACTS, and a
+    grader that penalises a reader for conflating them is
+    penalising our own fact selection. So it is named, and the
+    run says so, rather than left for somebody to rediscover
+    from an unexplained count.
+    """
+    out = []
+    seen = set()
+    for i, a in enumerate(facts):
+        la = _norm_label(getattr(a, "label", None))
+        if not la:
+            continue
+        for b in facts[i + 1:]:
+            lb = _norm_label(getattr(b, "label", None))
+            if not lb or la == lb:
+                continue
+            short, long_ = ((la, lb) if len(la) < len(lb)
+                            else (lb, la))
+            # NESTING IS AT WORD BOUNDARIES. A plain substring
+            # test reported 'c' inside 'acetaminophen' and
+            # eighteen such pairs on one fixture - a flood that
+            # buries the real thing. `IV` is a WHOLE WORD inside
+            # `IV Push`, which is why no reader can separate
+            # them; a letter inside a drug name is a property of
+            # a careless matcher, not an ambiguity in the fact
+            # set, and it is reported separately below.
+            if _word_nested(short, long_):
+                key = (short, long_)
+                if key in seen:
+                    continue
+                seen.add(key)
+                out.append({"inside": short, "contains": long_})
+    return out
+
+
+def _word_nested(short: str, long_: str) -> bool:
+    """Is `short` a whole-word run inside `long_`?"""
+    a = short.split()
+    b = long_.split()
+    if not a or len(a) >= len(b):
+        return False
+    for i in range(len(b) - len(a) + 1):
+        if b[i:i + len(a)] == a:
+            return True
+    return False
+
+
+# A label this short is matched inside unrelated words by any
+# extractor that does not use word boundaries - `iv` sits inside
+# `received`. That is a caution about READERS rather than an
+# ambiguity in the fact set, so it is counted apart from nesting.
+SHORT_LABEL_CHARS = 3
+
+
+def short_labels(facts) -> List[str]:
+    out = []
+    for f in facts:
+        lab = _norm_label(getattr(f, "label", None))
+        if lab and len(lab) <= SHORT_LABEL_CHARS:
+            out.append(lab)
+    return sorted(set(out))
+
+
+def _norm_label(v) -> str:
+    return " ".join(str(v or "").strip().lower().split())
+
+
 def _word_shaped(name: str) -> bool:
     """A column name a reader would accept as prose."""
     letters = sum(c.isalpha() for c in name)
@@ -264,6 +344,8 @@ def build_facts(frame: pd.DataFrame,
             section="vitals"))
         taken += 1
 
+    plan["ambiguous_labels"] = nested_labels(facts)
+    plan["short_labels"] = short_labels(facts)
     return out, facts, plan
 
 

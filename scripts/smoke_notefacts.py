@@ -97,6 +97,106 @@ def run_cli(*argv):
     return r.returncode, r.stdout + r.stderr
 
 
+def ambiguity_checks():
+    """AN AMBIGUITY THE FACT SELECTION CREATED, named.
+
+    The real route vocabulary NESTS - `IV` inside `IV Push`,
+    `Slow IV Push` and `IV Piggyback` - so a note mentioning the
+    longer one contains the shorter one's label and no reader can
+    separate them from the prose. Measured on 789 real notes, a
+    substring matcher produced 498 ungrounded claims almost
+    entirely from this, and a grader that penalises a reader for
+    conflating them is penalising our own fact selection.
+    """
+    from synthkit.notefacts import (
+        nested_labels, short_labels, SHORT_LABEL_CHARS)
+
+    class _F:
+        def __init__(self, lab):
+            self.label = lab
+
+    real = [_F(x) for x in (
+        "Oral", "UBC", "IV", "IV Push", "Slow IV Push", "Topical",
+        "Flush", "IV Piggyback", "sodium chloride",
+        "Sodium Chloride 0.9% 1,000 mL", "ondansetron",
+        "acetaminophen")]
+    n = nested_labels(real)
+    pairs = {(p["inside"], p["contains"]) for p in n}
+    check("the extract's OWN route vocabulary is detected as "
+          "nesting - {} pair(s)".format(len(n)),
+          ("iv", "iv push") in pairs
+          and ("iv push", "slow iv push") in pairs
+          and ("sodium chloride",
+               "sodium chloride 0.9% 1,000 ml") in pairs)
+
+    # NESTING IS AT WORD BOUNDARIES. A plain substring test
+    # reported 'c' inside 'acetaminophen' - eighteen such pairs
+    # on one fixture, a flood that buries the real thing.
+    letters = [_F("C"), _F("E"), _F("acetaminophen"),
+               _F("ondansetron")]
+    check("a single LETTER inside a drug name is NOT reported as "
+          "nesting - that is a careless matcher, not an ambiguity "
+          "in the fact set",
+          nested_labels(letters) == [])
+    check("...and an unrelated pair is not reported either",
+          nested_labels([_F("Oral"), _F("Topical")]) == [])
+
+    check("a very SHORT label is counted apart, because any "
+          "extractor without word boundaries matches it inside "
+          "unrelated words - 'iv' sits inside 'received': {}"
+          .format(short_labels(real)),
+          "iv" in short_labels(real)
+          and "ubc" in short_labels(real)
+          and "oral" not in short_labels(real))
+    check("...and the threshold it used is declared rather than "
+          "buried", SHORT_LABEL_CHARS == 3)
+
+    # AND THE PLAN MUST CARRY THEM, asserted through build_facts
+    # and through the real CLI. Calling the two functions
+    # directly leaves the REPORTED fields unasserted - emptying
+    # `plan["ambiguous_labels"]` broke no check, which is the
+    # reported-field-no-assertion-depends-on fault.
+    import tempfile as _tf
+    import subprocess as _sp
+    rng = np.random.default_rng(5)
+    df = cohort()
+    routes = ["Oral", "IV", "IV Push", "Slow IV Push", "Topical"]
+    df["drug_routes"] = [
+        ";".join(r for r in routes if rng.random() < 0.45)
+        for _ in range(len(df))]
+    _, facts_n, plan_n = build_facts(
+        df, group_by="person_id", k=10, tokens_per_set=5,
+        descriptions=DESC)
+    check("build_facts REPORTS the nesting in its plan: {}".format(
+        [(a["inside"], a["contains"])
+         for a in plan_n["ambiguous_labels"]][:3]),
+          any(a["inside"] == "iv"
+              for a in plan_n["ambiguous_labels"]))
+    check("...and the short labels too",
+          "iv" in (plan_n.get("short_labels") or []))
+
+    with _tf.TemporaryDirectory() as td:
+        td = Path(td)
+        rd = td / "run"
+        rd.mkdir()
+        df.to_csv(rd / "generated.csv", index=False)
+        r = _sp.run([sys.executable, "-m", "synthkit.cli",
+                     "notes", "--run", str(rd), "-o",
+                     str(td / "n"), "--rate", "0.3"],
+                    cwd=str(ROOT), capture_output=True,
+                    text=True, timeout=600)
+        out = (r.stdout or "") + (r.stderr or "")
+        check("the RUN says the labels nest, so a reader does not "
+              "meet an unexplained ungrounded count later",
+              r.returncode == 0 and "NEST inside another" in out
+              and "sits inside" in out)
+        check("...and says it is an ambiguity the FACT SELECTION "
+              "created rather than a fault in the notes",
+              "FACT SELECTION created" in out)
+        check("...and warns about the short labels apart from it",
+              "without word boundaries" in out)
+
+
 def sparse_checks():
     """A VITAL RECORDED ON A FIFTH OF ENCOUNTERS IS STILL A VITAL.
 
@@ -423,6 +523,7 @@ def main():
                                      "without", "ruled out",
                                      "not ")))
 
+    ambiguity_checks()
     sparse_checks()
     cli_checks()
 
