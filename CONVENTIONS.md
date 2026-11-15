@@ -20,6 +20,32 @@ Synthetic clinical data generator and model-evaluation instrument. Core rule: le
   weekend's model-rank arm rested on MY INFERENCE that the record
   names fix4 for recent runs, which is a reading of a notebook
   rather than a fact about an artifact.
+- **AND THE SIX ARE BYTE-IDENTICAL, WHICH SETTLES THE ARM AND IS
+  ITSELF THE MORE USEFUL FINDING (measured the same night).**
+  Digested all seven files of that name:
+      phase2_800        16370628ef
+      phase2_800_fix1   16370628ef
+      phase2_800_fix2   16370628ef
+      phase2_800_fix3   16370628ef
+      phase2_800_fix4   16370628ef
+      run7              16370628ef
+      yesha_tidy        e79b9bedd8
+  **Seven files, TWO distinct digests.** All six 55,428-row
+  candidates are the SAME FILE under six names, so my inference
+  about `fix4` could not have been wrong and the model-rank arm
+  stands unambiguously. Said plainly because the entry above
+  flagged it as an inference and the honest resolution is that
+  the inference did not matter.
+- **SO THE GAP WAS REAL AND ITS COST TODAY WAS ZERO, and both
+  halves belong in the record.** A future divergent file would
+  have been undetectable, which is why the digest is worth
+  having; on this machine, at this moment, nothing was at stake.
+  What IS worth noticing is that six copies of one extract sit
+  under names - `fix1` through `fix4` - that imply a progression
+  the BYTES DENY. Somebody reading those directory names would
+  reasonably believe they differ, and that is how a wrong file
+  gets chosen with confidence.
+
 - **THE RECORD CARRIES A CONTENT DIGEST NOW, AND THE DECISIVE CASE
   IS THE ONE A ROW COUNT CANNOT CATCH.** A TWIN - same shape, same
   row count, one value changed - is refused by the digest and
