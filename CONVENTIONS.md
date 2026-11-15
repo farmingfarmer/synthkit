@@ -3,6 +3,45 @@
 Synthetic clinical data generator and model-evaluation instrument. Core rule: learn the patterns, never copy the records. Real data teaches parameters; generation never touches a record.
 
 ## Verify before claiming
+- **THE STAND-IN READER ARM IS NEXT AND THE PREDICTION IS ON
+  RECORD FIRST (2026-11-14).** The arm just run tested the
+  EXTREMES - a reader that copies the ledger, and one that
+  fabricates a fixed label on every row. Neither READS the prose,
+  so neither can show whether the instruments discriminate among
+  readers that fail the way real tools fail. Three stand-ins that
+  actually read the note:
+      keyword          the label appears in the text, so present
+      negation-aware   ...unless a negation word sits just before
+      greedy           any WORD of the label appears anywhere
+- **WHAT IS PREDICTED, AND THE SHARPEST PART IS WHICH INSTRUMENT
+  ANSWERS.** `grounding.audit` catches INVENTION and
+  `score_extraction` catches MISREADING, and those are different
+  failure classes. So: the keyword and negation-aware readers
+  claim only facts from the known list and therefore CANNOT be
+  ungrounded - the grounding census should separate them by
+  NOTHING, and a reading that showed otherwise would mean one of
+  them is inventing. What should separate them is
+  score_extraction BY TYPE.
+- **AND THE PAIR SHOULD TRADE, WHICH IS THE WHOLE POINT.** The
+  keyword reader should show a high false-positive rate on
+  `negation_simple`, because "no diabetes" contains "diabetes".
+  The negation-aware reader should fix that AND DO WORSE ON
+  `negation_scope_trap`, because the trap puts a negation in the
+  same clause that does NOT reach the finding - a reader that
+  looks for a nearby negation word gets it exactly backwards.
+  That trade is what shows the instrument grades a COMPETENCE
+  rather than issuing a mark.
+- **AND THE GREEDY READER IS THE ONE THE GROUNDING AUDIT SHOULD
+  CATCH**, because matching any word of a label will claim facts
+  the row does not hold - so it should produce UNGROUNDED or
+  record-unsupported claims where the other two produce none.
+- **WHAT IS NOT PREDICTED: the magnitudes.** Recall and
+  false-positive rates on a real vocabulary depend on how the
+  descriptions happen to phrase things - a label that is a common
+  English word behaves differently from an ICD code - so no
+  number here is claimed in advance. What is claimed is the
+  ORDERING and WHICH INSTRUMENT separates which reader.
+
 - **THE NOTES ARM CAME BACK AND THE PREDICTION SCORED 2 OF 3,
   WITH THE MISS BEING MY OWN MISREADING OF MY OWN INSTRUMENT
   (2026-11-14, run_tail_ctl_current, inpatient slice, 789 rows).**
