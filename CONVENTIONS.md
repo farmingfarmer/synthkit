@@ -3,6 +3,58 @@
 Synthetic clinical data generator and model-evaluation instrument. Core rule: learn the patterns, never copy the records. Real data teaches parameters; generation never touches a record.
 
 ## Verify before claiming
+- **THE NOTES ARM CAME BACK AND THE PREDICTION SCORED 2 OF 3,
+  WITH THE MISS BEING MY OWN MISREADING OF MY OWN INSTRUMENT
+  (2026-11-14, run_tail_ctl_current, inpatient slice, 789 rows).**
+  Two arms on ONE run, same seed, `--rate` the only difference,
+  every figure read back spelled where it decides anything:
+      measurement                      rate 0      rate 0.3
+      positive claims censused          3,311         3,311
+      supported by BOTH sources         3,311         3,311
+      text_only / record_only               0             0
+      contradicted                          0             0
+      UNGROUNDED                            0             0
+      corruption types applied              0             9
+      ledger entries                    3,311         6,226
+      tokens mentioned / published      29/1827       29/1827
+      k screen                          CLEAN         CLEAN
+- **ZERO UNGROUNDED ON BOTH ARMS, WHICH WAS THE CLAUSE THAT
+  MATTERED.** Every one of 3,311 statements the notes make is
+  supported by the row it was rendered from AND by the prose. An
+  ungrounded statement would have been the one result that stops
+  the notes going anywhere, and there are none.
+- **AND THE POSITIVE CONTROL FIRES AT REAL SCALE, which is the
+  only thing that makes the zero worth anything.** A claim
+  planted on every row and absent from every record reads **789
+  of 4,100 claims unsupported, 789 appearing in neither
+  source** - all 789 caught, none missed. This project's rule is
+  that a clean reading with no control that can fail is the worst
+  kind of pass.
+- **AND THE k SCREEN HOLDS ON THE REAL VOCABULARY: 29 of 29
+  mentioned tokens are among the 1,827 the blueprint published.**
+  The notes name a small SUBSET of the published vocabulary -
+  `--tokens-per-set` defaults to 8 across four set columns - so
+  the position is conservative by construction as well as clean.
+- **WHAT THE PREDICTION GOT WRONG, and it is a fact about the
+  instrument rather than the data.** It claimed the corrupted arm
+  would SPLIT, with negated facts becoming `contradicted`. There
+  are ZERO. The audit censuses CLAIMS, and an honest reader of a
+  negated fact makes NO CLAIM AT ALL - so it never enters the
+  census. `contradicted` fires only when a tool ASSERTS what the
+  prose denies, which is a vendor's error and not a property of
+  the notes. I conflated "the prose denies it" with "somebody
+  claims it", in a category I designed and documented myself.
+- **AND THE TWO ARMS' SELF-AUDITS ARE IDENTICAL, so that half is
+  not a paired arm at all - said plainly rather than presented as
+  two readings.** Two arms that agree are one arm, and here the
+  reason is structural: the corruptions change what the prose says
+  about ABSENT facts, while the self-audit censuses positive
+  claims about PRESENT ones. The audit is INSENSITIVE to the rate
+  by construction. What the pair genuinely measures is the
+  corruption census - 0 types against 9, and 3,311 ledger entries
+  against 6,226, the extra 2,915 being facts mentioned as absent
+  which at rate 0 say nothing at all.
+
 - **THE NOTES ARM IS RUNNING AND THE PREDICTION IS ON RECORD
   FIRST (2026-11-14, run_tail_ctl_current, inpatient slice).**
   Two arms on ONE run, same seed, `--rate` the only difference:
