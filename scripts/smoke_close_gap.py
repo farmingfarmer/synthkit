@@ -283,12 +283,18 @@ def main():
                                  / "close_gap.py"),
              str(run), "--pairs", str(wrong)],
             capture_output=True, text=True, timeout=600)
+        # THE GUARD NOW PREFERS A CONTENT DIGEST, because a
+        # basename cannot identify a file when six of that name
+        # AND that row count sit on the machine holding the
+        # data. The refusal is the property; which test produced
+        # it is reported rather than assumed.
+        out_all = (r.stdout or "") + (r.stderr or "")
         check("...and it says so through the process boundary, "
-              "naming the two row counts rather than printing "
-              "a bare refusal",
-              "STOP" in r.stdout
-              and "recorded" in r.stdout
-              and "2" in r.stdout and "4" in r.stdout)
+              "naming the reason rather than printing a bare "
+              "refusal",
+              "STOPPED" in out_all
+              and ("digests differ" in out_all
+                   or "recorded reading" in out_all))
 
         # AND IT MUST REFUSE BEFORE DOING THE WORK. A guard
         # that fires after a ten-minute `compare()` has

@@ -42,6 +42,7 @@ import time
 
 from . import contradictions as _contra
 from . import invariants as _invar
+from . import provenance as _prov
 from pathlib import Path
 
 T0 = time.time()
@@ -918,13 +919,19 @@ def main(argv=None, args=None):
         # supposed to make answerable about itself.
         "stack": _stack_versions(),
         "blueprint_version": bp.get("blueprint_version"),
-        "source": {
-            "name": src.name,
-            "rows_read": int(len(df)),
-            "columns_read": int(df.shape[1]),
-            "patients": int(df[a.group_by].nunique()),
-            "max_rows": a.max_rows or None,
-        },
+        # A BASENAME CANNOT IDENTIFY A FILE. Six files called
+        # tidy_visits.csv sit on the data machine and all six
+        # have exactly 55,428 rows, so a run recording the name
+        # and the row count could not be traced to the one that
+        # produced it - and a paired arm rested on an inference
+        # about a directory. The record now carries a CONTENT
+        # DIGEST, and the containing directory's NAME rather than
+        # its path, because a path there carries a username and
+        # provenance travels with a run.
+        "source": _prov.source_record(
+            src, len(df), df.shape[1],
+            patients=int(df[a.group_by].nunique()),
+            max_rows=a.max_rows or None),
         "settings": {
             "group_by": a.group_by,
             "time_col_requested": a.time_col or None,

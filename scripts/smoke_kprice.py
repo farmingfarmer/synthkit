@@ -200,11 +200,17 @@ def main():
         small = t / "small.csv"
         src.head(20).to_csv(small, index=False)
         rc2, out2 = run([str(rd), str(small)])
-        check("a source whose row count does not match what the "
-              "run recorded is REFUSED - a run measured against an "
+        # THE GUARD PREFERS A CONTENT DIGEST now - a basename
+        # cannot identify a file when six of that name AND that
+        # row count exist on the machine holding the data - so
+        # the property is the REFUSAL, with the reason named.
+        check("a source that is not the one this run was built "
+              "from is REFUSED - a run measured against an "
               "extract that never produced it looks entirely "
               "reasonable",
-              rc2 == 2 and "Refusing" in out2)
+              rc2 == 2
+              and ("digests differ" in out2
+                   or "recorded reading" in out2))
 
         rc3, out3 = run(["--help"])
         check("--help exits 0 with usage", rc3 == 0

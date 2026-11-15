@@ -237,10 +237,24 @@ def main():
               provenance_rows(write_prov(t / "pk", {
                   "source": {"rows_read": 1234}})) == 1234)
 
-        check("...and both writers are asserted to still emit it, so "
-              "a rename breaks this suite rather than silently "
-              "turning the guard back off",
-              '"rows_read"' in _pipe and '"rows_read"' in _lat)
+        # ASSERTED AGAINST A LIVE CALL, not a text scan of a
+        # file. This looked for the literal `"rows_read"` inside
+        # pipeline.py and went red the day that record moved into
+        # `synthkit.provenance` - correctly, because the scan had
+        # stopped describing where the field comes from. A live
+        # call cannot go stale that way: it asks the writer what
+        # it actually produces.
+        from synthkit import provenance as _prov_mod
+        _live = _prov_mod.source_record(
+            t / "pk" / "provenance.json", 7, 2, patients=1)
+        check("...and the writer is asked LIVE whether it still "
+              "emits that field, so a rename breaks this suite "
+              "rather than silently turning the guard back off: "
+              "{}".format(sorted(_live)),
+              "rows_read" in _live and _live["rows_read"] == 7)
+        check("...and the latent writer, which keeps its own "
+              "record, still emits it too",
+              '"rows_read"' in _lat)
 
         # ---- --refresh-into: the stale-measurement trap ------------
         # THE DELIVERABLE HIT THIS. `m0_gate`, the deck and the

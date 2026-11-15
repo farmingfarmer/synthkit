@@ -253,8 +253,53 @@ def main():
         rc, out = run(MR, rd, "--src", hp, "--column",
                       "procedure_quantity", "--group-by",
                       "person_id")
-        check("a source that never produced this run is refused "
-              "by row count", rc != 0 and "not the extract" in out)
+        check("a source of the wrong SIZE is refused", rc != 0)
+
+        # THE CASE A ROW COUNT CANNOT CATCH, and the reason the
+        # digest exists: six files called tidy_visits.csv sit on
+        # the data machine and all six have exactly 55,428 rows.
+        # One column changed, same shape, same row count.
+        twin = pd.read_csv(src)
+        twin["spo2"] = pd.to_numeric(
+            twin["spo2"], errors="coerce") + 1.0
+        tp = td / "twin.csv"
+        twin.to_csv(tp, index=False)
+        before = pd.read_csv(src)
+        check("the twin is the SAME shape - a row count cannot "
+              "tell them apart: {} rows against {}".format(
+                  len(twin), len(before)),
+              len(twin) == len(before)
+              and list(twin.columns) == list(before.columns))
+        rc, out = run(MR, rd, "--src", tp, "--column",
+                      "procedure_quantity", "--group-by",
+                      "person_id")
+        check("...and it is REFUSED, because the content digests "
+              "differ", rc != 0 and "digests differ" in out)
+
+        # AN OLDER RUN HAS NO DIGEST, so the check falls back to
+        # the row count - and a reader who is not told that
+        # believes they got the exact answer. Absent is not a
+        # mismatch; it is a weaker answer, and it says so.
+        import shutil as _sh
+        old_run = td / "oldrun"
+        _sh.copytree(rd, old_run)
+        pv = json.loads((old_run / "provenance.json").read_text(
+            encoding="utf-8"))
+        pv["source"].pop("digest", None)
+        (old_run / "provenance.json").write_text(
+            json.dumps(pv), encoding="utf-8")
+        rc, out = run(MR, old_run, "--src", src, "--column",
+                      "procedure_quantity", "--group-by",
+                      "person_id")
+        check("a run predating the digest still proceeds on the "
+              "ROW COUNT and SAYS the check was weaker",
+              rc == 0 and "ROW COUNT only" in out)
+        rc, out = run(MR, old_run, "--src", tp, "--column",
+                      "procedure_quantity", "--group-by",
+                      "person_id")
+        check("...and on that older run the twin is NOT caught, "
+              "which is exactly the hole the digest closes",
+              rc == 0)
 
         # THE CONTROL ARM. The same values from the same
         # published grid, assigned in RANDOM order: the marginal

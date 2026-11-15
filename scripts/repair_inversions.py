@@ -665,27 +665,15 @@ def main(argv=None):
     # looked perfectly reasonable - which is the whole danger.
     # The run already records what it read; comparing against
     # it costs nothing and refuses the mistake outright.
-    prov = run / "provenance.json"
-    if prov.exists():
-        try:
-            _p = json.loads(prov.read_text(encoding="utf-8"))
-        except ValueError:
-            _p = {}
-        _want = (_p.get("rows_read")
-                 or ((_p.get("source") or {}).get("rows_read")
-                     if isinstance(_p.get("source"), dict)
-                     else None))
-        if _want and int(_want) != len(src):
-            print("STOPPED: {} has {} rows but this run "
-                  "recorded reading {}. That is not the "
-                  "extract this run was built from, and "
-                  "comparing a generated file against a "
-                  "source that never produced it gives "
-                  "numbers that look perfectly reasonable "
-                  "and mean nothing."
-                  .format(Path(a.src).name, len(src),
-                          int(_want)), file=sys.stderr)
-            return 2
+    # THE PROVENANCE GUARD, from the ONE implementation. A
+    # basename cannot identify a file - six files of this name
+    # and this row count sit on the machine that holds the data -
+    # so the check prefers the content digest and says when it
+    # had only the row count.
+    from synthkit import provenance as _prov
+    if not _prov.guard(run, a.src, len(src)):
+        return 2
+
     targets = None
     if a.close:
         drifted, absent = _drifted_pairs(

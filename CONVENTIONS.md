@@ -3,6 +3,67 @@
 Synthetic clinical data generator and model-evaluation instrument. Core rule: learn the patterns, never copy the records. Real data teaches parameters; generation never touches a record.
 
 ## Verify before claiming
+- **A RUN RECORDED ITS SOURCE'S BASENAME AND SIX FILES SHARE IT -
+  AND THE SAME ROW COUNT (2026-11-14).** The provenance guard
+  exists because a whole session once measured a run against an
+  extract that never produced it, and it compares ROW COUNTS. That
+  is weaker than it reads. Measured on the data machine:
+      phase2_800\tidy_visits.csv            55,428
+      phase2_800_fix1\tidy_visits.csv       55,428
+      phase2_800_fix2\tidy_visits.csv       55,428
+      phase2_800_fix3\tidy_visits.csv       55,428
+      phase2_800_fix4\tidy_visits.csv       55,428
+      run7\tidy_visits.csv                  55,428
+  **Six files, one name, one row count**, and `provenance.source`
+  carried `name`, `rows_read`, `columns_read`, `patients` and
+  `max_rows` - nothing that could tell them apart. So this
+  weekend's model-rank arm rested on MY INFERENCE that the record
+  names fix4 for recent runs, which is a reading of a notebook
+  rather than a fact about an artifact.
+- **THE RECORD CARRIES A CONTENT DIGEST NOW, AND THE DECISIVE CASE
+  IS THE ONE A ROW COUNT CANNOT CATCH.** A TWIN - same shape, same
+  row count, one value changed - is refused by the digest and
+  SAILS THROUGH the row count, and both halves of that are
+  checks, because a guard whose failure case cannot be exhibited
+  is a guard nobody should trust.
+- **A DIGEST OF THE INPUT FILE'S BYTES IS PORTABLE, which is the
+  distinction that makes this safe where a pinned digest was
+  not.** This file records a pinned digest of a CSV of floats
+  breaking across a pandas release AND across a Python patch
+  version, because float FORMATTING moved - that was a digest of
+  GENERATED OUTPUT. The bytes of a file somebody handed us do not
+  move, so the comparison is exact on any stack. Asserted by
+  digesting the same rows with different line endings and
+  requiring a different answer.
+- **AND THE PATH IS NOT RECORDED, ONLY THE DIRECTORY'S NAME,
+  because provenance TRAVELS with a run.** A full path on that
+  machine is `C:\Users\<the operator's username>\dev\...`, and
+  this project keeps an explicit must-not-travel list for exactly
+  that kind of content. `parent_name` is the distinguishing
+  information without the identifying part, and the check asserts
+  NO PATH SEPARATOR appears anywhere in the record - a privacy
+  property rather than a tidiness one.
+- **AND THE GUARD SAYS WHICH TEST IT APPLIED.** An older run has
+  no digest, so the check falls back to the row count - and a
+  reader who is not told that believes they got the exact answer.
+  Absent is not a mismatch; it is a weaker answer and it says
+  "weaker" in words. Same branch this file already draws for
+  `id_column`, for empty sets and for a control that cannot fire.
+- **AND THE GUARD WAS DUPLICATED IN FOUR SCRIPTS, WHICH IS HOW
+  FOUR HALVES COME TO DISAGREE.** `repair_inversions`, `k_price`,
+  `close_gap` (twice) and `model_rank` each carried their own
+  copy, and I wrote the fourth one myself this weekend by copying
+  the third. One implementation now; the two suites that pinned
+  the OLD WORDING went red and were right to - they assert the
+  REFUSAL and the named reason now rather than a sentence about
+  row counts that the exact path no longer prints.
+- **AND THE FOURTH MUTATION CRASHED THE SUITE INSTEAD OF FAILING
+  IT, in the entry written about guards.** Making `file_digest`
+  raise on a missing file killed the suite before any `FAIL:`
+  line, so the count read ZERO - indistinguishable from a check
+  that cannot fail. Wrapped; the same mutation now reports
+  `RAISED FileNotFoundError` on a red check.
+
 - **THE MODEL BOUGHT NOTHING, AND THE CONTROL ARM IS THE ONLY
   REASON ANYBODY KNOWS (2026-11-14, run_tail_ctl_current).** The
   operator's proposal was to fit a model on the real extract -

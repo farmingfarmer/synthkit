@@ -150,18 +150,13 @@ def main(argv):
     # session here was lost to measuring a generated file against an
     # extract that never produced it, and every number looked
     # reasonable.
-    prov = {}
-    if (run / "provenance.json").exists():
-        prov = json.loads((run / "provenance.json").read_text(
-            encoding="utf-8"))
-    want = ((prov.get("source") or {}).get("rows_read"))
+    # ONE IMPLEMENTATION. A basename cannot identify a file -
+    # six files of this name AND this row count sit on the
+    # machine that holds the data - so the check prefers the
+    # content digest and says when it had only the row count.
+    from synthkit import provenance as _prov
     src_df, how = read_table(src)
-    if want and len(src_df) != want:
-        print("STOPPED: this run recorded reading {} rows and the "
-              "source handed in holds {}. Refusing: a run measured "
-              "against an extract that never produced it looks "
-              "entirely reasonable."
-              .format(_say(want), _say(len(src_df))))
+    if not _prov.guard(run, src, len(src_df)):
         return 2
     gen_df, _ = read_table(str(run / "generated.csv"))
 

@@ -267,26 +267,14 @@ def main(argv=None):
     bp = json.loads(bp_p.read_text(encoding="utf-8"))
     src = read_frame(a.src)
 
-    # THE PROVENANCE GUARD. A whole session once compared a run
-    # against an extract that never produced it, and every number
-    # looked perfectly reasonable.
-    prov = run / "provenance.json"
-    if prov.exists():
-        try:
-            _p = json.loads(prov.read_text(encoding="utf-8"))
-        except ValueError:
-            _p = {}
-        _want = (_p.get("rows_read")
-                 or ((_p.get("source") or {}).get("rows_read")
-                     if isinstance(_p.get("source"), dict)
-                     else None))
-        if _want and int(_want) != len(src):
-            print("STOPPED: {} has {} rows but this run recorded "
-                  "reading {} - that is not the extract this run "
-                  "was built from".format(
-                      Path(a.src).name, len(src), int(_want)),
-                  file=sys.stderr)
-            return 2
+    # THE PROVENANCE GUARD, from the one implementation. A
+    # BASENAME CANNOT IDENTIFY A FILE - six files of this name
+    # and this row count sit on the machine that holds the data -
+    # so the check prefers the content digest and SAYS when it
+    # had only the row count to go on.
+    from synthkit import provenance as _prov
+    if not _prov.guard(run, a.src, len(src)):
+        return 2
 
     col = a.column
     if col not in gen.columns:
