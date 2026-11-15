@@ -3,6 +3,61 @@
 Synthetic clinical data generator and model-evaluation instrument. Core rule: learn the patterns, never copy the records. Real data teaches parameters; generation never touches a record.
 
 ## Verify before claiming
+- **THE AUDIT DISCRIMINATES AT REAL SCALE, THE TRADE LANDED
+  EXACTLY, AND THE CENSUS SEPARATED TWO READERS I PREDICTED IT
+  COULD NOT (2026-11-14, 789 real notes, 35 facts).** Three
+  stand-ins that READ THE PROSE, against the honest 3,311:
+      reader           claims   both  contradicted  ungrounded
+      keyword           6,724  3,311         2,915         498
+      negation-aware    3,721  2,900           548         273
+      greedy            8,611  3,311         2,915       2,385
+  and the per-type report on the same runs:
+      reader           negation_simple FP   scope_trap recall
+      keyword                      1.000               1.000
+      negation-aware               0.305               0.214
+      greedy                       1.000               1.000
+- **THE TRADE IS THE RESULT.** The keyword reader falls for EVERY
+  plain negation and gets EVERY scope trap right; the
+  negation-aware reader cuts the false positives to 0.305 and its
+  scope-trap recall COLLAPSES to 0.214. Neither is better -
+  they are differently wrong, and the per-type report says how.
+  That is the difference between grading a competence and issuing
+  a mark, measured on real notes rather than argued.
+- **AND THE GROUNDING AUDIT ISOLATES OVER-CLAIMING EXACTLY.**
+  greedy and keyword have IDENTICAL `both` and `contradicted` -
+  3,311 and 2,915 - and greedy adds **1,887 more ungrounded**. So
+  the census reads the invention and nothing else, which is what
+  it was built to do.
+- **WHAT THE PREDICTION GOT WRONG, AND IT IS THE MOST USEFUL PART.**
+  It claimed the keyword and negation-aware readers "CANNOT be
+  ungrounded" because they only claim facts from the known list,
+  so the census "should separate them by NOTHING". They read 498
+  and 273. **A LABEL CAN APPEAR WITHOUT THE FACT BEING TRUE OF THE
+  ROW**, and the measured cause is that THE REAL ROUTE VOCABULARY
+  IS NESTED:
+      IV     inside  IV Push, Slow IV Push, IV Piggyback
+      sodium chloride  inside  Sodium Chloride 0.9% 1,000 mL
+  A note saying "IV Push" contains "IV", so a substring matcher
+  claims the `IV` fact while the row holds only `IV-Push` -
+  supported by neither source, therefore ungrounded. That is a
+  textbook regex-extractor fault and NO FIXTURE HERE PRODUCED IT,
+  because my fixtures used distinct short drug names with no
+  nesting. Real clinical vocabularies nest.
+- **AND I NEARLY SHIPPED THE WRONG CAUSE.** My first explanation
+  was BOILERPLATE - the filler includes "Denies fever, chills, or
+  night sweats", so a short label matching inside it looked like
+  the obvious answer. Reading the actual ungrounded examples took
+  one command and gave `sodium chloride`, `iv`, `iv push`, which
+  named the real mechanism. A plausible explanation for a number
+  is not the explanation, and this file's rule is to read the
+  value rather than a story about it.
+- **SO THE DISCRIMINATION IS CONFIRMED AND IT IS STRONGER THAN
+  PREDICTED: BOTH instruments separate all three readers, on
+  different failure classes.** `score_extraction` separates
+  misreading by type; the grounding census separates invention,
+  and also catches the label-collision over-claim that neither I
+  nor any fixture anticipated.
+
 - **THE STAND-IN READER ARM IS NEXT AND THE PREDICTION IS ON
   RECORD FIRST (2026-11-14).** The arm just run tested the
   EXTREMES - a reader that copies the ledger, and one that
