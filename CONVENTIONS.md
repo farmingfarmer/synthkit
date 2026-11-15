@@ -3,6 +3,45 @@
 Synthetic clinical data generator and model-evaluation instrument. Core rule: learn the patterns, never copy the records. Real data teaches parameters; generation never touches a record.
 
 ## Verify before claiming
+- **THE NOTES ARM IS RUNNING AND THE PREDICTION IS ON RECORD
+  FIRST (2026-11-14, run_tail_ctl_current, inpatient slice).**
+  Two arms on ONE run, same seed, `--rate` the only difference:
+  0.0 renders clean prose and 0.3 plants documentation problems.
+  The instrument is the grounding audit turned on the NOTES
+  THEMSELVES - the ledger says what each note asserts, so feeding
+  it back as the claims asks whether every statement a note makes
+  is supported by the row it was rendered from. That is a
+  fidelity question and a privacy question at once, and it needs
+  no vendor.
+- **WHAT IS PREDICTED.** (1) The self-audit reads essentially all
+  `both` on the CLEAN arm - every statement supported by the note
+  AND the record - because at rate 0 no corruption moves a fact
+  away from its row. (2) On the CORRUPTED arm the census SPLITS:
+  negated facts become `contradicted` by construction, because
+  the prose denies what the record still holds, and that is the
+  taxonomy working rather than a leak. (3) ZERO `ungrounded` on
+  BOTH arms: a note may not assert a fact absent from its own
+  row, and an ungrounded statement would be the one result that
+  stops the notes going anywhere.
+- **WHAT IS NOT PREDICTED: the exact split on the corrupted
+  arm.** The corruption rates are per-fact draws, so how many
+  land as contradicted is a property of the seed, and a count
+  either way is not a finding. What would be a finding is any
+  `ungrounded` at all.
+- **AND THE POSITIVE CONTROL DECIDES WHETHER THE CLEAN NUMBER IS
+  WORTH ANYTHING.** A planted claim absent from every row must be
+  CAUGHT at real scale, on 789 rows and 35 facts rather than on a
+  fixture - this project's rule is that a clean reading with no
+  control that can fail is the worst kind of pass, and the
+  grounding audit's own justification was a measurement showing
+  the existing scorer blind to exactly this.
+- **AND THE k SCREEN IS CHECKED AGAINST THE PUBLISHED VOCABULARY,
+  not against the fact list.** Every token a note mentions must be
+  one the blueprint published; a note that names what the file
+  withheld has undone the screen, and the fact list is derived
+  from the same place so checking it against itself would be
+  circular.
+
 - **A RUN RECORDED ITS SOURCE'S BASENAME AND SIX FILES SHARE IT -
   AND THE SAME ROW COUNT (2026-11-14).** The provenance guard
   exists because a whole session once measured a run against an
