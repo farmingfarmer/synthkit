@@ -3,6 +3,47 @@
 Synthetic clinical data generator and model-evaluation instrument. Core rule: learn the patterns, never copy the records. Real data teaches parameters; generation never touches a record.
 
 ## Verify before claiming
+- **THE FIX IS CONFIRMED ON THE REAL EXTRACT AND IT MOVED EXACTLY
+  WHAT IT SHOULD (2026-11-15, run_tail_ctl_current inpatient
+  slice, keyword reader).** Same run, same reader, the filler
+  filter the only difference:
+      ungrounded by label        before      after
+      iv                            390        390
+      oxygen saturation              71      GONE
+      iv push                        21         21
+      sodium chloride                16         16
+      TOTAL ungrounded              498        427
+      both / contradicted    3311 / 2915  3311 / 2915
+  **The 71 the note itself was inventing are gone, the 427 that
+  nesting explains are untouched, and nothing else moved at
+  all.** A fix that acts only where its mechanism lives, measured
+  rather than asserted.
+- **AND THE REMAINING 427 IS NOT A DEFECT TO CHASE.** A note that
+  correctly says "IV Push" contains "IV", so no reader can
+  separate them and no filtering removes it. It is an ambiguity
+  the FACT SELECTION created, the run now names it, and a grader
+  penalising a reader for conflating them is penalising our own
+  choice of tokens. The honest number to quote for this reader is
+  427 ungrounded WITH that explanation attached, not 427 as a
+  fault.
+- **AND THE WHOLE THING CAME FROM INSISTING ON THE ATTRIBUTION.**
+  The audit reported 498 and twenty examples; I asserted the
+  cause from five of them, measured the share, and found 85.7%
+  nesting and a remainder that was my ORIGINAL hypothesis
+  withdrawn too completely. A count with no breakdown supports a
+  story; a complete count per label supports arithmetic. That is
+  why the audit now prints every label.
+- **AND THE CONSOLE DROPPED IN AND OUT OF ITS FROZEN STATE
+  THROUGHOUT, which cost a whole fetch silently.** A download and
+  an expand both ran while the prompt was unfocused and NOTHING
+  happened - `zb6.zip`, `z6.txt` and `sk50` were all absent
+  afterwards - and the failure only surfaced two steps later as
+  `No module named synthkit`. The commands reported nothing
+  because there was nothing to report. Verify the ARTIFACT after
+  every step on that machine, never the absence of an error: a
+  command that never ran and a command that succeeded quietly
+  look identical.
+
 - **THE RUN NOW NAMES THE AMBIGUITY IT CREATED, BECAUSE THE ARM
   FOUND ONE NOBODY HAD (2026-11-15).** The stand-in reader arm
   produced 498 ungrounded claims on 789 real notes and the
