@@ -230,6 +230,39 @@ SAY_SCOPE_TRAP = [
 ]
 
 
+def safe_filler(lines, facts):
+    """Filler that does not ASSERT a declared fact.
+
+    MEASURED, ON 789 REAL NOTES. The vitals filler reads "Oxygen
+    saturation adequate on room air", and `oxygen saturation` is
+    a declared fact label - so on the 80% of inpatient rows where
+    no SpO2 was recorded, the note made a clinical assertion that
+    is in NEITHER the ledger nor the record. A grounding audit
+    flagged 71 such claims, and the fault is the NOTE'S, not the
+    reader's: anybody reading that line would believe the
+    saturation had been assessed.
+
+    THE LEDGER IS THE ANSWER KEY, so a note may not assert
+    anything the ledger does not record. Filler is boilerplate
+    and must stay boilerplate; a line naming a declared fact is
+    dropped for that cohort. An EMPTY pool adds no filler rather
+    than falling back to a line that asserts - saying less is
+    always safe, and inventing a clinical claim is not.
+    """
+    labs = []
+    for f in facts or []:
+        lab = str(getattr(f, "label", "") or "").strip().lower()
+        if lab:
+            labs.append(lab)
+    out = []
+    for line in lines:
+        low = line.lower()
+        if any(lab in low for lab in labs):
+            continue
+        out.append(line)
+    return out
+
+
 def _rng(seed: int, *parts) -> random.Random:
     key = "{}:{}".format(seed, ":".join(str(p) for p in parts))
     return random.Random(
@@ -468,7 +501,10 @@ def transcribe_row(row: Dict[str, Any], spec: TranscribeSpec,
     for s in SECTIONS:
         body = list(by_section[s])
         if r.random() < spec.filler_rate:
-            body.append(r.choice(FILLERS.get(s, FILLERS["plan"])))
+            pool = safe_filler(FILLERS.get(s, FILLERS["plan"]),
+                               spec.facts)
+            if pool:
+                body.append(r.choice(pool))
         if not body:
             continue
         r.shuffle(body)

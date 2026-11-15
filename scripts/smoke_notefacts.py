@@ -30,6 +30,11 @@ from synthkit.transcribe import (            # noqa: E402
     CORRUPTIONS, TranscribeSpec, transcribe)
 
 PASS = FAIL = 0
+# DELIBERATELY PARTIAL. The cohort carries conditions B..G
+# and this describes only some of them, so the rest fall
+# back to their BARE CODE - which exercises the short-label
+# path on purpose rather than by accident, and that path
+# accounted for 79 stray mentions before anybody looked.
 DESC = {"A": "type 2 diabetes mellitus",
         "B": "essential hypertension",
         "C": "gastro-oesophageal reflux",
@@ -95,6 +100,102 @@ def run_cli(*argv):
         + [str(a) for a in argv],
         cwd=str(ROOT), capture_output=True, text=True, timeout=300)
     return r.returncode, r.stdout + r.stderr
+
+
+def filler_checks():
+    """A NOTE MAY NOT ASSERT WHAT THE LEDGER DOES NOT RECORD.
+
+    MEASURED ON 789 REAL NOTES: the vitals filler reads "Oxygen
+    saturation adequate on room air" and `oxygen saturation` is a
+    declared fact, so on the 80% of inpatient rows carrying no
+    SpO2 the note made a clinical assertion in NEITHER the ledger
+    NOR the record - 71 ungrounded claims, and the fault was the
+    NOTE'S rather than the reader's. Anybody reading that line
+    would believe the saturation had been assessed.
+    """
+    from synthkit.transcribe import FILLERS, safe_filler
+
+    class _F:
+        def __init__(self, lab):
+            self.label = lab
+
+    v = FILLERS["vitals"]
+    kept = safe_filler(v, [_F("oxygen saturation")])
+    check("a filler line NAMING a declared fact is dropped for "
+          "that cohort - {} of {} vitals lines kept".format(
+              len(kept), len(v)),
+          len(kept) == len(v) - 1
+          and not any("oxygen saturation" in l.lower()
+                      for l in kept))
+    check("...and the lines that assert nothing about it are "
+          "KEPT, so the prose does not become bare",
+          any("Afebrile" in l for l in kept))
+    check("a cohort whose labels collide with EVERY line gets no "
+          "filler rather than a line that asserts - saying less "
+          "is safe and inventing a claim is not",
+          safe_filler(["Afebrile throughout."],
+                      [_F("afebrile")]) == [])
+    check("and filler is untouched where nothing collides",
+          safe_filler(v, [_F("ejection fraction")]) == list(v))
+
+    # --- THE PROPERTY, END TO END on real-shaped notes.
+    # THE MEASUREMENT MUST BE SPARSE or the collision is
+    # invisible: with spo2 on every row the fact is always
+    # ledgered, so a filler line naming it adds only a redundant
+    # mention and bypassing the filter entirely breaks NOTHING.
+    # The real extract carries spo2 on 19% of inpatient rows,
+    # which is why it showed there and not here.
+    df = cohort()
+    keep = np.arange(len(df)) % 5 == 0
+    df["spo2"] = df["spo2"].astype(object)
+    df.loc[~keep, "spo2"] = ""
+    frame, facts, plan = build_facts(
+        df, group_by="person_id", k=10, tokens_per_set=4,
+        descriptions=DESC)
+    noted, led = transcribe(
+        frame.to_dict("records"),
+        TranscribeSpec(facts=facts, rates=default_rates(0.3),
+                       seed=5))
+    notes = pd.DataFrame(noted)["clinical_note"].astype(str)
+    labels = [str(f.label).lower() for f in facts if f.label]
+    # NESTED LABELS MAKE SOME STRAYS UNAVOIDABLE, and the first
+    # version of this check demanded zero and read 764. A note
+    # that correctly says "IV Push" ALWAYS contains "IV" - that
+    # is the ambiguity the fact selection created, it is reported
+    # by the run, and no amount of filler filtering removes it.
+    # What IS fixable is a stray from BOILERPLATE, and that must
+    # be zero.
+    from synthkit.notefacts import nested_labels, short_labels
+    nested = {p["inside"] for p in nested_labels(facts)}
+    shorts = set(short_labels(facts))
+    by_nest = by_short = by_other = 0
+    for i, txt in enumerate(notes):
+        low = txt.lower()
+        said = {str(e["label"]).lower() for e in led[i]}
+        for lab in labels:
+            if lab in low and lab not in said:
+                if lab in nested or any(lab in o for o in said):
+                    by_nest += 1
+                elif lab in shorts:
+                    by_short += 1
+                else:
+                    by_other += 1
+    # EVERY STRAY MUST BE ONE THE RUN ALREADY REPORTS. Nesting
+    # and short labels are both named in the run's own output and
+    # neither can be removed by filtering filler - a note that
+    # correctly says "IV Push" always contains "IV", and a
+    # one-character label is inside half the words in English.
+    # What must be ZERO is a stray from BOILERPLATE, which is the
+    # one the note itself invents and the one that was costing 71
+    # claims on the real extract.
+    check("every stray mention is one the RUN REPORTS - nesting "
+          "or a short label - and NONE comes from boilerplate: "
+          "{} nested, {} short, {} unexplained".format(
+              by_nest, by_short, by_other),
+          by_other == 0)
+    check("...and the fixture actually HAS strays of both kinds, "
+          "so that zero is not a vacuous pass",
+          by_nest > 0 and by_short > 0)
 
 
 def ambiguity_checks():
@@ -523,6 +624,7 @@ def main():
                                      "without", "ruled out",
                                      "not ")))
 
+    filler_checks()
     ambiguity_checks()
     sparse_checks()
     cli_checks()
