@@ -131,14 +131,56 @@ Synthetic clinical data generator and model-evaluation instrument. Core rule: le
   "-38 otherwise unmeasured" on a real run. The arm that found it
   is the one asserting the new term NON-ZERO: a term asserted only
   at zero cannot show the arithmetic still balances.
-- **WHAT IS NOT CLAIMED: how much of the 39 this accounts for.**
-  That is a re-measure of the real run - no fit and no generate -
-  and it has not been read yet. The surfaces on well-covered
-  columns have floors near 0.04 against a recorded median miss of
-  1.10 sd, so a good number of the 39 will remain the engine's.
-  What is settled is that the bar was not reachable by a faithful
-  generator at the thin end, and that the trim suspect accounts for
-  none of it.
+- **AND THE REAL EXTRACT PRICES THE WHOLE THING AT THREE SURFACES,
+  WHICH IS THE UNFLATTERING ANSWER AND THE USEFUL ONE
+  (2026-11-16, run_tail_screen against run_tail_ctl_current).** A
+  re-measure of the SAME run through `regate` - no fit, no
+  generate, the generated file read off disk exactly as written -
+  with the source confirmed at 55,428 rows two ways, by the run's
+  own `rows_read` and by counting the file. Spelled back by the
+  machine:
+      criterion            before    after
+      published                75       75
+      compared                 53       50
+      tracked                  14       15
+      NOT READABLE              -        3
+  **The screen accounts for THREE of the 39 failures and one more
+  surface now tracks.** So the criterion reads 15 of 50 rather than
+  14 of 53, and the overwhelming majority of the gap is NOT the
+  ruler.
+- **WHICH IS WHAT THE PREDICTION SAID, and the half that would have
+  been tempting to overstate.** It claimed some of the 39 would
+  become unreadable and explicitly refused to claim all of them -
+  "a good number of the 39 will remain the engine's". Three of
+  thirty-nine is the low end of that. The measure's fault was REAL
+  and is proven on faithful data; its SIZE on this extract is
+  small, and reporting the mechanism without the three would have
+  implied otherwise.
+- **AND THE REMAINING 35 ARE THE ENGINE, now established rather
+  than suspected: median miss 1.079 sd, min 0.366, max 4.269**, on
+  surfaces whose cells ARE readable - so a faithful generator would
+  pass them and this one does not. The median is three times the
+  bar. That reproduces the recorded distribution for this run
+  (median 1.10, smallest 0.37) almost exactly, which is an
+  independent check that the re-measure is measuring the same
+  thing rather than a near neighbour of it.
+- **THE THREE UNREADABLE SURFACES ALL SIT JUST OVER THE BAR - 0.3548,
+  0.3682, 0.3727 - which is the screen firing only where it must.**
+  And the first of them is `systolic_blood_pressure <-
+  mean_arterial_pressure_cuff x mean_arterial_pressure_cuff_bmdi`:
+  the pressure family whose failure this file recorded as the
+  ring-adjacency ceiling and parked as research, and whose ceiling
+  was then REFUTED outright, leaving it with no established cause.
+  It has one now, and it is the cohort rather than the engine.
+- **SO THE SURFACE WORK BELONGS IN GENERATION, and that is now a
+  measurement rather than a hunch.** Three suspects on the record
+  are refuted (the trim, the lost lag parent, the pair member
+  missing from its parents), the ruler is priced at three surfaces,
+  and 35 published surfaces whose cells are well populated are
+  carried at a median of three times the bar. What is NOT claimed
+  is a mechanism for those 35 - `_apply_numeric` applies every one
+  of them at full strength, so the next question is what happens to
+  the systematic term after it is added, and that is unmeasured.
 - **ALL THREE READERS RE-RUN ON THE FIXED NOTES, AND THE
   BOILERPLATE CLAIMS ARE GONE FROM EVERY ONE (2026-11-15, 789
   real notes).**
