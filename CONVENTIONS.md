@@ -3,6 +3,43 @@
 Synthetic clinical data generator and model-evaluation instrument. Core rule: learn the patterns, never copy the records. Real data teaches parameters; generation never touches a record.
 
 ## Verify before claiming
+- **AND THE SAME FAULT DOES NOT BITE THE SHAPE CRITERION, FOR A
+  MEASURED REASON (2026-11-16).** `shape_gap` is also a MAX over
+  bins against the same 0.35 bar, with `cond_curve` cutting twelve
+  bins - so at 360 rows per half a bin holds THIRTY rows, thinner
+  than the surface's own cells. The obvious move was to apply the
+  same screen to `shapes tracked`. Measured first, on a faithful
+  split-half with nothing generated:
+      rows per half   mean worst gap   tracked
+               360           0.1848    12 of 12
+               900           0.1186    12 of 12
+              1800           0.1020    12 of 12
+              5400           0.0566    12 of 12
+             18000           0.0258    12 of 12
+  **A faithful output tracks EVERY claim at every size**, so there
+  is nothing to screen and a screen there would have been a change
+  with no measured benefit.
+- **AND WHAT SAVES IT IS THE INTERPOLATION, measured rather than
+  guessed.** `shape_gap` compares the source's bin centres against
+  the generated curve through `np.interp`, which averages
+  neighbouring generated bins; the surface does a NEAREST-CELL
+  lookup and gets no smoothing at all. Asked both ways on the same
+  draws:
+      rows/half   rows/bin   bin-to-bin   interpolated
+            360         30       0.4135         0.2079
+            900         75       0.2449         0.1295
+           1800        150       0.1750         0.1073
+  **Bin-to-bin at 30 rows reads 0.41 and is OVER the bar; the
+  interpolated reading is 0.21 and is under it** - a factor of
+  about two at every size. So the shape criterion has the same raw
+  exposure and one line of its implementation is the whole
+  difference, which is worth knowing before anybody "simplifies"
+  that comparison to a bin-to-bin one.
+- **THE MARGIN IS NARROWER THAN IT LOOKS, SAID WITH THE NUMBER.**
+  0.2079 at the thinnest size measured is 60% of the bar, and
+  fitting c/sqrt(rows per bin) puts the crossing at about ELEVEN
+  rows a bin - roughly 130 rows of cohort at twelve bins. Safe on
+  anything this project runs, and not safe by a wide margin.
 - **THE SURFACE CRITERION'S NAMED SUSPECT IS REFUTED, AND THE BAR
   WAS INSIDE THE MEASURE'S OWN NOISE (2026-11-16).**
   `interaction surfaces` reads **14 of 53** on the real extract and
@@ -11104,6 +11141,30 @@ what follows is what came out wrong anyway.
   nobody will use.
 
 ## Talking to the data machine
+- **`>nul` IS REWRITTEN TO `>/dev/null` ON THE WAY TO THAT CONSOLE,
+  AND cmd THEN FAILS ON A PATH (2026-11-16).** A probe written
+  `tasklist ... | find "python.exe" >nul && echo ARM-ALIVE || echo
+  ARM-GONE` came back **"The system cannot find the path
+  specified"**, and the bridge's own echo of the command showed it
+  had been sent as `>/dev/null` - a POSIX-ism injected into a
+  Windows shell. The command was correct; the redirection was
+  translated. It had already cost two earlier probes that reported
+  `BAT-BAD` about a file which was in fact 273 bytes and perfectly
+  well formed, so the conclusion drawn was the opposite of the
+  truth.
+- **SO DO NOT REDIRECT TO `nul` THERE. Read the machine's OWN
+  WORDS instead.** `tasklist /fi "imagename eq python.exe"` prints
+  "INFO: No tasks are running which match the specified criteria"
+  when there are none - a WORD-bearing distinction needing no
+  redirection and no conditional, and it is produced by the
+  machine rather than by my own `echo`, which is the property the
+  poll-matches-its-own-marker rule already asks for. Where a file
+  is genuinely needed, redirect to a real path in the working
+  directory and read it in a SEPARATE call.
+- **AND A SINGLE DIGIT STILL DOES NOT RENDER.** `tasklist ... |
+  find /c "python.exe"` returned "(no output)" - the recorded
+  one-character problem, in a liveness probe where an empty answer
+  reads as a dead process. A probe's answer has to be a WORD.
 - **A CASE-SENSITIVE `findstr` FOR "Error" HID AN ARGPARSE
   REFUSAL, AND I HUNTED A DEAD PROCESS FOR AN HOUR
   (2026-11-12).** A real arm was launched against the tree
