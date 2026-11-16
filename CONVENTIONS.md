@@ -3,6 +3,52 @@
 Synthetic clinical data generator and model-evaluation instrument. Core rule: learn the patterns, never copy the records. Real data teaches parameters; generation never touches a record.
 
 ## Verify before claiming
+- **ALL THREE READERS RE-RUN ON THE FIXED NOTES, AND THE
+  BOILERPLATE CLAIMS ARE GONE FROM EVERY ONE (2026-11-15, 789
+  real notes).**
+      reader           both  contrad.  ungrounded  before
+      keyword         3,311     2,915         427     498
+      negation-aware  2,906       544         199     273
+      greedy          3,311     2,915       2,247   2,385
+  and the attribution, complete by label:
+      keyword         iv 390, iv push 21, sodium chloride 16
+      negation-aware  iv 169, iv push 18, sodium chloride 12
+      greedy          iv 390, mean arterial pressure 333,
+                      diastolic 307, systolic 277,
+                      slow iv push 260, ...
+  **`oxygen saturation` appears in NONE of them now**, where it
+  was 71 claims on the keyword reader alone.
+- **AND NEGATION-AWARE'S REMAINDER IS 100% NESTING - 199 of 199
+  across three nested labels and nothing else.** That is the
+  cleanest statement available for this instrument: for a reader
+  that handles negation, every ungrounded claim left is an
+  ambiguity the fact selection created and the run names.
+- **AND GREEDY'S REMAINDER IS WORD COLLISION, BY DESIGN.** `mean
+  arterial pressure`, `diastolic blood pressure` and `systolic
+  blood pressure` share "pressure" and "blood", so matching any
+  WORD claims the whole family whenever one appears - 917 claims
+  across those three. That is the behaviour the grounding audit
+  exists to catch and it is now the dominant term rather than a
+  mystery.
+- **AND THE COMPARISON IS CLEAN, WHICH I CHECKED RATHER THAN
+  ASSUMED.** Filtering the filler pool changes what `r.choice`
+  consumes, so the regenerated notes could have differed by more
+  than the removed line. The two LEDGERS ARE IDENTICAL - 6,226
+  entries, the same (label, asserts_present) on every row - so
+  only the filler prose moved and the audit is grading the same
+  facts. Without that check the before/after would not have been
+  a paired comparison at all.
+- **WHAT THE PREDICTION GOT SLIGHTLY WRONG, and it is the
+  reader's design rather than an error.** It said `both` and
+  `contradicted` would be UNCHANGED for all three. They are
+  identical for keyword and greedy and moved by six and four for
+  negation-aware. That reader decides from the 36 characters
+  BEFORE a match, so removing a filler line changes the
+  neighbourhood of nearby matches and a handful flip. A reader
+  sensitive to prose context is sensitive to prose context; the
+  ledgers being identical is what shows this is the reader and
+  not the notes.
+
 - **THE FIX IS CONFIRMED ON THE REAL EXTRACT AND IT MOVED EXACTLY
   WHAT IT SHOULD (2026-11-15, run_tail_ctl_current inpatient
   slice, keyword reader).** Same run, same reader, the filler
