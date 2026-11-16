@@ -2941,6 +2941,11 @@ def compare(df, g, bp, group_by, time_col, ordinals=None,
             "shapes_ok": shapes["tracked"],
             "surfaces_compared": surfaces["compared"],
             "surfaces_ok": surfaces["tracked"],
+            # NOT READABLE REACHES THE GATE LINE. A surface whose
+            # own sampling noise reaches the bar is counted in
+            # neither, and a criterion that silently narrows its
+            # own denominator reads as every surface being fine.
+            "surfaces_not_readable": surfaces.get("not_readable"),
             "categorical_compared": pairs["categorical_compared"],
             "categorical_kept": pairs["categorical_kept"],
             "deterministic_compared": pairs["deterministic_compared"],

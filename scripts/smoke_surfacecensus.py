@@ -53,25 +53,35 @@ def surf(child, a, b):
                 "response": [[0.0, 1.0], [1.0, 0.0]]}}}
 
 
-def plant(d, rels, measured):
-    run = Path(d) / "r"
+def plant(d, rels, measured, unreadable=None, name="r"):
+    run = Path(d) / name
     run.mkdir(parents=True, exist_ok=True)
     (run / "blueprint.json").write_text(
         json.dumps({"relationships": rels, "columns": {}}),
         encoding="utf-8")
     (run / "fidelity.json").write_text(json.dumps({
-        "surfaces": {"surfaces": measured},
+        "surfaces": {"surfaces": measured,
+                     "unreadable": unreadable or []},
         "generation": {"edges_dropped": []}}), encoding="utf-8")
     return str(run)
 
 
 def census(out):
-    """(published, measured, token, other) off the printed line."""
+    """(published, measured, not_readable, token, other).
+
+    NOT READABLE is its own term because it is a THIRD answer: a
+    surface whose own sampling noise reaches the bar is neither
+    measured nor an instrument gap, and folding it into the
+    residual reads as "unmeasured for some other reason" - the
+    bare question mark this view exists to remove.
+    """
     for ln in out.splitlines():
         if "surface(s) published:" in ln:
             import re
             n = re.findall(r"(-?\d+)", ln)
-            return tuple(int(x) for x in n[:4])
+            # The 0.35 in the surrounding prose is not a count.
+            n = [x for x in n if "." not in x]
+            return tuple(int(x) for x in n[:5])
     return None
 
 
@@ -97,8 +107,8 @@ def main():
         c = census(out)
         check("the census line is printed at all, so this suite is "
               "not passing on a view that produced nothing",
-              c is not None and len(c) == 4)
-        pub, meas, tok, other = c
+              c is not None and len(c) == 5)
+        pub, meas, unread, tok, other = c
         check("published counts every surface in the blueprint "
               "({} of 3)".format(pub), pub == 3)
         check("measured counts the ones with a gap record ({} of "
@@ -111,10 +121,14 @@ def main():
               "disjoint".format(tok), tok == 1)
         check("...and the residual is therefore ZERO rather than "
               "negative ({})".format(other), other == 0)
-        check("the three categories sum to published, which is "
+        check("no surface is unreadable in this run, and that term "
+              "reads ZERO rather than being absent - a term that "
+              "vanishes cannot be summed against the total ({})"
+              .format(unread), unread == 0)
+        check("the categories sum to published, which is "
               "the totals rule and is only meaningful once no "
               "term can be negative",
-              meas + tok + other == pub)
+              meas + unread + tok + other == pub)
         check("and no term is negative, which is the fault this "
               "suite exists for - a real run printed -38",
               min(c) >= 0)
@@ -143,6 +157,43 @@ def main():
               "words, because a census of zeros reads as a "
               "measurement",
               "no interaction surfaces are published" in out2)
+
+        # AND THE NEW TERM MUST FIRE, because a term asserted
+        # only at ZERO is untested - the whole point of counting
+        # it apart is that it can be non-empty, and a run where it
+        # is empty cannot show the arithmetic still balances.
+        run3 = plant(d, rels,
+                     [{"child": "x", "pair": ["a", "b"],
+                       "gap_sd": 0.1, "tracks": True}],
+                     unreadable=[{"child": "s__has__t",
+                                  "pair": ["a", "s__has__u"],
+                                  "cells_compared": 9,
+                                  "noise_floor_sd": 0.42}],
+                     name="r3")
+        buf = io.StringIO()
+        with redirect_stdout(buf):
+            PK.surfaces_view(run3)
+        out3 = buf.getvalue()
+        c3 = census(out3)
+        check("with a surface the measure could not READ, the new "
+              "term is NON-ZERO and the identity still holds - "
+              "published {} = measured {} + not readable {} + "
+              "token {} + other {}".format(*c3) if c3 else "no "
+              "census line",
+              c3 is not None
+              and c3[2] == 1
+              and c3[1] + c3[2] + c3[3] + c3[4] == c3[0]
+              and min(c3) >= 0)
+        check("...and it is NOT double counted in the token "
+              "bucket, which would make the residual negative "
+              "again - the categories stay disjoint with a third "
+              "term in them",
+              c3 is not None and "AND THAT RESIDUAL IS NEGATIVE"
+              not in out3)
+        check("...and the surface itself is named NOT READABLE "
+              "with its own floor, so a reader is told WHY rather "
+              "than finding it in a residual",
+              "NOT READABLE" in out3 and "0.42" in out3)
 
         # THE NEGATIVE IS CALLED OUT IF IT EVER HAPPENS AGAIN.
         src = io.open(ROOT / "scripts" / "peek.py",

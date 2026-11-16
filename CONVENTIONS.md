@@ -3,6 +3,142 @@
 Synthetic clinical data generator and model-evaluation instrument. Core rule: learn the patterns, never copy the records. Real data teaches parameters; generation never touches a record.
 
 ## Verify before claiming
+- **THE SURFACE CRITERION'S NAMED SUSPECT IS REFUTED, AND THE BAR
+  WAS INSIDE THE MEASURE'S OWN NOISE (2026-11-16).**
+  `interaction surfaces` reads **14 of 53** on the real extract and
+  this file named the suspect as "a pair member trimmed to order
+  the graph". Measured on run_tail_ctl_current, read back SPELLED
+  by the machine:
+      pair member not in parents        zero
+      trimmed edges                     zero
+      lag parents lost                  zero
+      tracks true / false              14 / 39
+      not measured                       22
+  and the blueprint says **75 of 75** published surfaces carry a
+  grid with both pair members among the parents - so every one
+  passes `_apply_numeric`'s gate and is applied at FULL STRENGTH.
+  The surface reaches generation intact and the criterion still
+  fails it, which retires every mechanism on the record for this
+  chapter and moves the question to the ruler.
+- **AND THE RULER SCORED THE WORST OF NINE CELLS, WITH A CELL KEPT
+  AT FIVE ROWS.** Two independent draws of ONE distribution do not
+  score zero on that: split a cohort in half BY PATIENT, put one
+  half in as the source and the other as the generated table, and
+  NOTHING is generated - every gap is sampling noise. Twelve draws
+  per cell, six child shapes:
+      rows per half   mean worst gap on a FAITHFUL output
+               360                  0.38 to 0.51
+               900                  0.25 to 0.31
+              1800                  0.19 to 0.23
+              5400                  0.08 to 0.11
+  **AT 360 ROWS A FAITHFUL OUTPUT READS 0.38 TO 0.51 AGAINST A BAR
+  OF 0.35, ON EVERY SHAPE TRIED.** A bar inside its own measure's noise is a verdict decided
+  by the draw - the same fault this file records for a 0.05 band bar
+  sitting under a faithful 0.0504, and for a campaign tier demanding
+  0.700 over a 0.698 ceiling.
+- **THE LAW IS c*sqrt(1/n_src + 1/n_gen) ON THE CELL THAT DROVE THE
+  GAP, AND c IS FITTED ACROSS SHAPES RATHER THAN CHOSEN.** Over
+  equal halves `c*sqrt(2)` ran **2.07 to 3.25** on a strong surface,
+  a weak one, a child with NO surface at all, a skewed child, counts
+  and a zero-inflated child - barely moving with the surface's
+  STRENGTH, which is what a floor about ROWS rather than about
+  signal should do. Over UNEQUAL sides (300 against 5400, 2700
+  against 900) the two-term form reads **1.70 to 2.28** directly.
+  Two independent routes to one number: 2.3*sqrt(2) = 3.25 is the
+  top of the equal-halves range. **2.3** is taken, the conservative
+  end, because a floor slightly too generous marks a surface
+  unreadable where a floor too tight reports noise as a finding, and
+  the second is the worse error.
+- **THE BAR IS CROSSED AT 87 ROWS PER CELL PER SIDE - about 783
+  rows on the surface's own columns - AND THE MEASURE ADMITTED
+  FIVE.** What that implies at the extract's own coverage:
+      fully covered        55,428 rows   floor 0.0414   readable
+      procedure_quantity   10,696        floor 0.0944   readable
+      5% covered            2,771        floor 0.1856   readable
+      1% covered              554        floor 0.4165   NOT READABLE
+      invasive pressures      113        floor 0.9390   NOT READABLE
+  So the screen binds PER SURFACE and only at the thin end - which
+  is exactly where a clinical extract lives.
+- **AND IT GIVES THE ONE UNEXPLAINED SURFACE FAILURE ON THIS FILE A
+  CAUSE.** `diastolic <- MAP_cuff x MAP_cuff_bmdi` at **1.38 sd**
+  was recorded as the ring-adjacency ceiling and parked as
+  research - and that ceiling was later REFUTED outright ("the
+  sweeps deliver the skill they were GIVEN, to within about 0.02,
+  with no cap anywhere"), leaving the failure with no established
+  cause. The invasive pressures are measured on **113 rows**, which
+  is 12 per cell and a floor of 0.939: nobody can judge a 3x3 grid
+  there, and the honest verdict is NOT READABLE rather than a
+  finding.
+- **NO POWER IS ITS OWN ANSWER - not clean, not a finding.** A
+  surface whose floor REACHES the bar is counted in NEITHER
+  `tracked` nor `compared`, named with the floor that made it so,
+  and the identity gains a term: `published == compared +
+  not_readable + token + absent + thin`. And the bar now accounts
+  for each surface's OWN noise rather than only for whether it has
+  any - a gap must clear 0.35 AND twice that surface's floor, which
+  is the same second rule the marginal measure already applies.
+- **AND NO RECORDED READING ON A WIDE COHORT MOVES, asserted rather
+  than argued.** Where the cells are well populated the floor is a
+  fraction of the bar and the effective bar is **exactly 0.3500**,
+  with a kept surface still TRACKING and a surface generation lost
+  still DEPARTING at 1.03 sd. A screen that bought its quiet by
+  making the criterion unable to fail would be worse than the bar
+  it replaced.
+- **AND MY FIRST CUT OF THE SCREEN LOST REAL FINDINGS, WHICH IS THE
+  OPPOSITE FAULT AND I CAUGHT IT BEFORE THE NET.** It took the cell
+  with the LARGEST gap and then asked whether THAT cell had the
+  power to be judged - so a surface with eight well-populated cells
+  and one thin one read NOT READABLE whenever the thin cell won the
+  maximum, which it usually does, a thin cell being the noisiest.
+  That hides a genuine departure in a fat cell behind noise in a
+  thin one, and the criterion asks whether the published surface
+  survived ANYWHERE. Every cell is judged against ITS OWN noise
+  now: a cell departs when its gap clears the greater of 0.35 and
+  twice its own floor, the surface departs if any cell does, and it
+  is NOT READABLE only when NO cell could be judged at all. The gap
+  REPORTED is the worst READABLE cell's, because a gap taken from a
+  cell nobody can judge is a number about the draw and that figure
+  is read off the artifact and quoted.
+- **AND THE RULE IS A PURE FUNCTION ON PLANTED CELL OCCUPANCIES,
+  BECAUSE NO FRAME CAN REACH THE BAND IT TURNS ON.**
+  `grid_means` keeps a cell at FIVE rows and drops it below, so the
+  thin-but-kept band is 5 to about 86 rows per side - and six
+  constructions all gave either nine fat cells or seven, the
+  corners VANISHING rather than thinning. Planted directly instead:
+  a thin cell with an 8.0 sd noise gap beside a fat cell with a
+  real 1.0 sd departure reads DEPARTED and reports **1.0**, where
+  the first rule read NOT READABLE and lost the finding; and the
+  mirror case - a thin cell with a huge gap beside a fat cell that
+  MATCHES - still TRACKS, because a cell nobody can judge is not
+  evidence in either direction. Both mutations turn it red.
+- **ALL THREE PAGES SAY NOT READABLE, because a section that
+  VANISHES on a thin cohort is indistinguishable from every surface
+  being fine.** The gate line, `peek surfaces` per surface and in
+  its census, and the deck and sign-off page each report it with the
+  floor - and the sign-off's `surfaces_ok/surfaces_compared` would
+  otherwise have had its DENOMINATOR silently shrink, which is the
+  moved-denominator fault this file records three times.
+- **AND THE PER-CELL ROW COUNTS ARE NOT PUBLISHED.** A 3x3 cell is a
+  small group of patients and a cell holding five describes those
+  five; the module publishes the derived floor, distances and column
+  names only, which is the rule the marginal measure already
+  follows for bin counts. A mutation adding them turns a check red.
+- **AND THE NEW CENSUS TERM CAUGHT ME REINTRODUCING THE EXACT FAULT
+  ITS SUITE EXISTS FOR, ON ITS FIRST RUN.** `peek`'s token bucket
+  skipped the MEASURED surfaces and not the unreadable ones, so a
+  token-touching unreadable surface was counted TWICE and the
+  residual went **negative (-1)** - the shape that once printed
+  "-38 otherwise unmeasured" on a real run. The arm that found it
+  is the one asserting the new term NON-ZERO: a term asserted only
+  at zero cannot show the arithmetic still balances.
+- **WHAT IS NOT CLAIMED: how much of the 39 this accounts for.**
+  That is a re-measure of the real run - no fit and no generate -
+  and it has not been read yet. The surfaces on well-covered
+  columns have floors near 0.04 against a recorded median miss of
+  1.10 sd, so a good number of the 39 will remain the engine's.
+  What is settled is that the bar was not reachable by a faithful
+  generator at the thin end, and that the trim suspect accounts for
+  none of it.
 - **ALL THREE READERS RE-RUN ON THE FIXED NOTES, AND THE
   BOILERPLATE CLAIMS ARE GONE FROM EVERY ONE (2026-11-15, 789
   real notes).**

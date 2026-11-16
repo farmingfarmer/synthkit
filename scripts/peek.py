@@ -352,6 +352,13 @@ def surfaces_view(run):
     gaps = {}
     for r in (fid.get("surfaces") or {}).get("surfaces") or []:
         gaps[(r["child"], tuple(sorted(r["pair"])))] = r
+    # NOT READABLE IS ITS OWN REASON, and without this it falls
+    # into the residual and reads as "unmeasured for some other
+    # reason" - which is the bare question mark this view was
+    # written to remove, one category along.
+    unread = {}
+    for r in (fid.get("surfaces") or {}).get("unreadable") or []:
+        unread[(r["child"], tuple(sorted(r["pair"])))] = r
     dropped = ((fid.get("generation") or {})
                .get("edges_dropped") or [])
     by_child = {}
@@ -368,9 +375,24 @@ def surfaces_view(run):
         g = gaps.get((child, tuple(sorted(pair))))
         print()
         print("{} <- {} x {}".format(child, pair[0], pair[1]))
+        u = unread.get((child, tuple(sorted(pair))))
         if g:
-            print("  gap {} sd, tracks {}".format(
-                g.get("gap_sd"), g.get("tracks")))
+            print("  gap {} sd, bar {} sd, tracks {}".format(
+                g.get("gap_sd"), g.get("bar_sd", "0.35"),
+                g.get("tracks")))
+            if g.get("noise_floor_sd") is not None:
+                print("  this surface's own sampling noise floor "
+                      "is {} sd - the bar is the greater of 0.35 "
+                      "and twice that".format(
+                          g.get("noise_floor_sd")))
+        elif u:
+            print("  NOT READABLE - this surface's own sampling "
+                  "noise floor is {} sd, which REACHES the 0.35 "
+                  "bar, so a faithful generator would fail it too. "
+                  "That is a statement about how many rows fill "
+                  "its cells, NOT about the synthetic data, and it "
+                  "is counted in neither tracked nor departed."
+                  .format(u.get("noise_floor_sd")))
         else:
             # SAY WHY, not just "?": on the real extract 66 of 72
             # published surfaces are unmeasurable because they
@@ -438,20 +460,37 @@ def surfaces_view(run):
         if len(pr2) != 2:
             continue
         child2 = rel.get("child") or ""
-        if (child2, tuple(sorted(pr2))) in gaps:
+        # MEASURED WINS, AND SO DOES NOT READABLE. Skipping only
+        # the measured ones double-counted a token-touching
+        # unreadable surface in both buckets and drove the residual
+        # NEGATIVE - the exact fault this view was written to
+        # remove, reintroduced the moment a third term was added.
+        # Caught by the census suite on its first run.
+        if (child2, tuple(sorted(pr2))) in gaps \
+                or (child2, tuple(sorted(pr2))) in unread:
             continue
         if _sets2.is_scaffolding(child2) or any(
                 _sets2.is_scaffolding(x) for x in pr2):
             n_tok += 1
-    _other = n_pub - len(gaps) - n_tok
-    print("{} surface(s) published: {} measured, {} on "
+    n_unread = 0
+    for rel in (bp.get("relationships") or []):
+        it3 = (rel.get("evidence") or {}).get("interaction")
+        pr3 = list((it3 or {}).get("pair") or [])
+        if len(pr3) != 2:
+            continue
+        if (rel.get("child") or "",
+                tuple(sorted(pr3))) in unread:
+            n_unread += 1
+    _other = n_pub - len(gaps) - n_unread - n_tok
+    print("{} surface(s) published: {} measured, {} NOT READABLE "
+          "because their own sampling noise reaches the bar, {} on "
           "token-indicator columns the OUTPUT carries too few of "
           "to bin, {} otherwise unmeasured. A "
           "pair member missing from the blueprint parents means "
           "the surface cannot fire in the FIRST pass; a lost lag "
           "parent means the cyclic refinement skips the record "
           "ENTIRELY.".format(
-              n_pub, len(gaps), n_tok, _other))
+              n_pub, len(gaps), n_unread, n_tok, _other))
     if _other < 0:
         print("  AND THAT RESIDUAL IS NEGATIVE, which cannot "
               "happen: the categories above have started "

@@ -675,7 +675,16 @@ def main():
     _at = _gsrc.find('"marginals":')
     if _at >= 0:
         _at += len('"marginals":')
-    _end = _gsrc.find('"bars"', _at) if _at >= 0 else -1
+    # AND THE WINDOW MUST END AT THE NEXT BLOCK, not at a fixed
+    # one further down. The verdict gained a `surfaces` block
+    # between `marginals` and `bars`, and a window anchored on
+    # `bars` then swallowed it and reported curvecheck's own field
+    # names as missing marginal keys - which is this check's
+    # recorded overrun fault in the other direction.
+    _nx = min([x for x in (_gsrc.find('"surfaces":', _at),
+                           _gsrc.find('"bars"', _at)) if x > 0]
+              or [-1]) if _at >= 0 else -1
+    _end = _nx
     _blk = (_gsrc[_at:_end] if _at >= 0 and _end > _at
             else _gsrc[_at:_at + 420] if _at >= 0 else "")
     _named = sorted(set(
@@ -692,6 +701,47 @@ def main():
           "to the wrong one: {}".format(
               ", ".join(_bad) or "none missing"),
           not _bad)
+
+    # THE SAME GUARD FOR THE SURFACE BLOCK, which the verdict also
+    # carries by the measure's own names and for the same reason -
+    # a rename in `curvecheck` must break a check here rather than
+    # a page somewhere. It is a SECOND live call, not the same one:
+    # these are two different measures, and checking one against
+    # the other's keys is what the window overrun above did.
+    from synthkit import curvecheck as _cv
+    _sfr = pd.DataFrame({
+        "pid": np.repeat(np.arange(300), 10).astype(str),
+        "a": np.tile(np.arange(10) / 10.0, 300),
+        "b": np.tile(np.arange(10)[::-1] / 10.0, 300)})
+    _sfr["y"] = _sfr["a"] * _sfr["b"] * 4.0
+    _slive = _cv.measure_surfaces(
+        _sfr, _sfr.copy(),
+        {"relationships": [{"child": "y", "parents": ["a", "b"],
+          "evidence": {"interaction": {
+              "pair": ["a", "b"], "grid_a": [0.0, 1.0],
+              "grid_b": [0.0, 1.0],
+              "response": [[0.0, 1.0], [1.0, 0.0]]}}}]},
+        _sfr["pid"], 10)
+    _sat = _gsrc.find('"surfaces": dict(')
+    _send = _gsrc.find('"bars"', _sat) if _sat >= 0 else -1
+    _sblk = (_gsrc[_sat:_send] if _sat >= 0 and _send > _sat
+             else "")
+    _snamed = sorted(set(
+        w for w in re.findall(r'"([a-z][a-z0-9_]*)"', _sblk)))
+    # The block's own key is `surfaces`; the names INSIDE it are
+    # the measure's fields.
+    _snamed = [w for w in _snamed if w != "surfaces"]
+    check("the verdict's SURFACE block names at least three fields "
+          "from the surface measure, so this check is not passing "
+          "on an empty window: {}".format(", ".join(_snamed)),
+          len(_snamed) >= 3)
+    _sbad = sorted(k for k in _snamed if k not in _slive)
+    check("...and every one is a key `measure_surfaces` actually "
+          "produces, asserted against a LIVE call - including "
+          "`not_readable`, which is the one answer the criterion "
+          "itself cannot express: {}".format(
+              ", ".join(_sbad) or "none missing"),
+          not _sbad)
 
     print()
     if FAIL:

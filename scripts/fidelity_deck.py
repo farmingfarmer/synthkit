@@ -669,10 +669,24 @@ def gate_issues_html(fid, verdict, bp=None):
                           .get("surfaces") or []
                           if not r.get("tracks")],
                          key=lambda r: -(r.get("gap_sd") or 0))
+            # THE BAR IS PER SURFACE NOW, and the page has to say
+            # so: a surface whose own sampling noise reaches 0.35
+            # is NOT READABLE and is absent from this table
+            # entirely, so a reader shown only the drifted rows
+            # would see a short list and no reason for it.
+            _un = sorted((fid.get("surfaces") or {})
+                         .get("unreadable") or [],
+                         key=lambda r: -(r.get("noise_floor_sd")
+                                         or 0))
             parts.append(
                 '<p class="note">Two-variable interactions whose '
                 'joint response drifted by more than 0.35 sd over '
-                'the cells both tables can measure.</p>')
+                'the cells both tables can measure - or by more '
+                'than twice that surface\'s own sampling noise '
+                'where its cells are thin, whichever is larger. '
+                'The worst of nine cell means is the metric, so a '
+                'surface backed by few rows disagrees with itself '
+                'by that much on the draw alone.</p>')
             parts.append(
                 '<table><tr><th>child</th><th>pair</th>'
                 '<th>cells</th><th>gap (sd)</th></tr>'
@@ -684,6 +698,34 @@ def gate_issues_html(fid, verdict, bp=None):
                         esc(r["pair"][1]), r["cells_compared"],
                         r["gap_sd"])
                     for r in bad) + "</table>")
+            if _un:
+                # A SECTION THAT VANISHES ON A THIN COHORT reads as
+                # every surface being fine. These are counted in
+                # NEITHER side of the criterion, and the page says
+                # the reason is the cohort rather than the data.
+                parts.append(
+                    '<p class="note"><b>{} surface(s) are NOT '
+                    'READABLE</b> on this run and are counted in '
+                    'neither side of that criterion: their own '
+                    'sampling noise reaches the 0.35 bar, so a '
+                    'faithful generator would fail them too. That '
+                    'is a statement about how many rows fill their '
+                    'cells, NOT about the synthetic data. The '
+                    'per-cell row counts are not published - a '
+                    'cell is a small group of patients.</p>'
+                    .format(len(_un)))
+                parts.append(
+                    '<table><tr><th>child</th><th>pair</th>'
+                    '<th>cells</th><th>noise floor (sd)</th></tr>'
+                    + "".join(
+                        '<tr><td>{}</td><td>{} &times; {}</td>'
+                        '<td class="num">{}</td>'
+                        '<td class="num">{:.2f}</td></tr>'.format(
+                            esc(r["child"]), esc(r["pair"][0]),
+                            esc(r["pair"][1]),
+                            r.get("cells_compared"),
+                            r.get("noise_floor_sd") or 0.0)
+                        for r in _un) + "</table>")
         elif name == "coverage":
             parts.append(
                 '<p class="note">A column is present at the wrong '

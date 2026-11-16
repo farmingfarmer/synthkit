@@ -183,11 +183,23 @@ def assess(fid: Dict[str, Any],
             "cannot see: a U-shape has no rank "
             "correlation".format(sh_n, sh_d))
     su_n, su_d = s.get("surfaces_ok"), s.get("surfaces_compared")
+    # A SURFACE WHOSE OWN NOISE REACHES THE BAR IS NOT READABLE, and
+    # the line SAYS SO - absent, never false, on an older run that
+    # did not measure it. A measure without a stated noise floor
+    # manufactures findings at the thin end, and a thin end is where
+    # a clinical extract's sparse columns live; a criterion that
+    # quietly dropped them would read as every surface being fine.
+    su_u = s.get("surfaces_not_readable")
+    _unread = ("; {} NOT READABLE - their own sampling noise "
+               "reaches the bar, which is a statement about how "
+               "many rows fill their cells rather than about the "
+               "synthetic data".format(su_u)) if su_u else ""
     if su_d:
         add("interaction surfaces", su_n == su_d,
             "{}/{} two-variable surfaces within 0.35 sd - "
             "higher-order structure is not published, so nothing "
-            "above two-way is measured".format(su_n, su_d))
+            "above two-way is measured{}".format(su_n, su_d,
+                                                 _unread))
     # DYNAMICS - a patient's course over TIME, conditional on the
     # data having repeat visits and a measurable order. Per-row
     # fidelity is blind to it: a file can match every marginal
@@ -264,6 +276,16 @@ def assess(fid: Dict[str, Any],
                     "columns_measured", "off_source",
                     "worst_source_vs_output", "sampler_faults",
                     "no_power")),
+            # THE SURFACE MEASURE'S OWN FIELD NAMES, for the
+            # same reason as `marginals` above: a rename in
+            # `curvecheck` must break a check here rather than a
+            # page somewhere. `not_readable` is the only one the
+            # criterion itself cannot express, because a criterion
+            # has two sides and this is a third answer.
+            "surfaces": dict(
+                (k, (fid.get("surfaces") or {}).get(k))
+                for k in ("compared", "tracked", "published",
+                          "not_readable")),
             "bars": {"direction": dir_bar, "close": close_bar,
                      "custom": bool(dir_custom or close_custom)}}
 
@@ -644,6 +666,30 @@ def report(verdict, rundir) -> "tuple":
     # noise floor printed NOTHING about shape and read as clean -
     # which is the absent-measurement-reported-as-safe fault the
     # linkage element already refuses.
+    # AND THE SAME FOR THE SURFACES. `interaction surfaces` is a
+    # GATED criterion, so a run that can measure none OMITS it
+    # rather than failing on absence - which means the only place a
+    # reader learns the cohort was too thin to judge them is here.
+    # A criterion that silently disappears is indistinguishable
+    # from every surface being fine.
+    _sf = verdict.get("surfaces") or {}
+    _su_u = _sf.get("not_readable")
+    if _su_u and not _sf.get("compared"):
+        lines.append("")
+        lines.append(
+            "  interaction surfaces: NOT READABLE on this run - "
+            "all {} comparable surface(s) have their own sampling "
+            "noise at or above the 0.35 bar, so a faithful "
+            "generator would fail them too. That is a statement "
+            "about how many rows fill their cells, NOT about the "
+            "synthetic data.".format(_su_u))
+    elif _su_u:
+        lines.append("")
+        lines.append(
+            "  interaction surfaces: {} further surface(s) are NOT "
+            "READABLE and are counted in neither side of that "
+            "criterion - their own sampling noise reaches the "
+            "bar.".format(_su_u))
     if not _mv.get("columns_measured") and _mv.get("no_power"):
         lines.append("")
         lines.append(

@@ -1098,6 +1098,7 @@ def main():
           and _resT["skipped_token_columns"] == 1
           and _resT["skipped_absent_columns"] == 1
           and _resT["published"] == _resT["compared"]
+          + _resT["not_readable"]
           + _resT["skipped_token_columns"]
           + _resT["skipped_absent_columns"]
           + _resT["skipped_thin_data"]
@@ -1174,6 +1175,7 @@ def main():
           "coverage, so nothing moved from one skip bucket to "
           "another unnoticed",
           _tokKept["published"] == _tokKept["compared"]
+          + _tokKept["not_readable"]
           + _tokKept["skipped_token_columns"]
           + _tokKept["skipped_absent_columns"]
           + _tokKept["skipped_thin_data"])
@@ -1383,7 +1385,16 @@ def main():
         (_pr / "fidelity.json").write_text(json.dumps({
             "surfaces": {"surfaces": [
                 {"child": "b", "pair": ["p", "q"],
-                 "gap_sd": 1.2, "tracks": False}]},
+                 "gap_sd": 1.2, "tracks": False}],
+                # A SURFACE WHOSE OWN NOISE REACHES THE BAR is a
+                # THIRD answer, and the view must name it rather
+                # than let it fall into the residual - which reads
+                # as "unmeasured for some other reason", the bare
+                # question mark this view exists to remove.
+                "unreadable": [
+                    {"child": "a", "pair": ["x", "z"],
+                     "cells_compared": 9,
+                     "noise_floor_sd": 0.5145}]},
             "generation": {"edges_dropped": [
                 {"child": "b", "parents": ["p", "q", "r_lag1"],
                  "kept_parents": ["p"]}]}}), encoding="utf-8")
@@ -1399,7 +1410,28 @@ def main():
           and "PAIR MEMBER NOT IN PARENTS: z" in _rv.stdout
           and "LAG PARENT LOST: r_lag1" in _rv.stdout
           and "SURFACE PAIR MEMBER LOST: q" in _rv.stdout
-          and "gap 1.2 sd, tracks False" in _rv.stdout)
+          # AN OLDER RUN'S RECORD CARRIES NO `bar_sd` AND MUST
+          # STILL RENDER, with the 0.35 the criterion has always
+          # used - absent is not the same fact as a different bar,
+          # and a view that printed None there would read as a
+          # surface nobody judged.
+          and "gap 1.2 sd, bar 0.35 sd, tracks False"
+          in _rv.stdout)
+
+    check("...and a surface whose own sampling noise reaches the "
+          "bar is named NOT READABLE with its floor, rather than "
+          "falling into the residual where it reads as unmeasured "
+          "for some other reason",
+          "NOT READABLE" in _rv.stdout
+          and "0.5145" in _rv.stdout
+          and "statement about how many rows fill" in _rv.stdout)
+
+    check("...and the census counts it as its own term, so the "
+          "categories stay disjoint and the residual cannot go "
+          "negative - the fault that printed -38 on a real run",
+          "1 NOT READABLE because their own sampling noise "
+          "reaches the bar" in _rv.stdout
+          and "AND THAT RESIDUAL IS NEGATIVE" not in _rv.stdout)
 
     # peek curves - A PARENT THE CONTRACT NAMES AND PUBLISHES NO
     # CURVE FOR. `discover` skips a curve whose grid collapses with
@@ -1524,7 +1556,11 @@ def main():
                         "set_tokens_compared": 62,
                         "set_empty_ok": 4, "set_empty_compared": 4,
                         "shapes_compared": 9, "shapes_ok": 8,
-                        "surfaces_compared": 6, "surfaces_ok": 1},
+                        "surfaces_compared": 6, "surfaces_ok": 1,
+                        # THE DENOMINATOR MOVES when a surface is
+                        # not readable, so the page has to carry
+                        # the count beside the fraction.
+                        "surfaces_not_readable": 4},
             "contradictions": [], "disobedience": []}),
             encoding="utf-8")
         (_sr / "blueprint.json").write_text(json.dumps({
@@ -1555,6 +1591,15 @@ def main():
               and "conditions 3%" in _sh
               and "What signing accepts" in _sh
               and "reviewed by" in _sh)
+        check("...and the surfaces row carries the NOT READABLE "
+              "count beside its fraction, because the denominator "
+              "SHRANK by four and a reader given 1/6 alone cannot "
+              "tell a narrowed measurement from a real loss - the "
+              "moved-denominator fault this project records three "
+              "times",
+              "1/6" in _sh
+              and "4 further surface(s) NOT READABLE" in _sh
+              and "rather than about the synthetic data" in _sh)
         _rs2 = subprocess.run(
             [sys.executable, "scripts/signoff.py",
              str(Path(_ts) / "nope"), "-o", str(_so)],
@@ -2541,6 +2586,64 @@ def main():
         _fp.write_text(json.dumps(_fj2), encoding="utf-8")
         _docm, _ = _fd0.build_deck(str(_spm), str(_rdm),
                                    "person_id")
+        # AND THE SURFACE SECTION, with a surface the measure
+        # could not READ. The deck lists the DRIFTED surfaces, so
+        # an unreadable one is absent from that table entirely - a
+        # reader shown a short list and no reason cannot tell a
+        # narrowed measurement from a clean run. The criterion has
+        # to FAIL for the section to render at all, so the planted
+        # summary fails it.
+        _fj3 = json.loads(_fp.read_text(encoding="utf-8"))
+        # `assess` REFUSES a run that related no pairs - "that is a
+        # finding in itself, not a pass" - and the deck's whole
+        # gate-issues block is then absent, so the renderer under
+        # test is unreachable. The pair fields are planted for that
+        # reason: what is being checked here is the RENDERER, and a
+        # check that silently exercises nothing is the worse
+        # failure.
+        _fj3.setdefault("summary", {}).update({
+            "pairs": 10, "pairs_sign_ok": 10, "pairs_close": 10,
+            "pairs_inverted": 0,
+            "surfaces_compared": 2, "surfaces_ok": 1,
+            "surfaces_not_readable": 1})
+        _fj3["surfaces"] = {
+            "compared": 2, "tracked": 1, "published": 4,
+            "not_readable": 1,
+            "surfaces": [
+                {"child": "v", "pair": ["a", "b"],
+                 "cells_compared": 9, "gap_sd": 0.91,
+                 "noise_floor_sd": 0.04, "bar_sd": 0.35,
+                 "tracks": False},
+                {"child": "v", "pair": ["a", "c"],
+                 "cells_compared": 9, "gap_sd": 0.10,
+                 "noise_floor_sd": 0.04, "bar_sd": 0.35,
+                 "tracks": True}],
+            "unreadable": [
+                {"child": "w", "pair": ["a", "b"],
+                 "cells_compared": 9,
+                 "noise_floor_sd": 0.9390}]}
+        _fp.write_text(json.dumps(_fj3), encoding="utf-8")
+        _docs3, _ = _fd0.build_deck(str(_spm), str(_rdm),
+                                    "person_id")
+
+    check("the deck's surface section states the bar is PER "
+          "SURFACE, because a fixed 0.35 is no longer the whole "
+          "rule and a page quoting it would contradict the "
+          "measurement behind it",
+          "twice that surface" in _docs3
+          and "worst of nine cell means" in _docs3)
+    check("...and it NAMES the surface the measure could not read, "
+          "with its own noise floor - absent from the drifted "
+          "table, so without this a reader sees a short list and "
+          "no reason for it",
+          "NOT READABLE" in _docs3
+          and "0.94" in _docs3
+          and "rows fill their cells" in _docs3)
+    check("...and says the per-cell row counts are NOT published, "
+          "because a 3x3 cell is a small group of patients - the "
+          "rule the marginal section already follows for bin "
+          "counts",
+          "row counts are not published" in _docs3)
 
     check("a real run's own fidelity.json CARRIES the marginals "
           "block, without which the deck would have nothing to "

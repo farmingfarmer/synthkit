@@ -25,6 +25,112 @@ from typing import Any, Dict, List, Optional
 
 TRACK_SD = 0.35
 
+# THE BAR WAS INSIDE THE MEASURE'S OWN NOISE, AND A CELL NEEDED ONLY
+# FIVE ROWS.
+#
+# `measure_surfaces` scores the WORST of nine 3x3 conditional-mean
+# cells, in units of the child's source spread, against TRACK_SD. Two
+# independent draws of ONE distribution do not score zero there: a
+# faithful output still differs from its source by sampling alone,
+# and on a nine-cell ruler taking the MAXIMUM that is not small.
+# Measured by splitting a cohort in half BY PATIENT and putting one
+# half in as the source and the other as the generated table, so
+# NOTHING is generated and every gap is noise - twelve draws per
+# cell, across six child shapes:
+#
+#     rows per half   mean worst gap on a FAITHFUL output
+#              360                 0.38 to 0.51
+#              900                 0.25 to 0.31
+#             1800                 0.19 to 0.23
+#             5400                 0.08 to 0.11
+#
+# AT 360 ROWS A FAITHFUL OUTPUT READS 0.48 AGAINST A BAR OF 0.35,
+# and `grid_means` admitted a cell at FIVE rows. A bar inside its own
+# measure's noise is a verdict decided by the draw - the same fault
+# this module's own marginal counterpart records for a 0.05 band bar
+# sitting under a faithful 0.0504, and the same as a campaign tier
+# demanding 0.700 over a 0.698 ceiling.
+#
+# THE LAW IS c*sqrt(1/n_src + 1/n_gen) ON THE CELL THAT DROVE THE
+# GAP, and c is FITTED ACROSS SHAPES rather than chosen. Over equal
+# halves c*sqrt(2) ran 2.07 to 3.25 on a strong surface, a weak one,
+# a child with NO surface at all, a skewed child, counts and a
+# zero-inflated child - barely moving with the surface's strength,
+# which is what a floor about ROWS rather than about signal should
+# do. Over UNEQUAL sides (300 against 5400, 2700 against 900) the
+# two-term form reads 1.70 to 2.28 directly. Those are two
+# independent routes to one number: 2.3*sqrt(2) = 3.25 is the top of
+# the equal-halves range.
+#
+# 2.3 is taken, the CONSERVATIVE end, because a floor slightly too
+# generous marks a surface unreadable where a floor too tight reports
+# noise as a finding, and the second is the worse error. The bar is
+# crossed at about 86 rows per cell per side.
+SURFACE_NOISE_C = 2.3
+
+
+def surface_floor(n_src: int, n_gen: int) -> float:
+    """The gap a FAITHFUL output reads on this cell, by sampling
+    alone, in units of the child's own spread.
+
+    A PURE FUNCTION on the two cell occupancies, so the law can be
+    asserted against the measured noise directly rather than through
+    whatever a fixture happens to produce - and so a future change to
+    the constant cannot drift away from the thing it describes.
+    """
+    if n_src <= 0 or n_gen <= 0:
+        return float("inf")
+    return SURFACE_NOISE_C * ((1.0 / n_src + 1.0 / n_gen) ** 0.5)
+
+
+def judge_cells(cs, cg, sd_c):
+    """Does this surface TRACK, DEPART, or have no power at all?
+
+    `cs` and `cg` map a cell to (conditional mean, row count) on the
+    source and the generated table. Returns
+    (tracks, gap_sd, floor_sd, bar_sd, cells_readable), with
+    `tracks` None when NO cell could be judged.
+
+    A PURE FUNCTION on planted cell occupancies, because the rule
+    it encodes is the whole content of the criterion and no frame
+    can exercise it exactly: `grid_means` keeps a cell at five rows
+    and drops it below that, so the thin-but-kept band this rule
+    turns on - 5 to about 86 rows - cannot be dialled through a
+    quantile-binned fixture on demand.
+
+    EVERY CELL IS JUDGED AGAINST ITS OWN NOISE. The first cut took
+    the cell with the largest gap and asked whether THAT cell had
+    the power to be judged, so a surface with eight well-populated
+    cells and one thin one read as unreadable whenever the thin
+    cell won the maximum - which it usually does, a thin cell being
+    the noisiest. That hides a real departure in a fat cell behind
+    noise in a thin one, and the criterion asks whether the
+    published surface survived ANYWHERE.
+    """
+    both = sorted(set(cs) & set(cg))
+    judged = []
+    for c in both:
+        g = abs(cs[c][0] - cg[c][0]) / (sd_c or 1.0)
+        fl = surface_floor(cs[c][1], cg[c][1])
+        judged.append((g, fl, max(TRACK_SD, 2.0 * fl)))
+    readable = [t for t in judged if t[1] < TRACK_SD]
+    if not readable:
+        # NO POWER IS ITS OWN ANSWER - not clean, not a finding.
+        # Counting a surface nobody can judge as departed
+        # manufactures a finding; counting it as tracked
+        # manufactures a pass.
+        return (None,
+                None,
+                (min((t[1] for t in judged), default=float("inf"))),
+                None,
+                0)
+    # THE REPORTED GAP IS THE WORST READABLE CELL'S. A gap taken
+    # from a cell that cannot be judged is a number about the draw,
+    # and this figure is read off the artifact and quoted.
+    gap, floor, bar = max(readable, key=lambda t: t[0])
+    departed = any(t[0] > t[2] for t in readable)
+    return (not departed, gap, floor, bar, len(readable))
+
 
 def _numeric(series):
     import pandas as pd
@@ -182,6 +288,8 @@ def measure_surfaces(Xs, Xg, bp, gid_series, k) -> Dict[str, Any]:
     thin_src_screened = 0
     thin_gen = 0
     thin_overlap = 0
+    not_readable = 0
+    unreadable: List[Dict[str, Any]] = []
     for rel in (bp.get("relationships") or []):
         child = rel.get("child")
         it = (rel.get("evidence") or {}).get("interaction")
@@ -240,7 +348,9 @@ def measure_surfaces(Xs, Xg, bp, gid_series, k) -> Dict[str, Any]:
                         g = screen[ok][m]
                         if g.nunique() < k:
                             continue
-                    cells[(ci, cj)] = float(yc[m].mean())
+                    cells[(ci, cj)] = (
+                        float(yc[m].mean()),
+                        int(m.sum()))
             return cells, ("screened" if not cells else None)
 
         # WHICH SIDE COULD NOT FILL THE GRID IS THE WHOLE
@@ -273,11 +383,27 @@ def measure_surfaces(Xs, Xg, bp, gid_series, k) -> Dict[str, Any]:
             skipped_thin += 1
             thin_overlap += 1
             continue
-        gap = max(abs(cs[c] - cg[c]) for c in both) / sd_c
+        # THE CELL THAT DROVE THE GAP IS THE ONE WHOSE NOISE
+        # MATTERS. The thinnest compared cell would be the
+        # conservative choice and it over-refuses: a gap produced by
+        # a well-populated cell is a real disagreement however thin
+        # some other cell is.
+        tracks, gap, floor, bar, n_read = judge_cells(
+            cs, cg, sd_c)
+        if tracks is None:
+            not_readable += 1
+            unreadable.append({
+                "child": child, "pair": [a, b],
+                "cells_compared": len(both),
+                "noise_floor_sd": round(floor, 4)})
+            continue
         rows.append({"child": child, "pair": [a, b],
                      "cells_compared": len(both),
+                     "cells_readable": n_read,
                      "gap_sd": round(gap, 4),
-                     "tracks": gap <= TRACK_SD})
+                     "noise_floor_sd": round(floor, 4),
+                     "bar_sd": round(bar, 4),
+                     "tracks": tracks})
     return {
         "surfaces": rows,
         "compared": len(rows),
@@ -286,6 +412,13 @@ def measure_surfaces(Xs, Xg, bp, gid_series, k) -> Dict[str, Any]:
         "skipped_token_columns": skipped_tokens,
         "skipped_absent_columns": skipped_absent,
         "skipped_thin_data": skipped_thin,
+        # NOT READABLE IS A THIRD ANSWER, and it has to be visible:
+        # a section that VANISHES on a thin cohort is
+        # indistinguishable from every surface being fine. These are
+        # counted in NEITHER `compared` nor `tracked`, so the
+        # identity below carries the term.
+        "not_readable": not_readable,
+        "unreadable": unreadable,
         # THE SAME TOTAL, DECOMPOSED. `skipped_thin_data` stays the
         # sum so the published == compared + token + absent + thin
         # identity and every reader of it are unchanged.
@@ -303,5 +436,14 @@ def measure_surfaces(Xs, Xg, bp, gid_series, k) -> Dict[str, Any]:
                 "tables, source cells under k patients removed, "
                 "gap in units of the child's source spread. "
                 "Nothing above two-way is measured, because the "
-                "engine publishes nothing above two-way.",
+                "engine publishes nothing above two-way. A "
+                "surface whose own sampling noise reaches the "
+                "bar is NOT READABLE - counted in neither "
+                "tracked nor departed, and named with the noise "
+                "floor that made it so. The identity is "
+                "published == compared + not_readable + token + "
+                "absent + thin. The per-cell ROW COUNTS behind "
+                "that floor are NOT published: a 3x3 cell is a "
+                "small group of patients, and this module "
+                "publishes distances and column names only.",
     }

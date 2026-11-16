@@ -411,8 +411,18 @@ def build_signoff(run_dir):
          str(s.get("pairs_inverted"))),
         ("effect-curve shapes tracked",
          frac(s.get("shapes_ok"), s.get("shapes_compared"))),
+        # THE DENOMINATOR MOVES WHEN A SURFACE IS NOT READABLE, so
+        # the count has to travel with the fraction. This project
+        # has three times drawn a conclusion from a percentage
+        # whose denominator moved, and a sign-off page is the last
+        # place to hand somebody one.
         ("interaction surfaces tracked",
-         frac(s.get("surfaces_ok"), s.get("surfaces_compared"))),
+         frac(s.get("surfaces_ok"), s.get("surfaces_compared"))
+         + ("  ({} further surface(s) NOT READABLE - their own "
+            "sampling noise reaches the bar, which is about how "
+            "many rows fill their cells rather than about the "
+            "synthetic data)".format(s.get("surfaces_not_readable"))
+            if s.get("surfaces_not_readable") else "")),
         ("set token shares at source frequency",
          frac(s.get("set_tokens_ok"),
               s.get("set_tokens_compared"))),
