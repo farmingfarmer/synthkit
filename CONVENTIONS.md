@@ -3,6 +3,81 @@
 Synthetic clinical data generator and model-evaluation instrument. Core rule: learn the patterns, never copy the records. Real data teaches parameters; generation never touches a record.
 
 ## Verify before claiming
+- **THE UNDER-REPRODUCTION IS NOT IN GENERATION: SIX OF THE ELEVEN
+  SHAPE MISSES ARE THE CONTRACT'S AND ONE IS THE SAMPLER'S
+  (2026-11-16, run_shapefix, nonce-verified read).** Sent to chase
+  it into the engine, and the engine is largely innocent. Every
+  recorded gap was reproduced before any verdict printed, and the
+  split reads:
+      CONTRACT   6
+      BOTH       4
+      SAMPLER    1
+      ------------
+      total     11
+  The one sampler fault is `4544_3 <- 787_2`, AMPLIFIED. All three
+  age misses on `year_of_birth` / `age_at_visit` are CONTRACT;
+  `temperature_oral <- visit_start_date` is BOTH.
+- **THE THIRD CURVE IS WHAT NOBODY WAS LOOKING AT, and it settles
+  it.** The criterion compares the source's measured conditional
+  mean against the generated one. The PUBLISHED curve sits between
+  them, and `_apply_numeric` applies it whenever every parent it
+  was conditioned on is present:
+      height <- year_of_birth
+        source measured     1.1703 sd
+        PUBLISHED            0.2926 sd
+        generated measured   0.3150 sd
+      body_mass_index_measured <- year_of_birth
+        source measured     1.5717 sd
+        PUBLISHED            0.1234 sd
+        generated measured   0.2468 sd
+  **The sampler is out by 0.022 sd and the contract by 0.878** on
+  the first - so 97% of that gap is a curve that was already too
+  flat, faithfully applied. The raw published spans are 6.5473 and
+  3.959 against child spreads of 22.3753 and 32.0933, which is
+  where those sd figures come from.
+- **AND THE CAUSE IS PARTIAL AGAINST MARGINAL, with the collinearity
+  as the multiplier.** Discovery publishes a PARTIAL DEPENDENCE
+  curve - the effect of a parent with the co-parents held - and the
+  criterion measures the MARGINAL conditional mean, which carries
+  the effect transmitted through correlated co-parents as well.
+  `height` has BOTH age parents and they sit at **rho 0.9563**, so
+  holding one nearly removes the other's variation and the partial
+  curve is a fraction of the marginal. This file already records
+  the sign version of this ("a partial-dependence curve is
+  CONDITIONAL on the other parents, and with correlated columns
+  that can flip its sign"); this is the MAGNITUDE version, and it
+  is the dominant term in the shape criterion.
+- **THE DATA TO FIX IT IS ALREADY PUBLISHED AND BOTH CANDIDATES ARE
+  WRONG ALONE, which is why this is named rather than built.** Each
+  parent also carries an `alone` curve, used today only when a
+  cycle trimmed the co-parents away:
+      height <- year_of_birth   conditional 0.2926   alone 3.4867
+      height <- age_at_visit    conditional 0.0973   alone 1.1086
+      bmi    <- year_of_birth   conditional 0.1234   alone 5.3759
+  The source's marginal sits BETWEEN them - 1.1703 against 0.2926
+  and 3.4867 - so the conditional is about 4x too flat and the
+  alone about 3x too steep, and swapping one for the other would
+  trade an undershoot for an overshoot while DOUBLE COUNTING the
+  shared path. The principled form is a solve: choose per-parent
+  weights so the MARGINAL conditional means land, given the
+  parents' own correlation matrix - `v = R^-1 q`, the whitened
+  solve this file already records as six times tighter for
+  cross-table couplings and as the wrong tool for a set
+  rearrangement. A design with a reason is not a measurement, so it
+  is the next piece of work with its shape stated.
+- **AND TWO MECHANISMS DIED BY MEASUREMENT ON THE WAY THERE, both
+  cheap.** The CYCLIC REFINEMENT SWEEP was the obvious suspect -
+  all four age columns are cyclic, and the sweep rank-maps a column
+  onto its marginal's sorted values at the ranks of
+  `mean + systematic + shrink*noise`, so the noise in that ordering
+  looked like the attenuator. Measured over nine cells of curve
+  amplitude against shrink, the rank map **AMPLIFIES**: ratios 0.94
+  to 2.34, because it rescales onto the marginal's spread rather
+  than compressing. And the contract's own
+  `reverses_when_controlled` flag - which named the worst miss -
+  describes the MODEL and not the OUTPUT: REVERSED is zero on all
+  eleven. Two suspects, two refutations, no code written for
+  either.
 - **THE AGE CURVES MISS BY UNDER-REPRODUCING THEIR BEND, NOT BY
   REVERSING IT - AND MY PREDICTION OF A REVERSAL IS REFUTED
   (2026-11-16, run_shapefix, verified read).** Every recorded gap
