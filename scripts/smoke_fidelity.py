@@ -1030,8 +1030,11 @@ def main():
     _flat = _mk9(_r9.normal(float(_srcU["y"].mean()),
                             float(_srcU["y"].std()), _n9))
     _bp9 = {"relationships": [{"child": "y", "parents": ["x"],
-            "evidence": {"effect": {"x": {"grid_kind":
-                                          "numeric"}}}}]}
+            "evidence": {"effect": {"x": {
+                "grid_kind": "numeric",
+                "grid": [0.05, 0.5, 0.95],
+                "response": [1.8, 0.0, 1.8],
+                "shape": "U-shaped"}}}}]}
     _kept9 = _cc.measure_shapes(_srcU, _srcU.copy(), _bp9,
                                 _srcU["pid"], 10)
     _lost9 = _cc.measure_shapes(_srcU, _flat, _bp9,

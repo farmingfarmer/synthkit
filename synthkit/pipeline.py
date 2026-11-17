@@ -2946,6 +2946,18 @@ def compare(df, g, bp, group_by, time_col, ordinals=None,
             # neither, and a criterion that silently narrows its
             # own denominator reads as every surface being fine.
             "surfaces_not_readable": surfaces.get("not_readable"),
+            # THE SHAPE CRITERION'S OWN TOTAL AND SKIPS. It read
+            # 6/9 on an extract publishing 281 curves, with no
+            # total - 3.2% of the contract reported as a
+            # proportion of itself.
+            "shapes_published": shapes.get("published"),
+            "shapes_not_readable": shapes.get("not_readable"),
+            "shapes_skipped_scaffolding": shapes.get(
+                "skipped_scaffolding"),
+            "shapes_skipped_thin_rows": shapes.get(
+                "skipped_thin_rows"),
+            "shapes_skipped_few_bins": shapes.get(
+                "skipped_few_bins"),
             "surfaces_own_compared": surfaces.get("compared_own"),
             "surfaces_own_ok": surfaces.get("tracked_own"),
             "surfaces_scaffold": surfaces.get("compared_scaffold"),

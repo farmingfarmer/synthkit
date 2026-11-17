@@ -137,10 +137,27 @@ def _numeric(series):
     return pd.to_numeric(series.replace("", None), errors="coerce")
 
 
-def cond_curve(parent, child, gid_series, k, nbins=12):
+def cond_curve(parent, child, gid_series, k, nbins=12,
+               with_counts=False):
     """Binned conditional mean of child on parent - the measured
     SHAPE of the relationship. On the source, bins backed by fewer
-    than k patients are suppressed, the same rule as everywhere."""
+    than k patients are suppressed, the same rule as everywhere.
+
+    `with_counts` returns (x, y, rows, sd) instead of (x, y). It is
+    OPT-IN because four callers outside this module unpack the
+    pair, and a silently widened tuple would break them at a
+    different line.
+
+    THE ROWS AND THE WITHIN-BIN SPREAD ARE BOTH WHAT A NOISE FLOOR
+    NEEDS, and the spread is the half that is easy to leave out. A
+    bin mean's own sampling error is its WITHIN-bin sd over
+    sqrt(rows), not the column's total sd - and on a strong
+    relationship those differ by a lot, because most of the total
+    spread is the signal the curve is describing. Fitting a floor
+    against the total sd gave a constant running 0.61 on a straight
+    line to 2.50 on a flat curve, a factor of four that is entirely
+    this confusion; against the within-bin spread it is one number.
+    """
     import numpy as np
     ok = parent.notna() & child.notna()
     x = parent[ok].to_numpy(dtype=float)
@@ -160,7 +177,12 @@ def cond_curve(parent, child, gid_series, k, nbins=12):
             g = gid_series[ok][m]
             if g.nunique() < k:
                 continue
-        pts.append((float(x[m].mean()), float(y[m].mean())))
+        pts.append((float(x[m].mean()), float(y[m].mean()),
+                    int(m.sum()),
+                    float(np.std(y[m], ddof=1))
+                    if int(m.sum()) > 1 else 0.0)
+                   if with_counts
+                   else (float(x[m].mean()), float(y[m].mean())))
     return pts
 
 
@@ -191,54 +213,244 @@ def shape_gap(vs_p, vs_c, vg_p, vg_c, gid_series, k):
     return gap, sp, gp
 
 
+# A CURVE NEEDS ROWS, NOT A PRESENCE SHARE.
+#
+# `measure_shapes` skipped a claim whose child or parent was
+# present on under half the rows - a SHARE, where this file has
+# recorded five times that a column whose present values are
+# numbers is numeric however often it is present and that a model
+# needs ROWS. On the real extract 20 of 33 numeric columns are
+# partially covered and the invasive pressures sit on 113 rows, so
+# the sparse half of the file was silently not graded: the
+# criterion read `6/9` out of 281 PUBLISHED curves, 3.2% of the
+# contract, with no total and no skip reasons - the same
+# measuring-too-little fault the surface criterion was fixed for.
+#
+# The floor below is measured on HALVES of the source, so each
+# half has to be binnable at all: `cond_curve` refuses under 60
+# rows, hence 120.
+SHAPE_MIN_ROWS = 120
+
+
+SHAPE_FLOOR_SPLITS = 5
+
+
+def curve_floor(vs_p, vs_c, gid_series, k, seed=0,
+                splits=SHAPE_FLOOR_SPLITS):
+    """What gap would a FAITHFUL output read on THIS curve?
+
+    Not a fitted constant - the curve's own noise, measured the way
+    this project measures every other ceiling: split the SOURCE by
+    PATIENT, put one half in as the source and the other as the
+    generated table, and run the same `shape_gap`. Nothing is
+    generated, so whatever it reads is sampling noise on this
+    column, this relationship, these bins.
+
+    WHY NOT A LAW. One was fitted first and abandoned. Against the
+    child's total spread the constant ran 0.61 on a straight line
+    to 2.50 on a flat curve - a factor of four that is entirely the
+    confusion between a column's total spread and the WITHIN-bin
+    spread that sets a bin mean's error. Against the within-bin
+    spread six shapes agreed at 1.4 to 2.1 and a THRESHOLD read
+    4.5, because `shape_gap` interpolates the generated curve at
+    the source bin's own x-mean and that x jitters - on a step the
+    local slope turns a small x error into a large y one. Adding a
+    slope term overcorrected to 0.40 to 1.99. The measured floor
+    carries interpolation, slope, skew, heteroscedasticity and bin
+    straddling for free, because it IS the same computation.
+
+    AND IT IS DELIBERATELY NOT CORRECTED FOR THE HALVING. Two
+    halves carry sqrt(2) more noise than two full-size tables, so
+    this reads about 1.4x high - validated against an independent
+    faithful draw at full size on eight shapes, where
+    floor/sqrt(2) predicted the real gap within 0.86 to 1.39 on 14
+    of 16 cells. Leaving the sqrt(2) in is the conservative
+    direction, and a floor slightly too generous marks a curve
+    unreadable where a floor too tight reports noise as a finding -
+    the second is the worse error.
+
+    AND IT IS AVERAGED OVER SEVERAL SPLITS, because one split's
+    max-over-bins is itself a noisy statistic and this number
+    decides whether a curve can be judged at all. Measured on one
+    U-shape, a single split read 0.2335 at 300 rows and 0.3056 at
+    600 - the wrong way round, and either side of the bar. A floor
+    that flickers across the bar hands the verdict to the draw,
+    which is the fault it exists to remove.
+
+    Returns None when NO split could be binned, which is its own
+    answer and not a floor of zero.
+    """
+    import numpy as np
+    ok = vs_p.notna() & vs_c.notna()
+    if int(ok.sum()) < SHAPE_MIN_ROWS:
+        return None
+    # BY PATIENT, never by row: a row split puts the same person on
+    # both sides, so the agreement measured is the same records
+    # twice and the floor reads too SMALL - which is the unsafe
+    # direction, because it would let noise be called a finding.
+    g = ids = None
+    n_ok = int(ok.sum())
+    if gid_series is not None:
+        g = gid_series[ok].astype(str).to_numpy()
+        ids = np.unique(g)
+    # No grouping column means every row is its own entity, so a
+    # row split IS a patient split there.
+    got = []
+    for i in range(max(1, int(splits))):
+        if gid_series is not None:
+            pick = np.random.default_rng(seed + i).permutation(
+                len(ids))
+            left = set(ids[pick[: len(ids) // 2]])
+            m = np.asarray([x in left for x in g])
+        else:
+            m = np.zeros(n_ok, dtype=bool)
+            m[np.random.default_rng(seed + i).permutation(
+                n_ok)[: n_ok // 2]] = True
+        r = shape_gap(vs_p[ok][m], vs_c[ok][m],
+                      vs_p[ok][~m], vs_c[ok][~m], None, k)
+        if r is not None:
+            got.append(float(r[0]))
+    return (sum(got) / len(got)) if got else None
+
+
 def measure_shapes(Xs, Xg, bp, gid_series, k) -> Dict[str, Any]:
     """Every published effect curve, re-measured on both tables.
 
     Walks the blueprint's relationships; for each parent whose
     evidence carries a numeric effect curve, measures the
     conditional-mean shape on source and synthetic and records the
-    gap in units of the child's source spread. `tracks` is
-    gap <= 0.35 - the dashboard's own DEPARTS bar, promoted."""
+    gap in units of the child's source spread.
+
+    IT STATES ITS TOTAL AND COUNTS EVERY SKIP BY REASON. It used to
+    report `6/9` on an extract publishing 281 curves - 3.2% of the
+    contract - with no total, so a reader had no way to learn that
+    272 were never looked at. That is the same fault the surface
+    criterion was fixed for, and the identity
+
+        published == compared + not_readable + the skip buckets
+
+    is the fix it got. A category with no count is invisible.
+
+    `tracks` is the gap inside the greater of 0.35 - the
+    dashboard's own DEPARTS bar - and twice this curve's OWN
+    measured sampling noise. A curve whose noise reaches the bar is
+    NOT READABLE: counted in neither side, because calling it
+    departed manufactures a finding and calling it tracked
+    manufactures a pass."""
     from synthkit import sets as _sets
     rows: List[Dict[str, Any]] = []
+    unreadable: List[Dict[str, Any]] = []
+    published = 0
+    skipped_scaffold = 0
+    skipped_absent = 0
+    skipped_thin_rows = 0
+    skipped_few_bins = 0
+    not_readable = 0
+    no_curve = 0
     for rel in (bp.get("relationships") or []):
         child = rel.get("child")
         ev = rel.get("evidence") or {}
         eff = ev.get("effect") or {}
-        if (not child or child not in Xs.columns
-                or child not in Xg.columns
-                or _sets.is_scaffolding(child)):
-            continue
-        vs_c = _numeric(Xs[child])
-        vg_c = _numeric(Xg[child])
-        if vs_c.notna().mean() < 0.5:
-            continue
         for par, e in eff.items():
-            if (par not in Xs.columns or par not in Xg.columns
-                    or _sets.is_scaffolding(par)):
-                continue
             if (e.get("grid_kind") or "numeric") != "numeric":
                 continue
+            if not e.get("grid"):
+                # A PARENT THE CONTRACT NAMES AND PUBLISHES NO
+                # CURVE FOR is not a published curve, so it is not
+                # in this population at all - `discover` skips a
+                # curve whose grid collapses and `blueprint` lists
+                # the parent anyway, which `peek curves` reports.
+                # Counted OUTSIDE the identity rather than dropped
+                # in silence, because a category with no count is
+                # invisible and this one is already on the record.
+                no_curve += 1
+                continue
+            published += 1
+            # SCAFFOLDING IS REFUSED BY NAME, and that is this
+            # measure's own policy rather than a shared one: the
+            # surface measure GRADES such columns, which is most of
+            # why `shapes tracked 6/9` and `interaction surfaces
+            # 15/50` have always looked like answers to one
+            # question. Both policies are defensible; only the
+            # silence was not.
+            if (not child or _sets.is_scaffolding(child)
+                    or _sets.is_scaffolding(par)):
+                skipped_scaffold += 1
+                continue
+            if (child not in Xs.columns or child not in Xg.columns
+                    or par not in Xs.columns
+                    or par not in Xg.columns):
+                skipped_absent += 1
+                continue
+            vs_c = _numeric(Xs[child])
+            vg_c = _numeric(Xg[child])
             vs_p = _numeric(Xs[par])
-            if vs_p.notna().mean() < 0.5:
+            # ROWS, NOT A PRESENCE SHARE - the sixth instance of
+            # that fault on this file.
+            both = int((vs_p.notna() & vs_c.notna()).sum())
+            if both < SHAPE_MIN_ROWS:
+                skipped_thin_rows += 1
                 continue
             r = shape_gap(vs_p, vs_c, _numeric(Xg[par]), vg_c,
                           gid_series, k)
             if r is None:
+                skipped_few_bins += 1
                 continue
             gap, _, _ = r
+            floor = curve_floor(vs_p, vs_c, gid_series, k)
+            if floor is None or floor >= TRACK_SD:
+                # NO POWER IS ITS OWN ANSWER - not clean, not a
+                # finding. A floor of None means the halves could
+                # not be binned, which is the same verdict for the
+                # same reason rather than a floor of zero.
+                not_readable += 1
+                unreadable.append({
+                    "child": child, "parent": par,
+                    "shape": e.get("shape") or "association",
+                    "rows": both,
+                    "noise_floor_sd": (None if floor is None
+                                       else round(floor, 4))})
+                continue
+            bar = max(TRACK_SD, 2.0 * floor)
             rows.append({"child": child, "parent": par,
                          "shape": e.get("shape") or "association",
                          "gap_sd": round(gap, 4),
-                         "tracks": gap <= TRACK_SD})
+                         "noise_floor_sd": round(floor, 4),
+                         "bar_sd": round(bar, 4),
+                         "tracks": gap <= bar})
     return {
         "claims": rows,
         "compared": len(rows),
         "tracked": sum(1 for r in rows if r["tracks"]),
+        # THE TOTAL A READER CAN CHECK AGAINST. Without it `6/9`
+        # reads as 67% of the contract when it was 3.2% of it.
+        "published": published,
+        "not_readable": not_readable,
+        "unreadable": unreadable,
+        "skipped_scaffolding": skipped_scaffold,
+        "skipped_absent_columns": skipped_absent,
+        "skipped_thin_rows": skipped_thin_rows,
+        "skipped_few_bins": skipped_few_bins,
+        # OUTSIDE the identity on purpose: these are parents the
+        # contract names and publishes no curve for, so they are
+        # not published curves to grade.
+        "parents_without_a_curve": no_curve,
         "note": "Each published effect curve re-measured as a "
                 "binned conditional mean on both tables; gap is the "
                 "largest vertical distance over the overlapping "
-                "range, in units of the child's source spread. "
+                "range, in units of the child's source spread. A "
+                "curve whose OWN sampling noise - measured by "
+                "splitting the source by patient and comparing it "
+                "against itself - reaches the bar is NOT READABLE, "
+                "counted in neither side. The identity is "
+                "published == compared + not_readable + "
+                "skipped_scaffolding + skipped_absent_columns + "
+                "skipped_thin_rows + skipped_few_bins, so a "
+                "category with no count cannot hide. Scaffolding "
+                "is refused BY NAME here, which is this measure's "
+                "own policy and NOT the surface measure's - that "
+                "one grades such columns, and the difference is "
+                "most of why the two criteria read so differently. "
                 "tracks means gap <= {} - the dashboard's DEPARTS "
                 "bar. Rank correlation cannot see a U-shape; this "
                 "can.".format(TRACK_SD),

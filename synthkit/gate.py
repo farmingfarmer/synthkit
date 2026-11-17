@@ -178,10 +178,44 @@ def assess(fid: Dict[str, Any],
     # invisible to `close`; these two see what it cannot.
     sh_n, sh_d = s.get("shapes_ok"), s.get("shapes_compared")
     if sh_d:
+        # THE TOTAL A READER CAN CHECK AGAINST, and the skips by
+        # reason. This line read `6/9` on an extract publishing 281
+        # curves - 3.2% of the contract, reported as a proportion
+        # of itself, with nothing saying 272 were never looked at.
+        # The surface criterion was fixed for exactly that and this
+        # one never was.
+        sh_pub = s.get("shapes_published")
+        sh_ur = s.get("shapes_not_readable") or 0
+        sh_sc = s.get("shapes_skipped_scaffolding") or 0
+        sh_tr = s.get("shapes_skipped_thin_rows") or 0
+        sh_fb = s.get("shapes_skipped_few_bins") or 0
+        _sh_tot = ""
+        if sh_pub:
+            _bits = []
+            if sh_ur:
+                _bits.append(
+                    "{} NOT READABLE - their own sampling noise "
+                    "reaches the bar".format(sh_ur))
+            if sh_sc:
+                _bits.append(
+                    "{} on set-token scaffolding the reader never "
+                    "receives".format(sh_sc))
+            if sh_tr:
+                _bits.append(
+                    "{} on too few rows to bin".format(sh_tr))
+            if sh_fb:
+                _bits.append(
+                    "{} with too few bins on one side".format(
+                        sh_fb))
+            _sh_tot = ("  [GRADED {} of {} curves the contract "
+                       "PUBLISHES{}]".format(
+                           sh_d, sh_pub,
+                           "; " + "; ".join(_bits) if _bits
+                           else ""))
         add("shapes tracked", sh_n == sh_d,
             "{}/{} effect curves within 0.35 sd - what `close` "
             "cannot see: a U-shape has no rank "
-            "correlation".format(sh_n, sh_d))
+            "correlation{}".format(sh_n, sh_d, _sh_tot))
     su_n, su_d = s.get("surfaces_ok"), s.get("surfaces_compared")
     # A SURFACE WHOSE OWN NOISE REACHES THE BAR IS NOT READABLE, and
     # the line SAYS SO - absent, never false, on an older run that

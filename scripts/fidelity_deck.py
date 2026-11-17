@@ -649,12 +649,57 @@ def gate_issues_html(fid, verdict, bp=None):
                           .get("claims") or []
                           if not r.get("tracks")],
                          key=lambda r: -(r.get("gap_sd") or 0))
+            _shb = (fid.get("shapes") or {})
+            _shu = sorted(_shb.get("unreadable") or [],
+                          key=lambda r: -(r.get("noise_floor_sd")
+                                          or 0))
             parts.append(
                 '<p class="note">Curves whose SHAPE departed by '
-                'more than 0.35 of the child\'s own spread - '
-                'drift the rank correlation cannot see. The '
-                'pattern cards below draw the strongest of these '
-                'as gray-vs-cardinal curves.</p>')
+                'more than 0.35 of the child\'s own spread - or '
+                'by more than twice that curve\'s own sampling '
+                'noise where its bins are thin, whichever is '
+                'larger - drift the rank correlation cannot see. '
+                'The pattern cards below draw the strongest of '
+                'these as gray-vs-cardinal curves.</p>')
+            if _shb.get("published"):
+                parts.append(
+                    '<p class="note">This criterion GRADED '
+                    '<b>{}</b> of the <b>{}</b> effect curves the '
+                    'contract publishes. The rest are counted by '
+                    'reason in the run\'s own fidelity.json - '
+                    'scaffolding the reader never receives, too '
+                    'few rows to bin, too few bins on one side - '
+                    'because a criterion that reports a '
+                    'proportion of what it happened to look at '
+                    'reads as a proportion of the contract.</p>'
+                    .format(_shb.get("compared"),
+                            _shb.get("published")))
+            if _shu:
+                parts.append(
+                    '<p class="note"><b>{} curve(s) are NOT '
+                    'READABLE</b> and are counted in neither side '
+                    'of that criterion: splitting the SOURCE by '
+                    'patient and comparing it against itself '
+                    'already reads a gap at or above the bar, so '
+                    'a faithful generator would fail them too. '
+                    'That is a statement about how many rows fill '
+                    'their bins, NOT about the synthetic '
+                    'data.</p>'.format(len(_shu)))
+                parts.append(
+                    '<table><tr><th>relationship</th>'
+                    '<th>shape</th><th>rows</th>'
+                    '<th>noise floor (sd)</th></tr>'
+                    + "".join(
+                        '<tr><td>{} &larr; {}</td><td>{}</td>'
+                        '<td class="num">{}</td>'
+                        '<td class="num">{}</td></tr>'.format(
+                            esc(r["child"]), esc(r["parent"]),
+                            esc(r.get("shape") or ""),
+                            r.get("rows"),
+                            "-" if r.get("noise_floor_sd") is None
+                            else "{:.2f}".format(
+                                r["noise_floor_sd"]))
+                        for r in _shu) + "</table>")
             parts.append(
                 '<table><tr><th>relationship</th><th>shape</th>'
                 '<th>gap (sd)</th></tr>'

@@ -409,8 +409,19 @@ def build_signoff(run_dir):
          frac(s.get("pairs_close"), s.get("pairs"))),
         ("inverted relationships",
          str(s.get("pairs_inverted"))),
+        # THE DENOMINATOR IS NOT THE CONTRACT, and a sign-off page
+        # is the last place to imply it is: this read 6/9 on an
+        # extract publishing 281 curves.
         ("effect-curve shapes tracked",
-         frac(s.get("shapes_ok"), s.get("shapes_compared"))),
+         frac(s.get("shapes_ok"), s.get("shapes_compared"))
+         + ("  (graded {} of the {} curves the contract "
+            "publishes{})".format(
+                s.get("shapes_compared"), s.get("shapes_published"),
+                "; {} NOT READABLE - their own sampling noise "
+                "reaches the bar".format(
+                    s.get("shapes_not_readable"))
+                if s.get("shapes_not_readable") else "")
+            if s.get("shapes_published") else "")),
         # THE DENOMINATOR MOVES WHEN A SURFACE IS NOT READABLE, so
         # the count has to travel with the fraction. This project
         # has three times drawn a conclusion from a percentage

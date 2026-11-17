@@ -3,6 +3,95 @@
 Synthetic clinical data generator and model-evaluation instrument. Core rule: learn the patterns, never copy the records. Real data teaches parameters; generation never touches a record.
 
 ## Verify before claiming
+- **THE SHAPE CRITERION IS FIXED, AND THE FLOOR HAD TO BE MEASURED
+  BECAUSE EVERY LAW I FITTED FOR IT WAS WRONG (2026-11-16).** The
+  entry above measured the fault: `shapes tracked 6/9` was nine of
+  **281** published curves, with no total, no skip reasons, and a
+  presence-SHARE gate dropping anything under half-covered - the
+  sixth instance of that fault on this file. The order was stated
+  before building and kept: the power screen FIRST, because
+  correcting the gate without one grades 281 curves on an extract
+  whose thin end is 113 rows and manufactures findings exactly
+  there.
+- **AND A FITTED LAW DIED TWICE, WHICH IS WHY THE FLOOR IS
+  MEASURED INSTEAD.** The surface floor is `c*sqrt(1/n+1/n)` with c
+  fitted across shapes, so the same was tried here over seven
+  shapes at four sizes:
+      normalised by          c range
+      the child's TOTAL sd   0.61 to 2.50
+      the WITHIN-bin sd      1.36 to 4.51
+      ...plus a slope term   0.40 to 1.99
+  **The first factor of four is entirely the confusion between a
+  column's total spread and the WITHIN-bin spread that actually
+  sets a bin mean's error** - on a straight line nearly all the
+  total spread is the signal the curve describes. Fixing that left
+  six shapes agreeing at 1.36 to 2.12 and a THRESHOLD reading
+  4.51, because `shape_gap` interpolates the generated curve at the
+  SOURCE bin's own x-mean and that x jitters: on a step the local
+  slope turns a small x error into a large y one. A slope term
+  overcorrected the other way. Three attempts, no stable constant.
+- **SO THE FLOOR IS THE CURVE'S OWN SPLIT-HALF GAP, measured the
+  way this project measures every other ceiling.** Split the SOURCE
+  by PATIENT, put one half in as the source and the other as the
+  generated table, run the SAME `shape_gap`. Nothing is generated,
+  so whatever it reads is this curve's own sampling noise - and it
+  carries interpolation, slope, skew, heteroscedasticity and bin
+  straddling for free, because it IS the same computation. No
+  constant to fit at all.
+- **AND IT IS VALIDATED AGAINST AN INDEPENDENT FAITHFUL DRAW AT
+  FULL SIZE, which is the step that makes it a floor rather than a
+  number.** Two halves carry sqrt(2) more noise than two full-size
+  tables, so the split-half reading runs about 1.4x high. Over
+  eight shapes at two sizes, `floor/sqrt(2)` against the gap a
+  genuinely independent same-size draw reads:
+      ratio within 0.86 to 1.39 on 14 of 16 cells
+      the outlier: a hard STEP at 2.28
+  **The sqrt(2) is deliberately LEFT IN**, because a floor slightly
+  too generous marks a curve unreadable where a floor too tight
+  reports noise as a finding, and the second is the worse error -
+  the same reasoning that took the conservative end of the surface
+  constant. The step is NAMED rather than absorbed: there the
+  faithful gap does not fall with rows at all, because two
+  independent tables bin a discontinuity in different places, and
+  no floor derived from the source alone can see that.
+- **AVERAGED OVER FIVE SPLITS, because one split's max-over-bins
+  is itself a noisy statistic and this number decides whether a
+  curve can be judged.** A single split read **0.2335 at 300 rows
+  and 0.3056 at 600** - the wrong way round, and either side of the
+  bar. Averaged, the floor is monotone in rows (0.26 at 300, 0.03
+  at 30,000) and the mutation back to one split turns three checks
+  red.
+- **THE WIDE COHORT IS UNTOUCHED, asserted rather than argued.**
+  Where the bins are well populated the floor is a fraction of the
+  bar and the effective bar is **exactly 0.3500**, with a kept
+  curve TRACKING and a flattened one DEPARTING above 1.0 sd. A
+  screen that bought its quiet by making the criterion unable to
+  fail would be worse than the gate it replaced.
+- **AND THE CRITERION NOW STATES ITS TOTAL AND COUNTS EVERY SKIP BY
+  REASON**, which is the half a reader needs most: `published ==
+  compared + not_readable + scaffolding + absent + thin_rows +
+  few_bins`, held as an identity, with the gate line reading
+  `GRADED 9 of 281 curves the contract PUBLISHES` and naming each
+  bucket. A parent the contract NAMES and publishes no curve for is
+  counted OUTSIDE that identity, because it is not a curve to grade
+  - `peek curves` is where those live - and counting it inside
+  would have made the total wrong in the other direction.
+- **AND THE GATE LINE, THE DECK AND THE SIGN-OFF PAGE ALL SAY IT.**
+  The sign-off's row read `6/9` with no denominator but its own, on
+  a page somebody signs; it now carries `graded 9 of the 281 curves
+  the contract publishes` and the not-readable count. A correction
+  that reaches the measure and not the line a reader sees has not
+  been delivered.
+- **TWO MUTATIONS FOUND NOTHING UNTIL THE FIXTURE REACHED THEM, and
+  both are the recorded shape.** Judging on the fixed 0.35 alone
+  broke no check until a construction was SEARCHED FOR whose gap
+  sits between the bar and twice its own floor - 49 of them exist
+  at 240 rows, and without one the second rule is asserted rather
+  than exercised. And the NOT READABLE fixture at 150 rows fires on
+  only 7 of 8 seeds, so the size was searched too: 126 rows reads
+  0.402 to 0.530 on 8 of 8 and is still above the rows gate, so the
+  curve reaches the FLOOR rather than being skipped for rows -
+  which is a different branch wearing the same verdict.
 - **AND `shapes tracked 6/9` IS NINE OF TWO HUNDRED AND
   EIGHTY-ONE PUBLISHED CURVES, WITH NO TOTAL AND NO SKIP REASONS
   (2026-11-16, run_tail_split).** Read off the run's own artifacts,
