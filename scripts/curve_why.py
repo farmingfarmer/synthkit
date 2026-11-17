@@ -77,6 +77,42 @@ def _say(n):
     return annotate(str(n))
 
 
+def blame(src_span, pub_span, gen_span, flat=FLAT):
+    """CONTRACT or SAMPLER - whose error is the gap?
+
+    THE THIRD CURVE IS THE ONE NOBODY WAS LOOKING AT. The criterion
+    compares the source's measured conditional mean against the
+    generated one, and the PUBLISHED curve sits between them: a
+    sampler faithfully applying a curve that is already too flat
+    reads as a generation fault and is not one. This project
+    already splits the marginal measure three ways for exactly
+    that reason - the grid against the source is the CONTRACT's
+    error, the grid against the output is the SAMPLER's, and they
+    take opposite fixes.
+
+    Measured on the real extract for `height <- year_of_birth`:
+    source 1.1703 sd, published 0.2926, generated 0.3150. The
+    sampler is out by 0.022 and the contract by 0.878 - so 97% of
+    that gap is the published curve.
+
+    A PURE FUNCTION, because the whole point is which half of the
+    codebase to go and work on.
+    """
+    if pub_span is None:
+        return "UNSPLIT"
+    c_err = abs(src_span - pub_span)
+    s_err = abs(gen_span - pub_span)
+    if c_err < flat and s_err < flat:
+        return "NEITHER"
+    # Whichever error dominates, with a tie reported rather than
+    # assigned - a blame guessed is worse than one withheld.
+    if c_err > 2.0 * s_err:
+        return "CONTRACT"
+    if s_err > 2.0 * c_err:
+        return "SAMPLER"
+    return "BOTH"
+
+
 def classify(src_travel, gen_travel, level_gap, reverses,
              max_coparent_r, src_span=None, gen_span=None,
              flat=FLAT):
@@ -266,6 +302,7 @@ def main(argv):
             ev[(ch, p)] = (e or {}, rel.get("parents") or [])
 
     tally = {}
+    blm = {}
     for c in bad:
         ch, par = c["child"], c["parent"]
         e, parents = ev.get((ch, par), ({}, []))
@@ -299,6 +336,13 @@ def main(argv):
             if worst_r is None or r > worst_r:
                 worst_r, worst_c = r, q
         rev = bool(e.get("reverses_when_controlled"))
+        # THE PUBLISHED CURVE, in the child's own spread - the
+        # third curve, and the one that decides whose error this
+        # is. `response` is what `_apply_numeric` applies whenever
+        # every parent it was conditioned on is present.
+        _resp = e.get("response") or []
+        pub = ((float(max(_resp)) - float(min(_resp))) / sd
+               if len(_resp) >= 2 else None)
         _rg = shape_gap(vs_p, vs_c, vg_p, vg_c, gid, 10)
         mine = None if _rg is None else float(_rg[0])
         rec = c.get("gap_sd")
@@ -321,6 +365,7 @@ def main(argv):
             continue
         v = classify(st, gt, lvl, rev, worst_r,
                      src_span=ssp, gen_span=gsp)
+        wh = blame(ssp, pub, gsp)
         tally[v] = tally.get(v, 0) + 1
         print("{} <- {}".format(ch, par))
         print("  gap {} sd   published shape {}".format(
@@ -340,9 +385,24 @@ def main(argv):
                   .format(worst_c, _say(round(worst_r, 4))))
         else:
             print("  no co-parent to be collinear with")
-        print("  -> {}".format(v))
+        if pub is not None:
+            print("  published curve span {} sd - what the "
+                  "contract asked generation for".format(
+                      _say(round(pub, 4))))
+            print("  so the CONTRACT is out by {} and the SAMPLER "
+                  "by {}".format(_say(round(abs(ssp - pub), 4)),
+                                 _say(round(abs(gsp - pub), 4))))
+        print("  -> {}  ({})".format(v, wh))
+        blm[wh] = blm.get(wh, 0) + 1
         print()
 
+    print("WHOSE ERROR, COUNTED - the published curve sits "
+          "between the two the criterion compares, and a sampler "
+          "faithfully applying a curve that is already too flat "
+          "reads as a generation fault:")
+    for kind, n in sorted(blm.items(), key=lambda kv: -kv[1]):
+        print("  {:<10} {}".format(kind, _say(n)))
+    print()
     print("MECHANISMS, COUNTED - a list of eleven magnitudes is "
           "not a diagnosis:")
     for kind, n in sorted(tally.items(), key=lambda kv: -kv[1]):
