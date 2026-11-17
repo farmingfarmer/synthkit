@@ -3,6 +3,73 @@
 Synthetic clinical data generator and model-evaluation instrument. Core rule: learn the patterns, never copy the records. Real data teaches parameters; generation never touches a record.
 
 ## Verify before claiming
+- **THE FIX FOUND THE BIGGEST SHAPE DEPARTURE ON THE EXTRACT, AND
+  THE OLD CRITERION COULD NOT SEE IT (2026-11-16, run_shapefix
+  against run_tail_ctl_current).** A re-measure of the SAME run -
+  no fit, no generate - through `regate`, with the build fetched by
+  SHA and the tree checked for the new constant first. Read back
+  SPELLED by the machine:
+      criterion                 before    after
+      curves PUBLISHED             281      281
+      curves GRADED                  9       42
+      tracked                        6       31
+      NOT READABLE                   -        0
+      skipped scaffolding            -      230
+      skipped too few rows           -        8
+      skipped too few bins           -        1
+  and the identity closes exactly: 42 + 0 + 230 + 0 + 8 + 1 = 281.
+  **The criterion grades 42 curves where it graded 9**, which is
+  4.7x the denominator, and reads 31 of 42 rather than 6 of 9.
+- **AND THE ELEVEN MISSES ARE NAMED IN FULL, which a count never
+  could be:**
+      body_mass_index_measured <- year_of_birth      1.3787
+      temperature_oral         <- visit_start_date   0.9772
+      height                   <- year_of_birth      0.8743
+      height                   <- age_at_visit       0.6477
+      span_days                <- condition_count    0.4870
+      condition_count          <- visit_start_date   0.4860
+      787_2                    <- 4544_3             0.4463
+      4544_3                   <- 787_2              0.4101
+      diastolic_blood_pressure <- systolic_blood_pressure 0.3742
+      718_7                    <- 787_2              0.3585
+      procedure_count          <- condition_count    0.3526
+- **THE WORST DEPARTURE IN THE WHOLE CONTRACT IS 1.3787 sd AND IT
+  WAS INVISIBLE, ON THE COLUMN THIS FILE ALREADY NAMES AS THE
+  PRESENCE-SHARE FAULT'S OWN VICTIM.**
+  `body_mass_index_measured` is present on **31%** of rows and
+  `height` on **46.6%** - this file records that exact number, for
+  that exact column, as the reason a `presence >= 0.5` gate once
+  sent height down the categorical branch and emptied it. The
+  shape criterion's share gate excluded all three by construction,
+  so the three misses it DID report were the three smallest on the
+  list and the 1.38 sd one was never looked at. A gate that hides
+  the largest finding is the measuring-too-little fault at its most
+  expensive.
+- **AND THEY CLUSTER ON AGE, which is a concentration worth
+  chasing rather than eleven separate faults.** `year_of_birth` is
+  the parent in two of the top three and `age_at_visit` in the
+  fourth, all with an anthropometric or vital child. Height and BMI
+  genuinely bend with age - children grow, the elderly shrink - so
+  a non-monotone age relationship the engine gets wrong by 0.65 to
+  1.38 sd is one mechanism showing up four times, and
+  `condition_count` (twice) is the second. Reported as a
+  concentration, not a diagnosis: nothing here says WHY.
+- **THE POWER SCREEN COSTS NOTHING ON THIS EXTRACT, AND THAT IS THE
+  RIGHT OUTCOME RATHER THAN A DISAPPOINTMENT.** NOT READABLE reads
+  ZERO: at 55,428 rows every curve that clears the rows gate has
+  bins populated enough for its own floor to sit well under the
+  bar. The screen exists for the thin end, the eight curves that
+  genuinely cannot be binned are named as such instead, and the
+  order the work was done in - floor first, gate second - is what
+  makes those 33 newly-graded curves findings rather than noise.
+- **WHAT IS NOT CLAIMED: that the criterion is closer to passing.**
+  It is a full-marks criterion, so 31 of 42 FAILS exactly as 6 of 9
+  did, and it now fails on eleven named misses instead of three. The
+  number did not improve and was never going to - this is what it
+  always was, measured on the whole contract instead of 3.2% of it.
+  Nor is the 230 scaffolding skip a defect: those curves are on
+  columns the reader never receives, and refusing them by name is
+  this measure's own policy.
 - **THE SHAPE CRITERION IS FIXED, AND THE FLOOR HAD TO BE MEASURED
   BECAUSE EVERY LAW I FITTED FOR IT WAS WRONG (2026-11-16).** The
   entry above measured the fault: `shapes tracked 6/9` was nine of
