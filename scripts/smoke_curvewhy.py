@@ -80,14 +80,41 @@ def main():
     # TRAVEL AND LEVEL ARE REPORTED APART, because a curve can
     # match in travel and miss by its level and those take
     # different fixes.
-    t, l = CW.curve_travel([(0.0, 1.0), (1.0, 2.0), (2.0, 5.0)])
-    check("travel is the signed first-to-last distance and level "
-          "is the mean, reported apart ({}, {})".format(t, l),
-          abs(t - 4.0) < 1e-9 and abs(l - (8.0 / 3.0)) < 1e-9)
+    t, l, sp_ = CW.curve_travel(
+        [(0.0, 1.0), (1.0, 2.0), (2.0, 5.0)])
+    check("net travel, level and span are three separate facts, "
+          "reported apart ({}, {}, {})".format(t, l, sp_),
+          abs(t - 4.0) < 1e-9 and abs(l - (8.0 / 3.0)) < 1e-9
+          and abs(sp_ - 4.0) < 1e-9)
+    # AN INVERTED-U IS WHERE THEY DISAGREE, and it is the case the
+    # first version got wrong: a published `inverted-u` read as
+    # barely moving because its NET travel is near zero.
+    t2, _, sp2 = CW.curve_travel(
+        [(0.0, 0.0), (1.0, 1.4), (2.0, 0.02)])
+    check("...and on a BEND they disagree completely - net travel "
+          "{:.3f} against a span of {:.3f} - which is why the "
+          "labels are judged on the span".format(t2, sp2),
+          abs(t2) < 0.05 and sp2 > 1.3)
     check("...and a curve of one point has NO travel rather than a "
           "travel of zero - a zero would read as a flat curve",
-          CW.curve_travel([(0.0, 1.0)]) == (None, None)
-          and CW.curve_travel([]) == (None, None))
+          CW.curve_travel([(0.0, 1.0)]) == (None, None, None)
+          and CW.curve_travel([]) == (None, None, None))
+    check("a source BEND against a flat output reads FLATTENED, "
+          "not INVENTED or UNCLEAR - judging on net travel alone "
+          "called a 1.4 sd bend 'barely moving' and inverted the "
+          "verdict",
+          cl(0.02, 0.0, 0.0, False, 0.2,
+             src_span=1.4, gen_span=0.01) == "FLATTENED")
+    check("...and a NON-MONOTONE pair is not called REVERSED on "
+          "the sign of a net travel that means nothing - both "
+          "curves bend, and the ends happen to differ",
+          cl(+0.02, -0.03, 0.0, False, 0.2,
+             src_span=1.4, gen_span=1.3) != "REVERSED")
+    check("...while a genuinely MONOTONE flip still reads "
+          "REVERSED, so the guard did not remove the verdict it "
+          "was protecting",
+          cl(+1.4, -1.3, 0.0, False, 0.2,
+             src_span=1.4, gen_span=1.3) == "REVERSED")
 
     # THE TOOL, END TO END, through its own CLI on files on disk.
     with tempfile.TemporaryDirectory() as d:

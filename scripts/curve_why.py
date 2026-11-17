@@ -78,7 +78,8 @@ def _say(n):
 
 
 def classify(src_travel, gen_travel, level_gap, reverses,
-             max_coparent_r, flat=FLAT):
+             max_coparent_r, src_span=None, gen_span=None,
+             flat=FLAT):
     """The verdict, as a PURE FUNCTION on measured numbers.
 
     Asserted on planted inputs rather than on whatever a run
@@ -91,18 +92,38 @@ def classify(src_travel, gen_travel, level_gap, reverses,
     because it is the one mechanism that makes the output actively
     misleading rather than merely wrong, and a reversal on a
     collinear pair is still a reversal.
+
+    SPAN AND NET TRAVEL ARE DIFFERENT FACTS, and judging on travel
+    alone mislabels every non-monotone curve. The first real read
+    called `body_mass_index_measured <- year_of_birth` INVENTED on
+    a net travel of 0.0101 - beside a recorded gap of 1.3787 sd and
+    a published shape of `inverted-u`. A curve can rise a long way
+    and come back: its net travel is then near zero while it moves
+    enormously. So "does it move at all" and every magnitude ratio
+    are judged on the SPAN, and the net travel decides only the
+    SIGN - and only when the curve is monotone enough for a sign to
+    mean anything.
     """
-    if abs(src_travel) < flat and abs(gen_travel) < flat:
+    # Fall back to the net travel when a caller has no span, so an
+    # older caller keeps working rather than crashing.
+    ss = abs(src_span) if src_span is not None else abs(src_travel)
+    gs = abs(gen_span) if gen_span is not None else abs(gen_travel)
+    if ss < flat and gs < flat:
         return "UNCLEAR"
-    if abs(src_travel) < flat or abs(gen_travel) < flat:
+    if ss < flat or gs < flat:
         # One side barely moves: a curve that went flat, or one
         # invented where the source had none. Both are real and
         # neither is a sign flip.
-        return ("FLATTENED" if abs(gen_travel) < flat
-                else "INVENTED")
-    if src_travel * gen_travel < 0:
+        return "FLATTENED" if gs < flat else "INVENTED"
+    # A SIGN ONLY MEANS SOMETHING ON A CURVE THAT GOES ONE WAY. On
+    # a bend the net travel is the difference between two ends and
+    # says nothing about the excursion between them, so a flip
+    # there is not evidence of a reversal.
+    monotone = (abs(src_travel) >= 0.7 * ss
+                and abs(gen_travel) >= 0.7 * gs)
+    if monotone and src_travel * gen_travel < 0:
         return "REVERSED"
-    ratio = abs(gen_travel) / abs(src_travel)
+    ratio = gs / ss
     if max_coparent_r is not None and max_coparent_r >= 0.9 \
             and (ratio > 1.5 or ratio < 0.67):
         return "COLLINEAR"
@@ -116,17 +137,24 @@ def classify(src_travel, gen_travel, level_gap, reverses,
 
 
 def curve_travel(pts):
-    """Signed travel from the first bin to the last, and the level.
+    """(net travel, level, span) - three different facts.
 
-    The TRAVEL is what a shape is; the LEVEL is where it sits. A
-    curve can match in travel and miss by its level, which is a
-    different fault with a different fix, so they are reported
-    apart rather than folded into one distance.
+    The NET TRAVEL is last minus first and carries the direction.
+    The SPAN is max minus min and is how far the curve moves at
+    all: on an inverted-U they disagree completely, the net travel
+    being near zero while the span is the whole bend. The LEVEL is
+    where the curve sits, and a curve can match in shape and miss
+    by its level - a different fault with a different fix.
+
+    Reported apart rather than folded into one distance, because
+    the first version of this returned the net travel alone and
+    mislabelled a published `inverted-u` as barely moving.
     """
     if not pts or len(pts) < 2:
-        return None, None
+        return None, None, None
     ys = [p[1] for p in pts]
-    return ys[-1] - ys[0], float(np.mean(ys))
+    return (ys[-1] - ys[0], float(np.mean(ys)),
+            float(max(ys) - min(ys)))
 
 
 def main(argv):
@@ -245,14 +273,15 @@ def main(argv):
         vg_c, vg_p = num(Xg, ch), num(Xg, par)
         sp = cond_curve(vs_p, vs_c, gid, 10)
         gp = cond_curve(vg_p, vg_c, None, 10)
-        st, sl = curve_travel(sp)
-        gt, gl = curve_travel(gp)
+        st, sl, ssp = curve_travel(sp)
+        gt, gl, gsp = curve_travel(gp)
         sd = float(vs_c.dropna().std()) or 1.0
         if st is None or gt is None:
             print("{} <- {}  NOT RE-MEASURABLE here".format(
                 ch, par))
             continue
         st, gt = st / sd, gt / sd
+        ssp, gsp = ssp / sd, gsp / sd
         lvl = (gl - sl) / sd
         # HOW COLLINEAR IS THE WORST CO-PARENT. The engine adds one
         # conditional curve per parent, and two conditional effects
@@ -290,13 +319,18 @@ def main(argv):
             print()
             tally["UNVERIFIED"] = tally.get("UNVERIFIED", 0) + 1
             continue
-        v = classify(st, gt, lvl, rev, worst_r)
+        v = classify(st, gt, lvl, rev, worst_r,
+                     src_span=ssp, gen_span=gsp)
         tally[v] = tally.get(v, 0) + 1
         print("{} <- {}".format(ch, par))
         print("  gap {} sd   published shape {}".format(
             _say(c.get("gap_sd")), e.get("shape")))
-        print("  travel  source {}  generated {}  (sd)".format(
-            _say(round(st, 4)), _say(round(gt, 4))))
+        print("  span    source {}  generated {}  (sd) - how "
+              "far each curve moves at all".format(
+                  _say(round(ssp, 4)), _say(round(gsp, 4))))
+        print("  travel  source {}  generated {}  (sd) - net, "
+              "first bin to last, so a bend reads near zero".format(
+                  _say(round(st, 4)), _say(round(gt, 4))))
         print("  level   generated minus source {} sd".format(
             _say(round(lvl, 4))))
         print("  the contract says this parent REVERSES when "
