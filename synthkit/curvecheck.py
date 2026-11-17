@@ -398,16 +398,42 @@ def measure_surfaces(Xs, Xg, bp, gid_series, k) -> Dict[str, Any]:
                 "noise_floor_sd": round(floor, 4)})
             continue
         rows.append({"child": child, "pair": [a, b],
+                     # WHOSE COLUMN IS THIS ABOUT. A token
+                     # indicator is DERIVED from the set after the
+                     # draw, so `_apply_numeric` skips it and the
+                     # relationship is routed to the set
+                     # rearrangement, which has no concept of a 2-D
+                     # response surface - such a surface cannot be
+                     # applied at all. Mixing those into one
+                     # headline makes the criterion read as a
+                     # fidelity gap on the operator's data when it
+                     # is search machinery that was never drawn.
+                     "child_is_scaffolding": _sets.is_scaffolding(
+                         child),
+                     "own_columns": not (
+                         _sets.is_scaffolding(child)
+                         or _sets.is_scaffolding(a)
+                         or _sets.is_scaffolding(b)),
                      "cells_compared": len(both),
                      "cells_readable": n_read,
                      "gap_sd": round(gap, 4),
                      "noise_floor_sd": round(floor, 4),
                      "bar_sd": round(bar, 4),
                      "tracks": tracks})
+    _real = [r for r in rows if not r["child_is_scaffolding"]]
     return {
         "surfaces": rows,
         "compared": len(rows),
         "tracked": sum(1 for r in rows if r["tracks"]),
+        # THE SPLIT, BESIDE THE HEADLINE - the same arrangement the
+        # pair criteria already carry, and for the same reason: on
+        # the real extract 35 of 35 failing surfaces had a derived
+        # indicator as their CHILD, while every surface whose child
+        # is a column the operator receives tracked. One percentage
+        # over both reads as a fidelity gap on their data.
+        "compared_own": len(_real),
+        "tracked_own": sum(1 for r in _real if r["tracks"]),
+        "compared_scaffold": len(rows) - len(_real),
         "published": published,
         "skipped_token_columns": skipped_tokens,
         "skipped_absent_columns": skipped_absent,

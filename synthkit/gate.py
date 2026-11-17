@@ -194,12 +194,30 @@ def assess(fid: Dict[str, Any],
                "reaches the bar, which is a statement about how "
                "many rows fill their cells rather than about the "
                "synthetic data".format(su_u)) if su_u else ""
+    # THE OWN/SCAFFOLDING SPLIT BELONGS ON THIS LINE TOO. A token
+    # indicator is DERIVED from its set after the draw, so a
+    # surface whose CHILD is one cannot be applied by the engine at
+    # all - and on the real extract every single failing surface
+    # was of that kind while every surface on the operator's own
+    # columns tracked. A reader given one percentage cannot tell a
+    # structural gap on search machinery from a fidelity gap on
+    # their data, which is exactly why the pair criteria carry this
+    # note.
+    su_own, su_own_d = (s.get("surfaces_own_ok"),
+                        s.get("surfaces_own_compared"))
+    su_scaf = s.get("surfaces_scaffold") or 0
+    _ssplit = ""
+    if su_own_d and su_scaf:
+        _ssplit = ("  [of these, {}/{} are on YOUR OWN columns and "
+                   "{} have a derived token indicator as their "
+                   "child, which the engine cannot apply a surface "
+                   "to at all]".format(su_own, su_own_d, su_scaf))
     if su_d:
         add("interaction surfaces", su_n == su_d,
             "{}/{} two-variable surfaces within 0.35 sd - "
             "higher-order structure is not published, so nothing "
-            "above two-way is measured{}".format(su_n, su_d,
-                                                 _unread))
+            "above two-way is measured{}{}".format(
+                su_n, su_d, _ssplit, _unread))
     # DYNAMICS - a patient's course over TIME, conditional on the
     # data having repeat visits and a measurable order. Per-row
     # fidelity is blind to it: a file can match every marginal

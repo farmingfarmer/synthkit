@@ -3,6 +3,85 @@
 Synthetic clinical data generator and model-evaluation instrument. Core rule: learn the patterns, never copy the records. Real data teaches parameters; generation never touches a record.
 
 ## Verify before claiming
+- **ALL 35 REMAINING SURFACE FAILURES HAVE A DERIVED TOKEN
+  INDICATOR AS THEIR CHILD, AND ON THE OPERATOR'S OWN COLUMNS THE
+  CRITERION IS AT FULL MARKS (2026-11-16, run_tail_screen).** The
+  entry above established that the ruler was worth three surfaces
+  and that the other 35 were the engine's. Asked which columns they
+  are about, through `sets.is_scaffolding` - the predicate both
+  halves already share - and read back SPELLED by the machine:
+      surfaces whose CHILD is a column the operator receives
+        operator columns throughout      tracked  4 of 4
+        child real, an indicator in the pair     2 of 2
+      surfaces whose CHILD is an INDICATOR       9 of 44
+      ---------------------------------------------------
+      total                                     15 of 50
+  **Every one of the 35 failures sits in that 44, and 6 of 6
+  surfaces whose child is a column a researcher actually receives
+  TRACK.** So `interaction surfaces 15/50` is not a fidelity
+  reading on the operator's data at all; it is dominated by search
+  machinery.
+- **AND THAT IS STRUCTURAL RATHER THAN A GAP TO CLOSE, by a
+  mechanism already on this file.** An indicator is DERIVED from
+  the set that was drawn, so `generate` hits
+  `if c in derived and derived[c] in out: continue` before the
+  relationship path and `_apply_numeric` never draws it. The
+  relationship is ROUTED to the set column, where
+  `_informative_sets` rearranges WHICH ROW gets which drawn set -
+  a row permutation with no concept of a 2-D response surface. **A
+  published surface whose child is an indicator therefore cannot be
+  applied by the engine at all**, and the criterion has been
+  grading 44 of 50 surfaces on a path that was never able to carry
+  them.
+- **SO THE GATE LINE STATES THE SPLIT, exactly as the pair criteria
+  already do and for the same reason.** This file records the pair
+  version costing a round trip: fixing the set columns took the
+  pair count from 21 to 115, so the absolute counts ROSE while the
+  percentage FELL and it read as a large regression. A reader given
+  one surface percentage cannot tell a structural gap on scaffolding
+  from a fidelity gap on their data. Each surface now records whose
+  column it is about, so a reader of the artifact can make the same
+  split rather than inferring it from a name.
+- **TWO HYPOTHESES DIED FIRST, BOTH BY READING RATHER THAN
+  BUILDING.** The published surface CENTRE looked like the fault -
+  `_surface_delta` subtracts `it.get("centre", r.mean())`, and this
+  file records at length that a curve's grid mean is not its
+  real-distribution mean and that the difference lands directly on
+  the child's mean. `shapes.py` builds the surface record with no
+  `centre` key in sight, and `surface_center` exists beside it -
+  which looked exactly like the capability-wired-to-nothing fault.
+  It is wired: `discover.py` sets `joint["centre"]` from
+  `surface_center` on the same lines that set `pair`, so every
+  published surface carries it. One grep, no build.
+- **AND THE CYCLIC REFINEMENT IS ASSOCIATED WITH SURFACES
+  SURVIVING, WHICH IS THE OPPOSITE OF THE HYPOTHESIS.** The sweep
+  re-ranks a cyclic column onto its marginal's multiset, which
+  preserves ORDER and not 2-D cell means, so it was the obvious
+  suspect. Measured:
+      cyclic columns                        19
+      FAILING with a cyclic child        0 of 35
+      TRACKING with a cyclic child        5 of 15
+  Zero of thirty-five against five of fifteen - so a cyclic child
+  goes with the surface being KEPT. Stated as an association and
+  not a mechanism: the cyclic columns may also be the
+  well-covered ones, and nothing here separates those.
+- **AND THAT READ WAS INCONCLUSIVE THE FIRST TIME BECAUSE I ASKED
+  THE WRONG ARTIFACT.** `refinement_refined` came back as ZERO
+  refined columns - and the field is ABSENT from that run rather
+  than empty, the run predating the plumbing by a day. Absent is
+  not the same fact as zero, which is this file's own rule, and a
+  zero there would have acquitted the sweep on no evidence. The
+  answer came from asking the ENGINE's own `_order` for its cyclic
+  set off the blueprint instead - the engine's decision rather
+  than a reimplementation of it.
+- **WHAT IS NOT CLAIMED: six is a small denominator.** Six of six
+  is full marks on six surfaces, not a sweeping statement about the
+  engine's two-variable fidelity - and this file already records
+  that the mined-interaction table, which asks what joint effects
+  the DATA holds rather than whether a published curve survived, is
+  the engine-neutral measure. Nor is the 9 of 44 explained: some
+  indicator surfaces DO track, and whether the set rearrangement
+  lands them or they pass by chance is unmeasured.
 - **AND THE SAME FAULT DOES NOT BITE THE SHAPE CRITERION, FOR A
   MEASURED REASON (2026-11-16).** `shape_gap` is also a MAX over
   bins against the same 0.35 bar, with `cond_curve` cutting twelve

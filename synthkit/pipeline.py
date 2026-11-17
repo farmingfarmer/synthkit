@@ -2946,6 +2946,9 @@ def compare(df, g, bp, group_by, time_col, ordinals=None,
             # neither, and a criterion that silently narrows its
             # own denominator reads as every surface being fine.
             "surfaces_not_readable": surfaces.get("not_readable"),
+            "surfaces_own_compared": surfaces.get("compared_own"),
+            "surfaces_own_ok": surfaces.get("tracked_own"),
+            "surfaces_scaffold": surfaces.get("compared_scaffold"),
             "categorical_compared": pairs["categorical_compared"],
             "categorical_kept": pairs["categorical_kept"],
             "deterministic_compared": pairs["deterministic_compared"],

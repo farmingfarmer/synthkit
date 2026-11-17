@@ -390,6 +390,91 @@ def main():
               "has caught three scripts doing",
               rvh.returncode == 0 and "usage:" in rvh.stdout)
 
+    # ------------------------------------------------------------
+    # THE OWN/SCAFFOLDING SPLIT. On the real extract 35 of 35
+    # FAILING surfaces had a derived token indicator as their
+    # CHILD, while 6 of 6 surfaces whose child is a column the
+    # operator receives tracked - so one percentage over both reads
+    # as a fidelity gap on their data when it is search machinery
+    # the engine never drew.
+    # ------------------------------------------------------------
+    _tok = "drugs__has__aspirin"
+    _mix = frame(18000, seed=31)
+    _mix[_tok] = (_mix["a"] > 0.5).astype(float)
+    _bp2 = {"relationships": [
+        {"child": "y", "parents": ["a", "b"],
+         "evidence": {"interaction": {
+             "pair": ["a", "b"], "grid_a": [0.0, 1.0],
+             "grid_b": [0.0, 1.0],
+             "response": [[0.0, 1.0], [1.0, 0.0]]}}},
+        {"child": _tok, "parents": ["a", "b"],
+         "evidence": {"interaction": {
+             "pair": ["a", "b"], "grid_a": [0.0, 1.0],
+             "grid_b": [0.0, 1.0],
+             "response": [[0.0, 1.0], [1.0, 0.0]]}}}]}
+    _sp = cc.measure_surfaces(_mix, _mix.copy(), _bp2,
+                              _mix["person_id"], 10)
+    check("the measure counts the surfaces on the operator's OWN "
+          "columns apart from those whose CHILD is a derived token "
+          "indicator, and the two sum to the whole ({} own + {} "
+          "scaffold = {} compared)".format(
+              _sp.get("compared_own"),
+              _sp.get("compared_scaffold"), _sp.get("compared")),
+          _sp.get("compared_own") == 1
+          and _sp.get("compared_scaffold") == 1
+          and (_sp["compared_own"] + _sp["compared_scaffold"]
+               == _sp["compared"]))
+    check("...and every surface carries WHOSE column it is about, "
+          "so a reader of the artifact can make the same split "
+          "rather than inferring it from a name",
+          all("child_is_scaffolding" in r and "own_columns" in r
+              for r in (_sp.get("surfaces") or []))
+          and sum(1 for r in _sp["surfaces"]
+                  if r["child_is_scaffolding"]) == 1)
+    check("...and the own-column TRACKED count is counted over the "
+          "own-column surfaces alone, not the whole set - a "
+          "numerator from one population over a denominator from "
+          "another is the fault this project records three times",
+          _sp.get("tracked_own") <= _sp.get("compared_own"))
+
+    # AND THE GATE LINE SAYS IT, through the real `assess`. A
+    # measure that records the split while the line a reader
+    # actually sees states one percentage has not delivered it -
+    # the value-wired-to-nothing fault this project records more
+    # than any other.
+    from synthkit import gate as _gate
+    _fid = {"summary": {
+        "pairs": 10, "pairs_sign_ok": 10, "pairs_close": 10,
+        "pairs_inverted": 0,
+        "surfaces_compared": 50, "surfaces_ok": 15,
+        "surfaces_own_compared": 6, "surfaces_own_ok": 6,
+        "surfaces_scaffold": 44, "surfaces_not_readable": 3}}
+    _v = _gate.assess(_fid)
+    _line = next((c["detail"] for c in _v["criteria"]
+                  if c["name"] == "interaction surfaces"), "")
+    check("the gate's surfaces line states the own/scaffolding "
+          "split beside its headline, the way the pair criteria "
+          "already do - without it 15/50 reads as a fidelity gap "
+          "on the operator's data",
+          "6/6 are on YOUR OWN columns" in _line
+          and "44 have a derived token indicator" in _line
+          and "cannot apply a surface to at all" in _line)
+    check("...and the NOT READABLE count is on the same line, so "
+          "the shrunken denominator travels with the fraction",
+          "3 NOT READABLE" in _line)
+    check("...and a run with NO scaffolding adds no note, because "
+          "a note that fires on everything is noise",
+          "YOUR OWN columns" not in next(
+              (c["detail"] for c in _gate.assess(
+                  {"summary": {
+                      "pairs": 10, "pairs_sign_ok": 10,
+                      "pairs_close": 10, "pairs_inverted": 0,
+                      "surfaces_compared": 6, "surfaces_ok": 6,
+                      "surfaces_own_compared": 6,
+                      "surfaces_own_ok": 6,
+                      "surfaces_scaffold": 0}})["criteria"]
+               if c["name"] == "interaction surfaces"), ""))
+
     # THE SCREEN'S REASONING IS ON THE MODULE, not only here: the
     # constant carries the measurement that fitted it, so nobody
     # re-chooses it from a hunch.
