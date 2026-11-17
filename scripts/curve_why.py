@@ -58,6 +58,7 @@ sys.path.insert(0, str(ROOT / "scripts"))
 from synthkit import provenance as _prov                # noqa: E402
 from synthkit.curvecheck import (cond_curve,          # noqa: E402
                                  shape_gap)
+from synthkit.generate import _curve_delta            # noqa: E402
 from synthkit.discover import prepare                   # noqa: E402
 from synthkit.intake import read_table                  # noqa: E402
 
@@ -77,40 +78,36 @@ def _say(n):
     return annotate(str(n))
 
 
-def blame(src_span, pub_span, gen_span, flat=FLAT):
-    """CONTRACT or SAMPLER - whose error is the gap?
+def applied(rho, flat=FLAT):
+    """Did the published curve REACH the column at all?
 
-    THE THIRD CURVE IS THE ONE NOBODY WAS LOOKING AT. The criterion
-    compares the source's measured conditional mean against the
-    generated one, and the PUBLISHED curve sits between them: a
-    sampler faithfully applying a curve that is already too flat
-    reads as a generation fault and is not one. This project
-    already splits the marginal measure three ways for exactly
-    that reason - the grid against the source is the CONTRACT's
-    error, the grid against the output is the SAMPLER's, and they
-    take opposite fixes.
+    THE SPAN COMPARISON THIS REPLACES WAS NOT A COMPARISON. It put
+    the PUBLISHED span beside the source's and the generated's and
+    called the larger error CONTRACT or SAMPLER - but a published
+    curve is a PARTIAL effect, the parent with its co-parents held,
+    while both measured curves are MARGINAL. Those are different
+    quantities, so "the published curve is flatter than the source's
+    marginal" is not evidence of a contract fault: on correlated
+    parents it is what a correct partial curve looks like. The
+    verdict read CONTRACT on six of eleven misses and is withdrawn.
 
-    Measured on the real extract for `height <- year_of_birth`:
-    source 1.1703 sd, published 0.2926, generated 0.3150. The
-    sampler is out by 0.022 and the contract by 0.878 - so 97% of
-    that gap is the published curve.
+    What IS a valid question, and the one that produced the answer:
+    evaluate the published curve at the GENERATED parent values and
+    ask whether the generated CHILD follows it. Measured on the real
+    extract for `height <- year_of_birth`, whose curve spans 6.5473
+    raw over 27,336 rows:
 
-    A PURE FUNCTION, because the whole point is which half of the
-    codebase to go and work on.
+        rank correlation of curve-delta against the output   0.0405
+
+    The curve is published, the parent is drawn and carries the
+    source's own correlation to its co-parent (-0.9563 against
+    -0.9634 generated), the refinement sweep REFINES the column
+    rather than skipping it - and the child does not follow the
+    curve at all. Not applied weakly; not reaching the column.
     """
-    if pub_span is None:
-        return "UNSPLIT"
-    c_err = abs(src_span - pub_span)
-    s_err = abs(gen_span - pub_span)
-    if c_err < flat and s_err < flat:
-        return "NEITHER"
-    # Whichever error dominates, with a tie reported rather than
-    # assigned - a blame guessed is worse than one withheld.
-    if c_err > 2.0 * s_err:
-        return "CONTRACT"
-    if s_err > 2.0 * c_err:
-        return "SAMPLER"
-    return "BOTH"
+    if rho is None:
+        return "UNTRACKED"
+    return "NOT-APPLIED" if abs(rho) < 2.0 * flat else "APPLIED"
 
 
 def classify(src_travel, gen_travel, level_gap, reverses,
@@ -340,9 +337,22 @@ def main(argv):
         # third curve, and the one that decides whose error this
         # is. `response` is what `_apply_numeric` applies whenever
         # every parent it was conditioned on is present.
+        # DOES THE OUTPUT FOLLOW THE PUBLISHED CURVE. Evaluate it
+        # at the GENERATED parent values and rank-correlate against
+        # the generated child - the one question that separates a
+        # curve applied weakly from a curve not reaching the column.
         _resp = e.get("response") or []
         pub = ((float(max(_resp)) - float(min(_resp))) / sd
                if len(_resp) >= 2 else None)
+        rho = None
+        if _resp and e.get("grid"):
+            _d = np.asarray(_curve_delta(e, vg_p, None), dtype=float)
+            _m = (vg_c.notna().to_numpy() & vg_p.notna().to_numpy()
+                  & np.isfinite(_d))
+            if int(_m.sum()) >= 60 and float(np.nanstd(_d[_m])) > 0:
+                rho = float(pd.Series(_d[_m]).corr(
+                    vg_c[_m].reset_index(drop=True),
+                    method="spearman"))
         _rg = shape_gap(vs_p, vs_c, vg_p, vg_c, gid, 10)
         mine = None if _rg is None else float(_rg[0])
         rec = c.get("gap_sd")
@@ -365,7 +375,7 @@ def main(argv):
             continue
         v = classify(st, gt, lvl, rev, worst_r,
                      src_span=ssp, gen_span=gsp)
-        wh = blame(ssp, pub, gsp)
+        wh = applied(rho)
         tally[v] = tally.get(v, 0) + 1
         print("{} <- {}".format(ch, par))
         print("  gap {} sd   published shape {}".format(
@@ -386,20 +396,23 @@ def main(argv):
         else:
             print("  no co-parent to be collinear with")
         if pub is not None:
-            print("  published curve span {} sd - what the "
-                  "contract asked generation for".format(
+            print("  published curve span {} sd - a PARTIAL "
+                  "effect, so it is not comparable to the two "
+                  "MARGINAL spans above".format(
                       _say(round(pub, 4))))
-            print("  so the CONTRACT is out by {} and the SAMPLER "
-                  "by {}".format(_say(round(abs(ssp - pub), 4)),
-                                 _say(round(abs(gsp - pub), 4))))
+        if rho is not None:
+            print("  the output follows that published curve at "
+                  "rank correlation {} - the one question that "
+                  "separates a curve applied weakly from a curve "
+                  "not reaching the column".format(
+                      _say(round(rho, 4))))
         print("  -> {}  ({})".format(v, wh))
         blm[wh] = blm.get(wh, 0) + 1
         print()
 
-    print("WHOSE ERROR, COUNTED - the published curve sits "
-          "between the two the criterion compares, and a sampler "
-          "faithfully applying a curve that is already too flat "
-          "reads as a generation fault:")
+    print("DID THE PUBLISHED CURVE REACH THE COLUMN, COUNTED - a "
+          "curve the output does not follow at all is a different "
+          "fault from one that arrives small:")
     for kind, n in sorted(blm.items(), key=lambda kv: -kv[1]):
         print("  {:<10} {}".format(kind, _say(n)))
     print()

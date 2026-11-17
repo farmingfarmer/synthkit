@@ -3,6 +3,85 @@
 Synthetic clinical data generator and model-evaluation instrument. Core rule: learn the patterns, never copy the records. Real data teaches parameters; generation never touches a record.
 
 ## Verify before claiming
+- **I CHASED THE UNDER-REPRODUCTION INTO GENERATION AND IT IS NOT
+  WHERE EITHER OF MY ANSWERS SAID - FOUR MECHANISMS REFUTED AND ONE
+  MEASUREMENT THAT LOCALISES IT (2026-11-17).** The decisive read,
+  on the real extract's own artifacts:
+      height <- year_of_birth
+        published curve span            6.5473 raw (0.2926 sd)
+        rows carrying both             27,336
+        rank correlation of that curve
+          against the GENERATED height    0.0405
+  **The output does not follow the published curve at all.** Not
+  applied weakly - not reaching the column. The curve is published,
+  the parent is drawn, and the child ignores it.
+- **AND THE CONTRACT / SAMPLER SPLIT I REPORTED IS WITHDRAWN,
+  because it was not a comparison.** It put the PUBLISHED span
+  beside the source's and the generated's and called the larger
+  error one or the other, reading CONTRACT on six of eleven misses.
+  A published curve is a PARTIAL effect - the parent with its
+  co-parents held - and both measured curves are MARGINAL. Those
+  are different quantities, so "the published curve is flatter than
+  the source's marginal" is what a CORRECT partial curve looks like
+  on correlated parents, not evidence of a contract fault. The
+  verdict is gone from the tool and the tracking correlation above
+  replaces it.
+- **FOUR MECHANISMS DIED BY MEASUREMENT, each cheap, and the order
+  is worth keeping because every one of them was plausible.**
+      the cyclic sweep's rank map        REFUTED - it AMPLIFIES,
+        ratios 0.94 to 2.34 over nine cells of amplitude against
+        shrink, because it rescales onto the marginal's spread
+      the parents' correlation lost      REFUTED on the extract -
+        source -0.9563 against generated -0.9634, essentially
+        perfect. It DOES collapse on a fixture (0.9468 to 0.0511),
+        and that was my own fixture passing `targets=["y"]`, which
+        excludes the parent-to-parent relationship - the restricted
+        -discovery fault this file already records
+      partials too small in aggregate   REFUTED - on a fixture with
+        the same collinearity (rho 0.9101 surviving) the published
+        partials reconstruct both marginals to within 0.25 and
+        0.36 sd
+      the sweep SKIPPING the column     REFUTED - asked the engine
+        with a report dict: 17 refined, 2 skipped, and height is
+        NOT SKIPPED
+- **SO THE WEIGHT SOLVE I BUILT FOR IT IS REMOVED, and it was
+  measured useless twice over before the diagnosis even moved.**
+  The idea was to solve per-parent weights so the published curves
+  reproduce the marginal the criterion measures. Two formulations:
+  least squares on the child's own ROWS returns weights of ONE
+  because the partial curves ALREADY minimise that - they are the
+  best additive fit - and least squares against the stacked
+  MARGINAL curves returned 1.0397 and 0.9196 on a fixture where one
+  published curve spans 0.8195 sd against a source marginal of
+  2.7761. A dial that buys nothing is a thing to delete, which this
+  file already says about a set-size coupling, so `shapes.py`,
+  `discover.py`, `generate.py` and `blueprint.py` are back to where
+  they were.
+- **AND BUILDING IT FOUND A REAL FAULT ON THE WAY: `blueprint.build`
+  WHITELISTS THE EFFECT FIELDS, so a computed field is dropped in
+  silence.** The weight was solved, stored on the catalogue, and
+  never reached the blueprint on its first run - no error, no
+  absence note, just a missing key. That is the
+  value-wired-to-nothing fault in a new place, and the analogous
+  case was fixed by carrying the WHOLE report rather than a picked
+  list. Recorded rather than fixed, because the field that exposed
+  it has been reverted: the next person to add an effect field will
+  hit it, and what they need is a check asserting that every key
+  discovery sets on an effect survives into the blueprint.
+- **WHAT IS ESTABLISHED, AND WHAT THE NEXT STEP IS.** Established:
+  the eleven misses are under-reproduction (8 of 11 the output
+  moving less than the source), the age cluster delivers 16% to 27%
+  of the source's bend, REVERSED is zero on all eleven, the parents
+  are correctly correlated, the sweep refines the column, and the
+  published curve does not reach it. Not established: WHY. Three
+  differences between the real case and the fixture that
+  reconstructs correctly remain unmeasured - the child is
+  PATIENT-LEVEL, it is CYCLIC, and it is present on 46.6% of rows.
+  A fifth story is not worth telling: what this needs is an
+  instrumented generate that reports, per column, how much of each
+  published curve survived each pass - which is a tool, and the
+  rule here is that a diagnostic in the run directory beats another
+  guess.
 - **THE UNDER-REPRODUCTION IS NOT IN GENERATION: SIX OF THE ELEVEN
   SHAPE MISSES ARE THE CONTRACT'S AND ONE IS THE SAMPLER'S
   (2026-11-16, run_shapefix, nonce-verified read).** Sent to chase

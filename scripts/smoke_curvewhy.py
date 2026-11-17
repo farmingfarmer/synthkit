@@ -85,25 +85,26 @@ def main():
     # source 1.1703 sd, published 0.2926, generated 0.3150 - the
     # sampler out by 0.022 and the contract by 0.878.
     # ------------------------------------------------------------
-    bl = CW.blame
-    check("a sampler that matches the published curve while the "
-          "published curve misses the source is the CONTRACT's "
-          "error - the real extract's own numbers",
-          bl(1.1703, 0.2926, 0.3150) == "CONTRACT")
-    check("...and a sampler that drifts from a published curve "
-          "which DOES match the source is the SAMPLER's",
-          bl(1.1703, 1.1700, 0.3150) == "SAMPLER")
-    check("...and both being out is reported as BOTH rather than "
-          "assigned to whichever is larger by a hair",
-          bl(1.50, 1.00, 0.50) == "BOTH")
-    check("...and neither being out is its own answer, not a "
-          "blame - that is a curve this split has nothing to say "
-          "about",
-          bl(1.00, 1.01, 1.02) == "NEITHER")
-    check("...and with NO published curve the split is UNSPLIT "
-          "rather than guessed - an older artifact carries no "
-          "response for every parent",
-          bl(1.0, None, 0.3) == "UNSPLIT")
+    ap = CW.applied
+    check("a published curve the output does not follow is "
+          "NOT-APPLIED - the real extract reads rank correlation "
+          "0.0405 for height on year_of_birth, whose curve spans "
+          "6.5473 raw over 27,336 rows",
+          ap(0.0405) == "NOT-APPLIED" and ap(-0.02) == "NOT-APPLIED")
+    check("...and one the output does follow is APPLIED, however "
+          "small it arrives - that is a magnitude question and a "
+          "different fault",
+          ap(0.62) == "APPLIED" and ap(-0.55) == "APPLIED")
+    check("...and no measurable correlation is UNTRACKED rather "
+          "than read as not applied - an absent measurement is "
+          "not a finding",
+          ap(None) == "UNTRACKED")
+    check("the span-based CONTRACT / SAMPLER split is GONE, "
+          "because it compared a PARTIAL published curve against "
+          "two MARGINAL measured ones and called the difference a "
+          "contract fault on six of eleven misses",
+          not hasattr(CW, "blame")
+          and "withdrawn" in (CW.applied.__doc__ or ""))
 
     # TRAVEL AND LEVEL ARE REPORTED APART, because a curve can
     # match in travel and miss by its level and those take
