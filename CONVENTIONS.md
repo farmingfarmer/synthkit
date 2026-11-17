@@ -3,6 +3,41 @@
 Synthetic clinical data generator and model-evaluation instrument. Core rule: learn the patterns, never copy the records. Real data teaches parameters; generation never touches a record.
 
 ## Verify before claiming
+- **CONFIRMED END TO END ON THE REAL EXTRACT, on the line an
+  operator actually reads (2026-11-16, run_tail_split).** The
+  build was fetched BY SHA with the zipball byte-identical to the
+  local download (35,646,840 both sides), the tree checked for the
+  new field before anything was run, and `m0_gate` against the
+  refreshed directory reads:
+      FAIL interaction surfaces 15/50 two-variable surfaces within
+      0.35 sd ... [of these, 6/6 are on YOUR OWN columns and 44
+      have a derived token indicator as their child, which the
+      engine cannot apply a surface to at all]; 3 NOT READABLE -
+      their own sampling noise reaches the bar, which is a
+      statement about how many rows fill their cells rather than
+      about the synthetic data
+  The criterion still FAILS, because it is a full-marks criterion
+  and 15 is not 50. What changed is that a reader is no longer
+  handed one percentage over two populations.
+- **AND THE DENOMINATOR IS DELIBERATELY NOT MOVED, which is the
+  decision rather than an omission.** Dropping the 44 would take
+  the criterion to 6 of 6 and turn a FAIL into a PASS - and this
+  file's own rule is that the bar was SET against the total, so
+  switching the denominator moves a release verdict rather than
+  fixing a bug, which is a product decision and not something to
+  do quietly in the same commit as a measurement. The same
+  reasoning was applied and recorded when the own-column `close`
+  figure turned out to be WORSE than the headline.
+- **AND IT EXPOSED ONE MODULE RUNNING TWO POLICIES, which is most
+  of why these two criteria have always looked so different.**
+  `measure_shapes` SKIPS a claim whose child or parent is
+  scaffolding - so `shapes tracked 6/9` has always been an
+  operator-facing reading, and its three misses are real.
+  `measure_surfaces`, in the same file, GRADES them - which is how
+  it came to report 44 of 50 surfaces on a path the engine cannot
+  apply one to. Neither policy is wrong on its own; having both in
+  one module with nothing saying so is how a reader comes to
+  compare 6/9 against 15/50 as though they were the same question.
 - **ALL 35 REMAINING SURFACE FAILURES HAVE A DERIVED TOKEN
   INDICATOR AS THEIR CHILD, AND ON THE OPERATOR'S OWN COLUMNS THE
   CRITERION IS AT FULL MARKS (2026-11-16, run_tail_screen).** The
