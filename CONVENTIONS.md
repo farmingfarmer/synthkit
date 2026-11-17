@@ -3,6 +3,72 @@
 Synthetic clinical data generator and model-evaluation instrument. Core rule: learn the patterns, never copy the records. Real data teaches parameters; generation never touches a record.
 
 ## Verify before claiming
+- **THE AGE CURVES MISS BY UNDER-REPRODUCING THEIR BEND, NOT BY
+  REVERSING IT - AND MY PREDICTION OF A REVERSAL IS REFUTED
+  (2026-11-16, run_shapefix, verified read).** Every recorded gap
+  was reproduced by the tool before any verdict was printed, so
+  these are about the same data the criterion measured. The
+  mechanism census over the eleven misses, spelled back by the
+  machine:
+      ATTENUATED   3
+      COLLINEAR    3
+      FLATTENED    2
+      AMPLIFIED    2
+      UNCLEAR      1
+      -------------
+      total       11
+  **REVERSED is ZERO on all eleven**, including the pair whose own
+  contract publishes `reverses_when_controlled`. The flag is true
+  of the MODEL - the partial-dependence curve really does flip
+  when the co-parents are held - and it is NOT true of the OUTPUT.
+  A prediction taken from a published field rather than from a
+  measurement, and the measurement says no.
+- **THE FOUR AGE MISSES ARE ALL THE SAME FAILURE: a fraction of the
+  source's bend arrives.** Read off the two curves directly:
+      body_mass_index_measured <- year_of_birth   gap 1.3787
+        published shape inverted-u
+        span   source 1.5717   generated 0.2468   = 16%
+        travel source 0.0101   generated 0.1777
+      height <- year_of_birth                     gap 0.8743
+        published shape non-monotone
+        span   source 1.1703   generated 0.3150   = 27%
+        travel source -0.3316  generated -0.0620
+        level  -0.0006
+  Same SIGN on both, so nothing is inverted; the level is right to
+  four decimals, so nothing is displaced. The engine delivers
+  **16% and 27% of the bend the source has**.
+- **AND THE TWO LABELS DIFFER FOR ONE MEASURED REASON, which is
+  what makes the split worth having.** `height` carries BOTH age
+  parents and they are collinear at **rho 0.9563** - the age is the
+  visit year minus the year of birth - so generation adds two
+  conditional curves on columns that are nearly functions of each
+  other, and their sum is not the joint effect. `body_mass_index_
+  measured`'s worst co-parent is an obesity indicator at **rho
+  0.0356**, no collinear partner at all, so the same shortfall
+  there is plain ATTENUATION. One number separates them and the
+  classifier earned the distinction rather than being told it.
+- **AND THE OBVIOUS GENERALISATION IS REFUTED, which is why it is
+  not claimed.** "The engine under-reproduces NON-MONOTONE curves"
+  fits the age cluster and does not survive the other seven:
+      shape class    AMPL  ATTEN  COLLIN  FLAT  UNCLEAR
+      monotone          1      1       1     0        1
+      bent or flat      1      2       2     2        0
+  Monotone curves are attenuated and collinear too, and one BENT
+  curve is AMPLIFIED. The published shape does not separate the
+  mechanisms, so there is no shape law here - only a direction: **8
+  of the 11 are the output moving LESS than the source and 2 are it
+  moving more.**
+- **WHAT THE READ COST, AND IT WAS MY OWN SUMMARY TWICE OVER.** The
+  first census named INVENTED and REVERSED and both were artifacts
+  of a NET first-to-last travel on curves the contract calls
+  `inverted-u` and `non-monotone` - a bend's ends agree while it
+  moves 1.57 sd between them. The self-check caught it by
+  arithmetic (a 1.3787 gap beside travels of 0.0101 and 0.1777 at
+  one level is impossible), the span fix resolved it, and the
+  verified census shares only its shape with the first: ATTENUATED
+  3 and COLLINEAR 3 where the first read FLATTENED 3. Withdrawing
+  it rather than correcting it was right, because nothing in it was
+  known to be good.
 - **THE MECHANISM CENSUS I READ FIRST IS WITHDRAWN, AND ITS OWN
   ARITHMETIC IS WHAT WITHDREW IT (2026-11-16).** The first
   `curve_why` read on the real extract reported six mechanisms
