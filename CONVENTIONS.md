@@ -3,6 +3,46 @@
 Synthetic clinical data generator and model-evaluation instrument. Core rule: learn the patterns, never copy the records. Real data teaches parameters; generation never touches a record.
 
 ## Verify before claiming
+- **THE MECHANISM READ FOR THE AGE MISSES IS QUEUED, AND THE
+  PREDICTION IS ON RECORD FIRST (2026-11-16, `curve_why`).** The
+  shape criterion now names eleven misses and the four worst
+  cluster on the age columns. A gap is a magnitude; it does not say
+  which mechanism produced it, and four are distinguishable from
+  the artifacts alone - a sign REVERSAL, two COLLINEAR conditional
+  curves added together, plain ATTENUATION, and a DISPLACED level.
+  Each takes a different fix.
+- **WHAT IS CLAIMED, FROM THE CONTRACT'S OWN WORDS RATHER THAN A
+  HUNCH.** The blueprint publishes, for
+  `body_mass_index_measured <- year_of_birth`, the field
+  `reverses_when_controlled` reading *"on its own year_of_birth
+  moves the other way; holding the other parents fixed reverses
+  it"* - and that pair is the WORST miss on the file at 1.3787 sd.
+  `_apply_numeric` uses a parent's CONDITIONAL curve whenever all
+  the parents it was conditioned on are present, and the criterion
+  measures the MARGINAL shape. So the prediction is **REVERSED**:
+  the source curve and the generated one should travel in OPPOSITE
+  directions. That is the mean-arterial-pressure fault, which this
+  file records as fixed only for the case where a cycle TRIMMED the
+  co-parents away - here nothing is trimmed, so the fix never
+  applies.
+- **AND FOR HEIGHT THE PREDICTION IS DIFFERENT, which is the point
+  of separating them.** `height <- gender, age_at_visit,
+  year_of_birth` carries NO reverse flag on either age parent - and
+  those two are collinear BY CONSTRUCTION, since the age is the
+  visit year minus the year of birth. Generation adds one
+  conditional curve per parent, and two conditional effects of
+  columns that are nearly functions of each other do not sum to the
+  joint effect. So **COLLINEAR** on at least one of
+  `height <- year_of_birth` (0.8743) and `height <- age_at_visit`
+  (0.6477), with the co-parent correlation reported above 0.9.
+- **WHAT IS NOT CLAIMED.** Nothing about
+  `temperature_oral <- visit_start_date` (0.9772), which has no
+  flag and no obvious collinear partner; nothing about the three
+  `condition_count` misses, which this file already records as a
+  hub where the joint constraint binds; and nothing about the lab
+  codes. UNCLEAR is a legitimate outcome for any of them - a
+  verdict guessed is worse than one withheld, and the tool reports
+  that branch rather than assigning a mechanism to fill the table.
 - **THE FIX FOUND THE BIGGEST SHAPE DEPARTURE ON THE EXTRACT, AND
   THE OLD CRITERION COULD NOT SEE IT (2026-11-16, run_shapefix
   against run_tail_ctl_current).** A re-measure of the SAME run -
