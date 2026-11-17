@@ -3,6 +3,66 @@
 Synthetic clinical data generator and model-evaluation instrument. Core rule: learn the patterns, never copy the records. Real data teaches parameters; generation never touches a record.
 
 ## Verify before claiming
+- **THE MECHANISM CENSUS I READ FIRST IS WITHDRAWN, AND ITS OWN
+  ARITHMETIC IS WHAT WITHDREW IT (2026-11-16).** The first
+  `curve_why` read on the real extract reported six mechanisms
+  across the eleven shape misses, and named
+  `body_mass_index_measured <- year_of_birth` as INVENTED. Its own
+  evidence lines refuse that:
+      recorded gap                        1.3787 sd
+      travel   source 0.0101   generated 0.1777 sd
+      level    generated minus source    -0.0017 sd
+  **Two curves that both move inside 0.18 sd and sit at the same
+  level cannot differ by 1.38 at any bin.** So the tool was reading
+  a different column, different rows or a different preparation
+  from the one the criterion measured, and every verdict under it
+  was about the wrong data. The census, and all four per-curve
+  verdicts, are withdrawn - not corrected, withdrawn, because
+  nothing in them is known to be right.
+- **THE CAUSE IS THE PREPARATION, AND IT IS THE ONE-IMPLEMENTATION
+  RULE AGAIN.** `compare` prepares with
+  `prepare(df, group_by, ordinals=ordinals, vocab=blueprint_vocab(bp))`;
+  the diagnostic passed neither, so `prepare` re-derived the token
+  indicators under the module's own expansion cap - a different set
+  of columns, and for anything set-derived a different set of rows.
+  This file already records losing a week to two halves counting
+  over different token vocabularies and reading the difference as a
+  regression. A diagnostic must prepare the way the measurement
+  prepared.
+- **SO THE TOOL CHECKS ITSELF AGAINST THE NUMBER IT IS EXPLAINING,
+  which is the guard worth having whatever the cause.** Each
+  curve's gap is re-computed with the criterion's own `shape_gap`
+  and compared against what the run recorded; a mismatch WITHHOLDS
+  the mechanism and says so in words rather than printing a verdict
+  beside a number that contradicts it. The suite's own fixture was
+  planting an arbitrary `gap_sd` of 1.9 - exactly what this guard
+  exists to refuse - and now records the gap the criterion actually
+  computes, with the disagreement path checked separately.
+- **WHAT STILL STANDS, because it is an artifact read and does not
+  depend on the diagnostic.** `height <- gender, age_at_visit,
+  year_of_birth` carries both age columns, which are collinear by
+  construction; and the blueprint publishes, for
+  `body_mass_index_measured <- year_of_birth`, a
+  `reverses_when_controlled` field reading *"on its own
+  year_of_birth moves the other way; holding the other parents
+  fixed reverses it"* - on the worst miss on the file. Those are
+  read off the blueprint, and the mechanism question is still open
+  until the self-checking tool runs.
+- **AND TWO MORE OF THE BRIDGE'S REWRITES COST READS.** `<` and `>`
+  inside a HANDS command are cmd REDIRECTIONS, so a filter for the
+  literal `" <- "` was read as an input redirect and the probe
+  wrote no file at all - the same family as `>nul` becoming
+  `/dev/null`. Build the arrow with `chr(60)+chr(45)` inside python
+  so no literal appears in the command. And `|` is a cmd PIPE, so a
+  table formatted with pipe separators silently became a pipeline.
+- **AND THE CONSOLE WENT TO ANOTHER SESSION MID-READ, which is the
+  one condition to stop driving for.** Two consecutive reads came
+  back carrying another project's `pg_ctl: another server might be
+  running` with MY MARKER ABSENT. The machine is shared, this
+  file's own rule is one driver at a time and never a global window
+  key, and the honest move is to stop rather than interleave
+  keystrokes into somebody else's work. The re-run is queued, not
+  abandoned.
 - **THE MECHANISM READ FOR THE AGE MISSES IS QUEUED, AND THE
   PREDICTION IS ON RECORD FIRST (2026-11-16, `curve_why`).** The
   shape criterion now names eleven misses and the four worst
