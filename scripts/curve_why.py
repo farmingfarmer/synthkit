@@ -56,7 +56,8 @@ sys.path.insert(0, str(ROOT))
 sys.path.insert(0, str(ROOT / "scripts"))
 
 from synthkit import provenance as _prov                # noqa: E402
-from synthkit.curvecheck import cond_curve              # noqa: E402
+from synthkit.curvecheck import (cond_curve,          # noqa: E402
+                                 shape_gap)
 from synthkit.discover import prepare                   # noqa: E402
 from synthkit.intake import read_table                  # noqa: E402
 
@@ -185,11 +186,44 @@ def main(argv):
 
     gpath = rd / "generated.csv"
     gen, _ = read_table(str(gpath))
-    Xs = prepare(df, group_by=group_by)
-    Xg = prepare(gen, group_by=group_by)
+    # PREPARE THE WAY THE CRITERION PREPARED, or this explains a
+    # different table. `compare` passes the blueprint's own token
+    # vocabulary, and without it `prepare` re-derives the
+    # indicators under the module's expansion cap - a different
+    # set of columns and, for a set-derived child, different rows.
+    # This project has lost a week to two halves counting over
+    # different vocabularies and reading the difference as a
+    # regression.
+    _vocab = None
+    try:
+        from synthkit.pipeline import blueprint_vocab
+        _vocab = blueprint_vocab(bp)
+    except Exception:
+        _vocab = None
+    _ords = bp.get("ordinals") or None
+    Xs = prepare(df, group_by, ordinals=_ords, vocab=_vocab)
+    Xg = prepare(gen, group_by, ordinals=_ords, vocab=_vocab)
     Xs = Xs[0] if isinstance(Xs, tuple) else Xs
     Xg = Xg[0] if isinstance(Xg, tuple) else Xg
     gid = Xs[group_by] if group_by in Xs.columns else None
+
+    # A DIAGNOSTIC THAT DISAGREES WITH THE MEASUREMENT IT
+    # EXPLAINS IS EXPLAINING SOMETHING ELSE.
+    #
+    # The first real read reported `travel source 0.0101,
+    # generated 0.1777, level -0.0017` for a curve whose RECORDED
+    # gap is 1.3787 sd - and two curves that both move inside
+    # 0.18 sd and sit at the same level cannot differ by 1.38 at
+    # any bin. That contradiction means this tool was reading a
+    # different column, different rows or a different preparation
+    # from the one the criterion measured, and every verdict below
+    # it would have been about the wrong data.
+    #
+    # So each curve's gap is RE-COMPUTED here with the criterion's
+    # own `shape_gap` and checked against what the run recorded. A
+    # mismatch is called out and the verdict is withheld rather
+    # than printed beside a number it contradicts.
+    GAP_TOL = 0.05
 
     def num(fr, c):
         return pd.to_numeric(fr[c].replace("", None),
@@ -236,6 +270,26 @@ def main(argv):
             if worst_r is None or r > worst_r:
                 worst_r, worst_c = r, q
         rev = bool(e.get("reverses_when_controlled"))
+        _rg = shape_gap(vs_p, vs_c, vg_p, vg_c, gid, 10)
+        mine = None if _rg is None else float(_rg[0])
+        rec = c.get("gap_sd")
+        agrees = (mine is not None and rec is not None
+                  and abs(mine - float(rec)) <= GAP_TOL)
+        if not agrees:
+            print("{} <- {}".format(ch, par))
+            print("  THIS TOOL DISAGREES WITH THE RUN about this "
+                  "curve's gap: the run recorded {} sd and "
+                  "re-measuring here gives {}. Two numbers about "
+                  "one curve cannot both be right, so no mechanism "
+                  "is named - the preparation this tool uses is "
+                  "not the one the criterion used, and a verdict "
+                  "printed here would be about different data."
+                  .format(_say(rec),
+                          "nothing" if mine is None
+                          else _say(round(mine, 4))))
+            print()
+            tally["UNVERIFIED"] = tally.get("UNVERIFIED", 0) + 1
+            continue
         v = classify(st, gt, lvl, rev, worst_r)
         tally[v] = tally.get(v, 0) + 1
         print("{} <- {}".format(ch, par))

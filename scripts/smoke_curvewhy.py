@@ -118,11 +118,15 @@ def main():
                     "shape": "increasing",
                     "reverses_when_controlled": None}}}}]}),
             encoding="utf-8")
+        from synthkit.curvecheck import shape_gap as _sg
+        _real = _sg(src["x"], src["y"], gen["x"], gen["y"],
+                    src["person_id"], 10)
+        _rgap = round(float(_real[0]), 4)
         (rd / "fidelity.json").write_text(json.dumps({
             "shapes": {"published": 1, "compared": 1, "tracked": 0,
                        "claims": [{"child": "y", "parent": "x",
                                    "shape": "increasing",
-                                   "gap_sd": 1.9,
+                                   "gap_sd": _rgap,
                                    "tracks": False}]}}),
             encoding="utf-8")
         (rd / "provenance.json").write_text(json.dumps({
@@ -154,6 +158,31 @@ def main():
               "digits, because the screen this is read on turns a "
               "zero into an at-sign",
               "one" in rv.stdout or "zero" in rv.stdout)
+
+        # THE SELF-CHECK. A diagnostic that disagrees with the
+        # measurement it explains is explaining something else -
+        # the first real read printed travels of 0.0101 and 0.1777
+        # beside a RECORDED gap of 1.3787, which two curves that
+        # close cannot produce. Planting a gap the criterion does
+        # not compute must withhold the verdict rather than print a
+        # mechanism beside a number it contradicts.
+        _fp = rd / "fidelity.json"
+        _good = _fp.read_text(encoding="utf-8")
+        _fp.write_text(
+            _good.replace('"gap_sd": {}'.format(_rgap),
+                          '"gap_sd": 9.99', 1),
+            encoding="utf-8")
+        rvb = subprocess.run(
+            [sys.executable, "scripts/curve_why.py", str(rd),
+             "--src", str(sp)],
+            capture_output=True, text=True, cwd=str(ROOT))
+        check("a recorded gap this tool cannot reproduce WITHHOLDS "
+              "the mechanism and says so, rather than naming one "
+              "beside a number that contradicts it",
+              "THIS TOOL DISAGREES WITH THE RUN" in rvb.stdout
+              and "-> REVERSED" not in rvb.stdout
+              and "UNVERIFIED" in rvb.stdout)
+        _fp.write_text(_good, encoding="utf-8")
 
         # THE PROVENANCE GUARD: a run measured against an extract
         # that never produced it is how a whole session's numbers
