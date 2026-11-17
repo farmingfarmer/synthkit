@@ -3,6 +3,58 @@
 Synthetic clinical data generator and model-evaluation instrument. Core rule: learn the patterns, never copy the records. Real data teaches parameters; generation never touches a record.
 
 ## Verify before claiming
+- **AND `shapes tracked 6/9` IS NINE OF TWO HUNDRED AND
+  EIGHTY-ONE PUBLISHED CURVES, WITH NO TOTAL AND NO SKIP REASONS
+  (2026-11-16, run_tail_split).** Read off the run's own artifacts,
+  spelled back by the machine:
+      effect curves PUBLISHED    281
+      curves GRADED                9
+      tracked                      6
+  **The criterion examines 3.2% of the contract and reports the
+  proportion of THAT.** It is the same fault the surface criterion
+  was fixed for - "`interaction surfaces` was measuring 7 of 75 and
+  reading 4/7 ... a criterion wrong in the direction nobody checks,
+  by measuring too LITTLE" - and `measure_surfaces` got the
+  `published == compared + token + absent + thin` identity out of
+  it while `measure_shapes`, in the same file, never did. A reader
+  sees 6/9 and has no way to learn that 272 curves were not looked
+  at.
+- **AND ONE OF THE THREE GATES IS THE PRESENCE-SHARE FAULT FOR THE
+  SIXTH TIME.** `measure_shapes` skips a claim when
+  `vs_c.notna().mean() < 0.5` or `vs_p.notna().mean() < 0.5` - a
+  SHARE, where this file has recorded five times that a column
+  whose present values are numbers is numeric however often it is
+  present and that a model needs ROWS rather than a share. On this
+  extract 20 of 33 numeric columns are partially covered and the
+  invasive pressures sit on 113 rows, so the sparse half of the
+  file is silently not graded. The other two gates are the
+  scaffolding exclusion - which is correct and is the policy
+  `measure_surfaces` does NOT share - and `shape_gap` returning
+  None for fewer than three bins on either side.
+- **THE THREE MISSES IT DOES GRADE ARE ALL ONE COLUMN, which is the
+  part that is actionable today.**
+      span_days        <- condition_count     gap 0.487
+      condition_count  <- visit_start_date    gap 0.486
+      procedure_count  <- condition_count     gap 0.3526
+  `condition_count` is in all three - twice as the PARENT and once
+  as the child. The middle one is the pair this file already
+  records as the deliverable's one departed shape, where
+  `repair_inversions --shapes` measured a REFUSAL because the
+  column is a hub and the joint constraint binds before the bar is
+  reached; the other two are not on the record. A concentration on
+  one hub column is worth chasing, and this file says so about the
+  same column appearing in a spread shortfall and a third of the
+  close misses.
+- **WHAT IS NOT CLAIMED, AND IT IS A DENOMINATOR DECISION RATHER
+  THAN A FIX: what the criterion reads once it grades what it
+  publishes.** Correcting the gates would move 6/9 onto a far
+  larger denominator - the surface precedent says to state loudly
+  that it moved and not to touch the bar - and it would need the
+  per-curve noise floor FIRST, or grading 281 curves on an extract
+  whose thin end is 113 rows would manufacture findings exactly
+  where this session just measured a bar sitting inside its own
+  noise. Named as the next piece of work, with its order stated,
+  rather than half-built.
 - **CONFIRMED END TO END ON THE REAL EXTRACT, on the line an
   operator actually reads (2026-11-16, run_tail_split).** The
   build was fetched BY SHA with the zipball byte-identical to the
