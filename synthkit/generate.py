@@ -145,6 +145,32 @@ PRESENCE_RERANK = False
 # lands 0.0594. It is the largest single fidelity gap on that file.
 COPY_COVERAGE_GUARD = False
 
+# A COPIED COLUMN CARRIES ITS OWN PUBLISHED MARGINAL.
+#
+# An `==` constraint between a column present on EVERY row and one
+# present on a fifth of them is not a whole-column identity: the
+# two are equal where BOTH are present, and copying the dense one
+# wholesale hands the sparse one the DENSE column's distribution,
+# masked afterwards. The sparse column is then never drawn from
+# its own published grid at all.
+#
+# Measured on the real extract, `procedure_quantity` against its
+# own source marginal:
+#
+#     copying (what ships)                      0.4002
+#     --copy-coverage-guard (refuse the copy)   0.0254  direction -1
+#     re-valuing from its own grid              0.0255  direction +3
+#
+# The guard and the re-value reach the SAME marginal; the
+# difference is that the guard throws the ORDER away and this
+# keeps it, which is worth three relationship directions.
+#
+# It costs no identity that was being delivered: the shipping
+# default already breaks `procedure_count == procedure_quantity`
+# on 90.1% of rows, because the bound-pinning pass clamps the
+# copied column to its own published cap.
+REVALUE_COPIED = False
+
 # CHOOSE WHICH ROWS A COPIED COLUMN IS PRESENT ON, from the two
 # published grids - which keeps the identity AND the marginal
 # where the guard above keeps one at the cost of the other.
@@ -2668,7 +2694,8 @@ def generate(blueprint: Dict[str, Any],
              # was earned on three seeds OF THE EXTRACT rather than
              # of a fixture. The paired real arms decide it.
              solve_token_targets: bool = False,
-             presence_rerank: Optional[bool] = None
+             presence_rerank: Optional[bool] = None,
+             revalue_copied: Optional[bool] = None
              ) -> pd.DataFrame:
     """Build a table from a blueprint. Nothing else is consulted."""
     bp = resolve(blueprint)
@@ -3573,6 +3600,58 @@ def generate(blueprint: Dict[str, Any],
             _rr.append(c)
         if report is not None and _rr:
             report["presence_reranked"] = _rr
+
+    # ---- A COPIED COLUMN CARRIES ITS OWN MARGINAL --------------
+    #
+    # Same device as the presence re-rank directly above, pointed
+    # at the columns that block deliberately skips. `marg_draw[c]`
+    # is an iid sample of THIS column's published grid, so placing
+    # it at the ranks the copy produced keeps the order - and with
+    # it the rank relationship to the column it was copied from -
+    # while the values become the ones the contract published for
+    # it. Restricted to the rows that will SURVIVE the presence
+    # mask, so coverage is identical afterwards.
+    if (revalue_copied if revalue_copied is not None
+            else REVALUE_COPIED):
+        _rv = []
+        for c, src_c in copy_from.items():
+            if c not in out:
+                continue
+            spec_c = cols.get(c) or {}
+            if spec_c.get("kind") != "numeric":
+                continue
+            m_c = spec_c.get("marginal") or {}
+            if m_c.get("type") != "quantiles":
+                continue
+            cur = np.asarray(out[c], dtype=float)
+            # THERE IS NO MARGINAL DRAW TO REUSE, and that absence
+            # IS the defect: the copy replaced the draw, so this
+            # column was never sampled from its own published grid
+            # at all. One is taken here, on its OWN random stream
+            # so the rest of the run is untouched and the flag can
+            # be A/B'd against the same seed.
+            draw = marg_draw.get(c)
+            if draw is None:
+                _rv_rng = np.random.RandomState(
+                    (int(seed) + 4409) % (2 ** 32))
+                draw = _draw_numeric(m_c, _rv_rng.rand(len(cur)))
+            draw = np.asarray(draw, dtype=float)
+            if len(draw) != len(cur):
+                continue
+            ok = np.isfinite(cur) & np.isfinite(draw)
+            pending = masks.get(c)
+            if pending is not None and len(pending) == len(cur):
+                ok = ok & np.asarray(pending, dtype=bool)
+            if int(ok.sum()) < 2:
+                continue
+            fixed = cur.copy()
+            fixed[ok] = np.sort(draw[ok])[
+                np.argsort(np.argsort(cur[ok]))]
+            out[c] = fixed
+            _rv.append({"column": c, "copied_from": src_c,
+                        "rows": int(ok.sum())})
+        if report is not None and _rv:
+            report["revalued_copied"] = _rv
 
     pinned = _pin_pass(out, cols, order)
     if report is not None and pinned:

@@ -387,6 +387,20 @@ def build_parser(prog=None, add_help=True):
                           "share becomes exact and the band gap "
                           "against the source falls 0.0295 to "
                           "0.0252. OFF by default."))
+    ap.add_argument(
+        "--revalue-copied", action="store_true",
+        help="draw a COPIED numeric column's values from its OWN "
+             "published grid, placed at the ranks the copy "
+             "produced. An `==` constraint between columns of "
+             "different coverage is not a whole-column identity - "
+             "they are equal where both are present - so copying "
+             "hands the sparse column the dense one's "
+             "distribution. Measured on the real extract: "
+             "procedure_quantity goes from 0.4002 off its own "
+             "source marginal to 0.0255, with direction kept "
+             "rising 132 to 135 of 151 and ZERO inversions. "
+             "Coverage is untouched because only rows that "
+             "survive the presence mask are re-valued.")
     ap.add_argument("--copy-coverage-guard", action="store_true",
                     help=("refuse to carry an `==` constraint by "
                           "copying when the two columns have "
@@ -2459,6 +2473,8 @@ def _generate_args(a):
             getattr(a, "no_token_cooccurrence", False)),
         "solve_token_targets": bool(
             getattr(a, "solve_token_targets", False)),
+        "revalue_copied": bool(
+            getattr(a, "revalue_copied", False)),
         # LEFT AT ITS DEFAULT ON PURPOSE, and recorded as such.
         # `--presence-rerank` sets the module CONSTANT, which
         # `dials` already carries; this parameter is the other
