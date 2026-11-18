@@ -650,6 +650,61 @@ def main():
           "SURFACE consumes" in out and "BESIDE" in out
           and "own-column" in out)
 
+    # ================================================================
+    # PUBLISHED == TRACED + PRESENCE-ONLY + ABSENT + THIN. The
+    # first real read traced 278 of 281 published curves and said
+    # nothing about the other three, so every proportion in the
+    # report had an unstated denominator.
+    # ================================================================
+    _bp5 = {"relationships": [
+        {"child": "y", "parents": ["a", "b", "c", "d"],
+         "evidence": {"effect": {
+             # traced
+             "a": {"grid": [1, 2], "response": [0.0, 1.0]},
+             # a KIND, not a gap: the probe cannot evaluate it
+             "b": {"grid": [1, 2], "response": [0.0, 1.0],
+                   "shape": "presence-only"},
+             # a column the probed frame does not carry
+             "c": {"grid": [1, 2], "response": [0.0, 1.0]},
+             # no response at all, so it was never published as a
+             # curve and must not enter the total
+             "d": {"grid": [1, 2]}}}}]}
+    pc = CT.publish_census(_bp5, 1, {"y", "a", "b"})
+    check("the published total counts only what the contract "
+          "actually published as a CURVE - a parent with a grid "
+          "and no response is not one and must not inflate the "
+          "denominator",
+          pc["published"] == 3)
+    check("...and the four terms ADD UP to it, which is the "
+          "identity a reader can check - this project has printed "
+          "a NEGATIVE residual on a real run by not holding one",
+          pc["traced"] + pc["presence_only"] + pc["absent_columns"]
+          + pc["thin_or_flat"] == pc["published"])
+    check("...and presence-only is counted as its own KIND rather "
+          "than as a thin reading, because the child depends on "
+          "whether the parent was MEASURED and `_curve_delta` "
+          "returns zeros for it without the pending mask the "
+          "probe does not have: presence-only {}, absent {}, thin "
+          "{}".format(pc["presence_only"], pc["absent_columns"],
+                      pc["thin_or_flat"]),
+          pc["presence_only"] == 1 and pc["absent_columns"] == 1
+          and pc["thin_or_flat"] == 0)
+    check("...and a residual that cannot be negative is CALLED "
+          "OUT when it is, because a total that balances does not "
+          "make a double-counted term right - which is exactly "
+          "how a real run came to print a negative count and look "
+          "internally consistent",
+          CT.impossible_residual(
+              CT.publish_census(_bp5, 3, {"y", "a", "b"}))
+          and not CT.impossible_residual(
+              CT.publish_census(_bp5, 1, {"y", "a", "b"}))
+          and not CT.impossible_residual({}))
+    check("...and the driver STATES the published total beside "
+          "what it traced, so no proportion in the report has an "
+          "unstated denominator",
+          "contract PUBLISHES" in out and "the four add to" in out
+          and "DOES NOT ADD UP" not in out)
+
     print()
     if FAIL:
         print("{} FAILED".format(FAIL))

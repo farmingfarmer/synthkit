@@ -247,6 +247,59 @@ def trace_run(rundir, seed, args, patients=None):
         probed if probed is not None else frame)
 
 
+def impossible_residual(pc):
+    """Is a term being counted twice?
+
+    A residual below zero cannot happen if the categories are
+    disjoint, so it is proof that one is - and the TOTAL still
+    balances when it happens, which is exactly how a real run came
+    to print "-38 otherwise unmeasured" and look internally
+    consistent. A predicate rather than a condition inside a
+    print, so the reader-facing branch is asserted rather than
+    merely written.
+    """
+    return bool(pc.get("thin_or_flat", 0) < 0)
+
+
+def publish_census(bp, traced, available):
+    """published == traced + presence_only + absent + thin, as an
+    identity a reader can check.
+
+    WHY A REPORT NEEDS THIS. The first real read traced 278 curves
+    where the blueprint publishes 281, and nothing said what the
+    other three were - so every proportion in the report had an
+    unstated denominator. A report that lists categories must
+    state a total they add up to, or a missing category is
+    invisible in every other way, and this project has printed a
+    NEGATIVE residual on a real run by not holding the identity.
+
+    PRESENCE-ONLY IS NOT A GAP, IT IS A KIND. Discovery labels
+    such a curve in as many words - the child depends on whether
+    the parent was MEASURED and not on its value - and
+    `_curve_delta` returns ZEROS for it without the pending
+    presence mask, which the probe does not have. So the probe
+    cannot evaluate it at all and the honest answer is a named
+    kind rather than a silent absence or a zero.
+    """
+    pub = pres = absent = 0
+    for rel in (bp.get("relationships") or []):
+        ch = rel.get("child")
+        eff = ((rel.get("evidence") or {}).get("effect")) or {}
+        for par, e in eff.items():
+            if not (e or {}).get("grid") or not (e or {}).get(
+                    "response"):
+                continue
+            pub += 1
+            if (e or {}).get("shape") == "presence-only":
+                pres += 1
+            elif ch not in available or par not in available:
+                absent += 1
+    thin = pub - traced - pres - absent
+    return {"published": pub, "traced": traced,
+            "presence_only": pres, "absent_columns": absent,
+            "thin_or_flat": thin}
+
+
 def census(rows):
     """published == carried + never + dropped + reversed +
     unmeasurable, as an identity a reader can check.
@@ -395,6 +448,30 @@ def main():
             "coparent_r": cr, "coparent": cc,
             "via_surface": via,
         })
+
+    pc = publish_census(bp, len(rows), set(frame.columns))
+    print()
+    print("  curves the contract PUBLISHES {:4d}".format(
+        pc["published"]))
+    print("    traced                     {:4d}".format(
+        pc["traced"]))
+    print("    presence-only, so the probe cannot evaluate it: the "
+          "child depends on whether the parent was MEASURED, not "
+          "on its value  {}".format(pc["presence_only"]))
+    print("    a column the probed frame does not carry {:4d}"
+          .format(pc["absent_columns"]))
+    print("    too thin or too flat to correlate        {:4d}"
+          .format(pc["thin_or_flat"]))
+    _tot = (pc["traced"] + pc["presence_only"]
+            + pc["absent_columns"] + pc["thin_or_flat"])
+    print("  ----------------------------------------")
+    print("  the four add to              {:4d}  {}".format(
+        _tot, "balances" if _tot == pc["published"]
+        else "DOES NOT ADD UP"))
+    if impossible_residual(pc):
+        print("  A NEGATIVE RESIDUAL IS IMPOSSIBLE: a term above "
+              "is being counted twice, and the total balancing "
+              "does not make it right.")
 
     c = census(rows)
     print()

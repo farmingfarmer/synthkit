@@ -3,6 +3,31 @@
 Synthetic clinical data generator and model-evaluation instrument. Core rule: learn the patterns, never copy the records. Real data teaches parameters; generation never touches a record.
 
 ## Verify before claiming
+- **AND THE TRACE NOW STATES ITS OWN DENOMINATOR, because 278 of
+  281 was a proportion with three curves unaccounted for
+  (2026-11-17).** `published == traced + presence_only +
+  absent_columns + thin_or_flat`, held as an identity a reader can
+  check. **PRESENCE-ONLY IS A KIND RATHER THAN A GAP**: discovery
+  labels such a curve in as many words - the child depends on
+  whether the parent was MEASURED and not on its value - and
+  `_curve_delta` returns ZEROS for it without the pending presence
+  mask, which the probe does not hold. So the probe cannot
+  evaluate it at all, and the honest answer is a named kind rather
+  than a silent absence or a zero. A negative residual is called
+  out in words because the TOTAL STILL BALANCES when a term is
+  double-counted - which is exactly how a real run came to print
+  "-38 otherwise unmeasured" and look internally consistent.
+- **AND FOUR READER-FACING BRANCHES BECAME PREDICATES IN ONE
+  SESSION, EACH AFTER A MUTATION FOUND NOTHING.**
+  `not_established`, `surface_note`, `impossible_residual` and the
+  `trace_run` surface choice were all conditions inside a print or
+  properties asserted beside the decision - and in every case a
+  mutation that changed the DECISION broke no check. The pattern
+  is one line: **a report whose whole content is the branch it
+  chose must have that branch asserted as a function, not as the
+  sentence it prints.** This file already records the fault three
+  separate times; it recurred four times today, in one tool,
+  written by somebody who had just read the rule.
 - **THE SIXTH MECHANISM IS THE FIRST TO SURVIVE: TWO OF THE NINE
   CURVES ARE PARENTS A PUBLISHED SURFACE CONSUMES, AND ONE OF THEM
   IS `height <- year_of_birth` (2026-11-17).** `_apply_numeric`
