@@ -3,6 +3,193 @@
 Synthetic clinical data generator and model-evaluation instrument. Core rule: learn the patterns, never copy the records. Real data teaches parameters; generation never touches a record.
 
 ## Verify before claiming
+- **THE TRACE RAN ON THE REAL EXTRACT AND THE ANSWER IS THAT IT IS
+  NOT A PASS: 156 OF THE 162 MISSES HAPPEN INSIDE THE DRAW
+  (2026-11-17, run_tail_ctl_current).** Generated from the run's own
+  blueprint at the run's own seed, every figure read back SPELLED by
+  the machine because the digits channel off that screen is not
+  trustworthy:
+      curves traced          278
+        dropped                6
+        reversed              23
+        never-applied        133
+        not-measurable         0
+        carried              116
+      the five add to        278   balances
+      on the operator's own columns   28 of 48 CARRIED
+  **133 are below the floor at the FIRST probe and all 23 reversals
+  are at the first probe too, so 156 of 162 are lost before any
+  later pass could touch them.** Only SIX are taken by a pass at
+  all. A pass-hunt would have spent itself on 4% of the problem.
+- **AND THE SIX NAME THEIR PASS, which is what the instrument is
+  for.** The histogram, spelled:
+      after-masks          five
+      after-date-reorder    one
+  So the presence mask is the only later pass that costs more than
+  one curve on this extract. The largest single fall is
+  **`systolic_blood_pressure <- mean_arterial_pressure_cuff_bmdi`
+  at after-masks, 0.4128** - the pressure family this file has
+  chased through a refuted ring ceiling and a NOT READABLE screen,
+  now with a pass named against it.
+- **AND THE ONE AT after-date-reorder IS THE DELIVERABLE'S ONE
+  DEPARTED SHAPE, which had no established cause.**
+  `condition_count <- visit_start_date` is the pair where
+  `repair_inversions --shapes` measured a REFUSAL because the column
+  is a hub and the joint constraint binds before the bar is
+  reached. The trace says the curve IS applied at the draw and is
+  lost at the within-patient date reorder, falling 0.128 - and this
+  file already records that reorder's price in the same direction
+  ("a planted date-driven numeric read +0.9730 in source, +0.9643
+  before and +0.9029 after"). A recorded open item gets a mechanism
+  from a measurement rather than a sixth story.
+- **AND THE PREDICTION HELD: `height <- year_of_birth` IS
+  NEVER-APPLIED.** Four mechanisms were refuted for that curve
+  before the instrument existed and a FIFTH died the same hour by
+  reading three fields off the blueprint - `height` is VISIT-level,
+  so the patient collapse the fixture had just implicated never
+  runs on it. The trace now places it in the draw, which is where
+  the remaining work is.
+- **AND A CAVEAT THAT SOUNDED RIGOROUS WAS VACUOUS, caught by its
+  own control in one command.** Every one of the failures - 23 of
+  23 reversed, 133 of 133 never-applied, 6 of 6 dropped - has a
+  MULTI-PARENT child, and a published curve is a PARTIAL effect
+  while the probe reads a MARGINAL correlation. That is exactly the
+  distinction that invalidated this file's earlier CONTRACT/SAMPLER
+  split, so I was one sentence from reporting the whole reversed
+  bucket as a measurement artifact. The control refutes it:
+      CARRIED             116 rows, 114 multi-parent
+      the blueprint         2 children with one parent, 95 with 2+
+  **Virtually every curve on this blueprint is multi-parent, so
+  "100% of the failures are multi-parent" is a statement about the
+  blueprint and not about the failures** - and if a partial curve's
+  marginal reading were generally invisible, the 114 carried ones
+  could not read positive. What is NOT ruled out is the sharper
+  version: that the FAILING children have more COLLINEAR parents
+  than the carried ones, which needs the co-parent correlation
+  `curve_why` already computes rather than a parent count. Named as
+  the next check, in both directions, rather than claimed.
+- **SO THE CURVE WORK BELONGS IN `_apply_numeric` AND IN THE
+  PRESENCE MASK, and that is the same answer the surface chapter
+  reached by a different route.** The record's conclusion there was
+  that three suspects were refuted, the ruler was priced at three
+  surfaces, and the published surfaces that survive the screen are
+  carried at a median of three times the bar - so "the surface work
+  belongs in generation". The curves now say it too, measured: the
+  passes are responsible for six of 162.
+- **THE CURVE TRACE IS BUILT, AND THE REAL CASE'S FIFTH MECHANISM
+  DIED BEFORE THE INSTRUMENT EVEN RAN ON IT (2026-11-17).** The
+  record said a fifth story was not worth telling and that what
+  this needed was an instrumented generate reporting, per column,
+  how much of each published curve survived each pass.
+  `TRACE_CURVES` takes the rank correlation of each published
+  curve's OWN delta against the child's CURRENT values at eleven
+  pass boundaries; `curve_trace.py RUNDIR` reads the trajectory and
+  names the pass. Five verdicts, because they are five findings
+  with five different fixes - CARRIED, NEVER-APPLIED (already below
+  the floor at the FIRST probe, so the loss is inside the draw and
+  no later pass could have caused it), DROPPED (naming the pass
+  with the largest single fall), REVERSED, and NOT-MEASURABLE.
+- **A REVERSAL IS NOT A SURVIVAL, AND THE SIGN IS JUDGED
+  ABSOLUTELY.** The probe correlates the curve's own delta, so a
+  correct application reads POSITIVE whichever way the curve runs -
+  a negative reading is the output moving opposite to the published
+  shape, which this file calls worse than a loss because it reads
+  as a finding. A curve faded PAST zero is DROPPED rather than
+  REVERSED, because the gate's own rule is that an inversion needs
+  MAGNITUDE. And there is ONE bar, not two: the floor IS
+  `curve_why.applied`, asserted by IDENTITY rather than by its
+  number, so the two halves cannot come to disagree about what
+  applied means.
+- **AND IT IS READ-ONLY, WHICH IS THE ONE THING IT CLAIMS ABOUT
+  ITSELF.** The traced run is BYTE-IDENTICAL to the untraced one
+  and with the flag off the report carries no trace at all - absent
+  rather than an empty dict, so a reader cannot mistake "not
+  measured" for "nothing happened". A mutation that makes the probe
+  write as well as read turns exactly that check red.
+- **THE REAL CASE IS NOT THE FIXTURE'S MECHANISM, ASKED OF THE
+  BLUEPRINT RATHER THAN ASSUMED.** On a patient-level fixture the
+  trace localised a loss immediately: a patient-level child carries
+  its PATIENT-LEVEL parent's curve (rho 0.429) and CANNOT carry one
+  on a parent that varies WITHIN the patient (0.0703 at the FIRST
+  probe, near zero at every later one), because `_collapse_to_
+  patient` ranks a patient by their MEAN of the applied values and
+  within-patient variation is averaged out of it by construction.
+  Structural rather than a pass to fix, and the trajectory says so
+  by naming no culprit. Then the real blueprint, read back spelled
+  by the machine:
+      height           level  visit
+      year_of_birth    level  patient
+      age_at_visit     level  visit
+  **`height` is VISIT-level, so the patient collapse never runs on
+  it at all** - and the parent is the constant one while the child
+  varies, which is the OPPOSITE arrangement. So the fixture's
+  finding is real and explains a different shape, and
+  `height <- year_of_birth` at rho 0.0405 has its FIFTH mechanism
+  refuted. Three columns, one query, no run: the cheapest
+  refutation of the five.
+- **AND BUILDING THE DRIVER FOUND A PROVENANCE GAP: EIGHT KEYWORDS
+  DECIDE WHAT GENERATION DOES AND A RUN RECORDED NONE OF THEM.**
+  Whether the constraints were enforced, how many refinement sweeps
+  ran, whether the dates were reordered, whether the identities
+  were enforced, whether the co-occurrence draw was on - all
+  arguments to `generate`, none in `provenance`. **A run made with
+  `--no-identities` and a run made without it produced provenance
+  files that agree to the byte.** That is the same hole `dials` was
+  added to close, one layer over: `dials` enumerates module
+  CONSTANTS and these are per-run ARGUMENTS. Found only because a
+  tool had to reproduce a run's own generate call and there was
+  nothing to read.
+- **THE RECORD IS THE CALL NOW, rather than a second list beside
+  it.** `_generate_args` is built BEFORE provenance is written -
+  the dial-order rule applied to an argument rather than to a
+  module constant - and splatted into `generate`, so a keyword the
+  engine receives cannot be one the run failed to record. A check
+  asserts the recorded keys against `generate`'s OWN SIGNATURE,
+  and that check caught my own guess on its first run: the eighth
+  parameter is `presence_rerank`, not the `copy_presence_from_
+  source` I remembered. The prescribed fix for nine recorded
+  wrong-key faults, finally mechanised - read the contract, do not
+  remember it.
+- **AND ABSENT IS NOT THE DEFAULT, which the first real read
+  demonstrated.** Pointed at a run made before the field existed,
+  the driver reported "NOT RECOVERABLE from this run, so the
+  engine's DEFAULT is used and the trace may differ from the run in
+  8 way(s)" and named all eight. Quietly using the defaults would
+  have made a trace of a different call read as an explanation of
+  this one.
+- **AND THE SIXTH MUTATION FOUND NOTHING, FOR THE REASON THIS FILE
+  ALREADY RECORDS.** The check that an unrecognised recorded
+  keyword is not passed into the engine read the REPORTED
+  `unknown` list - which is computed from the record rather than
+  from what is PASSED - so splatting every recorded keyword into
+  `generate` broke no check. A mutation that changes a reported
+  field no assertion depends on is not a fail-first. The observable
+  is that the run still TRACES, because an unknown keyword reaching
+  `generate` is a TypeError; asserted that way, the same mutation
+  bites.
+- **AND `git checkout HEAD -- PATH` DESTROYED MY UNCOMMITTED WORK
+  FOR THE SECOND TIME, in a session where the fix was already on
+  this file.** Restoring after a mutation reverted `pipeline.py` to
+  a commit that predated the recorder, so three of four mutations
+  were measured against the UNMUTATED state and each reported two
+  red checks that belonged to the first mutation - three
+  non-results reported as results, and `RESTORED-CLEAN` was true
+  and useless because clean means back to HEAD. The rule is
+  already written: **restore from a COPY of the working state,
+  never from a commit, when the working state is what you are
+  trying to keep.** Knowing it and having the habit are different
+  things; the habit is to `cp` first and to verify the restore by
+  COMPARING CONTENT rather than by an exit code.
+- **AND THE BRIDGE COST FOUR PROBES TO ASK THREE QUESTIONS.** A
+  nonce echoed FIRST scrolls off a long answer, so it must come
+  LAST or it is not evidence; a compound command's own echo is long
+  enough to push a short answer off the visible tail, so one
+  question per command; `tasklist /v /fi "windowtitle eq ..."`
+  returned "(no output)" twice, which is indistinguishable from a
+  dead job, so liveness came from the ARTIFACT instead; and a
+  base64 payload typed through the keyboard was verified by md5 AND
+  by compiling it remotely before anything was launched, because a
+  silently corrupted runner would have read as a failed trace.
 - **I CHASED THE UNDER-REPRODUCTION INTO GENERATION AND IT IS NOT
   WHERE EITHER OF MY ANSWERS SAID - FOUR MECHANISMS REFUTED AND ONE
   MEASUREMENT THAT LOCALISES IT (2026-11-17).** The decisive read,
