@@ -35,6 +35,7 @@ import synthkit.generate as G                          # noqa: E402
 
 sys.path.insert(0, str(ROOT / "scripts"))
 import curve_trace as CT                               # noqa: E402
+import curve_why as CW                                 # noqa: E402
 from curve_why import applied                          # noqa: E402
 
 PASS = FAIL = 0
@@ -84,6 +85,18 @@ def patient_level():
         "person_id": np.repeat(np.arange(npat), vis).astype(str),
         "plvl": np.round(plvl, 4), "wv": np.round(wv, 4),
         "h": np.round(h, 4)})
+
+
+def _numf(fr, c):
+    return pd.to_numeric(fr[c].replace("", None), errors="coerce")
+
+
+# `a` is perfectly ANTI-correlated with `b` and only partly with
+# `c`, so a computation that took the first co-parent rather than
+# the worst would name `c`.
+_cop = pd.DataFrame({"a": [1, 2, 3, 4, 5] * 20,
+                     "b": [5, 4, 3, 2, 1] * 20,
+                     "c": [1, 1, 2, 2, 3] * 20})
 
 
 def main():
@@ -406,6 +419,50 @@ def main():
               "reader cannot mistake a trace of another draw for "
               "an explanation of this one",
               "OWN seed 11" in out)
+
+        # ---- THE PARTIAL-VERSUS-MARGINAL CAVEAT -----------------
+        #
+        # A published curve is a PARTIAL effect and this probe
+        # reads a MARGINAL correlation, so on collinear parents a
+        # correctly applied curve can read near zero or negative.
+        # That is the distinction that invalidated this project's
+        # earlier CONTRACT/SAMPLER split, and a trace that claimed
+        # 133 curves were never applied without it would be making
+        # the same mistake at scale.
+        check("the collinearity question is asked with the SAME "
+              "computation and the SAME bar as `curve_why`, not a "
+              "second copy - two halves each deciding what "
+              "collinear means is how they come to disagree",
+              CT.max_coparent is CW.max_coparent
+              and CT.COLLINEAR_R is CW.COLLINEAR_R)
+        check("...and that computation takes the WORST co-parent "
+              "rather than the first, and returns nothing where "
+              "there is no co-parent - absent is not zero, and a "
+              "zero would read as 'the parents are independent' "
+              "where nobody could tell",
+              CW.max_coparent(_cop, ["a", "b", "c"], "a",
+                              _numf)[1] == "b"
+              and CW.max_coparent(_cop, ["a"], "a",
+                                  _numf) == (None, None))
+        check("...and the two verdicts that CLAIM the curve is not "
+              "followed are withheld on a collinear parent, while "
+              "DROPPED is NOT - a dropped curve was applied at the "
+              "draw and lost later, and the co-parent structure "
+              "does not change between passes, so it cannot "
+              "explain that",
+              CT.not_established("NEVER-APPLIED", 0.95)
+              and CT.not_established("REVERSED", 0.95)
+              and not CT.not_established("DROPPED", 0.99)
+              and not CT.not_established("CARRIED", 0.99)
+              and not CT.not_established("NEVER-APPLIED", 0.5)
+              and not CT.not_established("NEVER-APPLIED", None))
+        check("...and the driver prints the co-parent reading PER "
+              "VERDICT with the carried bucket named as the "
+              "control, because a reading on the failures alone "
+              "says nothing - exactly that caveat was vacuous on "
+              "the real extract and one control refuted it",
+              "per verdict" in out and "control" in out
+              and "median" in out)
 
     print()
     if FAIL:

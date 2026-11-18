@@ -78,6 +78,42 @@ def _say(n):
     return annotate(str(n))
 
 
+# HOW COLLINEAR A CO-PARENT HAS TO BE before two conditional
+# curves failing to sum to the joint effect is the better
+# explanation than the engine getting one wrong. Named here and
+# shared, because `curve_trace` asks the same question of the
+# GENERATED frame and two halves each deciding what collinear
+# means is how they come to disagree - this project says that
+# about token screening, the scaffolding predicate and both
+# categorical draw paths.
+COLLINEAR_R = 0.9
+
+
+def max_coparent(frame, parents, par, numeric, floor=60):
+    """The worst |rank correlation| between `par` and its
+    co-parents in `frame`, with the co-parent named.
+
+    Returns (None, None) where the claim has no other parent or no
+    co-parent shares enough rows to measure - absent is not zero,
+    and a zero here would read as "the parents are independent"
+    when the honest answer is that nobody could tell.
+    """
+    vp = numeric(frame, par)
+    worst_r, worst_c = None, None
+    for q in parents:
+        if q == par or q not in frame.columns:
+            continue
+        vq = numeric(frame, q)
+        ok = vp.notna() & vq.notna()
+        if int(ok.sum()) < floor:
+            continue
+        r = abs(float(pd.Series(vp[ok]).corr(
+            pd.Series(vq[ok]), method="spearman") or 0.0))
+        if worst_r is None or r > worst_r:
+            worst_r, worst_c = r, q
+    return worst_r, worst_c
+
+
 def applied(rho, flat=FLAT):
     """Did the published curve REACH the column at all?
 
@@ -157,7 +193,8 @@ def classify(src_travel, gen_travel, level_gap, reverses,
     if monotone and src_travel * gen_travel < 0:
         return "REVERSED"
     ratio = gs / ss
-    if max_coparent_r is not None and max_coparent_r >= 0.9 \
+    if max_coparent_r is not None \
+            and max_coparent_r >= COLLINEAR_R \
             and (ratio > 1.5 or ratio < 0.67):
         return "COLLINEAR"
     if ratio < 0.67:
@@ -320,18 +357,7 @@ def main(argv):
         # HOW COLLINEAR IS THE WORST CO-PARENT. The engine adds one
         # conditional curve per parent, and two conditional effects
         # of collinear columns do not sum to the joint effect.
-        worst_r, worst_c = None, None
-        for q in parents:
-            if q == par or q not in Xs.columns:
-                continue
-            vq = num(Xs, q)
-            ok = vs_p.notna() & vq.notna()
-            if int(ok.sum()) < 60:
-                continue
-            r = abs(float(pd.Series(vs_p[ok]).corr(
-                pd.Series(vq[ok]), method="spearman") or 0.0))
-            if worst_r is None or r > worst_r:
-                worst_r, worst_c = r, q
+        worst_r, worst_c = max_coparent(Xs, parents, par, num)
         rev = bool(e.get("reverses_when_controlled"))
         # THE PUBLISHED CURVE, in the child's own spread - the
         # third curve, and the one that decides whose error this

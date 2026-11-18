@@ -3,6 +3,59 @@
 Synthetic clinical data generator and model-evaluation instrument. Core rule: learn the patterns, never copy the records. Real data teaches parameters; generation never touches a record.
 
 ## Verify before claiming
+- **AND THE OWN-COLUMN CENSUS IS THE HONEST HEADLINE, WHICH THE
+  ENTRY BELOW UNDERSTATES BY QUOTING 133 FIRST (2026-11-17).** Of
+  the 278 curves traced, **230 are scaffolding** - and 124 of the
+  133 never-applied are among them. On the columns a researcher
+  actually receives, read back spelled by the machine:
+      own-column curves traced   48
+        carried                  28
+        never-applied             9
+        reversed                  6
+        dropped                   5
+        not-measurable            0
+      ------------------------------
+        they add to              48   balances
+  **Nine never-applied, six reversed and five dropped is the
+  actionable set, not one hundred and thirty-three.** The same
+  scaffolding dominance this file already records for the surfaces
+  (44 of 50 on a path the engine cannot apply one to) and for the
+  published claims (64 of 88 on columns the operator never
+  receives), now measured for the curves. A reader given 133 would
+  reasonably go after columns nobody gets.
+- **AND THE NINE INCLUDE TWO PAIRS THIS FILE HAS ALREADY CHASED
+  SEPARATELY**, which is what makes the list worth reading rather
+  than counting. `height <- year_of_birth` and `height <-
+  age_at_visit` are both there, so the two height curves fail by
+  the SAME mechanism rather than by the collapse the fixture
+  implicated for one of them. And `procedure_quantity <-
+  active_drug_count` is the pair recorded at source +0.497 against
+  a generated -0.106 - the copy-presence inversion that cost that
+  tier its default - while `procedure_count <- condition_count` is
+  a recorded seed-37 inversion. Four of the nine have histories on
+  this file, and the trace now puts all four in the same bucket:
+  the curve never reaches the column in the draw.
+- **AND THE PARTIAL-VERSUS-MARGINAL CAVEAT IS BUILT INTO THE
+  INSTRUMENT RATHER THAN LEFT IN A NOTE.** `not_established` is a
+  pure predicate: a NEVER-APPLIED or REVERSED verdict on a curve
+  whose parent is nearly a function of a co-parent is WITHHELD,
+  because a correctly applied partial curve can read near zero or
+  negative there. **DROPPED is deliberately NOT withheld** - a
+  dropped curve was applied at the draw and lost later, and the
+  co-parent structure does not change between passes, so it cannot
+  explain the loss. A mutation that withholds DROPPED too turns
+  that check red, and so does one that treats an unmeasurable
+  co-parent as collinear, because absent is not zero.
+- **AND THE COLLINEARITY QUESTION IS ASKED WITH `curve_why`'S OWN
+  COMPUTATION AND BAR, not a second copy.** `max_coparent` and
+  `COLLINEAR_R` are shared and the sharing is asserted by IDENTITY
+  rather than by their numbers - two halves each deciding what
+  collinear means is how they come to disagree, which this file
+  says about token screening, the scaffolding predicate and both
+  categorical draw paths. The driver prints the reading PER VERDICT
+  with the CARRIED bucket named as the control, because a reading
+  on the failures alone says nothing - that exact caveat was
+  vacuous here and one control refuted it.
 - **THE TRACE RAN ON THE REAL EXTRACT AND THE ANSWER IS THAT IT IS
   NOT A PASS: 156 OF THE 162 MISSES HAPPEN INSIDE THE DRAW
   (2026-11-17, run_tail_ctl_current).** Generated from the run's own

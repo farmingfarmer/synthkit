@@ -47,11 +47,13 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT))
 
+import pandas as pd                                     # noqa: E402
 import synthkit.generate as G                           # noqa: E402
 from synthkit.sets import is_scaffolding                # noqa: E402
 
 sys.path.insert(0, str(ROOT / "scripts"))
-from curve_why import FLAT, applied                     # noqa: E402
+from curve_why import (COLLINEAR_R, FLAT, applied,      # noqa: E402
+                       max_coparent)
 
 VERDICTS = ("DROPPED", "REVERSED", "NEVER-APPLIED",
             "NOT-MEASURABLE", "CARRIED")
@@ -108,6 +110,36 @@ def locate(traj, flat=FLAT):
     return ("DROPPED", worst_stage, round(worst_drop, 4))
 
 
+def not_established(verdict, coparent_r, bar=COLLINEAR_R):
+    """Is this verdict NOT established as an engine fault?
+
+    A published curve is a PARTIAL effect - the parent with its
+    co-parents held - and the probe reads a MARGINAL correlation.
+    On collinear parents a correctly applied partial curve can
+    read near zero or even negative, which is precisely the
+    distinction that invalidated this project's earlier
+    CONTRACT/SAMPLER split. So the two verdicts that claim the
+    curve is not being followed are the two that have to be
+    withheld where a co-parent could explain the reading.
+
+    DROPPED is NOT withheld, and that is the point of keeping this
+    a function rather than a condition in a print: a dropped curve
+    was APPLIED at the draw and lost later, so the co-parent
+    structure - which does not change between passes - cannot
+    explain why it stopped being followed.
+
+    A missing reading withholds nothing: absent is not zero, and
+    treating "nobody could measure the co-parent" as "there is no
+    co-parent" would quietly convert a withheld verdict into a
+    finding.
+    """
+    if coparent_r is None:
+        return False
+    if verdict not in ("NEVER-APPLIED", "REVERSED"):
+        return False
+    return coparent_r >= bar
+
+
 def recover_args(prov):
     """The keywords the run called `generate` with, and the ones
     this cannot recover.
@@ -150,10 +182,10 @@ def trace_run(rundir, seed, args, patients=None):
     was = G.TRACE_CURVES
     G.TRACE_CURVES = True
     try:
-        G.generate(bp, seed=seed, report=rep, **kw)
+        frame = G.generate(bp, seed=seed, report=rep, **kw)
     finally:
         G.TRACE_CURVES = was
-    return bp, rep.get("curve_trace") or {}
+    return bp, rep.get("curve_trace") or {}, frame
 
 
 def census(rows):
@@ -231,17 +263,43 @@ def main():
         print("  a THINNER DRAW than the run: {} patient(s). A "
               "smaller draw answers which pass and not how big "
               "the loss was.".format(a.patients))
-    bp, tr = trace_run(rundir, int(seed), args, patients=a.patients)
+    bp, tr, frame = trace_run(rundir, int(seed), args,
+                              patients=a.patients)
     if not tr:
         print("NOTHING TRACED. The blueprint publishes no numeric "
               "curve this probe can evaluate, which is a finding "
               "about the contract rather than about the engine.")
         return 0
 
+    def _num(fr, c):
+        return pd.to_numeric(fr[c].replace("", None),
+                             errors="coerce")
+
+    kids = {}
+    for rel in (bp.get("relationships") or []):
+        kids[rel.get("child")] = rel.get("parents") or []
+
     rows = []
     for key, traj in tr.items():
         child, _, parent = key.partition(" <- ")
         verdict, stage, drop = locate(traj)
+        # HOW COLLINEAR THE WORST CO-PARENT IS, measured on the
+        # frame the PROBE READ.
+        #
+        # WHY IT HAS TO BE HERE. A published curve is a PARTIAL
+        # effect - the parent with its co-parents held - and this
+        # probe reads a MARGINAL correlation. On collinear parents
+        # a correctly applied partial curve can read near zero or
+        # even negative, which is exactly the distinction that
+        # invalidated this project's earlier CONTRACT/SAMPLER
+        # split. So a NEVER-APPLIED or REVERSED verdict on a curve
+        # whose parent is nearly a function of a co-parent is NOT
+        # established as an engine fault, and the report says so
+        # per curve rather than leaving a reader to assume.
+        cr, cc = (None, None)
+        if child in frame.columns and parent in frame.columns:
+            cr, cc = max_coparent(frame, kids.get(child) or [],
+                                  parent, _num)
         first = traj[0][1] if traj else None
         last = traj[-1][1] if traj else None
         rows.append({
@@ -256,6 +314,7 @@ def main():
             "scaffold": bool(is_scaffolding(child)
                              or is_scaffolding(parent)),
             "stages": len(traj),
+            "coparent_r": cr, "coparent": cc,
         })
 
     c = census(rows)
@@ -290,6 +349,37 @@ def main():
                 else "", tail))
             print("      draw {}  ->  end {}".format(
                 r["first"], r["last"]))
+            if not_established(r["verdict"],
+                               r["coparent_r"]):
+                print("      NOT ESTABLISHED as an engine fault: "
+                      "the parent is nearly a function of {} "
+                      "({}), and a PARTIAL curve can read this "
+                      "way on collinear parents".format(
+                          r["coparent"], round(r["coparent_r"], 4)))
+
+    # THE CONTROL IS THE CARRIED BUCKET, printed beside the
+    # others. "Every failure has a collinear co-parent" means
+    # nothing until the curves that DID survive are measured the
+    # same way - a caveat that sounded rigorous was vacuous on
+    # this extract for exactly that reason, and one control
+    # refuted it.
+    print()
+    print("how collinear the worst co-parent is, per verdict - the "
+          "CARRIED row is the control, and without it a reading "
+          "here says nothing")
+    for v in VERDICTS:
+        got = [r["coparent_r"] for r in rows
+               if r["verdict"] == v and r["coparent_r"] is not None]
+        if not got:
+            print("  {:<16s} no co-parent measurable".format(
+                v.lower()))
+            continue
+        got.sort()
+        med = got[len(got) // 2]
+        hi = len([x for x in got if x >= COLLINEAR_R])
+        print("  {:<16s} measurable {:4d}   median {:.4f}   at or "
+              "over {} {:4d}".format(v.lower(), len(got), med,
+                                     COLLINEAR_R, hi))
 
     own = [r for r in rows if not r["scaffold"]]
     print()
