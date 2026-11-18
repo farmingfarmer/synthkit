@@ -3,6 +3,72 @@
 Synthetic clinical data generator and model-evaluation instrument. Core rule: learn the patterns, never copy the records. Real data teaches parameters; generation never touches a record.
 
 ## Verify before claiming
+- **READING THE ENGINE FOUND A BUG IN MY OWN VERDICT, AND THE
+  REAL EXTRACT PRICED IT AT TWO CURVES (2026-11-17).** `locate`
+  returned NEVER-APPLIED on the FIRST probe alone - and `_order`'s
+  cycle trim REMOVES an unplaced parent from the first pass BY
+  DESIGN, setting `trimmed["parents"] = okp` and leaving the
+  refinement sweeps to put it back once every column has a value.
+  So a curve legitimately absent at the draw and restored by the
+  sweeps was reported as never applied, which is not merely wrong
+  but the opposite of the truth: that pass was doing its job.
+  **The END is the primary fact now** - a curve the output follows
+  is CARRIED however it read at the draw, because the output is
+  what a recipient holds - and `late` is reported beside it, naming
+  the pass that first brought it over the floor, because a curve
+  that needed a later pass says how load-bearing that pass is.
+- **AND ITS SIZE IS SMALL, which is the half worth stating
+  plainly.** Re-classified from the run's own `draw -> end` lines,
+  spelled by the machine:
+      was NEVER-APPLIED            133
+      actually CARRIED LATE          2   own-column  0
+      truly never applied          131   own-column  9
+  **Two curves, and NONE of them on the operator's own columns**,
+  so the own-column census of nine never-applied, six reversed and
+  five dropped is unchanged and 133 becomes 131. The fault was
+  real and is proven; its size on this extract is two. Reporting
+  the mechanism without the number would have implied otherwise -
+  the same shape as the surface noise floor, which was real and
+  worth three of thirty-nine.
+- **AND THE COLLINEARITY CAVEAT IS REFUTED BY THE DATA IN BOTH
+  DIRECTIONS, WITH THE CARRIED BUCKET AS THE CONTROL.** The worry
+  was that a published curve is a PARTIAL effect while the probe
+  reads a MARGINAL correlation, so a correctly applied curve could
+  read near zero or negative on collinear parents. Measured, worst
+  co-parent correlation per verdict:
+      reversed        measurable   6    median 0.8814
+      never-applied   measurable   7    median 0.0603
+      carried         measurable  16    median 0.8717
+  **REVERSED sits at 0.8814 against the control's 0.8717 -
+  indistinguishable, so collinearity does not separate it** - and
+  **NEVER-APPLIED is FOURTEEN TIMES LOWER at 0.0603, which is the
+  OPPOSITE of what the artifact predicts**: a probe being fooled by
+  collinearity would show the fooled bucket as the MOST collinear
+  and it is the least. So those curves genuinely are not being
+  followed.
+- **BUT THOSE MEDIANS RESTED ON SEVEN AND SIXTEEN OF A HUNDRED AND
+  THIRTY-ONE AND A HUNDRED AND SIXTEEN, AND THE THIN SAMPLE WAS A
+  SURFACE MISMATCH RATHER THAN A PROPERTY OF THE DATA.** The probe
+  reads the working columns INCLUDING scaffolding; the co-parent
+  question was being asked of the frame `generate` RETURNS, which
+  has had the `__has__` indicators dropped - and most co-parents on
+  a real blueprint are indicators. Two halves asking about
+  different frames is the same fault as two halves deciding what a
+  set column is, and it reads as a thin sample rather than as a
+  wrong question. The frame the PROBES read is handed over now.
+- **AND TWO MUTATIONS FOUND NOTHING FIRST, BOTH MY OWN ERRORS.**
+  The check that the probed frame answers for more curves called
+  the computation DIRECTLY on both frames, so putting the driver
+  back on the returned frame broke nothing - the property was
+  asserted and the DECISION was not, which is the third instance of
+  that fault in one session and the second in this suite. Asserted
+  through `trace_run` now, and the same mutation turns two checks
+  red. And a defensive `.copy()` on the stashed frame was DEAD:
+  the drop on the next line REBINDS `df` rather than mutating it,
+  so nothing could reach back through the stash and the copy
+  protected nothing. Removed with the measurement in its place,
+  because a guard no mutation can break is dead code implying a
+  protection that lives somewhere else.
 - **AND THE OWN-COLUMN CENSUS IS THE HONEST HEADLINE, WHICH THE
   ENTRY BELOW UNDERSTATES BY QUOTING 133 FIRST (2026-11-17).** Of
   the 278 curves traced, **230 are scaffolding** - and 124 of the

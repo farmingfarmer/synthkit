@@ -3907,6 +3907,31 @@ def generate(blueprint: Dict[str, Any],
         # EVERY PROBE, IN ORDER, so the trajectory names the pass
         # rather than a count naming nothing.
         report["curve_trace"] = _trace
+        # AND THE FRAME THE PROBES READ, which is this one and NOT
+        # the returned one.
+        #
+        # WHY IT MATTERS. Scaffolding is dropped on the next line,
+        # so a reader asking a follow-up question of the returned
+        # frame asks it of a different surface: the first real read
+        # could measure a co-parent correlation for only 7 of 131
+        # curves, because most co-parents are `__has__` indicators
+        # the probe HAD and the caller did not. Two halves asking
+        # about different frames is the same fault as two halves
+        # deciding what a set column is, and it reads as a thin
+        # sample rather than as a mismatch.
+        #
+        # NOT A COPY, AND THAT IS MEASURED RATHER THAN ASSUMED.
+        # The first version copied it defensively; the mutation
+        # that removed the copy broke NO check, because the drop
+        # on the next line REBINDS `df` to a new frame rather than
+        # mutating this one - so nothing can reach back through
+        # the stash into what was generated, and the copy was
+        # protecting nothing. A guard no mutation can break is
+        # dead code implying a protection that lives somewhere
+        # else, which is why this project deleted a redundant
+        # campaign guard rather than leaving it as a comment.
+        # Trace-only either way: the flag is off by default.
+        report["curve_trace_frame"] = df
     if scaffold:
         df = df.drop(columns=scaffold)
 

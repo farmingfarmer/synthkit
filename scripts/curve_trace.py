@@ -27,9 +27,14 @@ The verdicts, and why they are separate findings rather than one
 number:
 
     CARRIED         the output follows the curve at the end
-    NEVER-APPLIED   already below the floor at the FIRST probe, so
-                    the loss is inside the draw and no later pass
-                    could have caused it
+    NEVER-APPLIED   below the floor at the first probe AND at the
+                    last, so no pass put it there and none took it
+                    away - the loss is inside the draw. A curve
+                    absent at the draw and restored later is
+                    CARRIED and marked LATE, because the engine's
+                    cycle trim removes an unplaced parent by design
+                    and leaves the refinement sweeps to put it
+                    back.
     DROPPED         applied at the draw and not at the end - the
                     pass with the largest single fall is named
     REVERSED        the output moves OPPOSITE to the published
@@ -74,20 +79,27 @@ def locate(traj, flat=FLAT):
     because the gate's own rule is that an inversion needs
     magnitude - a relationship pushed to noise is a loss, and the
     two take different fixes.
+
+    THE END IS THE PRIMARY FACT, AND THE FIRST VERSION GOT THAT
+    WRONG. It returned NEVER-APPLIED on the first probe alone - and
+    the engine's cycle trim REMOVES an unplaced parent from the
+    first pass by design, leaving the refinement sweeps to put it
+    back once every column has a value. So a curve legitimately
+    absent at the draw and restored by the sweeps was being
+    reported as never applied, which is both false and the exact
+    opposite of the truth: the sweeps were doing their job. Found
+    by reading `_order`'s trim rather than by any check.
+
+    A curve the output follows at the end is CARRIED however it
+    read at the draw, because the output is what a recipient
+    holds - and `late` is reported beside it, since a curve that
+    needed a later pass is a statement about how load-bearing that
+    pass is.
     """
     vals = [rho for _, rho in traj]
     if not vals or vals[0] is None:
         return ("NOT-MEASURABLE", None, None)
-    if applied(vals[0], flat) == "NOT-APPLIED":
-        return ("NEVER-APPLIED", traj[0][0], None)
-    if vals[0] < 0:
-        return ("REVERSED", traj[0][0], None)
-    if vals[-1] is None:
-        i = len(vals) - 1
-        while i > 0 and vals[i - 1] is None:
-            i -= 1
-        return ("DROPPED", traj[i][0], None)
-    if applied(vals[-1], flat) == "APPLIED":
+    if vals[-1] is not None and applied(vals[-1], flat) == "APPLIED":
         if vals[-1] < 0:
             prev = vals[0]
             for stage, rho in traj[1:]:
@@ -96,8 +108,27 @@ def locate(traj, flat=FLAT):
                 if prev >= 0 > rho:
                     return ("REVERSED", stage, None)
                 prev = rho
-            return ("REVERSED", None, None)
+            return ("REVERSED", traj[0][0], None)
+        # CARRIED, and `late` where the draw did not have it - the
+        # stage named is the one that first brought it over the
+        # floor, which is the pass doing the work.
+        if applied(vals[0], flat) == "NOT-APPLIED":
+            for stage, rho in traj[1:]:
+                if rho is not None \
+                        and applied(rho, flat) == "APPLIED":
+                    return ("CARRIED", stage, None)
         return ("CARRIED", None, None)
+    if applied(vals[0], flat) == "NOT-APPLIED":
+        # Absent at the draw AND absent at the end: no pass put it
+        # there and none took it away.
+        return ("NEVER-APPLIED", traj[0][0], None)
+    if vals[0] < 0:
+        return ("REVERSED", traj[0][0], None)
+    if vals[-1] is None:
+        i = len(vals) - 1
+        while i > 0 and vals[i - 1] is None:
+            i -= 1
+        return ("DROPPED", traj[i][0], None)
     worst_stage, worst_drop = None, -1.0
     prev = abs(vals[0])
     for stage, rho in traj[1:]:
@@ -185,7 +216,17 @@ def trace_run(rundir, seed, args, patients=None):
         frame = G.generate(bp, seed=seed, report=rep, **kw)
     finally:
         G.TRACE_CURVES = was
-    return bp, rep.get("curve_trace") or {}, frame
+    # THE FRAME THE PROBES READ, not the one the caller gets.
+    # Scaffolding is dropped before `generate` returns, and most
+    # co-parents on a real blueprint are `__has__` indicators - so
+    # asking the returned frame about collinearity could answer for
+    # only 7 of 131 curves and read as a thin sample rather than as
+    # a question asked of the wrong surface. Absent on an engine
+    # without the field, which is a narrower answer and not a
+    # crash.
+    probed = rep.get("curve_trace_frame")
+    return bp, rep.get("curve_trace") or {}, (
+        probed if probed is not None else frame)
 
 
 def census(rows):
@@ -341,7 +382,13 @@ def main():
         for r in got:
             tail = ""
             if r["stage"]:
-                tail = "   at {}".format(r["stage"])
+                # A CARRIED curve naming a stage was NOT there at
+                # the draw: the stage is the pass that brought it
+                # over the floor, which says how load-bearing that
+                # pass is rather than that anything went wrong.
+                tail = ("   LATE, first carried at {}".format(
+                    r["stage"]) if r["verdict"] == "CARRIED"
+                    else "   at {}".format(r["stage"]))
                 if r["drop"] is not None:
                     tail += " (fell {})".format(r["drop"])
             print("  {}{}{}".format(

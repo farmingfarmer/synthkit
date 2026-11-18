@@ -99,6 +99,35 @@ _cop = pd.DataFrame({"a": [1, 2, 3, 4, 5] * 20,
                      "c": [1, 1, 2, 2, 3] * 20})
 
 
+def token_driven():
+    """A set column whose TOKENS drive a numeric, so the blueprint
+    carries relationships with INDICATOR parents.
+
+    Needed because most co-parents on a real blueprint are
+    `__has__` indicators, and a fixture whose tokens carry no
+    structure produces none - which this project already records
+    as the reason a cap experiment measured nothing.
+    """
+    r = np.random.RandomState(3)
+    npat, vis = 400, 6
+    n = npat * vis
+    toks = ["t%02d" % i for i in range(6)]
+    sets, h0, h1 = [], [], []
+    for _ in range(n):
+        k = r.randint(1, 4)
+        pick = list(r.choice(toks, size=k, replace=False))
+        sets.append(";".join(sorted(pick)))
+        h0.append(1 if "t00" in pick else 0)
+        h1.append(1 if "t01" in pick else 0)
+    z = r.normal(0, 1, n)
+    y = (4.0 * np.array(h0) + 3.0 * np.array(h1) + 1.5 * z
+         + r.normal(0, 0.6, n))
+    return pd.DataFrame({
+        "person_id": np.repeat(np.arange(npat), vis).astype(str),
+        "drugs": sets, "z": np.round(z, 4),
+        "y": np.round(y, 4)})
+
+
 def main():
     df = per_visit()
     bp = B.build(df, discover(df, group_by="person_id"),
@@ -218,12 +247,30 @@ def main():
     L = CT.locate
     check("a curve the output follows at the end reads CARRIED",
           L([("a", 0.8), ("b", 0.7), ("c", 0.6)])[0] == "CARRIED")
-    check("...and a curve already below the floor at the FIRST "
-          "probe reads NEVER-APPLIED naming that probe - the loss "
-          "is inside the draw and no later pass could have caused "
-          "it, which is a different finding and a different fix",
-          L([("a", 0.04), ("b", 0.03)]) == ("NEVER-APPLIED", "a",
-                                            None))
+    check("...and a curve below the floor at the first probe AND "
+          "the last reads NEVER-APPLIED naming the draw - no pass "
+          "put it there and none took it away, which is a "
+          "different finding and a different fix",
+          L([("a", 0.04), ("b", 0.03), ("c", 0.02)])
+          == ("NEVER-APPLIED", "a", None))
+
+    # THE END IS THE PRIMARY FACT. The first version of this
+    # verdict returned NEVER-APPLIED on the first probe alone - and
+    # `_order`'s cycle trim REMOVES an unplaced parent from the
+    # first pass BY DESIGN, leaving the refinement sweeps to put it
+    # back once every column has a value. So a curve the sweeps
+    # restored was being reported as never applied, which is the
+    # opposite of the truth: that pass was doing its job. Found by
+    # reading the trim, not by any check, and the real-extract
+    # count of 133 was taken with the broken rule.
+    check("...and a curve ABSENT at the draw and present at the "
+          "end is CARRIED, naming the pass that first brought it "
+          "over the floor - the cycle trim drops an unplaced "
+          "parent by design and the sweeps restore it, so judging "
+          "on the first probe alone reports a working pass as a "
+          "loss",
+          L([("a", 0.03), ("b", 0.72), ("c", 0.70)])
+          == ("CARRIED", "b", None))
     check("...and a curve applied at the draw and gone at the end "
           "reads DROPPED, naming the pass with the LARGEST single "
           "fall rather than the last one",
@@ -330,8 +377,12 @@ def main():
         # with the only thing that matters. Twelve rows of
         # em-dashes once shipped behind forty green checks for
         # exactly that reason.
+        # THE TOKEN FIXTURE, so this one run also carries
+        # SCAFFOLDING - which is what makes the surface question
+        # below answerable through the driver rather than beside
+        # it.
         fsrc = td / "src.csv"
-        per_visit().to_csv(fsrc, index=False)
+        token_driven().to_csv(fsrc, index=False)
         run = td / "run"
         rv = subprocess.run(
             [sys.executable, "-m", "synthkit.cli", "fit",
@@ -420,6 +471,21 @@ def main():
               "an explanation of this one",
               "OWN seed 11" in out)
 
+        # THE DRIVER MUST USE THE PROBED FRAME, asserted THROUGH
+        # `trace_run` rather than beside it. A check that called
+        # the computation directly on both frames left a mutation
+        # putting the driver back on the RETURNED frame breaking
+        # nothing - the property was asserted and the DECISION was
+        # not, which is the same fault this suite already caught
+        # once on the unknown-keyword list.
+        _b4, _t4, _f4 = CT.trace_run(run, 11, use, patients=60)
+        check("...and `trace_run` hands the driver the frame the "
+              "PROBES read rather than the one the caller gets, "
+              "which is why the collinearity question can be "
+              "answered for a curve whose co-parent is "
+              "scaffolding",
+              any("__has__" in c for c in _f4.columns))
+
         # ---- THE PARTIAL-VERSUS-MARGINAL CAVEAT -----------------
         #
         # A published curve is a PARTIAL effect and this probe
@@ -463,6 +529,67 @@ def main():
               "the real extract and one control refuted it",
               "per verdict" in out and "control" in out
               and "median" in out)
+
+    # ================================================================
+    # THE CO-PARENT QUESTION MUST BE ASKED OF THE FRAME THE PROBES
+    # READ. Scaffolding is dropped before `generate` returns, and
+    # most co-parents on a real blueprint are `__has__` indicators -
+    # so asking the RETURNED frame answered for only 7 of 131
+    # curves on the real extract, which reads as a thin sample
+    # rather than as a question asked of the wrong surface.
+    # ================================================================
+    tdf = token_driven()
+    bp3 = B.build(tdf, discover(tdf, group_by="person_id"),
+                  group_by="person_id")
+    G.TRACE_CURVES = True
+    rep3 = {}
+    ret3 = G.generate(bp3, seed=7, report=rep3)
+    G.TRACE_CURVES = False
+    tr3 = rep3.get("curve_trace") or {}
+    pf3 = rep3.get("curve_trace_frame")
+    check("the fixture really does carry a relationship with an "
+          "INDICATOR parent, without which this measures nothing - "
+          "a fixture whose tokens carry no structure produces none",
+          any("__has__" in k for k in tr3))
+    gone = [c for c in (pf3.columns if pf3 is not None else [])
+            if c not in ret3.columns]
+    check("...and the probed frame carries the scaffolding the "
+          "RETURNED frame has dropped, which is the whole "
+          "difference: {}".format(len(gone)),
+          pf3 is not None and len(gone) >= 3
+          and any("__has__" in c for c in gone))
+
+    def measurable(frame):
+        kids = {}
+        for rel in (bp3.get("relationships") or []):
+            kids[rel.get("child")] = rel.get("parents") or []
+        got = 0
+        for key in tr3:
+            ch, _, par = key.partition(" <- ")
+            if ch not in frame.columns or par not in frame.columns:
+                continue
+            r_, _c = CW.max_coparent(frame, kids.get(ch) or [], par,
+                                     _numf)
+            if r_ is not None:
+                got += 1
+        return got
+    on_probed, on_returned = measurable(pf3), measurable(ret3)
+    check("...and the collinearity question is ANSWERABLE for more "
+          "curves on the probed frame than on the returned one, "
+          "which is the observable the fix exists for: {} against "
+          "{}".format(on_probed, on_returned),
+          on_probed > on_returned)
+
+
+    # AND THE RETURNED FRAME IS STILL UNTOUCHED on this shape too -
+    # the stashed frame is a COPY, so a caller cannot reach back
+    # into what was generated.
+    G.TRACE_CURVES = False
+    plain3 = G.generate(bp3, seed=7)
+    check("...and stashing it leaves the generated output "
+          "BYTE-IDENTICAL on a frame that HAS scaffolding, so the "
+          "copy is a copy",
+          digest(plain3) == digest(ret3))
 
     print()
     if FAIL:
