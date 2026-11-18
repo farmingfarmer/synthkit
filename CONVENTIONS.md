@@ -3,6 +3,23 @@
 Synthetic clinical data generator and model-evaluation instrument. Core rule: learn the patterns, never copy the records. Real data teaches parameters; generation never touches a record.
 
 ## Verify before claiming
+- **AND THE FIRST QUESTION TO ASK THE MASKS IS WHETHER THEIR FALL
+  IS A LOSS AT ALL - QUEUED, NOT GUESSED (2026-11-17).** Applying
+  a presence mask restricts the rows the curve is visible on, and
+  `measure_shapes` compares the SOURCE's curve on ITS present rows
+  against the generated one on ITS present rows - so a restriction
+  the source shares is already accounted for and a fall at
+  `after-masks` can be correct behaviour rather than a loss. Four
+  of the five after-masks curves are NOT among the eleven shape
+  misses the record names, which points that way. **But that is
+  not yet evidence**: of 42 graded curves, not being a named miss
+  could mean graded-and-tracking or not graded at all, and absent
+  is not clean. The decisive read is one file - `run_shapefix`'s
+  own shape claims, confirmed to carry the fixed 42 - crossed
+  against the five by name, and it is QUEUED behind a compliance
+  dialog holding that console rather than answered. Do that before
+  building anything for the masks: if they track, the presence
+  mask costs the gate nothing and the five are not a target.
 - **THE NEXT STEP IS NAMED WITH ITS TENSION, NOT LEFT TO BE
   REDISCOVERED (2026-11-17).** Five of the six DROPPED curves name
   `after-masks`, and two of those five are on the operator's own
