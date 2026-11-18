@@ -3,6 +3,42 @@
 Synthetic clinical data generator and model-evaluation instrument. Core rule: learn the patterns, never copy the records. Real data teaches parameters; generation never touches a record.
 
 ## Verify before claiming
+- **THE REVALUE ARM IS RUNNING ON THE REAL EXTRACT AND THE
+  PREDICTION IS ON RECORD FIRST (2026-11-18, run_rv_*).** Four
+  runs on ONE tree: seed 11 WITHOUT the flag as the control, then
+  seed 11, 37 and 20260731 WITH `--revalue-copied`. A same-tree
+  control, because this file records nearly reading a cross-build
+  pair as an arm and the only honest fix was an extra run.
+  `_copy_partners` on the run's own blueprint reads
+  `{'procedure_quantity': 'procedure_count'}`, so the pass has
+  something to reach - asked of the artifact before spending the
+  machine time, which is the `peek rerank` precedent.
+- **WHAT IS PREDICTED.** (1) `procedure_quantity`'s distance from
+  its OWN source marginal falls sharply from 0.4002. (2)
+  **INVERTED and own-column INVERTED stay ZERO** - the absolute
+  stop, and the post-hoc arm measured zero. (3) `direction kept`
+  rises by about three pairs, 132 toward 135 of 151. (4) Coverage
+  stays 42/42. (5) The run RECORDS `revalued_copied` naming the
+  column and its source; if that line is absent the flag did not
+  fire and nothing else on the page means anything.
+- **WHAT IS NOT PREDICTED: that it reaches 0.0255.** That figure
+  came from `model_rank` re-valuing a WRITTEN file post-hoc on a
+  different build. This runs INSIDE the engine at a different
+  point in the pass order - before the bound pin and before the
+  masks are applied - so the number can legitimately differ, and
+  claiming the old one would be quoting a different experiment.
+  Nor is `close` predicted: the post-hoc table reported direction
+  only. This is not a token-placement change, so the near
+  zero-sum this file records for four token tiers should not
+  apply - but that is a reason to measure rather than to claim.
+- **AND WHAT WOULD BE A FINDING RATHER THAN A DISAPPOINTMENT: an
+  own-column INVERTED appearing.** That would mean the re-value
+  manufactures the one verdict this project calls an absolute
+  stop, exactly as the copy-presence default did, and the flag
+  would stay off whatever it bought on the marginal. A `close`
+  fall of more than a couple of pairs would make it a trade
+  rather than a win, which is a decision for an operator and not
+  a default.
 - **AND THE FIRST QUESTION TO ASK THE MASKS IS WHETHER THEIR FALL
   IS A LOSS AT ALL - QUEUED, NOT GUESSED (2026-11-17).** Applying
   a presence mask restricts the rows the curve is visible on, and
