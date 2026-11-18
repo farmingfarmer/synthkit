@@ -3,6 +3,77 @@
 Synthetic clinical data generator and model-evaluation instrument. Core rule: learn the patterns, never copy the records. Real data teaches parameters; generation never touches a record.
 
 ## Verify before claiming
+- **THE FINAL READ, WITH THE DENOMINATOR STATED AND THE CAVEAT
+  CORRECTED - AND MORE THAN HALF THE NEVER-APPLIED CURVES ARE A
+  SURFACE'S PARENTS (2026-11-17, run_tail_ctl_current).** Every
+  figure read back spelled by the machine:
+      curves the contract PUBLISHES    281
+        traced                         278
+        presence-only                    0
+        a column the frame lacks         0
+        too thin or too flat to correlate 3
+      ---------------------------------------
+      the four add to                  281   balances
+  So the earlier 278 is accounted for: THREE curves are too thin
+  or flat to correlate and NONE is presence-only on this
+  blueprint - that kind simply does not arise here, which is worth
+  knowing because my concern about it was theoretical.
+- **A PUBLISHED SURFACE CONSUMES THE PARENT IN HALF THE
+  NEVER-APPLIED BUCKET, which is far more than the own-column
+  sample suggested:**
+      verdict          parent a surface consumes   own-column
+      never-applied            67 of 131                2
+      reversed                  9 of  23                1
+      dropped                   3 of   6                2
+  **Sixty-seven of a hundred and thirty-one.** For those the curve
+  is not one the engine failed to apply; it is one the engine does
+  not USE, because `_apply_numeric` applies the surface and marks
+  both pair members done. The 2-of-9 own-column figure recorded
+  earlier was right about the operator's columns and badly
+  understated the mechanism's reach - a share measured on the
+  smaller population is not the share.
+- **CORRECTION: THE REVERSED BUCKET IS NOT "INDISTINGUISHABLE
+  FROM THE CONTROL". THAT WAS SEVEN AND SIX OBSERVATIONS.** With
+  the probe's own frame handed over, the co-parent question is
+  answerable for a hundred curves instead of seven:
+      verdict          thin sample        full coverage
+      reversed        0.8814 on   6      0.5165 on  22
+      carried         0.8717 on  16      0.3358 on 104
+      never-applied   0.0603 on   7      0.0154 on 100
+      dropped              -             0.0564 on   5
+  **REVERSED now sits ABOVE the control - 0.5165 against 0.3358 -
+  where the thin sample said it sat level.** So a reversal IS
+  associated with more collinear parents, which partially supports
+  the partial-versus-marginal explanation for that bucket and is
+  the opposite of what I recorded hours earlier. Stated as an
+  association on medians over 22 against 104, not as a mechanism.
+- **AND NEVER-APPLIED SURVIVES THE BETTER SAMPLE, WHICH IS THE
+  HALF THAT MATTERS: 0.0154 against a control of 0.3358, an order
+  of magnitude LOWER on a hundred observations.** A probe being
+  fooled by collinearity would show the fooled bucket as the MOST
+  collinear and it is the least, by far, on a sample twenty times
+  larger than the one that first said so. Those curves genuinely
+  are not being followed - and more than half of them are a
+  surface's parents, which is why.
+- **SO THE OWN-COLUMN RECKONING, WHICH IS WHAT A RESEARCHER
+  HOLDS:** of 48 curves, 28 CARRIED; 9 never-applied of which 2
+  are a surface's parents; 6 reversed of which 1 is; 5 dropped of
+  which 2 are and FIVE OF THE SIX DROPPED NAME `after-masks`.
+  About fifteen curves of forty-eight are unexplained after every
+  named mechanism is subtracted, and the presence mask is the only
+  later pass that costs more than one. That is the smallest and
+  best-aimed statement this chapter has produced, and it took the
+  instrument rather than a seventh story.
+- **AND THE THIN SAMPLE IS THE LESSON, NOT A FOOTNOTE.** Both
+  readings came from the same tool on the same run; the only
+  difference is that the second asked the question of the frame
+  the PROBE READ rather than the frame `generate` RETURNS. A
+  measurement whose sample is decided by a surface mismatch will
+  read as a weak signal rather than as a wrong question - and in
+  this case it reversed a conclusion. **Check what a sample IS
+  before reading a median off it**, which is the same rule as
+  checking a denominator before reading a percentage, one level
+  down.
 - **AND THE TRACE NOW STATES ITS OWN DENOMINATOR, because 278 of
   281 was a proportion with three curves unaccounted for
   (2026-11-17).** `published == traced + presence_only +
