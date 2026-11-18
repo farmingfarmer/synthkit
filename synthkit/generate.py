@@ -747,6 +747,75 @@ def _surface_delta(it: Dict[str, Any], va, vb) -> np.ndarray:
     return np.where(np.isnan(a) | np.isnan(b), 0.0, out)
 
 
+# HOW MUCH OF EACH PUBLISHED CURVE SURVIVES EACH PASS.
+#
+# WHY THIS EXISTS. On the real extract the published curve for
+# `height <- year_of_birth` spans 6.5473 raw over 27,336 rows, and
+# the rank correlation of that curve against the GENERATED height
+# is 0.0405 - the output does not follow it at all. Four mechanisms
+# were measured and refuted: the cyclic sweep's rank map AMPLIFIES
+# rather than compressing (0.94 to 2.34 over nine cells), the
+# parents' own correlation SURVIVES (-0.9563 source against -0.9634
+# generated), the published partials DO reconstruct both marginals
+# on a fixture with the same collinearity, and the sweep does NOT
+# skip the column (17 refined, 2 skipped, height not among them).
+#
+# A fifth story is not worth telling. This function moves a column
+# at a dozen points after it is drawn - the sweeps, the final
+# synchronized pass, the patient-level collapse, the bound pin, the
+# presence re-rank, the masks, the size identity, the constraint
+# repair, the date reorder, the arithmetic identities - and the
+# question is simply WHICH of them drops the curve. That is a
+# measurement, and this is the instrument: the same correlation,
+# taken at every pass boundary, so the trajectory names the pass.
+#
+# READ-ONLY AND OFF BY DEFAULT. It touches nothing, and with the
+# flag off not one probe runs, so the output is byte-identical and
+# the cost is zero.
+TRACE_CURVES = False
+
+
+def _curve_trace(vals, bp, stage, trace):
+    """Append, per published numeric curve, the rank correlation of
+    the curve's own delta against the child's CURRENT values.
+
+    `vals` is either the working dict of columns or the assembled
+    frame - both index by name and both yield something
+    `pd.Series` accepts, so one probe serves every pass.
+    """
+    if trace is None:
+        return
+    for rel in (bp.get("relationships") or []):
+        ch = rel.get("child")
+        if not ch or ch not in vals:
+            continue
+        yv = pd.to_numeric(pd.Series(vals[ch]).replace("", None),
+                           errors="coerce").to_numpy(dtype=float)
+        for par, e in (((rel.get("evidence") or {}).get("effect"))
+                       or {}).items():
+            if par not in vals or not (e or {}).get("grid"):
+                continue
+            if not (e or {}).get("response"):
+                continue
+            try:
+                d = np.asarray(_curve_delta(e, pd.Series(vals[par]),
+                                            None), dtype=float)
+            except Exception:
+                continue
+            if len(d) != len(yv):
+                continue
+            m = np.isfinite(d) & np.isfinite(yv)
+            if int(m.sum()) < 60:
+                continue
+            if float(np.std(d[m])) <= 0 or float(np.std(yv[m])) <= 0:
+                continue
+            r = float(pd.Series(d[m]).corr(pd.Series(yv[m]),
+                                           method="spearman"))
+            trace.setdefault(
+                "{} <- {}".format(ch, par), []).append(
+                    [stage, None if r != r else round(r, 4)])
+
+
 def _order(bp: Dict[str, Any], refine: bool = True):
     """Pick a direction per relationship and a safe drawing order.
 
@@ -2657,6 +2726,9 @@ def generate(blueprint: Dict[str, Any],
     # Which rows each column will be MISSING on, collected during the
     # loop and applied only after every relationship has run.
     masks: Dict[str, Any] = {}
+    # WHICH PASS DROPS A PUBLISHED CURVE. Off by default: with the
+    # flag off this stays None and not one probe runs.
+    _trace: Optional[Dict[str, Any]] = {} if TRACE_CURVES else None
 
     n_pat = int(n_patients or pat.get("target_count")
                 or pat.get("count") or 100)
@@ -3221,6 +3293,7 @@ def generate(blueprint: Dict[str, Any],
     # the curve's center, and the relationship applies exactly nothing
     # while every column still looks right. A silent no-op is worse
     # than a crash.
+    _curve_trace(out, bp, "after-draw", _trace)
     # ---- PUT THE CUT EDGES BACK ---------------------------------
     #
     # A cycle cannot be ORDERED, but it does not have to be. The first
@@ -3396,6 +3469,7 @@ def generate(blueprint: Dict[str, Any],
         for c, v in staged.items():
             out[c] = v
 
+    _curve_trace(out, bp, "after-sweeps", _trace)
     # ---- A FACT ABOUT THE PERSON, RE-ASSERTED AFTER THE SWEEPS --
     #
     # The collapse to one-value-per-patient runs inside the loop, and
@@ -3425,6 +3499,7 @@ def generate(blueprint: Dict[str, Any],
                 out[c] = _collapse_to_patient(
                     out[c], pat_draws[c], pidx, n_pat, numeric_c)
 
+    _curve_trace(out, bp, "after-final-pass-and-collapse", _trace)
     # ---- THE PUBLISHED BOUND IS RE-ASSERTED LAST ----------------
     #
     # After every relationship, sweep and collapse has run - the same
@@ -3433,6 +3508,7 @@ def generate(blueprint: Dict[str, Any],
     # moved are exempt, exactly as the invariant pass exempts them:
     # they asked, and the dial report carries requested against
     # achieved.
+    _curve_trace(out, bp, "after-bound-pin", _trace)
     # ---- THE SURVIVING ROWS CARRY THE PUBLISHED MARGINAL --------
     #
     # The acyclic re-rank inside the loop runs BEFORE this column's
@@ -3502,6 +3578,7 @@ def generate(blueprint: Dict[str, Any],
     if report is not None and pinned:
         report["bounds_pinned"] = pinned
 
+    _curve_trace(out, bp, "after-presence-rerank", _trace)
     # ---- NOW THE COLUMNS GO MISSING -----------------------------
     #
     # A MISSING MEASUREMENT IS NOT AN ABSENT FACT. The mask used to be
@@ -3604,6 +3681,7 @@ def generate(blueprint: Dict[str, Any],
                   else pd.to_numeric(pd.Series(arr),
                                      errors="coerce").to_numpy(
                                          dtype=float))
+    _curve_trace(out, bp, "after-masks", _trace)
     if report is not None and masks:
         report["masked_after_relationships"] = len(masks)
 
@@ -3652,6 +3730,7 @@ def generate(blueprint: Dict[str, Any],
             ["visit_number"] if (_real_gid and _repeated) else [])
     frame.update(out)
     df = pd.DataFrame(frame)
+    _curve_trace(df, bp, "frame-assembled", _trace)
 
     # A DECLARED SIZE IDENTITY IS ENFORCED BY COPYING, NOT BY
     # DRAWING TWICE.
@@ -3722,6 +3801,7 @@ def generate(blueprint: Dict[str, Any],
     # `to_numeric` gave NaN, nothing looked violated, and the flag
     # repaired nothing while reporting success - the same fault as
     # formatting a date before its children were drawn.
+    _curve_trace(df, bp, "after-size-identity", _trace)
     if enforce_constraints:
         df = _enforce(df, bp.get("constraints"), report)
         # A SWAP DONATES ACROSS COLUMNS, so repair can undo the
@@ -3792,6 +3872,7 @@ def generate(blueprint: Dict[str, Any],
     # off switch to be measurable at all.
     _ids = (bp.get("arithmetic_identities") or []
             if enforce_identities else [])
+    _curve_trace(df, bp, "after-date-reorder", _trace)
     if _ids:
         _idrep = []
         df = _identities.apply(
@@ -3821,6 +3902,11 @@ def generate(blueprint: Dict[str, Any],
     # opening it would take them for data.
     scaffold = [c for c in df.columns
                 if (cols.get(c) or {}).get("derived_from")]
+    _curve_trace(df, bp, "after-identities", _trace)
+    if _trace is not None and report is not None:
+        # EVERY PROBE, IN ORDER, so the trajectory names the pass
+        # rather than a count naming nothing.
+        report["curve_trace"] = _trace
     if scaffold:
         df = df.drop(columns=scaffold)
 
