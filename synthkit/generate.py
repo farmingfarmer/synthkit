@@ -3971,6 +3971,41 @@ def generate(blueprint: Dict[str, Any],
     return df
 
 
+def surface_pair(rel, available):
+    """The two columns a published surface will be applied to, or
+    None where it cannot be applied at all.
+
+    EXTRACTED SO BOTH HALVES ASK ONE QUESTION. `_apply_numeric`
+    applies the surface and then marks both pair members `done`,
+    so their INDIVIDUAL published curves are never applied - by
+    design, because a joint surface is the better object where one
+    exists. A diagnostic that did not know this reports such a
+    curve as never applied, which is misleading in the worst
+    direction: the dependence IS being carried, by a different and
+    coarser object, and the published curve is simply not the one
+    generation used.
+
+    Measured on the real extract: TWO of the nine own-column
+    curves the trace called never-applied are surface pair
+    members, `height <- year_of_birth` among them - the curve this
+    project spent five refuted mechanisms on.
+
+    A second copy of this predicate is how the engine and the
+    diagnostic would come to disagree about what generation did,
+    which is the fault this project records for token screening,
+    the scaffolding predicate and both categorical draw paths.
+    """
+    ev = rel.get("evidence") or {}
+    it = ev.get("interaction") or None
+    pair = [x for x in ((it or {}).get("pair") or [])]
+    if not it or not it.get("grid_a") or len(pair) != 2:
+        return None
+    ps = rel.get("parents") or []
+    if not all(x in ps and x in available for x in pair):
+        return None
+    return pair
+
+
 def _apply_numeric(c, spec, m, base, rels, out, masks=None,
                    pidx=None):
     """mean + strength*(curve - curve_mean) + shrink*(draw - mean)."""
@@ -4007,9 +4042,8 @@ def _apply_numeric(c, spec, m, base, rels, out, masks=None,
         # No pair, or a pair this relationship does not have, means
         # the surface cannot be placed - and an individual curve is
         # better than a surface applied to the wrong columns.
-        pair = [x for x in (it or {}).get("pair") or []]
-        if it and it.get("grid_a") and len(pair) == 2 \
-                and all(x in r["parents"] and x in out for x in pair):
+        pair = surface_pair(r, out)
+        if pair:
             a, b = pair[0], pair[1]
             s_surf = s * float(es.get(a, 1.0)) * float(
                 es.get(b, 1.0))

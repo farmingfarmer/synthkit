@@ -54,6 +54,7 @@ sys.path.insert(0, str(ROOT))
 
 import pandas as pd                                     # noqa: E402
 import synthkit.generate as G                           # noqa: E402
+from synthkit.generate import surface_pair              # noqa: E402
 from synthkit.sets import is_scaffolding                # noqa: E402
 
 sys.path.insert(0, str(ROOT / "scripts"))
@@ -139,6 +140,23 @@ def locate(traj, flat=FLAT):
             worst_drop, worst_stage = prev - cur, stage
         prev = cur
     return ("DROPPED", worst_stage, round(worst_drop, 4))
+
+
+def surface_note(verdict, via_surface):
+    """Should this row say the curve is not the object generation
+    used?
+
+    A PURE PREDICATE rather than a condition inside a print,
+    because a report whose whole content is the branch it chose
+    must have every branch exercised - and this project has found
+    dead branches in a linkage verdict and a release-dial report
+    by not doing that.
+
+    CARRIED is excluded deliberately: there the output follows the
+    published curve, so saying the surface was used instead would
+    contradict the reading directly above it.
+    """
+    return bool(via_surface) and verdict != "CARRIED"
 
 
 def not_established(verdict, coparent_r, bar=COLLINEAR_R):
@@ -317,8 +335,10 @@ def main():
                              errors="coerce")
 
     kids = {}
+    rels_of = {}
     for rel in (bp.get("relationships") or []):
         kids[rel.get("child")] = rel.get("parents") or []
+        rels_of.setdefault(rel.get("child"), []).append(rel)
 
     rows = []
     for key, traj in tr.items():
@@ -341,6 +361,23 @@ def main():
         if child in frame.columns and parent in frame.columns:
             cr, cc = max_coparent(frame, kids.get(child) or [],
                                   parent, _num)
+        # IS THE PARENT CONSUMED BY A PUBLISHED SURFACE?
+        #
+        # `_apply_numeric` applies the surface and then marks both
+        # pair members done, so their INDIVIDUAL curves are never
+        # applied - BY DESIGN, because a joint surface is the
+        # better object where one exists. Reporting such a curve
+        # as never applied without saying so is misleading in the
+        # worst direction: the dependence IS carried, by a coarser
+        # object, and the published curve is simply not the one
+        # generation used. Asked through the ENGINE's own
+        # predicate, never a copy of it.
+        via = False
+        for rel in rels_of.get(child) or []:
+            pr = surface_pair(rel, set(frame.columns))
+            if pr and parent in pr:
+                via = True
+                break
         first = traj[0][1] if traj else None
         last = traj[-1][1] if traj else None
         rows.append({
@@ -356,6 +393,7 @@ def main():
                              or is_scaffolding(parent)),
             "stages": len(traj),
             "coparent_r": cr, "coparent": cc,
+            "via_surface": via,
         })
 
     c = census(rows)
@@ -396,6 +434,12 @@ def main():
                 else "", tail))
             print("      draw {}  ->  end {}".format(
                 r["first"], r["last"]))
+            if surface_note(r["verdict"], r["via_surface"]):
+                print("      NOT A LOSS: a published SURFACE names "
+                      "this parent, so the engine applies the "
+                      "surface and marks it done - the dependence "
+                      "is carried by a coarser object and this "
+                      "CURVE is not the one generation used")
             if not_established(r["verdict"],
                                r["coparent_r"]):
                 print("      NOT ESTABLISHED as an engine fault: "
@@ -427,6 +471,25 @@ def main():
         print("  {:<16s} measurable {:4d}   median {:.4f}   at or "
               "over {} {:4d}".format(v.lower(), len(got), med,
                                      COLLINEAR_R, hi))
+
+    # A CENSUS TERM RATHER THAN A MOVED DENOMINATOR. Dropping
+    # these from the failure count would turn a reading into a
+    # better one by changing what is counted, and this project's
+    # rule is to state loudly that a denominator moved rather than
+    # to move it quietly.
+    print()
+    print("of the failures, how many have a parent a published "
+          "SURFACE consumes - the curve is then not the object "
+          "generation used, and the count is reported BESIDE the "
+          "verdict rather than removed from it")
+    for v in VERDICTS:
+        if v == "CARRIED":
+            continue
+        got = [r for r in rows if r["verdict"] == v]
+        viaz = [r for r in got if r["via_surface"]]
+        ownz = [r for r in viaz if not r["scaffold"]]
+        print("  {:<16s} {:4d} of {:4d}   own-column {:4d}".format(
+            v.lower(), len(viaz), len(got), len(ownz)))
 
     own = [r for r in rows if not r["scaffold"]]
     print()

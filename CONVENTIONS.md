@@ -3,6 +3,52 @@
 Synthetic clinical data generator and model-evaluation instrument. Core rule: learn the patterns, never copy the records. Real data teaches parameters; generation never touches a record.
 
 ## Verify before claiming
+- **THE SIXTH MECHANISM IS THE FIRST TO SURVIVE: TWO OF THE NINE
+  CURVES ARE PARENTS A PUBLISHED SURFACE CONSUMES, AND ONE OF THEM
+  IS `height <- year_of_birth` (2026-11-17).** `_apply_numeric`
+  applies a published surface and then `done.update([a, b])`, so
+  the two pair members' INDIVIDUAL curves are skipped - by design,
+  because a joint surface is the better object where one exists.
+  Measured off the real blueprint, spelled by the machine:
+      own-column curves the trace called never-applied   nine
+      of which the parent is a SURFACE pair member        two
+  So `height <- year_of_birth` is not a curve the engine failed to
+  apply; it is a curve the engine does not USE, because a surface
+  names that parent and generation applies the surface instead.
+  Five mechanisms were refuted for that one curve before this -
+  the cyclic sweep, the parents' correlation, the published
+  partials, the sweep skipping the column, and the patient
+  collapse - and this one is read off the contract rather than
+  guessed.
+- **WHICH MAKES IT A GATE QUESTION AS MUCH AS AN ENGINE ONE.** The
+  shape criterion grades the published CURVE; for a surface pair
+  member generation never applies that curve, and the gate's own
+  `interaction surfaces` reads SIX OF SIX on the operator's
+  columns - so the dependence is carried, by the object the
+  contract intends, and the criterion is grading the unused one. A
+  published surface is a 3x3 grid against an eleven-point curve,
+  so the coarseness is a real fidelity question; being graded on
+  an object generation does not use is a different question
+  entirely, and the two were indistinguishable before the trace.
+- **AND IT IS A CENSUS TERM RATHER THAN A MOVED DENOMINATOR.**
+  Dropping those two from the failure count would turn a reading
+  into a better one by changing what is counted, which is the
+  fault this file records three times. The count is printed BESIDE
+  each verdict, the per-curve note says the curve is not the
+  object generation used, and the nine stays nine.
+- **AND THE PREDICATE IS THE ENGINE'S OWN, EXTRACTED RATHER THAN
+  COPIED.** `surface_pair` now answers "which parents will the
+  surface consume" for `_apply_numeric` AND for the diagnostic,
+  asserted by IDENTITY - a second copy is how the engine and the
+  instrument come to disagree about what generation did, which is
+  the fault recorded for token screening, the scaffolding
+  predicate and both categorical draw paths. The extraction is
+  behaviour-preserving, and disabling it turns a check red in
+  `smoke_generate` - which I found only after mutating against
+  `smoke_fidelity` first and reporting a coverage gap that does
+  not exist. **Mutate the suite the behaviour actually passes
+  through**, which this file already says and which still cost a
+  wrong conclusion stated out loud.
 - **READING THE ENGINE FOUND A BUG IN MY OWN VERDICT, AND THE
   REAL EXTRACT PRICED IT AT TWO CURVES (2026-11-17).** `locate`
   returned NEVER-APPLIED on the FIRST probe alone - and `_order`'s

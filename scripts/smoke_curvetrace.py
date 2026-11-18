@@ -591,6 +591,65 @@ def main():
           "copy is a copy",
           digest(plain3) == digest(ret3))
 
+    # ================================================================
+    # A PARENT A SURFACE CONSUMES. `_apply_numeric` applies the
+    # published surface and then marks BOTH pair members done, so
+    # their individual curves are never applied - by design. A
+    # diagnostic that did not know this reports such a curve as
+    # never applied, which is misleading in the worst direction:
+    # the dependence IS carried, by a coarser object. Two of the
+    # nine own-column never-applied curves on the real extract are
+    # this shape, `height <- year_of_birth` among them.
+    # ================================================================
+    from synthkit.generate import surface_pair as _spair
+    check("the driver asks the ENGINE's own question about which "
+          "parents a surface consumes, not a copy of it - a second "
+          "predicate is how the engine and the diagnostic come to "
+          "disagree about what generation did",
+          CT.surface_pair is _spair)
+
+    _good = {"child": "y", "parents": ["a", "b", "c"],
+             "evidence": {"interaction": {
+                 "pair": ["a", "b"], "grid_a": [1, 2, 3]}}}
+    avail = {"y", "a", "b", "c"}
+    check("...and it names the pair where the surface CAN be "
+          "applied",
+          _spair(_good, avail) == ["a", "b"])
+    check("...and refuses where the surface cannot be applied at "
+          "all - no interaction, no grid, a pair that is not a "
+          "pair, a member the claim does not parent, or a member "
+          "the frame does not carry - because each of those is a "
+          "surface the engine SKIPS, leaving the individual "
+          "curves to run",
+          _spair({"child": "y", "parents": ["a", "b"],
+                  "evidence": {}}, avail) is None
+          and _spair({"child": "y", "parents": ["a", "b"],
+                      "evidence": {"interaction": {
+                          "pair": ["a", "b"]}}}, avail) is None
+          and _spair({"child": "y", "parents": ["a", "b"],
+                      "evidence": {"interaction": {
+                          "pair": ["a"], "grid_a": [1]}}},
+                     avail) is None
+          and _spair({"child": "y", "parents": ["a"],
+                      "evidence": {"interaction": {
+                          "pair": ["a", "b"], "grid_a": [1]}}},
+                     avail) is None
+          and _spair(_good, {"y", "a", "c"}) is None)
+    check("...and the note fires on a failing verdict and NOT on "
+          "CARRIED, where saying the surface was used instead "
+          "would contradict the reading directly above it",
+          CT.surface_note("NEVER-APPLIED", True)
+          and CT.surface_note("REVERSED", True)
+          and CT.surface_note("DROPPED", True)
+          and not CT.surface_note("CARRIED", True)
+          and not CT.surface_note("NEVER-APPLIED", False))
+    check("...and the count is reported BESIDE each verdict rather "
+          "than removed from it, because dropping these from the "
+          "failure count would turn a reading into a better one "
+          "by changing what is counted",
+          "SURFACE consumes" in out and "BESIDE" in out
+          and "own-column" in out)
+
     print()
     if FAIL:
         print("{} FAILED".format(FAIL))
