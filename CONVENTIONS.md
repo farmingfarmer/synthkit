@@ -3,6 +3,32 @@
 Synthetic clinical data generator and model-evaluation instrument. Core rule: learn the patterns, never copy the records. Real data teaches parameters; generation never touches a record.
 
 ## Verify before claiming
+- **THE NEXT STEP IS NAMED WITH ITS TENSION, NOT LEFT TO BE
+  REDISCOVERED (2026-11-17).** Five of the six DROPPED curves name
+  `after-masks`, and two of those five are on the operator's own
+  columns - so the presence mask is the only later pass that costs
+  more than one curve on this extract. This file ALSO records that
+  `--presence-rerank`, the pass built for mask-related loss, was
+  refuted on this very blueprint without running it: `peek rerank`
+  reported it would re-rank ZERO columns, every candidate being
+  either not a relationship child or cyclic.
+  **Those are not the same mechanism and the record should not be
+  read as though they were.** The re-rank restores a partially
+  covered column's MARGINAL among the rows that survive its mask;
+  what the trace measures is whether the child still follows its
+  parent's published CURVE after the mask is applied. A column can
+  have the right marginal on its surviving rows and have lost the
+  curve, and vice versa. So the five are a NEW target rather than
+  one already refuted, and the honest statement is that the pass
+  which exists does not address them.
+- **AND THE LARGEST SINGLE FALL IS NAMED: `systolic_blood_pressure
+  <- mean_arterial_pressure_cuff_bmdi` at after-masks, 0.4128.**
+  That is the pressure family this project has chased through a
+  ring-adjacency ceiling that was later REFUTED outright and then
+  through a NOT READABLE screen that attributed its surface failure
+  to the cohort. It now has a PASS named against its curve for the
+  first time, which is a different and more actionable fact than
+  either of those.
 - **THE FINAL READ, WITH THE DENOMINATOR STATED AND THE CAVEAT
   CORRECTED - AND MORE THAN HALF THE NEVER-APPLIED CURVES ARE A
   SURFACE'S PARENTS (2026-11-17, run_tail_ctl_current).** Every
