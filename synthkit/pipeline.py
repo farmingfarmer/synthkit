@@ -869,6 +869,12 @@ def main(argv=None, args=None):
     if orphans:
         say("{} relationship(s) will NOT reach the generated data - "
             "see the end of findings.txt".format(len(orphans)))
+    # BUILT BEFORE THE RECORD IS WRITTEN, which is the dial-order
+    # rule applied to an argument rather than to a module constant:
+    # a value assigned after the stage that consumes it reaches
+    # nothing, and `--extra-knots` once cost half an hour of
+    # machine time proving exactly that.
+    _gen_args = _generate_args(a)
     # WHAT MADE THIS, so a file found in six months can be placed.
     #
     # Nothing recorded which extract, which code, which seed or which
@@ -941,6 +947,11 @@ def main(argv=None, args=None):
             "seed": a.seed,
             "holdout": a.holdout,
             "excluded": drop,
+            # EVERY KEYWORD GENERATE WAS CALLED WITH. See
+            # `_generate_args`: without this, two runs differing
+            # in eight generation behaviours produce provenance
+            # files that agree to the byte.
+            "generate_args": _gen_args,
         },
         # EVERY DIAL THE ENGINE ACTUALLY HAD, read off the module
         # constants rather than off argv.
@@ -1104,16 +1115,10 @@ def main(argv=None, args=None):
             "unchanged")
     say("generating")
     rep = {}
-    g = generate(bp, n_patients=(a.patients or None), seed=a.seed,
-                 report=rep,
-                 enforce_constraints=a.enforce_constraints,
-                 refine_sweeps=a.refine_sweeps,
-                 reorder_dates=not a.no_reorder_dates,
-                 enforce_identities=not a.no_identities,
-                 use_cooccurrence=not bool(
-                     getattr(a, 'no_token_cooccurrence', False)),
-                 solve_token_targets=bool(
-                     getattr(a, 'solve_token_targets', False)))
+    # THE RECORD IS THE CALL. `_gen_args` was built before
+    # provenance was written and is splatted in here, so a keyword
+    # the engine receives cannot be one the run failed to record.
+    g = generate(bp, seed=a.seed, report=rep, **_gen_args)
     g.to_csv(out / "generated.csv", index=False, encoding="utf-8")
     say("{} rows for {} patients -> generated.csv".format(
         rep["rows"], rep["patients"]))
@@ -2416,6 +2421,52 @@ def _engine_dials():
                 got[k] = v
         out[tag] = dict(sorted(got.items()))
     return out
+
+
+def _generate_args(a):
+    """Every keyword `generate` is CALLED with, built once.
+
+    WHY THIS IS NOT A SECOND LIST BESIDE THE CALL. `provenance`
+    already enumerates the engine's module constants, for a
+    recorded reason: `settings` carried eight fields and not one
+    dial, so two runs could differ in what the sampler DID and
+    agree in every recorded field - which is what made a
+    cross-build control arm invisible.
+
+    These are the same hole one layer over. They are not module
+    constants but per-run ARGUMENTS - whether the constraints were
+    enforced, how many refinement sweeps ran, whether the dates
+    were reordered, whether the identities were enforced, whether
+    the co-occurrence draw was on - and none of them was recorded
+    anywhere. A run with `--no-identities` and a run without it
+    produced provenance files that agree to the byte.
+
+    So the record IS the call: this dict is built here, written
+    into provenance, and then splatted into `generate`. A ninth
+    argument added to the call cannot be unrecorded, because there
+    is nowhere else to add it - and a check asserts the recorded
+    keys against `generate`'s own signature, so a parameter added
+    to the engine and left out of here goes red rather than
+    silently joining the things a run cannot say about itself.
+    """
+    return {
+        "n_patients": a.patients or None,
+        "enforce_constraints": bool(a.enforce_constraints),
+        "refine_sweeps": int(a.refine_sweeps),
+        "reorder_dates": not a.no_reorder_dates,
+        "enforce_identities": not a.no_identities,
+        "use_cooccurrence": not bool(
+            getattr(a, "no_token_cooccurrence", False)),
+        "solve_token_targets": bool(
+            getattr(a, "solve_token_targets", False)),
+        # LEFT AT ITS DEFAULT ON PURPOSE, and recorded as such.
+        # `--presence-rerank` sets the module CONSTANT, which
+        # `dials` already carries; this parameter is the other
+        # route to the same pass and pipeline does not use it.
+        # Recording None says "the engine was called without it",
+        # which is a different fact from False.
+        "presence_rerank": None,
+    }
 
 
 def _stack_versions():

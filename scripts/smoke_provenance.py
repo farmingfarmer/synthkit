@@ -172,6 +172,86 @@ def main():
         check("...and the guard confirms it EXACTLY",
               ok and how == "exact")
 
+        # ---- EVERY KEYWORD GENERATE WAS CALLED WITH ------------
+        #
+        # `settings` carried group_by, the time column, lags,
+        # generate, seed, holdout and excluded - and NOT ONE of the
+        # eight keywords that decide what generation does. Two runs
+        # could differ in whether the constraints were enforced,
+        # whether the dates were reordered, whether the identities
+        # were enforced or how many refinement sweeps ran, and
+        # produce provenance files that agree to the byte. That is
+        # the same hole `dials` was added to close, one layer over:
+        # `dials` enumerates module CONSTANTS and these are per-run
+        # ARGUMENTS.
+        #
+        # Found by building a curve-trace driver that has to
+        # reproduce a run's own generate call and discovering there
+        # was nothing to read.
+        setts = {}
+        if (rd / "provenance.json").exists():
+            setts = json.loads(
+                (rd / "provenance.json").read_text(
+                    encoding="utf-8")).get("settings") or {}
+        ga = setts.get("generate_args")
+        check("a real run records every keyword generate was "
+              "called with: {}".format(
+                  ", ".join(sorted(ga or [])) or "NOTHING"),
+              isinstance(ga, dict) and len(ga) >= 7)
+
+        # THE KEY SET IS ASSERTED AGAINST THE ENGINE'S OWN
+        # SIGNATURE, not against a list written here. A parameter
+        # added to `generate` and left out of the recorder would
+        # otherwise join the things a run cannot say about itself,
+        # silently - and this project has nine wrong-key faults on
+        # the record, every one of them a name somebody remembered
+        # instead of reading.
+        import inspect
+        from synthkit.generate import generate as _gfn
+        want = set(inspect.signature(_gfn).parameters) - {
+            "blueprint", "seed", "report"}
+        check("...and the recorded keys are EXACTLY generate's own "
+              "parameters, so a ninth argument cannot arrive "
+              "unrecorded (missing {}, extra {})".format(
+                  sorted(want - set(ga or {})) or "none",
+                  sorted(set(ga or {}) - want) or "none"),
+              set(ga or {}) == want)
+
+        # AND THE VALUES ARE THE DECISION, not the key set. A
+        # recorder whose keys are right and whose values are
+        # constants would pass every check above.
+        from synthkit.pipeline import _generate_args
+
+        class _NS(object):
+            def __init__(self, **kw):
+                self.__dict__.update(kw)
+
+        base = dict(patients=0, enforce_constraints=False,
+                    refine_sweeps=2, no_reorder_dates=False,
+                    no_identities=False)
+        d_def = _generate_args(_NS(**base))
+        d_off = _generate_args(_NS(**dict(base, no_identities=True,
+                                          no_reorder_dates=True,
+                                          enforce_constraints=True,
+                                          refine_sweeps=0)))
+        check("the recorder reads the FLAGS rather than returning "
+              "constants - a run made with --no-identities records "
+              "enforce_identities False where the default records "
+              "True",
+              d_def["enforce_identities"] is True
+              and d_off["enforce_identities"] is False
+              and d_def["reorder_dates"] is True
+              and d_off["reorder_dates"] is False
+              and d_off["enforce_constraints"] is True
+              and d_off["refine_sweeps"] == 0)
+        check("...and `--patients 0` is recorded as None rather "
+              "than 0, because zero there MEANS the blueprint's "
+              "own count and recording the digit would be a "
+              "statement nobody made",
+              d_def["n_patients"] is None
+              and _generate_args(
+                  _NS(**dict(base, patients=40)))["n_patients"] == 40)
+
     print()
     if FAIL:
         print("{} of {} checks failed.".format(FAIL, PASS + FAIL))

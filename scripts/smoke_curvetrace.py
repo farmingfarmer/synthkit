@@ -17,7 +17,10 @@ hold: an instrument that changes the thing it measures is worse
 than no instrument.
 """
 import hashlib
+import json
+import subprocess
 import sys
+import tempfile
 from pathlib import Path
 
 import numpy as np
@@ -29,6 +32,10 @@ sys.path.insert(0, str(ROOT))
 from synthkit.discover import discover                 # noqa: E402
 import synthkit.blueprint as B                         # noqa: E402
 import synthkit.generate as G                          # noqa: E402
+
+sys.path.insert(0, str(ROOT / "scripts"))
+import curve_trace as CT                               # noqa: E402
+from curve_why import applied                          # noqa: E402
 
 PASS = FAIL = 0
 
@@ -187,6 +194,218 @@ def main():
           "to blame",
           wv is not None
           and all(rho is None or abs(rho) < 0.15 for _, rho in wv))
+
+    # ================================================================
+    # THE DRIVER. `locate` is a PURE FUNCTION on the trajectory and
+    # is asserted on PLANTED input, because a tool whose entire
+    # output is the branch it chose must have every branch
+    # exercised - this project has found dead branches in a linkage
+    # verdict and in a release-dial report by not doing that.
+    # ================================================================
+    L = CT.locate
+    check("a curve the output follows at the end reads CARRIED",
+          L([("a", 0.8), ("b", 0.7), ("c", 0.6)])[0] == "CARRIED")
+    check("...and a curve already below the floor at the FIRST "
+          "probe reads NEVER-APPLIED naming that probe - the loss "
+          "is inside the draw and no later pass could have caused "
+          "it, which is a different finding and a different fix",
+          L([("a", 0.04), ("b", 0.03)]) == ("NEVER-APPLIED", "a",
+                                            None))
+    check("...and a curve applied at the draw and gone at the end "
+          "reads DROPPED, naming the pass with the LARGEST single "
+          "fall rather than the last one",
+          L([("a", 0.8), ("b", 0.05), ("c", 0.04)])[:2]
+          == ("DROPPED", "b")
+          and L([("a", 0.8), ("b", 0.75), ("c", 0.02)])[:2]
+          == ("DROPPED", "c"))
+    check("...and a curve that stops being MEASURABLE is DROPPED "
+          "at the pass where that began, not silently carried",
+          L([("a", 0.8), ("b", None), ("c", None)])[:2]
+          == ("DROPPED", "b"))
+    check("...and nothing measurable at all is NOT-MEASURABLE "
+          "rather than clean - an absent measurement is not a "
+          "clean one",
+          L([("a", None), ("b", 0.8)])[0] == "NOT-MEASURABLE"
+          and L([])[0] == "NOT-MEASURABLE")
+
+    # A REVERSAL IS NOT A SURVIVAL. The probe correlates the
+    # curve's OWN delta against the child, so a correct
+    # application reads POSITIVE whichever way the curve runs - and
+    # a negative reading is the output moving opposite to the
+    # published shape, which this project calls worse than a loss
+    # because it reads as a finding.
+    check("a curve the output follows BACKWARDS reads REVERSED, "
+          "naming where the sign turned over - a verdict of "
+          "CARRIED there would be the kinder number and the wrong "
+          "one",
+          L([("a", 0.8), ("b", -0.7), ("c", -0.6)])[:2]
+          == ("REVERSED", "b")
+          and L([("a", -0.8), ("b", -0.7)])[:2] == ("REVERSED", "a"))
+    check("...and a curve faded PAST zero is DROPPED rather than "
+          "REVERSED, because the gate's own rule is that an "
+          "inversion needs MAGNITUDE - a relationship pushed to "
+          "noise is a loss, and the two take different fixes",
+          L([("a", 0.8), ("b", 0.3), ("c", -0.02)])[0] == "DROPPED")
+
+    # ONE BAR, NOT TWO. "Did the curve reach the column" is already
+    # decided by `curve_why.applied`, and two halves each deciding
+    # what applied means is how they come to disagree - this
+    # project says that about token screening, the scaffolding
+    # predicate and both categorical draw paths.
+    check("the driver's floor IS `curve_why.applied` rather than a "
+          "second bar of its own",
+          CT.applied is applied
+          and all(L([("a", r)])[0] == "NEVER-APPLIED"
+                  for r in (0.0, 0.05, 0.099))
+          and L([("a", 0.11)])[0] != "NEVER-APPLIED")
+
+    # A REPORT THAT LISTS CATEGORIES MUST STATE A TOTAL A READER
+    # CAN CHECK AGAINST THEM, or a missing category is invisible in
+    # every other way - and a census term that double-counted once
+    # printed a NEGATIVE residual on a real run.
+    rows = [{"verdict": v} for v in
+            ("CARRIED", "CARRIED", "DROPPED", "REVERSED",
+             "NEVER-APPLIED", "NOT-MEASURABLE")]
+    c = CT.census(rows)
+    check("the census is an IDENTITY a reader can check: the "
+          "verdicts add to the number traced",
+          c["traced"] == 6
+          and sum(c[v] for v in CT.VERDICTS) == c["traced"])
+
+    # ---- THE REFUSALS, each by exit code rather than by wording -
+    with tempfile.TemporaryDirectory() as td:
+        td = Path(td)
+        def drive(*args):
+            return subprocess.run(
+                [sys.executable,
+                 str(ROOT / "scripts" / "curve_trace.py")]
+                + [str(x) for x in args],
+                cwd=str(ROOT), capture_output=True, text=True,
+                timeout=1800)
+
+        bare = td / "bare"
+        bare.mkdir()
+        r = drive(bare)
+        check("a directory with no blueprint is REFUSED by name "
+              "rather than traced into nothing",
+              r.returncode == 2 and "blueprint.json" in r.stdout)
+
+        # A TRACE AT A DIFFERENT SEED EXPLAINS A DIFFERENT DRAW, so
+        # the seed is READ and never chosen. Absent is not zero.
+        nb = td / "noseed"
+        nb.mkdir()
+        (nb / "blueprint.json").write_text("{}", encoding="utf-8")
+        r = drive(nb)
+        check("...and a blueprint with no provenance beside it is "
+              "refused, because the run's own seed is then unknown",
+              r.returncode == 2 and "seed" in r.stdout)
+        (nb / "provenance.json").write_text(
+            json.dumps({"settings": {"group_by": "person_id"}}),
+            encoding="utf-8")
+        r = drive(nb)
+        check("...and a provenance that records NO seed is refused "
+              "too - absent is not zero, and a guessed seed would "
+              "trace a different draw",
+              r.returncode == 2 and "no seed" in r.stdout)
+
+        # ---- END TO END ON A RUN THE REAL CLI WROTE -------------
+        #
+        # A FIXTURE THAT SHARES THE READER'S INVENTED KEYS IS NOT A
+        # TEST. This driver reads `settings.generate_args` and
+        # `settings.seed`; a hand-written provenance would agree
+        # with whatever names I used here and both would disagree
+        # with the only thing that matters. Twelve rows of
+        # em-dashes once shipped behind forty green checks for
+        # exactly that reason.
+        fsrc = td / "src.csv"
+        per_visit().to_csv(fsrc, index=False)
+        run = td / "run"
+        rv = subprocess.run(
+            [sys.executable, "-m", "synthkit.cli", "fit",
+             "--src", str(fsrc), "--out", str(run),
+             "--group-by", "person_id", "--seed", "11",
+             "--refine-sweeps", "1", "--no-identities",
+             "--generate"],
+            cwd=str(ROOT), capture_output=True, text=True,
+            timeout=3600)
+        check("the real CLI writes a run this driver can read",
+              rv.returncode == 0
+              and (run / "blueprint.json").exists()
+              and (run / "provenance.json").exists())
+
+        prov = json.loads((run / "provenance.json").read_text(
+            encoding="utf-8"))
+        use, missing, unknown = CT.recover_args(prov)
+        check("...and the driver RECOVERS the keywords that run "
+              "called generate with, so the trace is of the same "
+              "call rather than of the defaults: refine_sweeps {} "
+              "and enforce_identities {}".format(
+                  use.get("refine_sweeps"),
+                  use.get("enforce_identities")),
+              use.get("refine_sweeps") == 1
+              and use.get("enforce_identities") is False
+              and not missing)
+
+        # ABSENT IS NOT THE DEFAULT. A run made before the record
+        # existed carries none of them, and the driver must say in
+        # how many ways the trace may differ rather than quietly
+        # using the defaults.
+        old_prov = {"settings": {"seed": 11}}
+        use0, missing0, _ = CT.recover_args(old_prov)
+        check("...and a run that recorded NONE of them leaves the "
+              "driver naming every one as not-recoverable rather "
+              "than assuming the default: {} named".format(
+                  len(missing0)),
+              not use0 and len(missing0) >= 7)
+
+        # A RECORDED KEYWORD THIS BUILD DOES NOT ACCEPT is dropped
+        # and named - an older run can carry an argument since
+        # removed, and passing it would be a crash where the honest
+        # answer is a narrower trace.
+        # ASSERT THE OUTCOME, NOT THE REPORT. The first version of
+        # this check read the `unknown` list - which is computed
+        # from the record and not from what is PASSED, so a
+        # mutation that splatted every recorded keyword into the
+        # engine broke nothing. The observable is that the run
+        # still TRACES: an unknown keyword reaching `generate` is a
+        # TypeError.
+        stale = td / "stale"
+        stale.mkdir()
+        (stale / "blueprint.json").write_text(
+            (run / "blueprint.json").read_text(encoding="utf-8"),
+            encoding="utf-8")
+        sp = json.loads((run / "provenance.json").read_text(
+            encoding="utf-8"))
+        sp["settings"]["generate_args"]["seed_offset"] = 3
+        (stale / "provenance.json").write_text(
+            json.dumps(sp), encoding="utf-8")
+        r = drive(stale, "--patients", "60")
+        check("...and a run recording a keyword this build does "
+              "NOT accept still traces - the keyword is dropped "
+              "and named rather than splatted into a TypeError",
+              r.returncode == 0 and "seed_offset" in r.stdout
+              and "does not accept" in r.stdout)
+
+        r = drive(run)
+        out = r.stdout
+        check("the driver runs end to end on that run and its "
+              "census BALANCES - a term that double-counted once "
+              "printed a negative residual on a real run",
+              r.returncode == 0 and "balances" in out
+              and "DOES NOT ADD UP" not in out)
+        check("...and it PRINTS THE CURVES rather than only "
+              "counting them, because a count cannot answer a "
+              "question about which",
+              " <- " in out and "draw " in out and "end " in out)
+        check("...and it reports the figure for the columns a "
+              "researcher actually receives apart from the "
+              "scaffolding, which four fifths of the graded "
+              "surface is on the real extract",
+              "researcher actually receives" in out)
+        check("...and it says it used the run's OWN seed, so a "
+              "reader cannot mistake a trace of another draw for "
+              "an explanation of this one",
+              "OWN seed 11" in out)
 
     print()
     if FAIL:
