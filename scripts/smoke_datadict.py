@@ -53,9 +53,12 @@ def fixture(path):
         k = r.randint(1, 5)
         pick = sorted(set(r.choice(toks, size=k, replace=False)))
         sets.append(";".join(pick))
-        # the count is taken BEFORE de-duplication on the real
-        # extract, so it exceeds the set length on some rows
-        counts.append(len(pick) + (1 if r.rand() < 0.4 else 0))
+        # EQUAL to the set's length, so the engine DECLARES an
+        # `==` constraint and the size-partner predicate has
+        # something to find. A count that merely tracks the
+        # length is never declared, so a fixture built that way
+        # measures nothing here.
+        counts.append(len(pick))
     val = np.round(r.normal(50, 9, n), 2)
     keep = r.rand(n) < 0.3
     pd.DataFrame({
@@ -151,10 +154,19 @@ def main():
               any("published," in d and "distinct in this file" in d
                   for d in rows["detail"]))
 
-        check("...and a count column that disagrees with its set's "
-              "length is NAMED with the share, because a tool "
-              "reading both fields will see the disagreement",
-              "names the length of" in doc)
+        # BOTH OUTCOMES ARE WORTH SAYING. A declared identity
+        # that HOLDS in the output is a reassurance a recipient
+        # can act on; one that has drifted is a contradiction
+        # they would otherwise discover against their own tool.
+        # The dictionary reports the share either way, and only
+        # for partners the engine DECLARED - matching every count
+        # against every set produced three coincidences out of
+        # four lines on the real extract.
+        check("...and every DECLARED size identity is reported "
+              "with the share of rows on which it actually holds "
+              "in the file, whichever way that share falls",
+              "is declared EQUAL to the length of" in doc
+              and "% of the" in doc)
 
         for head, _ in __import__("data_dictionary").STRUCTURAL_NOTES:
             pass

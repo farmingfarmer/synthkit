@@ -139,27 +139,32 @@ def count_vs_set(bp, gen):
     fields will see that disagreement and it should not discover
     it on its own.
     """
+    # WHICH COUNT BELONGS TO WHICH SET IS THE ENGINE'S OWN
+    # QUESTION, so it is asked of the engine rather than guessed
+    # from column names. Matching every count against every set
+    # produced four lines on the real extract of which three were
+    # coincidences - `procedure_count agrees with
+    # len(active_drugs) on 29%` is not a finding, and a dictionary
+    # that reports it teaches a reader to ignore the section.
+    from synthkit.generate import _size_partners
     out = []
     cols = bp.get("columns") or {}
-    for name, spec in cols.items():
-        m = spec.get("marginal") or {}
-        if m.get("type") != "list" or name not in gen.columns:
+    for setcol, cand in (_size_partners(bp) or {}).items():
+        m = (cols.get(setcol) or {}).get("marginal") or {}
+        if setcol not in gen.columns or cand not in gen.columns:
             continue
         sep = m.get("separator") or ";"
-        length = gen[name].astype(str).apply(
+        length = gen[setcol].astype(str).apply(
             lambda v: 0 if not v.strip() else len(
                 [x for x in v.split(sep) if x]))
-        for cand in gen.columns:
-            if cand == name or not cand.endswith(("_count", "__n")):
-                continue
-            cv = pd.to_numeric(gen[cand].replace("", None),
-                               errors="coerce")
-            both = cv.notna()
-            if int(both.sum()) < 50:
-                continue
-            agree = float((cv[both] == length[both]).mean())
-            if agree > 0.2:
-                out.append((cand, name, agree, int(both.sum())))
+        cv = pd.to_numeric(gen[cand].replace("", None),
+                           errors="coerce")
+        both = cv.notna()
+        if int(both.sum()) < 50:
+            continue
+        out.append((cand, setcol,
+                    float((cv[both] == length[both]).mean()),
+                    int(both.sum())))
     return out
 
 
@@ -211,11 +216,13 @@ def render(bp, gen, rows, priv, dropped, cvs, src_name):
             p.append("<li><b>{}</b>: {}</li>".format(
                 e(r["column"]), e(r["detail"])))
     for cand, setc, agree, n in cvs:
-        p.append("<li><b>{}</b> names the length of <b>{}</b> and "
-                 "agrees with it on {:.1%} of the {} rows that "
-                 "carry both. A tool reading both fields will see "
-                 "that disagreement.</li>".format(
-                     e(cand), e(setc), agree, n))
+        tail = ("holds on every row." if agree >= 0.999 else
+                "A tool reading both fields will see that "
+                "disagreement.")
+        p.append("<li><b>{}</b> is declared EQUAL to the length of "
+                 "<b>{}</b> and agrees on {:.1%} of the {} rows "
+                 "carrying both. {}</li>".format(
+                     e(cand), e(setc), agree, n, tail))
     if dropped:
         p.append("<li>{} search-scaffolding column(s) exist in the "
                  "contract and are deliberately NOT in this file; "
