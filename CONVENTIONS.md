@@ -3,6 +3,58 @@
 Synthetic clinical data generator and model-evaluation instrument. Core rule: learn the patterns, never copy the records. Real data teaches parameters; generation never touches a record.
 
 ## Verify before claiming
+- **THE REVALUE ARM LANDED AND THE PREDICTION SCORED 5 OF 5, WITH
+  BOTH REFUSALS JUSTIFIED (2026-11-18, run_rv_ctl11 against
+  run_rv_11).** Same tree, same seed 11, same source, ONE FLAG
+  apart, and the DENOMINATOR DID NOT MOVE - 151 pairs both sides,
+  so these are comparisons rather than two readings:
+      criterion              control   --revalue-copied
+      direction kept     132/151 87.4%   134/151 88.7%
+      close              128/151 84.8%   127/151 84.1%
+      INVERTED                      0                 0
+      own-column INVERTED           0                 0
+      coverage                  42/42             42/42
+      procedure_quantity
+        against its own
+        SOURCE marginal        0.4013            0.0398
+  **A TEN-FOLD improvement on the worst marginal on the file, two
+  direction pairs gained, one close pair lost, and the absolute
+  stop clear on both arms.**
+- **EVERY PREDICTED CLAUSE HELD.** The marginal fell sharply from
+  0.4002; INVERTED and own-column INVERTED stayed zero; direction
+  rose (predicted "about three pairs, 132 toward 135" - it is
+  134, so the direction held and the magnitude was one pair
+  optimistic); coverage stayed 42/42; and the run RECORDED
+  `revalued_copied`. A prediction whose magnitude is a pair out
+  is a prediction that held; one whose SIGN is wrong is not, and
+  the difference is worth keeping.
+- **AND BOTH REFUSALS WERE RIGHT, which is the half that is easy
+  to skip.** The prediction explicitly declined to claim the
+  post-hoc 0.0255, on the grounds that `model_rank` re-valued a
+  WRITTEN file on a different build at a different point in the
+  pass order. It reads **0.0398** - the same order of magnitude
+  and not the same number, so quoting 0.0255 would have been
+  quoting a different experiment. And `close` was not predicted:
+  it moved by one pair, which is well inside this criterion's own
+  recorded four-point seed spread and is not a cost anybody
+  should bank.
+- **SEED 37 IS NOT COMPARABLE TO SEED 11 AND IS NOT READ AS
+  THOUGH IT WERE.** It relates **141** pairs against seed 11's
+  151, so the absolute counts are over different surfaces - the
+  denominator fault this file records three times. As
+  percentages it reads direction 89.4% and close 83.0% against
+  seed 11's 88.7% and 84.1%, which is the seed moving rather
+  than the flag. Its `procedure_quantity` reads 0.1003 against
+  seed 11's 0.0398, so the gain is present on both seeds and its
+  SIZE varies by draw - which is what this file says about every
+  statistic carried by a heavy tail.
+- **NEITHER CRITERION PASSES ON EITHER ARM, said plainly so the
+  gain is not over-read.** direction needs 93.9% and close 87.9%;
+  the best arm is 88.7% and 84.1%. The flag does not move the
+  release verdict. What it moves is the number a recipient
+  actually holds on the worst column in the file, and it does
+  that without manufacturing the one verdict this project calls
+  an absolute stop.
 - **THE REVALUE ARM IS RUNNING ON THE REAL EXTRACT AND THE
   PREDICTION IS ON RECORD FIRST (2026-11-18, run_rv_*).** Four
   runs on ONE tree: seed 11 WITHOUT the flag as the control, then
