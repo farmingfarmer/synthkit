@@ -822,3 +822,52 @@ M6 governance decision, not engineering); vehicle and device
 serial numbers, which have no distinctive shape and are NAMED as
 uncovered; the ring-adjacency ceiling; the unrepaired engine
 reaching the close bar on its own; three-or-more-hop couplings.
+
+## The bench explains itself to someone who already knows how it works (added 2026-11-19) — 2 Sp
+
+Found while writing the Yesha walkthrough, not by any check. The
+speaker notes had to be rewritten end to end because the source
+material was unsayable: 1,629 words of spoken script came out of
+the same facts, and a jargon audit of the rewrite found exactly
+ONE technical term surviving. So the translation is possible and
+the gap is the text, not the subject.
+
+The bench's own reader-facing prose has the same fault at a
+bigger scale. `gate.EXPLAIN` carries 21 criteria and about 3,000
+characters of explanation; `explain.py` carries 46 terms. The
+station labels and criterion names a clinician actually meets -
+`set token shares`, `interaction surfaces`, `dynamics tracked`,
+`coverage`, `inverted` - are internal vocabulary presented as
+though it were plain English. A reader who does not already know
+how the engine works cannot parse the line that reports their
+own data's quality.
+
+**This is not a request for more explanations.** The machinery
+already exists and is good: every term is a door, the panel
+travels inside the deck, and `[[slug]]` tokens are asserted to
+resolve. What is wrong is the WORDS behind the doors.
+
+**The check is the interesting half, because "plainer" is not a
+property a test can assert on its own.** Three that can:
+(a) a banned-term list - a term from it may appear in a
+reader-facing string only if it is GLOSSED in the same sentence
+or resolves in `explain.py`, which is the `[[slug]]` rule
+extended to bare words; (b) a sentence-length cap on spoken-
+register strings; (c) every criterion name must have an
+explain entry written for a reader who has never seen the tool.
+
+**And the fail-first is the point: the CURRENT text must fail
+the new check.** A plain-language check that passes on the prose
+that prompted it is decoration, and this file has a rule about
+checks that cannot fail.
+
+EXIT: the gate's 21 criterion explanations and the 46 explain
+entries rewritten so a clinical reader can follow them without
+a second door; the checker in the net; and the pre-rewrite text
+recorded as having FAILED it. Station labels are in scope -
+`set token shares` is not a phrase anybody says out loud.
+
+NOT in scope: renaming the criteria in the artifacts. The JSON
+field names are an on-disk contract and this project has a rule
+about renaming those - the display name changes, the key does
+not.
