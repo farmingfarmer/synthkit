@@ -3,6 +3,71 @@
 Synthetic clinical data generator and model-evaluation instrument. Core rule: learn the patterns, never copy the records. Real data teaches parameters; generation never touches a record.
 
 ## Verify before claiming
+- **THE FOUR-ARM SWEEP, AND THE DELIVERABLE CHOSEN BY A RULE
+  STATED BEFORE THE NUMBERS WERE READ (2026-11-18).** One tree,
+  one source, four runs. Every figure read back spelled:
+      run        seed    direction        close     INV  pq
+      ctl11        11  132/151 87.4%  128/151 84.8%  0  0.4013
+      rv_11        11  134/151 88.7%  127/151 84.1%  0  0.0398
+      rv_37        37  126/141 89.4%  117/141 83.0%  0  0.1003
+      rv_731 20260731  131/148 88.5%  122/148 82.4%  0  0.0722
+  `pq` is `procedure_quantity` against its OWN source marginal -
+  the worst column on the file and the one the pass was built
+  for. **INVERTED and own-column INVERTED read ZERO on all four**,
+  and coverage reads 42/42 on all four.
+- **THE RULE, APPLIED: own-column INVERTED must be zero, then the
+  LOWEST worst-marginal, then own-column close.** All three
+  revalue arms clear the absolute stop, so the choice falls to
+  the marginal: `run_rv_11` at 0.0398 against 0.1003 and 0.0722.
+  It also happens to carry the best close of the three, so the
+  tie-break never had to be used. Choosing on the gate is
+  defensible only because the rule was fixed in advance and the
+  whole range is published beside the pick, which is this file's
+  own standard for never quoting a point.
+- **THE RANGE, BECAUSE A SINGLE DRAW IS NOT A PROPERTY OF THE
+  ENGINE.** Across the three revalue seeds: direction 88.5% to
+  89.4%, close 82.4% to 84.1%, and the worst marginal **0.0398 to
+  0.1003 - a 2.5-fold spread**. The gain over the control's
+  0.4013 is present on every seed and its SIZE is a draw, which
+  is exactly what this file records for any statistic carried by
+  a heavy tail. Quote the range.
+- **AND THE SEEDS RELATE DIFFERENT NUMBERS OF PAIRS - 151, 141,
+  148 - so the absolute counts across seeds are not comparable
+  and only the paired arm at seed 11 measures the flag.** Three
+  sessions of this project have drawn a conclusion from a
+  percentage whose denominator moved; the four-arm table is laid
+  out with the denominators visible for that reason.
+- **THE HANDOVER PACKAGE IS ASSEMBLED FROM AN EXPLICIT LIST, NOT
+  A GLOB.** Eleven files - the dataset, the data dictionary in
+  both forms, the deck, the sign-off page, fidelity, blueprint,
+  catalogue, provenance, findings and a README naming each one.
+  The check asserts nothing UNEXPECTED is present and that
+  `key.csv`, `cipher.json` and the source extract are absent BY
+  NAME, because a package assembled with a wildcard is one bad
+  glob away from carrying the extract it was derived from. Two
+  CSV files only: the dataset and the dictionary.
+- **AND THE VOCABULARY NUMBERS THIS FILE CARRIED WERE FOR A
+  DIFFERENT EXTRACT, which I quoted into a colleague's message
+  before measuring them here.** Counted on
+  `phase2_800/tidy_visits.csv` itself, spelled by the machine:
+      column         in source   published and emitted   kept
+      conditions        10,975                   1,050   9.6%
+      procedures         3,619                     195   5.4%
+      active_drugs       2,789                     529  19.0%
+      drug_routes          153                      53  34.6%
+  The record's table read 2,721 / 2,376 / 824 / 71 in source -
+  those are another file's counts, and the published figures
+  match because the published figure is a property of the run.
+  **Measure the denominator on the file in front of you**, which
+  is the oldest rule here and was broken by quoting this file
+  rather than running anything.
+- **THE ONE GOOD SURPRISE: every published token now reaches the
+  output.** 1,050 of 1,050 conditions, 195 of 195 procedures,
+  where the record documented an older build emitting 800 of
+  1,050 against a token cap. The cap no longer binds on this
+  extract, so the thinning is entirely the k screen - which is
+  the honest thing to tell a recipient, and a different sentence
+  from the one the record would have had me say.
 - **THE REVALUE ARM LANDED AND THE PREDICTION SCORED 5 OF 5, WITH
   BOTH REFUSALS JUSTIFIED (2026-11-18, run_rv_ctl11 against
   run_rv_11).** Same tree, same seed 11, same source, ONE FLAG
