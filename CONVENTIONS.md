@@ -3,6 +3,36 @@
 Synthetic clinical data generator and model-evaluation instrument. Core rule: learn the patterns, never copy the records. Real data teaches parameters; generation never touches a record.
 
 ## Verify before claiming
+- **THE 5x VOLUME ARM IS RUNNING, PREDICTION FIRST (2026-11-18,
+  run_rv_11_5x).** Prente's own scoping document leaves the
+  encounter count to USC and says "the more encounters we get,
+  the more the results can be trusted" - and the inpatient slice
+  of the 1x file is about 789 encounters, which is thin for
+  anything DRG-shaped. Same source, same seed 11, same
+  `--revalue-copied`, `--patients 4000`.
+- **WHAT IS PREDICTED.** (1) The blueprint is BYTE-IDENTICAL to
+  `run_rv_11`'s: the fit does not depend on how many patients are
+  drawn, so this must be the same contract at a bigger draw, and
+  if it is not then something reads `--patients` that should not.
+  (2) Coverage 42/42 and INVERTED zero, as on all four arms. (3)
+  `procedure_quantity` against its own source marginal lands at
+  or below the 1x reading of 0.0398, because the only thing that
+  changed is sample size. (4) Rows land near five times 55,428
+  but NOT exactly - the visit-count draw is heavy-tailed and this
+  file records a 4.6% standard deviation on the row total, so a
+  few percent either way is the draw and not a finding.
+- **WHAT IS NOT PREDICTED: direction and close.** The recorded 5x
+  arm read direction 92.3% against 1x's 93.9% and close 77.8%
+  against 76.5% - moving in OPPOSITE directions, both inside the
+  seed spread, on an older build. So nothing is claimed for
+  either, and a move of a point or two in either is noise rather
+  than an effect of volume.
+- **AND THE PRIVACY READING DOES NOT TRANSFER UNEXAMINED.** The
+  attack battery was measured on the 1x output. The disclosure
+  SURFACE is the blueprint, which is identical by construction if
+  the first prediction holds - so the posture argument carries -
+  but the measured numbers are 1x numbers and the package must
+  say so rather than implying the battery was re-run.
 - **THE FOUR-ARM SWEEP, AND THE DELIVERABLE CHOSEN BY A RULE
   STATED BEFORE THE NUMBERS WERE READ (2026-11-18).** One tree,
   one source, four runs. Every figure read back spelled:
