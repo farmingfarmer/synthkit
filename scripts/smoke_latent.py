@@ -2094,6 +2094,70 @@ def main():
           all(k in _pts[0] for k in ("c", "n", "r", "x", "g"))
           and any(p["g"] == 0 for p in _pts)
           and any(p["g"] == 1 for p in _pts))
+
+    # THE TWO FRAMES DO NOT CARRY THE SAME COLUMNS, AND THE WIDTH
+    # DOES NOT SAY SO. On the real extract the source holds
+    # `visit_id` - a direct identifier, deliberately absent from the
+    # output - while the output holds `visit_number`, which the
+    # engine emits where entities repeat. BOTH FRAMES ARE 44 COLUMNS
+    # WIDE, so every shape check passes, and the plan fitted on the
+    # source then raised a bare `KeyError: 'visit_id'` inside
+    # `_re_encode_frame`. Reported from the bench, not by any check.
+    _srcX = _dfv.copy()
+    _srcX["visit_id"] = range(len(_srcX))
+    _genX = _genv.copy()
+    _genX["visit_number"] = range(len(_genX))
+    check("the fixture reproduces the real shape - same column "
+          "COUNT, different column NAMES, which is why a width "
+          "check could not see it",
+          len(_srcX.columns) == len(_genX.columns)
+          and "visit_id" in _srcX.columns
+          and "visit_id" not in _genX.columns
+          and "visit_number" in _genX.columns)
+    try:
+        _ptsX, _metaX = _lv.compute_points(_srcX, _genX, "person_id")
+        _okX, _errX = bool(_ptsX), ""
+    except Exception as _e:
+        _ptsX, _metaX, _okX = [], {}, False
+        _errX = "{}: {}".format(type(_e).__name__, _e)
+    check("a column the OUTPUT does not carry does not crash the "
+          "latent view - it is compared on the columns both frames "
+          "have: {}".format(_errX or "built"),
+          _okX)
+    check("...and the view REPORTS what it left out, by name, "
+          "rather than narrowing the comparison in silence - a "
+          "picture of a different column set is the wrong model "
+          "drawn as though it were the right one",
+          _metaX.get("source_only") == ["visit_id"]
+          and _metaX.get("generated_only") == ["visit_number"]
+          and _metaX.get("columns_compared") == len(
+              [c for c in _srcX.columns if c in set(_genX.columns)]))
+    # AND IT MUST STILL REFUSE where no honest comparison exists -
+    # a fix that makes every input produce a picture has replaced a
+    # crash with a worse thing.
+    _bad = _genX[["person_id"]].copy()
+    try:
+        _lv.compute_points(_srcX, _bad, "person_id")
+        _refused = ""
+    except ValueError as _e:
+        _refused = str(_e)
+    except Exception as _e:
+        _refused = "WRONG-TYPE {}".format(type(_e).__name__)
+    check("too few shared columns is REFUSED by name rather than "
+          "drawn: {}".format(_refused[:62] or "NOT REFUSED"),
+          "not enough" in _refused)
+    _nog = _genX.drop(columns=["person_id"])
+    try:
+        _lv.compute_points(_srcX, _nog, "person_id")
+        _refg = ""
+    except ValueError as _e:
+        _refg = str(_e)
+    except Exception as _e:
+        _refg = "WRONG-TYPE {}".format(type(_e).__name__)
+    check("a grouping column missing from one side is refused too, "
+          "because the two sets of rows could not be placed in one "
+          "space at all: {}".format(_refg[:52] or "NOT REFUSED"),
+          "not in both frames" in _refg)
     # THE SIZE LEVER NEEDED A FLAG BEHIND IT. generate() has taken
     # n_patients since it was written and the CLI pinned it to the
     # source's own count, so "how much to make" was unreachable

@@ -84,6 +84,36 @@ def compute_points(src, gen, group_by, seed=0, max_pts=5000,
     elsewhere - so the second consumer kept the gap."""
     import latent_challenger as _lc
     from latent_challenger import LatentGen
+
+    # THE TWO FRAMES DO NOT CARRY THE SAME COLUMNS, AND THE COUNT
+    # DOES NOT SAY SO. The real extract has `visit_id`, which is a
+    # direct identifier and is deliberately absent from the output;
+    # the output carries `visit_number`, which the engine emits
+    # where entities repeat. Both frames are 44 columns wide on the
+    # 800-patient extract, so every shape check passes and
+    # `_re_encode_frame` then raised a bare `KeyError: 'visit_id'`
+    # on a plan fitted from the source.
+    #
+    # The comparison is only meaningful on the columns BOTH sides
+    # have, so the model is fitted on exactly those - and what was
+    # left out is REPORTED rather than dropped quietly, because a
+    # latent picture of a different column set is the "honest
+    # picture of the wrong model" this function already warns about.
+    _sc, _gc = list(src.columns), set(gen.columns)
+    shared = [c for c in _sc if c in _gc]
+    only_src = [c for c in _sc if c not in _gc]
+    only_gen = [c for c in gen.columns if c not in set(_sc)]
+    if group_by not in shared:
+        raise ValueError(
+            "the grouping column {!r} is not in both frames, so "
+            "source and generated rows cannot be placed in one "
+            "space".format(group_by))
+    if len(shared) < 2:
+        raise ValueError(
+            "source and generated share only {} column(s), which "
+            "is not enough to compare".format(len(shared)))
+    src, gen = src[shared], gen[shared]
+
     _keep = (_lc.MAX_TOKENS, _lc.MAX_LEVELS)
     if max_tokens is not None:
         _lc.MAX_TOKENS = int(max_tokens)
@@ -122,7 +152,10 @@ def compute_points(src, gen, group_by, seed=0, max_pts=5000,
             else 0.0, "g": int(labels[i])} for i in idx]
     return pts, {"n_source": int((labels == 0).sum()),
                  "n_generated": int((labels == 1).sum()),
-                 "latent_dims": int(Z.shape[1]), "shown": len(pts)}
+                 "latent_dims": int(Z.shape[1]), "shown": len(pts),
+                 "columns_compared": len(shared),
+                 "source_only": only_src,
+                 "generated_only": only_gen}
 
 
 def build_html(pts, meta):
