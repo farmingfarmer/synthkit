@@ -248,6 +248,80 @@ def main():
           (ROOT / "pyproject.toml").read_text(encoding="utf-8")
           else False)
 
+    # ---- RENAMING ON THE WAY OUT ----
+    # A recipient asked for the synthetic file under a name of
+    # their choosing and the allow-list refused it - the guard
+    # working, because it cannot know an arbitrary filename is the
+    # synthetic output rather than the extract. The check runs on
+    # the SOURCE so the guard is exactly as strong.
+    import tempfile as _tf
+    with _tf.TemporaryDirectory() as _d:
+        rd = Path(_d) / "run"
+        rd.mkdir()
+        (rd / "generated.csv").write_text("a,b\n1,2\n", encoding="utf-8")
+        (rd / "data_dictionary.csv").write_text("col\na\n", encoding="utf-8")
+        (rd / "key.csv").write_text("secret\n", encoding="utf-8")
+        (rd / "tidy_visits.csv").write_text("real\n", encoding="utf-8")
+        dst = Path(_d) / "bucket"
+
+        # WRAPPED, because a mutation that makes this raise would
+        # kill the suite before the laundering check below ever
+        # runs - a crashed suite emits no FAIL line, and a filtered
+        # count then reads zero and looks like a check that cannot
+        # fail. Caught exactly that way.
+        try:
+            wrote = cloud.publish(
+                rd, str(dst),
+                only=["generated.csv", "data_dictionary.csv"],
+                as_name={"generated.csv": "confidential_x.csv"})
+        except Exception as _e:
+            wrote = []
+            print("    (rename raised: {})".format(str(_e)[:70]))
+        check("a published file can be RENAMED on the way out: "
+              "{}".format(", ".join(w.split("/")[-1] for w in wrote)),
+              any(w.endswith("confidential_x.csv") for w in wrote)
+              and any(w.endswith("data_dictionary.csv") for w in wrote))
+        check("...and the renamed file is the only one that moved "
+              "under that name - nothing else was published",
+              len(wrote) == 2)
+
+        # THE GUARD MUST NOT BE DEFEATABLE BY A RENAME. This is the
+        # whole reason the check runs on the source.
+        bad = ""
+        try:
+            cloud.publish(rd, str(dst), only=["key.csv"],
+                    as_name={"key.csv": "generated.csv"})
+        except cloud.CloudRefusal as e:
+            bad = str(e)
+        check("the key file is STILL refused when renamed to an "
+              "allowed name - the check is on the source, so a "
+              "rename cannot launder it: {}".format(bad[:52]),
+              "key.csv" in bad)
+        bad = ""
+        try:
+            cloud.publish(rd, str(dst),
+                    only=["tidy_visits.csv"],
+                    as_name={"tidy_visits.csv": "generated.csv"})
+        except cloud.CloudRefusal as e:
+            bad = str(e)
+        check("...and so is the source extract, which is the one "
+              "that would matter most: {}".format(bad[:46]),
+              "tidy_visits.csv" in bad)
+
+        # A RENAME OF SOMETHING NOT BEING PUBLISHED IS A MISTAKE.
+        bad = ""
+        try:
+            cloud.publish(rd, str(dst),
+                    only=["generated.csv"],
+                    as_name={"fidelity.json": "x.json"})
+        except cloud.CloudRefusal as e:
+            bad = str(e)
+        check("renaming a file that is not being published is "
+              "REFUSED rather than ignored - a silent no-op is how "
+              "somebody believes a file went out under a name it "
+              "never had: {}".format(bad[:46]),
+              "fidelity.json" in bad)
+
     print()
     if FAIL:
         print("{} FAILED".format(FAIL))

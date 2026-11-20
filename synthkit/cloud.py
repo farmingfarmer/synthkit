@@ -31,7 +31,7 @@ same goes for a deployment.
 import os
 import re
 from pathlib import Path
-from typing import Iterable, List, Optional, Tuple
+from typing import Iterable, List, Optional, Tuple, Dict
 
 # WHAT MAY LEAVE. Everything a run writes that is an aggregate,
 # a synthetic file, or a report. The SOURCE is absent and the
@@ -53,6 +53,16 @@ ALLOWED = (
     "deck.html",
     "report_card.html",
     "signoff.html",
+    # THE DICTIONARY IS A DELIVERABLE AND WAS NOT PUBLISHABLE.
+    # It ships in the handover package and a recipient asked for
+    # it by name, and `publish` refused - the list had never been
+    # reconciled against what the packer actually sends. It
+    # discloses nothing `blueprint.json` does not already: column
+    # names, types, coverage, ranges, and the token vocabulary the
+    # k rule already screened. Added deliberately rather than by
+    # loosening the check.
+    "data_dictionary.html",
+    "data_dictionary.csv",
     "schema.json",
 )
 
@@ -160,12 +170,26 @@ def refuse_unless_allowed(names: Iterable[str]) -> None:
 
 
 def publish(run_dir, dest_uri: str, client=None,
-            only: Optional[List[str]] = None) -> List[str]:
+            only: Optional[List[str]] = None,
+            as_name: Optional[Dict[str, str]] = None) -> List[str]:
     """Upload a run's artifacts, and nothing else.
 
     Returns the destinations written, so a caller can print
     exactly what left - a transfer that does not say what it
     moved is one nobody can audit afterwards.
+
+    `as_name` RENAMES ON THE WAY OUT, and the check still runs on
+    the SOURCE. A recipient asked for the synthetic file under a
+    name of their choosing, and the allow-list refused it - which
+    was the guard working, because it cannot know that an
+    arbitrary filename is the synthetic output rather than the
+    extract. Checking the source and letting the destination
+    differ keeps the guard exactly as strong: `key.csv` is still
+    refused, and renaming it does not help.
+
+    A rename whose SOURCE is not on the list is refused the same
+    way an unrenamed one is, and the returned list names what was
+    actually written rather than what was asked for.
     """
     run = Path(run_dir)
     if not run.is_dir():
@@ -187,10 +211,22 @@ def publish(run_dir, dest_uri: str, client=None,
                 ", ".join(missing),
                 "is" if len(missing) == 1 else "are", run))
     store, prefix = store_for(dest_uri, client=client)
+    ren = dict(as_name or {})
+    # A RENAME OF SOMETHING THAT IS NOT BEING PUBLISHED IS A
+    # MISTAKE, not a no-op. Silently ignoring it is how somebody
+    # believes a file went out under a name it never had.
+    stray = [k for k in ren if k not in names]
+    if stray:
+        raise CloudRefusal(
+            "asked to rename {} on the way out, but {} not being "
+            "published from {}".format(
+                ", ".join(sorted(stray)),
+                "it is" if len(stray) == 1 else "they are", run))
     out = []
     for n in names:
-        key = "{}/{}".format(prefix.rstrip("/"), n) if prefix \
-            else n
+        dest = ren.get(n, n)
+        key = "{}/{}".format(prefix.rstrip("/"), dest) if prefix \
+            else dest
         out.append(store.put(run / n, key))
     return out
 
