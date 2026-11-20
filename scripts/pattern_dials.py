@@ -1471,3 +1471,72 @@ def main(argv):
 
 if __name__ == "__main__":
     sys.exit(main(sys.argv[1:]))
+
+
+def enrich(pats, frame, bp, limit=400):
+    """Give each dialable pattern the three numbers a slider needs.
+
+    A TEXT BOX CANNOT SAY WHAT AN ASK MEANS. The station asked for a
+    target by typing a number into a five-character field, with no
+    statement of where the pattern sits now, where the real data put
+    it, or what the pair can reach at all. The real extract has a
+    pair whose floor is near -0.33, so a typed -0.40 was accepted
+    and then reported as a miss for an ask that never existed.
+
+    Three numbers fix that, and each answers a different question:
+
+      source   what the REAL data holds - the thing being distorted
+      current  what the released file holds now - the starting point
+      band     what any rearrangement can reach - the slider extent
+
+    `band` is MEASURED off the frame rather than assumed to be
+    [-1, +1], because a pair's tie structure can bound it far
+    inside that. Where a number cannot be computed it is left
+    ABSENT rather than defaulted - absent is not zero, and a
+    slider drawn over an invented band is worse than no slider.
+    """
+    import numpy as np
+    import pandas as pd
+
+    def _rank(a, b):
+        x = pd.to_numeric(frame[a], errors="coerce")
+        y = pd.to_numeric(frame[b], errors="coerce")
+        m = x.notna() & y.notna()
+        if int(m.sum()) < 20:
+            return None
+        v = x[m].corr(y[m], method="spearman")
+        return None if v is None or not np.isfinite(v) else float(v)
+
+    done = 0
+    for p in pats:
+        if not p.get("dialable") or done >= limit:
+            continue
+        cols = [c for c in (p.get("columns") or []) if c]
+        kind = p.get("kind")
+        if kind == "set_token" or kind == "interaction_surface":
+            # A token's band depends on the PARTNER the operator
+            # names, which is not known until they choose one; a
+            # surface takes a gain rather than a correlation. Both
+            # are handled at dial time, so nothing is invented here.
+            p["source"] = p.get("strength")
+            continue
+        if len(cols) < 2 or any(c not in frame.columns for c in cols[:2]):
+            continue
+        child, parent = cols[0], cols[1]
+        cur = _rank(child, parent)
+        if cur is None:
+            continue
+        p["current"] = round(cur, 4)
+        src = p.get("strength")
+        if isinstance(src, (int, float)):
+            p["source"] = round(float(src), 4)
+        try:
+            band = reachable_band(frame, child, parent)
+        except Exception:
+            band = None
+        if band:
+            lo, hi = band
+            if np.isfinite(lo) and np.isfinite(hi) and hi > lo:
+                p["band"] = [round(float(lo), 4), round(float(hi), 4)]
+        done += 1
+    return pats

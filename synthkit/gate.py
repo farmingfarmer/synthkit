@@ -298,6 +298,16 @@ def assess(fid: Dict[str, Any],
     # in the same commit.
     _tv = fid.get("tvd") or {}
     _mg_b = fid.get("marginals") or {}
+    # EVERY CRITERION CARRIES ITS READER-FACING NAME AND A LINE
+    # SAYING WHAT IT IS FOR. Attached here rather than in a
+    # renderer, so the bench, the sign-off page and the terminal
+    # cannot each describe the same criterion differently - which
+    # is the two-halves fault this file already records for the
+    # gate's own numbers. The internal `name` is untouched: it is
+    # the on-disk contract.
+    for _c in crit:
+        _c["plain"] = plain_name(_c.get("name", ""))
+        _c["why"] = plain_why(_c.get("name", ""))
     return {"criteria": crit,
             "met": all(c["ok"] for c in crit),
             "pairs": pairs,
@@ -371,6 +381,83 @@ def plain(text: str) -> str:
 # WHAT EACH CRITERION MEANS IN THE DATA, pass or fail, and how to
 # INSPECT it yourself - shown under every verdict row, because a
 # PASS the operator cannot check for themselves is just a claim.
+# A PLAIN NAME FOR EVERY CRITERION, because the internal names are
+# the thing a non-technical reader meets first and seven of the nine
+# mean nothing outside this team. Asked for in review: "rather than
+# just saying [the k rule] let's just explicitly put that out
+# there" - the same complaint, one level up. The KEYS do not change:
+# they are the on-disk contract, and renaming a published field is a
+# format break wearing a copy-edit's clothes.
+PLAIN_NAME: Dict[str, str] = {
+    "direction kept": "Relationships point the same way",
+    "close": "...and are about as strong",
+    "inverted": "Nothing runs backwards",
+    "coverage": "Every field is filled in as often as in real life",
+    "set token shares": "Individual codes appear as often as they do",
+    "set EMPTY rate": "\u201cNothing recorded\u201d is as common as in real life",
+    "shapes tracked": "Relationships that bend keep their bend",
+    "interaction surfaces":
+        "Effects that depend on two things at once survive",
+    "dynamics tracked": "A patient's course over time looks right",
+}
+
+# ...and one line saying what each is FOR, in the register somebody
+# outside the team reads in. The longer EXPLAIN text below stays for
+# a reader who wants the mechanism.
+PLAIN_WHY: Dict[str, str] = {
+    "direction kept":
+        "If one thing rises with another in the real data, it must "
+        "rise with it here too.",
+    "close":
+        "Not just the right direction - roughly the right size, so "
+        "an effect is not reported as far weaker or stronger than "
+        "it really is.",
+    "inverted":
+        "Something that falls in real life must not rise here. This "
+        "is the one we refuse to release on: a reversed "
+        "relationship reads as a finding, which is worse than a "
+        "missing one.",
+    "coverage":
+        "A test recorded on one visit in five should still be "
+        "recorded on about one visit in five.",
+    "set token shares":
+        "Each diagnosis, procedure and medication should turn up "
+        "about as often as it really does.",
+    "set EMPTY rate":
+        "Visits where nothing was recorded are a fact about care, "
+        "not a gap - they have to be as common here as in real "
+        "life.",
+    "shapes tracked":
+        "Some relationships are not straight lines. Height against "
+        "age rises then flattens, and a straight line is the wrong "
+        "answer.",
+    "interaction surfaces":
+        "Where the effect of one thing changes depending on "
+        "another. Harder to carry than a plain relationship, and "
+        "this is where the engine is weakest.",
+    "dynamics tracked":
+        "How one visit relates to that same patient's next one. A "
+        "per-visit check cannot see this at all.",
+}
+
+
+def plain_name(name: str) -> str:
+    """The reader-facing name for a criterion, or the name itself.
+
+    NOT `plain` - that name is taken by the station-token renderer
+    above, and defining a second one silently replaced it: the
+    terminal gate stopped expanding [[station]] tokens and printed
+    the raw markup instead. Caught by calling it; nothing else
+    would have.
+    """
+    return PLAIN_NAME.get(name, name)
+
+
+def plain_why(name: str) -> str:
+    """One line on what a criterion is for, in plain words."""
+    return PLAIN_WHY.get(name, "")
+
+
 EXPLAIN: Dict[str, Dict[str, str]] = {
     "direction kept": {
         "explain": "Of the relationships the source really "

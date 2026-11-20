@@ -112,15 +112,28 @@ TERMS: Dict[str, Dict[str, str]] = {
  "verdict is a fraction of what a verbatim republish achieves on "
  "the same cohort, so it calibrates itself."},
 
-"k-rule": {"title": "The k rule",
- "body": "Nothing is published unless at least <b>k</b> different "
- "people stand behind it . k is 10 by default, and the Generate station lets you RAISE it - a stronger guarantee that visibly costs fidelity, with every page stating which k it was built under. It cannot go below 10: beneath that, a pattern starts describing individuals. A value held by three "
- "patients never leaves the machine; a pattern shared by "
- "hundreds does. This one rule is why the synthetic data can be "
- "shared at all.<br><br>It is counted in [[patients-not-rows]], "
- "which matters more than it sounds. It shapes what the "
- "generator is even allowed to learn, so it also explains some "
- "apparent 'errors' - see [[privacy-not-a-fault]]."},
+"k-rule": {"title": "The ten-patient rule",
+ "body": "<b>Nothing is published unless at least ten different "
+ "people stand behind it.</b> That is the whole rule, and it is "
+ "worth saying in those words rather than as a letter: asked for "
+ "directly in review, because &ldquo;k&rdquo; tells a reader "
+ "nothing they can act on."
+ "<p>It is counted in <b>patients, never visits</b>. Somebody seen "
+ "two hundred times cannot push a pattern over the line on their "
+ "own &mdash; they are one person.</p>"
+ "<p>It can be <b>raised</b> and never lowered. Raising it is a "
+ "stronger promise that visibly costs detail, and every page states "
+ "which setting it was built under. Below ten the tool refuses "
+ "before it starts: beneath that, a published pattern stops "
+ "describing a population and starts describing individuals. A "
+ "value held by three people describes those three.</p>"
+ "<p><b>What it costs.</b> Almost all of the cost lands on rare "
+ "codes rather than on the overall shape. On the 800-patient "
+ "cohort about one diagnosis code in ten can be published, and "
+ "about one procedure code in twenty &mdash; while across the "
+ "numeric fields the rule still leaves 89% of the natural spread "
+ "available. Common clinical pictures come through well; "
+ "rare-condition work does not, and no setting fixes that.</p>"},
 
 "patients-not-rows": {"title": "Patients, not rows",
  "body": "Every privacy count here is over <b>people</b>, never "

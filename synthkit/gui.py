@@ -1667,8 +1667,25 @@ def api_patterns(payload: dict) -> dict:
     for q in pats:
         d = PD.REACH.get(q["kind"], (None, None, False))
         q["dial"], q["layer"], q["invertible"] = d
+    # THE SLIDER NEEDS THREE NUMBERS AND THE BLUEPRINT HOLDS ONE.
+    # `source` comes from the contract; `current` and the reachable
+    # `band` have to be measured on the written file. Where there is
+    # no generated.csv the list still renders - it just loses the
+    # sliders, which is a smaller loss than refusing the page.
+    gen = Path(out) / "generated.csv"
+    enriched = False
+    if gen.exists():
+        try:
+            import pandas as _pd
+            _f = _pd.read_csv(gen, dtype=str, keep_default_na=False,
+                              low_memory=False)
+            PD.enrich(pats, _f, None)
+            enriched = True
+        except Exception:
+            enriched = False
     return {"patterns": pats,
             "dialable": sum(1 for q in pats if q["dialable"]),
+            "measured": enriched,
             "total": len(pats)}
 
 
@@ -2386,6 +2403,48 @@ table.patt .patset input.pa{width:7.5em}
 table.patt .patset .act{padding:2px 9px;font-size:11px}
 table.patt .patset .hint{white-space:normal;
   display:inline-block;max-width:16em;line-height:1.35}
+/* ---- the dial deck: one card per pattern, with a real control ----
+   A FIVE-CHARACTER TEXT BOX CANNOT SAY WHAT AN ASK MEANS. The row
+   asked for a number with no statement of where the pattern sits
+   now, where the real data put it, or what the pair can reach at
+   all - so a typed value outside the reachable band was accepted
+   and then reported as a miss for an ask that never existed. */
+.dgroup{margin:20px 0 6px}
+.dgroup h4{margin:0 0 3px;font-size:14.5px;letter-spacing:.01em}
+.dgroup .gsub{font-size:12.5px;color:var(--dim);margin:0 0 10px;
+  max-width:72ch;line-height:1.55}
+.dcard{border:1px solid var(--rule);border-radius:11px;
+  padding:14px 16px;margin:0 0 10px}
+.dcard.off{opacity:.72}
+.dhead{display:flex;align-items:baseline;gap:10px;flex-wrap:wrap}
+.dwhat{font-weight:650;font-size:14.5px}
+.dbadge{font-size:10px;font-weight:700;letter-spacing:.07em;
+  text-transform:uppercase;border-radius:99px;padding:3px 8px;
+  background:var(--chip);color:var(--dim)}
+.dbadge.inv{background:#e6f3ec;color:#1f6b47}
+.dbadge.noinv{background:#fdeeec;color:#9c3a33}
+.dmean{font-size:12.5px;color:var(--dim);margin:5px 0 0;
+  max-width:74ch;line-height:1.55}
+.dctl{display:flex;align-items:center;gap:12px;margin-top:11px;
+  flex-wrap:wrap}
+.dctl input[type=range]{flex:1;min-width:190px;accent-color:#8c1515}
+.dnum{font-family:var(--mono);font-size:13px;min-width:64px;
+  text-align:right}
+.dscale{display:flex;justify-content:space-between;font-size:11px;
+  color:var(--dim);font-family:var(--mono);margin-top:2px}
+.dmarks{font-size:12px;color:var(--dim);margin-top:7px;line-height:1.6}
+.dmarks b{font-family:var(--mono);color:var(--ink)}
+.dnote{font-size:12px;color:var(--dim);margin-top:8px;line-height:1.55}
+details.whatfor{border:1px solid var(--rule);border-radius:10px;
+  padding:10px 14px;margin:0 0 14px}
+details.whatfor summary{cursor:pointer;font-weight:650;font-size:13.5px}
+details.whatfor[open] summary{margin-bottom:8px}
+ol.phi18{margin:6px 0 10px;padding-left:22px;columns:2;column-gap:28px;
+  font-size:12.5px;color:var(--dim);line-height:1.7}
+ol.phi18 li{break-inside:avoid}
+@media (max-width:640px){ol.phi18{columns:1}}
+.dpart{font:inherit;font-size:13px;padding:5px 8px;
+  border:1px solid var(--rule);border-radius:7px;min-width:160px}
 table.preview{border-collapse:collapse;font-family:var(--mono);
   font-size:11.5px;margin-top:12px;width:100%}
 table.preview th,table.preview td{border:1px solid var(--rule);
@@ -4081,6 +4140,42 @@ textarea:focus,input:focus,select:focus{
   <dl class="stepgoal"><dt>you need</dt><dd>The table you are about to fit, and the column that identifies a person &mdash; the per-patient tests need it, and guessing which column it is would decide the answer.</dd><dt>you get</dt><dd>Every column classified: what was found, what is clear, and what was out of scope &mdash; three lists whose union is the table, so the report can be checked against the file it describes. Plus this scan's COVERAGE of all eighteen Safe Harbor categories, because a detector that finds nothing and never says what it looked for is a clean bill of health for whatever nobody checked.</dd></dl>
   <div class="panel">
     <h2>Scan a table</h2>
+    <details class="whatfor"><summary>What exactly does this look for?</summary>
+    <p class="hint">All eighteen categories the regulation names. Asked for
+    directly in review &mdash; a scan that does not say what it searched for
+    is a clean bill of health for whatever nobody checked.</p>
+    <ol class="phi18">
+      <li>Names</li>
+      <li>Places smaller than a state &mdash; address, city, county, postcode</li>
+      <li>Dates tied to a person, finer than a year &mdash; birth, admission,
+        discharge, death</li>
+      <li>Ages over 89, and any date that reveals one</li>
+      <li>Telephone numbers</li>
+      <li>Fax numbers</li>
+      <li>Email addresses</li>
+      <li>Social Security numbers</li>
+      <li>Medical record numbers</li>
+      <li>Health plan beneficiary numbers</li>
+      <li>Account numbers</li>
+      <li>Certificate and licence numbers</li>
+      <li>Vehicle identifiers, including licence plates</li>
+      <li>Device identifiers and serial numbers</li>
+      <li>Web addresses</li>
+      <li>Network (IP) addresses</li>
+      <li>Biometric identifiers &mdash; fingerprints, voiceprints</li>
+      <li>Full-face photographs</li>
+    </ol>
+    <p class="hint"><b>Finding something does not mean deleting it.</b>
+    Direct identifiers are dropped. Service dates keep their YEAR, and ages
+    over 89 become a single &ldquo;90 or above&rdquo; group &mdash; the
+    column survives, the precision does not. Free-text notes are reported
+    and <em>not</em> touched: redacting clinical text properly needs
+    judgement this tool does not have, and a redactor that misses one
+    identifier is worse than none.</p>
+    <p class="hint">Two of the eighteen &mdash; biometrics and photographs
+    &mdash; are not things a table column holds, so they are reported as
+    out of scope rather than as clear.</p>
+    </details>
     <label>table <span class="hint">(CSV, spreadsheet, JSON-lines or Parquet &mdash; read the same way the fit reads it)</span>
       <input id="scsrc" placeholder="/path/to/table.csv"></label>
     <label>person column <span class="hint">(a name is constant within a person; an identifier is about one per row. Both tests need to know who is who.)</span>
@@ -6063,59 +6158,65 @@ function pairBox(on){
      the page rather than left to be noticed in a directory. */
   var el=document.getElementById('pairbox');
   if(el)el.style.display=on?'block':'none';}
-function patRow(p){
-  /* ONE ROW PER PATTERN, and the ones no dial reaches are
-     shown rather than filtered out - the list of what is out
-     of reach is the half an operator can act on.
-
-     THREE CASES, AND THE FIRST VERSION HAD TWO. A row with a
-     blueprint dial rendered the dial's NAME beside an empty
-     cell: a named dial and no box and no reason, which reads
-     as a tool that is broken rather than a layer that was
-     measured inert. A live render showed four such rows on the
-     fixture's own blueprint while the source-text check for
-     the other branch passed - a branch no row reaches is an
-     untested branch. */
-  /* THE DIAL STRING IS IDENTICAL ON EVERY REACHABLE ROW, so
-     printing it twelve times spends the widest column saying
-     one thing. The command is stated ONCE above the table and
-     the column carries the LAYER, which is the part that
-     differs and the part that decides whether the dial
-     bites. */
-  var h='<tr><td><code>'+p.id+'</code></td><td>'+p.kind+
-    '</td><td>'+p.what+'</td><td>'+(p.layer||'none')+
-    '</td><td>'+
-    (p.invertible? 'yes':(p.dial?'no':'-'))+
-    '</td><td class="patset">';
+function dNum(v){return (v>=0?'+':'')+Number(v).toFixed(2);}
+/* WHAT EACH KIND OF PATTERN IS, IN WORDS SOMEBODY CAN ACT ON. The
+   station printed the internal kind name - "set_token",
+   "interaction_surface" - beside a five-character box. A reader who
+   does not already know the engine cannot tell what they are being
+   asked to type. */
+var DKIND={
+ relationship:{t:'Things that move together',
+  s:'When one of these goes up, the other tends to follow. The slider changes how strongly they track each other in the released file.'},
+ effect_curve:{t:'How one thing responds to another',
+  s:'The shape of the response - rising, falling, levelling off. The slider changes how strongly that response comes through.'},
+ interaction_surface:{t:'Effects that depend on two things at once',
+  s:'Where the effect of one thing changes depending on another. These can only be FLATTENED, never strengthened: 0 removes the joint effect and leaves each one acting on its own.'},
+ set_token:{t:'A particular code, and which visits carry it',
+  s:'How OFTEN the code appears cannot be changed - writing it onto visits that never recorded it would be an invention, not a rearrangement, and could not be undone. What can move is WHICH visits hold it, measured against a column you name.'},
+ column_presence:{t:'How often a field is filled in',s:''},
+ within_patient:{t:'How much a patient resembles themselves over time',s:''},
+ missing_clustering:{t:'Whether missing values come in runs',s:''},
+ identity:{t:'Two fields that always agree',
+  s:'Equal on every row by definition. Moving one means moving both, or the file contradicts itself.'}};
+function dCard(p){
+  var k=DKIND[p.kind]||{t:p.kind,s:''};
+  var h='<div class="dcard'+(p.dialable?'':' off')+'">'+
+    '<div class="dhead"><span class="dwhat">'+p.what+'</span>';
   if(p.dialable){
-    /* THE TARGET IS NOT THE SAME QUANTITY FOR EVERY KIND.
-       A relationship takes a rank correlation in [-1, +1]; an
-       interaction surface takes a GAIN, which is a distance
-       from an additive fit and is never negative - 0 means
-       flatten it. A single placeholder of "-0.3" on a surface
-       row invites an ask that has no meaning. */
-    h+='<input id="pt_'+p.id+'" size="5" placeholder="'+
-       (p.kind==='interaction_surface'?'0 = flat':'-0.3')+
-       '">';
-    /* A SET TOKEN NEEDS A PARTNER, because its SHARE is not
-       the movable thing - writing a token onto rows that
-       never recorded it is not a rearrangement and cannot be
-       undone. What moves is which rows hold it, so the row
-       asks which column to move it against. */
-    if(p.needs_partner){
-      h+='<input class="pa" id="pa_'+p.id+'" '+
-         'placeholder="against">';
-    }
-    h+='<button class="act ghost" onclick="patDial(\''+p.id+
-       '\')">dial</button>';
-  } else if(p.dial){
-    h+='<span class="hint">recipe dial only (<code>'+p.dial+
-       '</code>) &mdash; takes effect, but cannot be '+
-       'undone</span>';
-  } else {
-    h+='<span class="hint">nothing reaches it</span>';
+    h+='<span class="dbadge '+(p.invertible?'inv':'noinv')+'">'+
+       (p.invertible?'can be undone':'cannot be undone')+'</span>';
   }
-  return h+'</td></tr>';
+  h+='</div>';
+  if(!p.dialable){
+    return h+'<p class="dnote">No control reaches this one. It is '+
+      'listed so this is the whole inventory rather than a list of '+
+      'what happens to be adjustable.</p></div>';
+  }
+  var lo=-1,hi=1,cur=(p.current==null?0:p.current);
+  if(p.kind==='interaction_surface'){lo=0;hi=1;cur=0;}
+  else if(p.band){lo=p.band[0];hi=p.band[1];
+    if(cur<lo)cur=lo; if(cur>hi)cur=hi;}
+  h+='<div class="dctl">'+
+     '<input type="range" id="pt_'+p.id+'" min="'+lo+'" max="'+hi+
+     '" step="0.01" value="'+cur+'" oninput="document'+
+     '.getElementById(\'pv_'+p.id+'\').textContent=dNum(this.value)">'+
+     '<span class="dnum" id="pv_'+p.id+'">'+dNum(cur)+'</span>';
+  if(p.needs_partner){
+    h+='<input class="dpart" id="pa_'+p.id+
+       '" placeholder="move it against which column?">';
+  }
+  h+='<button class="act ghost" onclick="patDial(\''+p.id+
+     '\')">preview</button></div>'+
+     '<div class="dscale"><span>'+dNum(lo)+'</span><span>'+
+     dNum(hi)+'</span></div>';
+  var m=[];
+  if(p.source!=null)m.push('real data <b>'+dNum(p.source)+'</b>');
+  if(p.current!=null)m.push('released file now <b>'+dNum(p.current)+'</b>');
+  if(p.band)m.push('this pair can only reach <b>'+dNum(p.band[0])+
+    '</b> to <b>'+dNum(p.band[1])+'</b>');
+  if(m.length)h+='<p class="dmarks">'+m.join(' &nbsp;&middot;&nbsp; ')+'</p>';
+  if(k.s)h+='<p class="dmean">'+k.s+'</p>';
+  return h+'</div>';
 }
 async function patList(){
   var o=document.getElementById('pat-out');
@@ -6128,33 +6229,46 @@ async function patList(){
       body:JSON.stringify({out:nField('nout','fout')})});
     const j=await r.json();
     if(j.error){o.textContent='refused: '+j.error;return;}
-    o.textContent=j.dialable+' of '+j.total+
-      ' patterns can be dialled. The rest are listed so you '+
-      'can see what is out of reach.';
-    /* THIS PARAGRAPH CARRIED THE STALE CLAIM AFTER THE
-       panel's own explain text had been corrected - two
-       pieces of prose about one thing, and only one of them
-       was fixed. It said a blueprint dial is "measured inert
-       on the real extract"; what was measured inert is shift
-       and scale on a column inside a cycle, now fixed, and
-       persistence and coverage both bite. */
-    var h='<p class="hint">Every dialable pattern below takes '+
-      'the same command: <code>pattern_dials RUNDIR --dial '+
-      'ID=TARGET</code>; a set token also needs '+
-      '<code>--against COLUMN</code>. An <b>output</b> layer '+
-      'is a permutation of the written file, so the cipher '+
-      'can undo it. A <b>blueprint</b> layer takes effect '+
-      'too, but it changes what generation produces, so '+
-      'undoing it means generating again. A relationship '+
-      'or token takes a rank correlation; an '+
-      '<b>interaction surface</b> takes a GAIN instead, '+
-      'where 0 flattens it and the main effects are held '+
-      'where they are.</p>'+
-      '<table class="jt patt"><tr><th>id</th><th>kind</th>'+
-      '<th>pattern</th><th>layer</th>'+
-      '<th>invertible</th><th>set it to</th></tr>';
-    j.patterns.forEach(function(p){h+=patRow(p);});
-    t.innerHTML=h+'</table>';
+    o.textContent=j.dialable+' of '+j.total+' patterns have a '+
+      'control. The rest are shown too, so this is the whole '+
+      'inventory rather than a list of what happens to be '+
+      'adjustable.'+(j.measured?'':' No generated file was found, '+
+      'so the sliders have no measured starting point and show '+
+      'the full range instead.');
+    var by={};
+    j.patterns.forEach(function(p){(by[p.kind]=by[p.kind]||[]).push(p);});
+    var order=['relationship','effect_curve','interaction_surface',
+      'set_token','identity','column_presence','within_patient',
+      'missing_clustering'];
+    var h='<p class="hint">Nothing is written by pressing '+
+      '<b>preview</b>. It reports what the change WOULD do - what '+
+      'landed, what the pair can reach, and which other patterns '+
+      'moved with it. Rewriting a released file on a click is not '+
+      'a thing to do by default.</p>'+
+      '<p class="hint">Two kinds of control, and the badge on each '+
+      'card says which it is. One is a <b>rearrangement of the '+
+      'written file</b> - the same values, moved between rows - so '+
+      'the cipher can undo it exactly. The other changes what '+
+      'generation PRODUCES; it takes effect just as surely, but '+
+      'undoing it means generating again.</p>';
+    var seen={};
+    order.forEach(function(kind){
+      var rows=by[kind]; if(!rows||!rows.length)return;
+      seen[kind]=1;
+      var k=DKIND[kind]||{t:kind,s:''};
+      h+='<div class="dgroup"><h4>'+k.t+' <span class="dbadge">'+
+         rows.length+'</span></h4>';
+      if(k.s)h+='<p class="gsub">'+k.s+'</p>';
+      rows.forEach(function(p){h+=dCard(p);});
+      h+='</div>';
+    });
+    Object.keys(by).forEach(function(kind){
+      if(seen[kind])return;
+      h+='<div class="dgroup"><h4>'+kind+'</h4>';
+      by[kind].forEach(function(p){h+=dCard(p);});
+      h+='</div>';
+    });
+    t.innerHTML=h;
   }catch(e){o.textContent='refused: '+e;}
 }
 async function patDial(pid){
