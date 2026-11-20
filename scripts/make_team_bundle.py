@@ -194,7 +194,35 @@ def build_source(dst: Path):
 
 
 LAUNCH_BAT = '@echo off\r\nsetlocal\r\ncd /d %~dp0\r\necho ================================================\r\necho  synthkit - one-time setup, then the bench opens\r\necho ================================================\r\nset \"PYEXE=python\"\r\nwhere python >nul 2>nul\r\nif errorlevel 1 (\r\n  where py >nul 2>nul\r\n  if errorlevel 1 goto :nopython\r\n  set \"PYEXE=py -3\"\r\n)\r\nif not exist .venv (\r\n  echo [1/3] creating a private Python environment...\r\n  %PYEXE% -m venv .venv\r\n  if errorlevel 1 goto :fail\r\n)\r\nif not exist .venv\\ok.marker (\r\n  echo [2/3] installing synthkit from the offline wheels, no network needed...\r\n  .venv\\Scripts\\python -m pip install --no-index --find-links wheels -e synthkit_src\r\n  if errorlevel 1 goto :fail\r\n  echo ok> .venv\\ok.marker\r\n)\r\necho [3/3] starting the bench - your browser opens on the HOME page...\r\n.venv\\Scripts\\python -m synthkit.cli gui\r\npause\r\nexit /b 0\r\n:nopython\r\necho Python was not found on this machine - neither the\r\necho python command nor the py launcher.\r\necho.\r\necho Install it from  https://www.python.org/downloads/\r\necho On the first installer screen, TICK \"Add python.exe to PATH\".\r\necho Without admin rights, choose \"Install for me only\".\r\necho Do NOT use the Microsoft Store shortcut - it is not on PATH.\r\necho Then run this file again.\r\npause\r\nexit /b 1\r\n:fail\r\necho.\r\necho A step failed - read the message above; a photo of this\r\necho window is enough for whoever supports the kit.\r\npause\r\nexit /b 1\r\n'
-CHECKS_BAT = '@echo off\r\nsetlocal\r\ncd /d %~dp0\r\nif not exist .venv\\ok.marker (\r\n  echo Run START_SYNTHKIT.bat first - it installs everything.\r\n  pause\r\n  exit /b 1\r\n)\r\ncd synthkit_src\r\n..\\.venv\\Scripts\\python -u scripts\\run_all_smokes.py\r\necho.\r\necho The words ALL GREEN are the verdict.\r\npause\r\n'
+CHECKS_BAT = (
+    '@echo off\r\n'
+    'setlocal\r\n'
+    'cd /d %~dp0\r\n'
+    'if not exist .venv\\ok.marker (\r\n'
+    '  echo Run START_SYNTHKIT.bat first - it installs everything.\r\n'
+    '  pause\r\n'
+    '  exit /b 1\r\n'
+    ')\r\n'
+    'cd synthkit_src\r\n'
+    '..\\.venv\\Scripts\\python -u scripts\\run_all_smokes.py\r\n'
+    'set RC=%errorlevel%\r\n'
+    'echo.\r\n'
+    'echo ============================================\r\n'
+    'if "%RC%"=="0" (\r\n'
+    '  echo   EVERYTHING PASSED. Nothing to do.\r\n'
+    ') else (\r\n'
+    '  echo   SOMETHING FAILED - the suite is named above,\r\n'
+    '  echo   on the line beginning "suite(s) FAILED".\r\n'
+    '  echo.\r\n'
+    '  echo   Scroll up to the FAIL line for the reason.\r\n'
+    '  echo   Send that line to the team - a break becomes\r\n'
+    '  echo   a new check, which is the point of the kit.\r\n'
+    '  echo.\r\n'
+    '  echo   If you are on an older copy, update first:\r\n'
+    '  echo   several failures have already been fixed.\r\n'
+    ')\r\n'
+    'echo ============================================\r\n'
+    'pause\r\n')
 
 INSTALL_MD = """# Install, offline, one command per line (Windows)
 
@@ -219,8 +247,14 @@ numeric packages. Everything else is in this folder. From a terminal opened HERE
     pip install --no-index --find-links ..\\wheels -e .
     python scripts\\run_all_smokes.py
 
-Expect 68 suites, ALL GREEN (the words are the verdict; the
-check count grows with every build). Then:
+The last line is the verdict and it says plainly whether
+everything passed. Do not count the suites - the number grows
+with every build, and a pinned figure here would go stale and
+make a correct run look broken. If something fails, send the
+FAIL line to the team: a break becomes a new check, which is
+the point of the kit. If you are on an older copy, update
+first - several failures have already been fixed, including
+one on machines without git installed. Then:
 
     python -m synthkit.cli gui
 

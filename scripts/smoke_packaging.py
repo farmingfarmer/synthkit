@@ -422,6 +422,45 @@ def main():
                       and 'No module named "synthkit"'
                       not in _both)
 
+    # THE VERDICT A TEAMMATE READS MUST MATCH WHAT HAPPENED.
+    # RUN_CHECKS.bat printed "The words ALL GREEN are the verdict"
+    # unconditionally, so a colleague saw "1 suite(s) FAILED"
+    # followed on the next line by a sentence about ALL GREEN -
+    # which reads as the tool reporting a pass. Reported from a
+    # screenshot, not by any check.
+    import importlib
+    _mtb = importlib.import_module("make_team_bundle")
+    _bat = _mtb.CHECKS_BAT
+    check("RUN_CHECKS.bat branches on the exit code rather than "
+          "printing one verdict whatever happened",
+          "set RC=%errorlevel%" in _bat
+          and '"%RC%"=="0"' in _bat)
+    check("...so the old unconditional sentence is gone - it was "
+          "printed directly under a FAILED line",
+          "The words ALL GREEN are the verdict" not in _bat)
+    check("...and a failure tells the reader what to DO: where the "
+          "reason is, to send it on, and to update an old copy "
+          "first",
+          "suite(s) FAILED" in _bat and "update" in _bat.lower()
+          and "Send that line" in _bat)
+    check("...while a pass says so in as many words",
+          "EVERYTHING PASSED" in _bat)
+    # AND THE KIT README MUST NOT PIN A SUITE COUNT. It said 68
+    # while the net ran 135 - a reader comparing them would think
+    # a correct run was broken.
+    _rm = getattr(_mtb, "README", "") or ""
+    if not _rm:
+        for _n in dir(_mtb):
+            _v = getattr(_mtb, _n)
+            if isinstance(_v, str) and "run_all_smokes" in _v \
+                    and len(_v) > 400:
+                _rm = _v
+                break
+    check("the kit's own README does not pin a suite count, which "
+          "goes stale every build and makes a correct run look "
+          "broken",
+          bool(_rm) and "Expect 68 suites" not in _rm)
+
     print()
     # THE FLOOR SAYS WHAT IS ALLOWED; THE STACK SAYS WHAT WAS USED.
     # This suite already asserts our declared minimums against each
