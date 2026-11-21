@@ -16821,3 +16821,56 @@ exist.
   of twenty own-column properties land, so the mechanism works.
   What it does not cover is a column whose persistence comes from
   a DATE it is derived from rather than from its own noise.
+
+- **THE DATE RHYTHM IS A REALLOCATION, NOT A REDRAW - AND THE
+  MECHANISM IS MEASURED RATHER THAN REASONED (2026-11-21).**
+  Measured on the deliverable against its own source:
+      quantity                     source    generated
+      visits per patient             72.6         74.7
+      patient span, days            2,478        2,313
+      rows already in date order   100.0%        99.8%
+      gap median, days                9.6         13.0
+      gap mean                       34.6         31.4
+      gap p99                       385.0        288.0
+      SAME-DAY gaps                 13.0%         3.5%
+      skew, p99 over median          31.7         20.9
+  **The span and the mean are right and the rhythm is not.** One
+  source gap in eight is ZERO DAYS - a second encounter the same
+  day - against one in twenty-eight generated. The generated gaps
+  are too UNIFORM at both ends: the median too high, the tail too
+  short.
+- **SO IT IS NOT THE ORDER AND IT IS NOT THE TOTAL TIME.** The
+  within-patient reorder already puts 99.8% of rows in date order,
+  and this file already records the span ratio landing at 0.3053
+  against a source 0.2994. Both halves of the obvious story were
+  already true; what nobody had measured is the SPACING.
+- **AND IT CAN BE FIXED AS A PERMUTATION, which is the only form
+  worth building.** Each patient holds a random sample of the
+  global date pool, so a date shared by twelve rows lands on
+  twelve different patients and no patient gets a same-day pair.
+  Reallocating WHICH PATIENT holds which drawn date changes the
+  partition and not the multiset - so the published marginal is
+  untouched by construction, which is the instrument the repairs,
+  the dials and the cyclic sweep all already rest on.
+- **WHAT IS PREDICTED, BEFORE THE ARM RUNS.** (1) The same-day
+  share rises from 3.5% toward the source's 13.0%. (2) The date
+  columns' `within_lag1` rises from 0.572 toward 0.971, and
+  `age_at_visit` follows it, because an identity binds all three -
+  so THREE of the five own-column dynamics misses are carried by
+  one mechanism. (3) The date column's own marginal is BYTE-
+  IDENTICAL, because a reallocation cannot move a multiset.
+- **WHAT IS NOT PREDICTED: that it reaches 0.971, or that
+  `dynamics tracked` passes.** The criterion is full marks over 92
+  properties and 58 miss; three own-column properties would leave
+  it failing. Nor is `close` predicted to move - this rearranges
+  dates across patients and the pair criteria are rank
+  correlations between columns. A fall in `close` of more than a
+  pair or two WOULD be a finding, because a date moved between
+  patients travels with every column on its row.
+- **AND THE RISK IS NAMED: the patient SPAN is a casualty if the
+  reallocation concentrates too hard.** Taking consecutive entries
+  from the sorted pool gives a patient a tiny window - the
+  opposite of 2,478 days - so the pass has to place a patient's
+  episodes ACROSS their span rather than packing them. If the span
+  ratio falls away from 0.2994 the pass has bought a rhythm by
+  spending the range, which is a trade rather than a gain.
