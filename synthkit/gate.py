@@ -263,11 +263,33 @@ def assess(fid: Dict[str, Any],
     # measures none and does not fail on absence.
     dy_n, dy_d = s.get("dynamics_ok"), s.get("dynamics_compared")
     if dy_d:
+        # THE OWN-COLUMN SPLIT, for the same reason `direction
+        # kept` and `close` carry theirs. On the real extract
+        # EVERY listed dynamics miss is a set-token indicator
+        # dropped before the file is written, so a bare 40/92
+        # sends a reader after a trajectory problem in columns
+        # they never receive.
+        _dyo = s.get("dynamics_own_ok")
+        _dyod = s.get("dynamics_own_compared")
+        _dmiss = s.get("dynamics_misses")
+        _dshow = s.get("dynamics_detail_shown")
+        _dnote = ""
+        if _dyod:
+            _dnote = (" [of these, {}/{} are on YOUR OWN columns; "
+                      "the rest are set-token search scaffolding "
+                      "dropped before the file is written]"
+                      .format(_dyo, _dyod))
+        # AND A CAPPED LIST SAYS SO. 52 properties missed and 40
+        # were listed, with nothing naming the gap - a reader
+        # counting the list concluded there were forty.
+        if _dmiss and _dshow is not None and _dmiss > _dshow:
+            _dnote += (" [{} of the {} misses are listed, the "
+                       "largest by size]".format(_dshow, _dmiss))
         add("dynamics tracked", dy_n == dy_d,
             "{}/{} within-patient properties within 0.15 - "
             "whether a patient's course over time survived, "
-            "which per-row fidelity is blind to".format(
-                dy_n, dy_d))
+            "which per-row fidelity is blind to{}".format(
+                dy_n, dy_d, _dnote))
 
     # THE DENOMINATOR'S OWN STORY, CARRIED BUT NOT GRADED.
     #

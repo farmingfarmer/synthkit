@@ -754,6 +754,74 @@ def main():
           len(_flat) == _flat["person_id"].nunique()
           and "visit_number" not in _flat.columns)
 
+    # ---- THE DENOMINATOR'S OWN STORY ----
+    # `dynamics tracked 40/92` was read as a trajectory problem in
+    # the operator's data. Every listed miss on the real extract is
+    # a set-token indicator dropped before the file is written, and
+    # the criterion said nothing about that - unlike `direction
+    # kept` and `close`, which have carried their own-column split
+    # since the pair surface was found to be four-fifths
+    # scaffolding.
+    from synthkit import gate as _g
+    _fid = {"summary": {
+        "pairs": 10, "sign_kept": 9, "close": 8, "inverted": 0,
+        "own_inverted": 0, "dynamics_ok": 40, "dynamics_compared": 92,
+        "dynamics_own_ok": 12, "dynamics_own_compared": 12,
+        "dynamics_misses": 52, "dynamics_detail_shown": 40}}
+    _d = [c for c in _g.assess(_fid)["criteria"]
+          if c["name"] == "dynamics tracked"][0]["detail"]
+    check("the dynamics line reports the OWN-COLUMN split, so a "
+          "reader is not sent after a trajectory problem in "
+          "columns they never receive",
+          "12/12 are on YOUR OWN columns" in _d)
+    check("...and says the miss list is CAPPED - 40 of 52 were "
+          "listed and nothing named the gap, so a reader counting "
+          "the list concluded there were forty",
+          "40 of the 52 misses are listed" in _d)
+    # A RUN WITH NO SPLIT RECORDED MUST NOT GROW A FALSE ONE.
+    # Absent is not zero, and an older run cannot be judged on a
+    # field that did not exist when it was written.
+    _old = {"summary": {"pairs": 10, "sign_kept": 9, "close": 8,
+                        "inverted": 0, "own_inverted": 0,
+                        "dynamics_ok": 40, "dynamics_compared": 92}}
+    _od = [c for c in _g.assess(_old)["criteria"]
+           if c["name"] == "dynamics tracked"][0]["detail"]
+    check("a run written before the split existed reports NO "
+          "split rather than inventing one - absent is not zero",
+          "YOUR OWN columns" not in _od and "40/92" in _od)
+    check("...and no cap note either, when nothing says the list "
+          "was bounded",
+          "misses are listed" not in _od)
+
+    # THE CAP MUST NOT HIDE THE OPERATOR'S OWN MISSES. Sorting
+    # the list purely by size put scaffolding at the top - its
+    # deltas are the largest - and on the real extract the cap
+    # then hid every own-column miss. The capped list read clean
+    # while the counts said 15 of 20.
+    rows = ([{"column": "has__x%d" % i, "ok": False,
+              "scaffolding": True, "delta": -0.9,
+              "measure": "within_lag1"} for i in range(60)]
+            + [{"column": "real_col", "ok": False,
+                "scaffolding": False, "delta": -0.2,
+                "measure": "within_lag1"}])
+    sel = (sorted([r for r in rows
+                   if not r["ok"] and not r["scaffolding"]],
+                  key=lambda r: -abs(r["delta"]))
+           + sorted([r for r in rows
+                     if not r["ok"] and r["scaffolding"]],
+                    key=lambda r: -abs(r["delta"])))[:40]
+    check("a small own-column miss SURVIVES the 40-row cap even "
+          "when sixty larger scaffolding misses compete for the "
+          "space - size-only sorting hid exactly this on the real "
+          "extract",
+          any(r["column"] == "real_col" for r in sel))
+    old = sorted([r for r in rows if not r["ok"]],
+                 key=lambda r: -abs(r["delta"]))[:40]
+    check("...and the previous size-only rule DID hide it, so "
+          "this check is about a real change rather than a "
+          "restatement",
+          not any(r["column"] == "real_col" for r in old))
+
     print()
     if FAIL:
         print("{} FAILED".format(FAIL))

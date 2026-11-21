@@ -2979,9 +2979,47 @@ def compare(df, g, bp, group_by, time_col, ordinals=None,
             # machinery dropped before the file is written, and a
             # list that did not say so would send a reader after
             # columns nobody receives.
-            "dynamics_detail": sorted(
-                [r for r in dyn_rows if not r["ok"]],
-                key=lambda r: -abs(r["delta"]))[:40],
+            # THE OPERATOR'S OWN COLUMNS ARE NEVER CROWDED OUT.
+            # Sorting purely by size put set-token scaffolding at
+            # the top - its deltas are the largest - and the cap
+            # then hid every own-column miss on the real extract.
+            # Reading the capped list, the honest-looking
+            # conclusion was that the operator's columns were
+            # clean; the counts say 15 of 20, so five were
+            # missing from a list that did not say it was
+            # bounded. Own columns first, in full, then the
+            # largest scaffolding misses fill what is left.
+            "dynamics_detail": (
+                sorted([r for r in dyn_rows
+                        if not r["ok"] and not r["scaffolding"]],
+                       key=lambda r: -abs(r["delta"]))
+                + sorted([r for r in dyn_rows
+                          if not r["ok"] and r["scaffolding"]],
+                         key=lambda r: -abs(r["delta"]))
+            )[:40],
+            # THE LIST IS CAPPED AND THE CAP WAS SILENT. On the
+            # real extract 52 properties miss and 40 are shown,
+            # so a reader counting the list concluded there were
+            # forty - and could not tell whether the twelve
+            # unshown ones were on their own columns or on search
+            # machinery. A bounded list that does not say what it
+            # dropped reads as "this is all of them".
+            "dynamics_misses": sum(1 for r in dyn_rows
+                                   if not r["ok"]),
+            "dynamics_detail_shown": min(
+                40, sum(1 for r in dyn_rows if not r["ok"])),
+            # AND THE SPLIT, WHICH IS THE PART THAT DECIDES WHAT
+            # A READER SHOULD DO. `direction kept` and `close`
+            # already report their own-column figures for exactly
+            # this reason: four fifths of the graded surface on
+            # this extract is set-token scaffolding dropped before
+            # the file is written, so a criterion reported whole
+            # sends somebody after columns nobody receives.
+            "dynamics_own_compared": sum(
+                1 for r in dyn_rows if not r["scaffolding"]),
+            "dynamics_own_ok": sum(
+                1 for r in dyn_rows
+                if r["ok"] and not r["scaffolding"]),
             "partly_covered": n_ok["part"],
             "constraints_checked": len(cons),
             "constraints_held": sum(1 for c in cons

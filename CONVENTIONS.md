@@ -16762,3 +16762,62 @@ exist.
   extract. A visit table of dates and codes has few numeric
   quantities for a measurement to depend on, and the obvious
   candidate - a length of stay - is not a column there.
+
+- **THE WORST GATE CRITERION IS MOSTLY SCAFFOLDING, AND THE CAP
+  THAT HID THE REST CAUGHT ME MID-CONCLUSION (2026-11-21).**
+  `dynamics tracked` reads **34 of 92** on the deliverable and has
+  stood as the engine's worst line for weeks, read as "a patient's
+  course over time is not modelled". Measured properly, with the
+  own-column split the pair criteria have carried for months:
+      dynamics, all graded        34 of 92
+      on the OPERATOR'S columns   15 of 20
+      misses                      58, of which 40 were LISTED
+  **Three quarters of the operator's own patient-course properties
+  survive.** The headline is dominated by set-token indicators
+  dropped before the file is written - the same scaffolding
+  dominance this file already records for the surfaces (44 of 50),
+  the published claims (64 of 88) and the curves (230 of 278).
+- **AND I READ THE CAPPED LIST AND CONCLUDED THE OPERATOR'S
+  COLUMNS WERE CLEAN.** `dynamics_detail` was `sorted(...)[:40]`
+  with nothing saying so, and it sorted by SIZE - scaffolding
+  deltas are the largest, so all forty slots went to scaffolding
+  and every own-column miss fell off the end. The list said zero
+  own-column misses; the counts say **five**. A bounded list that
+  does not state its bound reads as "this is all of them", which
+  is this file's own silent-truncation rule, and it produced a
+  wrong conclusion within a minute of being read.
+  Fixed twice over: the own-column misses are listed FIRST and in
+  full, then the largest scaffolding ones fill what is left; and
+  the gate line states both the split and how many of the misses
+  it is showing. A check plants sixty large scaffolding misses
+  beside one small own-column miss and requires the small one to
+  survive the cap - under the old size-only rule it does not.
+- **THE FIVE THAT REMAIN ARE THREE MECHANISMS, NOT FIVE FAULTS:**
+      visit_start_date          within_lag1  0.971 -> 0.572
+      visit_end_date            within_lag1  0.971 -> 0.572
+      age_at_visit              within_lag1  0.550 -> 0.396
+      body_mass_index_measured  within_lag1  0.903 -> 0.732
+      right_pupil_size          within_lag1  0.272 -> 0.086
+  The two dates are **identical to three decimals** because an
+  identity binds them, and `age_at_visit` is computed from a date
+  by the same tier - so one date mechanism carries three of the
+  five. Every one is FLATTENED; none is overstated.
+- **AND THE DATE GAP IS SPACING RATHER THAN ORDER, which the
+  existing work already explains.** The within-patient reorder
+  sorts a patient's dates, and sorting alone buys 0.572 of
+  autocorrelation. Real visits cluster - several close together,
+  then a gap - and this file already records that a patient spans
+  **29.94%** of the cohort's range with the engine reproducing
+  **30.53%**. So the SPAN is right and the RHYTHM is not: the
+  dates are drawn from the global marginal and sorted, which
+  cannot produce episodes. That is the aimed target, and it is a
+  far smaller and better-stated one than "the engine models no
+  trajectory".
+- **WHAT IS NOT CLAIMED: that the rules engine needs the neural
+  engine's AR trajectory.** That flag solves a rho against the
+  source's own within-patient AR and belongs to the OTHER engine;
+  the rules engine already has `_solve_within`, which injects the
+  persistence a column needs to measure back its target. Fifteen
+  of twenty own-column properties land, so the mechanism works.
+  What it does not cover is a column whose persistence comes from
+  a DATE it is derived from rather than from its own noise.
