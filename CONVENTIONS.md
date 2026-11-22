@@ -3,6 +3,45 @@
 Synthetic clinical data generator and model-evaluation instrument. Core rule: learn the patterns, never copy the records. Real data teaches parameters; generation never touches a record.
 
 ## Verify before claiming
+- **THE RHYTHM READER IS BUILT AND THE FIXTURE PRICES THE TRADE IN
+  BOTH DIRECTIONS (2026-11-21, `rhythm_read.py`).** The gate cannot
+  see what `--visit-rhythm` is about: `dynamics tracked` grades a
+  derived persistence statistic and no criterion asks what a
+  patient's GAPS look like. Read off a local pair, one flag apart,
+  every figure crossed in words by the tool itself:
+      quantity        SOURCE   control   --visit-rhythm
+      same-day share  0.6553    0.0085           0.3157
+      gap median         0.0      51.0              1.0
+      patient span     800.6    1271.7            468.4
+  **The same-day share goes from essentially absent to about half
+  the source's, and the span OVERSHOOTS by 1.59x in the control and
+  UNDERSHOOTS by 0.59x with the flag.** Neither arm lands the span,
+  which is the casualty the prediction named in advance - and the
+  control missing it in the OTHER direction is what makes the flag a
+  trade rather than a regression.
+- **AND THE REALLOCATION CLAIM IS MEASURED BETWEEN THE TWO WRITTEN
+  FILES, NOT READ BACK FROM THE FIELD THE PASS WRITES.** Both arms
+  draw at the same seed, so the date column holds the same bag of
+  values either way and the pass only re-attaches them: the reader
+  sorts both columns and reports IDENTICAL or MOVED. A mutation that
+  always returns IDENTICAL turns that check red, and the branch is
+  reached by PLANTING one changed value, because a pair differing
+  only by the flag cannot reach it.
+- **AND THE ENGINE'S OWN RECORD IS ASSERTED AGAINST THE READER'S
+  MEASUREMENT, because two measurements of one thing disagreeing is
+  this project's alarm.** The pass records `same_day_got 0.3157` and
+  the reader measures 0.3157 on the written file, to four decimals,
+  with the patient span likewise. If those ever part, one of them is
+  wrong and no arm can be read from either.
+- **AND THE WRONG-TYPE FAULT IS ASSERTED ON THE FUNCTION RATHER THAN
+  WAITED FOR.** A date column of DAY COUNTS read with `to_datetime`
+  parses as NANOSECONDS, which puts every patient on one instant -
+  that is how a measured span blew from 916 to 2,532 while the build
+  was being written. `numeric_days` tries numbers first and stamps
+  second, and a mutation removing the numeric branch turns a check
+  red. The end-to-end symptom needs a whole generate to reach; the
+  one line that causes it does not.
+
 - **THE 5x VOLUME ARM IS RUNNING, PREDICTION FIRST (2026-11-18,
   run_rv_11_5x).** Prente's own scoping document leaves the
   encounter count to USC and says "the more encounters we get,
