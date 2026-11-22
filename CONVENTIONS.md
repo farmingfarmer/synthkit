@@ -3,6 +3,38 @@
 Synthetic clinical data generator and model-evaluation instrument. Core rule: learn the patterns, never copy the records. Real data teaches parameters; generation never touches a record.
 
 ## Verify before claiming
+- **AND THE FIXTURE SAYS THE RHYTHM PASS CAN COST THE CRITERION IT
+  WAS AIMED AT, WHICH IS THE OPPOSITE OF THE PREDICTION'S SECOND
+  CLAUSE (2026-11-21).** On the local pair, read off the gate's own
+  summary rather than inferred:
+      criterion            control   --visit-rhythm
+      dynamics tracked         2/2              1/2
+      the miss                   -   visit_start_date
+                                     source 0.9233
+                                     generated 0.7528
+                                     delta -0.1705
+  **The date column's `within_lag1` goes from PASSING to FAILING**,
+  while the same-day share goes 0.0085 to 0.3157 and the gap median
+  51.0 to 1.0. So the pass buys the SPACING and spends the derived
+  PERSISTENCE statistic, on this fixture.
+- **AND THE MECHANISM IS THE DERIVED FORM, NAMED RATHER THAN
+  GUESSED.** `within_lag1` is `(lag1 - icc) / (1 - icc)`, so it
+  amplifies both its inputs' errors as icc approaches one -
+  this file already records a solver matching each MEASUREMENT to
+  within 0.03 and moving the DERIVED number the wrong way.
+  Concentrating a patient's visits into a window raises the
+  BETWEEN-patient share of the date's variance, which raises icc,
+  which divides the gain back out. That is a candidate and not a
+  finding: what is measured is the trade.
+- **SO THE REAL ARM DECIDES, AND IT MAY DECIDE AGAINST THE FLAG.**
+  The extract is 13.0% same-day against this fixture's 65.5%, so
+  the pass has far less to buy there and the same cost to pay - and
+  a fixture 5x more episodic than the data is answering a harder
+  question than the extract poses, which is the error this file
+  records for every fixture built at 0.95 persistence against a
+  real 0.351. The flag ships OFF either way; what the arm settles
+  is whether it is worth offering at all.
+
 - **THE RHYTHM READER IS BUILT AND THE FIXTURE PRICES THE TRADE IN
   BOTH DIRECTIONS (2026-11-21, `rhythm_read.py`).** The gate cannot
   see what `--visit-rhythm` is about: `dynamics tracked` grades a
