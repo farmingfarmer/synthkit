@@ -761,7 +761,19 @@ def _visit_rhythm_pass(df, gid, dcols, time_col, rhythm, seed,
         if c == col:
             out[c] = newv
             continue
-        other = pd.to_datetime(df[c], errors="coerce")
+        # EVERY OTHER DATE COLUMN TRAVELS WITH THIS ROW'S OWN
+        # OFFSET, so a declared identity between two dates - the
+        # real extract has `visit_start_date <-> visit_end_date` at
+        # skill 0.9999 - survives the reallocation untouched.
+        #
+        # AND IT IS READ AS A NUMBER, like the axis above. A first
+        # cut called `pd.to_datetime` HERE, one line below the
+        # comment warning against exactly that, and the real
+        # extract refused it: `ufunc 'subtract' cannot use operands
+        # with types dtype('<M8[ns]') and dtype('float64')`. No
+        # fixture could reach it - this loop body runs only from
+        # the SECOND date column, and the fixture had one.
+        other = pd.to_numeric(df[c], errors="coerce")
         out[c] = newv + (other - vals)
 
     if report is not None:

@@ -189,6 +189,7 @@ def assess(fid: Dict[str, Any],
         sh_sc = s.get("shapes_skipped_scaffolding") or 0
         sh_tr = s.get("shapes_skipped_thin_rows") or 0
         sh_fb = s.get("shapes_skipped_few_bins") or 0
+        sh_cp = s.get("shapes_skipped_categorical") or 0
         _sh_tot = ""
         if sh_pub:
             _bits = []
@@ -203,6 +204,11 @@ def assess(fid: Dict[str, Any],
             if sh_tr:
                 _bits.append(
                     "{} on too few rows to bin".format(sh_tr))
+            if sh_cp:
+                _bits.append(
+                    "{} over a CATEGORICAL parent, whose grid holds "
+                    "level labels rather than numbers, so this "
+                    "measure cannot grade them at all".format(sh_cp))
             if sh_fb:
                 _bits.append(
                     "{} with too few bins on one side".format(

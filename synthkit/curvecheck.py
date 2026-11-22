@@ -345,6 +345,7 @@ def measure_shapes(Xs, Xg, bp, gid_series, k) -> Dict[str, Any]:
     skipped_absent = 0
     skipped_thin_rows = 0
     skipped_few_bins = 0
+    skipped_categorical = 0
     not_readable = 0
     no_curve = 0
     for rel in (bp.get("relationships") or []):
@@ -353,6 +354,27 @@ def measure_shapes(Xs, Xg, bp, gid_series, k) -> Dict[str, Any]:
         eff = ev.get("effect") or {}
         for par, e in eff.items():
             if (e.get("grid_kind") or "numeric") != "numeric":
+                # A CURVE OVER A CATEGORICAL PARENT. Its grid holds
+                # that column's LEVEL LABELS, so `cond_curve` -
+                # which bins the parent numerically - cannot grade
+                # it at all. It IS a published curve, so it is
+                # counted by NAME inside the identity rather than
+                # vanishing: this file's own rule is that a category
+                # with no count is invisible.
+                #
+                # It had been vanishing in a worse way. `grid_kind`
+                # was never published, so this test read the default
+                # "numeric" on every curve and the skip could not
+                # fire. MEASURED on a fixture with one such curve:
+                # `skipped_thin_rows` read 2 without the field and 1
+                # with it, so these were absorbed THERE - a reader
+                # was being sent after a thin cohort when the cause
+                # was a parent nobody can bin. Which bucket absorbed
+                # them is measured rather than reasoned about: the
+                # first version of this comment named
+                # `skipped_few_bins` and was wrong.
+                published += 1
+                skipped_categorical += 1
                 continue
             if not e.get("grid"):
                 # A PARENT THE CONTRACT NAMES AND PUBLISHES NO
@@ -431,6 +453,7 @@ def measure_shapes(Xs, Xg, bp, gid_series, k) -> Dict[str, Any]:
         "skipped_absent_columns": skipped_absent,
         "skipped_thin_rows": skipped_thin_rows,
         "skipped_few_bins": skipped_few_bins,
+        "skipped_categorical_parent": skipped_categorical,
         # OUTSIDE the identity on purpose: these are parents the
         # contract names and publishes no curve for, so they are
         # not published curves to grade.
@@ -445,7 +468,8 @@ def measure_shapes(Xs, Xg, bp, gid_series, k) -> Dict[str, Any]:
                 "counted in neither side. The identity is "
                 "published == compared + not_readable + "
                 "skipped_scaffolding + skipped_absent_columns + "
-                "skipped_thin_rows + skipped_few_bins, so a "
+                "skipped_thin_rows + skipped_few_bins + "
+                "skipped_categorical_parent, so a "
                 "category with no count cannot hide. Scaffolding "
                 "is refused BY NAME here, which is this measure's "
                 "own policy and NOT the surface measure's - that "

@@ -1502,6 +1502,18 @@ def build(df: pd.DataFrame,
                         "grid": (p.get("effect") or {}).get("grid"),
                         "response": (p.get("effect") or {}).get(
                             "response"),
+                        # WHAT THE GRID IS OVER. `measure_shapes`
+                        # and the deck both read this off the
+                        # published effect and both default it to
+                        # "numeric" when absent - and it was never
+                        # published, so a deliberate skip for a
+                        # CATEGORICAL grid could not fire and those
+                        # curves were absorbed by a different skip
+                        # reason. The read-but-not-used fault, found
+                        # by the check that every field discovery
+                        # sets on an effect must reach here.
+                        "grid_kind": (p.get("effect") or {}).get(
+                            "grid_kind"),
                         "of_class": (p.get("effect") or {}).get(
                             "class_of_interest"),
                     })

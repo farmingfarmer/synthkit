@@ -44,6 +44,18 @@ def check(label, cond):
 
 
 def episodic(seed=11, n_pat=160):
+    """An episodic cohort with TWO date columns.
+
+    The second one is not decoration. The reallocation carries
+    every other date column along at this row's own offset, and
+    that loop body runs only from the SECOND date column - so a
+    one-date fixture cannot reach it at all. With one date column
+    the pass shipped a `pd.to_datetime` in that branch and the real
+    extract refused it on the first run: `ufunc 'subtract' cannot
+    use operands with types dtype('<M8[ns]') and dtype('float64')`.
+    A fixture must contain the thing the check is about, and "a
+    date column" was not specific enough.
+    """
     rng = np.random.RandomState(seed)
     rows = []
     for p in range(n_pat):
@@ -51,11 +63,16 @@ def episodic(seed=11, n_pat=160):
         for _ in range(rng.randint(4, 9)):
             t += int(rng.exponential(160))
             for _ in range(rng.randint(1, 5)):
+                los = int(rng.randint(0, 6))
                 rows.append({
                     "person_id": "P%03d" % p,
                     "visit_start_date":
                         (pd.Timestamp("2016-01-01")
                          + pd.Timedelta(days=t)).strftime("%Y-%m-%d"),
+                    "visit_end_date":
+                        (pd.Timestamp("2016-01-01")
+                         + pd.Timedelta(days=t + los)).strftime(
+                             "%Y-%m-%d"),
                     "sev": float(rng.normal(10 + 0.01 * t, 2)),
                     "n_proc": int(rng.poisson(2))})
     return pd.DataFrame(rows)
@@ -109,8 +126,28 @@ def main():
     off_bp["patients"]["visit_rhythm"] = None
     rep_off, rep_on = {}, {}
     out_off = G.generate(off_bp, seed=5, report=rep_off)
-    out_on = G.generate(copy.deepcopy(bp), seed=5,
-                        report=rep_on, visit_rhythm=True)
+    # THE FLAGGED ARM IS WRAPPED, because a RAISE here kills the
+    # suite before any `FAIL:` line and the net judges on exactly
+    # that marker - a crash and a check that never ran look
+    # identical. The first cut of this pass raised on the real
+    # extract (`ufunc 'subtract' cannot use operands with types
+    # dtype('<M8[ns]') and dtype('float64')`) and the mutation
+    # reproducing it took the whole suite down rather than turning
+    # one check red.
+    out_on, raised = None, None
+    try:
+        out_on = G.generate(copy.deepcopy(bp), seed=5,
+                            report=rep_on, visit_rhythm=True)
+    except Exception as exc:  # noqa: BLE001
+        raised = type(exc).__name__
+    check("the flagged arm GENERATES at all - a pass that raises "
+          "is a pass nobody can measure{}".format(
+              "" if raised is None else ": RAISED " + raised),
+          out_on is not None)
+    if out_on is None:
+        print()
+        print("{} FAILED".format(FAIL))
+        sys.exit(1)
     off_same, off_span = rhythm_of(out_off)
     on_same, on_span = rhythm_of(out_on)
 
@@ -149,6 +186,44 @@ def main():
     check("...and the pass still REPORTS the claim, so a reader "
           "of the run sees it too",
           vrp.get("multiset_preserved") is True)
+
+    # THE SECOND DATE COLUMN TRAVELS WITH THE FIRST, which is the
+    # branch a one-date fixture cannot reach at all. The real
+    # extract declares `visit_start_date <-> visit_end_date` at
+    # skill 0.9999, so a reallocation that moved one and not the
+    # other would destroy a near-identity - and the first cut
+    # crashed outright on this branch rather than getting it
+    # subtly wrong, which is the lucky version.
+    def _gap(fr):
+        a = pd.to_datetime(fr["visit_start_date"], errors="coerce")
+        b = pd.to_datetime(fr["visit_end_date"], errors="coerce")
+        return (b - a).dt.days.to_numpy(dtype=float)
+
+    g_off, g_on = _gap(out_off), _gap(out_on)
+    check("the second date column travels with the first, so each "
+          "row keeps its OWN offset - the end-minus-start multiset "
+          "is identical across the two arms",
+          np.array_equal(np.sort(g_off[np.isfinite(g_off)]),
+                         np.sort(g_on[np.isfinite(g_on)])))
+    # AND THE NEIGHBOURING PROPERTY IS ASSERTED IN THE SAME
+    # MEASUREMENT, which is where the first version of this check
+    # went wrong. It demanded the offset never be NEGATIVE and went
+    # red against correct code: on this fixture generation puts
+    # 27.9% of rows with the end BEFORE the start - in the CONTROL
+    # arm too, identically, because this call does not enforce
+    # constraints and the source's own offsets run 0 to 5 days.
+    # That is a pre-existing property `--enforce-constraints`
+    # exists for, and demanding it here would have blamed the
+    # reallocation for something it did not do.
+    ok_off = g_off[np.isfinite(g_off)]
+    ok_on = g_on[np.isfinite(g_on)]
+    check("...and the share of rows whose end precedes their start "
+          "is UNCHANGED by the reallocation - {:.4f} off against "
+          "{:.4f} on, so the pass neither causes nor repairs it"
+          .format(float((ok_off < 0).mean()),
+                  float((ok_on < 0).mean())),
+          abs(float((ok_off < 0).mean())
+              - float((ok_on < 0).mean())) < 1e-12)
 
     # AND THE COST IS REPORTED RATHER THAN DISCOVERED LATER.
     check("the run REPORTS the span it produced, so a rhythm "

@@ -3,6 +3,104 @@
 Synthetic clinical data generator and model-evaluation instrument. Core rule: learn the patterns, never copy the records. Real data teaches parameters; generation never touches a record.
 
 ## Verify before claiming
+- **THE PAIRED ARM RAN ON THE REAL EXTRACT AND THE FLAGGED ARM
+  CRASHED, ON THE WRONG-TYPE FAULT ONE LINE BELOW THE COMMENT
+  WARNING AGAINST IT (2026-11-21, run_vr_off / run_vr_on).** The
+  CONTROL completed and reproduces the recorded deliverable almost
+  exactly - direction 134/151, close 127/151, INVERTED 0, coverage
+  42/42, set token shares 94/96, shapes 31/42, surfaces 16/57,
+  dynamics 40/92 with 19/20 on the operator's own columns - which
+  is what makes an arm readable at all. The FLAGGED arm exited
+  NON-ZERO with a blueprint written and NO generated.csv:
+      ufunc 'subtract' cannot use operands with types
+      dtype('<M8[ns]') and dtype('float64')
+- **THE CAUSE IS THE CARRY-ALONG BRANCH, AND NO FIXTURE HERE COULD
+  REACH IT.** The reallocation moves the TIME AXIS column and
+  carries every OTHER date column at that row's own offset - and
+  that loop body runs only from the SECOND date column. The fixture
+  had ONE date column, so the branch never executed in any check,
+  and it called `pd.to_datetime` where the frame holds
+  days-as-numbers. The docstring three lines above it explains
+  exactly this fault for the axis column, which I had already
+  fixed; the carried column kept it.
+- **THE FIXTURE HAS TWO DATE COLUMNS NOW, AND THE BRANCH IS
+  ASSERTED ON THE PROPERTY IT EXISTS FOR.** The real extract
+  declares `visit_start_date <-> visit_end_date` at skill 0.9999,
+  so a reallocation that moved one and not the other would destroy
+  a near-identity. The end-minus-start MULTISET is asserted
+  identical across the two arms; the same mutation now fails that
+  check rather than taking the suite down.
+- **AND MY FIRST VERSION OF THAT CHECK WENT RED AGAINST CORRECT
+  CODE, which is the recorded neighbouring-property rule.** It
+  demanded the offset never be NEGATIVE - and on this fixture
+  generation puts 27.9% of rows with the end before the start, in
+  the CONTROL arm too, IDENTICALLY, because the call does not
+  enforce constraints while the source's own offsets run 0 to 5
+  days. That is a pre-existing property `--enforce-constraints`
+  exists for, and asserting it here would have blamed the
+  reallocation for something it does not do. The check asserts the
+  share is UNCHANGED between arms instead.
+- **AND THE CRASH KILLED THE SUITE RATHER THAN FAILING IT, so the
+  flagged arm is WRAPPED.** A raise inside the arm emits no
+  `FAIL:` line and the net judges on the success marker, so a crash
+  and a check that never ran look identical - this file records
+  that trap more than any other. The arm is now asserted to
+  GENERATE AT ALL, naming the exception, and the mutation gives one
+  red check and a completed suite.
+
+- **THE NAMED-BUT-UNBUILT GUARD IS BUILT AND FOUND TWO DROPPED
+  FIELDS ON ITS FIRST RUN, ONE OF THEM LOAD-BEARING (2026-11-21,
+  `smoke_effectkeys.py`).** This file already recorded the fault and
+  prescribed the fix: `blueprint.build` WHITELISTS the effect fields
+  key by key, so a field discovery computes is dropped in SILENCE -
+  "no error, no absence note, just a missing key" - and what was
+  owed was "a check asserting that every key discovery sets on an
+  effect survives into the blueprint". Written, and it immediately
+  named `grid_kind` and `monotone`.
+- **AND `grid_kind` WAS BEING READ BY TWO CONSUMERS OFF A BLUEPRINT
+  THAT NEVER PUBLISHED IT.** `measure_shapes` and the deck both do
+  `(e.get("grid_kind") or "numeric") != "numeric"` to skip a curve
+  whose grid holds LEVEL LABELS rather than numbers - and with the
+  key absent that test read "numeric" on every curve in every run
+  this project has ever made, so the skip could not fire. The
+  read-but-not-used fault, with a live consequence on a GATE
+  criterion.
+- **THE CONSEQUENCE IS A MISATTRIBUTED SKIP, AND WHICH BUCKET IT
+  WENT TO WAS MEASURED RATHER THAN REASONED ABOUT.** On a fixture
+  carrying three such curves, `measure_shapes` read:
+      term                     without grid_kind   with
+      skipped_thin_rows                        6      3
+      skipped_categorical_parent               0      3
+  **Three curves were being reported as too few rows to bin when
+  the cause is a parent nobody can bin** - a reader sent after a
+  thin cohort. The first version of the comment beside the fix
+  named `skipped_few_bins` and was WRONG; the measurement named
+  `skipped_thin_rows`. Read the value, not a story about it.
+- **AND THE SKIP IS COUNTED BY NAME INSIDE THE IDENTITY RATHER THAN
+  VANISHING.** The published `continue` sat BEFORE `published += 1`,
+  so switching the field on would have made those curves disappear
+  from the total altogether - which is the fault the surface
+  census's negative residual exists to prevent. `published ==
+  compared + not_readable + scaffolding + absent + thin_rows +
+  few_bins + categorical_parent` is asserted BOTH ways, and the
+  gate line names the reason in words.
+- **AND `monotone` IS DECLARED NOT PUBLISHED, WITH ITS REASON, which
+  is the half that makes the check usable.** It is a boolean
+  restating what `shape` already says and nothing reads it off a
+  published blueprint, so publishing it would add a field to every
+  artifact that no consumer consults - the same fault pointed the
+  other way. A RENAME is declared too (`class_of_interest` ->
+  `of_class`) and asserted live on BOTH sides, so the map cannot
+  become a comment about old code. What the check forbids is a
+  field that is neither published, nor renamed by declaration, nor
+  on the list with a reason: the author has to CHOOSE, out loud.
+- **AND THE FIXTURE COULD NOT REACH THE CONSEQUENCE UNTIL IT HAD A
+  CATEGORICAL PARENT.** The first run of the new checks went red on
+  its own frame, which was numeric throughout - so the two readings
+  of `measure_shapes` agreed and proved nothing. A fixture must
+  contain the thing the check is about, and "a rich effect dict" was
+  not specific enough.
+
 - **AND THE FIXTURE SAYS THE RHYTHM PASS CAN COST THE CRITERION IT
   WAS AIMED AT, WHICH IS THE OPPOSITE OF THE PREDICTION'S SECOND
   CLAUSE (2026-11-21).** On the local pair, read off the gate's own

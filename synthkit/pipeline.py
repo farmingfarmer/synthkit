@@ -3078,6 +3078,14 @@ def compare(df, g, bp, group_by, time_col, ordinals=None,
                 "skipped_thin_rows"),
             "shapes_skipped_few_bins": shapes.get(
                 "skipped_few_bins"),
+            # A CURVE OVER A CATEGORICAL PARENT cannot be graded by
+            # a measure that bins the parent numerically. Named,
+            # because it had been absorbed by `skipped_thin_rows` -
+            # measured, 2 without the field against 1 with it - and
+            # a reader was being sent after a thin cohort when the
+            # cause was a parent nobody can bin.
+            "shapes_skipped_categorical": shapes.get(
+                "skipped_categorical_parent"),
             "surfaces_own_compared": surfaces.get("compared_own"),
             "surfaces_own_ok": surfaces.get("tracked_own"),
             "surfaces_scaffold": surfaces.get("compared_scaffold"),
