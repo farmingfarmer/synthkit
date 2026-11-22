@@ -849,6 +849,96 @@ def _presence_model(X: pd.DataFrame, col: str, groups,
 
 
 
+def _visit_rhythm(df, group_by, time_col, k: int = 10):
+    """How a patient's visits are SPACED, not how many there are.
+
+    The span and the count were already published and the SPACING
+    was not, and the spacing is the part that was wrong. Measured
+    on the deliverable against its own source: the patient span
+    lands (2,313 days against 2,478) and the mean gap lands (31.4
+    against 34.6), while ONE SOURCE GAP IN EIGHT IS ZERO DAYS - a
+    second encounter the same day - against one in twenty-eight
+    generated. A patient drawing a random sample of the global
+    date pool cannot produce a same-day pair, because the twelve
+    rows sharing a date land on twelve different people.
+
+    What is published is a SHAPE, never a person's dates: the
+    share of consecutive gaps that are same-day, and the gap
+    quantiles. Both are aggregates over every patient who has at
+    least two visits, and the whole record is withheld unless k
+    distinct patients stand behind it - the same floor the
+    vocabulary and the bounds already use, counted in PATIENTS.
+    """
+    if not group_by or group_by not in df.columns or not time_col:
+        return None
+    if time_col not in df.columns:
+        return None
+    # THE COLUMN MAY ARRIVE AS A DATE OR AS DAYS. `build` is
+    # called with the prepared frame in some paths and the raw one
+    # in others, and generation sees dates as NUMBERS because the
+    # sort before rendering is numeric. Reading one representation
+    # as the other put every patient on a single instant, so this
+    # takes whichever it is given and reduces both to DAYS.
+    raw = df[time_col]
+    d = pd.to_numeric(raw, errors="coerce")
+    if d.notna().sum() < 20:
+        d = pd.to_datetime(raw, errors="coerce")
+        d = (d - d.min()).dt.days.astype(float)
+    ok = d.notna()
+    if int(ok.sum()) < 20:
+        return None
+    sub = pd.DataFrame({"g": df.loc[ok, group_by].astype(str),
+                        "d": d[ok].astype(float)})
+    sub = sub.sort_values(["g", "d"])
+    gaps, spans, contributors = [], [], 0
+    for _, grp in sub.groupby("g", sort=False):
+        v = grp["d"].to_numpy()
+        if len(v) < 2:
+            continue
+        contributors += 1
+        dv = (v[1:] - v[:-1]).astype(float)
+        gaps.extend(dv.tolist())
+        # THE SPAN IS PUBLISHED BESIDE THE GAPS BECAUSE THE PASS
+        # CAN BUY ONE BY SPENDING THE OTHER. A first cut scattered
+        # each patient's runs across the whole pool: the same-day
+        # share rose twelve-fold and the mean span went 858 days
+        # to 2,519 against a source 916. A rhythm bought by
+        # spending the range is a trade, not a gain, so the figure
+        # the pass has to hold is published rather than inferred.
+        spans.append(float(v[-1] - v[0]))
+    # THE FLOOR IS PATIENTS, NEVER GAPS. One person seen two
+    # hundred times would otherwise supply the whole distribution
+    # alone, which is the rule this file states everywhere else.
+    if contributors < k or len(gaps) < k:
+        return None
+    g = np.asarray(gaps, dtype=float)
+    g = g[np.isfinite(g) & (g >= 0)]
+    if len(g) < k:
+        return None
+    qs = [0.1, 0.25, 0.5, 0.75, 0.9, 0.99]
+    sp = np.asarray(spans, dtype=float)
+    sp = sp[np.isfinite(sp) & (sp >= 0)]
+    return {"same_day_share": round(float((g == 0).mean()), 4),
+            # THE MEAN GAP, because a patient's window has to be
+            # sized from THEIR OWN visit count rather than from a
+            # span drawn at random: a quantile picked blind gave a
+            # fifty-visit patient the same room as a five-visit
+            # one, and the mean span came out 549 days against a
+            # source 916 - the window too tight where it had been
+            # too loose.
+            "gap_mean": round(float(g.mean()), 3),
+            "gap_quantiles": [round(float(x), 2)
+                              for x in np.quantile(g, qs)],
+            "quantile_levels": qs,
+            "span_quantiles": ([round(float(x), 1)
+                                for x in np.quantile(sp, qs)]
+                               if len(sp) >= k else None),
+            "span_mean": (round(float(sp.mean()), 1)
+                          if len(sp) >= k else None),
+            "patients_counted": int(contributors),
+            "counted_in": "patients, never rows of visits"}
+
+
 def _list_marginal(raw: pd.Series, groups, k: int = 10):
     """A column holding a SET, modeled as one.
 
@@ -1485,7 +1575,9 @@ def build(df: pd.DataFrame,
     # order is all there is.
     patients: Dict[str, Any] = {"rows": int(n_rows),
                                 "id_column": None,
-                                "time_column": time_col}
+                                "time_column": time_col,
+                                "visit_rhythm": _visit_rhythm(
+                                    df, group_by, time_col, k)}
     if group_by and group_by in df.columns:
         per = df.groupby(group_by).size()
         # HOW OFTEN SOMEONE WAS SEEN IS ITSELF IDENTIFYING, and this

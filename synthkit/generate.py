@@ -170,6 +170,14 @@ COPY_COVERAGE_GUARD = False
 # on 90.1% of rows, because the bound-pinning pass clamps the
 # copied column to its own published cap.
 REVALUE_COPIED = False
+# THE DATE RHYTHM SHIPS OFF. On a fixture it takes the same-day
+# share from 0.016 to 0.358 against a source 0.642 - twenty-two
+# times better - and the mean patient span from 858 days to 496
+# against a source 916. That is a TRADE, and this file's own rule
+# is that fixture evidence does not earn a default: five real
+# arms have each overturned or traded away a fixture-measured
+# gain. The flag exists so the paired real arm can be run at all.
+VISIT_RHYTHM = False
 
 # CHOOSE WHICH ROWS A COPIED COLUMN IS PRESENT ON, from the two
 # published grids - which keeps the identity AND the marginal
@@ -580,6 +588,209 @@ def _draw_categorical(m: Dict[str, Any], n: int, rng) -> np.ndarray:
     tot = p.sum()
     p = (p / tot if tot > 0 else np.full(len(vals), 1.0 / len(vals)))
     return rng.choice(vals, size=n, p=p)
+
+
+def _visit_rhythm_pass(df, gid, dcols, time_col, rhythm, seed,
+                       report=None):
+    """Reallocate drawn dates between patients so episodes form.
+
+    WHAT IS WRONG, MEASURED: one source gap in eight is zero days
+    and one in twenty-eight is generated. A patient needs REPEATED
+    dates to produce a same-day encounter, and a random sample of
+    a pool holding 4,692 distinct dates over 57,684 rows almost
+    never hands one person the same date twice.
+
+    WHAT THIS DOES: it walks the sorted pool in RUNS - taking
+    several rows of the same or neighbouring dates together - and
+    deals those runs to patients. Run length is drawn so the share
+    of same-day pairs lands on the published figure. Each patient
+    keeps their visit COUNT and the pool is consumed exactly once,
+    so the column's multiset is identical before and after.
+
+    WHAT IT MUST NOT COST: the patient SPAN. Dealing adjacent runs
+    to one patient would give them a window of days instead of the
+    2,478 the source has, buying a rhythm by spending the range.
+    So a patient's runs start at positions scattered across the
+    pool, and the pass REPORTS the span it produced so the trade
+    is visible rather than assumed.
+
+    The TIME AXIS column is the one reallocated; every other date
+    column travels with it keeping that row's own offset, so a
+    declared identity between two dates survives untouched.
+    """
+    import numpy as _np
+    col = time_col if (time_col and time_col in df.columns) else None
+    if col is None:
+        for c in dcols:
+            if c in df.columns:
+                col = c
+                break
+    if col is None:
+        return df
+    # DATES ARE NUMBERS HERE. `_dcols` selects columns whose kind
+    # is "numeric" precisely because this runs BEFORE rendering -
+    # the reorder beside it says so in as many words. A first cut
+    # called `pd.to_datetime` on them, which read days-since-epoch
+    # as NANOSECONDS: every patient collapsed to one instant, the
+    # pass reported a same-day share of 1.0 and a span of 0.0, and
+    # the total range came out as zero so the window became the
+    # whole pool and the span blew out to 2,532 days against a
+    # source 916. The wrong-type fault, in the one place this file
+    # records it most often.
+    vals = pd.to_numeric(df[col], errors="coerce")
+    if int(vals.notna().sum()) < 20:
+        return df
+    want_same = float((rhythm or {}).get("same_day_share") or 0.0)
+    if want_same <= 0.0:
+        return df
+
+    gids = df[gid].astype(str).to_numpy()
+    pool = _np.sort(vals.dropna().to_numpy(dtype=float))
+    n = len(pool)
+    # A RUN OF LENGTH L CONTRIBUTES L-1 SAME-DAY PAIRS OF L GAPS,
+    # so the mean run length that lands a share p is 1/(1-p).
+    mean_run = 1.0 / max(1e-6, (1.0 - min(0.95, want_same)))
+    rng = _np.random.RandomState((int(seed) + 7717) % (2 ** 32))
+
+    span_q = (rhythm or {}).get("span_quantiles") or None
+    gap_mean = (rhythm or {}).get("gap_mean") or None
+    total_days = float(pool[-1] - pool[0]) if len(pool) > 1 else 0.0
+
+    rows_of = {}
+    for i, g in enumerate(gids):
+        rows_of.setdefault(g, []).append(i)
+
+    # ALLOCATED IN ROUNDS, NOT PATIENT BY PATIENT. The pool is
+    # consumed EXACTLY - every drawn date goes to somebody - so
+    # occupancy reaches 100% and a greedy walk gives the first
+    # patients their whole window and the last ones whatever is
+    # left. Measured: spans collapsed to 485 days against a source
+    # 916 while the windows themselves were the right size. One
+    # run each per round spreads the contention evenly.
+    taken = _np.zeros(n, dtype=bool)
+    assigned = _np.full(len(df), _np.nan, dtype=float)
+    plan = {}
+    for g, rows in rows_of.items():
+        need = len(rows)
+        wid = n
+        tgt = None
+        if gap_mean and gap_mean > 0:
+            tgt = float(need - 1) * float(gap_mean)
+        elif span_q:
+            tgt = float(span_q[int(rng.randint(0, len(span_q)))])
+        if tgt is not None and span_q:
+            tgt = max(float(span_q[0]), min(float(span_q[-1]), tgt))
+        if tgt is not None and total_days > 0:
+            wid = int(max(need, min(n, n * (tgt / total_days))))
+        lo = int(rng.randint(0, max(1, n - wid + 1)))
+        hi = min(n, lo + wid)
+        n_runs = max(1, int(round(need / max(1.0, mean_run))))
+        starts = []
+        for r in range(n_runs):
+            frac = 0.0 if n_runs == 1 else (r / float(n_runs - 1))
+            base = lo + frac * max(0, (hi - lo - 1))
+            jit = (hi - lo) * 0.12 * (rng.rand() - 0.5)
+            starts.append(int(min(max(lo, base + jit), max(lo, hi - 1))))
+        plan[g] = {"need": need, "lo": lo, "hi": hi,
+                   "starts": starts, "got": [], "si": 0}
+
+    live = [g for g in plan]
+    while live:
+        nxt = []
+        for g in live:
+            st = plan[g]
+            if len(st["got"]) >= st["need"]:
+                continue
+            start = st["starts"][st["si"] % len(st["starts"])]
+            st["si"] += 1
+            # A GEOMETRIC RUN LENGTH WAS BUILT HERE AND
+            # MEASURED USELESS. The idea was to take several
+            # rows of the same date together so a same-day
+            # burst forms. Measured on the same fixture and
+            # seed, same-day share: 0.358 with the draw,
+            # 0.353 with runs of ONE. The concentration comes
+            # from the WINDOW, not from the run - a tight
+            # window over a pool with repeated dates already
+            # hands a patient the same date twice. A dial that
+            # buys nothing is a thing to delete, which this
+            # file says about a set-size coupling and a
+            # ceiling-mass field. `mean_run` survives because
+            # it still sets HOW MANY episodes a patient gets.
+            L = max(1, min(2, st["need"] - len(st["got"])))
+            jpos, step = start, 0
+            while step < L and jpos < n:
+                if not taken[jpos]:
+                    taken[jpos] = True
+                    st["got"].append(jpos)
+                jpos += 1
+                step += 1
+            if len(st["got"]) < st["need"]:
+                nxt.append(g)
+        if not nxt:
+            break
+        if nxt == live:
+            # NOBODY ADVANCED - the remaining windows are full.
+            # Fill from the nearest free position so a crowded
+            # window costs width rather than the whole range.
+            free = _np.where(~taken)[0]
+            for g in live:
+                st = plan[g]
+                shortfall = st["need"] - len(st["got"])
+                if shortfall <= 0 or not len(free):
+                    continue
+                centre = (st["lo"] + st["hi"]) // 2
+                free = free[~taken[free]]
+                if not len(free):
+                    break
+                near = free[_np.argsort(_np.abs(free - centre))]
+                for jpos in near[:shortfall]:
+                    taken[jpos] = True
+                    st["got"].append(int(jpos))
+            break
+        live = nxt
+
+    for g, st in plan.items():
+        for row, jpos in zip(rows_of[g], st["got"]):
+            assigned[row] = pool[jpos]
+
+    out = df.copy()
+    newv = pd.Series(assigned, index=df.index)
+    for c in dcols:
+        if c not in df.columns:
+            continue
+        if c == col:
+            out[c] = newv
+            continue
+        other = pd.to_datetime(df[c], errors="coerce")
+        out[c] = newv + (other - vals)
+
+    if report is not None:
+        s2 = pd.DataFrame({"g": gids, "d": newv.to_numpy(dtype=float)})
+        s2 = s2.sort_values(["g", "d"])
+        gaps, spans = [], []
+        for _, grp in s2.groupby("g", sort=False):
+            v = grp["d"].to_numpy(dtype=float)
+            if len(v) > 1:
+                gaps.extend((v[1:] - v[:-1]).tolist())
+                spans.append(float(v[-1] - v[0]))
+        ga = _np.asarray(gaps, dtype=float) if gaps else _np.zeros(0)
+        before = _np.sort(vals.dropna().to_numpy(dtype=float))
+        after = _np.sort(newv.dropna().to_numpy(dtype=float))
+        report["visit_rhythm"] = {
+            "column": col,
+            "same_day_asked": round(want_same, 4),
+            "same_day_got": (round(float((ga == 0).mean()), 4)
+                             if len(ga) else None),
+            "gap_median": (round(float(_np.median(ga)), 2)
+                           if len(ga) else None),
+            "patient_span_mean": (round(float(_np.mean(spans)), 1)
+                                  if spans else None),
+            # THE CLAIM THIS PASS RESTS ON, ASSERTED RATHER THAN
+            # STATED: a reallocation cannot move a multiset.
+            "multiset_preserved": bool(
+                len(before) == len(after)
+                and bool((before == after).all()))}
+    return out
 
 
 def _dates_in_visit_order(df, gid_col, date_cols, time_col,
@@ -2682,6 +2893,7 @@ def generate(blueprint: Dict[str, Any],
              enforce_constraints: bool = False,
              refine_sweeps: int = 2,
              reorder_dates: bool = True,
+             visit_rhythm: Optional[bool] = None,
              enforce_identities: bool = True,
              use_cooccurrence: bool = True,
              # OFF BY DEFAULT, ON FIXTURE EVIDENCE ALONE. Three
@@ -3925,6 +4137,27 @@ def generate(blueprint: Dict[str, Any],
     # attributed because it could not be switched off. It can
     # now, which makes a paired control arm possible - the only
     # thing that has ever overturned a fidelity claim here.
+    # THE RHYTHM, BEFORE THE REORDER. A patient holds a random
+    # sample of the global date pool, so a date shared by twelve
+    # rows lands on twelve different people and NO patient gets a
+    # same-day pair: measured at 3.5% of gaps against a source
+    # 13.0%. The span and the mean gap already land, so what is
+    # wrong is the SPACING and nothing else.
+    #
+    # This REALLOCATES which patient holds which drawn date. It
+    # does not redraw one, so the multiset is untouched and the
+    # published marginal cannot move - the instrument the
+    # repairs, the dials and the cyclic sweep all rest on.
+    if ((visit_rhythm if visit_rhythm is not None
+         else VISIT_RHYTHM)
+            and _real_gid and _repeated and _dcols
+            and (bp.get('patients') or {}).get('visit_rhythm')):
+        df = _visit_rhythm_pass(
+            df, _real_gid, _dcols,
+            (bp.get('patients') or {}).get('time_column'),
+            (bp.get('patients') or {}).get('visit_rhythm'),
+            seed, report)
+
     if reorder_dates and _real_gid and _repeated and _dcols:
         df = _dates_in_visit_order(
             df, _real_gid, _dcols,

@@ -388,6 +388,20 @@ def build_parser(prog=None, add_help=True):
                           "against the source falls 0.0295 to "
                           "0.0252. OFF by default."))
     ap.add_argument(
+        "--visit-rhythm", action="store_true",
+        help="reallocate WHICH PATIENT holds which drawn date so "
+             "episodes form - a patient gets same-day encounters "
+             "and long gaps instead of an even spread. A "
+             "REALLOCATION, not a redraw, so the column's own "
+             "distribution cannot move. Measured on the real "
+             "extract: one source gap in eight is zero days "
+             "against one in twenty-eight generated. OFF by "
+             "default - on a fixture it takes the same-day share "
+             "0.016 to 0.358 against a source 0.642 and costs "
+             "mean patient span 858 days to 496 against a source "
+             "916, which is a trade only a paired real arm can "
+             "settle.")
+    ap.add_argument(
         "--revalue-copied", action="store_true",
         help="draw a COPIED numeric column's values from its OWN "
              "published grid, placed at the ranks the copy "
@@ -2464,6 +2478,7 @@ def _generate_args(a):
     silently joining the things a run cannot say about itself.
     """
     return {
+        "visit_rhythm": bool(getattr(a, "visit_rhythm", False)),
         "n_patients": a.patients or None,
         "enforce_constraints": bool(a.enforce_constraints),
         "refine_sweeps": int(a.refine_sweeps),
