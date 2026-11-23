@@ -3,6 +3,96 @@
 Synthetic clinical data generator and model-evaluation instrument. Core rule: learn the patterns, never copy the records. Real data teaches parameters; generation never touches a record.
 
 ## Verify before claiming
+- **THE PAIRED REAL ARM IS A CLEAN NEGATIVE: `--visit-rhythm`
+  OVERSHOOTS ITS OWN TARGET BY 4.5x, HALVES THE PATIENT SPAN, AND
+  BUYS NOTHING ON THE CRITERION IT WAS BUILT FOR (2026-11-23,
+  run_vr_off against run_vr_on).** One tree, one source, seed 11,
+  `--visit-rhythm` the only difference, and the two blueprints are
+  BYTE-IDENTICAL - the flag acts only in generate, so a difference
+  there would have meant the arm was not one flag apart at all.
+  Every figure below was read back SPELLED by the machine:
+      criterion        control   --visit-rhythm
+      direction kept   134/151          130/151
+      close            127/151          124/151
+      INVERTED               0                0
+      own INVERTED           0                0
+      own close          24/29            22/29
+      coverage           42/42            42/42
+      set token shares   94/96            94/96
+      shapes tracked     31/42            29/42
+      surfaces           16/57            15/57
+      dynamics tracked   40/92            40/92
+      dynamics own       19/20            19/20
+  **Four direction pairs, three close pairs, two shapes, one
+  surface and two own-close pairs, for ZERO movement on dynamics.**
+  The absolute stop holds on both arms.
+- **AND THE RHYTHM READING SAYS WHY, measured on the axis the run
+  actually uses (`visit_end_date`):**
+      quantity         SOURCE   control   --visit-rhythm
+      same-day share      13%        4%              59%
+      gap median         9 d      13 d             0 d
+      patient span    2,422 d   2,267 d         1,188 d
+  **The pass asked for 13% and produced 59%** - its own report says
+  `same_day_asked 13, same_day_got 59`, so the engine knows it
+  missed by 46 points - and the span, which the CONTROL nearly
+  lands (2,267 against 2,422), is roughly HALVED. That is the
+  casualty the prediction named in advance, materialised.
+- **THE MECHANISM IS THE RUN LENGTH, AND THE DIAL I DELETED IS
+  EXACTLY WHAT WOULD HAVE FIXED IT.** A geometric run-length draw
+  was built for this and removed on the measurement "0.358 with the
+  draw against 0.353 with runs of ONE - a dial that buys nothing is
+  a thing to delete". What shipped instead takes `L = min(2,
+  remaining)` on every run while `n_runs` is computed for a MEAN
+  run of `1/(1-0.13) = 1.149` - so about 0.87 runs per visit, each
+  taking TWO adjacent positions. The extract's pool holds **57,684
+  rows over 4,692 distinct dates, about 12 rows per date**, so two
+  adjacent positions in the sorted pool share a date with
+  probability about 0.92 and nearly every run manufactures a
+  same-day pair. The arithmetic predicts about 46% against a
+  measured 59%, which is the right order.
+- **AND THE FIXTURE COULD NOT REACH IT BECAUSE ITS POOL IS NOT
+  DENSE ENOUGH, which is why the deletion measured as free.** The
+  fixture's dates carry about 2.5 rows each, so adjacency shares a
+  date only about 60% of the time and the same shipped code
+  UNDERSHOOTS there - 0.315 against an asked 0.655. **One bug, two
+  opposite error directions, and the fixture showed the one that
+  looks like a shortfall rather than the one that looks like a
+  defect.** A dial measured useless on a fixture whose data cannot
+  reach its mechanism has not been measured at all - the
+  cap-no-fixture-reaches fault, in a dial I removed myself.
+- **SO THE FLAG STAYS OFF AND IS NOT WORTH OFFERING AS BUILT.** The
+  honest fix is not a bigger constant: it is to draw the run length
+  so its MEAN lands the published share GIVEN how many rows share a
+  date, or better to solve the share by draw-measure-adjust the way
+  `_token_weights` already does. Until then the pass trades a
+  halved patient span and nine gate pairs for a same-day share four
+  and a half times the source's.
+- **AND THE DYNAMICS MISS GOT WORSE IN THE DIRECTION THE FIXTURE
+  PREDICTED.** The one own-column dynamics miss on both arms is
+  `age_at_visit`, and its `within_lag1` reads source 0.55 against a
+  control 0.40 and a flagged **0.11**. The fixture said the pass
+  spends the derived persistence statistic to buy the spacing; the
+  extract says the same thing with the overshoot making it worse.
+  `dynamics tracked` does not move because that column was already
+  the only own-column miss and it stays a miss either way.
+- **THE ONE CLAUSE THAT HELD IS THE REALLOCATION ITSELF.** The two
+  arms' date column holds the IDENTICAL multiset, measured by
+  sorting both written files, and the engine's own
+  `multiset_preserved` agrees - two independent measurements of one
+  thing, which is this project's own standard. So the published
+  marginal is safe by construction and the damage is entirely in
+  WHICH patient holds which date.
+- **AND THE FIRST TRANSFER OF THE READER LANDED A FILE THAT IMPORTED
+  AND DEFINED NOTHING, WHICH I NEVER VERIFIED.** `rhythm_read` on
+  the machine had `__file__` right and **ZERO public attributes** -
+  the chunks had been appended while the console was wedged - and
+  both the summariser and the probe reported a bare
+  `AttributeError` that read like a bug in my code. The digest check
+  for that file had failed to render three times and I moved on
+  without it. Verify the ARTIFACT after every step, never the
+  absence of an error: this file's own rule, and the one step I
+  skipped is the one that cost an hour.
+
 - **THE PAIRED ARM RAN ON THE REAL EXTRACT AND THE FLAGGED ARM
   CRASHED, ON THE WRONG-TYPE FAULT ONE LINE BELOW THE COMMENT
   WARNING AGAINST IT (2026-11-21, run_vr_off / run_vr_on).** The

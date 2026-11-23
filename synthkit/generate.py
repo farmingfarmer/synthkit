@@ -716,6 +716,31 @@ def _visit_rhythm_pass(df, gid, dcols, time_col, rhythm, seed,
             # file says about a set-size coupling and a
             # ceiling-mass field. `mean_run` survives because
             # it still sets HOW MANY episodes a patient gets.
+            # THE REAL EXTRACT REFUTED THIS LINE. Taking TWO
+            # adjacent positions on every run, while `n_runs` is
+            # computed for a MEAN run of 1/(1-p), asks for about
+            # 2 x 0.87 = 1.74 positions per visit - so nearly
+            # every visit arrives as half of a pair. Whether that
+            # pair is SAME-DAY depends on how many rows share a
+            # date, which the fixture and the extract disagree
+            # about by a factor of five:
+            #
+            #   rows per distinct date   asked   got
+            #   fixture, about 2.5       0.655  0.315   UNDERshoot
+            #   extract, about 12.3      0.130  0.590   OVERshoot
+            #
+            # One line, two opposite errors, and the fixture
+            # showed the one that looks like a shortfall. The
+            # geometric run-length draw that was deleted here on
+            # the grounds that it "buys nothing" was measured on
+            # the fixture alone, whose pool cannot reach the
+            # mechanism - so it was not measured at all.
+            #
+            # The honest fix is to draw L so its mean lands the
+            # published share GIVEN the pool's own repeat density,
+            # or to solve the share by draw-measure-adjust the way
+            # `_token_weights` does. Until then this pass is
+            # refuted on the real extract and the flag stays off.
             L = max(1, min(2, st["need"] - len(st["got"])))
             jpos, step = start, 0
             while step < L and jpos < n:

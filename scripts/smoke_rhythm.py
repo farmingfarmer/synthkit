@@ -225,6 +225,25 @@ def main():
           abs(float((ok_off < 0).mean())
               - float((ok_on < 0).mean())) < 1e-12)
 
+    # THE REAL EXTRACT REFUTED THIS PASS, and the number that
+    # refuted it is the one this fixture reads in the OPPOSITE
+    # direction - so the fixture reading is pinned WITH that fact
+    # beside it, rather than standing as evidence the flag works.
+    #
+    #   rows per distinct date   asked   got
+    #   this fixture, about 2.5  0.655  0.315   UNDERshoot
+    #   the extract, about 12.3  0.130  0.590   OVERshoot
+    #
+    # On the extract the flag cost four direction pairs, three
+    # close pairs, two shapes and one surface, halved the patient
+    # span (2,267 days to 1,188 against a source 2,422) and moved
+    # `dynamics tracked` by nothing at all.
+    check("the fixture UNDERSHOOTS its asked share, which is the "
+          "opposite of what the real extract does - so a reading "
+          "here is not evidence the pass lands: asked {:.3f} got "
+          "{:.3f}".format(src_same, on_same),
+          on_same < src_same)
+
     # AND THE COST IS REPORTED RATHER THAN DISCOVERED LATER.
     check("the run REPORTS the span it produced, so a rhythm "
           "bought by spending the patient's range is visible: "
