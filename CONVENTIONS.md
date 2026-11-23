@@ -3,6 +3,108 @@
 Synthetic clinical data generator and model-evaluation instrument. Core rule: learn the patterns, never copy the records. Real data teaches parameters; generation never touches a record.
 
 ## Verify before claiming
+- **THE DOCUMENTED COMMAND A DEPLOYMENT STARTS WITH DID NOT RUN,
+  AND IT WAS IN THE ONE DOCUMENT A DEPLOYER READS (2026-11-23).**
+  `docs/AWS.md` and the Dockerfile both said
+      docker run --rm IMAGE python .../run_all_smokes.py
+  and the image's ENTRYPOINT is `synthkit`, so `python` is read
+  as a SUBCOMMAND and argparse refuses it by name. The line
+  exists so a deployment can prove the tool works BEFORE being
+  pointed at an extract, and it had never been run. Found by
+  running it; `--entrypoint python` fixes it, and the net then
+  completes inside the image.
+- **AND THE CHECK IS ON THE SHAPE RATHER THAN THE TEXT.** It
+  asserts the ENTRYPOINT is the console script - which is what
+  makes a bare `python` argument a subcommand - and then that
+  every `docker run` in either file which runs python also
+  overrides it. A future command with the same mistake goes red;
+  pinning the corrected string would only pin this one.
+- **AND THE WHOLE DEPLOYMENT SURFACE WAS A CAPABILITY WIRED TO
+  NOTHING, FOUR TIMES OVER.** `cloud.publish` was reachable only
+  from `batch` AFTER a fresh fit, so a run already on disk could
+  not be published through the tool at all - and `as_name`, which
+  that function grew a parameter for because a recipient asked
+  for the file under a chosen name, had no path to reach it. So
+  the one upload this project has actually made to a real bucket
+  went out some other way. `synthkit publish RUNDIR DEST` is the
+  door, with `--dry-run` listing what would leave AND what stays.
+- **AND `batch` COULD NOT REPRODUCE THE RUN WE SHIP.** It passed
+  `--group-by` and `--max-rows` and nothing else, so the one
+  entrypoint a deployment uses could not set `--revalue-copied`
+  or a seed - the deliverable is made with both. It FORWARDS what
+  it does not recognise now, rather than carrying a hand-kept
+  list that goes stale the day somebody adds a dial.
+- **AND THE CLASH GUARD I WROTE FOR THAT COULD NOT FIRE, WHICH
+  THE CHECK FOUND.** It tested the FORWARDED list for a flag
+  `batch` owns - and `parse_known_args` CONSUMES a second
+  `--src`, last one winning, so a duplicate never reaches that
+  list. The failure mode is not a refusal but a run that used a
+  source nobody meant. Checked on the RAW arguments now, and the
+  mutation turns it red.
+- **AND THE FORWARDING IS ASSERTED ON THE OUTCOME, because a
+  command that prints "forwarding" and drops the argument reads
+  identically.** Two runs one seed apart through the real CLI:
+  the provenance must record the seed it was GIVEN and the two
+  outputs must DIFFER. The mutation that passes `argv` without
+  the forwarded flags turns both red; a message check would have
+  stayed green.
+- **AND THE STALE CLAIM IS GONE FROM THE ONE PLACE A GOVERNANCE
+  READER TRUSTS.** The module said "NOTHING HERE HAS RUN AGAINST
+  A LIVE AWS ACCOUNT", which was true when written and stopped
+  being true the day the deliverable went into a real bucket.
+  `STATUS_VERIFIED` and `STATUS_OWED` are data, the tool prints
+  them, and a check asserts `docs/AWS.md` carries each line with
+  the whitespace normalised first - a sentence a markdown line
+  break splits cannot be grepped however correctly the page
+  reads, which this file has paid for six times. An existing
+  check pinned the old sentence and went red on the correction;
+  it pins the PROPERTY now rather than being deleted.
+- **AND THE PREFLIGHT NAMES EIGHT CAUSES WITH THE REMEDY IN THE
+  SAME SENTENCE, ONE OF WHICH IS NOT HYPOTHETICAL.** The
+  deliverable's own upload died on intercepted TLS, whose error
+  names a certificate rather than `AWS_CA_BUNDLE`. The
+  classification is a PURE function on an exception - type name,
+  provider code, message - so all nine branches are exercised on
+  planted exceptions with no account, no credentials and no
+  boto3. The ORDER is load-bearing: a bucket policy requiring
+  encryption refuses the put AS an access-denied, so the specific
+  test runs first or somebody is sent to the IAM console for a
+  missing header. Deleting that one branch turns two checks red.
+- **AND THE PREFLIGHT IS READ-ONLY BY DEFAULT, ASSERTED ON THE
+  CALLS IT MADE RATHER THAN ON ITS OWN REPORT.** Writing into
+  somebody's bucket is an outward action. With `--write` the
+  canary is the module's own fixed 42-byte constant - asserted to
+  be THAT constant, because a preflight that wrote a sample of
+  the data would be the exact thing the module exists to prevent
+  - read back BYTE FOR BYTE, and deleted. A failed delete NAMES
+  the object left behind, because an object abandoned in a
+  hospital bucket is somebody's cleanup. Four mutations bite.
+- **AND THE IAM POLICY IS GENERATED FROM WHAT THE CODE DOES.**
+  `docs/AWS.md` said the task role is the account owner's to
+  write, which is still true - and handing somebody "write a
+  policy" hands them a guess. The ACTIONS are a property of this
+  code: it GETS one object, PUTS into one prefix, and LISTS that
+  prefix to preflight. The generated document grants exactly
+  those three on exactly those two resources, prints what it does
+  NOT cover (KMS, DeleteObject, the VPC, the bucket policy), and
+  a check refuses `s3:*` and `s3:DeleteObject` by name.
+- **AND THE SSE HEADER IS OURS TO SEND EVEN THOUGH THE KEY IS
+  NOT.** A bucket whose policy requires server-side encryption
+  rejects a plain put, and that is the likeliest way a first
+  deployment fails. `--sse` and `--sse-kms-key-id` reach both
+  `batch` and `publish`; a KMS key given WITHOUT `--sse aws:kms`
+  is refused rather than ignored, and asking for encryption on a
+  LOCAL directory is refused too - a setting that cannot be
+  applied must not be silently dropped, which is the
+  read-but-not-used fault in a privacy-shaped place.
+- **WHAT IS STILL OWED, AND IT IS NOT OUR SIDE: a `batch` run
+  against an s3:// source and prefix, under a TASK ROLE, in the
+  container.** It now runs end to end INSIDE the container
+  locally - source in, six allow-listed artifacts out, the source
+  not among them, a forwarded seed reaching the fit - and that is
+  a different claim from running it in the account, which is why
+  the two sit in different lists.
+
 - **THE PAIRED REAL ARM IS A CLEAN NEGATIVE: `--visit-rhythm`
   OVERSHOOTS ITS OWN TARGET BY 4.5x, HALVES THE PATIENT SPAN, AND
   BUYS NOTHING ON THE CRITERION IT WAS BUILT FOR (2026-11-23,

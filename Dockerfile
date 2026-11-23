@@ -86,7 +86,8 @@ WORKDIR /work
 
 # THE NET IS PART OF THE IMAGE, so a deployment can prove the
 # tool works before it is pointed at an extract:
-#   docker run --rm IMAGE python /opt/synthkit/scripts/run_all_smokes.py
+#   docker run --rm --entrypoint python IMAGE \
+    /opt/synthkit/scripts/run_all_smokes.py
 #
 # AND THE IMAGE DOES NOT PIN THE THREAD COUNT.
 #

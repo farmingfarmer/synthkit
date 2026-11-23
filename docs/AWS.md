@@ -1,10 +1,43 @@
 # SynthKit in a hospital AWS account
 
-**Nothing in this document has been run against a live AWS
-account.** It is the code, the guard and the shape, verified
-locally and checked by `smoke_cloud`. The first real deployment
-is still owed a run, and this project's rule is that a thing is
-not measured until somebody measures it — a deployment included.
+## Where this actually stands
+
+Not a reassurance — a list somebody can check. These lines live
+in `synthkit/cloud.py` as `STATUS_VERIFIED` and `STATUS_OWED`,
+`synthkit batch` and `synthkit publish` print them before doing
+anything, and `smoke_cloud` asserts this document says the same.
+Two places stating a deployment's status is how they come to
+disagree.
+
+**Verified.**
+
+- A real upload into a real bucket in the dev account has happened:
+  the 800-patient deliverable's dataset and data dictionary, from
+  the data machine, under the account's own credentials.
+- It needed AWS_CA_BUNDLE, because the network intercepts TLS.
+  Verification was never disabled.
+- The allow-list, the all-or-nothing refusal and the rename rule are
+  exercised by `smoke_cloud` against a second store implementation,
+  with no network and no credentials.
+- The image builds, runs as non-root, carries the net, and holds no
+  csv, no data/ and no run_* directory.
+- A full `batch` fit runs end to end INSIDE THE CONTAINER: source
+  in, six allow-listed artifacts out, the source not among them,
+  with a forwarded --seed reaching the fit. What that does NOT
+  establish is the account - see the owed list.
+
+**Still owed.**
+
+- `synthkit batch` has NOT been run inside the ACCOUNT. It runs end
+  to end in the container locally; what is owed is the same run
+  against an s3:// source and prefix, which is a different thing and
+  the one that matters.
+- No run has used a TASK ROLE. The credentials so far were a pasted
+  session, which is not what a deployment will use.
+- The container has NOT been pushed to ECR, and no task definition
+  exists.
+- No bucket requiring server-side encryption has been written to, so
+  the --sse path is code and checks rather than a measurement.
 
 ---
 
@@ -65,6 +98,41 @@ silent-difference fault this project refuses everywhere else.
 
 ## Running it
 
+**Preflight first.** A failure here is cheap and a failure after
+a forty-minute fit is not.
+
+```
+synthkit cloud-check s3://BUCKET/artifacts/run1
+synthkit cloud-check s3://BUCKET/artifacts/run1 --write
+```
+
+Read-only by default — writing an object into somebody's bucket
+is an outward action, so the canary put is opt-in, and when it
+runs the object is read back byte for byte and deleted. Every
+step names its own cause and the remedy in the same sentence:
+missing credentials, an expired session, a denied action, the
+wrong region, an unreachable endpoint, intercepted TLS, or a
+bucket policy that requires server-side encryption. That last
+one arrives *as* an access-denied, which reads like a
+permissions problem and is a missing header.
+
+**The policy the role needs**, generated from what this code
+actually does rather than written from memory:
+
+```
+synthkit cloud-policy --src s3://BUCKET/extracts/tidy_visits.csv \
+                      --publish s3://BUCKET/artifacts/run1
+```
+
+It grants `s3:GetObject` on the one extract, `s3:PutObject` on
+the one prefix, and `s3:ListBucket` conditioned on that prefix.
+Nothing else. It prints what it does **not** cover underneath —
+KMS, `s3:DeleteObject`, the VPC, the task definition, the bucket
+policy — because a policy that looks complete is worse than one
+that names its own gaps.
+
+**The fit.**
+
 ```
 synthkit batch --src s3://BUCKET/extract.csv \
                --out /work/run1 \
@@ -76,6 +144,40 @@ synthkit batch --src s3://BUCKET/extract.csv \
 `--dry-run` prints the posture and what *would* leave, and
 starts nothing. A transfer nobody previewed is one nobody can
 object to. Drop the flag to run the fit.
+
+Anything `batch` does not recognise is **forwarded to the fit**,
+so a deployment can set the dials the deliverable was made with:
+
+```
+synthkit batch ... --publish s3://BUCKET/artifacts/run1 \
+               --seed 11 --revalue-copied
+```
+
+It could previously pass only `--group-by` and `--max-rows`, so
+the one entrypoint a deployment uses could not reproduce the run
+we ship. A forwarded flag this command already controls is
+refused by name, and the run prints what it forwarded.
+
+**Publishing a run that already exists.**
+
+```
+synthkit publish /work/run1 s3://BUCKET/artifacts/run1 --dry-run
+synthkit publish /work/run1 s3://BUCKET/artifacts/run1 \
+         --as-name generated.csv=cohort.csv
+```
+
+`--dry-run` lists what would leave **and what stays**. The
+allow-list check runs on the source name, so renaming a refused
+file does not help it travel. This door did not exist: `publish`
+was reachable only from `batch` after a fresh fit, and the
+rename a recipient asked for had no path to reach it.
+
+**Server-side encryption.** `--sse AES256` or `--sse aws:kms`
+with `--sse-kms-key-id`, on both `batch` and `publish`. The key
+and the bucket policy belong with the bucket; the *header* is
+ours to send, and a bucket that requires it rejects a plain put.
+A KMS key passed without `--sse aws:kms` is refused rather than
+ignored.
 
 ## The container
 
@@ -91,29 +193,56 @@ would travel with every pull of the image, which is the worst
 possible way for a record to leave an account.
 
 The net ships inside the image, so a deployment can prove the
-tool works **before** it is pointed at an extract:
+tool works **before** it is pointed at an extract. The
+`--entrypoint` override is not optional: the image's entrypoint
+is `synthkit`, so without it `python` is read as a subcommand and
+argparse refuses it. The line below was wrong in this document
+until somebody ran it.
 
 ```
-docker run --rm IMAGE python /opt/synthkit/scripts/run_all_smokes.py
+docker run --rm --entrypoint python IMAGE \
+    /opt/synthkit/scripts/run_all_smokes.py
 ```
+
+**It reports one failing suite, and that is expected.**
+`smoke_gui` is the local bench — not part of the deployment
+surface. Two of its checks cannot pass in a container: the
+campaign-compile endpoint wants to write outside `/work`, which
+a non-root user cannot do, and its vendor-exam arm comes back
+without a vendor. Measured in this image: **137 of 138 suites
+green, `smoke_gui` the only failure, on the check "a vendor model
+can be graded on the same exam".** Anything else failing is a
+real finding. Saying so here because a deployer told to prove the
+tool works, who then sees a red suite, will reasonably conclude
+the opposite.
 
 ---
 
 ## What this does NOT do, named
 
-- **No IAM, VPC or Terraform here.** The task role, the subnet
-  and the bucket policy are the account owner's to write, and
-  writing them blind would be guessing at somebody's network.
-  What this gives them is a container with one entry point and
-  a stated data flow to review.
+- **No VPC or Terraform here.** The subnet, the task
+  definition and the bucket policy are the account owner's to
+  write, and writing them blind would be guessing at somebody's
+  network. What this gives them is a container with one entry
+  point, a stated data flow, and a generated least-privilege
+  policy for the two S3 operations it performs.
+- **No KMS key policy.** If the bucket requires `aws:kms` the
+  role also needs `kms:GenerateDataKey` and `kms:Decrypt` on
+  that key, which belongs with the key.
 - **No cross-account anything.** Every path in this module is
   within one account by construction.
-- **No encryption configuration.** S3 server-side encryption
-  and KMS keys are bucket policy, which belongs with the bucket.
+- **No encryption configuration beyond the header.** The key
+  and the bucket policy belong with the bucket; `--sse` sends
+  the mode, because a bucket that requires it would otherwise
+  reject every put with an error that reads like a permissions
+  problem.
 - **No secrets.** `boto3` picks up the task role; nothing here
   reads or stores a credential.
-- **Not run against a live account.** Stated again because it
-  is the thing most likely to be assumed.
+- **Not yet run end to end in the account.** A publish into a
+  real bucket has happened; a `batch` fit under a task role has
+  not. The two are separated at the top of this document
+  because conflating them is the thing most likely to be
+  assumed.
 
 ## The question a governance reviewer will ask
 

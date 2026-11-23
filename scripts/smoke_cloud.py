@@ -18,6 +18,8 @@ checks exercise is this project's logic rather than somebody
 else's SDK behaving as its author imagined. A cloud path tested
 only against a mock is tested against the mock.
 """
+import io
+import json
 import subprocess
 import sys
 import tempfile
@@ -151,32 +153,17 @@ def main():
               and not cloud.is_s3("s3:/bad"))
 
         # ---- THE DESCRIPTION IS HONEST ABOUT WHAT HAS NOT RUN
-        lines = "\n".join(cloud.describe())
-        check("the deployment DESCRIBES itself, including that "
-              "it has NOT been run against a live AWS account "
-              "- a deployment is not measured until somebody "
-              "deploys it",
-              "NOT YET RUN AGAINST A LIVE AWS ACCOUNT" in lines
-              and "only named artifacts go OUT" in lines)
-
-        # ---- AND THE CLI CARRIES THE SAME GUARD
-        r = subprocess.run(
-            [sys.executable, "-m", "synthkit.cli", "batch",
-             "--src", str(src), "--out", str(d / "w2"),
-             "--dry-run"],
-            capture_output=True, text=True, cwd=str(ROOT),
-            timeout=900)
-        check("`synthkit batch --dry-run` says what WOULD "
-              "leave and starts nothing - a transfer nobody "
-              "previewed is one nobody can object to",
-              r.returncode == 0
-              and "DRY RUN" in r.stdout
-              and "blueprint.json" in r.stdout)
-        check("...and it prints the posture BEFORE doing "
-              "anything, so an operator reads the rule rather "
-              "than trusting it",
-              r.stdout.index("only named artifacts go OUT")
-              < r.stdout.index("DRY RUN"))
+        lines0 = cloud.describe()
+        check("the deployment DESCRIBES itself - what may leave, "
+              "which direction data moves, and what is still "
+              "owed. This check used to pin the sentence "
+              "\"NOT YET RUN AGAINST A LIVE AWS ACCOUNT\", which "
+              "a real upload later made false; a check written "
+              "around a claim goes red when the claim is "
+              "corrected, so it pins the PROPERTY instead",
+              any("only named artifacts" in x.lower()
+                  for x in lines0)
+              and any(x.startswith("STILL OWED:") for x in lines0))
 
     # ---- THE IMAGE CARRIES NO DATA
     dockerfile = (ROOT / "Dockerfile").read_text(
@@ -322,11 +309,492 @@ def main():
               "never had: {}".format(bad[:46]),
               "fidelity.json" in bad)
 
+    # ----------------------------------------------------------
+    # AND THE DOC MUST NAME THE SUITE THAT IS EXPECTED TO FAIL
+    # IN THE IMAGE. The net inside the container reports 137 of
+    # 138 green with `smoke_gui` red - the local bench, which is
+    # not the deployment surface - and a deployer told to prove
+    # the tool works, who then sees a red suite, will reasonably
+    # conclude the opposite. This project has already had a
+    # teammate stopped by exactly that.
+    _doc = (ROOT / "docs" / "AWS.md").read_text(encoding="utf-8")
+    _flat = " ".join(_doc.split())
+    check("the AWS doc NAMES the one suite expected to fail in "
+          "the image, and says anything else is a real finding - "
+          "a red suite with no explanation reads as a broken tool",
+          "smoke_gui" in _flat
+          and "expected" in _flat
+          and "real finding" in _flat)
+
+    # A DOCUMENTED COMMAND NOBODY RAN. `docs/AWS.md` told a
+    # deployer to prove the tool works before pointing it at an
+    # extract with
+    #
+    #   docker run --rm IMAGE python .../run_all_smokes.py
+    #
+    # and that does not run: the image's ENTRYPOINT is
+    # `synthkit`, so `python` is read as a subcommand and
+    # argparse refuses it. The one command a deployment starts
+    # with, wrong in the one document it reads. Found by running
+    # it, not by reading it.
+    #
+    # The check is on the SHAPE rather than on the text, so a
+    # future command that runs python in this image has to
+    # override the entrypoint too.
+    ep = "synthkit" in dockerfile.split("ENTRYPOINT")[-1][:40]
+    check("the image's ENTRYPOINT is the console script, which is "
+          "what makes a bare `python ...` argument a subcommand "
+          "rather than an interpreter", ep)
+    doc_aws = (ROOT / "docs" / "AWS.md").read_text(
+        encoding="utf-8")
+    for where, text in (("docs/AWS.md", doc_aws),
+                        ("Dockerfile", dockerfile)):
+        flat = " ".join(text.split())
+        bad = []
+        for seg in flat.split("docker run")[1:]:
+            head = seg[:160]
+            if " python " in head and "--entrypoint" not in head:
+                bad.append(head[:70])
+        check("every `docker run` in {} that runs python also "
+              "overrides the entrypoint, without which the "
+              "documented command refuses itself: {}"
+              .format(where, "; ".join(bad) or "all override it"),
+              not bad)
+
+    # THE PREFLIGHT, THE DIAGNOSIS AND THE POLICY.
+    #
+    # A deployment fails for one of about eight reasons and the
+    # raw error names none of them - the deliverable's own upload
+    # died on intercepted TLS, whose message is about a
+    # certificate rather than the variable to set. So the
+    # classification is a PURE function on an exception, tested
+    # on planted ones with no account, no credentials and no
+    # boto3, for the same reason the store is an interface: a
+    # diagnosis that can only be exercised by failing against a
+    # real bucket is one nobody will exercise.
+    # ----------------------------------------------------------
+    for exc, want in (
+            (_Boom("[SSL: CERTIFICATE_VERIFY_FAILED] certificate "
+                   "verify failed", cls="SSLError"),
+             "tls-intercepted"),
+            (_Boom("An error occurred (AccessDenied) when calling "
+                   "PutObject: requires "
+                   "x-amz-server-side-encryption",
+                   code="AccessDenied"), "sse-required"),
+            (_Boom("Unable to locate credentials",
+                   cls="NoCredentialsError"), "no-credentials"),
+            (_Boom("The provided token has expired",
+                   code="ExpiredToken"), "expired"),
+            (_Boom("Access Denied", code="AccessDenied"), "denied"),
+            (_Boom("no such bucket", code="NoSuchBucket"),
+             "no-bucket"),
+            (_Boom("redirect", code="PermanentRedirect"),
+             "wrong-region"),
+            (_Boom("Could not connect to the endpoint URL",
+                   cls="EndpointConnectionError"), "unreachable"),
+            (_Boom("something nobody has seen"), "unknown")):
+        got = cloud.diagnose(exc)
+        check("a {} failure is named {!r} rather than handed back "
+              "as a traceback".format(want.replace("-", " "), want),
+              got == want)
+        check("...and its remedy is in the same sentence as the "
+              "cause, for {}".format(want),
+              len(cloud.CAUSE_TEXT.get(got, "")) > 40)
+
+    # ORDER MATTERS, and this is the one pair that can swallow
+    # each other: a bucket policy requiring encryption refuses
+    # the put AS an access-denied, so the specific test must run
+    # first or somebody is sent to the IAM console for a missing
+    # header.
+    check("an encryption-required refusal is NOT reported as a "
+          "plain permissions problem, though it arrives as one",
+          cloud.diagnose(_Boom(
+              "AccessDenied: x-amz-server-side-encryption is "
+              "required", code="AccessDenied")) == "sse-required")
+
+    # READ-ONLY MEANS READ-ONLY. Writing an object into somebody
+    # else's bucket is an outward action, so the default must not
+    # do it - asserted on the CALLS the stand-in saw, not on the
+    # report's own say-so.
+    f = _FakeS3()
+    rep = cloud.preflight("s3://b/pre", client=f)
+    check("a preflight is READ-ONLY by default - it listed and "
+          "did not put: calls were {}".format(f.calls),
+          rep["ok"] and rep["wrote"] is False
+          and "put" not in f.calls)
+    check("...and it SAYS the write test was skipped and how to "
+          "run it, because a step that vanishes reads as a step "
+          "that passed",
+          any(st["ok"] is None and "--write" in st["detail"]
+              for st in rep["steps"]))
+
+    f = _FakeS3()
+    rep = cloud.preflight("s3://b/pre", client=f, allow_write=True)
+    check("with --write it puts, reads back and DELETES the "
+          "canary, leaving nothing behind: {}".format(
+              list(f.obj) or "empty"),
+          rep["ok"] and rep["wrote"] and not f.obj)
+    check("...and the bytes that went out are the module's own "
+          "fixed CANARY_BODY, not something assembled from the "
+          "run - a preflight that wrote a sample of the data "
+          "would be the exact thing this module prevents",
+          f.put_bodies == [cloud.CANARY_BODY]
+          and len(cloud.CANARY_BODY) < 80)
+
+    # A PUT THAT SUCCEEDS AND A GET THAT DIFFERS is the
+    # silent-difference fault, and no permission problem explains
+    # it. It must FAIL rather than be reported as a write that
+    # worked.
+    f = _FakeS3(corrupt=True)
+    rep = cloud.preflight("s3://b/pre", client=f, allow_write=True)
+    check("a canary that does not read back byte for byte FAILS, "
+          "because a put that succeeds and a get that differs is "
+          "not a healthy destination",
+          rep["ok"] is False
+          and any(st["step"].startswith("the canary reads back")
+                  and st["ok"] is False for st in rep["steps"]))
+
+    # AN OBJECT LEFT IN A HOSPITAL BUCKET IS SOMEBODY'S CLEANUP,
+    # so a failed delete names it rather than being absorbed.
+    f = _FakeS3(fail_on={"delete"})
+    rep = cloud.preflight("s3://b/pre", client=f, allow_write=True)
+    check("a failed delete NAMES the object left behind, so "
+          "nobody has to go looking for it",
+          rep["ok"] is False
+          and any("LEFT BEHIND" in st["detail"]
+                  for st in rep["steps"]))
+
+    f = _FakeS3(fail_on={"list"})
+    rep = cloud.preflight("s3://b/pre", client=f)
+    check("a destination that cannot be listed STOPS before any "
+          "write is attempted: calls were {}".format(f.calls),
+          rep["ok"] is False and "put" not in f.calls)
+
+    # ENCRYPTION. The header is ours to send; the key and the
+    # policy belong with the bucket.
+    f = _FakeS3()
+    cloud.preflight("s3://b/pre", client=f, allow_write=True,
+                    sse="aws:kms", kms_key="key-1")
+    check("the encryption mode and key are actually SENT on the "
+          "put, not merely accepted as arguments: {}".format(
+              f.last_extra),
+          (f.last_extra or {}).get("ServerSideEncryption")
+          == "aws:kms"
+          and (f.last_extra or {}).get("SSEKMSKeyId") == "key-1")
+    f = _FakeS3()
+    cloud.preflight("s3://b/pre", client=f, allow_write=True)
+    check("...and nothing is sent when none was asked for, so "
+          "the bucket's own default applies",
+          not (f.last_extra or {}))
+    check("a KMS key without aws:kms is REFUSED rather than "
+          "ignored - a key read and not used is worse than no "
+          "key, because somebody believes it was applied",
+          _refuses(lambda: cloud.S3Store(
+              "b", client=_FakeS3(), kms_key="key-1"),
+              "read and not used"))
+    check("...and an unknown encryption mode is refused by name",
+          _refuses(lambda: cloud.S3Store(
+              "b", client=_FakeS3(), sse="rot13"),
+              "not a server-side encryption mode"))
+    with tempfile.TemporaryDirectory() as td:
+        check("...and asking for encryption on a LOCAL directory "
+              "is refused, because a setting that cannot be "
+              "applied must not be silently ignored",
+              _refuses(lambda: cloud.store_for(td, sse="AES256"),
+                       "local directory, which has none"))
+
+    # THE POLICY IS DERIVED FROM WHAT THIS CODE DOES.
+    pol = cloud.iam_policy("s3://src/extracts/t.csv",
+                           "s3://art/synthkit/run1")
+    acts = sorted(a for st in pol["Statement"]
+                  for a in st["Action"])
+    check("the generated policy grants exactly the three actions "
+          "this tool performs: {}".format(acts),
+          acts == ["s3:GetObject", "s3:ListBucket",
+                   "s3:PutObject"])
+    check("...and NOT s3:* or s3:DeleteObject, because nothing "
+          "here deletes an artifact",
+          not any(a in ("s3:*", "s3:DeleteObject") for a in acts))
+    check("...and the resources are the one extract and the one "
+          "prefix, not the whole bucket",
+          any(st["Resource"].endswith("/extracts/t.csv")
+              for st in pol["Statement"])
+          and any(st["Resource"].endswith("/synthkit/run1/*")
+                  for st in pol["Statement"]))
+    check("...and it says what it does NOT cover, because a "
+          "policy that looks complete is worse than one naming "
+          "its own gaps",
+          len(cloud.policy_notes()) >= 3
+          and any("KMS" in x for x in cloud.policy_notes()))
+    check("a policy over nothing is refused rather than returned "
+          "empty",
+          not cloud.iam_policy("", "")["Statement"])
+
+    # ----------------------------------------------------------
+    # THE STATUS IS ONE SOURCE WITH TWO RENDERERS.
+    #
+    # The module used to say "nothing here has run against a live
+    # AWS account", which stopped being true the day the
+    # deliverable was uploaded to a real bucket - and a stale
+    # claim in the one place a governance reviewer trusts is
+    # worse than no claim.
+    # ----------------------------------------------------------
+    lines = cloud.describe()
+    check("the deployment no longer makes the absolute claim it "
+          "outgrew - a publish into a real bucket HAS happened",
+          not any("NOT YET RUN AGAINST A LIVE AWS" in x
+                  for x in lines))
+    check("...and it separates what is VERIFIED from what is "
+          "STILL OWED, because conflating them is the thing most "
+          "likely to be assumed",
+          any(x.startswith("VERIFIED:") for x in lines)
+          and any(x.startswith("STILL OWED:") for x in lines))
+    check("...and the owed list names the two that matter: a "
+          "`batch` fit in the account, and a TASK ROLE",
+          any("batch" in x and "end to end" in x
+              for x in cloud.STATUS_OWED)
+          and any("TASK ROLE" in x for x in cloud.STATUS_OWED))
+
+    doc = (ROOT / "docs" / "AWS.md").read_text(encoding="utf-8")
+    # WHITESPACE IS NORMALISED BEFORE EVERY PHRASE MATCH. A
+    # sentence a markdown line break splits cannot be grepped
+    # however correctly the page reads - this project has paid
+    # for that six times.
+    flat = " ".join(doc.split())
+    for x in cloud.STATUS_VERIFIED + cloud.STATUS_OWED:
+        check("the AWS doc states the status line {!r}... so the "
+              "module and the document cannot disagree about a "
+              "deployment's state".format(x[:46]),
+              " ".join(x.split()) in flat)
+
+    # ----------------------------------------------------------
+    # THE CLI DOORS. `publish` did not exist: `cloud.publish` was
+    # reachable only from `batch` after a fresh fit, so a run
+    # already on disk could not be published through the tool at
+    # all - and the rename a recipient asked for, which publish
+    # grew a parameter for, had no path to reach it.
+    # ----------------------------------------------------------
+    with tempfile.TemporaryDirectory() as td:
+        run = Path(td) / "run"
+        dest = Path(td) / "dest"
+        run.mkdir()
+        dest.mkdir()
+        for nm in ("blueprint.json", "fidelity.json",
+                   "generated.csv"):
+            (run / nm).write_text("{}", encoding="utf-8")
+        (run / "tidy_visits.csv").write_text("real,data",
+                                             encoding="utf-8")
+        (run / "key.csv").write_text("keep,this", encoding="utf-8")
+
+        rc, out = _cli(["publish", str(run), str(dest),
+                        "--dry-run"])
+        check("`synthkit publish --dry-run` lists what would "
+              "leave", rc == 0 and "generated.csv" in out)
+        check("...and what STAYS, by name, which is the line a "
+              "governance reviewer reads",
+              "key.csv" in out.split("what STAYS")[-1]
+              and "tidy_visits.csv" in out.split("what STAYS")[-1])
+        check("...and it sends nothing", not list(dest.iterdir()))
+
+        rc, out = _cli(["publish", str(run), str(dest),
+                        "--only", "tidy_visits.csv"])
+        check("asking the CLI for the source BY NAME is refused "
+              "with the rule, not a traceback",
+              rc == 2 and "not on the list" in out)
+        rc, out = _cli(["publish", str(run), str(dest),
+                        "--only", "key.csv",
+                        "--as-name", "key.csv=cohort.csv"])
+        check("...and renaming the KEY does not help it travel, "
+              "because the check runs on the SOURCE name",
+              rc == 2 and "not on the list" in out)
+        check("...and nothing landed from either refusal",
+              not list(dest.iterdir()))
+
+        rc, out = _cli([
+            "publish", str(run), str(dest), "--as-name",
+            "generated.csv=confidential_synthetic_cohort.csv"])
+        check("a published file can be renamed through the CLI, "
+              "which is the request that made `as_name` exist",
+              rc == 0
+              and (dest / "confidential_synthetic_cohort.csv"
+                   ).exists()
+              and not (dest / "generated.csv").exists())
+        rc, out = _cli(["publish", str(run), str(dest),
+                        "--as-name", "generated.csv"])
+        check("a rename that is not OLD=NEW is refused by name",
+              rc == 2 and "OLD=NEW" in out)
+        rc, out = _cli(["publish", str(run), str(dest),
+                        "--as-name",
+                        "generated.csv=sub/dir/x.csv"])
+        check("...and a rename naming a PATH is refused, because "
+              "the destination prefix comes from the URI",
+              rc == 2 and "names a path" in out)
+
+    # BATCH FORWARDS THE FIT'S OWN FLAGS. It could pass only
+    # --group-by and --max-rows, so the one entrypoint a
+    # deployment uses could not reproduce the run we ship.
+    with tempfile.TemporaryDirectory() as td:
+        src = Path(td) / "t.csv"
+        src.write_text("person_id,x\nA,1\n", encoding="utf-8")
+        rc, out = _cli(["batch", "--src", str(src), "--out",
+                        str(Path(td) / "w"), "--dry-run",
+                        "--seed", "11", "--revalue-copied"])
+        check("`batch` accepts the fit's own flags rather than "
+              "refusing them, so a deployment can set the dials "
+              "the deliverable was made with", rc == 0)
+        rc, out = _cli(["batch", "--src", str(src), "--out",
+                        str(Path(td) / "w2"), "--src",
+                        "s3://b/other.csv"])
+        check("...and a forwarded flag THIS command already "
+              "controls is refused BY NAME rather than winning "
+              "or losing silently",
+              rc == 2 and "--src" in out)
+
+    # AND A FORWARDED FLAG MUST REACH THE FIT AND CHANGE IT.
+    # Asserting the message would pass on a command that prints
+    # "forwarding" and drops the argument - a flag read and not
+    # used is this project's oldest recorded fault. So: two runs
+    # one seed apart, through the real command, and the OUTPUT
+    # must differ and the provenance must record the seed it was
+    # given.
+    with tempfile.TemporaryDirectory() as td:
+        src = Path(td) / "s.csv"
+        rows = ["person_id,v,x,y"]
+        for pid in range(26):
+            for vis in range(6):
+                rows.append("P%02d,%d,%.3f,%.3f" % (
+                    pid, vis, 10 + pid * 0.2 + vis * 0.1,
+                    3 + vis * 0.4 + pid * 0.05))
+        src.write_text("\n".join(rows) + "\n", encoding="utf-8")
+        outs = {}
+        for seed in ("11", "37"):
+            dest = Path(td) / ("d" + seed)
+            dest.mkdir()
+            rc, _ = _cli(["batch", "--src", str(src), "--out",
+                          str(Path(td) / ("r" + seed)),
+                          "--group-by", "person_id",
+                          "--publish", str(dest), "--seed", seed])
+            outs[seed] = (rc, dest)
+        check("a batch run with a forwarded --seed completes",
+              all(rc == 0 for rc, _ in outs.values()))
+        recs = {}
+        for seed, (_, dest) in outs.items():
+            pr = json.loads(
+                (dest / "provenance.json").read_text(
+                    encoding="utf-8"))
+            recs[seed] = str((pr.get("settings") or {}).get("seed"))
+        check("...and the run RECORDS the seed it was forwarded, "
+              "so the setting is not merely accepted: {}"
+              .format(recs),
+              recs.get("11") == "11" and recs.get("37") == "37")
+        a = (outs["11"][1] / "generated.csv").read_bytes()
+        b = (outs["37"][1] / "generated.csv").read_bytes()
+        check("...and the OUTPUT differs between the two, which "
+              "is the only thing that distinguishes a forwarded "
+              "flag from a printed one",
+              a != b)
+
+    # EVERY NEW DOOR ANSWERS --help, which is the recorded
+    # argparse trap: a %-formatted help string raises eagerly on
+    # 3.14 and took down every invocation of a script once.
+    for cmd in ("publish", "cloud-check", "cloud-policy",
+                "batch"):
+        rc, out = _cli([cmd, "--help"])
+        check("`synthkit {} --help` renders and exits 0"
+              .format(cmd), rc == 0 and "usage" in out.lower())
+
     print()
     if FAIL:
         print("{} FAILED".format(FAIL))
         sys.exit(1)
     print("All {} checks passed.".format(PASS))
+
+
+class _Boom(Exception):
+    """A planted provider failure.
+
+    The class NAME and the error CODE are what `diagnose` reads,
+    so both are settable here - which is what lets every cause be
+    exercised with no boto3, no credentials and no account.
+    """
+
+    def __init__(self, msg, code=None, cls=None):
+        super().__init__(msg)
+        if code:
+            self.response = {"Error": {"Code": code}}
+        if cls:
+            self.__class__ = type(cls, (_Boom,), {})
+
+
+class _FakeS3:
+    """A second store implementation, not a mock of boto3.
+
+    A cloud path tested only against a mock is tested against the
+    mock. This behaves like an object store - it keeps bytes, it
+    can be made to fail one operation, and it RECORDS the calls
+    it saw, which is what lets "read-only means read-only" be
+    asserted on behaviour rather than on the report's own say-so.
+    """
+
+    def __init__(self, fail_on=None, corrupt=False,
+                 code="AccessDenied"):
+        self.obj = {}
+        self.fail_on = set(fail_on or ())
+        self.corrupt = corrupt
+        self.code = code
+        self.calls = []
+        self.last_extra = None
+        self.put_bodies = []
+
+    def _maybe(self, op):
+        self.calls.append(op)
+        if op in self.fail_on:
+            raise _Boom("denied on " + op, code=self.code)
+
+    def list_objects_v2(self, **kw):
+        self._maybe("list")
+        return {"KeyCount": 0}
+
+    def put_object(self, Bucket, Key, Body, **extra):
+        self._maybe("put")
+        self.last_extra = extra
+        self.put_bodies.append(Body)
+        self.obj[Key] = Body
+        return {}
+
+    def get_object(self, Bucket, Key):
+        self._maybe("get")
+        body = self.obj[Key]
+        if self.corrupt:
+            body = body + b"x"
+        return {"Body": io.BytesIO(body)}
+
+    def delete_object(self, Bucket, Key):
+        self._maybe("delete")
+        self.obj.pop(Key, None)
+        return {}
+
+    def upload_file(self, local, Bucket, Key, ExtraArgs=None):
+        self._maybe("put")
+        self.last_extra = ExtraArgs or {}
+        data = Path(local).read_bytes()
+        self.put_bodies.append(data)
+        self.obj[Key] = data
+        return {}
+
+
+def _cli(argv):
+    """Run the real CLI in-process and capture what it printed."""
+    import contextlib
+    from synthkit import cli
+    buf = io.StringIO()
+    try:
+        with contextlib.redirect_stdout(buf), \
+                contextlib.redirect_stderr(buf):
+            rc = cli.main(argv)
+    except SystemExit as e:
+        rc = e.code if isinstance(e.code, int) else 1
+    return rc, buf.getvalue()
 
 
 def _refuses(fn, text):

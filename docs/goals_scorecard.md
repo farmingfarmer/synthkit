@@ -1009,9 +1009,46 @@ to a hospital: `synthkit batch`, `synthkit/cloud.py`, a
 `fetch_source` brings a source IN and there is no function that
 sends one anywhere. Only allow-listed artifacts leave; the
 source extract and `key.csv` are both refused by name and the
-list cannot be extended by a flag. **Not run against a live AWS
-account** — that is the next thing it needs, and it is stated in
-the module, the doc and the tool's own output.
+list cannot be extended by a flag.
+
+**Updated 2026-11-23.** The absolute claim is gone, because it
+stopped being true: the 800-patient deliverable's dataset and
+dictionary were uploaded into a real bucket in the dev account,
+which needed `AWS_CA_BUNDLE` because the network intercepts TLS.
+`cloud.STATUS_VERIFIED` and `STATUS_OWED` carry the two lists
+separately, the tool prints them, and `smoke_cloud` asserts
+`docs/AWS.md` says the same — two places stating a deployment's
+status is how they come to disagree. **Still owed: a `batch` fit
+inside the account, under a task role, in the container.** The
+upload that happened was a publish, not a fit, and the
+credentials were a pasted session.
+
+Four gaps closed on our side the same day, each of them a
+capability that existed and could not be reached:
+
+- **`synthkit publish RUNDIR DEST`.** `cloud.publish` was
+  reachable only from `batch` after a fresh fit, so a run
+  already on disk could not be published through the tool at
+  all — and the rename a recipient asked for, which `publish`
+  grew a parameter for, had no path to reach it. `--dry-run`
+  lists what would leave **and what stays**.
+- **`synthkit cloud-check DEST`.** A preflight that names its
+  own cause: missing credentials, an expired session, a denied
+  action, the wrong region, an unreachable endpoint, intercepted
+  TLS, or a bucket policy requiring encryption — which arrives
+  *as* an access-denied and reads like a permissions problem.
+  Read-only by default; the canary write is opt-in, read back
+  byte for byte, and deleted.
+- **`synthkit cloud-policy`.** The least-privilege policy
+  generated from what the code actually does — `s3:GetObject` on
+  one object, `s3:PutObject` on one prefix, `s3:ListBucket`
+  conditioned on it — printed with what it does *not* cover.
+  Handing somebody "write a policy" hands them a guess.
+- **`batch` forwards the fit's own flags.** It could pass only
+  `--group-by` and `--max-rows`, so the one entrypoint a
+  deployment uses could not reproduce the run we ship. A
+  duplicate of an option it owns is refused on the RAW arguments,
+  because argparse silently takes the last one.
 
 Reviewed 2026-11-05 and **one real defect found by reading it**:
 the image set `ENV OMP_NUM_THREADS=1`, which is the TEST-RUN

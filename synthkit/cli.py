@@ -524,6 +524,38 @@ def cmd_batch(args) -> int:
     """
     import tempfile
     from . import cloud
+    fwd = list(getattr(args, "_forward", None) or [])
+    raw = list(getattr(args, "_argv", None) or [])
+
+    def _count(flag):
+        return sum(1 for a in raw
+                   if a == flag or a.startswith(flag + "="))
+
+    # THIS COMMAND'S OWN OPTIONS, GIVEN TWICE, and the one
+    # it sets itself. A duplicate is checked on the RAW
+    # arguments because argparse silently takes the last
+    # one - so the failure mode is not a refusal but a
+    # run that used a source nobody meant.
+    clash = sorted(f for f in ("--src", "--out",
+                               "--group-by", "--max-rows")
+                   if _count(f) > 1)
+    clash += [f for f in ("--generate",) if _count(f)]
+    clash += sorted(f.split("=")[0] for f in fwd
+                    if f.split("=")[0] in (
+                        "--src", "--out", "--group-by",
+                        "--max-rows", "--generate"))
+    clash = sorted(set(clash))
+    if clash:
+        print("STOPPED: {} {} this command's own, and "
+              "giving {} again would silently take the "
+              "last one - a run that used a source "
+              "nobody meant is the worst kind of "
+              "success".format(
+                  ", ".join(clash),
+                  "is" if len(clash) == 1 else "are",
+                  "it" if len(clash) == 1 else "them"),
+              file=sys.stderr)
+        return 2
     print("SYNTHKIT BATCH")
     for line in cloud.describe():
         print("  {}".format(line))
@@ -537,6 +569,16 @@ def cmd_batch(args) -> int:
                 "pulled into the compute"
                 if cloud.is_s3(args.src) else "read in place"))
             if args.dry_run:
+                # THE SETTINGS ARE PART OF THE PREVIEW. A dry run
+                # that shows what would LEAVE and not what the
+                # fit would be GIVEN lets a reviewer approve a
+                # transfer and miss the dials.
+                if fwd:
+                    print("  the fit WOULD be given: {}"
+                          .format(" ".join(fwd)))
+                else:
+                    print("  the fit WOULD be given no extra "
+                          "settings - this command's defaults")
                 print("  DRY RUN - the fit was not started. "
                       "What WOULD be published from {}: {}"
                       .format(work, ", ".join(cloud.ALLOWED)))
@@ -548,7 +590,25 @@ def cmd_batch(args) -> int:
                     "--generate"]
             if args.max_rows:
                 argv += ["--max-rows", str(args.max_rows)]
-            rc = _fit(argv)
+            # THE FIT'S OWN FLAGS ARE FORWARDED, NOT RE-DECLARED.
+            #
+            # This command could only pass --group-by and
+            # --max-rows, so the one entrypoint a deployment uses
+            # could not reproduce the run we actually ship - the
+            # deliverable is made with --revalue-copied at seed
+            # 11, and neither was reachable here. Enumerating
+            # them would be a hand-kept list that goes stale the
+            # day somebody adds a dial, which this project has
+            # already paid for once.
+            #
+            # A forwarded flag that THIS command already controls
+            # is refused BY NAME rather than winning or losing
+            # silently, and what was forwarded is PRINTED, so a
+            # run says what it was given.
+            if fwd:
+                print("  forwarding to the fit: {}"
+                      .format(" ".join(fwd)))
+            rc = _fit(argv + fwd)
             if rc:
                 print("STOPPED: the fit exited {} - nothing "
                       "is published from a run that did not "
@@ -563,7 +623,9 @@ def cmd_batch(args) -> int:
               "the artifacts somewhere")
         return 0
     try:
-        wrote = cloud.publish(work, args.publish)
+        wrote = cloud.publish(work, args.publish,
+                              sse=getattr(args, "sse", ""),
+                              kms_key=getattr(args, "kms_key", ""))
     except cloud.CloudRefusal as e:
         print("STOPPED: {}".format(e), file=sys.stderr)
         return 2
@@ -571,6 +633,179 @@ def cmd_batch(args) -> int:
     print("  published {} artifact(s):".format(len(wrote)))
     for w in wrote:
         print("    {}".format(w))
+    return 0
+
+
+def _as_name_map(pairs):
+    """OLD=NEW pairs, or a refusal naming the bad one."""
+    out = {}
+    for item in pairs or []:
+        if "=" not in item:
+            raise ValueError(
+                "{!r} is not OLD=NEW - say which file is being "
+                "renamed and to what".format(item))
+        old, new = item.split("=", 1)
+        old, new = old.strip(), new.strip()
+        if not old or not new:
+            raise ValueError(
+                "{!r} has an empty side - both the file and its "
+                "new name are needed".format(item))
+        if "/" in new or "\\" in new:
+            raise ValueError(
+                "{!r} names a path rather than a filename - the "
+                "destination prefix comes from the URI".format(new))
+        out[old] = new
+    return out
+
+
+def cmd_publish(args) -> int:
+    """Publish an EXISTING run's artifacts, and nothing else.
+
+    WHY THIS EXISTS. `cloud.publish` was reachable only from
+    `batch`, after a fresh fit - so a run already on disk could
+    not be published through the tool at all, and the rename a
+    recipient asked for, which `publish` grew a parameter for,
+    had no path to reach it. A capability wired to nothing is
+    this project's most repeated fault; this is that fault in the
+    one module whose whole job is to be the way data leaves.
+
+    The allow-list, the all-or-nothing refusal and the rename
+    rule are unchanged - this adds a door, not an exception.
+    """
+    from . import cloud
+    print("SYNTHKIT PUBLISH")
+    for line in cloud.describe():
+        print("  {}".format(line))
+    print("")
+    try:
+        ren = _as_name_map(getattr(args, "as_name", None))
+    except ValueError as e:
+        print("STOPPED: {}".format(e), file=sys.stderr)
+        return 2
+    only = list(args.only) if args.only else None
+    run = Path(args.rundir)
+    if not run.is_dir():
+        print("STOPPED: {} is not a directory".format(run),
+              file=sys.stderr)
+        return 2
+    names = only or [q.name for q in sorted(run.iterdir())
+                     if q.is_file() and q.name in cloud.ALLOWED]
+    if args.dry_run:
+        try:
+            cloud.refuse_unless_allowed(names)
+        except cloud.CloudRefusal as e:
+            print("STOPPED: {}".format(e), file=sys.stderr)
+            return 2
+        if not names:
+            print("STOPPED: nothing in {} is on the allow-list"
+                  .format(run), file=sys.stderr)
+            return 2
+        print("  DRY RUN - nothing was sent. What WOULD leave "
+              "{}:".format(run))
+        for n in names:
+            dest = ren.get(n, n)
+            print("    {}{}".format(
+                n, "  ->  " + dest if dest != n else ""))
+        held = sorted(q.name for q in run.iterdir()
+                      if q.is_file() and q.name not in names)
+        if held:
+            print("  and what STAYS: {}".format(", ".join(held)))
+        return 0
+    try:
+        wrote = cloud.publish(run, args.dest, only=only,
+                             as_name=ren or None,
+                             sse=args.sse, kms_key=args.kms_key)
+    except cloud.CloudRefusal as e:
+        print("STOPPED: {}".format(e), file=sys.stderr)
+        return 2
+    except Exception as e:  # noqa: BLE001
+        cause = cloud.diagnose(e)
+        print("STOPPED: {}".format(cloud.CAUSE_TEXT[cause]),
+              file=sys.stderr)
+        print("  the error, verbatim: {}".format(e),
+              file=sys.stderr)
+        return 2
+    print("  published {} artifact(s):".format(len(wrote)))
+    for w in wrote:
+        print("    {}".format(w))
+    return 0
+
+
+def cmd_cloud_check(args) -> int:
+    """Prove the destination works before a fit spends an hour.
+
+    A FAILURE HERE IS CHEAP AND A FAILURE AFTER THE FIT IS NOT.
+    Every step names its own cause and the remedy in the same
+    sentence - the deliverable's own upload failed on TLS
+    interception, whose raw error names a certificate rather than
+    the variable to set, and that cost a round trip to the
+    machine that holds the data.
+
+    Read-only by default: writing an object into somebody's
+    bucket is an outward action.
+    """
+    from . import cloud
+    print("SYNTHKIT CLOUD-CHECK")
+    print("  destination: {}".format(args.dest))
+    print("")
+    try:
+        rep = cloud.preflight(args.dest, sse=args.sse,
+                              kms_key=args.kms_key,
+                              allow_write=args.write)
+    except cloud.CloudRefusal as e:
+        print("STOPPED: {}".format(e), file=sys.stderr)
+        return 2
+    for st in rep["steps"]:
+        mark = ("ok  " if st["ok"] is True
+                else ("FAIL" if st["ok"] is False else "--  "))
+        print("  {}  {}".format(mark, st["step"]))
+        print("        {}".format(st["detail"]))
+    print("")
+    if rep["ok"]:
+        if rep.get("local"):
+            note = " - a local destination needs no credentials"
+        elif rep["wrote"]:
+            note = ""
+        else:
+            note = (" as far as a read-only check can say - the "
+                    "write test was skipped")
+        print("  READY{}".format(note))
+        return 0
+    print("  NOT READY - the first failing step above names the "
+          "cause and what to do about it")
+    return 1
+
+
+def cmd_cloud_policy(args) -> int:
+    """The least-privilege policy this tool needs, generated.
+
+    `docs/AWS.md` says the task role is the account owner's to
+    write, and that is still true - but handing somebody "write a
+    policy" hands them a guess. The ACTIONS are a property of
+    this code, so they are read off it rather than remembered.
+    """
+    import json
+    from . import cloud
+    if not args.src and not args.publish:
+        print("STOPPED: give --src, --publish or both - a policy "
+              "over nothing is not a policy", file=sys.stderr)
+        return 2
+    pol = cloud.iam_policy(args.src, args.publish)
+    if not pol["Statement"]:
+        print("STOPPED: neither {!r} nor {!r} is an s3:// URI, so "
+              "there is no S3 permission to grant"
+              .format(args.src, args.publish), file=sys.stderr)
+        return 2
+    text = json.dumps(pol, indent=2)
+    if args.out:
+        Path(args.out).write_text(text + "\n", encoding="utf-8")
+        print("wrote {}".format(args.out))
+    else:
+        print(text)
+    print("")
+    print("WHAT THIS DOES NOT COVER:")
+    for line in cloud.policy_notes():
+        print("  - {}".format(line))
     return 0
 
 
@@ -2332,7 +2567,65 @@ def main(argv=None) -> int:
                    help="say what WOULD leave and stop. A "
                         "transfer nobody previewed is one "
                         "nobody can object to.")
+    p.add_argument("--sse", default="",
+                   help="server-side encryption to ask for: "
+                        "AES256 or aws:kms. A bucket whose policy "
+                        "REQUIRES it rejects a plain put with an "
+                        "access-denied that reads like a "
+                        "permissions problem.")
+    p.add_argument("--sse-kms-key-id", dest="kms_key", default="",
+                   help="the KMS key, with --sse aws:kms")
     p.set_defaults(fn=cmd_batch)
+
+    p = sub.add_parser("publish",
+                       help="publish an EXISTING run's "
+                            "allow-listed artifacts to a local "
+                            "directory or an s3:// prefix")
+    p.add_argument("rundir")
+    p.add_argument("dest",
+                   help="a local directory or an s3:// prefix")
+    p.add_argument("--only", action="append", default=[],
+                   help="publish just these files, repeatable. "
+                        "Each must still be on the allow-list.")
+    p.add_argument("--as-name", action="append", default=[],
+                   dest="as_name", metavar="OLD=NEW",
+                   help="rename on the way out, repeatable. The "
+                        "allow-list check runs on the SOURCE "
+                        "name, so renaming a refused file does "
+                        "not help.")
+    p.add_argument("--sse", default="",
+                   help="AES256 or aws:kms")
+    p.add_argument("--sse-kms-key-id", dest="kms_key", default="")
+    p.add_argument("--dry-run", action="store_true",
+                   help="say what WOULD leave, and what stays, "
+                        "then stop")
+    p.set_defaults(fn=cmd_publish)
+
+    p = sub.add_parser("cloud-check",
+                       help="preflight a destination: "
+                            "credentials, reachability, "
+                            "encryption, and optionally a "
+                            "canary write that is deleted")
+    p.add_argument("dest")
+    p.add_argument("--write", action="store_true",
+                   help="also put, read back and delete a tiny "
+                        "canary object. OFF by default, because "
+                        "writing into somebody's bucket is an "
+                        "outward action.")
+    p.add_argument("--sse", default="")
+    p.add_argument("--sse-kms-key-id", dest="kms_key", default="")
+    p.set_defaults(fn=cmd_cloud_check)
+
+    p = sub.add_parser("cloud-policy",
+                       help="print the least-privilege IAM "
+                            "policy THIS TOOL needs, derived "
+                            "from what it actually does")
+    p.add_argument("--src", default="",
+                   help="the s3:// URI of the extract it reads")
+    p.add_argument("--publish", default="",
+                   help="the s3:// prefix it writes artifacts to")
+    p.add_argument("-o", "--out", default="")
+    p.set_defaults(fn=cmd_cloud_policy)
 
     p = sub.add_parser("schema",
                        help="read several tables, find the keys "
@@ -2535,7 +2828,25 @@ def main(argv=None) -> int:
     p.add_argument("-o", "--out", required=True)
     p.set_defaults(fn=cmd_codemap)
 
-    args = ap.parse_args(argv)
+    # `batch` FORWARDS what it does not recognise to the fit, so
+    # a deployment can set the dials the deliverable was made
+    # with instead of being stuck on this command's defaults.
+    # Every other subcommand keeps argparse's refusal of an
+    # unknown flag - a command that silently accepts a typo is
+    # the silent-no-op fault, and this project has it on record
+    # more than once.
+    known = list(argv) if argv is not None else sys.argv[1:]
+    if known[:1] == ["batch"]:
+        args, extra = ap.parse_known_args(argv)
+        setattr(args, "_forward", extra)
+        # THE RAW ARGUMENTS TOO. `parse_known_args` CONSUMES a
+        # second `--src`, last one winning, so a duplicate never
+        # reaches the forwarded list and a clash check built on
+        # that list cannot fire. Found by the check going red
+        # against what I had claimed it protected.
+        setattr(args, "_argv", known[1:])
+    else:
+        args = ap.parse_args(argv)
     return args.fn(args)
 
 
