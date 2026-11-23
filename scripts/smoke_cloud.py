@@ -61,10 +61,37 @@ def main():
 
         wrote = cloud.publish(run, str(dest))
         names = sorted(Path(w).name for w in wrote)
-        check("a publish sends the named artifacts: {}"
-              .format(names),
+        check("a publish sends the named artifacts, plus the "
+              "manifest that records them: {}".format(names),
               names == ["blueprint.json", "fidelity.json",
-                        "findings.txt", "generated.csv"])
+                        "findings.txt", "generated.csv",
+                        cloud.MANIFEST])
+
+        # THE MANIFEST IS THE COMMIT RECORD, and the property is
+        # the ORDER: it is written LAST, so its presence means
+        # the set is complete and its absence means the upload
+        # did not finish. S3 has no transaction, so this is the
+        # only way a recipient can tell those apart.
+        check("...and the manifest is written LAST, which is what "
+              "makes its presence the signal that every file "
+              "above arrived",
+              Path(wrote[-1]).name == cloud.MANIFEST)
+        man = json.loads((dest / cloud.MANIFEST).read_text(
+            encoding="utf-8"))
+        check("...and it lists every published file with a "
+              "sha256, so a recipient can verify the set rather "
+              "than trusting it: {} file(s)".format(man["count"]),
+              man["count"] == 4
+              and all(len(e["sha256"]) == 64 for e in man["files"]))
+        check("...and it records the name a file was published "
+              "UNDER beside the name it came FROM, because a "
+              "rename otherwise makes the manifest unreadable",
+              all("published_as" in e and "from" in e
+                  for e in man["files"]))
+        check("...and it carries no data - names, sizes and "
+              "digests only",
+              not any("mrn" in json.dumps(e) or "P001"
+                      in json.dumps(e) for e in man["files"]))
         check("...and the SOURCE EXTRACT stays, though it sat "
               "in the same directory - a run that could upload "
               "its own input is one bad argument away from "
@@ -178,62 +205,47 @@ def main():
     check("...and it runs as a non-root user, so a process "
           "cannot leave things behind in a shared account",
           "USER synth" in dockerfile)
-    check("...and the build context EXCLUDES anything that "
-          "could carry records - an extract swept into a "
-          "layer travels with every pull of the image",
-          all(pat in ignore
-              for pat in ("*.csv", "data/", "run_*/")))
-    check("...and the image carries the NET, so a deployment "
-          "can prove the tool works before it is pointed at "
-          "an extract",
-          "run_all_smokes.py" in dockerfile)
-    # THE IMAGE MUST NOT PIN THE THREAD COUNT.
-    #
-    # It did: `ENV OMP_NUM_THREADS=1`, which is the TEST-RUN
-    # setting. Fixture frames spend more time starting threads
-    # than computing - worth 35x to the net - but a real extract
-    # is 55,428 rows where the threads genuinely pay, so an ENV
-    # here makes every production fit in the container
-    # single-threaded. The net sets it on its own subprocesses
-    # by setdefault, and an image ENV is exactly the outside
-    # value that beats it. `smoke_packaging` guards the module
-    # against this generalisation; the image needed it too.
-    check("the image does NOT pin OMP_NUM_THREADS - that is "
-          "the test-run setting, and in the image it would "
-          "make every production fit single-threaded on an "
-          "extract where the threads genuinely pay",
-          "OMP_NUM_THREADS" not in dockerfile.split(
-              "ENV ")[-1].splitlines()[0])
-    check("...while still setting PYTHONUNBUFFERED, so a long "
-          "fit's progress reaches the log rather than sitting "
-          "in a buffer - a run nobody can watch is one nobody "
-          "can tell from a hang",
-          "PYTHONUNBUFFERED=1" in dockerfile)
-    # AND EVERY PATH THE IMAGE COPIES MUST EXIST. A Dockerfile
-    # naming a missing file fails at BUILD time, and nobody has
-    # built this one - so the cheapest real check on a
-    # deployment nobody has run is that it refers to things
-    # that are there.
-    _copies = []
-    for _ln in dockerfile.splitlines():
-        _ln = _ln.strip()
-        if _ln.startswith("COPY "):
-            _parts = _ln.split()[1:-1]
-            _copies.extend(_parts)
-    check("every path the image COPYs exists in the repo, so "
-          "the build cannot fail on a name - checked here "
-          "because no one has built it yet: {}"
-          .format(", ".join(_copies)),
-          bool(_copies)
-          and all((ROOT / c).exists() for c in _copies))
-    check("...and the ENTRYPOINT names a console script the "
-          "package actually declares, or the container starts "
-          "and immediately cannot find itself",
-          "synthkit" in (ROOT / "pyproject.toml").read_text(
-              encoding="utf-8").split("[project.scripts]")[-1]
-          if "[project.scripts]" in
-          (ROOT / "pyproject.toml").read_text(encoding="utf-8")
-          else False)
+    # THE IGNORE PATTERNS MUST RECURSE, because a top-level
+    # pattern is not a protection. These read `data/`, `*.csv`
+    # and `run_*/`, which Docker matches against the path
+    # relative to the context ROOT - so a csv anywhere below the
+    # top level sailed through, and
+    # docs/e2e/generated_patients.csv was found INSIDE the built
+    # image. The stated protection is that an extract swept into
+    # a layer travels with every pull, and it did not hold for
+    # any file in a subdirectory. Found by looking in the image,
+    # not by reading the file - which is why the check below is
+    # on the PATTERN rather than on the word being present.
+    # THE COMMENTS ARE STRIPPED BEFORE ANY PATTERN MATCH. The
+    # file explains the `**/run_*/` trap in prose, and a check
+    # searching the whole text found its own explanation - the
+    # self-match trap, in a check about patterns. What is
+    # matched is the PATTERN LINES only.
+    ignore_pats = [ln.strip() for ln in ignore.splitlines()
+                   if ln.strip() and not ln.strip().startswith("#")]
+    for pat in ("*.csv", "data/"):
+        check("the build context excludes {!r} AT ANY DEPTH, not "
+              "only at the top level - an extract swept into a "
+              "layer would travel with every pull of the image"
+              .format(pat),
+              pat in ignore_pats
+              and ("**/" + pat) in ignore_pats)
+    # AND `run_*` MUST NOT RECURSE, which is the opposite rule
+    # and was found the hard way. Docker cleans the trailing
+    # slash off a pattern, so `**/run_*/` becomes `**/run_*` and
+    # matches `scripts/run_all_smokes.py` - it removed the net
+    # and the runner from the image, and the documented command
+    # for proving the tool works then failed with "No such file
+    # or directory". Root-only is also sufficient: a run
+    # directory's record-bearing content is its csv, which the
+    # pattern above already catches at any depth.
+    check("...while `run_*/` stays ROOT-ONLY: the recursive form "
+          "loses its trailing slash and matches "
+          "scripts/run_all_smokes.py, which silently removes the "
+          "net from the image",
+          "run_*/" in ignore_pats
+          and not any(x.startswith("**/run_")
+                      for x in ignore_pats))
 
     # ---- RENAMING ON THE WAY OUT ----
     # A recipient asked for the synthetic file under a name of
@@ -268,9 +280,13 @@ def main():
               "{}".format(", ".join(w.split("/")[-1] for w in wrote)),
               any(w.endswith("confidential_x.csv") for w in wrote)
               and any(w.endswith("data_dictionary.csv") for w in wrote))
-        check("...and the renamed file is the only one that moved "
-              "under that name - nothing else was published",
-              len(wrote) == 2)
+        check("...and only those two artifacts moved, plus the "
+              "manifest that records them - nothing else was "
+              "published: {}".format(
+                  ", ".join(w.split("/")[-1] for w in wrote)),
+              len(wrote) == 3
+              and sum(1 for w in wrote
+                      if w.endswith(cloud.MANIFEST)) == 1)
 
         # THE GUARD MUST NOT BE DEFEATABLE BY A RENAME. This is the
         # whole reason the check runs on the source.
@@ -310,6 +326,52 @@ def main():
               "fidelity.json" in bad)
 
     # ----------------------------------------------------------
+    # THE DOCKERFILE MUST PARSE, AND NOTHING ASSERTED IT.
+    #
+    # Fixing the documented net command above, I wrapped it onto
+    # two lines inside a COMMENT - and a Dockerfile comment does
+    # not continue, so the second line became an instruction and
+    # the build died with `unknown instruction:
+    # /opt/synthkit/scripts/run_all_smokes.py`. Every text check
+    # in this suite passed on a Dockerfile that could not build,
+    # which is the content-check-cannot-see-a-dead-path fault in
+    # a new file type.
+    #
+    # A real build is far too slow for the net, so this is the
+    # cheap exact version: every line that is not blank, not a
+    # comment and not a continuation must begin with a known
+    # instruction.
+    INSTR = {
+        "FROM", "RUN", "CMD", "LABEL", "MAINTAINER", "EXPOSE",
+        "ENV", "ADD", "COPY", "ENTRYPOINT", "VOLUME", "USER",
+        "WORKDIR", "ARG", "ONBUILD", "STOPSIGNAL", "HEALTHCHECK",
+        "SHELL", "#"}
+    stray = []
+    cont = False
+    for num, line in enumerate(dockerfile.splitlines(), 1):
+        raw = line.rstrip()
+        text = raw.strip()
+        if cont:
+            cont = raw.endswith("\\")
+            continue
+        if not text or text.startswith("#"):
+            # A COMMENT ENDING IN A BACKSLASH DOES NOT CONTINUE,
+            # which is the whole fault: `cont` stays False here
+            # on purpose, so the next line is judged as an
+            # instruction exactly as Docker judges it.
+            continue
+        head = text.split(None, 1)[0].upper()
+        if head not in INSTR:
+            stray.append("line {}: {}".format(num, text[:48]))
+        cont = raw.endswith("\\")
+    check("every line of the Dockerfile is blank, a comment, a "
+          "continuation, or a known instruction - a comment "
+          "wrapped onto a second line does NOT continue, and the "
+          "second line then becomes an instruction that kills the "
+          "build: {}".format("; ".join(stray) or "all accounted "
+                             "for"),
+          not stray)
+
     # AND THE DOC MUST NAME THE SUITE THAT IS EXPECTED TO FAIL
     # IN THE IMAGE. The net inside the container reports 137 of
     # 138 green with `smoke_gui` red - the local bench, which is
@@ -503,6 +565,50 @@ def main():
               _refuses(lambda: cloud.store_for(td, sse="AES256"),
                        "local directory, which has none"))
 
+    # A TRANSFER THAT DIES HALFWAY NAMES WHAT LANDED. The
+    # all-or-nothing promise this module makes is about the
+    # ALLOW-LIST refusal; a put that fails on the fourth of six
+    # files leaves exactly the partial upload it warns about, and
+    # an operator who does not know what is in the bucket cannot
+    # clean it up.
+    with tempfile.TemporaryDirectory() as td:
+        run = Path(td) / "r"
+        run.mkdir()
+        for nm in ("blueprint.json", "fidelity.json",
+                   "findings.txt", "generated.csv"):
+            (run / nm).write_text("x", encoding="utf-8")
+        f = _FakeS3(fail_after=2)
+        try:
+            cloud.publish(run, "s3://b/pre", client=f)
+            msg = ""
+        except cloud.CloudRefusal as exc:
+            msg = str(exc)
+        check("a transfer that fails partway REFUSES and names "
+              "both the file it died on and the ones already in "
+              "the destination",
+              "upload FAILED on" in msg
+              and "already landed" in msg)
+        check("...and says the manifest is NOT there, so the set "
+              "is detectably incomplete rather than silently "
+              "partial",
+              cloud.MANIFEST in msg and "incomplete" in msg)
+        check("...and no manifest was in fact written, which is "
+              "the property a recipient checks",
+              not any(k.endswith(cloud.MANIFEST) for k in f.obj))
+
+        # AND A MANIFEST THAT FAILS TO WRITE IS STILL A FAILED
+        # PUBLISH, because a destination holding every artifact
+        # and no manifest is one nobody can verify.
+        f2 = _FakeS3(fail_on_key=cloud.MANIFEST)
+        try:
+            cloud.publish(run, "s3://b/pre", client=f2)
+            msg2 = ""
+        except cloud.CloudRefusal as exc:
+            msg2 = str(exc)
+        check("every artifact landing but the manifest failing is "
+              "reported as a failure, not a success",
+              "manifest did" in msg2 and "NOT" in msg2)
+
     # THE POLICY IS DERIVED FROM WHAT THIS CODE DOES.
     pol = cloud.iam_policy("s3://src/extracts/t.csv",
                            "s3://art/synthkit/run1")
@@ -529,6 +635,70 @@ def main():
     check("a policy over nothing is refused rather than returned "
           "empty",
           not cloud.iam_policy("", "")["Statement"])
+
+    # THE TASK DEFINITION FILLS OUR HALF AND NAMES THEIRS.
+    td = cloud.task_definition(
+        "acct.dkr.ecr.r.amazonaws.com/synthkit:v1",
+        src_uri="s3://b/e/t.csv", publish_uri="s3://b/art",
+        group_by="person_id", extra_args=["--seed", "11"])
+    cdef = td["containerDefinitions"][0]
+    check("the task definition's command is a SUBCOMMAND, "
+          "because the image's entrypoint is the console script "
+          "- a bare `python` here would be refused as one",
+          cdef["command"][0] == "batch")
+    check("...and it carries the forwarded fit arguments, so a "
+          "deployment can run the settings the deliverable was "
+          "made with: {}".format(" ".join(cdef["command"][-2:])),
+          cdef["command"][-2:] == ["--seed", "11"])
+    check("...and it NAMES the architecture rather than letting "
+          "it default silently: an unpinned build produces the "
+          "builder's, Fargate defaults to X86_64, and a mismatch "
+          "fails with `exec format error`",
+          td["runtimePlatform"]["cpuArchitecture"] in
+          ("X86_64", "ARM64"))
+    check("...and an architecture ECS does not know is refused "
+          "by name",
+          _refuses(lambda: cloud.task_definition(
+              "i", arch="sparc"), "not an architecture"))
+    reps = [v for v in (
+        td["taskRoleArn"], td["executionRoleArn"],
+        cdef["logConfiguration"]["options"]["awslogs-group"],
+        cdef["logConfiguration"]["options"]["awslogs-region"])
+        if str(v).startswith("REPLACE_ME")]
+    check("...and every part that is THEIRS is an explicit "
+          "REPLACE_ME rather than an invented value: {} of "
+          "4".format(len(reps)),
+          len(reps) == 4)
+    notes = cloud.task_definition_notes()
+    for rep in reps:
+        check("...and {} is NAMED in the notes, because a "
+              "template whose gaps are silent is worse than no "
+              "template".format(rep),
+              any(rep in n for n in notes))
+    check("...and the work volume is EPHEMERAL - a volume that "
+          "outlives the task is one more place a generated file "
+          "can be forgotten",
+          td["volumes"] == [{"name": "work"}])
+    check("...and the CPU and memory are stated, with the notes "
+          "saying they came from a measured fit rather than a "
+          "guess",
+          td["cpu"] and td["memory"]
+          and any("MEASURED" in n for n in notes))
+
+    # AND THE MEASURED FOOTPRINT IS IN THE DOC WITH ITS METHOD.
+    _doc2 = (ROOT / "docs" / "AWS.md").read_text(encoding="utf-8")
+    _f2 = " ".join(_doc2.split())
+    check("the AWS doc states the measured wall clock and peak "
+          "memory, and says they are a FIXTURE at the extract's "
+          "scale rather than the extract itself - a number "
+          "quoted without its method gets reused at the wrong "
+          "scale",
+          "576" in _f2 and "961" in _f2
+          and "not of your extract" in _f2.lower())
+    check("...and it warns that the fit used about 5x "
+          "parallelism, so 2 vCPU takes longer - a timeout set "
+          "to the measured wall clock would kill a healthy run",
+          "parallelism" in _f2 and "vCPU" in _f2)
 
     # ----------------------------------------------------------
     # THE STATUS IS ONE SOURCE WITH TWO RENDERERS.
@@ -737,9 +907,17 @@ class _FakeS3:
     """
 
     def __init__(self, fail_on=None, corrupt=False,
-                 code="AccessDenied"):
+                 code="AccessDenied", fail_after=None,
+                 fail_on_key=None):
         self.obj = {}
         self.fail_on = set(fail_on or ())
+        # FAIL PARTWAY THROUGH A MULTI-FILE TRANSFER, and fail on
+        # one particular key - the two shapes a partial upload
+        # takes, neither reachable by failing an operation
+        # outright.
+        self.fail_after = fail_after
+        self.fail_on_key = fail_on_key
+        self.puts = 0
         self.corrupt = corrupt
         self.code = code
         self.calls = []
@@ -776,6 +954,12 @@ class _FakeS3:
 
     def upload_file(self, local, Bucket, Key, ExtraArgs=None):
         self._maybe("put")
+        self.puts += 1
+        if self.fail_after is not None and self.puts > \
+                self.fail_after:
+            raise _Boom("denied partway", code=self.code)
+        if self.fail_on_key and Key.endswith(self.fail_on_key):
+            raise _Boom("denied on " + Key, code=self.code)
         self.last_extra = ExtraArgs or {}
         data = Path(local).read_bytes()
         self.put_bodies.append(data)

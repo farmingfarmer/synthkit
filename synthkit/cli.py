@@ -809,6 +809,43 @@ def cmd_cloud_policy(args) -> int:
     return 0
 
 
+def cmd_cloud_task(args) -> int:
+    """An ECS task definition with our half filled in.
+
+    The account owner still writes the role ARNs, the log group
+    and the network - those are theirs. What they would be
+    guessing at is ours: the image, the entrypoint, the command,
+    the architecture, and above all the CPU and memory, which
+    nobody can know without measuring a fit. Their half is left
+    as explicit placeholders and every one is listed underneath,
+    because a template whose gaps are silent is worse than no
+    template.
+    """
+    import json
+    from . import cloud
+    try:
+        td = cloud.task_definition(
+            args.image, src_uri=args.src,
+            publish_uri=args.publish, group_by=args.group_by,
+            cpu=args.cpu, memory=args.memory, arch=args.arch,
+            extra_args=list(getattr(args, "fit_arg", None) or []))
+    except cloud.CloudRefusal as e:
+        print("STOPPED: {}".format(e), file=sys.stderr)
+        return 2
+    text = json.dumps(td, indent=2)
+    if args.out:
+        Path(args.out).write_text(text + "\n", encoding="utf-8")
+        print("wrote {}".format(args.out))
+    else:
+        print(text)
+    print("")
+    print("WHAT YOU STILL HAVE TO FILL IN, AND WHAT THIS DOES "
+          "NOT SET:")
+    for line in cloud.task_definition_notes():
+        print("  - {}".format(line))
+    return 0
+
+
 def cmd_receipts(args) -> int:
     """One receipt per published claim, from a run's artifacts.
 
@@ -2626,6 +2663,37 @@ def main(argv=None) -> int:
                    help="the s3:// prefix it writes artifacts to")
     p.add_argument("-o", "--out", default="")
     p.set_defaults(fn=cmd_cloud_policy)
+
+    p = sub.add_parser("cloud-task",
+                       help="print an ECS task definition with "
+                            "the half that is ours filled in and "
+                            "the half that is yours named")
+    p.add_argument("--image", required=True,
+                   help="the image URI you pushed")
+    p.add_argument("--src", default="",
+                   help="the s3:// URI of the extract")
+    p.add_argument("--publish", default="",
+                   help="the s3:// prefix for the artifacts")
+    p.add_argument("--group-by", default="person_id")
+    p.add_argument("--cpu", default="2048",
+                   help="Fargate CPU units. The default comes "
+                        "from a measured fit - see docs/AWS.md")
+    p.add_argument("--memory", default="8192",
+                   help="Fargate memory in MiB, likewise "
+                        "measured rather than guessed")
+    p.add_argument("--arch", default="X86_64",
+                   choices=("X86_64", "ARM64"),
+                   help="must MATCH the image you pushed. An "
+                        "unpinned build produces the builder's "
+                        "architecture and Fargate defaults to "
+                        "X86_64; a mismatch fails with `exec "
+                        "format error`")
+    p.add_argument("--fit-arg", action="append", default=[],
+                   help="an extra argument for the fit, "
+                        "repeatable - e.g. --fit-arg --seed "
+                        "--fit-arg 11")
+    p.add_argument("-o", "--out", default="")
+    p.set_defaults(fn=cmd_cloud_task)
 
     p = sub.add_parser("schema",
                        help="read several tables, find the keys "

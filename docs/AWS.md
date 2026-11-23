@@ -25,6 +25,15 @@ disagree.
   in, six allow-listed artifacts out, the source not among them,
   with a forwarded --seed reaching the fit. What that does NOT
   establish is the account - see the owed list.
+- Both architectures build and run: linux/amd64 and linux/arm64. An
+  unpinned build gives the BUILDER's, and Fargate defaults to
+  X86_64, so the task definition names it rather than inheriting it.
+- The build context excludes csv and data at ANY depth, verified by
+  scanning the built image rather than by reading .dockerignore - a
+  csv was found inside it until today.
+- A fit at the extract's scale was MEASURED: 576 s and 961 MB peak
+  on 55,200 rows and 107 searched columns, which is where the task's
+  cpu and memory defaults come from.
 
 **Still owed.**
 
@@ -187,10 +196,42 @@ than the one that runs — pandas 3 turned a `FutureWarning` into
 a `TypeError`, and 3.14 turned a latent help-string bug into a
 crash on every invocation.
 
+**The architecture is a choice, and it is not ours to inherit
+from whoever builds.** An unpinned `docker build` produces an
+image for the *builder's* architecture — this one is built on an
+arm64 laptop, so a plain build gives `linux/arm64`, and ECS
+Fargate defaults to `X86_64` unless the task definition sets
+`runtimePlatform.cpuArchitecture: ARM64`. A mismatch fails with
+`exec format error`, which reads as a broken image rather than a
+wrong platform. Measured today: **both targets build and run**.
+
+```
+docker buildx build --platform linux/amd64 -t synthkit:amd64 --load .
+docker buildx build --platform linux/arm64 -t synthkit:arm64 --load .
+```
+
+So the ask is one line in the task definition, not a code
+change: **tell us which architecture the task will run, or set
+`runtimePlatform` to match the image you push.** This project has
+twice been bitten by testing against a different interpreter than
+the one that runs; this is the same class one layer down.
+
 It runs as a non-root user, and `.dockerignore` excludes
-`*.csv`, `data/` and `run_*/`: an extract swept into a layer
-would travel with every pull of the image, which is the worst
-possible way for a record to leave an account.
+`*.csv` and `data/` **at any depth**, plus `run_*/` at the root:
+an extract swept into a layer would travel with every pull of the
+image, which is the worst possible way for a record to leave an
+account.
+
+Those patterns were top-level only until today, and
+`docs/e2e/generated_patients.csv` was found **inside the built
+image** — the stated protection did not hold for any file in a
+subdirectory. Found by looking in the image, not by reading the
+file. The recursive form of `run_*/` is a trap and is
+deliberately absent: Docker strips the trailing slash, so
+`**/run_*/` becomes `**/run_*` and matches
+`scripts/run_all_smokes.py`, which silently removed the net and
+the runner from the image. Root-only is sufficient anyway,
+because a run directory's record-bearing content is its CSV.
 
 The net ships inside the image, so a deployment can prove the
 tool works **before** it is pointed at an extract. The
@@ -215,6 +256,58 @@ can be graded on the same exam".** Anything else failing is a
 real finding. Saying so here because a deployer told to prove the
 tool works, who then sees a red suite, will reasonably conclude
 the opposite.
+
+---
+
+## How big a task, and how long a timeout
+
+Nobody here could answer this before today, and it is the second
+question an infrastructure review asks. **Measured** on a
+fixture built to the extract's own scale — 55,200 rows, a
+900-code condition vocabulary, four set columns, two dates, the
+vitals and counts — which expands to **107 searched columns**:
+
+| | measured |
+|---|---|
+| wall clock | **576 s** (9.6 min) |
+| peak resident memory | **961 MB** |
+| CPU consumed | 1,052 s user + 1,921 s system |
+
+Read the last row before sizing the task. The fit used about
+**5× parallelism**, so on 2 vCPU the same work takes roughly
+three to five times the wall clock — call it **30–50 minutes**,
+and set the task timeout well above that rather than at it.
+
+The defaults `synthkit cloud-task` emits are **2048 CPU units
+and 8192 MiB**: twice the measured peak, because the real
+extract is wider than this fixture — 44 columns and a
+1,827-token published vocabulary — and this project has once
+died allocating 1.5 GiB inside a single step. 4 GB would
+probably hold and has not been measured; 8 GB has headroom and
+costs pennies for a ten-minute task.
+
+**What this is not.** It is a measurement of a fixture at the
+extract's scale on an arm64 laptop, not of your extract on
+Fargate. The numbers are a starting point with their method
+stated, which is strictly more than a guess and strictly less
+than a measurement of the thing itself.
+
+```
+synthkit cloud-task --image ACCOUNT.dkr.ecr.REGION.amazonaws.com/synthkit:v1 \
+                    --src s3://BUCKET/extracts/tidy_visits.csv \
+                    --publish s3://BUCKET/synthkit/run1 \
+                    --arch X86_64 \
+                    --fit-arg=--seed --fit-arg=11 \
+                    --fit-arg=--revalue-copied
+```
+
+Our half of the task definition is filled in: the image, the
+command, the entrypoint behaviour, the architecture, the working
+directory, the ephemeral volume, the CPU and the memory. Yours
+is left as explicit `REPLACE_ME` placeholders — the two role
+ARNs, the log group and the region — and every one is listed
+underneath the output. A template whose gaps are silent is worse
+than no template, because somebody will apply it.
 
 ---
 

@@ -68,7 +68,30 @@ ALLOWED = (
     "data_dictionary.html",
     "data_dictionary.csv",
     "schema.json",
+    # THE COMMIT RECORD, written LAST. See `MANIFEST`.
+    "publish_manifest.json",
 )
+
+# THE MANIFEST IS HOW A PARTIAL UPLOAD IS DETECTABLE.
+#
+# S3 has no transaction. The module's own docstring says a
+# partial upload that looks complete is the silent-difference
+# fault - and that was written about the allow-list REFUSAL,
+# which is all-or-nothing, while a TRANSFER that dies on the
+# fourth of six files leaves exactly the partial upload it warns
+# about, with nothing at the destination saying so.
+#
+# So the artifacts go first and this goes LAST, carrying the
+# names and sha256 of everything that was meant to travel.
+# Its PRESENCE is the signal that the set is complete; its
+# ABSENCE means the upload did not finish, which a recipient can
+# check without being told. And a transfer that fails names what
+# landed, because an operator who does not know what is in the
+# bucket cannot clean it up.
+#
+# It carries filenames, sizes and digests - nothing from the
+# data, and nothing `blueprint.json` does not already disclose.
+MANIFEST = "publish_manifest.json"
 
 S3_RE = re.compile(r"^s3://([^/]+)/?(.*)$")
 
@@ -92,6 +115,16 @@ STATUS_VERIFIED = (
     "source in, six allow-listed artifacts out, the source not "
     "among them, with a forwarded --seed reaching the fit. What "
     "that does NOT establish is the account - see the owed list.",
+    "Both architectures build and run: linux/amd64 and "
+    "linux/arm64. An unpinned build gives the BUILDER's, and "
+    "Fargate defaults to X86_64, so the task definition names "
+    "it rather than inheriting it.",
+    "The build context excludes csv and data at ANY depth, "
+    "verified by scanning the built image rather than by reading "
+    ".dockerignore - a csv was found inside it until today.",
+    "A fit at the extract's scale was MEASURED: 576 s and 961 MB "
+    "peak on 55,200 rows and 107 searched columns, which is "
+    "where the task's cpu and memory defaults come from.",
 )
 STATUS_OWED = (
     "`synthkit batch` has NOT been run inside the ACCOUNT. It "
@@ -239,6 +272,16 @@ def store_for(uri: str, client=None, sse: str = "",
     return LocalStore(uri), ""
 
 
+def _sha256(path) -> str:
+    """The digest of a published file, for the manifest."""
+    import hashlib
+    h = hashlib.sha256()
+    with open(str(path), "rb") as fh:
+        for chunk in iter(lambda: fh.read(1 << 20), b""):
+            h.update(chunk)
+    return h.hexdigest()
+
+
 def refuse_unless_allowed(names: Iterable[str]) -> None:
     """Every name must be on the list, or nothing goes.
 
@@ -264,7 +307,8 @@ def refuse_unless_allowed(names: Iterable[str]) -> None:
 def publish(run_dir, dest_uri: str, client=None,
             only: Optional[List[str]] = None,
             as_name: Optional[Dict[str, str]] = None,
-            sse: str = "", kms_key: str = "") -> List[str]:
+            sse: str = "", kms_key: str = "",
+            write_manifest: bool = True) -> List[str]:
     """Upload a run's artifacts, and nothing else.
 
     Returns the destinations written, so a caller can print
@@ -316,12 +360,65 @@ def publish(run_dir, dest_uri: str, client=None,
             "published from {}".format(
                 ", ".join(sorted(stray)),
                 "it is" if len(stray) == 1 else "they are", run))
+
+
+    def _key(dest):
+        return ("{}/{}".format(prefix.rstrip("/"), dest)
+                if prefix else dest)
+
+    entries = []
     out = []
     for n in names:
         dest = ren.get(n, n)
-        key = "{}/{}".format(prefix.rstrip("/"), dest) if prefix \
-            else dest
-        out.append(store.put(run / n, key))
+        try:
+            out.append(store.put(run / n, _key(dest)))
+        except CloudRefusal:
+            raise
+        except Exception as e:  # noqa: BLE001
+            cause = diagnose(e)
+            raise CloudRefusal(
+                "the upload FAILED on {!r} after {} file(s) had "
+                "already landed: {}. Those {} are in the "
+                "destination and {} is NOT, so the set is "
+                "detectably incomplete rather than silently "
+                "partial - {}: {} [{}]".format(
+                    dest, len(out),
+                    ", ".join(out) or "none", "file" if
+                    len(out) == 1 else "files", MANIFEST,
+                    cause, CAUSE_TEXT[cause], e))
+        entries.append({
+            "published_as": dest,
+            "from": n,
+            "bytes": (run / n).stat().st_size,
+            "sha256": _sha256(run / n)})
+
+    # THE MANIFEST GOES LAST, and a failure writing it is still a
+    # failure of the publish: without it a recipient cannot tell
+    # a complete set from an interrupted one.
+    if write_manifest and MANIFEST not in [e["published_as"]
+                                           for e in entries]:
+        import json as _json
+        import tempfile as _tmp
+        body = _json.dumps({
+            "files": entries,
+            "count": len(entries),
+            "note": ("Written LAST. Its presence means every file "
+                     "above reached the destination; its absence "
+                     "means the upload did not finish. Digests "
+                     "are sha256 of the bytes as published."),
+        }, indent=2, sort_keys=True)
+        with _tmp.TemporaryDirectory() as td:
+            mp = Path(td) / MANIFEST
+            mp.write_text(body + "\n", encoding="utf-8")
+            try:
+                out.append(store.put(mp, _key(MANIFEST)))
+            except Exception as e:  # noqa: BLE001
+                cause = diagnose(e)
+                raise CloudRefusal(
+                    "every artifact landed but the manifest did "
+                    "NOT, so the destination holds a set nobody "
+                    "can verify is complete - {}: {} [{}]".format(
+                        cause, CAUSE_TEXT[cause], e))
     return out
 
 
@@ -636,6 +733,113 @@ def iam_policy(src_uri: str = "", publish_uri: str = "") -> Dict:
                 "s3:prefix": [(pk.rstrip("/") + "/*")
                               if pk else "*"]}}})
     return {"Version": "2012-10-17", "Statement": stmts}
+
+
+def task_definition(image: str, src_uri: str = "",
+                    publish_uri: str = "", group_by: str = "",
+                    cpu: str = "2048", memory: str = "8192",
+                    arch: str = "X86_64",
+                    extra_args: Optional[List[str]] = None) -> Dict:
+    """An ECS task definition with OUR half filled in.
+
+    WHY THIS EXISTS AND WHY IT IS NOT A CONTRADICTION. The AWS
+    doc says the task definition is the account owner's to write,
+    and the parts that are theirs still are - the role ARNs, the
+    log group, the subnets. But half of it is OURS and they would
+    be guessing at it: the image, the entrypoint, the command,
+    the architecture, the working directory, and above all the
+    CPU and MEMORY, which nobody could know without measuring a
+    fit.
+
+    So their half is left as explicit REPLACE_ME placeholders
+    rather than invented, and every one of them is listed by
+    `task_definition_notes` - a template whose gaps are silent
+    is worse than no template, because somebody will apply it.
+
+    THE ARCHITECTURE IS NAMED, NOT DEFAULTED SILENTLY. An
+    unpinned `docker build` produces an image for the BUILDER's
+    architecture, and Fargate defaults to X86_64; a mismatch
+    fails with `exec format error`, which reads as a broken
+    image. Both targets are known to build.
+    """
+    if arch not in ("X86_64", "ARM64"):
+        raise CloudRefusal(
+            "{!r} is not an architecture ECS knows: X86_64 or "
+            "ARM64".format(arch))
+    cmd = ["batch"]
+    if src_uri:
+        cmd += ["--src", src_uri]
+    cmd += ["--out", "/work/run"]
+    if group_by:
+        cmd += ["--group-by", group_by]
+    if publish_uri:
+        cmd += ["--publish", publish_uri]
+    cmd += list(extra_args or [])
+    return {
+        "family": "synthkit-batch",
+        "requiresCompatibilities": ["FARGATE"],
+        "networkMode": "awsvpc",
+        "cpu": str(cpu),
+        "memory": str(memory),
+        "runtimePlatform": {"operatingSystemFamily": "LINUX",
+                            "cpuArchitecture": arch},
+        # THEIRS. Named rather than invented.
+        "taskRoleArn": "REPLACE_ME_task_role_arn",
+        "executionRoleArn": "REPLACE_ME_execution_role_arn",
+        "containerDefinitions": [{
+            "name": "synthkit",
+            "image": image,
+            "essential": True,
+            # The ENTRYPOINT is the console script, so the
+            # command is a SUBCOMMAND. A bare `python ...` here
+            # would be read as one and refused.
+            "command": cmd,
+            "workingDirectory": "/work",
+            "readonlyRootFilesystem": False,
+            "mountPoints": [{"sourceVolume": "work",
+                             "containerPath": "/work",
+                             "readOnly": False}],
+            "logConfiguration": {
+                "logDriver": "awslogs",
+                "options": {
+                    "awslogs-group": "REPLACE_ME_log_group",
+                    "awslogs-region": "REPLACE_ME_region",
+                    "awslogs-stream-prefix": "synthkit"}},
+        }],
+        # EPHEMERAL, because the run directory holds generated
+        # output and a volume that outlives the task is one more
+        # place a file can be forgotten.
+        "volumes": [{"name": "work"}],
+    }
+
+
+def task_definition_notes() -> List[str]:
+    """Every placeholder, and every thing this does not set."""
+    return [
+        "REPLACE_ME_task_role_arn - the role the TASK assumes. "
+        "`synthkit cloud-policy` prints exactly the policy it "
+        "needs.",
+        "REPLACE_ME_execution_role_arn - the role ECS uses to "
+        "pull the image and write logs. Usually the account's "
+        "existing ecsTaskExecutionRole.",
+        "REPLACE_ME_log_group and REPLACE_ME_region - the "
+        "CloudWatch group and region. The container writes "
+        "unbuffered to stdout, so the log is the run's narration "
+        "line by line.",
+        "cpuArchitecture must MATCH the image you pushed. An "
+        "unpinned build produces the builder's architecture and "
+        "Fargate defaults to X86_64; a mismatch fails with `exec "
+        "format error`, which reads as a broken image.",
+        "cpu and memory are from a MEASURED fit - see "
+        "docs/AWS.md. They are not a guess, and they are not a "
+        "measurement of YOUR extract either.",
+        "No subnets, security groups or platform version here: "
+        "those are the network, and writing them blind would be "
+        "guessing at it.",
+        "The work volume is EPHEMERAL. A volume that outlives "
+        "the task is one more place a generated file can be "
+        "forgotten.",
+    ]
 
 
 def policy_notes() -> List[str]:

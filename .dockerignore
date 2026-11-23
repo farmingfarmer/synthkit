@@ -2,10 +2,37 @@
 # extract or a run directory swept into a layer would travel
 # with every pull of it, which is the worst possible way for a
 # record to leave an account.
+# RECURSIVE, BECAUSE A TOP-LEVEL PATTERN IS NOT A PROTECTION.
+#
+# These read `data/`, `*.csv`, `run_*/` and were matched against
+# the path relative to the context ROOT only - so a csv anywhere
+# below the top level sailed through, and
+# docs/e2e/generated_patients.csv was found INSIDE the built
+# image. The stated protection is that an extract swept into a
+# layer would travel with every pull, and it did not hold for
+# any file in a subdirectory. Found by looking in the image
+# rather than by reading this file.
+#
+# Both forms are kept: some Docker versions do not match a
+# root-level file with `**/`.
 data/
+**/data/
 *.csv
+**/*.csv
 *.parquet
 *.xlsx
+# RUN DIRECTORIES STAY ROOT-ONLY, AND THE RECURSIVE FORM IS A
+# TRAP. Docker cleans a trailing slash off a pattern, so
+# `**/run_*/` becomes `**/run_*` and matches
+# `scripts/run_all_smokes.py` and `scripts/run_discovery.py` -
+# it silently removed the net and the runner from the image, and
+# the documented "prove the tool works" command then failed with
+# "No such file or directory". Caught by running the net inside
+# the image; no text check could have seen it.
+#
+# Root-only is also sufficient: the record-bearing content of a
+# run directory is its csv, and `**/*.csv` above catches that at
+# any depth.
 run_*/
 .venv*/
 .git/

@@ -3,6 +3,100 @@
 Synthetic clinical data generator and model-evaluation instrument. Core rule: learn the patterns, never copy the records. Real data teaches parameters; generation never touches a record.
 
 ## Verify before claiming
+- **I SAID THERE WAS NOTHING LEFT ON OUR SIDE AND WAS WRONG BY
+  SIX ITEMS, THREE OF THEM DEFECTS (2026-11-23).** The operator
+  asked whether anything more could be done without somebody
+  else acting first, and the honest answer was no only because I
+  had stopped looking. What came out of looking again:
+- **MY OWN DOC FIX BROKE THE DOCKERFILE, AND 103 CHECKS PASSED
+  ON A FILE THAT COULD NOT BUILD.** Correcting the documented
+  net command I wrapped it onto two lines inside a COMMENT - and
+  a Dockerfile comment does not continue, so the second line
+  became an instruction and the build died with `unknown
+  instruction: /opt/synthkit/scripts/run_all_smokes.py`. Every
+  text check in `smoke_cloud` was green. The
+  content-check-cannot-see-a-dead-path fault in a new file type.
+  The guard is a cheap static parse: every line must be blank, a
+  comment, a continuation, or a known instruction - and it
+  deliberately does NOT treat a comment ending in a backslash as
+  continuing, because Docker does not.
+- **AND `.dockerignore` DID NOT PROTECT WHAT IT CLAIMED: A CSV
+  WAS INSIDE THE BUILT IMAGE.** The patterns read `data/`,
+  `*.csv`, `run_*/` and Docker matches them against the path
+  relative to the context ROOT - so `docs/e2e/
+  generated_patients.csv` shipped, and so would an extract left
+  anywhere below the top level. The stated protection is that a
+  record swept into a layer travels with every pull. Found by
+  SCANNING THE IMAGE, which no reading of the file could do.
+- **AND MY FIX FOR IT WAS WORSE THAN THE BUG, CAUGHT BY RUNNING
+  THE NET IN THE IMAGE.** Adding `**/run_*/` silently removed
+  `scripts/run_all_smokes.py` and `run_discovery.py`: Docker
+  CLEANS the trailing slash off a pattern, so `**/run_*/`
+  becomes `**/run_*` and matches a `.py` file. The documented
+  command for proving the tool works then failed with "No such
+  file or directory". `**/*.csv` and `**/data/` recurse;
+  `run_*/` stays root-only, with the reason in the file, and the
+  check asserts BOTH rules - one must recurse and one must not.
+- **AND THE CHECK FOR THAT MATCHED ITS OWN EXPLANATION.** The
+  file explains the trap in prose, so searching the whole text
+  for `**/run_*` found the comment. The pattern lines are
+  stripped of comments before any match now - the self-match
+  trap, in a check about patterns, hours after recording it for
+  a waiter.
+- **THE IMAGE WAS ARM64 BECAUSE THIS LAPTOP IS, AND FARGATE
+  DEFAULTS TO X86_64.** A mismatch fails with `exec format
+  error`, which reads as a broken image rather than a wrong
+  platform - the same class as the two interpreter faults this
+  file records, one layer down. Measured: BOTH targets build and
+  run. So the architecture is NAMED in the generated task
+  definition rather than inherited from whoever builds.
+- **AND THE FOOTPRINT IS A MEASUREMENT NOW RATHER THAN A
+  GUESS.** A deployment needs a task size and a timeout and
+  nobody here could answer either. On a fixture at the extract's
+  own scale - 55,200 rows, 107 searched columns after set
+  expansion:
+      wall clock              576 s
+      peak resident memory    961 MB
+      CPU consumed            1,052 s user + 1,921 s system
+  **The last row is the one to read before sizing**: the fit used
+  about 5x parallelism, so 2 vCPU takes three to five times the
+  wall clock and a timeout set AT 576 s would kill a healthy
+  run. The task defaults are 2048 CPU units and 8192 MiB, twice
+  the measured peak, because the real extract is wider and this
+  project once died allocating 1.5 GiB in one step. Stated as a
+  FIXTURE at the extract's scale on an arm64 laptop, not as a
+  measurement of the extract on Fargate.
+- **AND A TRANSFER THAT DIED HALFWAY LEFT A PARTIAL UPLOAD THE
+  MODULE'S OWN DOCSTRING WARNS ABOUT.** The all-or-nothing
+  promise was about the ALLOW-LIST refusal; a put that fails on
+  the fourth of six files left four objects in the bucket with
+  nothing at the destination saying the set was incomplete. S3
+  has no transaction, so the fix is a MANIFEST written LAST,
+  carrying every file's name and sha256: its presence means the
+  set is complete and its absence means the upload did not
+  finish. A failure now NAMES what landed, because an operator
+  who does not know what is in the bucket cannot clean it up.
+  Three mutations bite, including one that writes the manifest
+  first.
+- **AND THE TASK DEFINITION IS GENERATED WITH OUR HALF FILLED
+  AND THEIRS NAMED.** The doc said the task definition is the
+  account owner's to write, which is still true of the roles,
+  the log group and the network - and half of it is OURS and
+  they would be guessing: the image, the command, the entrypoint
+  behaviour, the architecture, the working directory, the
+  ephemeral volume, the cpu and the memory. Their half is
+  `REPLACE_ME` and every placeholder is listed by name, because
+  a template whose gaps are silent is worse than no template -
+  somebody will apply it.
+- **AND I WROTE THE SAME FILE TWICE FROM A STALE VARIABLE, so
+  five checks silently did not land.** The count read 102 before
+  and after, which is how I noticed: `s.replace` returns a new
+  string and I wrote the result, then kept editing the ORIGINAL
+  `s` and wrote again, overwriting. Same family as
+  assert-then-write-at-the-end, which this file already records
+  twice. **A check count that does not move after adding checks
+  is the tell.**
+
 - **THE DOCUMENTED COMMAND A DEPLOYMENT STARTS WITH DID NOT RUN,
   AND IT WAS IN THE ONE DOCUMENT A DEPLOYER READS (2026-11-23).**
   `docs/AWS.md` and the Dockerfile both said

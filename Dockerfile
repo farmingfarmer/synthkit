@@ -87,7 +87,12 @@ WORKDIR /work
 # THE NET IS PART OF THE IMAGE, so a deployment can prove the
 # tool works before it is pointed at an extract:
 #   docker run --rm --entrypoint python IMAGE \
-    /opt/synthkit/scripts/run_all_smokes.py
+#       /opt/synthkit/scripts/run_all_smokes.py
+#
+# The --entrypoint override is not optional: the ENTRYPOINT below
+# is the console script, so a bare `python` argument is read as a
+# SUBCOMMAND and argparse refuses it. The documented line was
+# wrong until somebody ran it.
 #
 # AND THE IMAGE DOES NOT PIN THE THREAD COUNT.
 #
