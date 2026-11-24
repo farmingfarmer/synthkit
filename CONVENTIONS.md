@@ -3,6 +3,98 @@
 Synthetic clinical data generator and model-evaluation instrument. Core rule: learn the patterns, never copy the records. Real data teaches parameters; generation never touches a record.
 
 ## Verify before claiming
+- **THE FIFTEEN ARE CHARACTERISED, AND ONLY ONE MECHANISM OF SIX
+  SEPARATES THEM FROM THE CURVES THAT CARRIED (2026-11-23,
+  run_vr_off).** The record left this as the best-aimed open item
+  it had: subtract every named mechanism and about fifteen of the
+  operator's own forty-eight curves have no account. Measured,
+  with the CARRIED bucket beside every reading because a share
+  taken on the failures alone says nothing:
+      own-column curves    48      carried 28      lost 20
+      mechanism      of lost      of carried   verdict
+      copied         1/20   5%     0/28   0%   does NOT separate
+      identity       1/20   5%     2/28   7%   does NOT separate
+      surface        5/20  25%    11/28  39%   does NOT separate
+      flat           4/20  20%     0/28   0%   SEPARATES
+      collinear      4/20  20%     5/28  18%   does NOT separate
+      UNEXPLAINED after every mechanism        16
+  (The `cyclic` row did not render off that screen; its verdict
+  follows from the arithmetic - 20 lost minus the 4 that FLAT
+  explains is exactly the 16 unexplained, so no other mechanism
+  separated. Its percentages are unread and are not quoted.)
+- **FLAT IS THE ONE THAT SEPARATES, AND IT ACCOUNTS FOR FOUR.** A
+  published curve whose response spans under 5% of the child's
+  own spread cannot be told from one nobody applied - and that is
+  not a sampler defect, it is a curve with nothing in it to
+  detect. ZERO of the 28 carried curves are flat against 4 of the
+  20 lost, which is the cleanest separation in the table.
+  Counting those four as unexplained losses would have sent
+  somebody after a sampler that did its job.
+- **AND SURFACE-CONSUMPTION IS MORE COMMON AMONG THE CURVES THAT
+  CARRIED - 39% AGAINST 25% - WHICH IS A CAVEAT ON WORK I SHIPPED
+  THE SAME DAY.** Hours earlier I added an annotation to the shape
+  criterion saying which misses are curves a published surface
+  consumes, on the reasoning that those are "not curves the
+  engine lost". The trace's own verdicts say surface-consumption
+  goes WITH carrying rather than with losing. Both can be true:
+  the trace correlates the curve's OWN DELTA against the child,
+  where a surface carrying the same dependence reads as carried,
+  while `shape_gap` compares MARGINALS and can still miss. So the
+  annotation is factually right about which object generation
+  uses and must NOT be read as explaining a miss. Stated here
+  because the two measures are easy to conflate and I was one
+  sentence from conflating them.
+- **AND A MECHANISM ONLY COUNTS IF IT SEPARATES, which the first
+  cut of the tool got wrong on its own fixture.** It counted any
+  flag present on a lost curve as an account of it and read
+  "every loss explained" where CYCLIC sat on 60% of the lost
+  curves and FOUR OF SEVEN carried ones. A flag as common among
+  the survivors explains nothing, and counting it is worse than
+  counting nothing: it retires a question that is still open. The
+  bar is 20 points of share, which is a measured need - 40%
+  against 0% on one side of it and 60% against 57% on the other -
+  and the rule is asserted on PLANTED censuses so both branches
+  are exercised exactly.
+- **AND THE SIXTEEN THAT REMAIN ARE NAMED, which a count never
+  could be.** Four read off the run:
+      DROPPED   condition_count <- visit_start_date      span 0.214
+                heart_rate_monitored <- 6690_2           span 0.230
+      DROPPED   peripheral_pulse_rate <- diastolic_bp    span 0.423
+      DROPPED   procedure_count <- MAP_invasive          span 3.777
+  The last is the interesting one: a published curve spanning
+  nearly FOUR TIMES the child's own spread, lost anyway, so it is
+  not a thin-curve case and not one the flat mechanism touches.
+  `condition_count <- visit_start_date` is the deliverable's one
+  departed shape, where `repair_inversions --shapes` measured a
+  REFUSAL because the column is a hub.
+- **AND THE TRACE WRITES ITS ROWS TO DISK NOW, which is what made
+  any of this possible.** It printed 278 verdicts to a console
+  read by screen OCR and persisted nothing - this file's own rule
+  is that a diagnostic which only prints to a terminal on the
+  machine holding the data is not readable at all. Asking WHY
+  previously meant re-running a whole generate to get the WHAT
+  back. `curve_trace.json` lands in the run directory, and a
+  missing one is a REFUSAL naming the command that makes it
+  rather than the verdicts being re-derived - a second copy of
+  the trace is how the two would come to disagree.
+- **AND THE ELEVENTH WRONG-KEY FAULT WAS IN THIS TOOL, FOUND BY A
+  COLUMN OF `n/a` RATHER THAN A CRASH.** `curve_span` asked the
+  marginal for `spread`; the blueprint publishes `sd`. Every span
+  read n/a, so the FLAT mechanism - the only one that turned out
+  to separate - could never have fired. A mechanism that cannot
+  fire is dead code implying a test that happens somewhere else.
+  The key is asserted against a LIVE built blueprint now, and
+  that `spread` is ABSENT from it, so the fault cannot return.
+- **AND A DECODE THAT RAN BEFORE ITS PAYLOAD LANDED COST THREE
+  TRANSFERS, which is the artifact rule one step finer.** The
+  file read DIFF twice; the base64 on the machine then verified
+  IDENTICAL to local. The decode had run while the last chunk was
+  still being typed, so a complete payload was decoded from an
+  incomplete one - 25,381 bytes against 26,884. **Verify the
+  PAYLOAD before decoding it, not the result afterwards**: a
+  digest of the decoded file cannot tell a corrupt transfer from
+  a premature read, and the two take different fixes.
+
 - **THE TWO QUEUED READS ARE ANSWERED ON A FRESH RUN, AND ONE OF
   THEM IS SHARPER THAN THE RECORD'S (2026-11-23, run_vr_off).**
   Both had been named and left: the own-column `close` misses

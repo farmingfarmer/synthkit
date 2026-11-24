@@ -318,6 +318,17 @@ def main():
     ap = argparse.ArgumentParser(
         description="name the pass that drops a published curve")
     ap.add_argument("rundir")
+    # THE ROWS GO TO DISK. This printed 278 verdicts to a console
+    # read by screen OCR, which is unreadable in practice - and
+    # this project's own rule is that a diagnostic which only
+    # prints to a terminal on the machine holding the data is not
+    # readable at all. Written into the run directory so a second
+    # tool can ask WHY a curve was lost without re-running a
+    # whole generate to find out.
+    ap.add_argument("--out", default="",
+                    help="where to write the rows as json. "
+                         "Defaults to RUNDIR/curve_trace.json; "
+                         "pass - to write none.")
     ap.add_argument("--patients", type=int, default=None,
                     help="generate this many patients instead of "
                          "the run's own count - for a quicker "
@@ -574,6 +585,27 @@ def main():
           "curve(s) CARRIED".format(
               len([r for r in own if r["verdict"] == "CARRIED"]),
               len(own)))
+
+    # AND THE ROWS GO TO DISK, so WHY a curve was lost can be
+    # asked without re-running a whole generate to get the WHAT
+    # back. 278 verdicts printed to a console read by screen OCR
+    # is a measurement nobody can read.
+    dest = a.out
+    if dest != "-":
+        dest = dest or str(rundir / "curve_trace.json")
+        try:
+            Path(dest).write_text(json.dumps({
+                "run": str(rundir),
+                "seed": seed,
+                "patients": a.patients,
+                "rows": rows,
+            }, indent=1, sort_keys=True) + "\n",
+                encoding="utf-8")
+            print("wrote {}".format(dest))
+        except OSError as exc:
+            print("could NOT write {}: {} - the reading above "
+                  "stands, but a second tool cannot ask why "
+                  "without re-running this".format(dest, exc))
     return 0
 
 
