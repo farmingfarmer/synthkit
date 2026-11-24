@@ -165,29 +165,41 @@ def sample_at(traj, stage):
     the LARGEST one and no fixture here can be relied on to
     produce that ordering.
 
-    WHY IT IS NEEDED. `m` inside the probe is the rows where BOTH
-    the curve's delta and the child are finite - and
-    `_curve_delta` is not finite where the PARENT is absent. So a
-    presence mask on the parent re-measures the correlation on
-    the parent's surviving rows rather than on all of them, and a
-    fall there can be the RULER shrinking rather than the child
-    moving.
+    WHAT IT ASKS, AND WHAT THE FIRST VERSION ASKED WRONGLY. The
+    probe records two counts: the rows where both the delta and
+    the child are FINITE, and the rows the curve can ACT on -
+    where its delta is non-zero. This reads the SECOND.
 
-    Measured on the real extract: `procedure_count <-
-    mean_arterial_pressure_invasive` falls 0.172 to 0.007 at
-    after-masks - and the CHILD is present on 100% of rows while
-    the parent is present on 0.20%, so no mask touches the child
-    at all and the whole fall is the sample. That curve was the
-    largest unexplained own-column loss on the file.
+    The first version read the finite count, on the reasoning
+    that masking a parent makes the delta NaN. It does not:
+    `_curve_delta` returns ZERO where the parent is absent, which
+    is finite - measured directly, a parent of [0, 1, 2, nan,
+    nan] gives [-1, 4, 9, 0, 0]. So on `procedure_count <-
+    mean_arterial_pressure_invasive` the finite count HELD at
+    55,684 across the masks while the correlation fell 0.172 to
+    0.007, and the detector built for that very curve did not
+    fire on it. The fall is a Spearman over a vector constant on
+    99.8% of its entries: a statement about the other 0.2%,
+    drowned in one enormous tie block.
+
+    The CHILD of that curve is present on 100% of rows and the
+    parent on 0.20%, so no mask touches the child at all and its
+    values cannot have changed at that pass. The fall is the
+    instrument's, and the rows the curve can act on is what says
+    so.
 
     Returns None where the run recorded no counts: absent is not
     "it did not collapse", which is a different fact and the
     distinction this project draws everywhere.
     """
+    # THE FOURTH FIELD, where a run recorded one. A run with only
+    # three cannot answer this - the finite count is the wrong
+    # quantity and reporting it would be the same mistake again,
+    # so absent is absent.
     n_at = {}
     for e in traj or []:
-        if len(e) > 2 and e[2] is not None:
-            n_at[e[0]] = int(e[2])
+        if len(e) > 3 and e[3] is not None:
+            n_at[e[0]] = int(e[3])
     if not stage or len(n_at) < 2:
         return None
     seq = [e[0] for e in traj]

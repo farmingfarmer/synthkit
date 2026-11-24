@@ -87,6 +87,39 @@ def patient_level():
         "h": np.round(h, 4)})
 
 
+def sparse_parent():
+    """A parent present on a FRACTION of rows, child on all of them.
+
+    `_curve_delta` returns ZERO where the parent is absent -
+    finite, not NaN - so masking the parent leaves every row
+    FINITE and takes the rows the curve can ACT on down to the
+    parent's own coverage. Those two counts diverge here and
+    nowhere else in this suite, which is why this frame exists.
+
+    THE COVERAGE IS A SEARCHED NUMBER, not a chosen one. At 0.35%
+    the column carries 37 values, discovery declines to model it
+    at all, and no curve names it - so the frame measures nothing.
+    At 3% it is published, the mask still takes the ruler down
+    33-fold, and the fall at the mask is the LARGEST one, which is
+    what reaches the end-to-end verdict as well as the counts.
+    """
+    rng = np.random.default_rng(4)
+    n_pat, n_vis = 400, 30
+    pid = np.repeat(np.arange(n_pat), n_vis)
+    n = pid.size
+    sp = rng.normal(80.0, 10.0, n)
+    dense = rng.normal(0.0, 1.0, n)
+    load = 0.6 * sp + 2.0 * dense + rng.normal(0.0, 4.0, n)
+    return pd.DataFrame({
+        "person_id": ["P{:04d}".format(i) for i in pid],
+        "visit_number": np.tile(np.arange(1, n_vis + 1), n_pat),
+        "sparse_pressure": np.where(
+            rng.random(n) < 0.03, sp, np.nan),
+        "dense": dense,
+        "load": load,
+    })
+
+
 def _numf(fr, c):
     return pd.to_numeric(fr[c].replace("", None), errors="coerce")
 
@@ -731,9 +764,9 @@ def main():
     # blame landed on after-sweeps instead.
     # ----------------------------------------------------------
     coll = CT.sample_at(
-        [("after-draw", 0.42, 12000),
-         ("after-sweeps", 0.40, 12000),
-         ("after-masks", 0.01, 42)], "after-masks")
+        [("after-draw", 0.42, 12000, 12000),
+         ("after-sweeps", 0.40, 12000, 12000),
+         ("after-masks", 0.01, 12000, 42)], "after-masks")
     check("a probe whose comparable rows fall from 12,000 to 42 "
           "at the pass blamed is reported as a COLLAPSED sample, "
           "so a reader is not sent after a child that cannot have "
@@ -742,14 +775,14 @@ def main():
           and coll["rows_before"] == 12000
           and coll["rows_after"] == 42)
     same = CT.sample_at(
-        [("after-draw", 0.42, 12000),
-         ("after-sweeps", 0.20, 12000)], "after-sweeps")
+        [("after-draw", 0.42, 12000, 12000),
+         ("after-sweeps", 0.20, 12000, 12000)], "after-sweeps")
     check("...and a fall measured on the SAME rows is NOT - that "
           "one is the engine, and calling it a sample artifact "
           "would excuse a real loss",
           same and same["collapsed"] is False)
     half = CT.sample_at(
-        [("a", 0.4, 1000), ("b", 0.2, 600)], "b")
+        [("a", 0.4, 1000, 1000), ("b", 0.2, 1000, 600)], "b")
     check("...and a sample that merely thins does not clear the "
           "bar, which is deliberately loose at a half rather "
           "than arguing about cases nobody can separate",
@@ -758,27 +791,79 @@ def main():
     # ABSENT IS NOT "IT DID NOT COLLAPSE". A run made before the
     # probe recorded counts cannot answer the question at all,
     # and reporting False there would be a claim nobody measured.
-    old = CT.sample_at([("a", 0.4), ("b", 0.2)], "b")
+    old = CT.sample_at([("a", 0.4, 9), ("b", 0.2, 9)], "b")
     check("a trajectory with NO counts returns None rather than "
           "False - an older run cannot answer this, which is a "
           "different fact from the sample holding",
           old is None)
     check("...and so does a stage that is not in the trajectory, "
           "or the first one, which has nothing before it",
-          CT.sample_at([("a", 0.4, 9), ("b", 0.2, 9)], "zz") is None
-          and CT.sample_at([("a", 0.4, 9), ("b", 0.2, 9)], "a")
+          CT.sample_at([("a", .4, 9, 9), ("b", .2, 9, 9)], "zz")
+          is None
+          and CT.sample_at([("a", .4, 9, 9), ("b", .2, 9, 9)], "a")
           is None)
 
     # AND THE PROBE ACTUALLY RECORDS THE COUNT, asserted through
     # a real traced generate rather than on the function alone -
     # a detector reading a field nobody writes is the
     # read-but-not-used fault.
-    check("the engine's own probe records the comparable-row "
-          "count beside every reading, without which none of the "
-          "above can fire on a real run",
-          any(len(e) > 2 and e[2] is not None
+    check("the engine's own probe records BOTH counts beside "
+          "every reading - the FINITE rows and the rows the curve "
+          "can ACT on - without which none of the above can fire "
+          "on a real run",
+          any(len(e) > 3 and e[3] is not None
               for traj in ((rep.get("curve_trace") or {})).values()
               for e in traj))
+
+    # AND THE TWO COUNTS MUST GENUINELY DIVERGE SOMEWHERE, which
+    # is the measurement that justifies recording both - and the
+    # reason the first version of this detector read the wrong
+    # one. `_curve_delta` returns ZERO where the parent is absent,
+    # NOT NaN, so masking a sparse parent leaves every row FINITE
+    # and takes the rows the curve can ACT on down to the
+    # parent's own coverage. On the real extract that made
+    # `procedure_count <- mean_arterial_pressure_invasive` read
+    # "HELD before 55,684" while its delta went constant on 99.8%
+    # of rows.
+    spf = sparse_parent()
+    bp6 = B.build(spf, discover(spf, group_by="person_id"),
+                  group_by="person_id")
+    _cov = float(spf["sparse_pressure"].notna().mean())
+    check("the sparse fixture really is sparse AND the parent is "
+          "modelled at all, or the divergence below measures "
+          "nothing - coverage {:.4f}, child on every row".format(
+              _cov),
+          0.005 < _cov < 0.05
+          and float(spf["load"].notna().mean()) == 1.0)
+    G.TRACE_CURVES = True
+    rep6 = {}
+    G.generate(bp6, seed=11, report=rep6)
+    G.TRACE_CURVES = False
+    _tr6 = rep6.get("curve_trace") or {}
+    _div = [(k, e[0], e[2], e[3])
+            for k, traj in _tr6.items() for e in traj
+            if len(e) > 3 and e[3] is not None and e[2]
+            and e[3] < 0.5 * e[2]]
+    check("the two counts DIVERGE on a sparse-parent curve - the "
+          "finite count HOLDS while the rows the curve can act on "
+          "collapse, so a detector reading the finite count alone "
+          "cannot see the mask at all: {}".format(
+              _div[:1] or "they never diverged"),
+          bool(_div))
+
+    # AND THE VERDICT FOLLOWS THROUGH, on a real frame rather than
+    # on planted numbers: on this fixture the mask's fall is also
+    # the LARGEST one, so the curve is DROPPED at after-masks and
+    # its sample is reported COLLAPSED.
+    _sp6 = CT.sample_at(_tr6.get("load <- sparse_pressure"),
+                        "after-masks")
+    check("...and the verdict follows through on a real traced "
+          "frame - the curve blamed on after-masks reports a "
+          "COLLAPSED sample, which is the reading the real "
+          "extract's procedure_count <- MAP_invasive needed: {}"
+          .format(_sp6),
+          bool(_sp6) and _sp6["collapsed"] is True
+          and _sp6["rows_after"] < 0.1 * _sp6["rows_before"])
 
     print()
     if FAIL:

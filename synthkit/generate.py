@@ -1105,10 +1105,37 @@ def _curve_trace(vals, bp, stage, trace):
             # different fixes. Recorded here rather than inferred
             # downstream, because the probe is the only place that
             # knows.
+            # TWO SAMPLE SIZES, AND THE SECOND IS THE ONE THAT
+            # MATTERS.
+            #
+            # `m` is the rows where both the delta and the child
+            # are finite. The first cut recorded only that, on
+            # the reasoning that masking a parent would make the
+            # delta NaN and shrink the sample - and it does not:
+            # `_curve_delta` returns ZERO where the parent is
+            # absent, which is finite. Measured directly: a
+            # parent of [0, 1, 2, nan, nan] gives a delta of
+            # [-1, 4, 9, 0, 0], all finite.
+            #
+            # So on `procedure_count <-
+            # mean_arterial_pressure_invasive` the finite count
+            # HELD at 55,684 across the masks while the
+            # correlation fell 0.172 to 0.007 - because the delta
+            # is zero on 99.8% of rows and a Spearman over a
+            # vector that is constant on 99.8% of its entries is
+            # a statement about the other 0.2%, drowned in one
+            # enormous tie block.
+            #
+            # The rows the curve can ACT on is therefore the
+            # honest sample, and it is recorded beside the finite
+            # one rather than instead of it: a child going sparse
+            # and a parent going sparse are different faults and
+            # the two counts separate them.
+            eff_n = int(np.count_nonzero(d[m] != 0.0))
             trace.setdefault(
                 "{} <- {}".format(ch, par), []).append(
                     [stage, None if r != r else round(r, 4),
-                     int(m.sum())])
+                     int(m.sum()), eff_n])
 
 
 def _order(bp: Dict[str, Any], refine: bool = True):

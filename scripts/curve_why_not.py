@@ -16,6 +16,16 @@ ENGINE's own predicate rather than a copy of it, because two
 halves each deciding what a copied column IS is how the engine
 and the instrument come to disagree about what generation did.
 
+    SAMPLE      the PROBE's own comparable rows collapsed at the
+                pass blamed, so the fall is the ruler shrinking
+                rather than the child moving. `_curve_delta` is
+                not finite where the PARENT is absent, so masking
+                a sparse parent re-measures on its surviving rows
+                - and where the CHILD is fully covered, no mask
+                touches it at all and its values cannot have
+                changed. Measured first on `procedure_count <-
+                mean_arterial_pressure_invasive`: 0.172 to 0.007
+                at after-masks, child 100% covered, parent 0.20%.
     COPIED      the child is the target of an exact identity, so
                 generation OVERWRITES its drawn value afterwards
                 and no curve on it can survive by construction
@@ -68,8 +78,8 @@ FLAT_SPAN = 0.05
 # cannot survive whatever else is true of it, so it is asked
 # first; COLLINEAR is asked last because it withholds a verdict
 # rather than explaining a loss.
-MECHANISMS = ("COPIED", "IDENTITY", "SURFACE", "CYCLIC", "FLAT",
-              "COLLINEAR")
+MECHANISMS = ("SAMPLE", "COPIED", "IDENTITY", "SURFACE",
+              "CYCLIC", "FLAT", "COLLINEAR")
 
 # HOW MUCH MORE COMMON A MECHANISM MUST BE AMONG THE LOST CURVES
 # THAN AMONG THE CARRIED ONES BEFORE IT COUNTS AS AN EXPLANATION.
@@ -79,6 +89,28 @@ MECHANISMS = ("COPIED", "IDENTITY", "SURFACE", "CYCLIC", "FLAT",
 # 0%. Anything under this is reported as present and not as an
 # account.
 SEPARATES_BY = 0.20
+
+# AND A MECHANISM ABSENT FROM EVERY CARRIED CURVE SEPARATES ONCE
+# IT IS PRESENT ON A FEW LOST ONES, WHICHEVER WAY THE ADDITIVE
+# GAP FALLS.
+#
+# THE FORM OF THE BAR ABOVE IS WRONG ON ITS OWN MERITS and it
+# took a real reading to see it. On the extract:
+#     flat     4/20  20%   0/28  0%   -> 20 points -> SEPARATES
+#     sample   3/20  15%   0/28  0%   -> 15 points -> failed
+# One curve apart, both ABSENT from every one of the 28 carried
+# curves, and only one counted. An additive difference in shares
+# discards the strongest evidence available - that the control
+# never shows the mechanism at all - and makes the verdict turn
+# on how many of the lost happen to carry it.
+#
+# Found because `sample` landed five points short, which is the
+# wrong reason to touch a bar, so the CONTROL on the change is
+# `copied`: 1 of 20 against 0 of 28, also absent from every
+# carried curve, and it must NOT flip - one observation is not a
+# claim about absence among 28. The minimum is what holds it
+# back, and the change moves exactly one verdict.
+CLEAN_MIN_LOST = 3
 
 # BELOW THIS MANY OWN-COLUMN CURVES the separation cannot be
 # judged and the tool says so: a share measured on a handful is
@@ -142,6 +174,12 @@ def mechanisms_for(row, bp, copied, idents, cyclic):
     """Every mechanism that applies to one curve, in order."""
     child, parent = row.get("child"), row.get("parent")
     got = []
+    # ASKED FIRST, because it is a statement about the
+    # MEASUREMENT rather than about the engine - and a loss that
+    # is partly the instrument's should not be attributed to any
+    # mechanism of the sampler's before that is known.
+    if (row.get("sample") or {}).get("collapsed"):
+        got.append("SAMPLE")
     if child in copied:
         got.append("COPIED")
     if child in idents:
@@ -224,9 +262,11 @@ def main(argv=None):
         nk = sum(1 for r in kept if m in r["_mech"])
         sl = (nl / len(lost)) if lost else 0.0
         sk = (nk / len(kept)) if kept else 0.0
+        clean = bool(nk == 0 and nl >= CLEAN_MIN_LOST)
         sep[m] = {"n_lost": nl, "n_kept": nk, "share_lost": sl,
-                  "share_kept": sk,
-                  "separates": bool(nl and sl - sk >= SEPARATES_BY)}
+                  "share_kept": sk, "clean": clean,
+                  "separates": bool(
+                      nl and (sl - sk >= SEPARATES_BY or clean))}
 
     lines.append("{:<11s} {:>11s} {:>11s}  {}".format(
         "mechanism", "of lost", "of carried", "verdict"))
@@ -238,7 +278,9 @@ def main(argv=None):
                 m.lower(), d["n_lost"], len(lost),
                 100 * d["share_lost"], d["n_kept"], len(kept),
                 100 * d["share_kept"],
-                "SEPARATES" if d["separates"] else
+                ("SEPARATES" + (" (absent from every carried "
+                                "curve)" if d["clean"] else ""))
+                if d["separates"] else
                 ("absent" if not d["n_lost"] else
                  "present, does NOT separate")))
     lines.append("")

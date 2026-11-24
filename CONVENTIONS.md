@@ -3,6 +3,61 @@
 Synthetic clinical data generator and model-evaluation instrument. Core rule: learn the patterns, never copy the records. Real data teaches parameters; generation never touches a record.
 
 ## Verify before claiming
+- **THE DETECTOR READ THE WRONG COUNT, AND THE REASON IS THAT AN
+  ABSENT PARENT GIVES A FINITE DELTA (2026-11-23).** The sample
+  screen asks whether a curve's fall at the pass blamed is the
+  RULER shrinking rather than the child moving, and it compared
+  the rows where the delta and the child are both FINITE.
+  `_curve_delta` returns **ZERO** where the parent is absent -
+  finite, not NaN - so masking a sparse parent leaves every row
+  finite and only takes the rows the curve can ACT on down to the
+  parent's own coverage. Measured directly on the function:
+      parent   [0, 1, 2, nan, nan]
+      delta    [-1, 4, 9, 0, 0]
+      finite   all five
+      non-zero three of five
+  So on the real extract `procedure_count <-
+  mean_arterial_pressure_invasive` read **HELD before 55,684**
+  while its delta went constant on 99.8% of rows and the Spearman
+  drowned in ties. The screen was measuring the wrong quantity and
+  the one curve it was built for was the one it could not see.
+- **THE PROBE RECORDS BOTH COUNTS NOW, AND THE DIVERGENCE IS A
+  CHECK RATHER THAN AN ARGUMENT.** On a sparse-parent fixture,
+  read off the engine's own probe:
+      stage                   rho      finite   acts-on
+      after-presence-rerank   0.4763   12,000    12,000
+      after-masks             0.0619   12,000       364
+  **The finite count HOLDS while the rows the curve can act on
+  collapse 33-fold**, which is invisible to the old reading by
+  construction. A mutation making `sample_at` read the finite
+  count - the exact bug that shipped - turns three checks red,
+  including one on a real traced frame rather than planted
+  numbers.
+- **AND THE FIXTURE'S COVERAGE IS A SEARCHED NUMBER.** At 0.35%
+  the parent carries 37 values, discovery declines to model it,
+  no curve names it, and the frame measures nothing - the first
+  version read "they never diverged" against correct code. At 3%
+  it is published, the mask still takes the ruler down 33-fold,
+  and the fall at the mask is the LARGEST one, so the fixture
+  reaches the end-to-end verdict too. The suite's own comment had
+  recorded that no fixture could; it can.
+- **AND MY OWN PREMISE CHECK WENT RED ON THE BAR I WROTE.** It
+  demanded coverage under 0.02 against a searched 0.0293. The
+  premise is that the parent is sparse AND modelled at all, which
+  is a BAND rather than a ceiling, and the band is now stated
+  with the measured value in the label.
+- **AND SIX PROBES OF THE DATA MACHINE RETURNED THEIR OWN
+  COMMAND, which is the self-match trap recorded four times
+  already.** `if exist X (echo WORD)` puts every WORD in the
+  command text, the bridge ECHOES the command above the output,
+  and `ocr | grep -oiE` then matched the echo - so six candidate
+  paths all reported PRESENT when at most three could be, and two
+  earlier readings of GONE were the echo as well. The mechanical
+  fix is the recorded one and it is the only one that holds: write
+  the verdict to a FILE in one command and read it in a SEPARATE
+  one, so the reading command cannot contain the words being
+  looked for.
+
 - **`procedure_count <- MAP_invasive` IS NOT A CURVE THE ENGINE
   LOST - IT IS THE PROBE LOSING ITS RULER, AND THAT IS PROVABLE
   FROM THREE READINGS (2026-11-23, run_vr_off).** This was the

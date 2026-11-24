@@ -192,6 +192,40 @@ def main():
               "number, and it sits between those two cases",
               0.03 < WN.SEPARATES_BY < 0.40)
 
+        # AND A MECHANISM ABSENT FROM EVERY CARRIED CURVE
+        # SEPARATES ONCE A FEW LOST ONES CARRY IT.
+        #
+        # The additive rule alone was wrong in FORM, and a real
+        # reading showed it: on the extract `flat` read 4/20
+        # against 0/28 and counted, while `sample` read 3/20
+        # against 0/28 and did not. One curve apart, both absent
+        # from all 28 carried curves. An additive difference in
+        # shares throws away the strongest evidence there is -
+        # that the control never shows the mechanism at all.
+        def _clean(nl, nk):
+            return bool(nk == 0 and nl >= WN.CLEAN_MIN_LOST)
+
+        check("a mechanism on 3 of the lost and NONE of the 28 "
+              "carried separates, because absence in the control "
+              "is the strongest evidence of association and an "
+              "additive share gap discards it",
+              _clean(3, 0))
+        # THE CONTROL ON THE CHANGE. `copied` is also absent from
+        # every carried curve and must NOT flip: one observation
+        # is not a claim about absence among 28, and a bar moved
+        # after seeing the answer has to be held by something.
+        check("...while ONE lost curve and none carried does NOT "
+              "separate - one observation is not a claim about "
+              "absence among 28, and this is the case that holds "
+              "the rule honest",
+              not _clean(1, 0))
+        check("...and a mechanism PRESENT among the carried never "
+              "takes the clean route, however rare it is there",
+              not _clean(9, 1))
+        check("the minimum is small but not one, which is what "
+              "separates the two cases above",
+              2 <= WN.CLEAN_MIN_LOST <= 5)
+
         # ---- THE FLAT MECHANISM, on a planted curve -----------
         #
         # A fixture cannot be relied on to publish a curve flat
@@ -223,6 +257,47 @@ def main():
         check("...and the FLAT mechanism then fires on it, so the "
               "branch is reachable rather than dead code",
               "FLAT" in got)
+
+        # ---- THE SAMPLE MECHANISM, on planted rows ------------
+        #
+        # It reads the trace's own `sample.collapsed`, and it is
+        # asked FIRST because it is a statement about the
+        # MEASUREMENT rather than about the engine: a loss that
+        # is partly the instrument's must not be attributed to a
+        # mechanism of the sampler's before that is known.
+        #
+        # Planted, because reaching it end to end needs the
+        # mask's fall to be the LARGEST one and no fixture here
+        # can be relied on to produce that ordering - a fixture
+        # built to the shape blamed after-sweeps instead.
+        coll = {"child": "height", "parent": "age_at_visit",
+                "via_surface": False, "coparent_r": 0.0,
+                "sample": {"rows_before": 12000, "rows_after": 42,
+                           "collapsed": True}}
+        got, _ = WN.mechanisms_for(coll, bp, set(), set(), set())
+        check("a curve whose PROBE sample collapsed at the pass "
+              "blamed carries the SAMPLE mechanism, so a fall "
+              "that is the ruler shrinking is not attributed to "
+              "the sampler",
+              "SAMPLE" in got)
+        check("...and it is asked FIRST, because a loss that is "
+              "partly the instrument's must not be explained by "
+              "a mechanism of the engine's before that is known",
+              got[0] == "SAMPLE")
+        held = dict(coll)
+        held["sample"] = {"rows_before": 12000, "rows_after": 11900,
+                          "collapsed": False}
+        got2, _ = WN.mechanisms_for(held, bp, set(), set(), set())
+        check("...and a fall measured on the SAME rows does NOT "
+              "carry it - that one is the engine, and excusing it "
+              "would hide a real loss",
+              "SAMPLE" not in got2)
+        bare = dict(coll)
+        bare["sample"] = None
+        got3, _ = WN.mechanisms_for(bare, bp, set(), set(), set())
+        check("...and a run that recorded no counts does not "
+              "carry it either - absent is not 'the sample held'",
+              "SAMPLE" not in got3)
 
         # ---- THE PREDICATES ARE THE ENGINE'S OWN --------------
         from synthkit.generate import _copy_partners as _cp
