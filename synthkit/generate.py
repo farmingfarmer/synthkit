@@ -1085,9 +1085,30 @@ def _curve_trace(vals, bp, stage, trace):
                 continue
             r = float(pd.Series(d[m]).corr(pd.Series(yv[m]),
                                            method="spearman"))
+            # THE SAMPLE SIZE TRAVELS WITH THE READING.
+            #
+            # `m` is the rows where BOTH the curve's delta and the
+            # child are finite - and `_curve_delta` is not finite
+            # where the PARENT is absent. So once a presence mask
+            # is applied the correlation is re-measured on the
+            # parent's surviving rows rather than on all of them:
+            # on the real extract `procedure_count <-
+            # mean_arterial_pressure_invasive` reads 0.172 before
+            # the masks and 0.007 after, and the parent is present
+            # on 0.20% of rows while the CHILD is present on
+            # 100% - so the child cannot have changed at that
+            # pass and the whole fall is the probe's sample
+            # collapsing.
+            #
+            # Without the count a reader cannot tell that from the
+            # engine losing a curve, and they take completely
+            # different fixes. Recorded here rather than inferred
+            # downstream, because the probe is the only place that
+            # knows.
             trace.setdefault(
                 "{} <- {}".format(ch, par), []).append(
-                    [stage, None if r != r else round(r, 4)])
+                    [stage, None if r != r else round(r, 4),
+                     int(m.sum())])
 
 
 def _order(bp: Dict[str, Any], refine: bool = True):

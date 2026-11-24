@@ -3,6 +3,85 @@
 Synthetic clinical data generator and model-evaluation instrument. Core rule: learn the patterns, never copy the records. Real data teaches parameters; generation never touches a record.
 
 ## Verify before claiming
+- **`procedure_count <- MAP_invasive` IS NOT A CURVE THE ENGINE
+  LOST - IT IS THE PROBE LOSING ITS RULER, AND THAT IS PROVABLE
+  FROM THREE READINGS (2026-11-23, run_vr_off).** This was the
+  largest unexplained own-column curve loss on the file: a
+  published curve spanning 3.777 of the child's own spread,
+  DROPPED anyway, so not a thin-curve case. Asked of the
+  artifacts rather than theorised about, every figure spelled
+  back by the machine:
+      verdict                       DROPPED
+      pass blamed                   after-masks
+      the fall there                0.1091
+      first probe                   0.172
+      last probe                    0.007
+      coverage, procedure_count     100.00%
+      coverage, MAP_invasive          0.20%
+      cyclic?  procedure_count       YES
+- **THE ARGUMENT IS AIRTIGHT AND NEEDS NO FURTHER MEASUREMENT.**
+  `procedure_count` is present on 100% of rows, so **no presence
+  mask is applied to it at all** - its values cannot change at
+  that pass. Meanwhile `m` inside the probe is the rows where
+  BOTH the curve's delta and the child are finite, and
+  `_curve_delta` is not finite where the PARENT is absent. So
+  masking a parent present on 0.20% of rows re-measures the
+  correlation on about 113 rows instead of 55,428. The child did
+  not move; the sample did.
+- **SO THE QUEUED PRESENCE-MASK QUESTION IS ANSWERED, AND THE
+  ANSWER IS THE ONE THE RECORD SUSPECTED.** The entry from the
+  17th asked "whether their fall is a LOSS at all", on the
+  grounds that a restriction the source shares is already
+  accounted for. For this curve it is not a loss: it is the
+  instrument's own sample collapsing. That generalises to the
+  rest of the `after-masks` bucket wherever the child is
+  well-covered and the parent is not - which is exactly the
+  shape of the invasive-pressure family this file has chased
+  through a refuted ring ceiling and a NOT READABLE screen.
+- **THE PROBE RECORDS ITS SAMPLE SIZE NOW, because it is the only
+  place that knows.** The trajectory entry grew a third field -
+  the comparable-row count - and `sample_at` is a PURE function
+  on the trajectory reporting whether the sample at the blamed
+  pass fell by more than half. Reported BESIDE the verdict and
+  never instead of it: the verdict is about what the output
+  follows, this is about whether the two readings were taken on
+  the same rows.
+- **AND IT IS ASSERTED ON PLANTED TRAJECTORIES, because no
+  fixture here can be relied on to reach the branch.** It needs
+  the mask's fall to be the LARGEST one, and a fixture built to
+  the shape - child on 100% of rows, parent on 0.35%, the
+  dependence inside the parent's present rows - blamed
+  `after-sweeps` instead. So the collapse case, the
+  same-rows case, the merely-thinning case and the two
+  not-answerable cases are planted. Three mutations bite,
+  including one that calls every fall a collapse and one that
+  reports an older run's silence as "it did not collapse" -
+  absent is not a measurement.
+- **AND TWO HYPOTHESES DIED BEFORE THAT ONE, BOTH BY READING THE
+  ENGINE.** I thought `procedure_count` was overwritten by a set
+  size - `_size_partners` maps the SET to the real column and
+  draws the SET at the count's sizes, so the direction is the
+  opposite and the count is drawn normally. Then I thought the
+  copy overwrote it - `_copy_partners` reads
+  `{'procedure_quantity': 'procedure_count'}`, so the count is
+  the SOURCE of that copy and not its target. Two greps, no
+  fixture, no run.
+- **AND THE COLUMN IS CYCLIC, WHICH IS WHY THE PASS BUILT FOR
+  THIS SKIPS IT.** `--presence-rerank` exists to re-rank a
+  partially-covered relationship child among the rows that
+  survive its mask, and the record says it would re-rank ZERO
+  columns on this blueprint because every candidate is "not a
+  relationship child or CYCLIC". `procedure_count` is a
+  relationship child and it IS cyclic - so it was excluded for
+  the second reason. What that pass restricts to is the CHILD's
+  surviving rows; what this curve would need is a restriction to
+  the rows where the PARENT is present, which is a different
+  restriction and is not built. **Named rather than built**:
+  the sparse-parent shape is 2 of 20 own-column losses against 1
+  of 28 carried, which is three observations and does not
+  separate, and a rearrangement aimed at two curves is the
+  near-zero-sum this file records for four token tiers.
+
 - **THE FIFTEEN ARE CHARACTERISED, AND ONLY ONE MECHANISM OF SIX
   SEPARATES THEM FROM THE CURVES THAT CARRIED (2026-11-23,
   run_vr_off).** The record left this as the best-aimed open item

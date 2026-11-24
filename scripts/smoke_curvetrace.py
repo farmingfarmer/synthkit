@@ -162,7 +162,9 @@ def main():
     check("...and it traced every published numeric curve, so a "
           "pass naming no curve is a finding rather than an empty "
           "instrument ({} curves)".format(len(tr)), len(tr) >= 4)
-    stages = [s for s, _ in list(tr.values())[0]]
+    # THE ENTRY GREW A THIRD FIELD - the comparable-row count -
+    # so the stage is read by POSITION rather than unpacked.
+    stages = [e[0] for e in list(tr.values())[0]]
     check("every probe fires in order, from the draw through to "
           "the arithmetic identities, so a trajectory can name "
           "WHICH pass moved a curve: {}".format(
@@ -174,13 +176,13 @@ def main():
           and len(stages) >= 8)
     check("...and the same stages are recorded for every curve, or "
           "two trajectories could not be compared",
-          all([s for s, _ in v] == stages for v in tr.values()))
+          all([e[0] for e in v] == stages for v in tr.values()))
     check("a curve the engine DOES carry reads a substantial "
           "correlation at every pass - without one of those this "
           "suite could not tell a dropped curve from an instrument "
           "that reads zero everywhere",
           any(all(rho is not None and abs(rho) > 0.3
-                  for _, rho in v) for v in tr.values()))
+                  for rho in (e[1] for e in v)) for v in tr.values()))
 
     # NO VALUE IS PUBLISHED. The trace carries correlations and
     # column names only - the same rule the marginal measure
@@ -193,7 +195,7 @@ def main():
           "it solves",
           "rows" not in blob and "values" not in blob
           and all(isinstance(rho, (float, int)) or rho is None
-                  for v in tr.values() for _, rho in v))
+                  for v in tr.values() for rho in (e[1] for e in v)))
 
     # ------------------------------------------------------------
     # IT CAN SHOW A DROP, AND NAMES WHERE. A patient-level child
@@ -235,7 +237,7 @@ def main():
           "trajectory names a culprit and nothing downstream is "
           "to blame",
           wv is not None
-          and all(rho is None or abs(rho) < 0.15 for _, rho in wv))
+          and all(rho is None or abs(rho) < 0.15 for rho in (e[1] for e in wv)))
 
     # ================================================================
     # THE DRIVER. `locate` is a PURE FUNCTION on the trajectory and
@@ -704,6 +706,79 @@ def main():
           "unstated denominator",
           "contract PUBLISHES" in out and "the four add to" in out
           and "DOES NOT ADD UP" not in out)
+
+    # ----------------------------------------------------------
+    # DID THE PROBE'S OWN SAMPLE COLLAPSE AT THE PASS BLAMED?
+    #
+    # `m` inside the probe is the rows where BOTH the curve's
+    # delta and the child are finite, and `_curve_delta` is not
+    # finite where the PARENT is absent - so a presence mask on
+    # the parent re-measures the correlation on the parent's
+    # surviving rows rather than on all of them. A fall there can
+    # be the RULER shrinking rather than the child moving, and
+    # the two take completely different fixes.
+    #
+    # THE REAL EXTRACT IS WHY THIS EXISTS. `procedure_count <-
+    # mean_arterial_pressure_invasive` falls 0.172 to 0.007 at
+    # after-masks, and the CHILD is present on 100% of rows while
+    # the parent is present on 0.20% - so no mask touches the
+    # child at all and the whole fall is the sample. It was the
+    # largest unexplained own-column loss on the file.
+    #
+    # PLANTED, because the branch needs the mask's fall to be the
+    # LARGEST one and no fixture here can be relied on to produce
+    # that ordering: on a sparse-parent fixture built for it the
+    # blame landed on after-sweeps instead.
+    # ----------------------------------------------------------
+    coll = CT.sample_at(
+        [("after-draw", 0.42, 12000),
+         ("after-sweeps", 0.40, 12000),
+         ("after-masks", 0.01, 42)], "after-masks")
+    check("a probe whose comparable rows fall from 12,000 to 42 "
+          "at the pass blamed is reported as a COLLAPSED sample, "
+          "so a reader is not sent after a child that cannot have "
+          "moved",
+          coll and coll["collapsed"] is True
+          and coll["rows_before"] == 12000
+          and coll["rows_after"] == 42)
+    same = CT.sample_at(
+        [("after-draw", 0.42, 12000),
+         ("after-sweeps", 0.20, 12000)], "after-sweeps")
+    check("...and a fall measured on the SAME rows is NOT - that "
+          "one is the engine, and calling it a sample artifact "
+          "would excuse a real loss",
+          same and same["collapsed"] is False)
+    half = CT.sample_at(
+        [("a", 0.4, 1000), ("b", 0.2, 600)], "b")
+    check("...and a sample that merely thins does not clear the "
+          "bar, which is deliberately loose at a half rather "
+          "than arguing about cases nobody can separate",
+          half and half["collapsed"] is False)
+
+    # ABSENT IS NOT "IT DID NOT COLLAPSE". A run made before the
+    # probe recorded counts cannot answer the question at all,
+    # and reporting False there would be a claim nobody measured.
+    old = CT.sample_at([("a", 0.4), ("b", 0.2)], "b")
+    check("a trajectory with NO counts returns None rather than "
+          "False - an older run cannot answer this, which is a "
+          "different fact from the sample holding",
+          old is None)
+    check("...and so does a stage that is not in the trajectory, "
+          "or the first one, which has nothing before it",
+          CT.sample_at([("a", 0.4, 9), ("b", 0.2, 9)], "zz") is None
+          and CT.sample_at([("a", 0.4, 9), ("b", 0.2, 9)], "a")
+          is None)
+
+    # AND THE PROBE ACTUALLY RECORDS THE COUNT, asserted through
+    # a real traced generate rather than on the function alone -
+    # a detector reading a field nobody writes is the
+    # read-but-not-used fault.
+    check("the engine's own probe records the comparable-row "
+          "count beside every reading, without which none of the "
+          "above can fire on a real run",
+          any(len(e) > 2 and e[2] is not None
+              for traj in ((rep.get("curve_trace") or {})).values()
+              for e in traj))
 
     print()
     if FAIL:

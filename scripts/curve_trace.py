@@ -97,13 +97,20 @@ def locate(traj, flat=FLAT):
     needed a later pass is a statement about how load-bearing that
     pass is.
     """
-    vals = [rho for _, rho in traj]
+    # THE TRAJECTORY GREW A THIRD FIELD - the rows the probe
+    # could compare at that stage - and an older run's
+    # two-element entries must still read. Absent is not zero: a
+    # run with no counts cannot answer the sample-collapse
+    # question, which is a different fact from the sample not
+    # collapsing.
+    vals = [e[1] for e in traj]
     if not vals or vals[0] is None:
         return ("NOT-MEASURABLE", None, None)
     if vals[-1] is not None and applied(vals[-1], flat) == "APPLIED":
         if vals[-1] < 0:
             prev = vals[0]
-            for stage, rho in traj[1:]:
+            for _e in traj[1:]:
+                stage, rho = _e[0], _e[1]
                 if rho is None:
                     continue
                 if prev >= 0 > rho:
@@ -114,7 +121,8 @@ def locate(traj, flat=FLAT):
         # stage named is the one that first brought it over the
         # floor, which is the pass doing the work.
         if applied(vals[0], flat) == "NOT-APPLIED":
-            for stage, rho in traj[1:]:
+            for _e in traj[1:]:
+                stage, rho = _e[0], _e[1]
                 if rho is not None \
                         and applied(rho, flat) == "APPLIED":
                     return ("CARRIED", stage, None)
@@ -132,7 +140,8 @@ def locate(traj, flat=FLAT):
         return ("DROPPED", traj[i][0], None)
     worst_stage, worst_drop = None, -1.0
     prev = abs(vals[0])
-    for stage, rho in traj[1:]:
+    for _e in traj[1:]:
+        stage, rho = _e[0], _e[1]
         if rho is None:
             continue
         cur = abs(rho)
@@ -140,6 +149,60 @@ def locate(traj, flat=FLAT):
             worst_drop, worst_stage = prev - cur, stage
         prev = cur
     return ("DROPPED", worst_stage, round(worst_drop, 4))
+
+
+# HALF IS THE BAR, and it is deliberately loose: a sample that
+# halves is a different measurement whatever else is true, and a
+# tighter bar would argue about cases nobody can separate.
+SAMPLE_COLLAPSE = 0.5
+
+
+def sample_at(traj, stage):
+    """Did the PROBE's own sample collapse at the pass blamed?
+
+    A PURE FUNCTION on the trajectory, asserted on planted input,
+    because the branch that matters needs the mask's fall to be
+    the LARGEST one and no fixture here can be relied on to
+    produce that ordering.
+
+    WHY IT IS NEEDED. `m` inside the probe is the rows where BOTH
+    the curve's delta and the child are finite - and
+    `_curve_delta` is not finite where the PARENT is absent. So a
+    presence mask on the parent re-measures the correlation on
+    the parent's surviving rows rather than on all of them, and a
+    fall there can be the RULER shrinking rather than the child
+    moving.
+
+    Measured on the real extract: `procedure_count <-
+    mean_arterial_pressure_invasive` falls 0.172 to 0.007 at
+    after-masks - and the CHILD is present on 100% of rows while
+    the parent is present on 0.20%, so no mask touches the child
+    at all and the whole fall is the sample. That curve was the
+    largest unexplained own-column loss on the file.
+
+    Returns None where the run recorded no counts: absent is not
+    "it did not collapse", which is a different fact and the
+    distinction this project draws everywhere.
+    """
+    n_at = {}
+    for e in traj or []:
+        if len(e) > 2 and e[2] is not None:
+            n_at[e[0]] = int(e[2])
+    if not stage or len(n_at) < 2:
+        return None
+    seq = [e[0] for e in traj]
+    try:
+        j = seq.index(stage)
+    except ValueError:
+        return None
+    if j <= 0:
+        return None
+    before = n_at.get(seq[j - 1])
+    after = n_at.get(seq[j])
+    if not before or after is None:
+        return None
+    return {"rows_before": before, "rows_after": after,
+            "collapsed": bool(after < SAMPLE_COLLAPSE * before)}
 
 
 def surface_note(verdict, via_surface):
@@ -444,10 +507,16 @@ def main():
                 break
         first = traj[0][1] if traj else None
         last = traj[-1][1] if traj else None
+        shrank = sample_at(traj, stage)
         rows.append({
             "curve": key, "child": child, "parent": parent,
             "verdict": verdict, "stage": stage, "drop": drop,
             "first": first, "last": last,
+            # WHETHER THE READING AT THAT PASS WAS TAKEN ON THE
+            # SAME ROWS AS THE ONE BEFORE IT. None where the run
+            # recorded no counts - absent is not "it did not
+            # collapse".
+            "sample": shrank,
             # FOUR FIFTHS OF THE GRADED SURFACE ON THIS EXTRACT IS
             # SCAFFOLDING the reader never receives, so a list that
             # did not say so would send somebody after columns
@@ -522,6 +591,17 @@ def main():
                 else "", tail))
             print("      draw {}  ->  end {}".format(
                 r["first"], r["last"]))
+            sm = r.get("sample") or {}
+            if sm.get("collapsed"):
+                print("      the PROBE's own sample collapsed at "
+                      "that pass - {} comparable row(s) before, "
+                      "{} after - so the fall is partly the ruler "
+                      "shrinking rather than the child moving. "
+                      "`_curve_delta` is not finite where the "
+                      "PARENT is absent, so a presence mask on "
+                      "the parent re-measures on its surviving "
+                      "rows.".format(sm.get("rows_before"),
+                                     sm.get("rows_after")))
             if surface_note(r["verdict"], r["via_surface"]):
                 print("      NOT A LOSS: a published SURFACE names "
                       "this parent, so the engine applies the "
