@@ -357,6 +357,53 @@ def main():
               len(exp) + len(wh) + len(un) == len(lost)
               and not (set(map(id, exp)) & set(map(id, wh)))
               and not (set(map(id, wh)) & set(map(id, un))))
+        # ---- THE PATIENT COLLAPSE, on a real blueprint -------
+        #
+        # This project MEASURED the mechanism when the trace was
+        # built - the same child carries its patient-level
+        # parent's curve at rho 0.429 and its within-patient
+        # parent's at 0.0703 from the FIRST probe - and never
+        # encoded it, so every census since counted such a curve
+        # as an unexplained loss. It is DEDUCTIVE: read off the
+        # contract's own `level` fields rather than inferred from
+        # the reading, which is why it needs no separation to be
+        # true - though it is still put to the carried bucket
+        # like every other mechanism.
+        _lv = dict((c, (v or {}).get("level"))
+                   for c, v in (bp.get("columns") or {}).items())
+        check("the fixture really carries the shape, or this "
+              "measures nothing - a PATIENT-level column and a "
+              "within-patient one in the same blueprint",
+              _lv.get("year_of_birth") == "patient"
+              and _lv.get("age_at_visit") == "visit")
+        check("a patient-level child's curve on a within-patient "
+              "parent carries COLLAPSE - the collapse ranks the "
+              "patient by their MEAN and averages out the very "
+              "variation the curve acts on",
+              WN.collapses(bp, "year_of_birth", "age_at_visit"))
+        check("...and a VISIT-level child is never flagged, "
+              "whatever its parent - the collapse does not run on "
+              "it at all, which is the reading that retired a "
+              "fifth mechanism for `height` on the real extract",
+              not WN.collapses(bp, "age_at_visit", "year_of_birth")
+              and not WN.collapses(bp, "height", "age_at_visit"))
+        check("...and an ABSENT level decides nothing, because a "
+              "blueprint predating the field would otherwise have "
+              "the mechanism manufactured on every curve",
+              not WN.collapses({"columns": {"a": {}, "b": {}}},
+                               "a", "b")
+              and not WN.collapses({}, "a", "b"))
+        _m, _ = WN.mechanisms_for(
+            {"child": "year_of_birth", "parent": "age_at_visit",
+             "via_surface": False, "coparent_r": None,
+             "sample": None},
+            bp, set(), set(), set())
+        check("...and it reaches the census through "
+              "`mechanisms_for`, not only as a predicate - a "
+              "mechanism wired to nothing is this project's most "
+              "repeated fault: {}".format(_m),
+              "COLLAPSE" in _m)
+
         check("the withholding rule is the TRACE's own function, "
               "asserted by IDENTITY rather than by its behaviour - "
               "two halves each deciding what 'established' means "

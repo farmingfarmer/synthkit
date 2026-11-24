@@ -35,6 +35,11 @@ and the instrument come to disagree about what generation did.
     SURFACE     a published surface consumes the parent pair, so
                 `_apply_numeric` applies the surface and marks
                 both members done - by design
+    COLLAPSE    the child is PATIENT-level and the parent varies
+                WITHIN the patient, so `_collapse_to_patient`
+                ranks the patient by their MEAN of the applied
+                values and averages out the very variation the
+                curve acts on. Structural, not a pass to fix
     CYCLIC      the child is in a cycle, so the refinement sweep
                 re-ranks it onto its own marginal's multiset,
                 which preserves ORDER and not amplitude
@@ -80,7 +85,7 @@ FLAT_SPAN = 0.05
 # first; COLLINEAR is asked last because it withholds a verdict
 # rather than explaining a loss.
 MECHANISMS = ("SAMPLE", "COPIED", "IDENTITY", "SURFACE",
-              "CYCLIC", "FLAT", "COLLINEAR")
+              "COLLAPSE", "CYCLIC", "FLAT", "COLLINEAR")
 
 # HOW MUCH MORE COMMON A MECHANISM MUST BE AMONG THE LOST CURVES
 # THAN AMONG THE CARRIED ONES BEFORE IT COUNTS AS AN EXPLANATION.
@@ -187,6 +192,8 @@ def mechanisms_for(row, bp, copied, idents, cyclic):
         got.append("IDENTITY")
     if row.get("via_surface"):
         got.append("SURFACE")
+    if collapses(bp, child, parent):
+        got.append("COLLAPSE")
     if child in cyclic:
         got.append("CYCLIC")
     span = curve_span(bp, child, parent)
@@ -196,6 +203,31 @@ def mechanisms_for(row, bp, copied, idents, cyclic):
     if cr is not None and abs(float(cr)) >= COLLINEAR_R:
         got.append("COLLINEAR")
     return got, span
+
+
+def collapses(bp, child, parent):
+    """Does the patient collapse average this parent's effect out?
+
+    `_collapse_to_patient` ranks a patient by their MEAN of the
+    applied values, so a PATIENT-LEVEL child cannot carry a curve
+    on a parent that varies WITHIN the patient - the variation the
+    curve acts on is averaged out by construction. Measured on a
+    fixture when the trace was built: the same child carries its
+    patient-level parent's curve at rho 0.429 and its
+    within-patient parent's at 0.0703 from the FIRST probe.
+
+    DEDUCTIVE rather than correlational: it is read off the
+    contract's own `level` fields, not inferred from the reading.
+    A missing level decides nothing - absent is not "visit", and
+    guessing would manufacture the mechanism on any blueprint
+    that predates the field.
+    """
+    cols = bp.get("columns") or {}
+    kl = (cols.get(child) or {}).get("level")
+    pl = (cols.get(parent) or {}).get("level")
+    if kl is None or pl is None:
+        return False
+    return kl == "patient" and pl == "visit"
 
 
 def split_lost(lost, sep):
