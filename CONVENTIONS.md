@@ -3,6 +3,131 @@
 Synthetic clinical data generator and model-evaluation instrument. Core rule: learn the patterns, never copy the records. Real data teaches parameters; generation never touches a record.
 
 ## Verify before claiming
+- **THE DATE-REORDER LOSS IS REAL, THE FIX WORKS, AND ITS REACH
+  ON THE REAL EXTRACT IS ZERO (2026-11-24,
+  `--carry-date-children`).** The within-patient reorder sorts a
+  patient's date VALUES down their rows and leaves every other
+  column where it was, so a child drawn from a date's curve keeps
+  its value while the parent's moves. Reproduced through the
+  engine's own probe BEFORE anything was built:
+      stage                  rho
+      after-size-identity   0.9785
+      after-date-reorder    0.8612
+  a fall of 0.117, the same order as the extract's recorded 0.128
+  on `condition_count <- visit_start_date`.
+- **AND THE POOLED READING UNDERSTATES IT BY AN ORDER OF
+  MAGNITUDE, which is why this looked small for a month.** The
+  reorder only ever moves values WITHIN a patient, so a pooled
+  correlation is propped up by the between-patient half it cannot
+  touch. On one fixture pair:
+      reading            source   reorder on
+      pooled             0.9802       0.8612
+      WITHIN patient     0.8716       0.1069
+  **The temporal relationship is not weakened, it is gone** - and
+  the gate's pair criteria are pooled, which is exactly why a
+  PAIRED REAL ARM measured the reorder as costing ZERO close
+  pairs while the curve trace recorded a DROPPED curve at that
+  same pass. Both measurements were right about different
+  quantities.
+- **CARRYING THE CHILD IS THE ONLY FIX AVAILABLE, and it is safe
+  for a reason that is asserted rather than argued.** The
+  permutation is FORCED - it is whatever sorts the dates - so if
+  the pairing is to survive, the child must move by the same
+  permutation. And that permutation never moves a value out of
+  its patient, so a carried child keeps its multiset PER PATIENT:
+  its patient means come out IDENTICAL, which means icc, patient
+  means and every between-patient correlation are preserved by
+  construction. Measured on the paired fixture:
+      within-patient date~load   source 0.8567
+                                 carry off 0.1120
+                                 carry ON  0.8897
+      load multiset              identical
+      load patient means         identical
+      rows moved                 948 of 1200
+      dates still in visit order 1.0000 both arms
+      worst OTHER pair moved     0.0346
+  The worst collateral is walked over EVERY pair rather than one
+  hand-picked bystander, because a single control only measures
+  the pair somebody thought of.
+- **AND THE SAFE RULE REACHES NOTHING ON THE REAL BLUEPRINT,
+  WHICH IS THE ANSWER AND IT IS A NEGATIVE.** A child is carried
+  only when every one of its published parents is a date, because
+  carrying one with a non-date parent trades its date pairing for
+  that one and which to prefer is not a decision the pass can
+  make. Asked of `run_vr_off`'s own blueprint rather than
+  guessed:
+      date columns       two   visit_start_date visit_end_date
+      axis               visit_end_date
+      CARRIED            zero
+      DECLINED           twenty-three
+  **Every one of the twenty-three needs a COUNT co-parent** -
+  `procedure_count`, `active_drug_count`, `condition_count`,
+  `procedure_quantity` - and the list includes
+  `temperature_oral`, `procedures__n` and `year_of_birth`. So
+  the conservative rule is correct and INERT here, and the
+  honest statement is that date-parent curves still do not
+  survive on the extract.
+- **THAT READ COST SECONDS AND IS THE `peek rerank` PRECEDENT
+  AGAIN.** The flag could have been taken to a forty-minute
+  paired arm that came back identical to its control and meant
+  nothing. One blueprint query said CARRIED=zero instead, which
+  is a cleaner answer than a run would have given - and it is
+  the second time asking the contract first has replaced an arm
+  on this project.
+- **THE DECLINED LIST IS REPORTED WITH THE FLAG OFF TOO, because
+  a reader who leaves it off is entitled to know what it would
+  have reached - and because a blueprint where the safe rule
+  reaches nothing is the measurement that sends the next person
+  somewhere else.** Named rather than counted: a count cannot be
+  acted on, and these twenty-three names ARE the roadmap.
+- **WHAT THE GENERAL CASE NEEDS, NAMED WITH ITS RISK RATHER THAN
+  HALF-BUILT.** Two candidates. (1) A JOINT RE-RANK: rearrange
+  the child within each patient to best satisfy ALL its parents
+  under the new date order - `b = R^-1 rho`, the solve
+  `repair_inversions` already uses, which would need to move INTO
+  the engine rather than be copied, because a second
+  implementation is how two halves come to disagree. (2) SORT THE
+  DATES EARLY, as soon as they are drawn, so every child reads
+  final values and no carry is needed at all - which fixes all
+  twenty-three at once and is defeated by a date that is itself a
+  CHILD, since the column drawn before it would then be
+  mispaired. The fixture has exactly that shape
+  (`visit_start_date <- load`), and dates are commonly in a
+  cycle, so (2) is not obviously available. Neither is built; a
+  design with a reason is not a measurement.
+- **AND THE PROVENANCE GUARD CAUGHT THE NEW KEYWORD WITHIN A
+  MINUTE.** Adding `carry_date_children` to `generate`'s
+  signature and not to `_generate_args` turned `smoke_curvetrace`
+  red, because a check asserts the recorded keys against
+  `generate`'s OWN SIGNATURE. That guard was written after a run
+  with `--no-identities` and a run without it produced provenance
+  files that agreed to the byte; it has now caught a ninth
+  keyword before it could become a thing a run cannot say about
+  itself.
+- **AND MY OWN BAR WENT RED ON A CORRECT FIX, for the right
+  reason.** It demanded the recovered correlation clear 0.9 and
+  the fix delivered 0.8897 against a source of 0.8567 - which is
+  essentially exact. Worse, that bar would have PASSED a fix
+  overshooting to 0.99 on a source of 0.5, which is the
+  manufactured-relationship fault this project treats as worse
+  than a missing one. The bar is PROXIMITY TO SOURCE now.
+- **AND THE FIRST FIXTURE'S BYSTANDER SAT ON DISCOVERY'S
+  INCLUSION BOUNDARY, so whether the fixture could exercise the
+  carry at all was a coin flip.** `tag` was tied weakly to the
+  date and became a co-parent of the child on one draw and not on
+  another - and on the draw where it did, `carried` read EMPTY
+  and three checks went red against a working fix. A
+  patient-level driver cannot become a date co-parent however the
+  seed falls. This file already records a fixture whose property
+  depended on the seed; this is the same fault in a new place.
+- **AND I READ A RENDERED DATE WITH `to_numeric` AND GOT ALL
+  NaN, which is the wrong-type fault for the fifth time.** The
+  first run of the paired measurement printed `nan` for every
+  date reading and `0.0000` for the share of patients whose dates
+  are in order - a measurement that looked like a broken engine
+  and was a broken reader. `numeric_days` tries numbers first and
+  stamps second, and it already existed.
+
 - **THE METRICS WERE TRACKED IN A UI, ONE RUN AT A TIME, AND
   "IS THAT IN A LOG" WAS A FAIR QUESTION (2026-11-24,
   `synthkit metrics`).** Every number this project measures
