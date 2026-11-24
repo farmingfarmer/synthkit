@@ -3,6 +3,84 @@
 Synthetic clinical data generator and model-evaluation instrument. Core rule: learn the patterns, never copy the records. Real data teaches parameters; generation never touches a record.
 
 ## Verify before claiming
+- **THE RE-TRACE LANDED AND THE PRESENCE MASK IS FULLY ACCOUNTED
+  FOR: ALL FOUR OWN-COLUMN after-masks LOSSES ARE THE RULER
+  SHRINKING, NOT THE CHILD MOVING (2026-11-24, run_vr_off).**
+  Every figure read back SPELLED by the tool itself, on the build
+  verified by digest against local (`199ea89ab9`, `fe033e4e9a`):
+      own-column curves blamed on after-masks   four
+      of those, sample COLLAPSED                four
+      DROPPED  systolic_blood_pressure <- MAP_cuff_bmdi
+      DROPPED  heart_rate_monitored <- 6690_2
+      DROPPED  peripheral_pulse_rate <- diastolic_blood_pressure
+      DROPPED  procedure_count <- MAP_invasive
+  **Four of four.** The pass this file called "the only later pass
+  that costs more than one curve" costs ZERO own-column curves on
+  this run: every fall there is the probe re-measuring on the
+  parent's surviving rows.
+- **THE PREDICTION SCORED EXACTLY, INCLUDING ITS REFUSAL.** It
+  claimed `procedure_count <- MAP_invasive` would read COLLAPSED
+  on arithmetic (child 100%, parent 0.20%, so about 55,684 rows
+  to 111 against a bar of a half) - it does. It claimed
+  UNEXPLAINED would fall from 13 to AT MOST 12 - it reads
+  **twelve**, spelled by the tool. It claimed the retired count
+  would rise from three to at least four - it is four. And it
+  explicitly declined to claim the fifth: there is no fifth on
+  this run, which had four own-column after-masks curves where
+  the record's earlier run had five. **A different draw, a
+  different count** - said plainly rather than read as a
+  discrepancy.
+- **AND THE TWELVE THAT REMAIN CONTAIN NO MASK CASE AT ALL,
+  which is what closes the chapter:**
+      DROPPED    condition_count <- visit_start_date   (at
+                 after-date-reorder, which the mask screen
+                 cannot reach whatever its coverage)
+      NEVER-APP  age_at_visit <- visit_start_date
+                 heart_rate_monitored <- height
+                 height <- age_at_visit
+                 height <- year_of_birth
+                 year_of_birth <- visit_start_date
+      REVERSED   4544_3 <- 787_2      787_2 <- 4544_3
+                 718_7  <- 787_2      787_2 <- 718_7
+                 diastolic <- systolic  systolic <- diastolic
+  The five NEVER-APPLIED are below the floor at the FIRST probe,
+  so they are lost in the DRAW before any mask runs and the
+  screen does not apply to them - a retirement there would mean
+  it was firing where it should not.
+- **AND SIX OF THE TWELVE ARE THREE COLUMN PAIRS READ IN BOTH
+  DIRECTIONS, so the actionable count is smaller than the
+  census.** `787_2` against `4544_3` and against `718_7`, and
+  the systolic/diastolic pair - each appears twice because the
+  contract publishes both arrows. Three mechanisms, not six
+  faults, and the pressure pair is the family this file has
+  chased through a refuted ring ceiling and a NOT READABLE
+  screen. `visit_start_date` is the parent in three of the
+  remaining six singles, which is the second concentration.
+- **AND THE FOCUS GUARD EARNED ITS PLACE MID-RUN.** The
+  foreground became the operator's own messaging window and the
+  bridge REFUSED rather than typing a python command into it -
+  three consecutive polls refused, the detached trace kept
+  running in its own window, and the console came back on the
+  fourth. Read the refusal and WAIT; forcing the console forward
+  means a global window key, which this file forbids on a shared
+  machine.
+- **AND THE chr() TRICK IS THE MECHANICAL FIX FOR THE SELF-MATCH
+  TRAP.** Building the answer word inside the command -
+  `print(chr(80)+chr(89)+chr(79)+chr(75))` - means the command
+  TEXT cannot contain the string being grepped for, so the
+  bridge's echo of the command can never satisfy the read. That
+  is the same rule as making the PATTERN differ from the TEXT,
+  applied at the source rather than at the match, and it held on
+  every one of a dozen reads where the plain `echo WORD` form had
+  returned its own command six times.
+- **AND A LENGTH DISAGREED WITH A DIGEST, AND THE DIGEST WAS
+  RIGHT.** A verified payload read `DL 860` against a local 800
+  while its md5 prefix matched to all ten characters. Zero reads
+  as six on that channel; a 128-bit digest does not have that
+  failure mode. **Verify a transfer on the DIGEST and treat a
+  rendered length as a courtesy** - and this is the second half
+  of the recorded rule to verify the payload before decoding it.
+
 - **THE RE-TRACE IS QUEUED AND THE PREDICTION IS ON RECORD FIRST
   (2026-11-23).** The sample screen under the OLD reading retired
   THREE own-column curves and took UNEXPLAINED from 16 to 13, two
