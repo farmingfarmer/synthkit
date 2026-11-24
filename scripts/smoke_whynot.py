@@ -404,6 +404,50 @@ def main():
               "repeated fault: {}".format(_m),
               "COLLAPSE" in _m)
 
+        # ---- THE IDENTITY ASKS ABOUT THE PARENT -------------
+        #
+        # An identity child's drawn value is OVERWRITTEN by the
+        # arithmetic, so a curve on it cannot survive - unless
+        # the parent is a TERM of that arithmetic, in which case
+        # the identity itself reproduces the dependence.
+        # Measured on the real extract with the carried bucket as
+        # the control: flagging the child alone read 1 of 20 lost
+        # against 2 of 28 carried and separated NOTHING, and both
+        # carried curves have their parent inside the identity.
+        id_bp = {"arithmetic_identities": [
+            {"child": "age", "parents": ["yob", "vend"]}]}
+        _ids = WN.identity_children(id_bp)
+        check("the identity record is read as child -> its own "
+              "PARENTS, not as a bare set of children: {}".format(
+                  dict((k, sorted(v)) for k, v in _ids.items())),
+              _ids.get("age") == {"yob", "vend"})
+        _row = {"child": "age", "parent": "vstart",
+                "via_surface": False, "coparent_r": None,
+                "sample": None}
+        _m1, _ = WN.mechanisms_for(_row, id_bp, set(), _ids,
+                                   set())
+        check("a curve on a parent the identity is NOT computed "
+              "from carries IDENTITY - that drawn value is "
+              "overwritten and no curve on it can survive",
+              "IDENTITY" in _m1)
+        _row2 = dict(_row, parent="yob")
+        _m2, _ = WN.mechanisms_for(_row2, id_bp, set(), _ids,
+                                   set())
+        check("...and a curve on a TERM of the identity does NOT - "
+              "the arithmetic reproduces that dependence itself, "
+              "and the control says two such curves CARRIED",
+              "IDENTITY" not in _m2)
+        _row3 = dict(_row, child="zz")
+        _m3, _ = WN.mechanisms_for(_row3, id_bp, set(), _ids,
+                                   set())
+        check("...and a child with no identity at all is never "
+              "flagged",
+              "IDENTITY" not in _m3)
+        check("...and a blueprint with no identities yields an "
+              "empty map rather than raising, so an older run "
+              "still reads",
+              WN.identity_children({}) == {})
+
         # ---- REVERSES, on a planted contract ----------------
         #
         # The contract publishes `reverses_when_controlled` on an

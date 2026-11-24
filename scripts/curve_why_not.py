@@ -133,13 +133,28 @@ MIN_FOR_SEPARATION = 20
 
 
 def identity_children(bp):
-    """Children the arithmetic tier COMPUTES, by the record's own
-    field rather than by re-deriving the detection."""
-    out = set()
+    """Children the arithmetic tier COMPUTES, mapped to the
+    PARENTS it computes them from - by the record's own fields
+    rather than by re-deriving the detection.
+
+    THE PARENTS ARE LOAD-BEARING, measured on the real extract
+    with the carried bucket as the control. An identity child's
+    curve survives on a parent that is a TERM of the identity,
+    because the arithmetic itself reproduces that dependence, and
+    cannot survive on any other parent, because the drawn value
+    is overwritten:
+        CARRIED    visit_start_date <- visit_end_date   term
+        CARRIED    age_at_visit <- year_of_birth        term
+        NEVER-APP  age_at_visit <- visit_start_date     not
+    Flagging the child alone read 1 of 20 lost against 2 of 28
+    carried and SEPARATED NOTHING; asking about the parent reads
+    1 of 20 against 0 of 28.
+    """
+    out = {}
     for rec in (bp.get("arithmetic_identities") or []):
         c = rec.get("child")
         if c:
-            out.add(c)
+            out[c] = set(rec.get("parents") or ())
     return out
 
 
@@ -196,7 +211,11 @@ def mechanisms_for(row, bp, copied, idents, cyclic):
         got.append("SAMPLE")
     if child in copied:
         got.append("COPIED")
-    if child in idents:
+    # NOT `child in idents`. A curve on a parent the identity
+    # itself is computed FROM is reproduced BY the arithmetic, so
+    # flagging it would claim a mechanism against a curve that
+    # carried - and the control says two of them do.
+    if child in idents and parent not in idents[child]:
         got.append("IDENTITY")
     if row.get("via_surface"):
         got.append("SURFACE")
