@@ -404,6 +404,77 @@ def main():
               "repeated fault: {}".format(_m),
               "COLLAPSE" in _m)
 
+        # ---- REVERSES, on a planted contract ----------------
+        #
+        # The contract publishes `reverses_when_controlled` on an
+        # effect whose PARTIAL sign is opposite to its MARGINAL
+        # one. The trace probe correlates the curve's own DELTA
+        # against the child's CURRENT values, which is a marginal
+        # reading - so such a curve reads NEGATIVE when applied
+        # exactly as published, and calling that an engine fault
+        # blames the sampler for doing its job.
+        #
+        # PLANTED, because this fixture publishes the flag on
+        # ZERO curves - measured, not assumed - so an end-to-end
+        # check here would pass without exercising anything. The
+        # field NAME is pinned against the engine below rather
+        # than trusted.
+        check("the engine can actually SET this field, or the "
+              "mechanism reads a key nobody writes - the "
+              "eleventh wrong-key fault on this project was "
+              "exactly that",
+              "reverses_when_controlled" in io.open(
+                  str(ROOT / "synthkit" / "blueprint.py"),
+                  encoding="utf-8").read()
+              and "reverses_when_controlled" in io.open(
+                  str(ROOT / "synthkit" / "discover.py"),
+                  encoding="utf-8").read())
+        rev_bp = {"relationships": [
+            {"child": "k", "parents": ["p", "q"],
+             "evidence": {"effect": {
+                 "p": {"reverses_when_controlled":
+                       "on its own p moves the other way",
+                       "response": [1.0, 2.0, 3.0]},
+                 "q": {"response": [1.0, 2.0, 3.0]}}}}]}
+        check("a curve the contract says REVERSES when controlled "
+              "carries the mechanism, because a marginal probe of "
+              "an opposite-signed partial curve must read "
+              "negative",
+              WN.reverses(rev_bp, "k", "p"))
+        check("...and its co-parent, which carries no such flag, "
+              "does NOT - absence decides nothing, and reading it "
+              "as 'it does reverse' would manufacture the "
+              "mechanism on every curve",
+              not WN.reverses(rev_bp, "k", "q"))
+        check("...and a child the contract has no record for is "
+              "not flagged either",
+              not WN.reverses(rev_bp, "zz", "p")
+              and not WN.reverses({}, "k", "p"))
+        _mr, _ = WN.mechanisms_for(
+            {"child": "k", "parent": "p", "via_surface": False,
+             "coparent_r": None, "sample": None},
+            rev_bp, set(), set(), set())
+        check("...and it reaches the census through "
+              "`mechanisms_for`: {}".format(_mr),
+              "REVERSES" in _mr)
+
+        # AND THE PARENT'S ICC IS REPORTED BESIDE THE FLAG,
+        # because 0.30 and 0.96 are the same flag and opposite
+        # verdicts - measured on the real extract with one
+        # patient-level child against two parents the contract
+        # both calls visit-level.
+        _icc = WN.parent_icc(bp, "age_at_visit")
+        check("the parent's between-patient share is read off the "
+              "contract, so a COLLAPSE flag can be acted on "
+              "rather than only counted: {}".format(_icc),
+              _icc is not None and 0.0 <= _icc <= 1.0)
+        check("...and a parent with no published dynamics reads "
+              "ABSENT rather than zero, because a zero there "
+              "would say 'all its variation is within the "
+              "patient' when nobody measured it",
+              WN.parent_icc({"columns": {"p": {}}}, "p") is None
+              and WN.parent_icc({}, "p") is None)
+
         check("the withholding rule is the TRACE's own function, "
               "asserted by IDENTITY rather than by its behaviour - "
               "two halves each deciding what 'established' means "

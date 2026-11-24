@@ -35,6 +35,13 @@ and the instrument come to disagree about what generation did.
     SURFACE     a published surface consumes the parent pair, so
                 `_apply_numeric` applies the surface and marks
                 both members done - by design
+    REVERSES    the contract's own `reverses_when_controlled`:
+                holding the co-parents fixed REVERSES this
+                parent's effect, so a correctly applied PARTIAL
+                curve MUST read negative on a marginal probe.
+                Deductive and not a correlate - and it separates
+                on the real extract, 4 of 6 reversed against 2 of
+                28 carried
     COLLAPSE    the child is PATIENT-level and the parent varies
                 WITHIN the patient, so `_collapse_to_patient`
                 ranks the patient by their MEAN of the applied
@@ -85,7 +92,8 @@ FLAT_SPAN = 0.05
 # first; COLLINEAR is asked last because it withholds a verdict
 # rather than explaining a loss.
 MECHANISMS = ("SAMPLE", "COPIED", "IDENTITY", "SURFACE",
-              "COLLAPSE", "CYCLIC", "FLAT", "COLLINEAR")
+              "REVERSES", "COLLAPSE", "CYCLIC", "FLAT",
+              "COLLINEAR")
 
 # HOW MUCH MORE COMMON A MECHANISM MUST BE AMONG THE LOST CURVES
 # THAN AMONG THE CARRIED ONES BEFORE IT COUNTS AS AN EXPLANATION.
@@ -192,6 +200,8 @@ def mechanisms_for(row, bp, copied, idents, cyclic):
         got.append("IDENTITY")
     if row.get("via_surface"):
         got.append("SURFACE")
+    if reverses(bp, child, parent):
+        got.append("REVERSES")
     if collapses(bp, child, parent):
         got.append("COLLAPSE")
     if child in cyclic:
@@ -228,6 +238,71 @@ def collapses(bp, child, parent):
     if kl is None or pl is None:
         return False
     return kl == "patient" and pl == "visit"
+
+
+def reverses(bp, child, parent):
+    """Does the contract say this parent's effect reverses when
+    the co-parents are held fixed?
+
+    `discover` publishes `reverses_when_controlled` on an effect
+    whose PARTIAL sign is opposite to its MARGINAL one - in the
+    record's own words, "on its own year_of_birth moves the other
+    way; holding the other parents fixed reverses it". The trace
+    probe correlates the curve's own DELTA against the child's
+    CURRENT values, which is a marginal reading, so such a curve
+    reads NEGATIVE when it is applied exactly as published.
+
+    DEDUCTIVE rather than correlational, and still put to the
+    carried bucket like every other mechanism: on the real
+    extract it is present on 4 of 6 reversed own-column curves
+    and 2 of 28 carried, which is a 60-point separation and the
+    widest this census has measured.
+
+    An ABSENT field decides nothing. `reverses_when_controlled`
+    is published only where discovery measured the flip, and
+    measured on the real extract it UNDER-reports: two reversed
+    lab curves publish an `increasing` and a `saturating`
+    response while their source marginal reads -0.054 and -0.022,
+    which is the same condition unflagged. Reading absence as
+    "it does not reverse" would be the absent-is-not-false fault;
+    reading it as "it does" would manufacture the mechanism on
+    every curve.
+    """
+    for rel in (bp.get("relationships") or []):
+        if rel.get("child") != child:
+            continue
+        e = ((rel.get("evidence") or {}).get("effect")
+             or {}).get(parent)
+        if isinstance(e, dict):
+            return bool(e.get("reverses_when_controlled"))
+    return False
+
+
+def parent_icc(bp, parent):
+    """The share of the parent's variance that is BETWEEN
+    patients, or None where the contract does not publish it.
+
+    THE LEVEL LABEL IS A PROXY AND THIS IS THE QUANTITY, measured
+    on the real extract with everything else held constant - one
+    patient-level child against two parents the contract both
+    calls visit-level:
+        CARRIED    year_of_birth <- age_at_visit     icc 0.9555
+        NEVER-APP  year_of_birth <- visit_start_date icc 0.3023
+    A parent whose variation is mostly BETWEEN patients survives
+    the collapse, because the patient's mean preserves it; one
+    that varies mostly WITHIN the patient does not.
+
+    REPORTED BESIDE THE FLAG RATHER THAN TURNED INTO A BAR. Two
+    points do not fix a threshold, and this project has three
+    recorded cases of a fitted law being wrong - sqrt(icc) bounds
+    the lost curve at 0.55 against a measured 0.097, so the
+    collapse is a contributing factor here and not a complete
+    account of it.
+    """
+    d = ((bp.get("columns") or {}).get(parent) or {}).get(
+        "dynamics") or {}
+    v = d.get("icc")
+    return None if v is None else float(v)
 
 
 def split_lost(lost, sep):
@@ -435,7 +510,16 @@ def main(argv=None):
                 "n/a" if span is None else "{:.3f}".format(span),
                 "n/a" if r.get("coparent_r") is None
                 else "{:.3f}".format(float(r["coparent_r"])),
-                ", ".join(m.lower() for m in r["_mech"]) or "none"))
+                ", ".join(m.lower() for m in r["_mech"])
+                or "none")
+            # THE PARENT'S ICC WHERE THE COLLAPSE IS IN PLAY,
+            # because the flag alone cannot be acted on: 0.30 and
+            # 0.96 are the same flag and opposite verdicts.
+            + ("" if "COLLAPSE" not in r["_mech"] else
+               "   parent icc {}".format(
+                   "n/a" if parent_icc(bp, r.get("parent")) is None
+                   else "{:.4f}".format(
+                       parent_icc(bp, r.get("parent"))))))
     lines.append("")
     if not lost:
         lines.append("NOTHING LOST on the operator's own columns, "
