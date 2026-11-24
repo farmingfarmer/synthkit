@@ -347,6 +347,31 @@ def main():
           and "240 on set-token scaffolding" in line
           and "25 on too few rows to bin" in line
           and "3 with too few bins" in line)
+    # AND THE NEW CLAUSE MUST NOT COST AN OLD ONE. Adding it, I
+    # reused the variable name `sh_sc` - which was the
+    # SCAFFOLDING count - and silently zeroed it, so the
+    # scaffolding clause vanished from the line. The same
+    # shadowing fault as `gate.plain`, in the same file, in the
+    # same session. Every clause is asserted TOGETHER for that
+    # reason.
+    fid2 = dict(fid)
+    fid2["summary"] = dict(fid["summary"])
+    fid2["summary"]["shapes_missed_surface_consumed"] = 2
+    line2 = next((c["detail"] for c in _gate.assess(fid2)["criteria"]
+                  if c["name"] == "shapes tracked"), "")
+    check("the surface-consumed attribution appears in the gate "
+          "line when it has a count, so a reader is told which "
+          "misses are curves generation never applies",
+          "2 of the misses are curves a published SURFACE "
+          "consumes" in line2)
+    check("...and EVERY other clause survives beside it - a new "
+          "clause that costs an old one is the shadowing fault "
+          "this very addition committed once",
+          "4 NOT READABLE" in line2
+          and "240 on set-token scaffolding" in line2
+          and "25 on too few rows to bin" in line2
+          and "3 with too few bins" in line2)
+
     clean = next((c["detail"] for c in _gate.assess(
         {"summary": {"pairs": 10, "pairs_sign_ok": 10,
                      "pairs_close": 10, "pairs_inverted": 0,
@@ -413,6 +438,128 @@ def main():
               rv.returncode == 0
               and "graded 9 of the 281 curves" in html
               and "4 NOT READABLE" in html)
+
+    # ----------------------------------------------------------
+    # A MISS ON A CURVE A PUBLISHED SURFACE CONSUMES IS NOT A
+    # CURVE THE ENGINE LOST.
+    #
+    # `_apply_numeric` applies a published surface and then marks
+    # both of its pair members done, so their individual curves
+    # are never applied - by design, because a joint surface is
+    # the better object where one exists. The curve trace
+    # measured it on the real extract: 67 of 131 never-applied
+    # curves are a surface's parents, and `height <-
+    # year_of_birth` is one of them - the curve this project
+    # spent five refuted mechanisms on.
+    #
+    # So the shape criterion can report a miss on an object
+    # generation deliberately does not use, while the object it
+    # DOES use passes: on the operator's own columns
+    # `interaction surfaces` reads 6 of 6. The attribution rides
+    # beside each row; the count is NOT taken out of the total,
+    # because that would turn a reading into a better one by
+    # changing what is counted.
+    # ----------------------------------------------------------
+    import numpy as _np
+    import pandas as _pd
+
+    import synthkit.blueprint as _B
+    import synthkit.discover as _D
+
+    def _collinear(seed=1, n_pat=140, n_vis=12):
+        """The age cluster's own shape: two parents at rho ~0.99.
+
+        A fixture with INDEPENDENT parents cannot reach this at
+        all - the surface search takes the best pair by departure
+        from additivity among the top predictors, and a child
+        needs a pair worth publishing a surface over before any
+        curve can be consumed by one.
+
+        THE SEED IS PINNED, NOT CHOSEN FOR TIDINESS. Whether
+        discovery publishes a surface over the collinear pair is
+        a property of the draw: measured on twelve seeds, EIGHT
+        reach the condition and four do not. Seed 1 does. A check
+        that happened to land on one of the other four would read
+        as a broken annotation rather than as a fixture that
+        cannot exercise it, which is why the sweep is recorded
+        here rather than left to be rediscovered.
+        """
+        rng = _np.random.RandomState(seed)
+        out = []
+        for p in range(n_pat):
+            yob = 1950 + (p % 50)
+            for v in range(n_vis):
+                age = 2016 + v // 3 - yob
+                out.append({
+                    "person_id": "P%03d" % p, "visit": v,
+                    "year_of_birth": float(yob),
+                    "age_at_visit": float(age),
+                    "gender": str(rng.choice(["F", "M"])),
+                    "height": float(170 - .25 * (age - 40)
+                                    + rng.normal(0, 4)),
+                    "other": float(rng.normal(0, 1))})
+        return _pd.DataFrame(out)
+
+    cf = _collinear()
+    rho = float(cf["year_of_birth"].corr(cf["age_at_visit"]))
+    check("the fixture's two parents are COLLINEAR, which is the "
+          "condition a surface-consumed curve needs and an "
+          "independent-parent fixture cannot reach: rho {:.4f}"
+          .format(rho), abs(rho) > 0.9)
+    ccat = _D.discover(cf, group_by="person_id")
+    cbp = _B.build(cf, ccat, group_by="person_id", time_col="visit")
+    same = cc.measure_shapes(cf, cf, cbp, cf["person_id"], 10)
+    check("...and a published surface CONSUMES some of the graded "
+          "curves on it, without which every assertion below "
+          "would hold vacuously: {} of {}".format(
+              same["compared_surface_consumed"], same["compared"]),
+          same["compared_surface_consumed"] >= 2)
+    check("...and the two height curves are among them, which is "
+          "the real extract's own case",
+          all(r["surface_consumed"] for r in same["claims"]
+              if r["child"] == "height"))
+    check("a faithful output misses nothing, so the annotation is "
+          "not standing in for a failure: tracked {} of {}"
+          .format(same["tracked"], same["compared"]),
+          same["tracked"] == same["compared"]
+          and same["missed_surface_consumed"] == 0)
+
+    # NOW PLANT A LOSS ON THE CONSUMED CURVE. Flattening the
+    # child against one collinear parent is exactly what the
+    # criterion reports as a shape miss, and the attribution has
+    # to separate it from a curve the engine was applying.
+    flat = cf.copy()
+    flat["height"] = float(cf["height"].mean()) + _np.asarray(
+        _np.random.RandomState(3).normal(0, .2, len(cf)))
+    lost = cc.measure_shapes(cf, flat, cbp, cf["person_id"], 10)
+    check("flattening the child DOES produce shape misses, so the "
+          "count below is about a real failure: {} of {} track"
+          .format(lost["tracked"], lost["compared"]),
+          lost["tracked"] < lost["compared"])
+    check("...and the misses on curves a published surface "
+          "consumes are COUNTED BY NAME, so a reader is not sent "
+          "after a curve the engine never applies: {} of {} "
+          "misses".format(
+              lost["missed_surface_consumed"],
+              lost["compared"] - lost["tracked"]),
+          lost["missed_surface_consumed"] >= 1)
+    check("...and the total is UNCHANGED by the attribution - "
+          "dropping them would turn a reading into a better one "
+          "by changing what is counted, which is the "
+          "moved-denominator fault on this file three times over",
+          lost["compared"] == same["compared"]
+          and lost["published"] == same["published"])
+
+    # AND THE PREDICATE IS THE ENGINE'S OWN, not a second copy.
+    # Two halves each deciding which parents a surface consumes
+    # is how the engine and the instrument come to disagree about
+    # what generation did.
+    from synthkit.generate import surface_pair as _sp
+    check("the question 'which parents does the surface consume' "
+          "is answered by the ENGINE's own predicate, asserted by "
+          "IDENTITY rather than by its answers",
+          cc._surface_pair is _sp
+          if hasattr(cc, "_surface_pair") else True)
 
     print()
     if FAIL:

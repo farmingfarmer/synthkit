@@ -3,6 +3,92 @@
 Synthetic clinical data generator and model-evaluation instrument. Core rule: learn the patterns, never copy the records. Real data teaches parameters; generation never touches a record.
 
 ## Verify before claiming
+- **THE TWO QUEUED READS ARE ANSWERED ON A FRESH RUN, AND ONE OF
+  THEM IS SHARPER THAN THE RECORD'S (2026-11-23, run_vr_off).**
+  Both had been named and left: the own-column `close` misses
+  were never enumerated, and the presence-mask question had been
+  queued behind a dialog since the 17th.
+- **ALL THREE OWN-COLUMN `close` MISSES ARE ONE COLUMN FAMILY -
+  THE COPY PAIR.** `close_gap` on the control arm, classified and
+  read back in words:
+      misses on the operator's own columns   three
+      every one of them       procedure_quantity / procedure_count
+  So the own-column close gap is not a diffuse fidelity problem.
+  It is `procedure_quantity`, carried by an `==` constraint from
+  `procedure_count`, which is the worst marginal on the file, the
+  column `--revalue-copied` was built for, and the one this file
+  has chased through a density-ratio tier, a coverage guard and a
+  presence model. Three pairs, one family.
+- **AND THE CURVE TRACE REPRODUCES ITS CENTRAL FINDING ON A NEW
+  RUN, which is what makes it a property of the engine rather
+  than of one draw.** Read back spelled:
+      CARRIED           114
+      NEVER-APPLIED     135
+      REVERSED           23
+      DROPPED             6
+      NOT-MEASURABLE      0
+      the five add to   278
+  against the recorded 116 / 133 / 23 / 6 / 0 on
+  run_tail_ctl_current - a couple of curves moved and the shape
+  is identical. **158 of 164 misses are inside the draw**, and
+  only SIX are taken by a later pass: after-masks and ONE at
+  after-date-reorder. The presence mask remains the only later
+  pass that costs more than one curve.
+- **SO THE SHAPE WORK IS AN ATTRIBUTION, NOT A NEW MEASUREMENT -
+  AND THAT CORRECTS MY OWN RECOMMENDATION FROM AN HOUR
+  EARLIER.** I proposed changing the criterion to measure the
+  PARTIAL curve the contract publishes rather than the MARGINAL
+  it grades, on the grounds that the age cluster's 97% contract
+  share makes those four misses arithmetic. Re-reading the trace,
+  that is already settled: `height <- year_of_birth` is
+  NEVER-APPLIED because a published SURFACE consumes the parent
+  pair, and `_apply_numeric` applies the surface and marks both
+  members done. The dependence IS carried, by the object the
+  contract intends, and own-column `interaction surfaces` reads
+  6 of 6. There is no measurement to correct - there is a
+  MISSING ATTRIBUTION.
+- **SO THE SHAPE CRITERION NAMES IT NOW, BESIDE THE COUNT AND
+  NEVER INSTEAD OF IT.** Each graded curve carries
+  `surface_consumed`, the misses among them are counted, and the
+  gate line says "N of the misses are curves a published SURFACE
+  consumes - generation applies the surface and never the
+  individual curve, so those are not curves the engine lost".
+  The TOTAL does not move: dropping them would turn a reading
+  into a better one by changing what is counted, which is the
+  moved-denominator fault this file records three times. A
+  mutation that skips them instead turns three checks red.
+- **AND THE PREDICATE IS THE ENGINE'S OWN, asserted by
+  IDENTITY.** `surface_pair` answers "which parents will the
+  surface consume" for `_apply_numeric`, for the trace and now
+  for the criterion. Two halves each deciding that is how the
+  engine and the instrument come to disagree about what
+  generation did.
+- **AND THE FIXTURE CANNOT REACH IT WITHOUT COLLINEAR PARENTS,
+  WHICH THE SEED ALSO DECIDES.** A surface is published only
+  where a pair is worth one, so independent parents never produce
+  a consumed curve. On the age cluster's own shape - two parents
+  at rho 0.9968 - EIGHT of twelve seeds publish a surface over
+  the pair and four do not. Seed 1 does, and it is pinned with
+  the sweep recorded: a check landing on one of the other four
+  would read as a broken annotation rather than as a fixture
+  that cannot exercise it.
+- **AND ADDING THE CLAUSE SILENTLY DELETED ANOTHER ONE, CAUGHT BY
+  AN EXISTING CHECK.** I named the new count `sh_sc`, which was
+  already the SCAFFOLDING count four lines above - so the
+  scaffolding clause read zero and vanished from the gate line.
+  The same shadowing fault as `gate.plain`, in the same file, in
+  the same session. Every clause of that line is now asserted
+  TOGETHER, because a new clause that costs an old one is
+  invisible in a check that only looks for the new one.
+- **AND THREE ANCHORS WERE NOT UNIQUE, which the count==1 rule
+  caught before anything was written.** `measure_shapes` and
+  `measure_surfaces` share the same loop head, the same
+  `tracked` line and the same sets import, so three replacements
+  asserted on a count of one correctly refused. The fix is to
+  split the file at `def measure_surfaces` and edit only the
+  first half - scope the edit rather than lengthening the anchor
+  until it happens to be unique.
+
 - **I SAID THERE WAS NOTHING LEFT ON OUR SIDE AND WAS WRONG BY
   SIX ITEMS, THREE OF THEM DEFECTS (2026-11-23).** The operator
   asked whether anything more could be done without somebody

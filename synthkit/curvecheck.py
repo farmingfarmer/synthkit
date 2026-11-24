@@ -338,6 +338,7 @@ def measure_shapes(Xs, Xg, bp, gid_series, k) -> Dict[str, Any]:
     departed manufactures a finding and calling it tracked
     manufactures a pass."""
     from synthkit import sets as _sets
+    from synthkit.generate import surface_pair as _surface_pair
     rows: List[Dict[str, Any]] = []
     unreadable: List[Dict[str, Any]] = []
     published = 0
@@ -348,6 +349,12 @@ def measure_shapes(Xs, Xg, bp, gid_series, k) -> Dict[str, Any]:
     skipped_categorical = 0
     not_readable = 0
     no_curve = 0
+    # WHAT GENERATION COULD HAVE HELD. `surface_pair` refuses a
+    # pair whose members are not both available, so the honest
+    # proxy here is the union of the two measured frames - a pair
+    # member the measure cannot see is one the surface could not
+    # have been graded on either.
+    _avail = set(Xs.columns) | set(Xg.columns)
     for rel in (bp.get("relationships") or []):
         child = rel.get("child")
         ev = rel.get("evidence") or {}
@@ -434,16 +441,50 @@ def measure_shapes(Xs, Xg, bp, gid_series, k) -> Dict[str, Any]:
                                        else round(floor, 4))})
                 continue
             bar = max(TRACK_SD, 2.0 * floor)
+            # IS THIS A CURVE GENERATION EVEN USES?
+            #
+            # `_apply_numeric` applies a published SURFACE and
+            # then marks both of its pair members done, so their
+            # individual curves are never applied - by design,
+            # because a joint surface is the better object where
+            # one exists. The curve trace measured it on the real
+            # extract: 67 of 131 never-applied curves are a
+            # surface's parents, and `height <- year_of_birth` -
+            # the curve this project spent five refuted
+            # mechanisms on - is one of them.
+            #
+            # So a miss here can mean two different things with
+            # two different fixes: the engine lost a curve it was
+            # applying, or the criterion is grading the one
+            # object generation deliberately does not use while
+            # the object it DOES use passes. On the operator's
+            # own columns `interaction surfaces` reads 6 of 6.
+            #
+            # ANNOTATED, NOT SKIPPED. Dropping these would turn a
+            # reading into a better one by changing what is
+            # counted, which is the moved-denominator fault this
+            # file records three times. The count stays; the
+            # attribution rides beside each row.
+            _consumed = _surface_pair(rel, _avail) or []
             rows.append({"child": child, "parent": par,
                          "shape": e.get("shape") or "association",
                          "gap_sd": round(gap, 4),
                          "noise_floor_sd": round(floor, 4),
                          "bar_sd": round(bar, 4),
+                         "surface_consumed": par in _consumed,
                          "tracks": gap <= bar})
     return {
         "claims": rows,
         "compared": len(rows),
         "tracked": sum(1 for r in rows if r["tracks"]),
+        # THE ATTRIBUTION, counted beside the total rather than
+        # taken out of it. A miss on a curve a surface consumes
+        # is not a curve the engine lost.
+        "missed_surface_consumed": sum(
+            1 for r in rows
+            if not r["tracks"] and r.get("surface_consumed")),
+        "compared_surface_consumed": sum(
+            1 for r in rows if r.get("surface_consumed")),
         # THE TOTAL A READER CAN CHECK AGAINST. Without it `6/9`
         # reads as 67% of the contract when it was 3.2% of it.
         "published": published,

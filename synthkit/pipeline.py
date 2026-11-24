@@ -3086,6 +3086,16 @@ def compare(df, g, bp, group_by, time_col, ordinals=None,
             # cause was a parent nobody can bin.
             "shapes_skipped_categorical": shapes.get(
                 "skipped_categorical_parent"),
+            # A MISS ON A CURVE A PUBLISHED SURFACE CONSUMES is
+            # not a curve the engine lost: `_apply_numeric`
+            # applies the surface and marks both pair members
+            # done, so the individual curve is never applied by
+            # design. Counted beside the total, never taken out
+            # of it.
+            "shapes_missed_surface_consumed": shapes.get(
+                "missed_surface_consumed"),
+            "shapes_surface_consumed": shapes.get(
+                "compared_surface_consumed"),
             "surfaces_own_compared": surfaces.get("compared_own"),
             "surfaces_own_ok": surfaces.get("tracked_own"),
             "surfaces_scaffold": surfaces.get("compared_scaffold"),

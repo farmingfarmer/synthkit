@@ -190,6 +190,13 @@ def assess(fid: Dict[str, Any],
         sh_tr = s.get("shapes_skipped_thin_rows") or 0
         sh_fb = s.get("shapes_skipped_few_bins") or 0
         sh_cp = s.get("shapes_skipped_categorical") or 0
+        # NOT `sh_sc` - that is the SCAFFOLDING count four lines
+        # up, and reusing the name silently zeroed it so the
+        # scaffolding clause vanished from the line. The same
+        # shadowing fault as `gate.plain`, in the same file, in
+        # the same session. The existing skip-bucket check caught
+        # it.
+        sh_sv = s.get("shapes_missed_surface_consumed") or 0
         _sh_tot = ""
         if sh_pub:
             _bits = []
@@ -204,6 +211,13 @@ def assess(fid: Dict[str, Any],
             if sh_tr:
                 _bits.append(
                     "{} on too few rows to bin".format(sh_tr))
+            if sh_sv:
+                _bits.append(
+                    "{} of the misses are curves a published "
+                    "SURFACE consumes - generation applies the "
+                    "surface and never the individual curve, so "
+                    "those are not curves the engine lost"
+                    .format(sh_sv))
             if sh_cp:
                 _bits.append(
                     "{} over a CATEGORICAL parent, whose grid holds "
