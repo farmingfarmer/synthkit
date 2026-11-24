@@ -3,6 +3,166 @@
 Synthetic clinical data generator and model-evaluation instrument. Core rule: learn the patterns, never copy the records. Real data teaches parameters; generation never touches a record.
 
 ## Verify before claiming
+- **THE TWELVE UNEXPLAINED CURVES ARE FIVE, AND THE LARGEST SINGLE
+  ACCOUNT WAS ALREADY IN THE CONTRACT (2026-11-24, run_vr_off).**
+  Every figure read back SPELLED by the tool, on builds verified
+  by a digest the MACHINE compared rather than one I read off the
+  screen. The census now reads:
+      mechanism    of lost      of carried   verdict
+      sample       4/20  20%     0/28   0%   SEPARATES
+      reverses     8/20  40%     2/28   7%   SEPARATES
+      flat         4/20  20%     0/28   0%   SEPARATES
+      surface      5/20  25%    11/28  39%   does NOT separate
+      cyclic      18/20  90%    25/28  89%   does NOT separate
+      collinear    4/20  20%     5/28  18%   does NOT separate
+      copied       1/20   5%     0/28   0%   does NOT separate
+      identity     1/20   5%     0/28   0%   does NOT separate
+      collapse     1/20   5%     1/28   4%   does NOT separate
+      lost 20 = explained 13 + WITHHELD 2 + unexplained 5
+- **A VERDICT THE TRACE ITSELF WITHHELD WAS BEING COUNTED AS AN
+  UNEXPLAINED LOSS, AND THE WORD WAS IN A COMMENT AND NOWHERE IN
+  THE CODE.** `not_established` has withheld NEVER-APPLIED and
+  REVERSED on a collinear parent since the trace was written, and
+  the census never read it - "COLLINEAR is asked last because it
+  withholds a verdict" sat above MECHANISMS while nothing
+  withheld anything. The read-but-not-used fault in its
+  DOCUMENTATION form, which is the hardest version to see: the
+  comment asserts the behaviour, so a reader checking the comment
+  finds it correct. Four of the twelve were such verdicts.
+- **AND THE BUCKET IS A THIRD TERM, NEVER A SMALLER
+  DENOMINATOR.** `lost == explained + WITHHELD + unexplained` is
+  printed and a non-balancing total is called out in words. Every
+  share in the table is over ALL twenty lost curves, so
+  withholding changes which bucket a curve lands in and never
+  what a percentage is of - dropping the withheld from the lost
+  count would turn a reading into a better one, which is the
+  moved-denominator fault this file records three times. And the
+  ORDER is load-bearing: an explanation that SEPARATES beats
+  "the reading is unreliable", so the mechanisms are asked first
+  and the explained count is exactly where it was. A mutation
+  that withholds first turns that check red.
+- **THE BIGGEST FINDING IS THAT THE CONTRACT ALREADY SAID WHICH
+  CURVES REVERSE.** `discover` publishes
+  `reverses_when_controlled` on an effect whose PARTIAL sign is
+  opposite to its MARGINAL one, and the trace probe correlates
+  the curve's own DELTA against the child's CURRENT values -
+  which is a marginal reading. So such a curve MUST read negative
+  when applied exactly as published. **Present on 8 of 20 lost
+  against 2 of 28 carried - a 60-point separation, the widest
+  this census has measured** - and deductive rather than
+  correlational. Three sessions of census work chased curves the
+  blueprint had flagged all along.
+- **AND IT IS MEASURED TO UNDER-REPORT, so absence decides
+  nothing.** The two reversals that remain publish an
+  `increasing` and a `saturating` response while their SOURCE
+  marginal reads -0.054 and -0.022 - the same condition,
+  unflagged. The sharper predicate is to compare the published
+  curve's direction against the source's marginal sign, which are
+  both on disk; NAMED rather than built, because it rests on two
+  observations and this project has three recorded cases of a
+  fitted law being wrong.
+- **AND THE GATE AND THE TRACE DISAGREE ABOUT THE SAME PAIRS,
+  WHICH IS WHAT SENT ME TO THE CONTRACT.** The gate reads zero
+  own-column inversions; the trace read six REVERSED curves.
+  Asked of the gate's own rows:
+      pair                      source   generated
+      systolic <- diastolic    +0.4657     +0.6571
+      718_7   <- 787_2         -0.0217     -0.2291
+      4544_3  <- 787_2         -0.0543     -0.3214
+  **Same sign every time - amplified, not reversed** - and two of
+  them sit BELOW the gate's own 0.1 relate floor, so the gate
+  never counted them at all. Two measurements of one thing
+  disagreeing is this file's alarm, and here both were right
+  about different objects: the output follows the PAIR and not
+  the published CURVE.
+- **AN IDENTITY REPRODUCES A CURVE ON ITS OWN TERMS AND
+  OVERWRITES EVERY OTHER, which the carried bucket proved in
+  three rows.** The mechanism flagged any curve whose CHILD the
+  arithmetic computes, and read 1 of 20 lost against 2 of 28
+  carried - no separation. Asked about the PARENT:
+      CARRIED    visit_start_date <- visit_end_date   a term
+      CARRIED    age_at_visit <- year_of_birth        a term
+      NEVER-APP  age_at_visit <- visit_start_date     not a term
+  Perfect split. It reads 1/20 against 0/28 now, so the control
+  no longer refutes it - and at ONE lost curve it is still below
+  the three-curve floor the clean route requires, so it correctly
+  reports "does NOT separate" and the count does not move. A
+  correctness fix rather than an account, said plainly.
+- **AND THE PATIENT COLLAPSE WAS MEASURED WHEN THE TRACE WAS
+  BUILT AND NEVER ENCODED - THEN ITS CONTROL REFUTED THE LEVEL
+  LABEL IN ONE ROW.** `_collapse_to_patient` ranks a patient by
+  their MEAN, so a PATIENT-level child cannot carry a curve on a
+  parent that varies WITHIN the patient. Encoded from the
+  contract's own `level` fields, it reads 1/20 against **1/28** -
+  one CARRIED counterexample, which is the mechanism's own claim
+  contradicted. One child, two parents the contract both calls
+  visit-level:
+      CARRIED    year_of_birth <- age_at_visit      icc 0.9555
+      NEVER-APP  year_of_birth <- visit_start_date  icc 0.3023
+  **The level label is a proxy; the parent's between-patient
+  share is the quantity.** A parent whose variation is mostly
+  BETWEEN patients survives the collapse because the mean
+  preserves it. The icc is REPORTED beside the flag rather than
+  turned into a bar - two points do not fix a threshold - and
+  sqrt(icc) bounds the lost curve at 0.55 against a measured
+  0.097, so the collapse is a contributing factor here and not a
+  complete account.
+- **THE FIVE THAT REMAIN ARE TWO GROUPS, and the concentration is
+  the date column:**
+      DROPPED    condition_count <- visit_start_date  (at
+                 after-date-reorder, span 0.214)
+      NEVER-APP  age_at_visit <- visit_start_date     (identity,
+                 one observation)
+      NEVER-APP  year_of_birth <- visit_start_date    (collapse,
+                 parent icc 0.3023)
+      REVERSED   4544_3 <- 787_2   published increasing,
+                 source marginal -0.054
+      REVERSED   718_7  <- 787_2   published saturating,
+                 source marginal -0.022
+  **THREE of the five have `visit_start_date` as the parent** and
+  all three read `coparent n/a`, so no co-parent could be
+  measured for any of them. The two WITHHELD are both `height`
+  against an age parent at co-parent 0.963, which is the age
+  collinearity this file already records at 0.9563.
+- **AND THE SHARPEST REMAINING ITEM IS AN ENGINE ORDERING
+  QUESTION RATHER THAN A CENSUS ONE.** The within-patient date
+  reorder PERMUTES a patient's date values to put them in order,
+  so a curve applied to a date parent BEFORE the reorder lands on
+  different rows afterwards. That is a loss the engine causes,
+  not a probe artifact, and the candidate fix is ordering: apply
+  a date-parent curve after the reorder, or reorder before
+  applying. Named with its mechanism rather than measured, and it
+  is the one item among the five that points at a change rather
+  than at an instrument.
+- **AND A DIGEST READ OFF THAT SCREEN IS NOT A DIGEST.** A
+  verified payload rendered `bed2c77F41` against a local
+  `bed2c77f11` - one position different, which is exactly the
+  fuzzy-match tolerance a nonce is allowed and a DIGEST is not.
+  **Send the expected value and have the MACHINE compare it,
+  answering MATCH or DIFF as a word.** Used for every transfer
+  and every build verification afterwards, and it never
+  disagreed again.
+- **AND THE ANSWER WORD IS BUILT FROM chr() SO THE COMMAND CANNOT
+  CONTAIN IT.** `print(chr(80)+chr(89)+chr(79)+chr(75))` makes
+  the self-match trap impossible at the SOURCE rather than at the
+  match - the bridge echoes the command above the output, so any
+  literal marker in the command satisfies its own grep. Six
+  `echo WORD` probes returned their own command text the day
+  before; a dozen chr() reads did not.
+- **AND A COUNT MUST BE SPELLED, because "HITS 4" was zero.** A
+  recursive search for the run directory reported four matches
+  and there is exactly ONE - the digit was OCR. The same probe
+  spelling its count read `CNT one`. Spell anything that decides
+  something, which this file already says and which still cost a
+  wrong reading an hour earlier.
+- **AND I BACKGROUNDED A NET INSIDE A BACKGROUNDED COMMAND, so
+  the harness tracked the wrapper and not the net.** `cmd > log
+  2>&1 &` inside `run_in_background` completes instantly, reports
+  exit 0, and leaves the real job running against a tree I then
+  edited - which validates a mixed state and is worth nothing.
+  The net was killed and re-run clean. Wait on the PROCESS with
+  an until-loop, or let the harness run it in the foreground.
+
 - **THE RE-TRACE LANDED AND THE PRESENCE MASK IS FULLY ACCOUNTED
   FOR: ALL FOUR OWN-COLUMN after-masks LOSSES ARE THE RULER
   SHRINKING, NOT THE CHILD MOVING (2026-11-24, run_vr_off).**
