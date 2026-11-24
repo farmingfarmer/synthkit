@@ -3,6 +3,103 @@
 Synthetic clinical data generator and model-evaluation instrument. Core rule: learn the patterns, never copy the records. Real data teaches parameters; generation never touches a record.
 
 ## Verify before claiming
+- **THE METRICS WERE TRACKED IN A UI, ONE RUN AT A TIME, AND
+  "IS THAT IN A LOG" WAS A FAIR QUESTION (2026-11-24,
+  `synthkit metrics`).** Every number this project measures
+  already lands somewhere - `fidelity.json`, `blueprint.json`,
+  the deck, the sign-off page - and a reader who wanted to chart
+  this run against the last one had to open four files and know
+  which key in each. `synthkit metrics RUNDIR` assembles them
+  into one record and RECOMPUTES NOTHING: the gate comes from
+  `gate.assess`, which is the one implementation, and a check
+  asserts the figures equal it to the digit. A second copy is
+  how a dashboard and a release verdict come to disagree.
+- **`series` IS FLAT SCALARS WITH STABLE NAMES, and that is the
+  whole design rather than a style.** A dashboard stacks N runs
+  and charts a name over time, so a nested value cannot be
+  stacked and a renamed key makes a chart read as a FLAT LINE
+  rather than as an error. Fifty metrics, every value asserted
+  to be a number, a bool or None - and my own check caught me
+  putting `marginals_off_source` and `marginals_no_power` on
+  that surface as LISTS of column names. The counts chart; the
+  column lists live in the section below.
+- **AND THE PRIVACY POSTURE IS A SEPARATE SECTION, NOT A
+  METRIC.** k is a policy choice, and a privacy reading on a
+  fidelity trend line invites somebody to read a lower k as
+  progress. Asserted both ways: the posture is present, and no
+  `series` name carries it.
+- **AND THE RECORD CARRIES NO ROW, WHICH IS CHECKED
+  STRUCTURALLY RATHER THAN BY NAME.** It travels to a
+  dashboard, so a bin count, a row slice or a per-patient series
+  must not ride along - and banning those by NAME would only
+  catch the ones somebody thought to name. `long_arrays` refuses
+  any array longer than the column count, because a histogram, a
+  row dump and a per-patient series all look like that. `write`
+  RAISES rather than warning: a warning puts it on the dashboard
+  anyway. The scan is shown to FIRE on a planted array, and the
+  refusal is a pure function so it can be exercised without
+  waiting for a real record to go wrong.
+- **AND THE THIRTEENTH WRONG-KEY FAULT WAS CAUGHT BY A CHECK
+  BEFORE IT REACHED ANYTHING, which is the first time.** The
+  token count asked a list marginal for `values`; the field is
+  **`tokens`**. Every token metric read ABSENT - which is
+  indistinguishable from a cohort with no set column. Reading
+  the real marginal also produced better metrics than the guess:
+  `tokens_found`, `tokens_above_k` and
+  `unpublishable_row_share` are published, so **what the privacy
+  rule costs is a metric now** rather than a slide. On a fixture
+  built for it: 88 tokens found, 8 published, a share of
+  **0.091** against the extract's measured 9.6% for conditions.
+- **AND THE FIRST THINNING FIXTURE DID NOT THIN - IT STOPPED
+  BEING A SET.** With one token clearing the floor the column
+  falls back to `levels` rather than `list` and every token
+  metric reads ABSENT, measuring a different thing. My own
+  fixture comment had anticipated exactly that and the fixture
+  still had it. The shape that works is a MIDDLE BAND plus a
+  rare tail, which is the real extract's shape; the first
+  version had only the tail.
+- **AND `build` IS A DICT, which this file already records as
+  nearly thrown mid-demo.** I sliced it as a string and printed
+  `{'source': '`. `build_id` is the scalar a dashboard labels a
+  row with, carried BESIDE the dict rather than instead of it.
+- **AND THE LIST A DASHBOARD IS BUILT AGAINST IS DERIVED, not
+  written.** `synthkit metrics --names` prints every charted
+  metric with what it means, from the SAME table `series` reads
+  - so there is no second list to drift, which is the hand-kept
+  fault this file records for a dependency table and a dial
+  list, both of which went stale the day somebody added an
+  entry. The identity is asserted BOTH ways: a metric with no
+  description is a chart nobody can read, and a description for
+  a metric that is gone is a chart that reads as a flat line.
+  Both mutations turn it red.
+- **AND WHAT ONE RUN CANNOT ANSWER IS SAID RATHER THAN
+  IMPLIED.** The ask included "if anything were tweaked along
+  the way and how that changed the output" - and a setting's
+  EFFECT is a question about TWO runs, which no single record
+  can answer however many settings it carries. The settings
+  section records the seed and the dials the run was HOLDING and
+  then NAMES `scripts/arm_compare.py`, which refuses a pair
+  whose source, seed or engine differs because those make the
+  two columns answers to different questions.
+- **AND ABSENT IS NOT ZERO, exercised on a run that fitted and
+  never generated.** `generated` reads False, every fidelity
+  metric reads None, and the patterns section still reports what
+  the fit found - because a dashboard charting a zero for a
+  measurement nobody took is worse than a gap. A mutation
+  defaulting the summary reads to zero turns that check red.
+- **AND A BARE INVOCATION REFUSES, exit 2.** `synthkit metrics`
+  with no argument names `--names`; a directory with no
+  `provenance.json` is refused by name rather than producing a
+  record of nulls that charts as zeros. A command that does
+  something plausible instead of refusing is the oldest failure
+  shape in this file.
+- **AND THE EXIT CODE I READ FIRST BELONGED TO `tail`.** A
+  refusal printed correctly and `echo $?` reported 0 - because
+  the pipeline's last stage was `tail`, not python. The real
+  code is 2. This file already records that trap and it still
+  cost a wrong reading; redirect to a file and read `$?` from
+  the command itself.
+
 - **THE TWELVE UNEXPLAINED CURVES ARE FIVE, AND THE LARGEST SINGLE
   ACCOUNT WAS ALREADY IN THE CONTRACT (2026-11-24, run_vr_off).**
   Every figure read back SPELLED by the tool, on builds verified

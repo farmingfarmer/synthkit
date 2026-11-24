@@ -846,6 +846,86 @@ def cmd_cloud_task(args) -> int:
     return 0
 
 
+def cmd_metrics(args) -> int:
+    """One machine-readable metrics record per run, for a log.
+
+    Asked in a sync whether the metrics were "tracked in like a
+    log", the honest answer was no - they were tracked in a UI,
+    one run at a time, across four files a reader had to know the
+    keys of. This assembles them and RECOMPUTES NOTHING: the gate
+    comes from `gate.assess`, which is the one implementation.
+
+    `series` is deliberately FLAT scalars with stable names,
+    because a dashboard stacks N runs and charts a name over
+    time. The richer sections sit beneath it to be opened rather
+    than charted, and `privacy` is kept out of `series` on
+    purpose - a privacy reading on a fidelity trend line invites
+    somebody to optimise it.
+    """
+    import os
+    from . import metrics
+    if args.names:
+        # THE LIST A DASHBOARD IS BUILT AGAINST, derived from the
+        # same table `series` reads so it cannot drift. Printed
+        # without a run directory, because the question "what
+        # metrics are there" comes before anybody has a run to
+        # point at.
+        cat = metrics.catalog()
+        print("{} charted metric(s). `series` in metrics.json "
+              "carries exactly these names, flat, one value "
+              "each.".format(len(cat)))
+        print("")
+        for row in cat:
+            print("  {}".format(row["name"]))
+            print("      {}".format(row["means"]))
+        return 0
+    if not args.rundir:
+        print("STOPPED: give a run directory, or --names to list "
+              "the metrics without one", file=sys.stderr)
+        return 2
+    if not os.path.isdir(args.rundir):
+        print("STOPPED: {} is not a directory".format(args.rundir),
+              file=sys.stderr)
+        return 2
+    rec = metrics.collect(args.rundir)
+    if not os.path.exists(os.path.join(args.rundir,
+                                       "provenance.json")):
+        print("STOPPED: {} has no provenance.json, so it is not a "
+              "run directory. Nothing here is re-derived, so "
+              "there is nothing to assemble."
+              .format(args.rundir), file=sys.stderr)
+        return 2
+    try:
+        dest = metrics.write(args.rundir, args.json_out)
+    except ValueError as e:
+        print("STOPPED: {}".format(e), file=sys.stderr)
+        return 2
+    r, sr = rec["run"], rec["series"]
+    # `build_id`, NOT `build`. The latter is a DICT and slicing
+    # it as a string prints `{'source': '` - which this project
+    # has on record as nearly thrown mid-demo.
+    print("run {}   build {}   source {}"
+          .format(r["id"], r["build_id"] or "n/a",
+                  r["source_name"]))
+    if not r["generated"]:
+        print("  NOT GENERATED - this run fitted a blueprint and "
+              "wrote no output, so every fidelity metric is "
+              "ABSENT rather than zero.")
+    print("")
+    print("  {:<34s} {}".format(
+        "gate", "MET" if sr["gate_met"] else (
+            "not met" if sr["gate_met"] is not None else "n/a")))
+    for name in ("pairs_direction_kept", "pairs_close",
+                 "pairs_inverted", "shapes_tracked",
+                 "surfaces_tracked", "dynamics_tracked"):
+        print("  {:<34s} {}".format(name, sr.get(name)))
+    print("")
+    print("  {} flat metric(s) in `series`, {} withheld by "
+          "design".format(len(sr), len(rec["withheld"])))
+    print("wrote {}".format(dest))
+    return 0
+
+
 def cmd_receipts(args) -> int:
     """One receipt per published claim, from a run's artifacts.
 
@@ -2760,6 +2840,23 @@ def main(argv=None) -> int:
                    help="where to write determination.json; "
                         "defaults to the run directory")
     p.set_defaults(fn=cmd_determination)
+
+    p = sub.add_parser("metrics",
+                       help="one machine-readable metrics record "
+                            "for a run: flat scalars a dashboard "
+                            "can stack, plus what the fit found, "
+                            "what the output carries, what was "
+                            "tweaked, and the privacy posture")
+    p.add_argument("rundir", nargs="?")
+    p.add_argument("--json-out", default=None, metavar="FILE",
+                   help="where to write metrics.json; defaults "
+                        "to the run directory")
+    p.add_argument("--names", action="store_true",
+                   help="list every charted metric with what it "
+                        "means and exit - the list a dashboard "
+                        "is built against, derived from the same "
+                        "table the record reads")
+    p.set_defaults(fn=cmd_metrics)
 
     p = sub.add_parser("receipts",
                        help="one receipt per published claim "
