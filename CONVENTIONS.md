@@ -3,6 +3,36 @@
 Synthetic clinical data generator and model-evaluation instrument. Core rule: learn the patterns, never copy the records. Real data teaches parameters; generation never touches a record.
 
 ## Verify before claiming
+- **THE RE-TRACE IS QUEUED AND THE PREDICTION IS ON RECORD FIRST
+  (2026-11-23).** The sample screen under the OLD reading retired
+  THREE own-column curves and took UNEXPLAINED from 16 to 13, two
+  of them named - `peripheral_pulse_rate <- diastolic_blood_
+  pressure` and `systolic_blood_pressure <-
+  mean_arterial_pressure_cuff_bmdi`, which is the record's largest
+  single fall at after-masks, 0.4128. That count UNDERSTATES by
+  construction: it could only see a curve whose FINITE rows
+  collapsed, so a curve where only the PARENT was masked read HELD
+  and stayed in the unexplained set.
+- **WHAT IS PREDICTED.** (1) `procedure_count <-
+  mean_arterial_pressure_invasive` reads COLLAPSED. It is pure
+  arithmetic rather than a hunch: the child is present on 100% of
+  rows and the parent on 0.20%, so the rows the curve can act on
+  go about 55,684 to 111 - a 490-fold collapse against a bar of a
+  half - and the fall at after-masks is the largest on its
+  trajectory. (2) UNEXPLAINED therefore falls from 13 to at most
+  12, and the retired count rises from three to at least four of
+  the five own-column DROPPED curves the record places at
+  after-masks.
+- **WHAT IS NOT PREDICTED: that the fifth joins them.** One of
+  those five is unidentified in the readings taken so far, and
+  `condition_count <- visit_start_date` is at
+  after-date-reorder rather than after-masks, so the sample
+  screen cannot reach it whatever its coverage. Nor is anything
+  claimed for the five NEVER-APPLIED curves: those are lost in
+  the DRAW, before any mask runs, so the screen does not apply to
+  them at all - and a retirement there would mean the screen is
+  firing where it should not.
+
 - **THE DETECTOR READ THE WRONG COUNT, AND THE REASON IS THAT AN
   ABSENT PARENT GIVES A FINITE DELTA (2026-11-23).** The sample
   screen asks whether a curve's fall at the pass blamed is the
