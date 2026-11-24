@@ -32,6 +32,7 @@ ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT))
 sys.path.insert(0, str(ROOT / "scripts"))
 
+import curve_trace as CT                                # noqa: E402
 import curve_why_not as WN                              # noqa: E402
 import synthkit.blueprint as B                          # noqa: E402
 import synthkit.discover as D                           # noqa: E402
@@ -298,6 +299,69 @@ def main():
         check("...and a run that recorded no counts does not "
               "carry it either - absent is not 'the sample held'",
               "SAMPLE" not in got3)
+
+        # ---- WITHHELD, on planted rows ------------------------
+        #
+        # The trace has withheld NEVER-APPLIED and REVERSED on a
+        # collinear parent since it was written, and this census
+        # counted them as unexplained losses for as long as it
+        # existed - the word "withholds" sat in a comment above
+        # MECHANISMS and nowhere in the code.
+        _sep = {"FLAT": {"separates": True},
+                "COLLINEAR": {"separates": False},
+                "CYCLIC": {"separates": False}}
+
+        def _r(verdict, cr, mech):
+            return {"verdict": verdict, "coparent_r": cr,
+                    "child": "c", "parent": "p", "_mech": mech}
+
+        rev_coll = _r("REVERSED", 0.958, ["COLLINEAR"])
+        rev_indep = _r("REVERSED", 0.516, ["CYCLIC"])
+        drop_coll = _r("DROPPED", 0.99, ["COLLINEAR"])
+        na_absent = _r("NEVER-APPLIED", None, ["CYCLIC"])
+        flat_coll = _r("REVERSED", 0.958, ["FLAT", "COLLINEAR"])
+        lost = [rev_coll, rev_indep, drop_coll, na_absent,
+                flat_coll]
+        exp, wh, un = WN.split_lost(lost, _sep)
+        check("a REVERSED verdict on a parent a co-parent is "
+              "nearly a function of is WITHHELD rather than "
+              "counted as an unexplained loss - the probe reads a "
+              "MARGINAL correlation and the curve is a PARTIAL "
+              "effect, so it can read negative when correctly "
+              "applied",
+              rev_coll in wh and rev_coll not in un)
+        check("...and the same verdict on an INDEPENDENT parent is "
+              "NOT withheld, which is what makes the bucket a "
+              "reading of the co-parent rather than an excuse for "
+              "every reversal",
+              rev_indep in un and rev_indep not in wh)
+        check("...and DROPPED is never withheld however collinear "
+              "the parents are - a dropped curve was applied at "
+              "the draw and lost later, and the co-parent "
+              "structure does not change between passes",
+              drop_coll in un and drop_coll not in wh)
+        check("...and an UNMEASURABLE co-parent withholds nothing, "
+              "because absent is not zero and treating 'nobody "
+              "could measure it' as 'there is no co-parent' would "
+              "convert a withheld verdict into a finding",
+              na_absent in un and na_absent not in wh)
+        check("...and an explanation that SEPARATES beats "
+              "withholding, so the explained count - and "
+              "therefore what SEPARATES means - is exactly where "
+              "it was before this bucket existed",
+              flat_coll in exp and flat_coll not in wh
+              and flat_coll not in un)
+        check("...and the three buckets are DISJOINT and cover the "
+              "lost curves, which is the identity that makes the "
+              "count readable at all",
+              len(exp) + len(wh) + len(un) == len(lost)
+              and not (set(map(id, exp)) & set(map(id, wh)))
+              and not (set(map(id, wh)) & set(map(id, un))))
+        check("the withholding rule is the TRACE's own function, "
+              "asserted by IDENTITY rather than by its behaviour - "
+              "two halves each deciding what 'established' means "
+              "is how a census and a verdict come to disagree",
+              WN.not_established is CT.not_established)
 
         # ---- THE PREDICATES ARE THE ENGINE'S OWN --------------
         from synthkit.generate import _copy_partners as _cp

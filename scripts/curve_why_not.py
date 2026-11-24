@@ -64,6 +64,7 @@ sys.path.insert(0, str(ROOT))
 sys.path.insert(0, str(ROOT / "scripts"))
 
 from curve_why import COLLINEAR_R  # noqa: E402
+from curve_trace import not_established  # noqa: E402
 from sayn import annotate  # noqa: E402
 from synthkit.generate import _copy_partners, _order  # noqa: E402
 
@@ -197,6 +198,38 @@ def mechanisms_for(row, bp, copied, idents, cyclic):
     return got, span
 
 
+def split_lost(lost, sep):
+    """The lost curves in three DISJOINT buckets.
+
+    EXPLAINED carries a mechanism that SEPARATES it from the
+    curves that carried. WITHHELD is a verdict the trace itself
+    declines to establish - `not_established` withholds
+    NEVER-APPLIED and REVERSED where a co-parent is nearly a
+    function of the parent, because a published curve is a
+    PARTIAL effect and the probe reads a MARGINAL correlation.
+    UNEXPLAINED is what survives both.
+
+    THE ORDER IS LOAD-BEARING. An explanation that separates is a
+    stronger statement than "the reading is unreliable", so the
+    mechanisms are asked first; that also keeps the explained
+    count, and therefore what SEPARATES means, exactly where it
+    was before this bucket existed.
+
+    A pure function because the report's whole content is the
+    bucket it chose, and this project has four recorded cases of
+    a decision asserted only as the sentence it printed.
+    """
+    explained, withheld, unexplained = [], [], []
+    for r in lost:
+        if any(sep[m]["separates"] for m in r["_mech"]):
+            explained.append(r)
+        elif not_established(r.get("verdict"), r.get("coparent_r")):
+            withheld.append(r)
+        else:
+            unexplained.append(r)
+    return explained, withheld, unexplained
+
+
 def main(argv=None):
     ap = argparse.ArgumentParser()
     ap.add_argument("rundir")
@@ -292,9 +325,64 @@ def main(argv=None):
             "on a handful is not a share.".format(len(own)))
         lines.append("")
 
-    unexplained = [r for r in lost
-                   if not any(sep[m]["separates"]
-                              for m in r["_mech"])]
+
+    # A VERDICT THE TRACE ITSELF DECLINES TO ESTABLISH IS NOT AN
+    # UNEXPLAINED LOSS. `not_established` withholds NEVER-APPLIED
+    # and REVERSED where a co-parent is nearly a function of the
+    # parent, because a published curve is a PARTIAL effect and
+    # the probe reads a MARGINAL correlation - so a correctly
+    # applied curve can read near zero or negative there. The
+    # trace has said so per curve since it was written and this
+    # census never read it: the word "withholds" appeared in a
+    # comment above MECHANISMS and nowhere in the code, which is
+    # the read-but-not-used fault in its documentation form.
+    #
+    # THE FUNCTION IS THE TRACE'S OWN, imported rather than
+    # re-derived, because two halves each deciding what
+    # "established" means is how they come to disagree.
+    #
+    # ORDER IS LOAD-BEARING. An explanation that SEPARATES is a
+    # stronger statement than "the reading is unreliable", so the
+    # mechanisms are asked first and only what survives them can
+    # be withheld. That also keeps the explained count - and
+    # therefore what SEPARATES means - exactly where it was.
+    explained, withheld, unexplained = split_lost(lost, sep)
+
+    # AND THE DENOMINATOR DOES NOT MOVE. Every share in the table
+    # above is over ALL the lost curves; withholding changes which
+    # bucket a curve lands in and never what a percentage is of.
+    # Dropping the withheld from the lost count would turn a
+    # reading into a better one by changing what is counted, which
+    # is the moved-denominator fault this project records three
+    # times.
+    lines.append(
+        "lost {} = explained {} + WITHHELD {} + unexplained {}"
+        .format(len(lost), len(explained), len(withheld),
+                len(unexplained)))
+    if len(explained) + len(withheld) + len(unexplained) != len(
+            lost):
+        lines.append(
+            "  DOES NOT ADD UP - the three buckets must be "
+            "disjoint and cover the lost curves, and a total that "
+            "balances is the only thing making the count above "
+            "readable")
+    if withheld:
+        lines.append(
+            "WITHHELD - the probe cannot establish these as engine "
+            "faults, because a co-parent at {} or above is nearly "
+            "a function of the parent and a correctly applied "
+            "PARTIAL curve reads near zero or negative on a "
+            "MARGINAL probe:".format(COLLINEAR_R))
+        for r in sorted(withheld,
+                        key=lambda x: (x.get("verdict") or "",
+                                       x.get("child") or "")):
+            lines.append(
+                "  {:<9s} {} <- {}   co-parent {} at {:.3f}"
+                .format((r.get("verdict") or "")[:9],
+                        r.get("child"), r.get("parent"),
+                        r.get("coparent") or "n/a",
+                        float(r.get("coparent_r") or 0.0)))
+        lines.append("")
 
     # WHAT IS LEFT, BY NAME. A count cannot be acted on: three
     # sessions of this project drew a conclusion from one.
