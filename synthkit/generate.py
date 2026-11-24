@@ -179,6 +179,23 @@ REVALUE_COPIED = False
 # gain. The flag exists so the paired real arm can be run at all.
 VISIT_RHYTHM = False
 
+# CARRY A DATE'S CHILDREN THROUGH THE REORDER. The within-patient
+# date reorder moves a date column's values and leaves every
+# other column where it was, so a child drawn from a date's curve
+# keeps its value while the parent's moves - measured on a
+# fixture through the engine's own probe at 0.9785 before the
+# reorder and 0.8612 after, a fall of 0.117, and the real
+# extract's curve trace records `condition_count <-
+# visit_start_date` DROPPED at that exact pass.
+#
+# OFF BY DEFAULT. The reorder itself was measured on a PAIRED
+# REAL ARM as costing ZERO close pairs, so this fixes a loss the
+# gate's pair criteria never saw - and a change that moves values
+# a measured-clean pass leaves alone has to earn its default on
+# the extract rather than on a fixture. Five real arms have each
+# overturned or traded away a fixture-measured gain.
+CARRY_DATE_CHILDREN = False
+
 # CHOOSE WHICH ROWS A COPIED COLUMN IS PRESENT ON, from the two
 # published grids - which keeps the identity AND the marginal
 # where the guard above keeps one at the cost of the other.
@@ -830,8 +847,75 @@ def _visit_rhythm_pass(df, gid, dcols, time_col, rhythm, seed,
     return out
 
 
+def date_driven_children(bp, date_cols):
+    """Numeric children whose published parents are ALL dates.
+
+    THE REORDER MOVES A DATE'S VALUES AND LEAVES EVERY OTHER
+    COLUMN WHERE IT WAS, so a child drawn from a date's curve
+    keeps its value while the parent's moves and the pairing it
+    was drawn to satisfy is broken. Reproduced on a fixture
+    through the engine's own probe: a date-driven numeric reads
+    rho 0.9785 at `after-size-identity` and 0.8612 at
+    `after-date-reorder`, a fall of 0.117 - the same order as the
+    real extract's recorded 0.128 on
+    `condition_count <- visit_start_date`.
+
+    CARRYING THE CHILD ALONG IS THE ONLY WAY TO KEEP THE PAIR.
+    The permutation is forced - it is whatever sorts the dates -
+    so if the pairing is to survive, the child must move by the
+    same permutation. And because that permutation only ever
+    moves values WITHIN one patient, carrying a child preserves
+    every patient-level statistic of it EXACTLY: the patient's
+    multiset of values is unchanged, so its mean, its spread and
+    every between-patient correlation are untouched. What moves
+    is within-patient pairing, and nothing else.
+
+    ALL-DATE PARENTS ONLY, which is deliberately conservative. A
+    child with a non-date parent as well would have THAT pairing
+    broken by the carry - one relationship traded for another -
+    and which to prefer is not a question this function can
+    answer. Those children are reported by name as DECLINED, so
+    the reach of the safe rule is a measurement rather than an
+    assumption: on a blueprint where it reaches nothing, the
+    honest next step is a joint re-rank against every parent at
+    once, which is a different and larger change.
+    """
+    dates = set(date_cols or ())
+    out = []
+    for rel in (bp.get("relationships") or []):
+        child = rel.get("child")
+        pars = [p for p in (rel.get("parents") or [])]
+        if not child or child in dates or not pars:
+            continue
+        if all(p in dates for p in pars):
+            out.append(child)
+    return sorted(set(out))
+
+
+def declined_date_children(bp, date_cols):
+    """Children a date drives that the safe rule will NOT carry.
+
+    Reported BY NAME rather than counted, because a count cannot
+    be acted on and this list is the measurement that decides
+    whether the conservative rule is worth having on a given
+    blueprint.
+    """
+    dates = set(date_cols or ())
+    out = {}
+    for rel in (bp.get("relationships") or []):
+        child = rel.get("child")
+        pars = list(rel.get("parents") or [])
+        if not child or child in dates or not pars:
+            continue
+        if any(p in dates for p in pars) and not all(
+                p in dates for p in pars):
+            out[child] = [p for p in pars if p not in dates]
+    return out
+
+
 def _dates_in_visit_order(df, gid_col, date_cols, time_col,
-                          report=None):
+                          report=None, carry=None,
+                          declined=None):
     """Put each entity's DATES in ascending order down its rows.
 
     TWO COLUMNS IN ONE FILE DISAGREED ABOUT THE ORDER OF A
@@ -884,8 +968,19 @@ def _dates_in_visit_order(df, gid_col, date_cols, time_col,
     perm = np.lexsort((key, g))
     if np.array_equal(perm, np.arange(len(df))):
         return df
+    # THE CHILDREN A DATE DRIVES, CARRIED BY THE SAME
+    # PERMUTATION. Without this a child drawn from a date's curve
+    # keeps its value while the parent's moves, and the pairing
+    # it was drawn to satisfy is broken - measured on a fixture
+    # at 0.117 of rank correlation. The permutation only ever
+    # moves values WITHIN one patient, so a carried child keeps
+    # its multiset per patient and therefore every patient-level
+    # statistic of it exactly; what moves is within-patient
+    # pairing.
+    carried = [c for c in (carry or [])
+               if c in df.columns and c not in movable]
     moved = 0
-    for c in movable:
+    for c in movable + carried:
         before = df[c].to_numpy(copy=True)
         after = before[perm]
         if not np.array_equal(
@@ -897,6 +992,15 @@ def _dates_in_visit_order(df, gid_col, date_cols, time_col,
         report["dates_put_in_visit_order"] = {
             "time_column": time_col,
             "columns": list(movable),
+            "carried_children": list(carried),
+            # NAMED, NOT COUNTED. These are the children a date
+            # drives that the safe rule declines because they
+            # have a non-date parent too - carrying them would
+            # trade one pairing for another, and which to prefer
+            # is not a decision this pass can make. The list is
+            # the measurement that says whether the conservative
+            # rule reaches anything on this blueprint.
+            "declined_children": dict(declined or {}),
             "columns_changed": moved,
             "why": "a patient's visits happen in time order, and "
                    "the file numbers them in ROW order - a date "
@@ -907,7 +1011,9 @@ def _dates_in_visit_order(df, gid_col, date_cols, time_col,
             "note": "one permutation for every date column, so a "
                     "date-to-date identity survives; a "
                     "relationship between a date and a non-date "
-                    "does not",
+                    "survives only where that child was CARRIED, "
+                    "which the safe rule does when every one of "
+                    "its published parents is a date",
         }
     return df
 
@@ -2979,6 +3085,7 @@ def generate(blueprint: Dict[str, Any],
              refine_sweeps: int = 2,
              reorder_dates: bool = True,
              visit_rhythm: Optional[bool] = None,
+             carry_date_children: Optional[bool] = None,
              enforce_identities: bool = True,
              use_cooccurrence: bool = True,
              # OFF BY DEFAULT, ON FIXTURE EVIDENCE ALONE. Three
@@ -4244,9 +4351,21 @@ def generate(blueprint: Dict[str, Any],
             seed, report)
 
     if reorder_dates and _real_gid and _repeated and _dcols:
+        _carry_on = (carry_date_children
+                     if carry_date_children is not None
+                     else CARRY_DATE_CHILDREN)
+        # THE DECLINED LIST IS REPORTED EITHER WAY, because a
+        # reader who leaves the flag off is entitled to know what
+        # it would have reached - and because a blueprint where
+        # the safe rule reaches NOTHING is the measurement that
+        # sends the next person to the joint re-rank instead.
+        _decl = declined_date_children(bp, _dcols)
         df = _dates_in_visit_order(
             df, _real_gid, _dcols,
-            (bp.get("patients") or {}).get("time_column"), report)
+            (bp.get("patients") or {}).get("time_column"), report,
+            carry=(date_driven_children(bp, _dcols)
+                   if _carry_on else []),
+            declined=_decl)
 
     # ARITHMETIC IDENTITIES ARE ENFORCED BY COMPUTING, which is
     # the copy-not-redraw rule the size identity already follows.

@@ -388,6 +388,28 @@ def build_parser(prog=None, add_help=True):
                           "against the source falls 0.0295 to "
                           "0.0252. OFF by default."))
     ap.add_argument(
+        "--carry-date-children", action="store_true",
+        help="carry a date's CHILDREN through the within-patient "
+             "date reorder. The reorder sorts a patient's date "
+             "VALUES and leaves every other column where it was, "
+             "so a child drawn from a date's curve keeps its "
+             "value while the parent's moves - measured on a "
+             "fixture through the engine's own probe at 0.9785 "
+             "before the reorder and 0.8612 after. The carry "
+             "applies the SAME permutation to the child, which "
+             "only ever moves values WITHIN one patient, so the "
+             "child's multiset and every patient-level statistic "
+             "of it are preserved exactly. SAFE RULE ONLY: a "
+             "child is carried when every one of its published "
+             "parents is a date, because carrying one with a "
+             "non-date parent would trade one pairing for "
+             "another. The children it DECLINES are named in the "
+             "run's report either way. OFF by default - the "
+             "reorder itself was measured on a paired real arm "
+             "as costing ZERO close pairs, so this fixes a loss "
+             "the gate's pair criteria never saw and has to earn "
+             "its default on the extract.")
+    ap.add_argument(
         "--visit-rhythm", action="store_true",
         help="reallocate WHICH PATIENT holds which drawn date so "
              "episodes form - a patient gets same-day encounters "
@@ -2479,6 +2501,8 @@ def _generate_args(a):
     """
     return {
         "visit_rhythm": bool(getattr(a, "visit_rhythm", False)),
+        "carry_date_children": bool(
+            getattr(a, "carry_date_children", False)),
         "n_patients": a.patients or None,
         "enforce_constraints": bool(a.enforce_constraints),
         "refine_sweeps": int(a.refine_sweeps),
