@@ -3,6 +3,64 @@
 Synthetic clinical data generator and model-evaluation instrument. Core rule: learn the patterns, never copy the records. Real data teaches parameters; generation never touches a record.
 
 ## Verify before claiming
+- **THE MEETING CHAT WAS THE IAM POLICY, AND IT WAS SITTING IN
+  THE REPO DIRECTORY ON THE DATA MACHINE (2026-11-25).** 419
+  lines, 22,472 bytes, read off the bridge in chunks: it is the
+  DS and Echo execution-role Bedrock policies, before and after
+  the pruning, pasted into the chat live. Nothing in it is about
+  SynthKit - which confirms the round-robin answer rather than
+  contradicting it.
+- **IT CARRIES AN AWS ACCOUNT ID AND A GUARDRAIL ID, THE FILE WAS
+  NOT GIT-IGNORED, AND THE REMOTE IS PUBLIC.** One `git add -A`
+  on that machine would have published both, and NOTHING would
+  have stopped it: the personal scan hunts a handle, a username
+  and a laptop model, none of which a twelve-digit account id
+  resembles. Two halves of a fix: the filename patterns are
+  ignored now, and the scan looks for a real account id inside a
+  tracked ARN.
+- **SCOPED TO AN ARN RATHER THAN TO TWELVE DIGITS, because a
+  scan that fires on a row count is one people learn to
+  ignore.** The repo's own ARNs use `REPLACE_ME_` placeholders
+  and an empty account field (`arn:aws:s3:::`), so a
+  twelve-digit account inside an ARN is always a paste. Both
+  halves are asserted: a planted ARN is CAUGHT, and
+  `arn:aws:s3:::bucket/key` and `rows read 123456789012` are
+  not.
+- **AND THE SCAN FOUND ITS OWN PROBE ON THE FIRST RUN, which is
+  the self-match trap for the third time on this project.** The
+  fixture ARN lives in a tracked file, so the scan read itself
+  and went red. The suite ALREADY had the answer - the handle
+  patterns above it carry `# noqa: personal-scan` - and the
+  exemption is by LINE rather than by file, so a genuine paste
+  elsewhere in the same suite is still caught. Removing the
+  exemption turns it red, which is how the marker is shown to be
+  load-bearing rather than decorative.
+- **WHAT THE POLICY ITSELF ADDS, beyond the transcript.** The
+  surviving model set is wider than the meeting suggested -
+  `claude-sonnet-5`, `claude-haiku-5-5` and `claude-opus-4-6`
+  are all granted, alongside `titan-embed-text-v2` and the 4.x
+  models - so our `claude-sonnet-4-6` default is permitted and
+  there are newer options. There is also an `ApplyGuardrail`
+  grant and region constraints centred on `us-west-2`, which is
+  what `bedrock.py` already defaults to.
+- **AND `--capture` IS THE ANSWER FOR LONG OUTPUT, which was on
+  the bridge the whole time.** `hands run --capture` redirects
+  to a temp file and pages it back, where plain `run` shows
+  whatever fits on the screen. Twenty-two kilobytes of prose
+  that would have taken twenty-odd flaky screen reads came back
+  in thirteen clean chunks. Read the tool's `--help` before
+  building a workaround - the earlier plan was to transfer the
+  file as base64 and verify it by digest, which would have been
+  slower and would have failed on OCR anyway.
+- **AND A MARKER WITH AN OCR-AMBIGUOUS LETTER READS AS ABSENT.**
+  `ZZQX` came back as `ZZ0X` and my exact grep scored zero, so a
+  live console read as dead and I nearly stopped driving over
+  it. Q reads as 0, I as T, O as @, S as 5, B as 8. The safe
+  alphabet is A E F H K M N P R T U V W X Y - `PARKWAY` and
+  `NOTES` both survived every read afterwards. This file already
+  said markers must be LETTERS ONLY; the refinement is that not
+  every letter is safe.
+
 - **THE AWS REVIEW SPENT NO TIME ON SYNTHKIT AND STILL CHANGED
   THREE THINGS (2026-11-25).** The asks were never raised - the
   answer given on the round-robin was "nothing currently for

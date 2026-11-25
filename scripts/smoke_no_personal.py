@@ -13,6 +13,7 @@ interface copy naming which vendors are supported. Banning the string
 outright would break the build to fix a documentation problem. What is
 banned is the ASSISTANT and the machines it runs on.
 """
+import io
 import re
 import subprocess
 import sys
@@ -144,6 +145,23 @@ GRANDFATHERED_THROUGH = "a095f1fb072e7d3bd75ecde316acc7b1d2ddd202"
 # by reading it - that is not a thing a checker can do - and they do
 # not try. They make an unexpected file LOUD.
 DATA_ROW_CEILING = 20000
+
+# AN AWS ACCOUNT ID IS TWELVE DIGITS INSIDE AN ARN, and nothing
+# here was looking for one. A meeting-chat dump of the execution
+# role policies landed in the working directory on the data
+# machine carrying the account id and a guardrail id; the file
+# was NOT git-ignored and the remote is PUBLIC, so one
+# `git add -A` there would have published both. The personal
+# scan hunts a handle and a laptop model, neither of which this
+# resembles.
+#
+# SCOPED TO AN ARN rather than to any run of twelve digits,
+# because a bare number is not a disclosure and a scan that
+# fires on row counts is one people learn to ignore. The repo's
+# own ARNs use `REPLACE_ME_` placeholders and an empty account
+# field (`arn:aws:s3:::`), so a real id here is always a
+# mistake.
+ACCOUNT_IN_ARN = re.compile(r"arn:aws[a-z-]*:[^\s\"']*?:\d{12}:")
 TRACKED_DATA = frozenset((
     "data/mimic_omop/condition_occurrence.csv",
     "data/mimic_omop/drug_exposure.csv",
@@ -260,6 +278,45 @@ def main():
     files = tracked()
     gated("there are tracked files to scan, or this suite proves "
           "nothing", len(files) > 50, repo)
+
+    # ---- NO REAL AWS ACCOUNT ID IN A TRACKED ARN ----------
+    hits = []
+    for f in files:
+        try:
+            body = io.open(f, encoding="utf-8",
+                           errors="ignore").read()
+        except OSError:
+            continue
+        for line in body.splitlines():
+            # THE SELF-MATCH TRAP, AND THIS SUITE ALREADY HAD
+            # THE ANSWER. The probe below is a real-shaped ARN
+            # living in a tracked file, so the scan found its
+            # own test fixture and went red on the first run -
+            # exactly as the handle patterns above would. The
+            # same `noqa` marker the personal scan uses exempts
+            # it, by LINE rather than by file, so a genuine
+            # paste anywhere else in this suite is still caught.
+            if "noqa: personal-scan" in line:
+                continue
+            for m in ACCOUNT_IN_ARN.finditer(line):
+                hits.append("{}: {}".format(f, m.group(0)[:60]))
+    gated("no tracked file carries a real AWS account id inside "
+          "an ARN - the repo's own ARNs use REPLACE_ME "
+          "placeholders and an empty account field, so a "
+          "twelve-digit one is always a paste: {}".format(
+              hits[:3] or "none"),
+          not hits, repo)
+    # AND THE SCAN MUST BE ABLE TO FIRE. A pattern that matches
+    # nothing passes trivially, which this project calls the
+    # worst kind of clean.
+    probe = ('"arn:aws:bedrock:us-west-2:123456789012:'      # noqa: personal-scan
+             'inference-profile/x"')                          # noqa: personal-scan
+    gated("...and that pattern CATCHES one when it is there, "
+          "demonstrated on a planted ARN rather than trusted",
+          bool(ACCOUNT_IN_ARN.search(probe))
+          and not ACCOUNT_IN_ARN.search("arn:aws:s3:::bucket/key")
+          and not ACCOUNT_IN_ARN.search("rows read 123456789012"),
+          repo)
 
     for name, pats in (("a personal handle, surname, login or "
                         "mailbox", PERSONAL),

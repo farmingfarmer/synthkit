@@ -104,3 +104,14 @@ BUILD_ID.txt
 
 # local pointer file, personal tooling - stays home
 .mnemo.json
+
+# MEETING NOTES AND PASTED CONSOLE OUTPUT NEVER TRAVEL.
+# A meeting-chat dump landed in this working directory on the
+# data machine carrying an AWS ACCOUNT ID and a guardrail id -
+# and the remote is PUBLIC, so a `git add -A` there would have
+# published both. Nothing in the personal-data scan looks for an
+# account id, so nothing would have stopped it.
+*meeting_notes*
+*meeting-notes*
+aws_meeting_*
+*_chat_dump.txt
