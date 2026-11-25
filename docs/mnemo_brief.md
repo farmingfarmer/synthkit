@@ -97,14 +97,14 @@ written document with the full detail is on both machines:
 
 The shape of it: compute goes to the data. The tool reads ONE
 object from S3, writes a fixed list of files to ONE prefix, and
-runs as a Fargate task. There is no function in it that sends a
-source anywhere, and that absence is deliberate.
+runs as a Fargate task — ECS on Fargate. There is no function in
+it that sends a source anywhere, and that absence is deliberate.
 
 DONE, and each of these was run rather than assumed:
-- A real upload into a real bucket in the dev account has already
-  happened — the dataset and the data dictionary.
-- It needed a certificate bundle, because the network intercepts
-  encrypted traffic. We never turned verification off.
+- A real upload into a real S3 bucket in the dev account has
+  already happened — the dataset and the data dictionary.
+- It needed a certificate bundle — AWS_CA_BUNDLE — because the
+  network intercepts TLS. We never turned verification off.
 - The container builds, runs as a non-root user, carries its own
   test net, and holds no patient file of any kind. That was
   checked by scanning the built image, not by reading a config —
@@ -119,26 +119,31 @@ code from us:
 - The tool has never run against an S3 source and prefix.
 - No run has ever used a task role. Everything so far used a
   pasted session, which is not what a deployment uses.
-- The container is not in their registry and no task definition
-  is registered.
-- We have never written to a bucket that requires encryption.
+- The container is not in their registry (ECR) and no task
+  definition is registered.
+- We have never written to a bucket that requires server-side
+  encryption, so the SSE path is code and tests, not a
+  measurement.
 
 THE EIGHT ASKS, in the order they unblock things:
 1. A bucket, a prefix, and the extract staged at a known key.
 2. A task role. We supply the policy — they do not write it.
-3. A container registry and permission to push.
-4. Does the bucket require encryption, and if so which key.
-5. The network: subnets, security group, and whether a private
-   subnet can reach S3.
-6. A log group and the region.
-7. Confirm the execution role and the chip type.
+3. A container registry — ECR — and permission to push to it.
+4. Does the bucket require encryption — server-side encryption,
+   SSE, AES256 or KMS — and if KMS, which key ARN.
+5. The network: VPC subnets, security group, and whether a
+   private subnet has an S3 VPC endpoint or egress.
+6. A CloudWatch log group and the region.
+7. Confirm the execution role — usually their existing
+   ecsTaskExecutionRole — and the CPU architecture, X86_64 or
+   ARM64.
 8. Does traffic from inside their network get intercepted the way
    it does on the laptops.
 Items 1 to 3 unblock a first run. 4 to 6 are needed before that
 run will succeed. 7 and 8 are one-word answers.
 
-WE HAND THEM TWO FINISHED ARTIFACTS so nobody guesses: the
-permissions policy and the task definition, both generated from
+WE HAND THEM TWO FINISHED ARTIFACTS so nobody guesses: the IAM
+policy for the task role and the ECS task definition JSON, both generated from
 what the code actually does. Every gap in them is marked and
 listed by name.
 
