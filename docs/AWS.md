@@ -279,7 +279,8 @@ three to five times the wall clock — call it **30–50 minutes**,
 and set the task timeout well above that rather than at it.
 
 The defaults `synthkit cloud-task` emits are **2048 CPU units
-and 8192 MiB**: twice the measured peak, because the real
+and 8192 MiB**: nearly NINE times the measured peak - 8 GiB
+against 961 MB - because the real
 extract is wider than this fixture — 44 columns and a
 1,827-token published vocabulary — and this project has once
 died allocating 1.5 GiB inside a single step. 4 GB would
