@@ -74,12 +74,27 @@ Leave behind: the notebook + `docs/first_vendor_trial.md`.
   document renderer, and the LLM-as-vendor adapter unchanged:
 
       from synthkit.bedrock import BedrockBackend
-      backend = BedrockBackend(model_id="anthropic.claude-3-5-sonnet-20240620-v1:0")
+      backend = BedrockBackend(model_id="anthropic.claude-sonnet-4-6-v1:0")
       compile_table_spec(description, backend)
 
   The client is injectable, so the integration is smoke-tested
   without AWS; live use needs only the usual bedrock-runtime
   IAM permissions on the notebook role.
+
+  **Name a model the account still permits.** Sonnet 3.5, Sonnet
+  3.7, Haiku 3 and Haiku 3.5 were removed from the DS and Echo
+  execution roles on 2026-11-25; Sonnet 4.5, Sonnet 4.6, Haiku
+  4.5 and Titan (embeddings) were kept. A revoked model fails
+  with an access error that reads as a role problem rather than
+  a stale model id.
+
+  **And none of this touches the fitted path.** `fit`,
+  `generate`, `batch` and `publish` import no LLM backend at all
+  — checked, not assumed: `bedrock` appears zero times in
+  `pipeline.py`, `generate.py`, `blueprint.py`, `discover.py`
+  and `cloud.py`. Bedrock is only the optional
+  describe-in-English compiler, so model-permission churn cannot
+  affect a synthetic-data run.
 - **The bench**: `synthkit gui` binds 127.0.0.1 only — fine on
   a laptop, not intended for shared hosts without a review.
 

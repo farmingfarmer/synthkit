@@ -109,6 +109,34 @@ def main():
         # key column exactly - demonstrated below rather than
         # asserted, because the reason is the whole content of
         # the refusal.
+        # ---- THE COST TAG ----------------------------------
+        #
+        # The account cannot attribute spend per project today -
+        # the console separates by department and not by project
+        # within one, and past spend cannot be recovered at all.
+        # An untagged workload is one nobody will ever account
+        # for, so the task definition carries the tag the
+        # 2026-11-25 review agreed.
+        _td = cloud.task_definition("IMG")
+        _tags = {t["key"]: t["value"] for t in _td.get("tags") or []}
+        check("the task definition carries a cost-allocation tag "
+              "whose VALUE is the one agreed - lowercase, no "
+              "department prefix: {}".format(_tags),
+              cloud.PROJECT_TAG == "synthkit"
+              and cloud.PROJECT_TAG in _tags.values()
+              and cloud.PROJECT_TAG == cloud.PROJECT_TAG.lower())
+        check("...and the tag KEY is a PLACEHOLDER, because only "
+              "the value was agreed - a guessed key produces a "
+              "tag that looks right and attributes nothing, "
+              "since a cost-allocation key reports only after it "
+              "is activated in Billing",
+              any(k.startswith("REPLACE_ME") for k in _tags))
+        check("...and the notes name it first, so somebody "
+              "applying the template cannot miss the one gap "
+              "that decides whether the spend is attributable",
+              any("project_tag_key" in n
+                  for n in cloud.task_definition_notes()))
+
         check("...and `cipher.json` stays, which was on the "
               "allow-list until today - it is the key in another "
               "form, and publishing it beside the released file "

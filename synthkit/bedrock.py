@@ -35,9 +35,16 @@ class BedrockBackend:
                  client: Optional[object] = None,
                  region: str = "us-west-2"):
         if not model_id:
+            # THE EXAMPLE NAMES A MODEL THE ACCOUNT STILL
+            # PERMITS. Sonnet 3.5 was removed from the DS and
+            # Echo execution roles on 2026-11-25 along with
+            # Haiku 3, Haiku 3.5 and Sonnet 3.7 - so the old
+            # example steered a caller at a model whose
+            # permission had been revoked, and the failure reads
+            # as a permissions bug rather than a stale suggestion.
             raise BedrockError("model_id is required — e.g. "
-                               "'anthropic.claude-3-5-sonnet-"
-                               "20240620-v1:0'")
+                               "'anthropic.claude-sonnet-4-6-"
+                               "v1:0'")
         self.model_id = model_id
         self.region = region
         self._client = client

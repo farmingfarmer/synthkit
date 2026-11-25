@@ -117,6 +117,13 @@ ALLOWED = (
 #
 # It carries filenames, sizes and digests - nothing from the
 # data, and nothing `blueprint.json` does not already disclose.
+# THE COST-ALLOCATION TAG VALUE, agreed in the 2026-11-25
+# infrastructure review: all tag values lowercase, and this
+# project's is `synthkit` - no department prefix, unlike the MCP
+# work which needed one. Kept as a constant so the task
+# definition and anything else that tags cannot disagree.
+PROJECT_TAG = "synthkit"
+
 MANIFEST = "publish_manifest.json"
 
 S3_RE = re.compile(r"^s3://([^/]+)/?(.*)$")
@@ -836,12 +843,35 @@ def task_definition(image: str, src_uri: str = "",
         # output and a volume that outlives the task is one more
         # place a file can be forgotten.
         "volumes": [{"name": "work"}],
+        # COST ATTRIBUTION, because the account cannot currently
+        # do it. In the 2026-11-25 infrastructure review the
+        # platform team said the console is separating spend by
+        # DEPARTMENT but not by PROJECT within one, and that past
+        # spend cannot be recovered at all - so an untagged
+        # workload is one they will never be able to account for.
+        # Agreed there: tag VALUES are lowercase, and this
+        # project's is `synthkit`.
+        #
+        # THE KEY IS A PLACEHOLDER BECAUSE ONLY THE VALUE WAS
+        # AGREED. Cost allocation keys have to be activated in
+        # Billing before they report at all, so guessing one
+        # produces a tag that looks right and attributes nothing.
+        "tags": [
+            {"key": "REPLACE_ME_project_tag_key",
+             "value": PROJECT_TAG},
+        ],
     }
 
 
 def task_definition_notes() -> List[str]:
     """Every placeholder, and every thing this does not set."""
     return [
+        "REPLACE_ME_project_tag_key - the cost-allocation tag "
+        "KEY. The VALUE is already set to `{}`, which is what "
+        "the 2026-11-25 review agreed; only the key is open. It "
+        "must also be ACTIVATED in Billing > Cost allocation "
+        "tags or it reports nothing, which looks identical to "
+        "an untagged task.".format(PROJECT_TAG),
         "REPLACE_ME_task_role_arn - the role the TASK assumes. "
         "`synthkit cloud-policy` prints exactly the policy it "
         "needs.",

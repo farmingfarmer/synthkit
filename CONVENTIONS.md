@@ -3,6 +3,69 @@
 Synthetic clinical data generator and model-evaluation instrument. Core rule: learn the patterns, never copy the records. Real data teaches parameters; generation never touches a record.
 
 ## Verify before claiming
+- **THE AWS REVIEW SPENT NO TIME ON SYNTHKIT AND STILL CHANGED
+  THREE THINGS (2026-11-25).** The asks were never raised - the
+  answer given on the round-robin was "nothing currently for
+  SynthKit" - and the outstanding resource request was deferred
+  to a later call. So all nine asks are still outstanding, and
+  the document written for that meeting was not used. What DID
+  land, read out of the transcript rather than assumed:
+      cost tag value      `synthkit`, lowercase, no prefix
+      stated priority     grievance > synthkit > pft
+      Bedrock pruning     Sonnet 3.5, 3.7, Haiku 3, Haiku 3.5
+                          REMOVED from the execution roles
+- **THE MODEL PRUNING CANNOT TOUCH THE FITTED PATH, and that is
+  a measurement rather than a reassurance.** `bedrock` appears
+  **ZERO** times in `pipeline.py`, `generate.py`,
+  `blueprint.py`, `discover.py` and `cloud.py` - so fit,
+  generate, batch and publish import no model at all, and the
+  whole AWS deployment surface is unaffected. Bedrock is only
+  the optional describe-in-English compiler.
+- **BUT TWO OF OUR OWN DOCUMENTS STEERED A READER AT A REVOKED
+  MODEL.** `docs/keck_onboarding.md` told a new teammate to call
+  `anthropic.claude-3-5-sonnet-20240620-v1:0`, and
+  `bedrock.py`'s own "model_id is required" error suggested the
+  same string - both Sonnet 3.5, removed from the roles that
+  morning. The resulting failure is an ACCESS error, which reads
+  as a broken role rather than a stale suggestion. Both now name
+  Sonnet 4.6, which the review explicitly kept. The runtime
+  defaults in `cli.py` and `compiler.py` were already 4.6 and
+  needed nothing - **the defaults were safe and the GUIDANCE was
+  not**, which is the harder half to notice.
+- **AND THE TASK DEFINITION CARRIES THE COST TAG NOW, because an
+  untagged workload is one nobody can ever account for.** The
+  platform team said the console separates spend by DEPARTMENT
+  and not by project within one, and that past spend cannot be
+  recovered at all. `PROJECT_TAG = "synthkit"` is a constant so
+  the task definition and anything else that tags cannot
+  disagree.
+- **AND THE TAG KEY IS A PLACEHOLDER, WHICH IS THE WHOLE POINT.**
+  Only the VALUE was agreed. A cost-allocation key reports
+  nothing until it is activated in Billing, so a guessed key
+  produces a tag that looks right and attributes nothing - which
+  is indistinguishable from no tag at all. It is named FIRST in
+  the placeholder notes and is the ninth ask. A mutation that
+  guesses `Project` turns a check red.
+- **AND A DOCUMENT THAT SAID EIGHT WHILE LISTING NINE IS THE
+  INTERNAL-CONTRADICTION ALARM, caught by counting rather than
+  reading.** Adding the ninth ask left the title, the intro and
+  the brief all saying EIGHT. The count is derived from the
+  numbered items now and asserted in the generator script.
+- **AND THE EMBEDDED JSON WENT STALE BECAUSE IT IS A COPY.** The
+  shared document bakes `cloud-task`'s output in as text, so
+  regenerating the JSON did not update the page - the tag was
+  named in the notes and ABSENT from the block above them, which
+  is the worst arrangement because the notes read as proof. The
+  rebuild now replaces the block from the regenerated file and
+  asserts the tag is present IN the embedded JSON rather than
+  anywhere on the page. Same fault as a stale serve: the text
+  you edited is not always the text that ships.
+- **AND INSERTING BEFORE AN ANCHOR PUT ASK 9 BEFORE ASK 8.** I
+  anchored the new card on `ASK 8` and inserted ahead of it, so
+  the rendered order ran 7, 9, 8. Caught by listing the numbers
+  rather than by reading the page. Sorting the cards by their
+  own number is the fix, because it cannot be got wrong twice.
+
 - **THE CLOUD ALLOW-LIST CARRIED `cipher.json`, WHICH IS THE KEY
   IN ANOTHER FORM (2026-11-24).** Found while gathering facts for
   a status document, not by any check. The list's own comment

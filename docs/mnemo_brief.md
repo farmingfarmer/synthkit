@@ -125,7 +125,28 @@ code from us:
   encryption, so the SSE path is code and tests, not a
   measurement.
 
-THE EIGHT ASKS, in the order they unblock things:
+WHAT THE 2026-11-25 REVIEW ACTUALLY SETTLED, and it was not
+much for us: the asks below were NOT raised — the standing
+answer given was "nothing currently for SynthKit" — and the
+outstanding resource request to Brittany was deferred to a
+later call. So treat all of this as still outstanding.
+Three things did land:
+- The cost-allocation tag value for this project is `synthkit`,
+  lowercase, no department prefix. The MCP work needed a prefix;
+  ours does not. The tag KEY was not agreed, and a key has to be
+  ACTIVATED in Billing before it reports anything — an
+  unactivated key looks identical to no tag at all.
+- Stated priority: grievance first, SynthKit next, PFT lowest,
+  with PFT development starting mid-December.
+- Bedrock permissions were pruned: Sonnet 3.5, Sonnet 3.7,
+  Haiku 3 and Haiku 3.5 removed; Sonnet 4.5, 4.6, Haiku 4.5 and
+  Titan kept. IF ASKED WHETHER THAT AFFECTS US: no. The fitted
+  path imports no model at all — checked, zero references in the
+  pipeline, generate, blueprint, discover and cloud modules.
+  Bedrock is only the optional describe-in-English compiler. Two
+  of our own documents pointed at Sonnet 3.5 and were corrected.
+
+THE NINE ASKS, in the order they unblock things:
 1. A bucket, a prefix, and the extract staged at a known key.
 2. A task role. We supply the policy — they do not write it.
 3. A container registry — ECR — and permission to push to it.
@@ -139,8 +160,13 @@ THE EIGHT ASKS, in the order they unblock things:
    ARM64.
 8. Does traffic from inside their network get intercepted the way
    it does on the laptops.
+9. Confirm the cost-allocation tag KEY and activate it in
+   Billing. The value `synthkit` is already in the task
+   definition we hand over; without the key an otherwise
+   correct tag attributes nothing.
 Items 1 to 3 unblock a first run. 4 to 6 are needed before that
-run will succeed. 7 and 8 are one-word answers.
+run will succeed. 7 to 9 are one-word answers or a console
+setting.
 
 WE HAND THEM TWO FINISHED ARTIFACTS so nobody guesses: the IAM
 policy for the task role and the ECS task definition JSON, both
