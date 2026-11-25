@@ -43,6 +43,33 @@ from typing import Iterable, List, Optional, Tuple, Dict
 # construction and `key.csv` is NOT here either, because the
 # key is the full-fidelity file the operator KEEPS - uploading
 # it would defeat the arrangement it exists for.
+#
+# AND NEITHER IS `cipher.json`, WHICH WAS ON THIS LIST AND IS THE
+# KEY IN ANOTHER FORM. The cipher records, per perturbed column,
+# which KEY row each released row took its value from - so the
+# released file plus the cipher reconstructs the key column
+# EXACTLY, with no key file involved. Measured rather than
+# argued, on a twelve-row pair:
+#     key       100 101 102 ... 111
+#     released  111 107 102 ... 108
+#     recovered 100 101 102 ... 111   exact
+# Publishing both to one prefix therefore hands a recipient the
+# full-fidelity values the dial exists to withhold, which is the
+# one thing `key.csv`'s own exclusion above was written to stop.
+#
+# IT HAS NO REASON TO TRAVEL EITHER. `dialback`'s own docstring
+# says of the route the dials were built for that "the cipher is
+# not needed for it at all" - the vendor gets the released file,
+# and we score the key file in-house. The cipher is the record
+# that lets US undo our own dial.
+#
+# AND NOTHING ELSE REFUSED IT EITHER, which is why it sat here
+# for weeks. A first draft of this comment claimed the handover
+# packer already refused the cipher by name; grepping the tree
+# for that assertion found none, so the claim came out rather
+# than being left in as a reassurance nobody had checked. The
+# only thing that ever excluded it is this list, and until today
+# this list included it.
 ALLOWED = (
     "blueprint.json",
     "catalogue.json",
@@ -52,7 +79,6 @@ ALLOWED = (
     "generated_repaired.csv",
     "generated_dialled.csv",
     "provenance.json",
-    "cipher.json",
     "tablespec.json",
     "deck.html",
     "report_card.html",

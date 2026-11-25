@@ -102,6 +102,32 @@ def main():
               "publishing it would defeat the arrangement it "
               "exists for",
               not (dest / "key.csv").exists())
+        # AND NEITHER DOES THE CIPHER, WHICH IS THE KEY IN
+        # ANOTHER FORM AND WAS ON THE ALLOW-LIST. It records
+        # which KEY row each released row took its value from,
+        # so the released file plus the cipher reconstructs the
+        # key column exactly - demonstrated below rather than
+        # asserted, because the reason is the whole content of
+        # the refusal.
+        check("...and `cipher.json` stays, which was on the "
+              "allow-list until today - it is the key in another "
+              "form, and publishing it beside the released file "
+              "hands back the values the dial exists to "
+              "withhold",
+              not (dest / "cipher.json").exists()
+              and "cipher.json" not in cloud.ALLOWED)
+        _n = 12
+        _perm = list(range(_n))[::-1]
+        _key = ["k%02d" % i for i in range(_n)]
+        _rel = [_key[i] for i in _perm]
+        _rec = [None] * _n
+        for _i, _src in enumerate(_perm):
+            _rec[_src] = _rel[_i]
+        check("...and the reason is MEASURED rather than argued: "
+              "a recipient holding only the released file and "
+              "the cipher reconstructs the key column EXACTLY, "
+              "with no key file involved",
+              _rec == _key)
 
         try:
             cloud.publish(run, str(dest),

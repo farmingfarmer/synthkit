@@ -3,6 +3,49 @@
 Synthetic clinical data generator and model-evaluation instrument. Core rule: learn the patterns, never copy the records. Real data teaches parameters; generation never touches a record.
 
 ## Verify before claiming
+- **THE CLOUD ALLOW-LIST CARRIED `cipher.json`, WHICH IS THE KEY
+  IN ANOTHER FORM (2026-11-24).** Found while gathering facts for
+  a status document, not by any check. The list's own comment
+  excludes `key.csv` because "the key is the full-fidelity file
+  the operator KEEPS - uploading it would defeat the arrangement
+  it exists for" - and every word of that applies to the cipher,
+  which records which KEY row each released row took its value
+  from. Demonstrated on a twelve-row pair rather than argued:
+      key        100 101 102 ... 111
+      released   111 107 102 ... 108
+      recovered  100 101 102 ... 111   EXACT
+  **The released file plus the cipher reconstructs the key column
+  exactly, with no key file involved** - so publishing both to
+  one prefix hands a recipient the full-fidelity values the dial
+  exists to withhold.
+- **AND IT HAD NO REASON TO TRAVEL.** `dialback`'s own docstring
+  says of route A - the one the dials were built to make safe -
+  that "the cipher is not needed for it at all": the vendor gets
+  the released file and we score the key file in-house. The
+  cipher is the record that lets US undo our own dial.
+- **AND THE REASON IS A CHECK NOW, not a comment.** The suite
+  reproduces the reconstruction and asserts the refusal, so the
+  argument lives where it can fail; putting the cipher back on
+  the list turns it red. The fault was invisible for weeks
+  because the allow-list is the ONLY thing that ever excluded it.
+- **AND MY FIRST VERSION OF THAT COMMENT CLAIMED ANOTHER HALF
+  ALREADY REFUSED IT, WHICH WAS NOT TRUE OF THIS TREE.** I wrote
+  that the handover packer asserts `key.csv`, `cipher.json` and
+  the source extract absent BY NAME - a sentence recorded in this
+  file - and grepping for that assertion found none. The claim
+  came out rather than being left in as a reassurance nobody had
+  checked. **A rule recorded here is not the same as a rule the
+  tree enforces**, and the difference is one grep.
+- **AND THE DOCUMENT NEARLY CARRIED A COMMAND THAT DOES NOT
+  EXIST.** A status page for two colleagues cited
+  `synthkit cloud-check --describe`; there is no such flag -
+  `describe()` is a function `batch` and `publish` print before
+  doing anything. Checked against `--help` before the document
+  left, which is the lesson this file already records from
+  shipping a `docker run` line that argparse refused: **the one
+  document a deployer reads is the one whose commands must have
+  been run.**
+
 - **THE DATE-REORDER LOSS IS REAL, THE FIX WORKS, AND ITS REACH
   ON THE REAL EXTRACT IS ZERO (2026-11-24,
   `--carry-date-children`).** The within-patient reorder sorts a
