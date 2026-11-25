@@ -143,9 +143,9 @@ Items 1 to 3 unblock a first run. 4 to 6 are needed before that
 run will succeed. 7 and 8 are one-word answers.
 
 WE HAND THEM TWO FINISHED ARTIFACTS so nobody guesses: the IAM
-policy for the task role and the ECS task definition JSON, both generated from
-what the code actually does. Every gap in them is marked and
-listed by name.
+policy for the task role and the ECS task definition JSON, both
+generated from what the code actually does. Every gap in them is
+marked and listed by name.
 
 SIZING, measured on a fit at the real extract's scale: about ten
 minutes of wall clock, just under a gigabyte of memory at peak.
